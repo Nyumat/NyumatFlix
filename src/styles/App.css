@@ -2,11 +2,11 @@
 html, body {
   width: auto;
   background-color: black;
-  height: 1000px;
+  height: 100%;
 }
 
 .App-logo {
-  position: fixed;
+  position: absolute;
   top: 15px;
   left: 0;
   height: 15vmin;
