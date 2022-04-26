@@ -9,14 +9,10 @@ html, body {
   position: absolute;
   top: 15px;
   left: 0;
-  height: 15vmin;
+  height: 20vmin;
+  width: 20vmin;
 }
 
-
-
-.App-logo:hover {
-  transform: scale3d(1.1, 1.1, 1);
-}
 
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {

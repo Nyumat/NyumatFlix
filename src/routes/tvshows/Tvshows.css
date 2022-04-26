@@ -1,0 +1,210 @@
+.list.popular {
+      top: 200px;
+      display: flex;
+      overflow-x: scroll;
+      -webkit-animation: bounce-in 1s ease 0s 1 normal;
+      -moz-animation: bounce-in 1s ease 0s 1 normal;
+      -ms-animation: bounce-in 1s ease 0s 1 normal;
+      animation: bounce-in 1s ease 0s 1 normal;
+}
+
+.list {
+      -ms-overflow-style: none;
+}
+
+.list::-webkit-scrollbar {
+      display: none;
+}
+
+
+.list.toprated {
+      position: relative;
+      top: 70px;
+      display: flex;
+      overflow-x: scroll;
+      -webkit-animation: bounce-in 1s ease 0s 1 normal;
+      -moz-animation: bounce-in 1s ease 0s 1 normal;
+      -ms-animation: bounce-in 1s ease 0s 1 normal;
+      animation: bounce-in 1s ease 0s 1 normal;
+}
+
+.list.airing {
+      position: relative;
+      top: 150px;
+      display: flex;
+      overflow-x: scroll;
+      -webkit-animation: bounce-in 1s ease 0s 1 normal;
+      -moz-animation: bounce-in 1s ease 0s 1 normal;
+      -ms-animation: bounce-in 1s ease 0s 1 normal;
+      animation: bounce-in 1s ease 0s 1 normal;
+}
+
+@-webkit-keyframes bounce-in {
+      0% {
+            opacity: 0;
+            -webkit-transform: scale(.3);
+            transform: scale(.3);
+      }
+
+      50% {
+            opacity: 1;
+            -webkit-transform: scale(1.0);
+            transform: scale(1.0);
+      }
+
+      70% {
+            -webkit-transform: scale(0.9);
+            transform: scale(0.9);
+      }
+
+      100% {
+            -webkit-transform: scale(1);
+            transform: scale(1);
+      }
+}
+
+@keyframes bounce-in {
+      0% {
+            opacity: 0;
+            transform: scale(.3);
+      }
+
+      50% {
+            opacity: 1;
+            transform: scale(1.0);
+      }
+
+      70% {
+            transform: scale(0.9);
+      }
+
+      100% {
+            transform: scale(1);
+      }
+}
+
+.item {
+
+      width: 500px;
+      height: 280px;
+      margin: 0 10px 10px 10px;
+      border-radius: 10px;
+      box-shadow: 0px 0px 2px #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+}
+
+
+.item:hover {
+      box-shadow: 0px 0px 5px #000;
+      transform: scale(0.9);
+}
+
+
+
+/* 
+  The styling below is only for the decoration of this demo, 
+  it has no impact on scrolling or scroll behavior
+*/
+
+#route-header {
+      background-color: black;
+      height: 100px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      font-weight: bold;
+      color: #333;
+}
+
+.header.popular {
+      top: 110px;
+      position: relative;
+      border: 1.5px solid aqua;
+      width: fit-content;
+      border-radius: 5px;
+      color: azure;
+      padding: 10px;
+      font-size: calc(1em + 2vmin);
+      font-family: 'Roboto',
+            sans-serif;
+      font-weight: bold;
+      box-shadow: 2px 2px 6px 1px rgb(0, 167, 239);
+      list-style: none;
+}
+
+.header.airing {
+      top: 815px;
+      position: relative;
+      border: 1.5px solid aqua;
+      width: fit-content;
+      border-radius: 5px;
+      color: azure;
+      padding: 10px;
+      font-size: calc(1em + 2vmin);
+      font-family: 'Roboto',
+            sans-serif;
+      font-weight: bold;
+      box-shadow: 2px 2px 6px 1px rgb(0, 167, 239);
+      list-style: none;
+}
+
+.header.toprated {
+      top: 370px;
+      position: relative;
+      border: 1.5px solid aqua;
+      width: fit-content;
+      border-radius: 5px;
+      color: azure;
+      padding: 10px;
+      font-size: calc(1em + 2vmin);
+      font-family: 'Roboto',
+            sans-serif;
+      font-weight: bold;
+      box-shadow: 2px 2px 6px 1px rgb(0, 167, 239);
+      list-style: none;
+}
+
+.header {
+      position: relative;
+      width: auto;
+      height: auto;
+      top: 0px;
+      left: 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      font-weight: bold;
+}
+
+.tv-section-header {
+      position: relative;
+      top: 30px;
+      font-size: 3.0em;
+      font-weight: bold;
+      margin-bottom: 0.5em;
+      color: aqua;
+      text-align: center;
+      text-decoration: none;
+}
+
+a:link {
+      text-decoration: none;
+}
+
+a:visited {
+      text-decoration: none;
+}
+
+a:hover {
+      text-decoration: none;
+}
+
+a:active {
+      text-decoration: none;
+}

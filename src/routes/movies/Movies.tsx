@@ -1,16 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import "./Movies.css";
-import nyumatFlix from "../../img/logo.png";
 import {Link} from "react-router-dom";
 
-function Movies() {
 
+function Movies() {
       const [popularData, setPopularData] = useState<any>([]);
       const [upcomingData, setUpcomingData] = useState<any>([]);
       const [latestData, setLatestData] = useState<any>([]);
 
       const getPopularMovies = async () => {
-            const response = await fetch("https://api.themoviedb.org/3/movie/top_rated?api_key=[YOUR_API_KEY]&language=en-US&page=1");
+            const response = await fetch("https://api.themoviedb.org/3/movie/top_rated?api_key=[your_api_key]9&language=en-US&page=1");
             const data = await response.json();
             if (data.Search) {
                   setPopularData(data);
@@ -19,33 +18,46 @@ function Movies() {
             }
       }
 
+
+
       const getUpcomingMovies = async () => {
-            const response = await fetch("https://api.themoviedb.org/3/movie/upcoming?api_key=[YOUR_API_KEY]&language=en-US&page=1");
-            const data = await response.json();
-            if (data.Search) {
-                  setUpcomingData(data);
-            } else {
-                  setUpcomingData(data.results);
+            try {
+                  const response = await fetch("https://api.themoviedb.org/3/movie/upcoming?api_key=[your_api_key]9&language=en-US&page=1");
+                  const data = await response.json();
+                  if (data.Search) {
+                        setUpcomingData(data);
+                  } else {
+                        setUpcomingData(data.results);
+                  }
+            } catch (error) {
+                  console.log(error);
             }
       }
 
       const getLatestMovies = async () => {
-            const response = await fetch("https://api.themoviedb.org/3/movie/now_playing?api_key=[YOUR_API_KEY]&language=en-US&page=1");
-            const data = await response.json();
-            if (data.Search) {
-                  setLatestData(data);
-            } else {
-                  setLatestData(data.results);
+            try {
+                  const response = await fetch("https://api.themoviedb.org/3/movie/now_playing?api_key=[your_api_key]9&language=en-US&page=1");
+                  const data = await response.json();
+                  if (data.Search) {
+                        setLatestData(data);
+                  } else {
+                        setLatestData(data.results);
+                  }
+            } catch (error) {
+                  console.log(error);
             }
       }
 
       useEffect(() => {getLatestMovies(); getPopularMovies(); getUpcomingMovies();}, [])
-      useEffect(() => {getLatestMovies(); getPopularMovies(); getUpcomingMovies();}, [latestData, popularData, upcomingData])
+
+      const getMoviePlayerOnClick = (movieId: number) => {
+            window.location.href = `/movies/${movieId}`;
+      }
 
 
   return (
       <div>
-            
+
             <Link to="/">
                   <h1 className="movie-section-header">Movie Section</h1>
             </Link>
@@ -58,16 +70,18 @@ function Movies() {
                   </ul>
             </div>
 
+            
+
             <div className="movie-container">
                   <ul className="list popular">
-                        {popularData.map((movie: any) => <img className="item" key={movie.id} src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}></img>)}
+                        {popularData.map((movie: any) => <img className="item" key={movie.id} src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} onClick={() => getMoviePlayerOnClick(movie.id)}></img>)}
                   </ul> 
                   <ul className="list upcoming">
-                        {upcomingData.map((movie: any) => <img className="item" key={movie.id} src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}></img>)}
+                        {upcomingData.map((movie: any) => <img className="item" key={movie.id} src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} onClick={() => getMoviePlayerOnClick(movie.id)}></img>)}
                   </ul>
 
                   <ul className="list latest">
-                        {latestData.map((movie: any) => <img className="item" key={movie.id} src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}></img>)}
+                        {latestData.map((movie: any) => <img className="item" key={movie.id} src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} onClick={() => getMoviePlayerOnClick(movie.id)}></img>)}
                   </ul>
             </div>
 

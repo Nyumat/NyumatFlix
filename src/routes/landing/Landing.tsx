@@ -27,6 +27,10 @@ function Landing () {
             <Link to="/tvshows">
                   <button className='landing-tv-section-btn'>SHOWS</button>
             </Link>
+
+            <Link to="/search">
+                  <button className='landing-search-btn'>SEARCH</button> 
+            </Link>
           </ul>
       </div>
 
