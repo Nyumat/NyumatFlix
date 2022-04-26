@@ -84,7 +84,6 @@
 }
 
 .item {
-
   width: 500px;
   height: 280px;
   margin: 0 10px 10px 10px;
@@ -103,11 +102,7 @@
 }
 
 
-
-/* 
-  The styling below is only for the decoration of this demo, 
-  it has no impact on scrolling or scroll behavior
-*/
+/* Page stuff */
 
 #route-header {
   background-color: black;
@@ -183,14 +178,31 @@
 }
 
 .movie-section-header {
-  position: absolute;
-  width: auto;
+  margin: 0 auto;
+  width: 50%;
   height: auto;
-  left: 500px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3em;
+  position: relative;
+  top: 50px;
+  font-size: 2.5em;
   font-weight: bold;
-  color: #62dafa;
+  margin-bottom: 0.5em;
+  color: aqua;
+  text-align: center;
+  text-decoration: none;
+}
+
+a:link {
+  text-decoration: none;
+}
+
+a:visited {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: none;
+}
+
+a:active {
+  text-decoration: none;
 }
