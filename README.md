@@ -33,39 +33,80 @@
 
 <h2 align="left"> So now, what is NyumatFlix? </h2>
 
-<b><p align="left"> NyumatFlix is a free movie and tv show streaming platform. You can stream and download whatever TV epsiode or movie, all according to the [TMDB API](https://developers.themoviedb.org/3) </p></b>
+<b><p align="left"> NyumatFlix is a free movie and tv show streaming platform. You can stream and download whatever TV epsiode or movie you'd like, all according to the [TMDB API](https://developers.themoviedb.org/3) </p></b>
 
 
 <h2 align="left"> Why?</h2>
 
-<p align="left"> As a college student, money is scarce. Nowadays, it seeems like you need four seperate subsriptions to the popular streaming services just to keep up with all the shows/movies you'd like to see!</p>
+<p align="left"> As a college student, money is scarce. Nowadays, it seems like you need subsriptions to the popular streaming services just to keep up with all the shows/movies you'd like to see!</p>
 
 <b><p align="left"> So naturally, I just had to make my own site.</p></b>
 
-<p align="left">Growing up, I used sites such as soap2day and 123movies. However, I quickly found those sites to be infested with ads and viruses. You may say yeah, the bills have to be paid...but, what if I told you we could remove all of those risks?</p>
+<p align="left">Growing up, I used sites such as soap2day and 123movies. However, I quickly found those sites to be infested with ads and viruses. You may say yeah, the bills have to be paid...but, what if I told you we could negate all of these risks?</p>
 
 <h2 align="left">Inception</h2>
 
-<p align="left"> And that's where NyumatFlix comes in. This term, I'm taking a web development course and wanted to explore what Web Dev really is all about.</p>
+<p align="left"> And that's where NyumatFlix comes in. This term, I'm taking a web development course and wanted to explore what the Web Development hype really is all about.</p>
 
 <br>
 
-<p align="left">I creatd my first TypeScript and React project about a week ago, which was just a simple guessing game. I'm the type to learn a framework and just start building, so that's exactly what I did.</p>
+<p align="left">I creatd my first TypeScript and React project about a week ago, which was just a simple guessing game. I'm the type to see a new framework and just start messing with it, so that's exactly what I did.</p>
 
 
 <h2 align="left"> The API</h2>
 
-<p align="left"> You've probably heard of the movie databse before. It's th most popular REST api for querying data on any movie, really ever. I've used it in both Python and Swift before and wanted to see the actual data displayed so I used my newfound TypeScript and React hook (pun intended) 😏 I had to create something where I could display the information.</p>
+<p align="left"> You've probably heard of the movie databse before. It's the most popular REST api for querying data on any movie, really ever. I've used it in both Python and Swift before and wanted to see the actual data displayed, so, I used my newfound hook to TypeScript and React (pun intended) 😏 to create something where I could display the information.</p>
 
 <h2 align="left">Demo </h2>
 
-<p align="left">I could ramble about this in the README for pretty much forever, as I don't have a Youtube channel or TikTok (anymore, rip TTB 😢) so I'm going to put the Demo's in this Readme!</p>
+<p align="left">I could ramble in the README for pretty much forever, as I don't have a Youtube channel or TikTok (anymore, rip TTB 😢) so I'm going to put the demo's in this Readme!</p>
 
-<b><p align="left"> I'm not a pro in CSS or UI/UX Design my any means, but I tried to makee the UI as friendly as possible. Let's check it out!</p></b>
+<b><p align="left"> I'm not a pro in CSS or UI/UX design by any means, although I tried to make the UI as sleek as possible. Let's check it out!</p></b>
 
 <h1 align="center">
-	![Movie Section Gif](TEKN-demo.gif)
-	![TV Show Section Gif](TEKN-demo.gif)
-	![Search Section Gif](TEKN-demo.gif)
+	<p>TV Shows</p>
+	<img src="src/img/tv_shows.gif">
+	<p>Search</p>
+	<img src="src/img/search_movie.gif">
+	<p>Movies</p>
+	<img src="src/img/movie_demo.gif">
+	
 </h1>
+
+<h2 align="left"> Running NyumatFlix Locally</h2>
+
+In the command line, first do:
+
+```bash
+  git clone https://github.com/Nyumat/NyumatFlix.git
+```
+
+Then head to the directory:
+
+```bash
+  cd nyumat-flix-placeholder
+```
+
+Install the required dependencies:
+
+```bash
+  npm install
+```
+
+Since we're using my favorite build tool vite:
+
+```bash
+  npm run dev
+```
+
+**well wasn't that quick 😎** (thanks 2 Evan You)
+
+<h2 align="left">Wish List for NyumatFlix</h2>
+
+
+- [ ] Search Autosuggest/complete
+- [ ] Server Side with Node.js & Express
+- [ ] Filteration of Search and Results
+- [ ] Revamped Landing Page
+- [ ] TV Show Episode and Season Selector
 
