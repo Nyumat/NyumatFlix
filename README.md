@@ -17,6 +17,8 @@
 	<br>
 	Made with ♡ by @Nyumat
 	<br>
+	This Project has been deployed with heroku 
+	<a href="http://nyumatflix.herokuapp.com"> here</a> 😄
 </p>
 
 <h1 align="center"> The Project </h1>
@@ -57,11 +59,15 @@
 
 <p align="left"> You've probably heard of the movie databse before. It's the most popular REST api for querying data on any movie, really ever. I've used it in both Python and Swift before and wanted to see the actual data displayed, so, I used my newfound hook to TypeScript and React (pun intended) 😏 to create something where I could display the information.</p>
 
+<!-- End General Content--->
+
 <h2 align="left">Demo </h2>
 
 <p align="left">I could ramble in the README for pretty much forever, as I don't have a Youtube channel or TikTok (anymore, rip TTB 😢) so I'm going to put the demo's in this Readme!</p>
 
 <b><p align="left"> I'm not a pro in CSS or UI/UX design by any means, although I tried to make the UI as sleek as possible. Let's check it out!</p></b>
+
+<!-- Demos--->
 
 <h1 align="center">
 	<p>TV Shows</p>
@@ -73,7 +79,10 @@
 	
 </h1>
 
+
 <h2 align="left"> Running NyumatFlix Locally</h2>
+
+<!-- Run Locally (Dev)--->
 
 In the command line, first do:
 
@@ -101,12 +110,13 @@ Since we're using my favorite build tool vite:
 
 **well wasn't that quick 😎** (thanks 2 Evan You)
 
+<!-- Wish List--->
+
 <h2 align="left">Wish List for NyumatFlix</h2>
 
 
 - [ ] Search Autosuggest/complete
-- [ ] Server Side with Node.js & Express
+- [x] Server Side with Node.js & Express
 - [ ] Filteration of Search and Results
 - [ ] Revamped Landing Page
-- [ ] TV Show Episode and Season Selector
-
+- [x] TV Show Episode and Season Selector
