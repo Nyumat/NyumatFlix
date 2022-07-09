@@ -71,11 +71,11 @@
 
 <h1 align="center">
 	<p>TV Shows</p>
-	<img src="src/img/tv_shows.gif">
+	<img src="img/tv_shows.gif">
 	<p>Search</p>
-	<img src="src/img/search_movie.gif">
+	<img src="img/search_movie.gif">
 	<p>Movies</p>
-	<img src="src/img/movie_demo.gif">
+	<img src="img/movie_demo.gif">
 	
 </h1>
 
@@ -93,22 +93,20 @@ In the command line, first do:
 Then head to the directory:
 
 ```bash
-  cd nyumat-flix-placeholder
+  cd NyumatFlix
 ```
 
-Install the required dependencies:
+Install the required dependencies (do this in /client as well):  
 
 ```bash
   npm install
 ```
 
-Since we're using my favorite build tool vite:
-
 ```bash
   npm run dev
 ```
 
-**well wasn't that quick 😎** (thanks 2 Evan You)
+**well wasn't that quick 😎** 
 
 <!-- Wish List--->
 
