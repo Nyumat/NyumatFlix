@@ -1,0 +1,59 @@
+{
+  "name": "client",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@babel/eslint-parser": "^7.5.4",
+    "axios": "^0.27.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.1",
+    "express": "^4.17.3",
+    "fs": "0.0.1-security",
+    "os": "^0.1.2",
+    "path": "^0.12.7",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
+    "react-router-dom": "^6.3.0",
+    "react-scripts": "^5.0.1",
+    "react-select": "^5.3.2",
+    "react-tsparticles": "^2.0.6",
+    "tsparticles": "^2.0.6"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "parserOptions": {
+      "parser": "@babel/eslint-parser"
+    },
+    "extends": "react-app"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env",
+      "@babel/preset-react"
+    ],
+    "plugins": [
+      "@babel/plugin-proposal-class-properties"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:8080/",
+  "devDependencies": {
+    "dotenv-webpack": "^8.0.0"
+  }
+}
