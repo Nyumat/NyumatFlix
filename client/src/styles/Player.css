@@ -1,0 +1,155 @@
+
+html,body {
+      height: 110%;
+}
+
+.movie-title {
+      white-space: nowrap;
+      font-size: 1.5em;
+      font-weight: bold;
+      margin-top: -1.5em;
+      margin-bottom: 1.5em;
+      color: aqua;
+      text-align: center;
+      font-size: 1.2em;
+}
+
+@media only screen and (max-width: 910px) {
+      .movie-title {
+            width: 100%;
+            font-size: calc(1em - 1vmin);
+      }
+
+      .movie-release {
+            width: 100%;
+            font-size: calc(1em - 1vmin);
+      }
+
+}
+
+.movie-release {
+      position: relative;
+      top: 100px;
+      font-size: 0.8em;
+      font-weight: bold;
+      margin-bottom: 0.5em;
+      color: aqua;
+      text-align: center;
+}
+
+.Player {
+      width: fit-content;
+      height: fit-content;
+      border: 1px solid aqua;
+      border-radius: 5px;
+      position: relative;
+      top: 170px;
+      margin: 0 auto;
+      box-sizing: border-box;
+      padding: 1em;
+      box-shadow: 0 0 10px aqua;
+}
+
+.show-title {
+      position: relative;
+      font-size: larger;
+      font-weight: bold;
+      margin-bottom: 0.5em;
+      color: aqua;
+      text-align: center;
+      top: -25px;
+}
+
+.show-release {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      top: 250px;
+      font-size: 0.8em;
+      font-weight: bold;
+      color: aqua;
+      text-align: center;
+}
+
+.Player iframe {
+      max-width: 70vmin;
+      width: 100vmin;
+      height: 70vmin;
+      max-height: 50vmin;
+      border: none;
+}
+
+
+.selector-container {
+
+      display: flex;
+      flex-direction: row;
+      justify-content: space-evenly;
+
+}
+
+.selector-list {
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      gap: 1em;;
+      top: 240px;
+      width: 350px;
+      left: -15px;
+      transition: all 0.5s;
+}
+
+
+@media only screen 
+  and (min-device-width: 375px) 
+  and (max-device-width: 812px) 
+  and (-webkit-min-device-pixel-ratio: 3) {
+        .selector-list {
+                left: 10px;
+                width: 280px;
+        } 
+      .selector-container {
+            width: calc(100% - 45px);
+      }
+}
+
+
+@media screen 
+  and (min-device-width: 1200px) 
+  and (max-device-width: 1600px) 
+  and (-webkit-min-device-pixel-ratio: 1) { 
+      .selector-container {
+            display: flex;
+            width: calc(100% - 5px);
+      }
+}
+
+
+
+
+@media screen and (min-width: 550px) 
+  and (max-width: 710px) {
+      .selector-list {
+            left: -10px;
+            display: flex;
+      }
+}
+
+@media screen and (min-width: 910px) {
+      .selector-list {
+            display: flex;
+      }
+}
+
+.select-season {
+      height: fit-content;
+      box-shadow: 0 0 10px aqua;
+      width: 220px;
+      font-size: 1em;
+}
+
+.select-episode {
+      box-shadow: 0 0 10px aqua;
+      width: 220px;
+      font-size: 1em;
+}

@@ -18,7 +18,7 @@
 	Made with ♡ by @Nyumat
 	<br>
 	This Project has been deployed with heroku 
-	<a href="http://nyumatflix.herokuapp.com"> here</a> 😄
+	<a href="http://nyumat.tech"> here</a> 😄
 </p>
 
 <h1 align="center"> The Project </h1>
