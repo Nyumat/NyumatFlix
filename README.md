@@ -1,4 +1,4 @@
-<h1 align="center"><img width="250" height="300" src="https://i.ibb.co/WD2cwRY/logo.png" alt="logo" border="0">
+<h1 align="center"><img width="250" height="300" src="https://i.ibb.co/5GwHC6j/logo.png" alt="logo" border="0">
 
 <p align="center">
 	<img width="100" height="30" src="https://badges.aleen42.com/src/react.svg">
@@ -95,18 +95,25 @@ Then head to the directory:
 ```bash
   cd NyumatFlix
 ```
+You'll need some enviornment variables.
 
-Install the required dependencies (do this in /client as well):  
-
+You can grab an API key [here.](https://developers.themoviedb.org/3/getting-started/introduction) \
+Format your .env file within the root dir like so:
 ```bash
-  npm install
+REACT_APP_TMDB_API_KEY=
+PORT=8080 <-- If you change this, alter the client/package.json as well
 ```
 
-```bash
-  npm run dev
-```
+Next, install the required dependencies in the root and /client:  
 
-**well wasn't that quick 😎** 
+```bash
+  npm i && cd client && npm i
+```
+Navigate to the root directory and start the dev servers concurrently
+
+```bash
+  cd .. && npm run dev
+```
 
 <!-- Wish List--->
 
@@ -115,6 +122,7 @@ Install the required dependencies (do this in /client as well):
 
 - [ ] Search Autosuggest/complete
 - [x] Server Side with Node.js & Express
-- [ ] Filteration of Search and Results
+- [ ] Filter of Search and Results
 - [ ] Revamped Landing Page
 - [x] TV Show Episode and Season Selector
+- [ ] SSR 
