@@ -3,7 +3,7 @@
 <p align="center">
 	<img width="100" height="30" src="https://badges.aleen42.com/src/react.svg">
 	<img width="100" height="30" src="https://badges.aleen42.com/src/node.svg">
-	<img width="100" height="30" src="https://badges.aleen42.com/src/typescript.svg">
+	<!-- <img width="100" height="30" src="https://badges.aleen42.com/src/typescript.svg"> -->
 	<img width="100" height="30" src="https://badges.aleen42.com/src/vitejs.svg">
 	<img width="100" height="30" src="https://badges.aleen42.com/src/npm.svg">
 </p>
