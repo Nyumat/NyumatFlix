@@ -1,86 +1,97 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
+import { Button, UnstyledButton } from "@mantine/core";
+import type { NextPage } from "next";
+import Head from "next/head";
+import Link from "next/link";
+import { motion } from "framer-motion";
 
 const Home: NextPage = () => {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center py-2">
+    <div className="text-shark-50 flex min-h-screen flex-col items-start justify-center">
       <Head>
-        <title>Create Next App</title>
+        <title>NyumatFlix - Streaming, Streamlined.</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="flex w-full flex-1 flex-col items-center justify-center px-20 text-center">
-        <h1 className="text-6xl font-bold">
-          Welcome to{' '}
-          <a className="text-blue-600" href="https://nextjs.org">
-            Next.js!
-          </a>
-        </h1>
-
-        <p className="mt-3 text-2xl">
-          Get started by editing{' '}
-          <code className="rounded-md bg-gray-100 p-3 font-mono text-lg">
-            pages/index.tsx
-          </code>
-        </p>
-
-        <div className="mt-6 flex max-w-4xl flex-wrap items-center justify-around sm:w-full">
-          <a
-            href="https://nextjs.org/docs"
-            className="mt-6 w-96 rounded-xl border p-6 text-left hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Documentation &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Find in-depth information about Next.js features and its API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn"
-            className="mt-6 w-96 rounded-xl border p-6 text-left hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Learn &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Learn about Next.js in an interactive course with quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className="mt-6 w-96 rounded-xl border p-6 text-left hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Examples &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Discover and deploy boilerplate example Next.js projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className="mt-6 w-96 rounded-xl border p-6 text-left hover:text-blue-600 focus:text-blue-600"
-          >
-            <h3 className="text-2xl font-bold">Deploy &rarr;</h3>
-            <p className="mt-4 text-xl">
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
+      <div className="bg-movie-banner flex w-full pt-8 flex-1 flex-col items-center justify-center px-20 text-center"></div>
+      <main className="flex w-full pt-8 flex-1 flex-col items-center justify-center px-20 text-center">
+        <motion.div
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          initial={{
+            opacity: 0,
+            y: 100,
+          }}
+          transition={{
+            duration: 1.5,
+            ease: "easeOut",
+          }}
+        >
+          <h1 className="lg:text-8xl md:6xl font-bold drop-shadow-xl">
+            NyumatFlix2.0
+          </h1>
+        </motion.div>
+        <motion.div
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          initial={{
+            opacity: 0,
+            y: 60,
+          }}
+          transition={{
+            duration: 2.0,
+            ease: "easeOut",
+          }}
+        >
+          <p className="mt-3 lg:text-4xl drop-shadow-xl">
+            Streaming, Streamlined.
+          </p>
+        </motion.div>
+        {/* Need this old reference from prior to Appshell.
+        <div className="flex flex-wrap items-center justify-around max-w-4xl mt-6 sm:w-full"></div> */}
+        <motion.div
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          initial={{
+            opacity: 0,
+            y: 60,
+          }}
+          transition={{
+            duration: 2.8,
+            ease: "easeOut",
+          }}
+        >
+          <span className="flex flex-row gap-2 mt-6">
+            <Link href="/home" passHref>
+              <UnstyledButton className="bg-shark-600 hover:bg-shark-900 text-white font-bold py-2 px-4 rounded">
+                Get Started
+              </UnstyledButton>
+            </Link>
+          </span>
+        </motion.div>
       </main>
 
-      <footer className="flex h-24 w-full items-center justify-center border-t">
-        <a
-          className="flex items-center justify-center gap-2"
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-        </a>
-      </footer>
+      {/* This may be needed if the component isn't as large
+       <footer className="flex h-12 w-full items-center justify-center border-t">
+        <div className="flex items-center justify-center gap-2">
+          Copyright © 2021
+          <a
+            className="hover:underline"
+            href="https://github.com/nyumat/nyumatflix"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            NyumatFlix
+          </a>
+        </div>
+      </footer> */}
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;
