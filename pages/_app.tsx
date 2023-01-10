@@ -2,6 +2,7 @@ import "../styles/globals.css";
 import { AppProps } from "next/app";
 import Head from "next/head";
 import { MantineProvider } from "@mantine/core";
+import UpUpTransition from "../components/UpUpTransition";
 import Layout from "../components/Layout";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
@@ -9,6 +10,8 @@ import { useRouter } from "next/router";
 const MyApp = (props: AppProps) => {
   const { Component, pageProps } = props;
   const router = useRouter();
+
+  const isPathRoot = router.pathname === "/";
 
   useEffect(() => {
     document.documentElement.style.scrollBehavior = "smooth";
@@ -33,9 +36,9 @@ const MyApp = (props: AppProps) => {
         }}
       >
         {/* <UpUpTransition> This is the transition that causes the issue */}
-
-        <Component {...pageProps} />
-
+        <Layout isPathRoot={isPathRoot}>
+          <Component {...pageProps} />
+        </Layout>
         {/* </UpUpTransition> */}
       </MantineProvider>
     </>
