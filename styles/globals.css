@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-black;
+  }
+}
+
+.bg-movie-banner {
+  @apply bg-cover bg-center;
+  @apply bg-no-repeat;
+  @apply filter blur-sm;
+  @apply absolute;
+  @apply min-h-full;
+  @apply min-w-full;
+  @apply -z-50;
+}
