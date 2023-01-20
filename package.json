@@ -3,11 +3,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "format": "prettier --write {pages,components,hooks}/**/*.{ts,tsx}"
   },
   "dependencies": {
     "@emotion/react": "^11.10.5",
     "@emotion/server": "^11.10.0",
+    "@formkit/auto-animate": "^1.0.0-beta.5",
     "@mantine/carousel": "^5.10.0",
     "@mantine/core": "^5.10.0",
     "@mantine/dates": "^5.10.0",
@@ -32,9 +34,12 @@
     "moment": "^2.29.4",
     "next": "latest",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "react-infinite-scroll-component": "^6.1.0",
+    "swr": "^2.0.0"
   },
   "devDependencies": {
+    "prettier": "^2.8.3",
     "@types/node": "18.11.3",
     "@types/react": "18.0.21",
     "@types/react-dom": "18.0.6",
