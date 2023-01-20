@@ -16,6 +16,9 @@ module.exports = {
       '2xl': '1536px',
     },
     extend: {
+      blur: {
+        'smp': '5px',
+      },
       backgroundImage: {
         'movie-banner': "url('/movie-banner.jpg')",
       },
