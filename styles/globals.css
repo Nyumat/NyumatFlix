@@ -11,7 +11,7 @@
 .bg-movie-banner {
   @apply bg-cover bg-center;
   @apply bg-no-repeat;
-  @apply filter blur-sm;
+  @apply filter blur-smp;
   @apply absolute;
   @apply min-h-full;
   @apply min-w-full;
