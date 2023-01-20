@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/router';
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/router";
 
 interface TransitionProps {
   children: React.ReactNode;
@@ -27,9 +27,15 @@ export default function Transition({ children }: TransitionProps) {
   const { asPath } = useRouter();
 
   return (
-    <div className='effect-1'>
-      <AnimatePresence initial={false} mode='popLayout'>
-        <motion.div key={asPath} variants={variants} animate='in' initial='out' exit='out'>
+    <div className="effect-1">
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.div
+          key={asPath}
+          variants={variants}
+          animate="in"
+          initial="out"
+          exit="out"
+        >
           {children}
         </motion.div>
       </AnimatePresence>

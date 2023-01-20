@@ -1,5 +1,5 @@
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { useRouter } from 'next/router';
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useRouter } from "next/router";
 
 interface TransitionProps {
   children: React.ReactNode;
@@ -9,7 +9,7 @@ const variants = {
   in: {
     scale: 0.8,
     y: 100,
-    x: '100%',
+    x: "100%",
     transition: {
       duration: 0.4,
     },
@@ -17,7 +17,7 @@ const variants = {
   center: {
     x: 0,
     scale: 0.8,
-    transformOrigin: 'top',
+    transformOrigin: "top",
     transition: {
       duration: 0.4,
     },
@@ -39,7 +39,7 @@ const variants = {
   },
   out: {
     opacity: 0,
-    x: '-100%',
+    x: "-100%",
     transition: {
       duration: 0.4,
       delay: 0.5,
@@ -52,14 +52,14 @@ export default function PopOutTransition({ children }: TransitionProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (
-    <div className='effect-3'>
-      <AnimatePresence initial={false} mode='wait'>
+    <div className="effect-3">
+      <AnimatePresence initial={false} mode="wait">
         <motion.div
           key={asPath}
           variants={!shouldReduceMotion ? variants : undefined}
-          initial='in'
-          animate={['center', 'scaleUp']}
-          exit={['scaleDown', 'out']}
+          initial="in"
+          animate={["center", "scaleUp"]}
+          exit={["scaleDown", "out"]}
         >
           {children}
         </motion.div>
