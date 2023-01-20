@@ -3,6 +3,7 @@
 <p align="center">
 	<img width="100" height="30" src="https://badges.aleen42.com/src/react.svg">
 	<img width="100" height="30" src="https://badges.aleen42.com/src/node.svg">
+	<img width="120" height="30" src="https://badges.aleen42.com/src/javascript.svg">
 	<!-- <img width="100" height="30" src="https://badges.aleen42.com/src/typescript.svg"> -->
 	<img width="100" height="30" src="https://badges.aleen42.com/src/vitejs.svg">
 	<img width="100" height="30" src="https://badges.aleen42.com/src/npm.svg">
@@ -21,6 +22,13 @@
 	<a href="http://nyumat.tech"> here</a> 😄
 </p>
 
+<h2 align="center" style="font-size: 160px;"> 
+	NyumatFlix2.0 is in the works! 
+	See the progress 
+	<a href="https://github.com/Nyumat/NyumatFlix/tree/main">on main!</a>
+</h2>
+
+
 <h1 align="center"> The Project </h1>
 	
 	
@@ -37,7 +45,6 @@
 
 <b><p align="left"> NyumatFlix is a free movie and tv show streaming platform. You can stream and download whatever TV epsiode or movie you'd like, all according to the [TMDB API](https://developers.themoviedb.org/3) </p></b>
 
-
 <h2 align="left"> Why?</h2>
 
 <p align="left"> As a college student, money is scarce. Nowadays, it seems like you need subsriptions to the popular streaming services just to keep up with all the shows/movies you'd like to see!</p>
@@ -50,9 +57,8 @@
 
 <p align="left"> And that's where NyumatFlix comes in. This term, I'm taking a web development course and wanted to explore what the Web Development hype really is all about.</p>
 
-<br>
 
-<p align="left">I creatd my first TypeScript and React project about a week ago, which was just a simple guessing game. I'm the type to see a new framework and just start messing with it, so that's exactly what I did.</p>
+<p align="left">I created my first TypeScript and React project about a week ago, which was just a simple guessing game. I'm the type to see a new framework and just start messing with it, so that's exactly what I did.</p>
 
 
 <h2 align="left"> The API</h2>
