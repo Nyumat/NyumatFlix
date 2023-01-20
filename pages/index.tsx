@@ -67,7 +67,7 @@ const Home: NextPage = () => {
           }}
         >
           <span className="flex flex-row gap-2 mt-6">
-            <Link href="/home" passHref>
+            <Link href="/home">
               <UnstyledButton className="bg-shark-600 hover:bg-shark-900 text-white font-bold py-2 px-4 rounded">
                 Get Started
               </UnstyledButton>

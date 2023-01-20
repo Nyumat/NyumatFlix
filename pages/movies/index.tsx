@@ -4,6 +4,9 @@ import { MediaQuery, Aside, AsideProps, Button } from "@mantine/core";
 import requests from "../../utils/requests";
 import { Movie, Title, TmdbResponse } from "../../typings";
 import Head from "next/head";
+import InfiniteScroll from "react-infinite-scroll-component";
+import useSwr from "swr";
+import { useEffect, useState } from "react";
 
 interface Props {
   horrorMovies: Movie[];
@@ -27,6 +30,20 @@ const Page = ({
     horrorMovies,
   ];
 
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState<any>([popularMovies]);
+
+  const fetchMoreData = async (e: any) => {
+    e.preventDefault();
+    setPage(page + 1);
+    await fetch(`/api/movies?page=${page}`)
+      .then((res) => res.json())
+      .then((data) => {
+        let copy = [...pages];
+        setPages([...copy, data]);
+      });
+  };
+
   return (
     <>
       <Head>
@@ -36,13 +53,14 @@ const Page = ({
         {titles.map((title: any, index: number) => (
           <div key={title.query}>
             <h1 className="text-4xl font-bold text-white">{title.title}</h1>
-            <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-4 gap-4 my-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 my-4">
               {movies &&
                 movies[index].results.map((movie: Movie) => (
                   <Card key={movie.id} item={movie} />
                 ))}
               <Button
-                className="col-span-4"
+                onClick={fetchMoreData}
+                className="col-span-2 md:col-span-3 lg:col-span-4"
                 variant="outline"
                 color="cyan"
                 size="lg"
@@ -62,7 +80,7 @@ export async function getStaticProps() {
     { query: "popular", title: "Popular Movies" },
     { query: "top_rated", title: "Top Rated Movies" },
     { query: "upcoming", title: "Upcoming Movies" },
-    { query: "now_playing", title: "Now Playing Movies" },
+    { query: "horror", title: "Horror Movies" },
   ];
 
   const [PopularMovies, TopRatedMovies, UpcomingMovies, HorrorMovies] =

@@ -3,6 +3,8 @@ import Card from "../../components/Card";
 import { MediaQuery, Aside, AsideProps, Button } from "@mantine/core";
 import requests from "../../utils/requests";
 import { TvShow, Title, TmdbResponse, Movie } from "../../typings";
+import moment from "moment";
+import React from "react";
 
 interface Props {
   titles: Title[];
@@ -20,11 +22,12 @@ const Page = ({ titles, trendingTvShows, trendingMovies }: Props) => {
           <h1 className="text-4xl font-bold text-white">{title.title}</h1>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 my-8">
             {trendingData &&
-              trendingData[index].results.map((item: any) => (
+              trendingData[index].map((item: any) => (
                 <Card key={item.id} item={item} />
               ))}
+
             <Button
-              className="col-span-4"
+              className="col-span-2 md:col-span-3 lg:col-span-4"
               variant="outline"
               color="cyan"
               size="lg"
@@ -44,9 +47,16 @@ export async function getStaticProps() {
     { query: "trending_tvshows", title: "Trending Tv Shows" },
   ];
 
+  const filterOutNull = (data: any) => {
+    const filterData = data.filter((item: any) => item.vote_count !== 0);
+    return filterData;
+  };
+
   const [TrendingMovies, TrendingTvShows] = await Promise.all([
-    axios.get(requests.fetchTrendingMovies).then((res) => res.data),
-    axios.get(requests.fetchTrendingTvShows).then((res) => res.data),
+    axios
+      .get(requests.fetchTrendingMovies)
+      .then((res) => filterOutNull(res.data.results)),
+    axios.get(requests.fetchTrendingTvShows).then((res) => res.data.results),
   ]);
 
   return {
