@@ -10,18 +10,40 @@ import {
   Burger,
   useMantineTheme,
   Center,
+  Loader,
 } from "@mantine/core";
 import NavigationBar from "./NavigationBar";
 import SideBar from "./SideBar";
 import FooterMain from "./Footer";
 import { LayoutProps } from "../typings";
 import Heading from "./Heading";
-import PopOutTransition from "./PopOutTransition";
 import UpUpTransition from "./UpUpTransition";
+import Body from "./Body";
+import useFilter from "../hooks/useFilter";
+import useCurrentState from "../hooks/useCurrentState";
+import useSearch from "../hooks/useSearch";
+import useDefaultMovies from "../hooks/useDefaultMovies";
+import useLoading from "../hooks/useLoading";
 
 export default function Layout({ children, isPathRoot }: LayoutProps) {
   const theme = useMantineTheme();
   const [opened, setOpened] = useState(false);
+  const [filter, setFilter] = useState<string[]>([""]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const { filterData, filterLoading, filterError } = useFilter({ filter });
+  const { searchData, searchLoading, page, totalPages } = useSearch({
+    search: searchTerm,
+  });
+  const { defaultData, defaultLoading, defaultError } = useDefaultMovies(1);
+
+  const { currentState } = useCurrentState({ filter, searchTerm });
+
+  const isLoaded = useLoading({
+    filterLoading,
+    searchLoading,
+    defaultLoading,
+  });
 
   return (
     <>
@@ -51,9 +73,18 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
           }
           aside={
             <MediaQuery smallerThan="sm" styles={{ display: "none" }}>
-              <Aside p="md" hiddenBreakpoint="sm" width={{ sm: 200, lg: 300 }}>
+              <Aside
+                p="md"
+                hiddenBreakpoint="sm"
+                width={{ sm: 200, lg: 300 }}
+                className="overflow-scroll"
+              >
                 <Center>
-                  <SideBar />
+                  <SideBar
+                    filter={filter}
+                    setFilter={setFilter}
+                    setSearchTerm={setSearchTerm}
+                  />
                 </Center>
               </Aside>
             </MediaQuery>
@@ -91,7 +122,20 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             </Header>
           }
         >
-          <PopOutTransition>{children}</PopOutTransition>
+          <UpUpTransition>
+            <div>
+              <Body
+                filter={filter}
+                filterData={filterData}
+                filterLoading={filterLoading}
+                searchData={searchData}
+                currentState={currentState}
+                isLoaded={isLoaded}
+              >
+                {children}
+              </Body>
+            </div>
+          </UpUpTransition>
         </AppShell>
       )}
     </>
