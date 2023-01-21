@@ -93,12 +93,8 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             </MediaQuery>
           }
           footer={
-            <Footer p="md" height={60}>
-              <FooterMain
-                height={60}
-                p={"md"}
-                links={[{ link: "", label: "" }]}
-              />
+            <Footer p="md" height={50}>
+              <FooterMain/>
             </Footer>
           }
           header={
