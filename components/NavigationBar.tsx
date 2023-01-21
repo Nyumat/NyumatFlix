@@ -5,7 +5,7 @@
   </Link>
 </Navbar.Section> */
 }
-import { FC, useState } from "react";
+import { FC, SetStateAction, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import IconPytorchlightning from "../icons/Zap";
@@ -100,6 +100,9 @@ interface NavigationBarProps {
   p?: string;
   hiddenBreakpoint?: any;
   width?: any;
+  currentState?: string;
+  setCurrentState?: React.Dispatch<SetStateAction<string>>;
+  setFilter?: React.Dispatch<SetStateAction<string[]>>;
 }
 
 export default function NavigationBar({
@@ -107,6 +110,9 @@ export default function NavigationBar({
   p,
   hiddenBreakpoint,
   width,
+  currentState,
+  setCurrentState,
+  setFilter,
 }: NavigationBarProps) {
   const [active, setActive] = useState(0 as number);
   const router = useRouter();
@@ -117,6 +123,10 @@ export default function NavigationBar({
       key={link.label}
       active={index === active}
       onClick={() => {
+        if (currentState !== "all") {
+          setCurrentState?.("all");
+          setFilter?.([""]);
+        }
         if (link.label.includes("Coming Soon")) return;
         if (link.label.includes("TV")) {
           setActive(index);
