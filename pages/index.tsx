@@ -28,8 +28,8 @@ const Home: NextPage = () => {
             ease: "easeOut",
           }}
         >
-          <h1 className="lg:text-8xl md:6xl font-bold drop-shadow-xl">
-            NyumatFlix2.0
+          <h1 className="text-6xl sm:text-6xl lg:text-8xl md:7xl font-bold drop-shadow-2xl">
+            NyumatFlix
           </h1>
         </motion.div>
         <motion.div
@@ -46,7 +46,7 @@ const Home: NextPage = () => {
             ease: "easeOut",
           }}
         >
-          <p className="mt-3 lg:text-4xl drop-shadow-xl">
+          <p className="mt-3 text-2xl lg:text-4xl md:text-2xl drop-shadow-2xl">
             Streaming, Streamlined.
           </p>
         </motion.div>
