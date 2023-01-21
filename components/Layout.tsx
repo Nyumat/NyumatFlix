@@ -37,7 +37,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
   });
   const { defaultData, defaultLoading, defaultError } = useDefaultMovies(1);
 
-  const { currentState } = useCurrentState({ filter, searchTerm });
+  const { currentState, setCurrentState } = useCurrentState({ filter, searchTerm });
 
   const isLoaded = useLoading({
     filterLoading,
@@ -65,6 +65,9 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
           asideOffsetBreakpoint="sm"
           navbar={
             <NavigationBar
+              currentState={currentState}
+              setCurrentState={setCurrentState}
+              setFilter={setFilter}
               hidden={!opened}
               p="md"
               hiddenBreakpoint="sm"
@@ -123,18 +126,16 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
           }
         >
           <UpUpTransition>
-            <div>
-              <Body
-                filter={filter}
-                filterData={filterData}
-                filterLoading={filterLoading}
-                searchData={searchData}
-                currentState={currentState}
-                isLoaded={isLoaded}
-              >
-                {children}
-              </Body>
-            </div>
+            <Body
+              filter={filter}
+              filterData={filterData}
+              filterLoading={filterLoading}
+              searchData={searchData}
+              currentState={currentState}
+              isLoaded={isLoaded}
+            >
+              {children}
+            </Body>
           </UpUpTransition>
         </AppShell>
       )}

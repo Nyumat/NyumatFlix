@@ -22,7 +22,7 @@ const useCurrentState = ({ filter, searchTerm }: CurrentStateProps) => {
     }
   }, [filter, searchTerm]);
 
-  return { currentState };
+  return { currentState, setCurrentState };
 };
 
 export default useCurrentState;
