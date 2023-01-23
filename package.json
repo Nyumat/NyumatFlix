@@ -30,6 +30,7 @@
     "axios": "^1.2.2",
     "dayjs": "^1.11.7",
     "embla-carousel-react": "^7.0.5",
+    "fast-average-color": "^9.3.0",
     "framer-motion": "^8.2.4",
     "moment": "^2.29.4",
     "next": "latest",
@@ -39,12 +40,12 @@
     "swr": "^2.0.0"
   },
   "devDependencies": {
-    "prettier": "^2.8.3",
     "@types/node": "18.11.3",
     "@types/react": "18.0.21",
     "@types/react-dom": "18.0.6",
     "autoprefixer": "^10.4.12",
     "postcss": "^8.4.18",
+    "prettier": "^2.8.3",
     "tailwindcss": "^3.2.4",
     "typescript": "4.9.4"
   }
