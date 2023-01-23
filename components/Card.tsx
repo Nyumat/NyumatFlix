@@ -1,8 +1,19 @@
 import Image from "next/image";
 import { Movie, TvShow } from "../typings";
 import moment from "moment";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 const MovieCard = ({ movie }: { movie: Movie }) => {
+  const router = useRouter();
+
+  const handleClick = () => {
+    router.push({
+      pathname: `/movies/watch/[id]`,
+      query: { id: movie.id },
+    });
+  };
+
   if (movie.poster_path === null) return null;
   if (moment(movie.release_date).isAfter(moment())) return null;
   return (
@@ -14,6 +25,7 @@ const MovieCard = ({ movie }: { movie: Movie }) => {
             src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
             alt={movie.title}
             width={500}
+            onClick={handleClick}
             height={550}
           />
         </div>
