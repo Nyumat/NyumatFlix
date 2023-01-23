@@ -73,5 +73,13 @@ export enum MapGenreMovie {
   Fantasy = 14,
   History = 36,
   Horror = 27,
+  "Science Fiction" = 878,
+  Thriller = 53,
+  War = 10752,
+  Western = 37,
+  Mystery = 9648,
+  Music = 10402,
+  Romance = 10749,
+  "TV Movie" = 10770,
 }
 
