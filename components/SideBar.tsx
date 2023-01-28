@@ -3,6 +3,7 @@ import { Button, Input, Tooltip, Chip } from "@mantine/core";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { MapGenreMovie, Movie } from "../typings";
+import useCurrentState from "../hooks/useCurrentState";
 
 interface SideBarProps {
   filter: string[];
@@ -19,6 +20,7 @@ const SideBar = ({ filter, setFilter, setSearchTerm }: SideBarProps) => {
       return MapGenreMovie[parseInt(item)];
     });
     let parsed = res.join(",").substring(1).toLowerCase();
+
     router.push(
       {
         pathname: router.pathname,
@@ -29,18 +31,24 @@ const SideBar = ({ filter, setFilter, setSearchTerm }: SideBarProps) => {
     );
   };
 
-  useEffect(() => {
-    if (filter.length === 1) {
-      router.push(
-        {
-          pathname: router.pathname,
-          query: { filter: [] },
-        },
-        `${router.pathname}`,
-        { shallow: true },
-      );
-    }
-  }, [router.query.filter]);
+  useEffect(
+    () => {
+      // This is the code that causes the issue with the routing.
+      // if (filter.length === 1) {
+      //   router.push(
+      //     {
+      //       pathname: router.pathname,
+      //       query: { filter: [] },
+      //     },
+      //     `${router.pathname}`,
+      //     { shallow: true },
+      //   );
+      // }
+    },
+    [
+      // router.query.filter
+    ],
+  );
 
   return (
     <div className="container flex flex-col items-center justify-center w-full h-full">
@@ -79,6 +87,13 @@ const SideBar = ({ filter, setFilter, setSearchTerm }: SideBarProps) => {
             <Chip value="14">Fantasy</Chip>
             <Chip value="36">History</Chip>
             <Chip value="27">Horror</Chip>
+            <Chip value="10402">Music</Chip>
+            <Chip value="9648">Mystery</Chip>
+            <Chip value="10749">Romance</Chip>
+            <Chip value="878">Science Fiction</Chip>
+            <Chip value="10770">TV Movie</Chip>
+            <Chip value="53">Thriller</Chip>
+            <Chip value="10752">War</Chip>
           </Chip.Group>
         </ul>
       </div>
