@@ -60,9 +60,7 @@ const Body = ({
           {filterData && filterData.filter_data.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {filterData.filter_data.map((movie, index) => (
-                <div key={index} className="w-full">
                   <Card key={index} item={movie} />
-                </div>
               ))}
             </div>
           ) : (

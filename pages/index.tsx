@@ -3,6 +3,7 @@ import type { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import Lottie from "lottie-react";
 
 const Home: NextPage = () => {
   return (
@@ -14,6 +15,9 @@ const Home: NextPage = () => {
 
       <div className="bg-movie-banner flex w-full pt-8 flex-1 flex-col items-center justify-center px-20 text-center"></div>
       <main className="flex w-full pt-8 flex-1 flex-col items-center justify-center px-20 text-center">
+        <div className="">
+          {/* <Lottie animationData={require("../public/movie.json")} /> */}
+        </div>
         <motion.div
           animate={{
             opacity: 1,
@@ -68,7 +72,10 @@ const Home: NextPage = () => {
         >
           <span className="flex flex-row gap-2 mt-6">
             <Link href="/home">
-              <UnstyledButton className="bg-shark-600 hover:bg-shark-900 text-white font-bold py-2 px-4 rounded">
+              <UnstyledButton
+                className="bg-shark-100  bg-clip-padding backdrop-filter backdrop-blur-3xl bg-opacity-60 hover:bg-opacity-100
+               inline-block rounded border border-current px-8 py-3 text-xl font-bold text-shark-600 transition duration-[200ms] hover:scale-110 hover:shadow-xl focus:outline-none focus:ring active:text-shark-500 hover:ease-in ease-linear"
+              >
                 Get Started
               </UnstyledButton>
             </Link>
