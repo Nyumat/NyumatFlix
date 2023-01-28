@@ -121,7 +121,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             </Header>
           }
         >
-          <UpUpTransition>
+          {/* <UpUpTransition> */}
             <Body
               filter={filter}
               filterData={filterData}
@@ -132,7 +132,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             >
               {children}
             </Body>
-          </UpUpTransition>
+          {/* </UpUpTransition> */}
         </AppShell>
       )}
     </>

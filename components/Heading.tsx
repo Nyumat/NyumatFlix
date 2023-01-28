@@ -10,9 +10,7 @@ const Heading = () => {
         "
         >
           NyumatFlix{" "}
-          <span className="text-2xl sm:text-3xl md:text-4xl pb-2 px-2 text-indigo-400">
-            🎬
-          </span>
+          <span className="text-2xl sm:text-3xl md:text-4xl pb-2 px-2 text-indigo-400"></span>
         </h1>
       </div>
     </header>

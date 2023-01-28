@@ -17,11 +17,11 @@ const MovieCard = ({ movie }: { movie: Movie }) => {
   if (movie.poster_path === null) return null;
   if (moment(movie.release_date).isAfter(moment())) return null;
   return (
-    <div className="bg-shark-900 p-2 shadow-sm rounded-lg h-full">
+    <div className="bg-shark-900  bg-clip-padding h-full backdrop-filter backdrop-blur-3xl bg-opacity-10 border border-gray-800 p-2 shadow-sm rounded-lg  hover:scale-105 transition duration-500 ease-in-out">
       <div className="flex flex-col items-center">
         <div className="relative z-10 hover:scale-105 transition duration-500 ease-in-out">
           <Image
-            className="rounded-lg inset-0 bg-cover bg-center z-0"
+            className="rounded-lg inset-0 bg-cover bg-center z-0 mb-2"
             src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
             alt={movie.title}
             width={500}
@@ -31,7 +31,7 @@ const MovieCard = ({ movie }: { movie: Movie }) => {
         </div>
       </div>
       <div className="mx-2 my-2 flex flex-row justify-between">
-        <div className="flex flex-col">
+        <div className="flex flex-col ">
           <h1 className="text-white text-lg font-bold mr-4">{movie.title}</h1>
           <p className="text-white text-sm">
             {moment(movie.release_date).format("MMMM Do, YYYY")}

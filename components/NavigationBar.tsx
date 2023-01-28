@@ -134,7 +134,8 @@ export default function NavigationBar({
           return;
         }
         setActive(index);
-        router.push(link.label.toLowerCase());
+        router.push({ pathname: `/${link.label.toLowerCase()}` });
+        
       }}
     />
   ));
