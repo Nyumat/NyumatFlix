@@ -39,8 +39,8 @@ const Hero = ({ backdrop_path, title, poster_path, genres }: HeroProps) => {
             }}
           ></div>
         </div>
-        <div className="flex flex-col items-center justify-center w-full h-full bg-black bg-opacity-50">
-          <h1 className="text-2xl font-bold text-white md:text-4xl lg:text-6xl mx-8 pb-8 text-center w-full">
+        <div className="flex flex-col items-center justify-center w-full h-full bg-black bg-opacity-70">
+          <h1 className="text-4xl font-bold text-white md:text-4xl lg:text-6xl mx-8 pb-8 text-center w-full">
             {/* Possibly get secondary color to form better gradient */}
             <Text
               component="span"

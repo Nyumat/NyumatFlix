@@ -13,9 +13,7 @@ interface GenreBadgesProps {
   backdrop_path?: string; // will be used for gradient (if poster_path is not available)
 }
 
-const GenreBadges = ({
-  genres,
-}: GenreBadgesProps) => {
+const GenreBadges = ({ genres }: GenreBadgesProps) => {
   // const [color, setColor] = useState("gray");
 
   useEffect(() => {
@@ -44,7 +42,6 @@ const GenreBadges = ({
         >
           {genres &&
             genres.map((genre, index) => {
-              console.log(genre);
               return (
                 <Badge
                   key={index}
