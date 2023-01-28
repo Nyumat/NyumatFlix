@@ -32,6 +32,7 @@
     "embla-carousel-react": "^7.0.5",
     "fast-average-color": "^9.3.0",
     "framer-motion": "^8.2.4",
+    "lottie-react": "^2.3.1",
     "moment": "^2.29.4",
     "next": "latest",
     "react": "18.2.0",
