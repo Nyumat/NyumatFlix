@@ -8,6 +8,15 @@ export interface Title {
   query: string;
 }
 
+export interface Actor {
+  [x: string]: any;
+  id: number;
+  name: string;
+  profile_path: string;
+  character: string;
+  popularity: number;
+}
+
 export interface Movie {
   [x: string]: any;
   results?: Movie[];
@@ -55,6 +64,12 @@ export interface TmdbResponse {
   total_pages?: number;
   total_results?: number;
 }
+
+export type CreditsReponse = {
+  id: number;
+  cast: Actor[];
+  crew: Actor[];
+};
 
 export interface LayoutProps {
   children: React.ReactNode;
