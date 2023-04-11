@@ -1,7 +1,9 @@
 const API_KEY = process.env.API_KEY;
+const VPS = process.env.NYUMATFLIX_VPS;
 const BASE_URL = "https://api.themoviedb.org/3";
 
 const requests = {
+      fetchMoviePlayer: `${VPS}`,
       fetchTrendingMovies: `${BASE_URL}/trending/movie/week?api_key=${API_KEY}&language=en-US`,
       fetchTrendingTvShows: `${BASE_URL}/trending/tv/week?api_key=${API_KEY}&language=en-US`,
       fetchTopRatedMovies: `${BASE_URL}/movie/top_rated?api_key=${API_KEY}&language=en-US`,

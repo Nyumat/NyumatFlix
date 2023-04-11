@@ -1,7 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/router";
 import PopOutTransition from "../../../../components/PopOutTransition";
-import { useEffect } from "react";
 import Hero from "../../../../components/Hero";
 import axios from "axios";
 import { Movie } from "../../../../typings";
@@ -12,20 +11,25 @@ import { Text, Rating, Group, Stack } from "@mantine/core";
 import { Actor, CreditsReponse } from "../../../../typings";
 import MoviePlayer from "../../../../components/MoviePlayer";
 import useAvailable from "../../../../hooks/useAvailable";
+import requests from "../../../../utils/requests";
 
 interface PlayerProps {
   movie: Movie;
   actors: Actor[];
+  url?: string;
 }
 
-const Player = ({ movie, actors }: PlayerProps) => {
+const Player = ({ movie, actors, url }: PlayerProps) => {
   const router = useRouter();
+
+  useEffect(() => {
+    if (!router.isReady) return;
+  }, [router.isReady]);
+
   const { id } = router.query;
   const ts_id = parseInt(id as string);
 
-  const [isAvailable] = useAvailable(ts_id);
-
-  console.log(isAvailable);
+  const { isAvailable } = useAvailable(ts_id);
 
   return (
     <div className="h-screen w-full">
@@ -33,7 +37,7 @@ const Player = ({ movie, actors }: PlayerProps) => {
         component="span"
         variant="gradient"
         gradient={{ from: "#c5c9c6", to: `aliceblue` }}
-        className="z-50 font-bold text-2xl xs:text-lg sm:text-xl absolute bottom-[50%] text-white mr-8 p-2 w-full text-right"
+        className="z-50 font-bold text-2xl xs:text-sm sm:text-xl absolute bottom-[50%] text-white mr-8 p-2 w-full text-right"
       >
         {moment(movie.release_date).format("MMMM Do, YYYY")}
       </Text>
@@ -64,7 +68,7 @@ const Player = ({ movie, actors }: PlayerProps) => {
             {movie.overview}
           </h1>
 
-          <div className="flex flex-col items-center justify-center my-12">
+          <div className="flex flex-col items-center justify-center my-12 scale-100 md:scale-75 xs:scale-75 lg:scale-100 sm:scale-75">
             <Rating
               value={movie.vote_average}
               size="xl"
@@ -79,7 +83,7 @@ const Player = ({ movie, actors }: PlayerProps) => {
 
           <>
             {isAvailable ? (
-              <MoviePlayer id={ts_id.toString()} />
+              <MoviePlayer url={url} id={ts_id.toString()} />
             ) : (
               <p className="tracking-wide text-center text-2xl">
                 The movie you are trying to watch is currently not available on
@@ -95,6 +99,13 @@ const Player = ({ movie, actors }: PlayerProps) => {
 
 export async function getServerSideProps(context: any) {
   const { id } = context.query;
+  const url = process.env.NYUMATFLIX_VPS + "=" + id;
+
+  if (id === undefined) {
+    return {
+      notFound: true,
+    };
+  }
 
   let movieDetails = await axios.get(
     `https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.API_KEY}&language=en-US`,
@@ -118,6 +129,7 @@ export async function getServerSideProps(context: any) {
     props: {
       movie: movieDetails.data,
       actors: sortedTopTenCast,
+      url: url,
     },
   };
 }

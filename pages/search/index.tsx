@@ -21,7 +21,7 @@ const Search = (props: TextInputProps) => {
   const [searchData, setSearchData] = useState<any>([]);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [parent] = useAutoAnimate<HTMLDivElement>();
+  // const [parent] = useAutoAnimate<HTMLDivElement>();
 
   useEffect(() => {
     if (debouncedSearch.length === 0) {
@@ -29,7 +29,7 @@ const Search = (props: TextInputProps) => {
       setSearchData([]);
     }
 
-    if (debouncedSearch) {
+    if (debouncedSearch.length > 0) {
       setIsLoading(true);
       axios
         .get(`/api/search`, {
@@ -97,7 +97,7 @@ const Search = (props: TextInputProps) => {
 
       {!isLoading && (
         <div
-          ref={parent}
+          // ref={parent}
           className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-4 gap-4 my-4"
         >
           {searchData &&

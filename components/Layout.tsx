@@ -37,7 +37,10 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
   });
   const { defaultData, defaultLoading, defaultError } = useDefaultMovies(1);
 
-  const { currentState, setCurrentState } = useCurrentState({ filter, searchTerm });
+  const { currentState, setCurrentState } = useCurrentState({
+    filter,
+    searchTerm,
+  });
 
   const isLoaded = useLoading({
     filterLoading,
@@ -67,6 +70,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             <NavigationBar
               currentState={currentState}
               setCurrentState={setCurrentState}
+              setSearchTerm={setSearchTerm}
               setFilter={setFilter}
               hidden={!opened}
               p="md"
@@ -84,6 +88,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
               >
                 <Center>
                   <SideBar
+                    searchTerm={searchTerm}
                     filter={filter}
                     setFilter={setFilter}
                     setSearchTerm={setSearchTerm}
@@ -94,7 +99,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
           }
           footer={
             <Footer p="md" height={50}>
-              <FooterMain/>
+              <FooterMain />
             </Footer>
           }
           header={
@@ -121,7 +126,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             </Header>
           }
         >
-          {/* <UpUpTransition> */}
+          <UpUpTransition>
             <Body
               filter={filter}
               filterData={filterData}
@@ -129,10 +134,14 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
               searchData={searchData}
               currentState={currentState}
               isLoaded={isLoaded}
+              setSearchTerm={setSearchTerm}
+              setFilter={setFilter}
+              searchTerm={searchTerm}
+              setCurrentState={setCurrentState}
             >
               {children}
             </Body>
-          {/* </UpUpTransition> */}
+          </UpUpTransition>
         </AppShell>
       )}
     </>

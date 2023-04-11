@@ -9,46 +9,50 @@ interface SideBarProps {
   filter: string[];
   setFilter: React.Dispatch<React.SetStateAction<string[]>>;
   setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
+  searchTerm: string;
 }
 
-const SideBar = ({ filter, setFilter, setSearchTerm }: SideBarProps) => {
+const SideBar = ({
+  filter,
+  setFilter,
+  setSearchTerm,
+  searchTerm,
+}: SideBarProps) => {
   const router = useRouter();
 
   const handleChange = (value: string[]) => {
     setFilter(value);
+    let empty_filter: boolean = false;
     let res = value.map((item) => {
       return MapGenreMovie[parseInt(item)];
     });
-    let parsed = res.join(",").substring(1).toLowerCase();
-
+    let parsed = res.join(",").substring(1).toLowerCase().replace(/,/g, "/");
+    if (parsed.length === 0) {
+      empty_filter = true;
+    }
     router.push(
       {
         pathname: router.pathname,
-        query: { filter: value },
       },
-      `${router.pathname}?filter=${parsed}`,
+      `${empty_filter ? `/${router.route}` : `${router.pathname}/filter/${parsed}`}`,
       { shallow: true },
     );
   };
 
-  useEffect(
-    () => {
-      // This is the code that causes the issue with the routing.
-      // if (filter.length === 1) {
-      //   router.push(
-      //     {
-      //       pathname: router.pathname,
-      //       query: { filter: [] },
-      //     },
-      //     `${router.pathname}`,
-      //     { shallow: true },
-      //   );
-      // }
-    },
-    [
-      // router.query.filter
-    ],
-  );
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      setSearchTerm(e.currentTarget.value);
+      router.push(
+        {
+          pathname: router.pathname,
+          query: { search: e.currentTarget.value },
+        },
+        `${router.pathname}?search=${e.currentTarget.value}`,
+        { shallow: true },
+      );
+    }
+  };
+
 
   return (
     <div className="container flex flex-col items-center justify-center w-full h-full">
@@ -57,7 +61,9 @@ const SideBar = ({ filter, setFilter, setSearchTerm }: SideBarProps) => {
         <Input
           // style={{ width: 270 }}
           onChange={(e) => setSearchTerm(e.currentTarget.value)}
+          onKeyDown={handleKeyDown}
           icon={<IconSearch size={16} />}
+          value={searchTerm}
           placeholder="Shrek, Boondocks..."
           rightSection={
             <Tooltip label="Search!" position="top-end" withArrow>
