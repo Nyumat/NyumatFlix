@@ -8,7 +8,9 @@ interface CurrentStateProps {
 
 const useCurrentState = ({ filter, searchTerm }: CurrentStateProps) => {
   const [currentState, setCurrentState] = React.useState<string>("all");
+
   useEffect((): any => {
+    setTimeout(() => {
     if (filter.length <= 1 && searchTerm.length <= 1) {
       setCurrentState("all");
     }
@@ -20,7 +22,9 @@ const useCurrentState = ({ filter, searchTerm }: CurrentStateProps) => {
     if (searchTerm.length > 0) {
       setCurrentState("search");
     }
-  }, [filter, searchTerm]);
+    }, 500);
+    }, [filter, searchTerm]);
+    
 
   return { currentState, setCurrentState };
 };
