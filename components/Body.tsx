@@ -2,6 +2,9 @@ import { MapGenreMovie, Movie, TvShow } from "../typings";
 import Card from "./Card";
 import { Chip, Loader } from "@mantine/core";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
+import React, { useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/router";
 
 type Data = {
   filter_data: TvShow[] | Movie[];
@@ -16,21 +19,46 @@ interface BodyProps {
   filterData?: Data;
   isLoaded?: boolean;
   filterLoading?: boolean;
+  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
+  setFilter: React.Dispatch<React.SetStateAction<string[]>>;
+  searchTerm?: string;
+  setCurrentState: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const Body = ({
   children,
   filter,
+  setCurrentState,
   searchData,
   currentState,
   filterData,
   isLoaded,
   filterLoading,
+  setSearchTerm,
+  setFilter,
+  searchTerm,
 }: BodyProps) => {
   const [parent] = useAutoAnimate({
-    duration: 650,
-    easing: "ease-in-out",
+    duration: 400,
+    easing: "ease-out",
   });
+
+  const [show, setShow] = useState<boolean>(false);
+  const router = useRouter();
+  const memoizedSearchTerm = useMemo(() => searchTerm, [searchTerm]);
+  // const memoizedFilter = useMemo(() => filter, [filter]);
+
+  useEffect(() => {
+    if (currentState !== "all" && searchTerm!.length === 0) {
+      router.push({
+        pathname: `/movies/`,
+      });
+    }
+
+    if (router.pathname.includes("watch")) {
+      setShow(false);
+    }
+  }, [memoizedSearchTerm]);
 
   const renderChips = () => {
     if (filter.length > 1) {
@@ -51,23 +79,32 @@ const Body = ({
               )}
             </div>
           </div>
-          {filterLoading ? (
+          {/* {filterLoading ? (
             <div className="flex justify-center">
               <Loader />
             </div>
-          ) : null}
+          ) : null} */}
 
-          {filterData && filterData.filter_data.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filterData.filter_data.map((movie, index) => (
-                  <Card key={index} item={movie} />
-              ))}
-            </div>
+          {show ? (
+            children
           ) : (
-            <h1 className="text-2xl text-center">
-              No movies found with these filters.
-            </h1>
+            <>
+              {filterData && filterData.filter_data.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filterData.filter_data.map((movie, index) => (
+                    <span key={index} onClick={() => setShow(true)}>
+                      <Card key={index} item={movie} />
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <h1 className="text-2xl text-center">
+                  No movies found with these filters.
+                </h1>
+              )}
+            </>
           )}
+
           {/* {searchData && searchData.length > 0 ? renderSearch() : <Loader />}
            */}
         </>
@@ -75,7 +112,7 @@ const Body = ({
     }
   };
 
-  const renderSearch = () => {
+  const renderSearch = (children: React.ReactNode) => {
     if (searchData) {
       const renderMessage = () => {
         return (
@@ -91,28 +128,37 @@ const Body = ({
             <div className="flex justify-center">{renderMessage()}</div>
           ) : null}
 
-          {!isLoaded ? (
-            <div className="flex justify-center">
-              <Loader />
-            </div>
-          ) : (
-            <div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {searchData.map((movie, index) => (
-                  <div key={index} className="w-full">
-                    <Card key={index} item={movie} />
+          {show && children}
+          {!show && (
+            <>
+              {!isLoaded ? (
+                <div className="flex justify-center">
+                  <Loader />
+                </div>
+              ) : (
+                <div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {searchData.map((movie, index) => (
+                      <div
+                        className="cursor-pointer flex flex-grow"
+                        key={index}
+                        onClick={() => setShow(true)}
+                      >
+                        <Card key={index} item={movie} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              )}
+            </>
           )}
         </>
       );
     }
   };
   return (
-    <div ref={parent as React.RefObject<HTMLDivElement>} className="w-full">
-      {currentState === "search" ? renderSearch() : null}
+    <div ref={parent as any} className="w-full">
+      {currentState === "search" ? renderSearch(children) : null}
       {currentState === "filter" ? renderChips() : null}
       {currentState === "all" ? children : null}
     </div>

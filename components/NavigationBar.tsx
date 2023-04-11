@@ -89,7 +89,7 @@ function NavbarLink({ icon: Icon, label, active, onClick }: NavbarLinkProps) {
 const mockdata = [
   { icon: IconHome2, label: "Home" },
   { icon: IconGauge, label: "Movies" },
-  { icon: IconDeviceDesktopAnalytics, label: "TV Shows" },
+  { icon: IconDeviceDesktopAnalytics, label: "Coming Soon -> TV Shows" },
   { icon: IconCalendarStats, label: "Search" },
   { icon: IconUser, label: "Coming Soon -> Account" },
   { icon: IconSettings, label: "Coming Soon -> Settings" },
@@ -103,6 +103,7 @@ interface NavigationBarProps {
   currentState?: string;
   setCurrentState?: React.Dispatch<SetStateAction<string>>;
   setFilter?: React.Dispatch<SetStateAction<string[]>>;
+  setSearchTerm?: React.Dispatch<SetStateAction<string>>;
 }
 
 export default function NavigationBar({
@@ -110,6 +111,7 @@ export default function NavigationBar({
   p,
   hiddenBreakpoint,
   width,
+  setSearchTerm,
   currentState,
   setCurrentState,
   setFilter,
@@ -117,15 +119,19 @@ export default function NavigationBar({
   const [active, setActive] = useState(0 as number);
   const router = useRouter();
 
+  const pathnameArray = router.pathname.split("/");
+  let route = pathnameArray[1];
+
   const links = mockdata.map((link, index) => (
     <NavbarLink
       {...link}
       key={link.label}
-      active={index === active}
+      active={route === link.label.toLowerCase()}
       onClick={() => {
         if (currentState !== "all") {
           setCurrentState?.("all");
           setFilter?.([""]);
+          setSearchTerm?.("");
         }
         if (link.label.includes("Coming Soon")) return;
         if (link.label.includes("TV")) {
