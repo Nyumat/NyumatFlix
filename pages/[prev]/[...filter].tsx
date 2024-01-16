@@ -1,18 +1,17 @@
-import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import useFilter from "../../hooks/useFilter";
+import { useState } from "react";
 import Card from "../../components/Card";
-import { MapGenreMovie } from "../../typings";
+import useFilter from "../../hooks/useFilter";
 
 const Filter = () => {
   const router = useRouter();
   const { filter } = router.query;
-  const { filterData, filterLoading, filterError } = useFilter({ filter });
-  const [show, setShow] = useState<boolean>(false);
+  const { filterData } = useFilter({ filter });
+  const [, setShow] = useState<boolean>(false);
 
-  console.log("Filter: ", filter);
+  //console.log("Filter: ", filter);
 
-  console.log(router)
+  //console.log(router);
 
   return (
     <div>
@@ -20,7 +19,13 @@ const Filter = () => {
       {filterData && filterData.filter_data.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filterData.filter_data.map((movie, index) => (
-            <span key={index} onClick={() => setShow(true)}>
+            <span
+              key={index}
+              onClick={() => setShow(true)}
+              tabIndex={0}
+              role="button"
+              onKeyDown={() => setShow(true)}
+            >
               <Card key={index} item={movie} />
             </span>
           ))}
