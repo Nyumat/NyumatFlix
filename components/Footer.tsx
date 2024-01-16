@@ -1,12 +1,12 @@
-import { createStyles, Anchor, Group, ActionIcon } from "@mantine/core";
+import { ActionIcon, Group } from "@mantine/core";
 import {
   IconBrandGithub,
-  IconBrandTypescript,
-  IconBrandReact,
   IconBrandNextjs,
+  IconBrandReact,
+  IconBrandTypescript,
 } from "@tabler/icons";
-import Image from "next/image";
 
+/*
 const useStyles = createStyles((theme) => ({
   footer: {
     borderTop: `1px solid ${
@@ -31,12 +31,9 @@ interface FooterCenteredProps {
   height?: number;
   p?: string;
 }
+*/
 
-const FooterMain = ({ links }: FooterCenteredProps) => {
-  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-  };
-
+const FooterMain = () => {
   return (
     <div className="px-4 pt-2 top-0 absolute right-0 flex flex-row gap-4">
       <p className="pt-1">NyumatFlix is Built with:</p>
@@ -61,7 +58,7 @@ const FooterMain = ({ links }: FooterCenteredProps) => {
             <IconBrandNextjs size={18} stroke={1.5} />
           </ActionIcon>
         </a>
-        <a href="https://beta.reactjs.org/" target="_blank">
+        <a href="https://react.dev" target="_blank">
           <ActionIcon
             aria-label="React"
             size="lg"
