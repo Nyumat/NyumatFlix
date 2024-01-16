@@ -1,11 +1,10 @@
-import "../styles/globals.css";
+import { MantineProvider } from "@mantine/core";
 import { AppProps } from "next/app";
 import Head from "next/head";
-import { MantineProvider } from "@mantine/core";
-import UpUpTransition from "../components/UpUpTransition";
-import Layout from "../components/Layout";
-import { useEffect } from "react";
 import { useRouter } from "next/router";
+import { useEffect } from "react";
+import Layout from "../components/Layout";
+import "@styles/globals.css";
 
 const MyApp = (props: AppProps) => {
   const { Component, pageProps } = props;
@@ -35,11 +34,9 @@ const MyApp = (props: AppProps) => {
           colorScheme: "dark",
         }}
       >
-        {/* <UpUpTransition> This is the transition that causes the issue */}
         <Layout isPathRoot={isPathRoot}>
-          <Component {...pageProps} />
+          <Component key={router.asPath} {...pageProps} />
         </Layout>
-        {/* </UpUpTransition> */}
       </MantineProvider>
     </>
   );

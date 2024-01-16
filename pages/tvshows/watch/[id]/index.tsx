@@ -1,51 +1,44 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import CastCarousel from "@components/CastCarousel";
 import GenreBadges from "@components/GenreBadges";
 import Hero from "@components/Hero";
-import { Player as MoviePlayer } from "@components/Player";
+import { Player as TvPlayer } from "@components/Player";
 import PageTransition from "@components/Transition";
 import { Rating, Text } from "@mantine/core";
-import { Actor, Movie } from "@utils/typings";
+import { Actor, TvShow } from "@utils/typings";
 import axios from "axios";
 import moment from "moment";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
 
-interface PlayerProps {
-  movie: Movie;
+interface TVPlayerProps {
+  tvshow: TvShow;
   actors: Actor[];
   url?: string;
 }
 
-const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
+const WatchTvPage = ({ tvshow, actors, url }: TVPlayerProps) => {
   const router = useRouter();
 
-  useEffect(() => {
-    if (!router.isReady) return;
-  }, [router.isReady]);
+  // useEffect(() => {
+  //       if (!router.isReady) return;
+  // }, [router.isReady]);
 
   const { id } = router.query;
   const ts_id = parseInt(id as string);
 
   // const { isAvailable } = useAvailable(ts_id);
-  //console.log(url);
-  if (!url) {
-    return (
-      <div>
-        <p>Movie not available</p>
-      </div>
-    );
-  }
+  //   const isAvailable = true;
+
+  //console.log(tvshow);
 
   return (
     <PageTransition>
       <div className="h-screen w-full">
         <Hero
-          backdrop_path={movie.backdrop_path}
-          title={movie.title}
-          poster_path={movie.poster_path}
-          genres={movie.genres}
-          release_date={movie.release_date ?? "Unknown"}
+          backdrop_path={tvshow.backdrop_path}
+          title={tvshow.name}
+          poster_path={tvshow.poster_path}
+          genres={tvshow.genres}
+          release_date={tvshow.first_air_date ?? "Unknown"}
         />
 
         <div className="flex flex-col items-center justify-center">
@@ -55,7 +48,7 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
             gradient={{ from: "#c5c9c6", to: `aliceblue` }}
             className="font-bold text-2xl xs:text-xl sm:text-xl text-white w-full text-center mt-20"
           >
-            Released: {moment(movie.release_date).format("MMMM Do, YYYY")}
+            Released: {moment(tvshow.first_air_date).format("MMMM Do, YYYY")}
           </Text>
           <p className="text-white font-bold text-2xl tracking-wide mt-12">
             Cast List
@@ -66,30 +59,34 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
           <div className="w-full h-full my-10 z-10">
             <div className="flex flex-row items-end justify-center">
               <GenreBadges
-                genres={movie.genres}
-                poster_path={movie.poster_path}
-                backdrop_path={movie.backdrop_path}
+                genres={tvshow.genres}
+                poster_path={tvshow.poster_path}
+                backdrop_path={tvshow.backdrop_path}
               />
             </div>
             <h1 className="py-8 text-center align-middle text-2xl h-min text-white md:max-w-lg xl:max-w-2xl xs:max-w-xs  mx-auto">
-              {movie.overview.split(" ").slice(0, 30).join(" ")}...
+              {tvshow.overview.split(" ").slice(0, 30).join(" ")}...
             </h1>
 
             <div className="flex flex-col items-center justify-center my-12 scale-100 md:scale-75 xs:scale-75 lg:scale-100 sm:scale-75">
               <Rating
-                value={movie.vote_average}
+                value={tvshow.vote_average}
                 size="xl"
                 count={10}
                 color="blue"
                 readOnly
-                fractions={movie.vote_average}
-                defaultValue={movie.vote_average}
+                fractions={tvshow.vote_average}
+                defaultValue={tvshow.vote_average}
               />
-              <p className="mt-2 tracking-wide">{movie.vote_average} / 10</p>
+              <p className="mt-2 tracking-wide">{tvshow.vote_average} / 10</p>
             </div>
 
+            <p className="text-white font-bold text-md tracking-wide my-12 max-w-sm italic mx-auto text-center">
+              Note: The episode selector is on the top left of the video player.
+            </p>
+
             <>
-              <MoviePlayer url={url} id={ts_id.toString()} />
+              <TvPlayer url={url} id={ts_id.toString()} />
             </>
           </div>
         </div>
@@ -98,9 +95,13 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
   );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getServerSideProps(context: any) {
   const { id } = context.query;
-  const url = process.env.NYUMATFLIX_VPS + `${id}`;
+  // rest of the code...
+
+  // TODO: Check periodically for tmdb ID fix
+  //   const url = process.env.NYUMATFLIX_VPS2 + `${id}`;
 
   if (id === undefined) {
     return {
@@ -108,12 +109,15 @@ export async function getServerSideProps(context: any) {
     };
   }
 
-  const movieDetails = await axios.get(
-    `https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.API_KEY}&language=en-US`,
+  const tvShowDetails = await axios.get(
+    `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.API_KEY}&language=en-US&append_to_response=external_ids`,
   );
 
+  const adjustedUrl =
+    process.env.NYUMATFLIX_VPS2 + tvShowDetails.data.external_ids.imdb_id;
+
   const staffData = await axios.get(
-    `https://api.themoviedb.org/3/movie/${id}/credits?api_key=${process.env.API_KEY}&language=en-US`,
+    `https://api.themoviedb.org/3/tv/${id}/credits?api_key=${process.env.API_KEY}&language=en-US`,
   );
 
   const nonNullPosterCast = staffData.data.cast.filter((actor: Actor) => {
@@ -128,11 +132,11 @@ export async function getServerSideProps(context: any) {
 
   return {
     props: {
-      movie: movieDetails.data,
+      tvshow: tvShowDetails.data,
       actors: sortedTopTenCast,
-      url: url,
+      url: adjustedUrl,
     },
   };
 }
 
-export default WatchMovie;
+export default WatchTvPage;
