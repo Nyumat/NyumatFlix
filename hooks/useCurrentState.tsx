@@ -1,5 +1,4 @@
-import React from "react";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 
 interface CurrentStateProps {
   filter: string[];
@@ -9,22 +8,18 @@ interface CurrentStateProps {
 const useCurrentState = ({ filter, searchTerm }: CurrentStateProps) => {
   const [currentState, setCurrentState] = React.useState<string>("all");
 
-  useEffect((): any => {
-    setTimeout(() => {
-    if (filter.length <= 1 && searchTerm.length <= 1) {
-      setCurrentState("all");
-    }
-
-    if (filter.length > 1) {
+  useEffect(() => {
+    if (filter.length >= 1) {
       setCurrentState("filter");
     }
 
     if (searchTerm.length > 0) {
       setCurrentState("search");
     }
-    }, 500);
-    }, [filter, searchTerm]);
-    
+    if (filter.length < 1 && searchTerm.length < 1) {
+      setCurrentState("all");
+    }
+  }, [filter, searchTerm]);
 
   return { currentState, setCurrentState };
 };

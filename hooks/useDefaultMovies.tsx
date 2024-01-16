@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Movie } from "../typings";
+import { Movie } from "../utils/typings";
 const useDefaultMovies = (page: number) => {
   const [defaultData, setData] = React.useState<Movie[]>([]);
   const [defaultLoading, setLoading] = React.useState(true);
@@ -14,7 +14,7 @@ const useDefaultMovies = (page: number) => {
         setTotalPages(data.total_pages);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch(() => {
         setError(true);
       });
   }, [page]);
