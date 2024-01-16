@@ -1,26 +1,24 @@
-import { Movie } from "./../../../typings";
+import { Movie } from "../../../utils/typings";
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-import type { NextApiRequest, NextApiResponse } from 'next'
-import axios
-      from 'axios'
+import axios from "axios";
+import type { NextApiRequest, NextApiResponse } from "next";
 type Data = {
-      movies: Movie[]
-}
+  movies: Movie[];
+};
 
 export default async function handler(
-      req: NextApiRequest,
-      res: NextApiResponse<Data>
+  req: NextApiRequest,
+  res: NextApiResponse<Data>,
 ) {
-      let page = req.query.page;
-      await axios.get(`https://api.themoviedb.org/3/movie/popular?api_key=${process.env.API_KEY}&language=en-US&page=${page}`)
-            .then(response => {
-                  res.status(200).json({ movies: response.data })
-            })
-            .catch(error => {
-                  res.status(400).json({ movies: [] })
-            }
-            )
-
-
-
+  const page = req.query.page;
+  await axios
+    .get(
+      `https://api.themoviedb.org/3/movie/popular?api_key=${process.env.API_KEY}&language=en-US&page=${page}`,
+    )
+    .then((response) => {
+      res.status(200).json({ movies: response.data });
+    })
+    .catch(() => {
+      res.status(400).json({ movies: [] });
+    });
 }

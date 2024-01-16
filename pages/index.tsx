@@ -1,11 +1,19 @@
-import { Button, UnstyledButton } from "@mantine/core";
+import { motion } from "framer-motion";
 import type { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import Lottie from "lottie-react";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 
 const Home: NextPage = () => {
+  const router = useRouter();
+  useEffect(() => {
+    (async () => {
+      await router.prefetch("/home");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="text-shark-50 flex min-h-screen flex-col items-start justify-center">
       <Head>
@@ -14,47 +22,49 @@ const Home: NextPage = () => {
       </Head>
 
       <div className="bg-movie-banner flex w-full pt-8 flex-1 flex-col items-center justify-center px-20 text-center"></div>
-      <main className="flex w-full pt-8 flex-1 flex-col items-center justify-center px-20 text-center">
-        <div className="">
-          {/* <Lottie animationData={require("../public/movie.json")} /> */}
-        </div>
+      <main className="flex w-full pt-12 flex-1 flex-col items-center justify-center px-20 text-center">
         <motion.div
           animate={{
             opacity: 1,
             y: 0,
+            x: 0,
           }}
           initial={{
             opacity: 0,
-            y: 100,
+            y: 200,
           }}
           transition={{
-            duration: 1.5,
-            ease: "easeOut",
+            duration: 2.2,
+            ease: "anticipate",
           }}
         >
-          <h1 className="text-6xl sm:text-6xl lg:text-8xl md:7xl font-bold drop-shadow-2xl">
+          <h1 className="text-6xl xs:text-6xl sm:text-7xl lg:text-7xl xl:text-8xl font-bold drop-shadow-2xl">
             NyumatFlix
           </h1>
         </motion.div>
+
         <motion.div
           animate={{
             opacity: 1,
             y: 0,
+            x: 0,
           }}
           initial={{
             opacity: 0,
-            y: 60,
+            y: -40,
           }}
           transition={{
-            duration: 2.0,
-            ease: "easeOut",
+            duration: 1.2,
+            ease: "easeInOut",
+            delay: 1.0,
           }}
         >
-          <p className="mt-3 text-2xl lg:text-4xl md:text-2xl drop-shadow-2xl">
-            Streaming, Streamlined.
+          <p className="mt-3 text-2xl lg:text-4xl md:text-2xl drop-shadow-2xl font-semibold whitespace-nowrap">
+            Streaming made simple.
           </p>
         </motion.div>
-        {/* Need this old reference from prior to Appshell.
+
+        {/* Need this old reference from prior to App shell.
         <div className="flex flex-wrap items-center justify-around max-w-4xl mt-6 sm:w-full"></div> */}
         <motion.div
           animate={{
@@ -63,21 +73,32 @@ const Home: NextPage = () => {
           }}
           initial={{
             opacity: 0,
-            y: 60,
+            y: 0,
           }}
           transition={{
-            duration: 2.8,
+            duration: 1.0,
             ease: "easeOut",
+            delay: 2.0,
           }}
         >
-          <span className="flex flex-row gap-2 mt-6">
-            <Link href="/home">
-              <UnstyledButton
-                className="bg-shark-100  bg-clip-padding backdrop-filter backdrop-blur-3xl bg-opacity-60 hover:bg-opacity-100
-               inline-block rounded border border-current px-8 py-3 text-xl font-bold text-shark-600 transition duration-[200ms] hover:scale-110 hover:shadow-xl focus:outline-none focus:ring active:text-shark-500 hover:ease-in ease-linear"
-              >
+          <span className="flex flex-col gap-2 mt-6 justify-center items-center scale-100 xs:scale-90 sm:scale-90 md:scale-95 lg:scale-100 xl:scale-100">
+            <Link
+              href="/home"
+              className="relative inline-flex items-center justify-start px-3 py-4 overflow-hidden font-bold rounded-full group"
+            >
+              <span className="w-full h-full rotate-45 translate-x-12 -translate-y-2 absolute left-0 top-0 bg-white opacity-[3%]"></span>
+              <span className="absolute top-0 left-0 w-48 h-48 -mt-1 transition-all duration-500 ease-in-out rotate-45 -translate-x-56 -translate-y-24 bg-white opacity-100 group-hover:-translate-x-8"></span>
+              <span className="relative w-full text-2xl text-left text-white transition-colors duration-200 ease-in-out group-hover:text-gray-900">
                 Get Started
-              </UnstyledButton>
+              </span>
+              <span className="absolute inset-0 border-2 border-white rounded-full"></span>
+            </Link>
+
+            <Link
+              href="https://github.com/Nyumat/NyumatFlix"
+              className="relative inline-flex items-center justify-start px-3 py-4 overflow-hidden font-bold hover:underline"
+            >
+              Learn More
             </Link>
           </span>
         </motion.div>
