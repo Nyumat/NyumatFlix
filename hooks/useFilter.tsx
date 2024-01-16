@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
-import { MapGenreMovie, Movie, TvShow } from "../typings";
 import axios from "axios";
+import { useEffect, useState } from "react";
+import { Movie, TvShow } from "../utils/typings";
 interface FilterHookProps {
   filter: string[] | string | undefined;
 }
@@ -14,29 +14,17 @@ const useFilter = ({ filter }: FilterHookProps) => {
   const [filterData, setData] = useState<Data>({ filter_data: [] });
   const [filterLoading, setIsLoading] = useState(false);
   const [filterError, setError] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page] = useState(1);
 
   let capitalFirstLetter = filterString?.charAt(0).toUpperCase();
   if (capitalFirstLetter === undefined) {
     capitalFirstLetter = "";
   }
-  let restOfWord = filterString?.slice(1);
-  let capitalFirstLetterAndRestOfWord = capitalFirstLetter + restOfWord;
 
-  const genresInFilter = filterString?.split(",");
-  const genres = genresInFilter?.map((genre) => MapGenreMovie[parseInt(genre)]);
-
-
-  console.log("filterString", filterString);
-  console.log("capitalFirstLetter", capitalFirstLetter);
-  console.log("restOfWord", restOfWord);
-  console.log("capitalFirstLetterAndRestOfWord", capitalFirstLetterAndRestOfWord);
-  console.log("genresInFilter", genresInFilter);
-  console.log("genres", genres);
+  //   const genresInFilter = filterString?.split(",");
+  //   const genres = genresInFilter?.map((genre) => MapGenreMovie[parseInt(genre)]);
 
   const fetchData = async () => {
-    console.log("fetching data");
-    console.log(filterString);
     setIsLoading(true);
     try {
       const result = await axios(`/api/filter`, {
@@ -45,7 +33,6 @@ const useFilter = ({ filter }: FilterHookProps) => {
           page: page,
         },
       });
-      console.log(result.data);
       setData(result.data);
     } catch (error) {
       setError(true);
@@ -63,9 +50,10 @@ const useFilter = ({ filter }: FilterHookProps) => {
       return;
     }
 
-    if (filter.length > 1) {
+    if (filter.length >= 1) {
       fetchData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   return { filterData, filterLoading, filterError };

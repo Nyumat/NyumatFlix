@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { Movie } from "../typings";
-import useDebounceSearch from "./useDebounceSearch";
 import axios from "axios";
+import { useEffect, useState } from "react";
+import { Movie } from "../utils/typings";
+import useDebounceSearch from "./useDebounceSearch";
 
 interface useSearchProps {
   search: string;
@@ -31,7 +31,7 @@ const useSearch = ({ search }: useSearchProps) => {
           },
         })
         .then((res) => {
-          let data = res.data.search_data.filter((item: Movie) => {
+          const data = res.data.search_data.filter((item: Movie) => {
             return item.poster_path !== null && item.vote_average !== 0;
           });
           setTimeout(() => {
@@ -40,10 +40,11 @@ const useSearch = ({ search }: useSearchProps) => {
             setTotalPages(res.data.total_pages);
           }, 1000);
         })
-        .catch((err) => {
+        .catch(() => {
           setError(true);
         });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, page]);
 
   return { searchLoading, searchData, totalPages, page, setPage, searchError };
