@@ -11,10 +11,138 @@
 .bg-movie-banner {
   @apply bg-cover bg-center;
   @apply bg-no-repeat;
-  @apply filter blur-smp;
+  @apply filter blur-[7px];
   @apply absolute;
   @apply min-h-full;
   @apply min-w-full;
   @apply -z-50;
 }
 
+:root {
+  --background-color: rgba(0, 0, 0, 0.75);
+  --light-background-color: rgba(0, 0, 0, 0.65);
+  --primary-color: #1a202c;
+  --secondary-color: rgba(0, 0, 0, 0.45);
+  --text-color: #e2e8f0;
+  --date-text-color: rgba(226, 232, 240, 0.75);
+  --spacing-small: 8px;
+  --spacing-medium: 16px;
+  --spacing-large: 24px;
+}
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--text-color);
+  border-radius: var(--spacing-small);
+  overflow: hidden;
+}
+
+.image-container {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 150%;
+}
+
+.image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--spacing-small);
+  transition: opacity 0.3s ease;
+}
+
+.info {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--spacing-medium);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card:hover .info {
+  opacity: 1;
+}
+
+.play-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2em; /* Adjust as needed */
+  color: var(--text-color);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card:hover .play-icon {
+  opacity: 1;
+}
+
+.title {
+  font-size: 1.2em;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--text-color);
+}
+
+.date {
+  font-size: 0.875em;
+  color: var(--date-text-color);
+  letter-spacing: 0.1em;
+}
+
+.rating {
+  position: absolute;
+  top: var(--spacing-medium);
+  right: var(--spacing-medium);
+  padding: var(--spacing-small);
+  background: var(--light-background-color);
+  border-radius: var(--spacing-small);
+  font-size: 0.875em;
+  font-weight: bold;
+  color: var(--text-color);
+  letter-spacing: 0.1em;
+}
+
+@media (hover: hover) {
+  .card:hover .image {
+    opacity: 0.55;
+    background-color: var(--background-color);
+    filter: blur(2px);
+  }
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 1em;
+  }
+
+  .date {
+    font-size: 0.75em;
+  }
+}
+
+@media (max-width: 640px) {
+  .card {
+    width: 100%;
+  }
+
+  .title {
+    font-size: 0.875em;
+  }
+
+  .date {
+    font-size: 0.625em;
+  }
+}
