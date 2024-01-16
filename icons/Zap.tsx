@@ -1,5 +1,5 @@
 function IconPytorchlightning(
-  props: JSX.IntrinsicAttributes & React.SVGProps<SVGSVGElement>
+  props: JSX.IntrinsicAttributes & React.SVGProps<SVGSVGElement>,
 ) {
   return (
     <svg
