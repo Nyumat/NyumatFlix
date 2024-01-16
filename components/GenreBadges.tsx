@@ -1,8 +1,6 @@
 import { Badge, MediaQuery } from "@mantine/core";
-import React from "react";
-import { MapGenreMovie } from "../typings";
-import { FastAverageColor } from "fast-average-color";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { MapGenreMovie } from "@utils/typings";
 
 interface GenreBadgesProps {
   genres: {

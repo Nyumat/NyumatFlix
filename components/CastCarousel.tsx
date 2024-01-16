@@ -1,5 +1,6 @@
 import { Carousel } from "@mantine/carousel";
-import { Actor } from "../typings";
+import Image from "next/image";
+import { Actor } from "../utils/typings";
 
 function CastCarousel({ actors }: { actors: Actor[] }) {
   return (
@@ -37,9 +38,11 @@ function CastCarousel({ actors }: { actors: Actor[] }) {
         {actors.map((actor: Actor) => (
           <div key={actor.id} className="flex flex-col items-center">
             <div className="flex flex-row gap-0 -my-16 justify-center scale-50 items-start">
-              <img
+              <Image
                 src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
-                alt="..."
+                alt={actor.name}
+                width={180}
+                height={200}
                 className="shadow-lg rounded-full max-w-full h-auto align-middle border-none"
               />
             </div>

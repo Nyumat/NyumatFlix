@@ -1,11 +1,11 @@
 import React from "react";
 
-interface MoviePlayerProps {
+interface ShowPlayerProps {
   id: string;
   url?: string;
 }
 
-const MoviePlayer = ({ id, url }: MoviePlayerProps) => {
+const ShowPlayer = ({ url }: ShowPlayerProps) => {
   return (
     <>
       <div className="flex flex-row items-center justify-center">
@@ -23,4 +23,4 @@ const MoviePlayer = ({ id, url }: MoviePlayerProps) => {
   );
 };
 
-export default MoviePlayer;
+export default ShowPlayer;

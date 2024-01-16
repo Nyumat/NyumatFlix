@@ -1,9 +1,7 @@
-import { IconSearch, IconAlertCircle } from "@tabler/icons";
-import { Button, Input, Tooltip, Chip } from "@mantine/core";
-import { useState, useEffect } from "react";
+import { Input, MultiSelect, Tooltip } from "@mantine/core";
+import { IconAlertCircle, IconChevronDown, IconSearch } from "@tabler/icons";
+import { MapGenreMovie, genres } from "@utils/typings";
 import { useRouter } from "next/router";
-import { MapGenreMovie, Movie } from "../typings";
-import useCurrentState from "../hooks/useCurrentState";
 
 interface SideBarProps {
   filter: string[];
@@ -22,21 +20,30 @@ const SideBar = ({
 
   const handleChange = (value: string[]) => {
     setFilter(value);
-    let empty_filter: boolean = false;
-    let res = value.map((item) => {
+    const res = value.map((item) => {
       return MapGenreMovie[parseInt(item)];
     });
-    let parsed = res.join(",").substring(1).toLowerCase().replace(/,/g, "/");
+    const parsed = res.join(",");
     if (parsed.length === 0) {
-      empty_filter = true;
-    }
-    router.push(
-      {
+      router.push({
         pathname: router.pathname,
-      },
-      `${empty_filter ? `/${router.route}` : `${router.pathname}/filter/${parsed}`}`,
-      { shallow: true },
-    );
+      });
+      return;
+    }
+  };
+  /*
+  const getFiltersFromUrl = () => {
+    const filters = router.query.filter;
+    if (filters) {
+      const parsed = filters
+        .toString()
+        .split(",")
+        .map((item) => {
+          return MapGenreMovie[parseInt(item)];
+        });
+      return parsed;
+    }
+    return [];
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -52,21 +59,25 @@ const SideBar = ({
       );
     }
   };
-
-
+*/
   return (
     <div className="container flex flex-col items-center justify-center w-full h-full">
       <div className="flex flex-col items-start justify-start w-full h-full">
-        <h1 className="text-white text-lg font-bold mb-2">Search</h1>
+        <h1 className="text-white text-lg font-bold my-2">Search</h1>
         <Input
           // style={{ width: 270 }}
           onChange={(e) => setSearchTerm(e.currentTarget.value)}
-          onKeyDown={handleKeyDown}
+          //   onKeyDown={handleKeyDown}
           icon={<IconSearch size={16} />}
           value={searchTerm}
           placeholder="Shrek, Boondocks..."
+          className="min-w-full"
           rightSection={
-            <Tooltip label="Search!" position="top-end" withArrow>
+            <Tooltip
+              label="Search for your favorites"
+              position="top-end"
+              withArrow
+            >
               <div>
                 <IconAlertCircle
                   size={18}
@@ -78,30 +89,50 @@ const SideBar = ({
         />
       </div>
 
-      <div className="container flex flex-col items-start justify-center w-full h-full mt-4">
-        <h1 className="text-white text-lg font-bold">Genres</h1>
-        <ul className="flex flex-col  items-start justify-center w-full h-full mt-2">
-          <Chip.Group value={filter} onChange={handleChange} multiple>
-            <Chip value="28">Action</Chip>
-            <Chip value="12">Adventure</Chip>
-            <Chip value="16">Animation</Chip>
-            <Chip value="35">Comedy</Chip>
-            <Chip value="80">Crime</Chip>
-            <Chip value="99">Documentary</Chip>
-            <Chip value="18">Drama</Chip>
-            <Chip value="10751">Family</Chip>
-            <Chip value="14">Fantasy</Chip>
-            <Chip value="36">History</Chip>
-            <Chip value="27">Horror</Chip>
-            <Chip value="10402">Music</Chip>
-            <Chip value="9648">Mystery</Chip>
-            <Chip value="10749">Romance</Chip>
-            <Chip value="878">Science Fiction</Chip>
-            <Chip value="10770">TV Movie</Chip>
-            <Chip value="53">Thriller</Chip>
-            <Chip value="10752">War</Chip>
-          </Chip.Group>
-        </ul>
+      <div className="container flex flex-col items-start justify-center w-full h-full my-4">
+        <h1 className="text-white text-lg font-bold my-2">Filter by Genre</h1>
+        <MultiSelect
+          value={filter}
+          onChange={handleChange}
+          data={genres.map((genre) => ({
+            value: genre.id.toString(),
+            label: genre.name,
+          }))}
+          placeholder="Select All That Apply."
+          label="Genres"
+          className="min-w-full"
+          clearable
+          clearButtonLabel="Clear selection"
+          searchable
+          nothingFound="No genres found"
+          rightSection={
+            <IconChevronDown
+              size={18}
+              style={{ display: "block", opacity: 0.5 }}
+            />
+          }
+        />
+
+        {/* <Chip.Group value={filter} onChange={handleChange} multiple>
+          <Chip value="28">Action</Chip>
+          <Chip value="12">Adventure</Chip>
+          <Chip value="16">Animation</Chip>
+          <Chip value="35">Comedy</Chip>
+          <Chip value="80">Crime</Chip>
+          <Chip value="99">Documentary</Chip>
+          <Chip value="18">Drama</Chip>
+          <Chip value="10751">Family</Chip>
+          <Chip value="14">Fantasy</Chip>
+          <Chip value="36">History</Chip>
+          <Chip value="27">Horror</Chip>
+          <Chip value="10402">Music</Chip>
+          <Chip value="9648">Mystery</Chip>
+          <Chip value="10749">Romance</Chip>
+          <Chip value="878">Science Fiction</Chip>
+          <Chip value="10770">TV Movie</Chip>
+          <Chip value="53">Thriller</Chip>
+          <Chip value="10752">War</Chip>
+        </Chip.Group> */}
       </div>
     </div>
   );

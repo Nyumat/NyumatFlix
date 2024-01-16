@@ -1,52 +1,42 @@
-import { useState, useEffect } from "react";
 import {
   AppShell,
-  Navbar,
-  Header,
   Aside,
-  Footer,
-  Text,
-  MediaQuery,
   Burger,
-  useMantineTheme,
   Center,
-  Loader,
+  Footer,
+  Header,
+  MediaQuery,
+  useMantineTheme,
 } from "@mantine/core";
+import { useState } from "react";
+import useCurrentState from "../hooks/useCurrentState";
+import useDefaultMovies from "../hooks/useDefaultMovies";
+import useFilter from "../hooks/useFilter";
+import useLoading from "../hooks/useLoading";
+import useSearch from "../hooks/useSearch";
+import { LayoutProps } from "../utils/typings";
+import Body from "./Body";
+import FooterMain from "./Footer";
+import Heading from "./Heading";
 import NavigationBar from "./NavigationBar";
 import SideBar from "./SideBar";
-import FooterMain from "./Footer";
-import { LayoutProps } from "../typings";
-import Heading from "./Heading";
-import UpUpTransition from "./UpUpTransition";
-import Body from "./Body";
-import useFilter from "../hooks/useFilter";
-import useCurrentState from "../hooks/useCurrentState";
-import useSearch from "../hooks/useSearch";
-import useDefaultMovies from "../hooks/useDefaultMovies";
-import useLoading from "../hooks/useLoading";
 
 export default function Layout({ children, isPathRoot }: LayoutProps) {
   const theme = useMantineTheme();
   const [opened, setOpened] = useState(false);
-  const [filter, setFilter] = useState<string[]>([""]);
+  const [filter, setFilter] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { filterData, filterLoading, filterError } = useFilter({ filter });
-  const { searchData, searchLoading, page, totalPages } = useSearch({
-    search: searchTerm,
-  });
-  const { defaultData, defaultLoading, defaultError } = useDefaultMovies(1);
+  const { filterData, filterLoading } = useFilter({ filter });
+  const { searchData, searchLoading } = useSearch({ search: searchTerm });
+  const { defaultLoading } = useDefaultMovies(1);
 
   const { currentState, setCurrentState } = useCurrentState({
     filter,
     searchTerm,
   });
 
-  const isLoaded = useLoading({
-    filterLoading,
-    searchLoading,
-    defaultLoading,
-  });
+  const isLoaded = useLoading({ filterLoading, searchLoading, defaultLoading });
 
   return (
     <>
@@ -64,7 +54,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
                   : theme.colors.gray[0],
             },
           }}
-          navbarOffsetBreakpoint="sm"
+          navbarOffsetBreakpoint="xs"
           asideOffsetBreakpoint="sm"
           navbar={
             <NavigationBar
@@ -73,9 +63,10 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
               setSearchTerm={setSearchTerm}
               setFilter={setFilter}
               hidden={!opened}
+              opened={opened}
+              setOpen={setOpened}
               p="md"
-              hiddenBreakpoint="sm"
-              width={{ sm: 200, lg: 300 }}
+              hiddenBreakpoint="xs"
             />
           }
           aside={
@@ -98,7 +89,11 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             </MediaQuery>
           }
           footer={
-            <Footer p="md" height={50}>
+            <Footer
+              p="md"
+              className="translate-y-2 xs:mb-1 sm:mb-2"
+              height={50}
+            >
               <FooterMain />
             </Footer>
           }
@@ -126,22 +121,20 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             </Header>
           }
         >
-          <UpUpTransition>
-            <Body
-              filter={filter}
-              filterData={filterData}
-              filterLoading={filterLoading}
-              searchData={searchData}
-              currentState={currentState}
-              isLoaded={isLoaded}
-              setSearchTerm={setSearchTerm}
-              setFilter={setFilter}
-              searchTerm={searchTerm}
-              setCurrentState={setCurrentState}
-            >
-              {children}
-            </Body>
-          </UpUpTransition>
+          <Body
+            filter={filter}
+            filterData={filterData}
+            filterLoading={filterLoading}
+            searchData={searchData}
+            currentState={currentState}
+            isLoaded={isLoaded}
+            setSearchTerm={setSearchTerm}
+            setFilter={setFilter}
+            searchTerm={searchTerm}
+            setCurrentState={setCurrentState}
+          >
+            {children}
+          </Body>
         </AppShell>
       )}
     </>

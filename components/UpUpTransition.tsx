@@ -1,7 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/router";
-import { useState } from "react";
-
+import { AnimatePresence, motion } from "framer-motion";
 interface TransitionProps {
   children: React.ReactNode;
 }
@@ -34,8 +31,6 @@ const variants = {
 };
 
 export default function UpUpTransition({ children }: TransitionProps) {
-  const { asPath } = useRouter();
-
   return (
     <div className="effect-2">
       <AnimatePresence initial={false} mode="wait">
