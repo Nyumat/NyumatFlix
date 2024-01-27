@@ -44,6 +44,14 @@ const useSearch = ({ search }: useSearchProps) => {
           setError(true);
         });
     }
+
+    return () => {
+      setLoading(false);
+      setSearchData([]);
+      setTotalPages(0);
+      setPage(1);
+      setError(false);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, page]);
 
