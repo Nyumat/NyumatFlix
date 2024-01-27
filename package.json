@@ -6,7 +6,7 @@
     "start": "next start",
     "test": "jest --env=jsdom",
     "preview": "next start --port 3001",
-    "format": "prettier --write \"components/**/*.{js,jsx,ts,tsx}\" \"hooks/**/*.{js,jsx,ts,tsx}\" \"pages/**/*.{js,jsx,ts,tsx}\" \"utils/**/*.{js,jsx,ts,tsx}\" \"icons/**/*.{js,jsx,ts,tsx}\" .eslintrc.yml next.config.js package.json postcss.config.js prettier.config.js README.md tailwind.config.js",
+    "format": "prettier --write \"components/**/*.{js,jsx,ts,tsx}\" \"hooks/**/*.{js,jsx,ts,tsx}\" \"pages/**/*.{js,jsx,ts,tsx}\" \"utils/**/*.{js,jsx,ts,tsx}\" \"icons/**/*.{js,jsx,ts,tsx}\" .eslintrc.yml next.config.js package.json postcss.config.js prettier.config.js README.md tailwind.config.js tsconfig.json",
     "check-format": "prettier --check .",
     "type-check": "tsc --project tsconfig.json --pretty --noEmit && echo",
     "lint": "eslint --ext .ts,.tsx --max-warnings 0 .",
