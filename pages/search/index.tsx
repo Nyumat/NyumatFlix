@@ -11,7 +11,6 @@ import {
 import { IconArrowLeft, IconArrowRight, IconSearch } from "@tabler/icons";
 import { Movie, TvShow } from "@utils/typings";
 import axios from "axios";
-import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 
 const Search = (props: TextInputProps) => {
@@ -19,7 +18,6 @@ const Search = (props: TextInputProps) => {
   const [search, setSearch] = useState<string>("");
   const debouncedSearch = useDebounceSearch(search, 500);
   const [page] = useState<number>(1);
-  const router = useRouter();
   const [searchData, setSearchData] = useState<Movie[] | TvShow[]>([]);
   const [, setTotalPages] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -28,17 +26,6 @@ const Search = (props: TextInputProps) => {
   const filteredSearchData = searchData.filter((item: Movie | TvShow) => {
     return item.media_type !== "person";
   });
-
-  const handleClick = (
-    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
-    movie_id: number,
-  ) => {
-    e.preventDefault();
-    router.push({
-      pathname: `/tvshows/watch/[id]`,
-      query: { id: movie_id },
-    });
-  };
 
   useEffect(() => {
     if (debouncedSearch.length === 0) {
@@ -127,21 +114,7 @@ const Search = (props: TextInputProps) => {
             {searchData &&
               filteredSearchData.map((item: Movie | TvShow) => {
                 if (item.poster_path !== null || item.vote_average !== 0) {
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={(e) => {
-                        handleClick(e, item.id);
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      onKeyDown={(e) => {
-                        handleClick(e, item.id);
-                      }}
-                    >
-                      <Card key={item.id} item={item} />
-                    </div>
-                  );
+                  return <Card key={item.id} item={item} />;
                 } else {
                   return null;
                 }
