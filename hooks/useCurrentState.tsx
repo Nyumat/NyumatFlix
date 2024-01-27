@@ -9,11 +9,11 @@ const useCurrentState = ({ filter, searchTerm }: CurrentStateProps) => {
   const [currentState, setCurrentState] = React.useState<string>("all");
 
   useEffect(() => {
-    if (filter.length >= 1) {
+    if (filter.length > 1) {
       setCurrentState("filter");
     }
 
-    if (searchTerm.length > 0) {
+    if (searchTerm.length > 0 && filter.length < 1) {
       setCurrentState("search");
     }
     if (filter.length < 1 && searchTerm.length < 1) {

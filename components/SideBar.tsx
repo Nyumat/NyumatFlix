@@ -1,13 +1,17 @@
 import { Input, MultiSelect, Tooltip } from "@mantine/core";
 import { IconAlertCircle, IconChevronDown, IconSearch } from "@tabler/icons";
-import { MapGenreMovie, genres } from "@utils/typings";
+import { genres } from "@utils/typings";
 import { useRouter } from "next/router";
+import { useCallback } from "react";
 
 interface SideBarProps {
   filter: string[];
   setFilter: React.Dispatch<React.SetStateAction<string[]>>;
   setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
   searchTerm: string;
+  show: boolean;
+  setShow: React.Dispatch<React.SetStateAction<boolean>>;
+  setCurrentState: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const SideBar = ({
@@ -15,51 +19,57 @@ const SideBar = ({
   setFilter,
   setSearchTerm,
   searchTerm,
+  show,
+  setShow,
+  setCurrentState,
 }: SideBarProps) => {
   const router = useRouter();
 
   const handleChange = (value: string[]) => {
+    setCurrentState("filter");
+    setShow(false);
     setFilter(value);
-    const res = value.map((item) => {
-      return MapGenreMovie[parseInt(item)];
-    });
-    const parsed = res.join(",");
-    if (parsed.length === 0) {
-      router.push({
-        pathname: router.pathname,
-      });
-      return;
-    }
-  };
-  /*
-  const getFiltersFromUrl = () => {
-    const filters = router.query.filter;
-    if (filters) {
-      const parsed = filters
-        .toString()
-        .split(",")
-        .map((item) => {
-          return MapGenreMovie[parseInt(item)];
-        });
-      return parsed;
-    }
-    return [];
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      setSearchTerm(e.currentTarget.value);
-      router.push(
-        {
-          pathname: router.pathname,
-          query: { search: e.currentTarget.value },
-        },
-        `${router.pathname}?search=${e.currentTarget.value}`,
-        { shallow: true },
-      );
+  const handleKeyDown = useCallback(
+    (event) => {
+      if (event.key) {
+        if (event.key === "Enter") {
+          setCurrentState("search");
+          setShow(false);
+        }
+
+        if (show) {
+          setCurrentState("search");
+          setShow(false);
+        }
+
+        if (searchTerm.length <= 0) {
+          setShow(true);
+        }
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [router, searchTerm, setShow, show],
+  );
+  /*
+  If I ever want router.query.q to be the search term
+  useEffect(() => {
+    const searchTerm = router.query.q;
+    if (searchTerm) {
+      setSearchTerm(searchTerm.toString());
+      router.push({
+        pathname: "/search",
+        query: { q: searchTerm },
+      });
     }
-  };
+
+    if (searchTerm === "" || searchTerm === undefined) {
+      setSearchTerm("");
+    }
+  }, [router.query.q]);
 */
+
   return (
     <div className="container flex flex-col items-center justify-center w-full h-full">
       <div className="flex flex-col items-start justify-start w-full h-full">
@@ -67,7 +77,7 @@ const SideBar = ({
         <Input
           // style={{ width: 270 }}
           onChange={(e) => setSearchTerm(e.currentTarget.value)}
-          //   onKeyDown={handleKeyDown}
+          onKeyDown={handleKeyDown}
           icon={<IconSearch size={16} />}
           value={searchTerm}
           placeholder="Shrek, Boondocks..."
