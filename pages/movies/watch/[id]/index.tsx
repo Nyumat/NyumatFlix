@@ -9,7 +9,6 @@ import { Actor, Movie } from "@utils/typings";
 import axios from "axios";
 import moment from "moment";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
 
 interface PlayerProps {
   movie: Movie;
@@ -19,10 +18,6 @@ interface PlayerProps {
 
 const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
   const router = useRouter();
-
-  useEffect(() => {
-    if (!router.isReady) return;
-  }, [router.isReady]);
 
   const { id } = router.query;
   const ts_id = parseInt(id as string);
