@@ -52,6 +52,9 @@ const Page = () => {
             filter={filter}
             setFilter={setFilter}
             setSearchTerm={setSearchTerm}
+            show={show}
+            setShow={setShow}
+            setCurrentState={handleShow}
           />
         </div>
 

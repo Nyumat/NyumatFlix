@@ -1,6 +1,6 @@
 /* eslint-disable react/display-name */
 import { Chip, Loader } from "@mantine/core";
-import React, { forwardRef, useCallback, useState } from "react";
+import React, { forwardRef } from "react";
 import { MapGenreMovie, Movie, TvShow } from "../utils/typings";
 import Card from "./Card";
 
@@ -21,6 +21,8 @@ interface BodyProps {
   setFilter: React.Dispatch<React.SetStateAction<string[]>>;
   searchTerm?: string;
   setCurrentState: React.Dispatch<React.SetStateAction<string>>;
+  show: boolean;
+  setShow: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const ChipComponent = React.memo(({ genre }: { genre: string }) => (
@@ -29,9 +31,21 @@ const ChipComponent = React.memo(({ genre }: { genre: string }) => (
 
 const CardComponent = React.memo(
   ({ data, onClick }: { data: Movie | TvShow; onClick: () => void }) => (
-    <span onClick={onClick} role="button" tabIndex={0} onKeyDown={onClick}>
-      <Card item={data} />
-    </span>
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      className="cursor-pointer"
+      onKeyDown={onClick}
+    >
+      {data.media_type === "movie" ? (
+        // Render Movie component if it's a movie
+        <Card item={data} />
+      ) : (
+        // Render TvShow component if it's a tv show
+        <Card item={data} />
+      )}
+    </div>
   ),
 );
 
@@ -52,19 +66,34 @@ const MovieList = ({
   filterData: Data | undefined;
   handleShow: () => void;
 }) => {
+  // remove the items with null poster_path
+  // and vote_average of 0
+  // and media_type of person
+
+  const filteredData = filterData?.filter_data.filter(
+    (item: Movie | TvShow) =>
+      item.poster_path !== null || item.vote_average !== 0,
+  );
+
   return (
     <>
-      {filterData && filterData.filter_data.length > 0 ? (
+      {filteredData ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filterData.filter_data.map(
-            (movie: Movie | TvShow, index: number) => (
-              <CardComponent key={index} data={movie} onClick={handleShow} />
+          {filterData?.filter_data.map(
+            (item: Movie | TvShow, index: number) => (
+              <>
+                {item.media_type === "movie" ? (
+                  <CardComponent key={index} data={item} onClick={handleShow} />
+                ) : (
+                  <CardComponent key={index} data={item} onClick={handleShow} />
+                )}
+              </>
             ),
           )}
         </div>
       ) : (
         <h1 className="text-2xl text-center">
-          No movies found with these filters.
+          No content found with these filters.
         </h1>
       )}
     </>
@@ -81,13 +110,11 @@ export const renderChips = (
   if (filter.length > 0) {
     return (
       <>
-        <div>
-          <ChipList filter={filter} />
-        </div>
-
-        {show && children}
         {!show && (
           <>
+            <div>
+              <ChipList filter={filter} />
+            </div>
             <MovieList filterData={filterData} handleShow={handleShow} />
           </>
         )}
@@ -103,54 +130,43 @@ export const renderSearch = (
   setShow: React.Dispatch<React.SetStateAction<boolean>>,
   children: React.ReactNode,
 ) => {
-  if (searchData) {
-    // TODO: Fix bug where no such results found shows on first keypress regardless of search term
-    const renderMessage = () => {
-      return (
-        <div className="text-center text-2xl font-bold text-gray-500 pt-4">
-          No Results Found
-        </div>
-      );
-    };
+  if (searchData && isLoaded && !show) {
+    const filteredSearchData = searchData.filter(
+      (item: Movie | TvShow) => item.media_type !== "person",
+    );
 
-    const filteredSearchData = searchData.filter((item) => {
-      return item.media_type !== "person";
-    });
+    const renderMessage = () => (
+      <div className="text-center text-2xl font-bold text-gray-500 pt-4">
+        No Results Found
+      </div>
+    );
 
     return (
       <>
-        {isLoaded && searchData.length === 0 && (
+        {isLoaded && filteredSearchData.length === 0 && (
           <div className="flex justify-center">{renderMessage()}</div>
         )}
 
-        {show && children}
-        {!show && (
-          <>
-            {!isLoaded ? (
-              <div className="flex justify-center">
-                <Loader />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredSearchData.map(
-                  (movie: Movie | TvShow, index: number) => (
-                    <div
-                      className="cursor-pointer flex flex-grow"
-                      key={index}
-                      onClick={() => setShow(true)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={() => setShow(true)}
-                    >
-                      <Card key={index} item={movie} />
-                    </div>
-                  ),
-                )}
-              </div>
-            )}
-          </>
+        {isLoaded && filteredSearchData.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filteredSearchData.map((item: Movie | TvShow, index: number) => (
+              <CardComponent
+                key={index}
+                data={item}
+                onClick={() => setShow(true)}
+              />
+            ))}
+          </div>
         )}
       </>
+    );
+  } else if (show === true && children) {
+    return <>{children}</>;
+  } else {
+    return (
+      <div className="flex justify-center">
+        <Loader size="xl" />
+      </div>
     );
   }
 };
@@ -164,12 +180,15 @@ const Body = forwardRef(
       currentState,
       filterData,
       isLoaded,
+      show,
+      setShow,
     }: BodyProps,
     ref: React.Ref<HTMLDivElement>,
   ) => {
-    const [show, setShow] = useState<boolean>(false);
-
-    const handleShow = useCallback(() => setShow(true), []);
+    const handleShow = () => {
+      if (currentState === "all") setShow(true);
+      else setShow((prev) => !prev);
+    };
 
     return (
       <div className="w-full" ref={ref}>

@@ -156,6 +156,8 @@ interface NavigationBarProps {
   setSearchTerm?: React.Dispatch<SetStateAction<string>>;
   opened: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  show: boolean;
+  setShow: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function NavigationBar({
@@ -168,6 +170,7 @@ export default function NavigationBar({
   setFilter,
   opened,
   setOpen,
+  setShow,
 }: NavigationBarProps) {
   const [, setActive] = useState(0 as number);
   const router = useRouter();
@@ -209,6 +212,7 @@ export default function NavigationBar({
         key={uuid()}
         active={route === link.label.toLowerCase().split(" ").join("")}
         onClick={() => {
+          setShow(true);
           setOpen(false);
           if (currentState !== "all") {
             setCurrentState?.("all");
