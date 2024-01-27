@@ -32,7 +32,6 @@
     "@mantine/tiptap": "^5.10.0",
     "@tabler/icons": "^1.119.0",
     "@tabler/icons-react": "^2.45.0",
-    "@testing-library/react": "^14.1.2",
     "@tiptap/extension-link": "^2.0.0-beta.209",
     "@tiptap/react": "^2.0.0-beta.209",
     "@tiptap/starter-kit": "^2.0.0-beta.209",
@@ -53,7 +52,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@testing-library/react-hooks": "^8.0.1",
+    "@testing-library/react": "^14.1.2",
     "@types/jest": "^29.5.11",
     "@types/node": "18.11.3",
     "@types/react": "18.0.21",
