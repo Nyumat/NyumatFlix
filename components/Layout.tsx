@@ -26,6 +26,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
   const [opened, setOpened] = useState(false);
   const [filter, setFilter] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showChildren, setShowChildren] = useState(true);
 
   const { filterData, filterLoading } = useFilter({ filter });
   const { searchData, searchLoading } = useSearch({ search: searchTerm });
@@ -62,6 +63,8 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
               setCurrentState={setCurrentState}
               setSearchTerm={setSearchTerm}
               setFilter={setFilter}
+              show={showChildren}
+              setShow={setShowChildren}
               hidden={!opened}
               opened={opened}
               setOpen={setOpened}
@@ -79,10 +82,13 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
               >
                 <Center>
                   <SideBar
+                    setCurrentState={setCurrentState}
                     searchTerm={searchTerm}
                     filter={filter}
                     setFilter={setFilter}
                     setSearchTerm={setSearchTerm}
+                    setShow={setShowChildren}
+                    show={showChildren}
                   />
                 </Center>
               </Aside>
@@ -132,6 +138,8 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
             setFilter={setFilter}
             searchTerm={searchTerm}
             setCurrentState={setCurrentState}
+            show={showChildren}
+            setShow={setShowChildren}
           >
             {children}
           </Body>

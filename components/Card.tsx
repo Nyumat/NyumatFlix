@@ -14,11 +14,7 @@ const MovieCard = ({ movie }: MovieCardProps) => {
   const router = useRouter();
 
   const handleClick = () => {
-    // await router.prefetch(`/movies/watch/${movie.id}`);
-    router.push({
-      pathname: `/movies/watch/[id]`,
-      query: { id: movie.id },
-    });
+    router.push(`/movies/watch/${movie.id}`);
   };
 
   if (!movie?.poster_path || moment(movie.release_date).isAfter(moment()))
@@ -67,12 +63,9 @@ const MovieCard = ({ movie }: MovieCardProps) => {
 const TvShowCard = ({ tvShow }: { tvShow: TvShow }) => {
   const router = useRouter();
   if (!tvShow?.poster_path || tvShow.vote_average === 0) return null;
+
   const handleClick = () => {
-    // await router.prefetch(`/tvshows/watch/${tvShow.id}`);
-    router.push({
-      pathname: `/tvshows/watch/[id]`,
-      query: { id: tvShow.id },
-    });
+    router.push(`/tvshows/watch/${tvShow.id}`);
   };
 
   return (
