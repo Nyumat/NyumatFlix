@@ -1,6 +1,6 @@
 <img src="preview.png" alt="NyumatFlix" width="100%"/>
 
-# [NyumatFlix](https://nyumatflix.herokuapp.com)
+# [NyumatFlix](https://nyumatflix.com)
 
 The successor to NyumatFlix V1, but with an all-new design and tech stack.
 
