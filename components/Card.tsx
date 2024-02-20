@@ -17,8 +17,7 @@ const MovieCard = ({ movie }: MovieCardProps) => {
     router.push(`/movies/watch/${movie.id}`);
   };
 
-  if (!movie?.poster_path || moment(movie.release_date).isAfter(moment()))
-    return null;
+  if (!movie?.poster_path || movie.vote_average === 0) return null;
 
   return (
     <div
