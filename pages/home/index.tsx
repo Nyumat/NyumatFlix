@@ -14,6 +14,8 @@ interface Props {
 const Page = ({ titles, trendingTvShows, trendingMovies }: Props) => {
   const trendingData: TmdbResponse = [trendingMovies, trendingTvShows];
 
+  console.log("trendingData", trendingData);
+
   return (
     <>
       <PageTransition>
@@ -61,10 +63,10 @@ export async function getStaticProps() {
     axios
       .get(requests.fetchTrendingMovies)
       .then((res) => filterOutNull(res.data.results)),
-    axios.get(requests.fetchTrendingTvShows).then((res) => res.data.results),
+    axios
+      .get(requests.fetchTrendingTvShows)
+      .then((res) => filterOutNull(res.data.results)),
   ]);
-
-  //console.log(TrendingMovies);
 
   return {
     props: {

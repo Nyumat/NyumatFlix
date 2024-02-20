@@ -9,6 +9,7 @@ import { Actor, Movie } from "@utils/typings";
 import axios from "axios";
 import moment from "moment";
 import { useRouter } from "next/router";
+import Head from "next/head";
 
 interface PlayerProps {
   movie: Movie;
@@ -33,63 +34,92 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
   }
 
   return (
-    <PageTransition>
-      <div className="h-screen w-full">
-        <Hero
-          backdrop_path={movie.backdrop_path}
-          title={movie.title}
-          poster_path={movie.poster_path}
-          genres={movie.genres}
-          release_date={movie.release_date ?? "Unknown"}
+    <>
+      <Head>
+        <title>{movie.title} | NyumatFlix</title>
+        <meta
+          name="description"
+          content={`Watch ${movie.title} on NyumatFlix`}
         />
+        <meta
+          property="og:title"
+          content={`${movie.title} | NyumatFlix`}
+          key="ogtitle"
+        />
+        <meta
+          property="og:description"
+          content={`Watch ${movie.title} on NyumatFlix`}
+          key="ogdesc"
+        />
+        <meta
+          property="og:image"
+          content={`https://image.tmdb.org/t/p/w500/${movie.poster_path}`}
+          key="ogimage"
+        />
+        <meta
+          property="og:url"
+          content={`https://nyumatflix.com/movies/watch/${id}`}
+          key="ogurl"
+        />
+      </Head>
+      <PageTransition>
+        <div className="h-screen w-full">
+          <Hero
+            backdrop_path={movie.backdrop_path}
+            title={movie.title}
+            poster_path={movie.poster_path}
+            genres={movie.genres}
+            release_date={movie.release_date ?? "Unknown"}
+          />
 
-        <div className="flex flex-col items-center justify-center">
-          <Text
-            component="span"
-            variant="gradient"
-            gradient={{ from: "#c5c9c6", to: `aliceblue` }}
-            className="font-bold text-2xl xs:text-xl sm:text-xl text-white w-full text-center mt-20"
-          >
-            Released: {moment(movie.release_date).format("MMMM Do, YYYY")}
-          </Text>
-          <p className="text-white font-bold text-2xl tracking-wide mt-12">
-            Cast List
-          </p>
-          <div className="w-full h-full my-10 z-10">
-            <CastCarousel actors={actors} />
-          </div>
-          <div className="w-full h-full my-10 z-10">
-            <div className="flex flex-row items-end justify-center">
-              <GenreBadges
-                genres={movie.genres}
-                poster_path={movie.poster_path}
-                backdrop_path={movie.backdrop_path}
-              />
+          <div className="flex flex-col items-center justify-center">
+            <Text
+              component="span"
+              variant="gradient"
+              gradient={{ from: "#c5c9c6", to: `aliceblue` }}
+              className="font-bold text-2xl xs:text-xl sm:text-xl text-white w-full text-center mt-20"
+            >
+              Released: {moment(movie.release_date).format("MMMM Do, YYYY")}
+            </Text>
+            <p className="text-white font-bold text-2xl tracking-wide mt-12">
+              Cast List
+            </p>
+            <div className="w-full h-full my-10 z-10">
+              <CastCarousel actors={actors} />
             </div>
-            <h1 className="py-8 text-center align-middle text-2xl h-min text-white md:max-w-lg xl:max-w-2xl xs:max-w-xs  mx-auto">
-              {movie.overview.split(" ").slice(0, 30).join(" ")}...
-            </h1>
+            <div className="w-full h-full my-10 z-10">
+              <div className="flex flex-row items-end justify-center">
+                <GenreBadges
+                  genres={movie.genres}
+                  poster_path={movie.poster_path}
+                  backdrop_path={movie.backdrop_path}
+                />
+              </div>
+              <h1 className="py-8 text-center align-middle text-2xl h-min text-white md:max-w-lg xl:max-w-2xl xs:max-w-xs  mx-auto">
+                {movie.overview.split(" ").slice(0, 30).join(" ")}...
+              </h1>
 
-            <div className="flex flex-col items-center justify-center my-12 scale-100 md:scale-75 xs:scale-75 lg:scale-100 sm:scale-75">
-              <Rating
-                value={movie.vote_average}
-                size="xl"
-                count={10}
-                color="blue"
-                readOnly
-                fractions={movie.vote_average}
-                defaultValue={movie.vote_average}
-              />
-              <p className="mt-2 tracking-wide">{movie.vote_average} / 10</p>
+              <div className="flex flex-col items-center justify-center my-12 scale-100 md:scale-75 xs:scale-75 lg:scale-100 sm:scale-75">
+                <Rating
+                  value={movie.vote_average}
+                  size="xl"
+                  count={10}
+                  color="blue"
+                  readOnly
+                  fractions={movie.vote_average}
+                  defaultValue={movie.vote_average}
+                />
+                <p className="mt-2 tracking-wide">{movie.vote_average} / 10</p>
+              </div>
+
+              <>
+                <MoviePlayer url={url} id={ts_id.toString()} />
+              </>
             </div>
-
-            <>
-              <MoviePlayer url={url} id={ts_id.toString()} />
-            </>
           </div>
         </div>
-      </div>
-    </PageTransition>
+      </PageTransition>
+    </>
   );
 };
 
