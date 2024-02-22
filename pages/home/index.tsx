@@ -13,9 +13,6 @@ interface Props {
 
 const Page = ({ titles, trendingTvShows, trendingMovies }: Props) => {
   const trendingData: TmdbResponse = [trendingMovies, trendingTvShows];
-
-  console.log("trendingData", trendingData);
-
   return (
     <>
       <PageTransition>

@@ -26,6 +26,12 @@ const MyApp = (props: AppProps) => {
         />
         <title>NyumatFlix - Streaming, Streamlined.</title>
         <link rel="icon" href="/favicon.ico" />
+        <meta name="theme-color" content="#000000" />
+        <meta
+          name="description"
+          content="NyumatFlix - Streaming, Streamlined."
+        />
+        <meta property="og:image" content="/preview.jpg" />
       </Head>
       <MantineProvider
         withGlobalStyles
