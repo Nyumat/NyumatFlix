@@ -2,15 +2,14 @@
 
 # [NyumatFlix](https://nyumatflix.com)
 
-The successor to NyumatFlix V1, but with an all-new design and tech stack.
+The successor to NyumatFlix V1, including an all-new design and tech stack.
 
 ## 🚀 Features 🚀
 
-- 🎞️ **Multi-modal Streaming:** Stream your favorite movies and TV shows right from the app.
+- 🎞️ **Multi-modal Streaming:** Anime, TV shows, Movies, we got you covered.
 - 🎬 **Latest Releases:** Stay up to date with the latest movie and TV show releases.
-- 🔍 **Search:** Find your favorite movies and TV shows with our powerful search feature.
+- 🔍 **Search:** Find your favorite movies and TV shows with the search feature.
 - 🎭 **Filter by Genre:** Filter movies and TV shows by genre.
-- 🎥 **High Quality Streaming:** Enjoy high-quality streaming for an optimal viewing experience.
 - 📱 **Responsive Design:** The app is designed to work well on both desktop and mobile devices.
 
 ## ⚡️ Tech Stack ⚡️
