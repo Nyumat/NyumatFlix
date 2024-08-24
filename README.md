@@ -2,7 +2,7 @@
 
 # [NyumatFlix](https://nyumatflix.com)
 
-The successor to NyumatFlix V1, including an all-new design and tech stack.
+The successor to NyumatFlix V1. Now including Next.js, a design system, and server-side rendering.
 
 ## 🚀 Features 🚀
 
