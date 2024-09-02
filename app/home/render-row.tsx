@@ -1,10 +1,17 @@
-"use client"
-import { useEffect, useRef, useState } from "react";
+"use client";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import HackerButton from "@/components/animated/sribble";
 import { ChevronLeft, ChevronRight, Clock, Plus } from "lucide-react";
+import { Movie } from "./page";
+import { format } from "date-fns";
+import { Rating } from "@/components/ui/rating";
 
-export function HeroSection({ movies }: { movies: any[] }) {
+interface HeroSectionProps {
+  movies: Movie[];
+}
+
+export function HeroSection({ movies }: HeroSectionProps) {
   const [currentMovieIndex, setCurrentMovieIndex] = useState(0);
   const [triggerScramble, setTriggerScramble] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -12,14 +19,14 @@ export function HeroSection({ movies }: { movies: any[] }) {
 
   const handleNext = () => {
     setCurrentMovieIndex((prevIndex) =>
-      prevIndex === movies.length - 1 ? 0 : prevIndex + 1
+      prevIndex === movies.length - 1 ? 0 : prevIndex + 1,
     );
     setTriggerScramble(true);
   };
 
   const handlePrev = () => {
     setCurrentMovieIndex((prevIndex) =>
-      prevIndex === 0 ? movies.length - 1 : prevIndex - 1
+      prevIndex === 0 ? movies.length - 1 : prevIndex - 1,
     );
     setTriggerScramble(true);
   };
@@ -52,6 +59,9 @@ export function HeroSection({ movies }: { movies: any[] }) {
   };
 
   const currentMovie = movies[currentMovieIndex];
+  const formattedDate = useMemo(() => {
+    return format(new Date(currentMovie.release_date), "MMMM dd, yyyy");
+  }, [currentMovie.release_date]);
 
   return (
     <div className="relative h-[80vh] overflow-hidden bg-black">
@@ -83,18 +93,20 @@ export function HeroSection({ movies }: { movies: any[] }) {
             transition={{ duration: 0.5, ease: "easeInOut" }}
           >
             <div className="max-w-2xl">
-              <p className="text-sm font-semibold text-green-500 mb-2">Movie</p>
+              <p className="text-sm font-semibold text-secondary mb-2">Movie</p>
               <h1 className="text-4xl font-bold text-white mb-4">
                 {currentMovie.title}
               </h1>
-              <p className="text-sm text-gray-300 mb-4">
-                {currentMovie.release_date.split('-')[0]} • Fantasy • Action
-              </p>
-              <p className="text-lg text-gray-200 mb-6 hidden md:block">
+              <div className="text-sm text-gray-300 mb-4">
+                {formattedDate} <br/>
+                 {currentMovie?.categories?.join("  \u00B7  ")}
+              <Rating rating={currentMovie.vote_average} maxRating={10} size="small" className="mt-1" />
+              </div>
+              <p className="text-gray-200 mb-6 hidden md:block">
                 {currentMovie.overview}
               </p>
               <div className="flex items-center space-x-4">
-                <button className="bg-green-500 text-white py-3 px-6 rounded-full font-bold hover:bg-green-600 transition flex items-center">
+                <button className="bg-secondary text-white py-3 px-6 rounded-full font-bold hover:bg-secondary/80 transition flex items-center">
                   <Clock className="mr-2" size={20} />
                   Watch Trailer
                 </button>
@@ -124,7 +136,7 @@ export function HeroSection({ movies }: { movies: any[] }) {
           <div
             key={index}
             className={`w-2 h-2 rounded-full ${
-              index === currentMovieIndex ? 'bg-white' : 'bg-white/50'
+              index === currentMovieIndex ? "bg-white" : "bg-white/50"
             }`}
           />
         ))}

@@ -28,35 +28,46 @@ export const metadata = {
   },
 };
 
+interface Genre {
+  id: number;
+  name: string;
+}
 
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+export interface Movie {
+  adult: boolean;
+  backdrop_path: string;
+  genre_ids: number[];
+  id: number;
+  original_language: string;
+  original_title: string;
+  overview: string;
+  popularity: number;
+  poster_path: string;
+  release_date: string;
+  title: string;
+  video: boolean;
+  vote_average: number;
+  vote_count: number;
+  categories?: string[]; // Optional field for the genre names
+}
+
+interface TVShow {
+  id: number;
+  name: string;
+  genre_ids: number[];
+  poster_path: string;
+  categories?: string[];
+}
+
+interface TMDBResponse<T> {
+  results: T[];
+}
+
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 interface Params {
   [key: string]: string;
 }
-
-export async function fetchTMDBData(endpoint: string, params: Params = {}): Promise<any> {
-  const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) {
-    throw new Error('TMDB API key is missing');
-  }
-
-  const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
-  url.searchParams.append('api_key', apiKey);
-
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.append(key, value);
-  }
-
-  const response = await fetch(url.toString());
-
-  if (!response.ok) {
-    throw new Error(`TMDB API error: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
 
 // export default async function Home() {
 //   const fetchAllData = async () => {
@@ -76,20 +87,53 @@ export async function fetchTMDBData(endpoint: string, params: Params = {}): Prom
 //   const data = await fetchAllData();
 
 //   return (
-//     <div className="bg-black text-white min-h-screen">
-//       <header className="py-4 px-8">
-//         <h1 className="text-red-600 text-4xl font-bold">NEXTFLIX</h1>
-//       </header>
-//       <main className="px-8">
-//         <HeroSection movie={data.popularMovies[0]} />
-//         <ContentRow title="Popular Movies" items={data.popularMovies} />
-//         <ContentRow title="Top Rated Movies" items={data.topRatedMovies} />
-//         <ContentRow title="Popular TV Shows" items={data.popularTVShows} />
-//       </main>
-//     </div>
+    // <div className="bg-black text-white min-h-screen">
+    //   <header className="py-4 px-8">
+    //     <h1 className="text-red-600 text-4xl font-bold">NEXTFLIX</h1>
+    //   </header>
+    //   <main className="px-8">
+    //     <HeroSection movie={data.popularMovies[0]} />
+    //     <ContentRow title="Popular Movies" items={data.popularMovies} />
+    //     <ContentRow title="Top Rated Movies" items={data.topRatedMovies} />
+    //     <ContentRow title="Popular TV Shows" items={data.popularTVShows} />
+    //   </main>
+    // </div>
 //   );
 // }
 
+export async function fetchTMDBData(
+  endpoint: string,
+  params: Params = {},
+): Promise<any> {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) {
+    throw new Error("TMDB API key is missing");
+  }
+
+  const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
+  url.searchParams.append("api_key", apiKey);
+
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.append(key, value);
+  }
+
+  const response = await fetch(url.toString());
+
+  if (!response.ok) {
+    throw new Error(
+      `TMDB API error: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return response.json();
+}
+
+async function getCategoriesForMovie(): Promise<Genre[]> {
+  const genres = await fetch(
+    `https://api.themoviedb.org/3/genre/movie/list?api_key=${process.env.TMDB_API_KEY}`,
+  ).then((res) => res.json());
+  return genres.genres;
+}
 
 export default async function Home() {
   const fetchAllData = async () => {
@@ -106,15 +150,43 @@ export default async function Home() {
     };
   };
 
+  const buildMoviesWithCategories = async (movies: Movie[]) => {
+    const categories = await getCategoriesForMovie();
+    return movies.map((movie) => {
+      const movieCategories = categories
+        .filter((category) => movie.genre_ids.includes(category.id))
+        .map((category) => category.name);
+      return { ...movie, categories: movieCategories };
+    });
+  };
+
   const data = await fetchAllData();
 
+  const popularMoviesWithCategories = await buildMoviesWithCategories(
+    data.popularMovies,
+  );
+  const topRatedMoviesWithCategories = await buildMoviesWithCategories(
+    data.topRatedMovies,
+  );
+  const popularTVShowsWithCategories = await buildMoviesWithCategories(
+    data.popularTVShows,
+  );
+
   return (
-      <main>
-        <HeroSection movies={data.popularMovies} />
-        <ContentRow title="Popular Movies" items={data.popularMovies} />
-        <ContentRow title="Top Rated Movies" items={data.topRatedMovies} />
-        <ContentRow title="Popular TV Shows" items={data.popularTVShows} />
-      </main>
+    <div className="min-h-screen">
+    <main className="px-8">
+      <HeroSection movies={popularMoviesWithCategories} />
+      <ContentRow title="Popular Movies" items={popularMoviesWithCategories} />
+      <ContentRow
+        title="Top Rated Movies"
+        items={topRatedMoviesWithCategories}
+      />
+      <ContentRow
+        title="Popular TV Shows"
+        items={popularTVShowsWithCategories}
+      />
+    </main>
+  </div>
   );
 }
 
