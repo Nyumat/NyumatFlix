@@ -27,6 +27,7 @@
     "framer-motion": "^11.3.31",
     "lucide-react": "^0.383.0",
     "next": "14.2.3",
+    "next-extra": "^0.5.1",
     "next-themes": "^0.3.0",
     "react": "^18",
     "react-dom": "^18",
