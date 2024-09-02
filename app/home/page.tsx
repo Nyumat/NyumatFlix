@@ -174,7 +174,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen">
-    <main className="px-8">
+    <main>
       <HeroSection movies={popularMoviesWithCategories} />
       <ContentRow title="Popular Movies" items={popularMoviesWithCategories} />
       <ContentRow
