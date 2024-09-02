@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Clock, Plus } from "lucide-react";
 import { Movie } from "./page";
 import { format } from "date-fns";
 import { Rating } from "@/components/ui/rating";
+import { cn } from "@/lib/utils";
 
 interface HeroSectionProps {
   movies: Movie[];
@@ -64,11 +65,11 @@ export function HeroSection({ movies }: HeroSectionProps) {
   }, [currentMovie.release_date]);
 
   return (
-    <div className="h-[80vh] overflow-hidden bg-black">
+    <div className="h-[80vh] overflow-hidden">
       <AnimatePresence mode="sync">
         <motion.div
           key={currentMovie.backdrop_path}
-          className="w-full h-full absolute inset-0"
+          className={cn("w-full h-full absolute inset-0 -z-10")}
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.2}
@@ -85,6 +86,8 @@ export function HeroSection({ movies }: HeroSectionProps) {
             transition={{ duration: 1, ease: "easeInOut" }}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-l from-black via-black/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/10 to-transparent" />
           <motion.div
             className="absolute inset-0 flex items-center p-16"
             initial={{ opacity: 0, x: 50 }}
@@ -131,7 +134,7 @@ export function HeroSection({ movies }: HeroSectionProps) {
       >
         <ChevronRight size={24} />
       </button>
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+      <div className="absolute bottom-36 md:bottom-32 left-1/2 transform -translate-x-1/2 flex space-x-2 opacity-45">
         {movies.map((_, index) => (
           <div
             key={index}
