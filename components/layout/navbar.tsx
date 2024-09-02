@@ -56,6 +56,25 @@ const routeList: RouteProps[] = [
   },
 ];
 
+const mainRouteList: RouteProps[] = [
+  {
+    href: "/home",
+    label: "Home",
+  },
+  {
+    href: "/movies",
+    label: "Movies",
+  },
+  {
+    href: "/tvshows",
+    label: "TV Shows",
+  },
+  {
+    href: "/Search",
+    label: "Search",
+  },
+];
+
 const featureList: FeatureProps[] = [
   {
     title: "Showcase Your Value ",
@@ -131,40 +150,9 @@ export const Navbar = () => {
       {/* <!-- Desktop --> */}
       <NavigationMenu className="hidden lg:block mx-auto">
         <NavigationMenuList>
+        
           <NavigationMenuItem>
-            <NavigationMenuTrigger className="bg-card text-base">
-              Features
-            </NavigationMenuTrigger>
-            <NavigationMenuContent>
-              <div className="grid w-[600px] grid-cols-2 gap-5 p-4">
-                <Image
-                  src="https://avatars.githubusercontent.com/u/75042455?v=4"
-                  alt="RadixLogo"
-                  className="h-full w-full rounded-md object-cover"
-                  width={600}
-                  height={600}
-                />
-                <ul className="flex flex-col gap-2">
-                  {featureList.map(({ title, description }) => (
-                    <li
-                      key={title}
-                      className="rounded-md p-3 text-sm hover:bg-muted"
-                    >
-                      <p className="mb-1 font-semibold leading-none text-foreground">
-                        {title}
-                      </p>
-                      <p className="line-clamp-2 text-muted-foreground">
-                        {description}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </NavigationMenuContent>
-          </NavigationMenuItem>
-
-          <NavigationMenuItem>
-            {routeList.map(({ href, label }) => (
+            {mainRouteList.map(({ href, label }) => (
               <NavigationMenuLink key={href} asChild>
                 <Link href={href} className="text-base px-2">
                   {label}
