@@ -64,7 +64,7 @@ export function HeroSection({ movies }: HeroSectionProps) {
   }, [currentMovie.release_date]);
 
   return (
-    <div className="relative h-[80vh] overflow-hidden bg-black">
+    <div className="h-[80vh] overflow-hidden bg-black">
       <AnimatePresence mode="sync">
         <motion.div
           key={currentMovie.backdrop_path}
