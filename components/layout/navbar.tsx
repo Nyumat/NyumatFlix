@@ -94,8 +94,9 @@ const featureList: FeatureProps[] = [
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
+  // Maybe make sticky again at some point?
   return (
-    <header className="shadow-inner bg-opacity-15 w-[70%] md:w-[50%] lg:w-[65%] lg:max-w-screen-xl top-5 mx-auto sticky border border-secondary z-40 rounded-2xl flex justify-between items-center p-2 bg-card">
+    <header className="shadow-inner top-5 z-40 flex justify-between items-center p-2 mx-4">
       <Link href="/" className="font-bold text-lg flex items-center">
         NyumatFlix
       </Link>
