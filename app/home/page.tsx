@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { HeroSection } from "./render-row";
 
 export const metadata = {
@@ -175,7 +176,8 @@ export default async function Home() {
   return (
     <div className="min-h-screen">
     <main>
-      <HeroSection movies={popularMoviesWithCategories} />
+      {/* Only show the movies (very) popular */}
+      <HeroSection movies={popularMoviesWithCategories.filter((movie => movie.popularity > 1500))} />
       <ContentRow title="Popular Movies" items={popularMoviesWithCategories} />
       <ContentRow
         title="Top Rated Movies"
@@ -193,7 +195,7 @@ export default async function Home() {
 function ContentRow({ title, items }: { title: string; items: any[] }) {
   return (
     <div className="mx-8 mb-8">
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
+      <h2 className={cn("text-2xl font-bold mb-4 z-10", "text-white")}>{title}</h2>
       <div className="flex space-x-4 overflow-x-auto pb-4">
         {items.map((item) => (
           <div key={item.id} className="flex-none w-40">
