@@ -1,6 +1,8 @@
 echo "🚀 Linting code..."
 npm run lint
 
-echo "🚀 Formatting code..."
-npm run format
+echo "🚀 Checking for format..."
 
+npm run check-format
+
+npx --yes @humankode/git-commit-emojify@latest
