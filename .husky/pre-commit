@@ -5,5 +5,4 @@ echo "🚀 Checking for format..."
 
 npm run format
 
-
 npx --yes @humankode/git-commit-emojify@latest
