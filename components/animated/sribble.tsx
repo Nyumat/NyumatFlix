@@ -39,6 +39,7 @@ function HackerButton({
     } else {
       setDisplayText(label);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triggerScramble, label]);
 
   return (

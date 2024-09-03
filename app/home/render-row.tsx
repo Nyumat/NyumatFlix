@@ -2,10 +2,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { ChevronLeft, ChevronRight, Clock, Plus } from "lucide-react";
-import { Movie } from "./page";
 import { format } from "date-fns";
 import { Rating } from "@/components/ui/rating";
 import { cn } from "@/lib/utils";
+import { Movie } from "../actions";
 
 interface HeroSectionProps {
   movies: Movie[];
@@ -67,6 +67,7 @@ export function HeroSection({ movies }: HeroSectionProps) {
     return () => {
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMovieIndex]);
 
   const currentMovie = movies[currentMovieIndex];

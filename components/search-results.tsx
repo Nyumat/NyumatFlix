@@ -15,6 +15,7 @@ import { Badge } from "./ui/badge";
 import { Rating } from "./ui/rating";
 import { Button } from "./ui/button";
 import { MultiSelect } from "./multi-select";
+import Image from "next/image";
 
 async function searchTMDBData(
   endpoint: string,
@@ -93,7 +94,9 @@ export function ContentGrid({
             className={cn("flex flex-col border-none bg-transparent")}
           >
             <div className="relative aspect-[2/3]">
-              <img
+              <Image
+                width={300}
+                height={450}
                 src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
                 alt={item.title || item.name}
                 className="w-full h-full object-cover transition-transform hover:scale-105 rounded-sm"
@@ -193,6 +196,7 @@ export default function SearchResults({
     };
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, currentPage]);
 
   const handlePageChange = (page: number) => {
@@ -227,6 +231,7 @@ export default function SearchResults({
     };
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
