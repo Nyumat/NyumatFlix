@@ -1,5 +1,6 @@
 "use client";
 import GithubIcon from "@/components/icons/github-icon";
+import ShineBorder from "@/components/ui/shine-border";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
@@ -8,7 +9,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 export const HeroSection = () => {
-  const { theme } = useTheme();
+  useTheme();
   return (
     <section className="container w-full">
       <div className="grid place-items-center lg:max-w-screen-xl gap-8 mx-auto py-20 md:py-32">
@@ -56,14 +57,21 @@ export const HeroSection = () => {
 
         <div className="relative group mt-14">
           <div className="absolute top-2 lg:-top-8 left-1/2 transform -translate-x-1/2 w-[90%] mx-auto h-24 lg:h-80 bg-primary/50 rounded-full blur-3xl"></div>
-          <Image
-            width={1200}
-            height={1200}
-            className="w-full md:w-[1200px] mx-auto rounded-lg relative rouded-lg leading-none flex items-center border-4 border-primary/10 shadow-2xl"
-            // TODO: Support light mode?
-            src={`/app.png`}
-            alt="dashboard"
-          />
+          <div>
+            <ShineBorder
+              className="relative flex h-4/6 w-full flex-col items-center justify-center overflow-hidden rounded-lg bg-black md:shadow-xl"
+              color={["#103AC1", "#8B2AD4", "#CC44C0"]}
+            >
+              <Image
+                width={1200}
+                height={1200}
+
+                // TODO: Support light mode?
+                src={`/home2.png`}
+                alt="dashboard"
+              />
+            </ShineBorder>
+          </div>
 
           <div className="absolute bottom-0 left-0 w-full h-20 md:h-28 bg-gradient-to-b from-background/0 via-background/50 to-background rounded-lg"></div>
         </div>
