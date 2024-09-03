@@ -10,28 +10,28 @@ interface BenefitsProps {
 
 const benefitList: BenefitsProps[] = [
   {
-    icon: "Blocks",
-    title: "Build Brand Trust",
+    icon: "DollarSign",
+    title: "Save Money",
     description:
-      "Lorem ipsum dolor sit amet consectetur adipisicing elit. A odio velit cum aliquam. Natus consectetur dolores.",
+      "Say goodbye to countless subscriptions that turn your bank statements into a horror movie.",
   },
   {
-    icon: "LineChart",
-    title: "More Leads",
+    icon: "Infinity",
+    title: "Unlimited Access",
     description:
-      "Lorem ipsum dolor sit amet consectetur adipisicing elit. A odio velit cum aliquam, natus consectetur.",
+      "With no in-house restrictions, you and all your friends can join the party.",
   },
   {
-    icon: "Wallet",
-    title: "Higher Conversions",
+    icon: "Code",
+    title: "It's Open Source",
     description:
-      "Lorem ipsum dolor sit amet consectetur adipisicing elit. Natus consectetur. A odio velit cum aliquam",
+      "NyumatFlix is open source, so you can contribute to the project and make it even better.",
   },
   {
-    icon: "Sparkle",
-    title: "Test Marketing Ideas",
+    icon: "TrendingUp",
+    title: "Always Up-to-Date",
     description:
-      "Lorem ipsum dolor sit amet consectetur adipisicing elit. A odio velit cum aliquam. Natus consectetur dolores.",
+      "The catalog is always up-to-date with the latest movies and TV shows.",
   },
 ];
 
@@ -40,15 +40,20 @@ export const BenefitsSection = () => {
     <section id="benefits" className="container py-24 sm:py-32">
       <div className="grid lg:grid-cols-2 place-items-center lg:gap-24">
         <div>
-          <h2 className="text-lg text-primary mb-2 tracking-wider">Benefits</h2>
+          <h2 className="text-lg text-primary mb-2 tracking-wider">
+            Why NyumatFlix?
+          </h2>
 
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Your Shortcut to Success
+            Your Shortcut to <br />
+            <span className="bg-gradient-to-r from-[#D247BF] to-primary bg-clip-text text-transparent">
+              Streaming for Free
+            </span>
           </h2>
           <p className="text-xl text-muted-foreground mb-8">
-            Lorem ipsum dolor sit amet consectetur, adipisicing elit. Non
-            ducimus reprehenderit architecto rerum similique facere odit
-            deleniti necessitatibus quo quae.
+            Say goodbye to countless subscriptions that turn your bank
+            statements into a horror movie. With NyumatFlix, you can watch your
+            favorite movies and TV shows all at no cost.
           </p>
         </div>
 
