@@ -2,13 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { icons } from "lucide-react";
 
-interface BenefitsProps {
+interface WhyProps {
   icon: string;
   title: string;
   description: string;
 }
 
-const benefitList: BenefitsProps[] = [
+const whyList: WhyProps[] = [
   {
     icon: "DollarSign",
     title: "Save Money",
@@ -35,7 +35,7 @@ const benefitList: BenefitsProps[] = [
   },
 ];
 
-export const BenefitsSection = () => {
+export function WhyNyumatFlix() {
   return (
     <section id="benefits" className="container py-24 sm:py-32">
       <div className="grid lg:grid-cols-2 place-items-center lg:gap-24">
@@ -58,7 +58,7 @@ export const BenefitsSection = () => {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-4 w-full">
-          {benefitList.map(({ icon, title, description }, index) => (
+          {whyList.map(({ icon, title, description }, index) => (
             <Card
               key={title}
               className="bg-muted/50 dark:bg-card hover:bg-background transition-all delay-75 group/number"
@@ -88,4 +88,4 @@ export const BenefitsSection = () => {
       </div>
     </section>
   );
-};
+}
