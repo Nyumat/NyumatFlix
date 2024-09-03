@@ -1,17 +1,17 @@
-"use client"
-import { cn } from '@/lib/utils';
-import { motion, useInView } from 'framer-motion';
-import * as React from 'react';
- 
+"use client";
+import { cn } from "@/lib/utils";
+import { motion, useInView } from "framer-motion";
+import * as React from "react";
+
 export function WordsPullUp({
   text,
-  className = '',
+  className = "",
 }: {
   text: string;
   className?: string;
 }) {
-  const splittedText = text.split(' ');
- 
+  const splittedText = text.split(" ");
+
   const pullupVariant = {
     initial: { y: 20, opacity: 0 },
     animate: (i: number) => ({
@@ -32,15 +32,15 @@ export function WordsPullUp({
           ref={ref}
           variants={pullupVariant}
           initial="initial"
-          animate={isInView ? 'animate' : ''}
+          animate={isInView ? "animate" : ""}
           custom={i}
           className={cn(
-            'text-xl text-center sm:text-4xl font-bold tracking-tighter md:text-6xl md:leading-[4rem]',
-            'pr-2', // class to sperate words
-            className
+            "text-xl text-center sm:text-4xl font-bold tracking-tighter md:text-6xl md:leading-[4rem]",
+            "pr-2", // class to sperate words
+            className,
           )}
         >
-          {current == '' ? <span>&nbsp;</span> : current}
+          {current == "" ? <span>&nbsp;</span> : current}
         </motion.div>
       ))}
     </div>

@@ -22,7 +22,7 @@ export const HeroSection = () => {
 
           <div className="max-w-screen-md mx-auto text-center text-4xl md:text-6xl font-bold">
             <h1>
-              The Streaming Platform <br/>
+              The Streaming Platform <br />
               <span className="text-transparent px-2 bg-gradient-to-r from-[#D247BF] to-primary bg-clip-text">
                 For Everyone.
               </span>
@@ -36,10 +36,10 @@ export const HeroSection = () => {
 
           <div className="space-y-4 md:space-y-0 md:space-x-4">
             <Button className="w-5/6 md:w-1/4 font-bold group/arrow" asChild>
-            <Link href="/home">
-              Get Started
-              <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
-            </Link>
+              <Link href="/home">
+                Get Started
+                <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
+              </Link>
             </Button>
 
             <Button
@@ -47,10 +47,7 @@ export const HeroSection = () => {
               variant="secondary"
               className="w-5/6 md:w-1/4 font-bold"
             >
-              <Link
-                href="https://github.com/nyumat/nyumatflix"
-                target="_blank"
-              >
+              <Link href="https://github.com/nyumat/nyumatflix" target="_blank">
                 Github <GithubIcon className="size-6 ml-2" />
               </Link>
             </Button>
