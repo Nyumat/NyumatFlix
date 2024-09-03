@@ -11,7 +11,7 @@ import Link from "next/link";
 export const HeroSection = () => {
   useTheme();
   return (
-    <section className="container w-full">
+    <section className="container w-full pointer-events-none select-none">
       <div className="grid place-items-center lg:max-w-screen-xl gap-8 mx-auto py-20 md:py-32">
         <div className="text-center space-y-8">
           <Badge variant="outline" className="text-sm py-2">
@@ -36,7 +36,7 @@ export const HeroSection = () => {
           </p>
 
           <div className="space-y-4 md:space-y-0 md:space-x-4">
-            <Button className="w-5/6 md:w-1/4 font-bold group/arrow" asChild>
+            <Button className="w-5/6 md:w-1/4 font-bold group/arrow pointer-events-auto select-auto" asChild>
               <Link href="/home">
                 Get Started
                 <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
@@ -46,7 +46,7 @@ export const HeroSection = () => {
             <Button
               asChild
               variant="secondary"
-              className="w-5/6 md:w-1/4 font-bold"
+              className="w-5/6 md:w-1/4 font-bold pointer-events-auto select-auto"
             >
               <Link href="https://github.com/nyumat/nyumatflix" target="_blank">
                 Github <GithubIcon className="size-6 ml-2" />
@@ -57,7 +57,7 @@ export const HeroSection = () => {
 
         <div className="relative group mt-14">
           <div className="absolute top-2 lg:-top-8 left-1/2 transform -translate-x-1/2 w-[90%] mx-auto h-24 lg:h-80 bg-primary/50 rounded-full blur-3xl"></div>
-          <div>
+          <div onContextMenu={(e) => e.preventDefault()}>
             <ShineBorder
               className="relative flex h-1/2 w-full flex-col items-center justify-center overflow-hidden rounded-lg bg-black md:shadow-xl border-2 border-primary/30 p-2"
               color={["#103AC1", "#8B2AD4", "#CC44C0"]}
@@ -65,6 +65,7 @@ export const HeroSection = () => {
               <Image
                 width={1200}
                 height={1200}
+                className="pointer-events-none select-none"
                 // TODO: Support light mode?
                 src={`/home2.png`}
                 alt="dashboard"
