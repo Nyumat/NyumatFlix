@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
 import magicalSvg from "vite-plugin-magical-svg";
-import { loadEnv } from 'vite'
+import { loadEnv } from "vite";
 
 export default defineConfig({
   plugins: [
@@ -19,6 +19,6 @@ export default defineConfig({
     setupFiles: ["./setupTests.js"],
     globals: true,
     silent: false,
-    env: loadEnv('', process.cwd(), ''),
+    env: loadEnv("", process.cwd(), ""),
   },
 });
