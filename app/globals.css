@@ -55,7 +55,6 @@ html {
   }
 }
 
-
 /* *=========== Orange theme =========== */
 /* @layer base {
   :root {
@@ -134,5 +133,10 @@ html {
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  #scrollbar_hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 }
