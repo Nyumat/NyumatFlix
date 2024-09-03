@@ -1,1 +1,6 @@
+echo "🚀 Linting code..."
 npm run lint
+
+echo "🚀 Formatting code..."
+npm run format
+
