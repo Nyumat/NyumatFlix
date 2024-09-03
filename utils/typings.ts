@@ -59,10 +59,10 @@ export interface TvShow {
   original_name: string;
 }
 
-export interface TmdbResponse {
+export interface TmdbResponse<T> {
   [x: string]: any;
   page?: number;
-  results?: Movie[] | TvShow[];
+  results?: T[];
   total_pages?: number;
   total_results?: number;
 }

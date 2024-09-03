@@ -1,42 +1,8 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+echo "🚀 Linting code..."
+npm run lint
 
-echo '🏗️👷 Styling, testing and building NyumatFlix before committing'
+echo "🚀 Checking for format..."
 
-# Check Prettier standards
-npm run check-format ||
-(
-    echo '🤢🤮🤢🤮 Its F**KING RAW - Your styling looks disgusting. 🤢🤮🤢🤮
-            Prettier Check Failed. Run npm run format, add changes and try commit again.';
-    false;
-)
+npm run format
 
-# Check ESLint Standards
-npm run lint ||
-(
-        echo '😤🏀👋😤 Get that weak s**t out of here! 😤🏀👋😤
-                ESLint Check Failed. Make the required changes listed above, add changes and try to commit again.'
-        false;
-)
-
-# Check tsconfig standards
-npm run type-check ||
-(
-    echo '🤡😂❌🤡 Failed Type check. 🤡😂❌🤡
-            Are you seriously trying to write that? Make the changes required above.'
-    false;
-)
-
-# If everything passes... Now we can build
-echo '🤔🤔🤔🤔... Alright... Code looks good to me... Trying to build now. 🤔🤔🤔🤔'
-
-npm run build ||
-(
-    echo '❌👷🔨❌ Better call Bob... Because your build failed ❌👷🔨❌
-            Next build failed: View the errors above to see why.
-    '
-    false;
-)
-
-# If everything passes... Now we can commit
-echo 'Hey NyumatFlix Developer...You win this time... I am committing this now. 🛳'
+npx --yes @humankode/git-commit-emojify@latest
