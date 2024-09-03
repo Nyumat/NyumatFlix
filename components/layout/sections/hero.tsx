@@ -14,7 +14,7 @@ export const HeroSection = () => {
     <section className="container w-full pointer-events-none select-none">
       <div className="grid place-items-center lg:max-w-screen-xl gap-8 mx-auto py-20 md:py-32">
         <div className="text-center space-y-8">
-          <Badge variant="outline" className="text-sm py-2">
+          <Badge variant="outline" className="text-sm py-2" role="note">
             <span className="mr-2 text-primary">
               <Badge>New</Badge>
             </span>
@@ -52,7 +52,8 @@ export const HeroSection = () => {
               className="w-5/6 md:w-1/4 font-bold pointer-events-auto select-auto"
             >
               <Link href="https://github.com/nyumat/nyumatflix" target="_blank">
-                Github <GithubIcon className="size-6 ml-2" />
+                GitHub
+                <GithubIcon className="size-6 ml-2" />
               </Link>
             </Button>
           </div>
@@ -71,7 +72,7 @@ export const HeroSection = () => {
                 className="pointer-events-none select-none"
                 // TODO: Support light mode?
                 src={`/home2.png`}
-                alt="dashboard"
+                alt="NyumatFlix Platform"
               />
             </ShineBorder>
           </div>

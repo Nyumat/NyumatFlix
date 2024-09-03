@@ -12,9 +12,9 @@ function SparklesIcon(_props: React.SVGProps<SVGSVGElement> | undefined) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       initial={{ opacity: 0.5 }}
       animate={{
         opacity: [0.5, 1, 0.5],

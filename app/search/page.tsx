@@ -1,12 +1,12 @@
 import { SearchComponent } from "@/components/search";
 import SearchResults from "@/components/search-results";
 
-export default async function SearchPage({
+export default function SearchPage({
   searchParams,
 }: {
   searchParams: { query: string };
 }) {
-  const query = searchParams.query;
+  const query = searchParams?.query;
   const apiKey = process.env.TMDB_API_KEY;
 
   if (!apiKey) {

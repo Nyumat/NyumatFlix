@@ -1,9 +1,9 @@
-import { BenefitsSection } from "@/components/layout/sections/benefits";
 import { CommunitySection } from "@/components/layout/sections/community";
 import { FAQSection } from "@/components/layout/sections/faq";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { HeroSection } from "@/components/layout/sections/hero";
 import StreamingServices from "@/components/layout/sections/steaming-services";
+import { WhyNyumatFlix } from "@/components/layout/sections/why";
 
 export const metadata = {
   title: "NyumatFlix - Movies and TV Shows, Anytime, Anywhere",
@@ -41,7 +41,7 @@ export default function Home() {
     <>
       <HeroSection />
       <StreamingServices />
-      <BenefitsSection />
+      <WhyNyumatFlix />
       <CommunitySection />
       <FAQSection />
       <FooterSection />
