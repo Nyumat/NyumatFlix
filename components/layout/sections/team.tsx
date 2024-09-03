@@ -190,7 +190,7 @@ export const TeamSection = () => {
         {teamList.map(
           (
             { imageUrl, firstName, lastName, positions, socialNetworks },
-            index
+            index,
           ) => (
             <Card
               key={index}
@@ -236,7 +236,7 @@ export const TeamSection = () => {
                 ))}
               </CardFooter>
             </Card>
-          )
+          ),
         )}
       </div>
     </section>

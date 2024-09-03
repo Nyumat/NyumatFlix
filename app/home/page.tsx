@@ -1,33 +1,35 @@
 import { cn } from "@/lib/utils";
 import { HeroSection } from "./render-row";
+import Link from "next/link";
+import { ContentRowActual } from "../movies/page";
 
-export const metadata = {
-  title: "Shadcn - Landing template",
-  description: "Free Shadcn landing page for developers",
-  openGraph: {
-    type: "website",
-    url: "https://github.com/nobruf/shadcn-landing-page.git",
-    title: "Shadcn - Landing template",
-    description: "Free Shadcn landing page for developers",
-    images: [
-      {
-        url: "https://res.cloudinary.com/dbzv9xfjp/image/upload/v1723499276/og-images/shadcn-vue.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Shadcn - Landing template",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "https://github.com/nobruf/shadcn-landing-page.git",
-    title: "Shadcn - Landing template",
-    description: "Free Shadcn landing page for developers",
-    images: [
-      "https://res.cloudinary.com/dbzv9xfjp/image/upload/v1723499276/og-images/shadcn-vue.jpg",
-    ],
-  },
-};
+// export const metadata = {
+//   title: "Shadcn - Landing template",
+//   description: "Free Shadcn landing page for developers",
+//   openGraph: {
+//     type: "website",
+//     url: "https://github.com/nobruf/shadcn-landing-page.git",
+//     title: "Shadcn - Landing template",
+//     description: "Free Shadcn landing page for developers",
+//     images: [
+//       {
+//         url: "https://res.cloudinary.com/dbzv9xfjp/image/upload/v1723499276/og-images/shadcn-vue.jpg",
+//         width: 1200,
+//         height: 630,
+//         alt: "Shadcn - Landing template",
+//       },
+//     ],
+//   },
+//   twitter: {
+//     card: "summary_large_image",
+//     site: "https://github.com/nobruf/shadcn-landing-page.git",
+//     title: "Shadcn - Landing template",
+//     description: "Free Shadcn landing page for developers",
+//     images: [
+//       "https://res.cloudinary.com/dbzv9xfjp/image/upload/v1723499276/og-images/shadcn-vue.jpg",
+//     ],
+//   },
+// };
 
 interface Genre {
   id: number;
@@ -70,42 +72,11 @@ interface Params {
   [key: string]: string;
 }
 
-// export default async function Home() {
-//   const fetchAllData = async () => {
-//     const [popularMovies, topRatedMovies, popularTVShows] = await Promise.all([
-//       fetchTMDBData('/movie/popular'),
-//       fetchTMDBData('/movie/top_rated'),
-//       fetchTMDBData('/tv/popular'),
-//     ]);
-
-//     return {
-//       popularMovies: popularMovies.results,
-//       topRatedMovies: topRatedMovies.results,
-//       popularTVShows: popularTVShows.results,
-//     };
-//   };
-
-//   const data = await fetchAllData();
-
-//   return (
-    // <div className="bg-black text-white min-h-screen">
-    //   <header className="py-4 px-8">
-    //     <h1 className="text-red-600 text-4xl font-bold">NEXTFLIX</h1>
-    //   </header>
-    //   <main className="px-8">
-    //     <HeroSection movie={data.popularMovies[0]} />
-    //     <ContentRow title="Popular Movies" items={data.popularMovies} />
-    //     <ContentRow title="Top Rated Movies" items={data.topRatedMovies} />
-    //     <ContentRow title="Popular TV Shows" items={data.popularTVShows} />
-    //   </main>
-    // </div>
-//   );
-// }
-
 export async function fetchTMDBData(
   endpoint: string,
   params: Params = {},
-): Promise<any> {
+  page: number = 1, // Default to page 1 if not provided
+): Promise<TMDBResponse<any>> {
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey) {
     throw new Error("TMDB API key is missing");
@@ -113,6 +84,7 @@ export async function fetchTMDBData(
 
   const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
   url.searchParams.append("api_key", apiKey);
+  url.searchParams.append("page", page.toString()); // Add the page parameter
 
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.append(key, value);
@@ -125,7 +97,6 @@ export async function fetchTMDBData(
       `TMDB API error: ${response.status} ${response.statusText}`,
     );
   }
-
   return response.json();
 }
 
@@ -138,16 +109,19 @@ async function getCategoriesForMovie(): Promise<Genre[]> {
 
 export default async function Home() {
   const fetchAllData = async () => {
-    const [popularMovies, topRatedMovies, popularTVShows] = await Promise.all([
-      fetchTMDBData("/movie/popular"),
-      fetchTMDBData("/movie/top_rated"),
-      fetchTMDBData("/tv/popular"),
-    ]);
+    const [popularMovies, topRatedMovies, popularTVShows, topRatedTVShows] =
+      await Promise.all([
+        fetchTMDBData("/movie/popular"),
+        fetchTMDBData("/movie/top_rated"),
+        fetchTMDBData("/tv/popular"),
+        fetchTMDBData("/tv/top_rated"),
+      ]);
 
     return {
       popularMovies: popularMovies.results,
       topRatedMovies: topRatedMovies.results,
       popularTVShows: popularTVShows.results,
+      topRatedTVShows: topRatedTVShows.results,
     };
   };
 
@@ -173,40 +147,64 @@ export default async function Home() {
     data.popularTVShows,
   );
 
+  const topRatedTVShowsWithCategories = await buildMoviesWithCategories(
+    data.topRatedTVShows,
+  );
+
   return (
     <div className="min-h-screen">
-    <main>
-      {/* Only show the movies (very) popular */}
-      <HeroSection movies={popularMoviesWithCategories.filter((movie => movie.popularity > 1500))} />
-      <ContentRow title="Popular Movies" items={popularMoviesWithCategories} />
-      <ContentRow
-        title="Top Rated Movies"
-        items={topRatedMoviesWithCategories}
-      />
-      <ContentRow
-        title="Popular TV Shows"
-        items={popularTVShowsWithCategories}
-      />
-    </main>
-  </div>
-  );
-}
-
-function ContentRow({ title, items }: { title: string; items: any[] }) {
-  return (
-    <div className="mx-8 mb-8">
-      <h2 className={cn("text-2xl font-bold mb-4 z-10", "text-white")}>{title}</h2>
-      <div className="flex space-x-4 overflow-x-auto pb-4">
-        {items.map((item) => (
-          <div key={item.id} className="flex-none w-40">
-            <img
-              src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
-              alt={item.title || item.name}
-              className="w-full h-60 object-cover rounded transition transform hover:scale-105"
-            />
-          </div>
-        ))}
-      </div>
+      <main>
+        {/* Only show the (very) popular movies with a backdrop path */}
+        <HeroSection
+          movies={popularMoviesWithCategories.filter(
+            (movie) => movie.popularity > 1500 && movie.backdrop_path,
+          )}
+        />
+        <ContentRowActual
+          title="Popular Movies"
+          items={popularMoviesWithCategories}
+          href="/movies"
+        />
+        <ContentRowActual
+          title="Top Rated Movies"
+          items={topRatedMoviesWithCategories}
+          href="/movies?sort=top_rated"
+        />
+        <ContentRowActual
+          title="Popular TV Shows"
+          items={popularTVShowsWithCategories}
+          href="/tvshows"
+        />
+        <ContentRowActual
+          title="Top Rated TV Shows"
+          items={topRatedTVShowsWithCategories}
+          href="/tvshows?sort=top_rated"
+        />
+      </main>
     </div>
   );
 }
+
+// function ContentRow({ title, items, href }: { title: string; items: any[], href: string }) {
+//   return (
+//     <div className="mx-8 mb-8">
+//       <div className="flex justify-between items-center">
+//       <h2 className={cn("text-2xl font-bold mb-4 z-10", "text-white")}>{title}</h2>
+//         <Link href={href}>
+//           <span className="text-sm hover:text-secondary hover:underline">View all</span>
+//         </Link>
+//       </div>
+//       <div className="flex space-x-4 overflow-x-auto pb-4">
+//         {items.map((item) => (
+//           <div key={item.id} className="flex-none w-40">
+//             <img
+//               src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
+//               alt={item.title || item.name}
+//               className="w-full h-60 object-cover rounded transition transform hover:scale-105"
+//             />
+//           </div>
+//         ))}
+//       </div>
+//     </div>
+//   );
+// }

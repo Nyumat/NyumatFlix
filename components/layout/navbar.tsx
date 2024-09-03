@@ -70,7 +70,7 @@ const mainRouteList: RouteProps[] = [
     label: "TV Shows",
   },
   {
-    href: "/Search",
+    href: "/search",
     label: "Search",
   },
 ];
@@ -96,7 +96,7 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
   // Maybe make sticky again at some point?
   return (
-    <header className="shadow-inner top-5 z-40 flex justify-between items-center p-2 mx-4">
+    <header className="shadow-inner absolute min-w-full z-50 flex justify-between items-center p-2 px-16">
       <Link href="/" className="font-bold text-lg flex items-center">
         NyumatFlix
       </Link>
@@ -151,7 +151,6 @@ export const Navbar = () => {
       {/* <!-- Desktop --> */}
       <NavigationMenu className="hidden lg:block mx-auto">
         <NavigationMenuList>
-        
           <NavigationMenuItem>
             {mainRouteList.map(({ href, label }) => (
               <NavigationMenuLink key={href} asChild>
@@ -298,4 +297,4 @@ export const MarketingNavbar = () => {
       </div>
     </header>
   );
-}
+};

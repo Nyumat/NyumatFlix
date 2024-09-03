@@ -59,21 +59,30 @@ export function HeroSection({ movies }: HeroSectionProps) {
     }
   };
 
+  // setinterval change the movie every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleNext();
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [currentMovieIndex]);
+
   const currentMovie = movies[currentMovieIndex];
   const formattedDate = useMemo(() => {
-    return format(new Date(currentMovie.release_date), "MMMM dd, yyyy");
-  }, [currentMovie.release_date]);
+    return format(new Date(currentMovie?.release_date), "MMMM dd, yyyy");
+  }, [currentMovie?.release_date]);
 
   return (
     <div className="h-[80vh] overflow-hidden">
-      <AnimatePresence mode="sync">
+      <AnimatePresence mode="popLayout">
         <motion.div
           key={currentMovie.backdrop_path}
-          className={cn("w-full h-full absolute inset-0 -z-10")}
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.2}
-          onDragEnd={handleDragEnd}
+          className={cn(
+            "relative h-full w-full flex items-center justify-center",
+          )}
           animate={controls}
         >
           <motion.img
@@ -87,7 +96,6 @@ export function HeroSection({ movies }: HeroSectionProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-l from-black via-black/50 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/10 to-transparent" />
           <motion.div
             className="absolute inset-0 flex items-center p-16"
             initial={{ opacity: 0, x: 50 }}
@@ -101,9 +109,14 @@ export function HeroSection({ movies }: HeroSectionProps) {
                 {currentMovie.title}
               </h1>
               <div className="text-sm text-gray-300 mb-4">
-                {formattedDate} <br/>
-                 {currentMovie?.categories?.join("  \u00B7  ")}
-              <Rating rating={currentMovie.vote_average} maxRating={10} size="small" className="mt-1" />
+                {formattedDate} <br />
+                {currentMovie?.categories?.join("  \u00B7  ")}
+                <Rating
+                  rating={currentMovie.vote_average}
+                  maxRating={10}
+                  size="small"
+                  className="mt-1"
+                />
               </div>
               <p className="text-gray-200 mb-6 hidden md:block">
                 {currentMovie.overview}
@@ -121,6 +134,7 @@ export function HeroSection({ movies }: HeroSectionProps) {
             </div>
           </motion.div>
         </motion.div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
       </AnimatePresence>
       <button
         onClick={handlePrev}
