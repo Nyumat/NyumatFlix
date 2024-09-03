@@ -19,7 +19,8 @@ export const Rating = ({
   return (
     <div
       className={clsx("flex items-center gap-1", className)}
-      aria-description={`Rating: ${rating} out of ${maxRating}`}
+      aria-describedby="rating"
+      aria-details={`Rating: ${rating} out of ${maxRating}`}
     >
       {Array.from({ length: maxRating }).map((_, index) => {
         return (
