@@ -96,7 +96,7 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
   // Maybe make sticky again at some point?
   return (
-    <header className="shadow-inner absolute min-w-full z-50 flex justify-between items-center p-2 px-16">
+    <header className="shadow-inner absolute min-w-full z-50 flex justify-between items-center p-2 px-16 top-6">
       <Link href="/" className="font-bold text-lg flex items-center">
         NyumatFlix
       </Link>

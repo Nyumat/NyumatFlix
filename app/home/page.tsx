@@ -152,7 +152,7 @@ export default async function Home() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div>
       <main>
         {/* Only show the (very) popular movies with a backdrop path */}
         <HeroSection

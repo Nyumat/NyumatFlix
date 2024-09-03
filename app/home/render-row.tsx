@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import HackerButton from "@/components/animated/sribble";
 import { ChevronLeft, ChevronRight, Clock, Plus } from "lucide-react";
 import { Movie } from "./page";
 import { format } from "date-fns";
@@ -76,7 +75,7 @@ export function HeroSection({ movies }: HeroSectionProps) {
   }, [currentMovie?.release_date]);
 
   return (
-    <div className="h-[80vh] overflow-hidden">
+    <div className="h-[80vh]">
       <AnimatePresence mode="popLayout">
         <motion.div
           key={currentMovie.backdrop_path}
@@ -94,8 +93,8 @@ export function HeroSection({ movies }: HeroSectionProps) {
             exit={{ opacity: 0.5 }}
             transition={{ duration: 1, ease: "easeInOut" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-l from-black via-black/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-l from-black via-black/20 to-transparent" />
           <motion.div
             className="absolute inset-0 flex items-center p-16"
             initial={{ opacity: 0, x: 50 }}
@@ -136,19 +135,21 @@ export function HeroSection({ movies }: HeroSectionProps) {
         </motion.div>
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
       </AnimatePresence>
-      <button
-        onClick={handlePrev}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full"
-      >
-        <ChevronLeft size={24} />
-      </button>
-      <button
-        onClick={handleNext}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full"
-      >
-        <ChevronRight size={24} />
-      </button>
-      <div className="absolute bottom-36 md:bottom-32 left-1/2 transform -translate-x-1/2 flex space-x-2 opacity-45">
+      <div>
+        <button
+          onClick={handlePrev}
+          className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full"
+        >
+          <ChevronLeft size={24} />
+        </button>
+        <button
+          onClick={handleNext}
+          className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full"
+        >
+          <ChevronRight size={24} />
+        </button>
+      </div>
+      <div className="relative flex justify-center mt-4 space-x-2 z-10 opacity-50">
         {movies.map((_, index) => (
           <div
             key={index}

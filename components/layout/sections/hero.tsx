@@ -65,7 +65,6 @@ export const HeroSection = () => {
               <Image
                 width={1200}
                 height={1200}
-
                 // TODO: Support light mode?
                 src={`/home2.png`}
                 alt="dashboard"
