@@ -45,11 +45,7 @@ export default function Sponsors() {
       </h2>
 
       <div className="mx-auto">
-        <Marquee
-          className="gap-[3rem]"
-          fade
-          innerClassName="gap-[3rem]"
-        >
+        <Marquee className="gap-[3rem]" fade innerClassName="gap-[3rem]">
           {services.map(({ filePath, name }) => (
             <div
               key={name}
