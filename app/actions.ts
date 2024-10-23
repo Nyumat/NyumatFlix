@@ -1,5 +1,5 @@
+import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
 import { MediaItem, TmdbResponse } from "@/utils/typings";
-import { MovieDb } from "moviedb-promise";
 
 interface Params {
   [key: string]: string;
@@ -35,10 +35,6 @@ interface TVShow {
   poster_path: string;
   categories?: string[];
 }
-
-const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_API_KEY = process.env.TMDB_API_KEY;
-export const movieDb = new MovieDb(TMDB_API_KEY ?? "");
 
 export async function buildMaybeItemsWithCategories(
   items: (Movie | TVShow)[],
