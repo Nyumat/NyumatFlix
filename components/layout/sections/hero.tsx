@@ -32,7 +32,7 @@ export const HeroSection = () => {
 
           <p className="max-w-screen-sm mx-auto text-xl text-muted-foreground">
             The best way to watch your favorite movies and TV shows. Anywhere,
-            anytime. And yes—no subscription required.
+            anytime. And, yes—no subscription/sign-up is required.
           </p>
 
           <div className="space-y-4 md:space-y-0 md:space-x-4">
@@ -40,7 +40,11 @@ export const HeroSection = () => {
               className="w-5/6 md:w-1/4 font-bold group/arrow pointer-events-auto select-auto"
               asChild
             >
-              <Link href="/home">
+              <Link
+                href="/movies/browse?type=popular"
+                passHref
+                aria-label="Get Started"
+              >
                 Get Started
                 <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
               </Link>

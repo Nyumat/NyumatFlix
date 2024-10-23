@@ -14,7 +14,7 @@ describe("Landing Page", () => {
   test("renders the subtitle", () => {
     render(<Page />);
     const subtitle = screen.getByText(
-      "The best way to watch your favorite movies and TV shows. Anywhere, anytime. And yes—no subscription required.",
+      "The best way to watch your favorite movies and TV shows. Anywhere, anytime. And, yes—no subscription/sign-up is required.",
     );
     expect(subtitle).toBeInTheDocument();
   });
