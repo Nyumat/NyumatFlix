@@ -1,24 +1,35 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export interface Genre {
+
+export type MediaItem = Movie | TvShow;
+
+export function isMovie(item: MediaItem): item is Movie {
+  return (item as Movie).title !== undefined;
+}
+
+export function isTVShow(item: Movie | TvShow): item is TvShow {
+  return (item as TvShow).name !== undefined;
+}
+
+export type Genre = {
   id: number;
   name: string;
-}
+};
 
-export interface Title {
+export type Title = {
   title: string;
   query: string;
-}
+};
 
-export interface Actor {
+export type Actor = {
   [x: string]: any;
   id: number;
   name: string;
   profile_path: string;
   character: string;
   popularity: number;
-}
+};
 
-export interface Movie {
+export type Movie = {
   [x: string]: any;
   results?: Movie[];
   title: string;
@@ -40,9 +51,9 @@ export interface Movie {
   adult: boolean;
   video: boolean;
   original_title: string;
-}
+};
 
-export interface TvShow {
+export type TvShow = {
   [x: string]: any;
   backdrop_path: string;
   first_air_date: string;
@@ -57,15 +68,15 @@ export interface TvShow {
   vote_count: number;
   original_language: string;
   original_name: string;
-}
+};
 
-export interface TmdbResponse<T> {
+export type TmdbResponse<T> = {
   [x: string]: any;
   page?: number;
   results?: T[];
   total_pages?: number;
   total_results?: number;
-}
+};
 
 export type CreditsReponse = {
   id: number;
@@ -73,10 +84,10 @@ export type CreditsReponse = {
   crew: Actor[];
 };
 
-export interface LayoutProps {
+export type LayoutProps = {
   children: React.ReactNode;
   isPathRoot: boolean;
-}
+};
 
 export enum MapGenreMovie {
   Action = 28,

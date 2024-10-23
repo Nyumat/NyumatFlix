@@ -1,15 +1,9 @@
 "use client";
-import { ChevronsDown, Ghost, Github, Menu } from "lucide-react";
+import { ChevronsDown, Github, Menu } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import React from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "../ui/sheet";
-import { Separator } from "../ui/separator";
+import { Button } from "../ui/button";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -18,9 +12,15 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "../ui/navigation-menu";
-import { Button } from "../ui/button";
-import Link from "next/link";
-import Image from "next/image";
+import { Separator } from "../ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "../ui/sheet";
 import { ToggleTheme } from "./toogle-theme";
 
 interface RouteProps {
@@ -96,7 +96,7 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
   // Maybe make sticky again at some point?
   return (
-    <header className="shadow-inner absolute min-w-full z-50 flex justify-between items-center p-2 px-16 top-6">
+    <header className="absolute min-w-full z-50 flex justify-between items-center p-2 px-16 top-6">
       <Link href="/" className="font-bold text-lg flex items-center">
         NyumatFlix
       </Link>
@@ -119,7 +119,7 @@ export const Navbar = () => {
                 <SheetTitle className="flex items-center">
                   <Link href="/" className="flex items-center">
                     <ChevronsDown className="bg-gradient-to-tr border-secondary from-primary via-primary/70 to-primary rounded-lg w-9 h-9 mr-2 border text-white" />
-                    Shadcn
+                    NyumatFlix
                   </Link>
                 </SheetTitle>
               </SheetHeader>
@@ -164,12 +164,14 @@ export const Navbar = () => {
       </NavigationMenu>
 
       <div className="hidden lg:flex">
-        <ToggleTheme />
+        {/* 
+        TODO: Maybe add this back later
+        <ToggleTheme /> */}
 
         <Button asChild size="sm" variant="ghost" aria-label="View on GitHub">
           <Link
-            aria-label="View on GitHub"
-            href="https://github.com/nobruf/shadcn-landing-page.git"
+            aria-label="View NyumatFlix on GitHub"
+            href="https://github.com/nyumat/nyumatflix"
             target="_blank"
           >
             <Github className="size-5" />
@@ -206,7 +208,7 @@ export const MarketingNavbar = () => {
                 <SheetTitle className="flex items-center">
                   <Link href="/" className="flex items-center">
                     <ChevronsDown className="bg-gradient-to-tr border-secondary from-primary via-primary/70 to-primary rounded-lg w-9 h-9 mr-2 border text-white" />
-                    Shadcn
+                    NyumatFlix
                   </Link>
                 </SheetTitle>
               </SheetHeader>
