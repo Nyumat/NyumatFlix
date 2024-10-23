@@ -1,5 +1,8 @@
 name: nyumatflix-ci
 
+env:
+  HUSKY: 0
+
 on:
   push:
     branches:
