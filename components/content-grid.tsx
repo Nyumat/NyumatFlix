@@ -1,4 +1,3 @@
-import { movieDb } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, Play, Star } from "lucide-react";
@@ -27,7 +26,6 @@ const MoviePoster = ({
     </div>
   );
 
-// MovieInfo Component
 const MovieInfo = ({
   title,
   releaseDate,
@@ -58,10 +56,6 @@ const MovieInfo = ({
 );
 
 const MovieCard = async ({ movie }: { movie: MovieResponse }) => {
-  const movieDetails = await movieDb.movieInfo({
-    id: movie.id?.toString() || "",
-    language: "en-US",
-  });
   return (
     <Card className="overflow-hidden group relative border-none">
       <CardContent className="p-0 relative">
@@ -70,7 +64,7 @@ const MovieCard = async ({ movie }: { movie: MovieResponse }) => {
           title={movie.title}
           releaseDate={movie.release_date}
           voteAverage={movie.vote_average}
-          runtime={movieDetails.runtime}
+          runtime={movie.runtime}
         />
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100">
           <button className="bg-primary rounded-full p-3 transform scale-0 group-hover:scale-100 transition-transform duration-300">
@@ -94,20 +88,19 @@ const Fallback = Array.from({ length: 16 }).map((_, i) => (
   <SuspenseSkeleton key={i} />
 ));
 
-// ContentGrid Component
 export function ContentGrid({
   items,
   title,
 }: {
   items: MovieResponse[];
-  title: string;
+  title?: string;
 }) {
   return (
     <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
+      {title && <h2 className="text-2xl font-bold mb-4">{title}</h2>}
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
         <Suspense fallback={Fallback}>
-          {items.slice(0, 16).map((item) => (
+          {items.map((item) => (
             <MovieCard key={item.id} movie={item} />
           ))}
         </Suspense>

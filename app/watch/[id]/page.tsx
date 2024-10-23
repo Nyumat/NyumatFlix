@@ -22,8 +22,6 @@ export default async function Watch({ params }: { params: { id: string } }) {
   const { id } = params;
   const mediaType = await determineMediaType(id);
   const details = await fetchDetails(id, mediaType);
-
-  console.log(details);
   return (
     <>
       <HeroSection media={[details]} noSlide isWatch />
