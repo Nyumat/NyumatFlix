@@ -128,8 +128,7 @@ export async function getServerSideProps(context: any) {
     `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.API_KEY}&language=en-US&append_to_response=external_ids`,
   );
 
-  const adjustedUrl =
-    process.env.NYUMATFLIX_VPS2 + tvShowDetails.data.external_ids.imdb_id;
+  const adjustedUrl = process.env.NYUMATFLIX_VPS2 + "?tmdb=" + `${id}`;
 
   const staffData = await axios.get(
     `https://api.themoviedb.org/3/tv/${id}/credits?api_key=${process.env.API_KEY}&language=en-US`,

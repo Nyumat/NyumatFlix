@@ -8,8 +8,8 @@ import { Rating, Text } from "@mantine/core";
 import { Actor, Movie } from "@utils/typings";
 import axios from "axios";
 import moment from "moment";
-import { useRouter } from "next/router";
 import Head from "next/head";
+import { useRouter } from "next/router";
 
 interface PlayerProps {
   movie: Movie;
@@ -121,7 +121,7 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
 
 export async function getServerSideProps(context: any) {
   const { id } = context.query;
-  const url = process.env.NYUMATFLIX_VPS + `${id}`;
+  const url = process.env.NYUMATFLIX_VPS + "?tmdb=" + `${id}`;
 
   if (id === undefined) {
     return {

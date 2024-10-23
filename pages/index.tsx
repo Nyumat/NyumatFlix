@@ -86,12 +86,9 @@ const Home: NextPage = () => {
               href="/home"
               className="relative inline-flex items-center justify-start px-8 py-4 overflow-hidden font-bold rounded-full group"
             >
-              <span className="w-full h-full rotate-45 translate-x-12 -translate-y-2 absolute left-0 top-0 bg-white opacity-[3%]"></span>
-              <span className="absolute w-[125%] left-[-125%] group-hover:left-[0] transition-all duration-500 inset-y-0 aspect-square bg-white [clip-path:polygon(0_0,_100%_0%,_0_100%,_0%_100%);]"></span>
-              <span className="relative w-full text-2xl text-left text-white transition-colors duration-200 ease-in-out group-hover:text-gray-900">
+              <button className="shadow-[inset_0_0_0_2px_#616467] px-12 py-4  rounded-full tracking-widest uppercase font-bold bg-neutral-600 hover:bg-[#616467] hover:text-white transition duration-200">
                 Get Started
-              </span>
-              <span className="absolute inset-0 border-2 border-white rounded-full"></span>
+              </button>
             </Link>
 
             <Link
