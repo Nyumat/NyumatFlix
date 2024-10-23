@@ -23,23 +23,21 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18"
+          cache: "npm"
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Clean install
         run: npm ci
+
+      - name: Create .env file
+        run: |
+          echo "TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env.local
+          echo "NEXT_PUBLIC_TMDB_API_KEY=${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}" >> .env.local
 
       - name: Build the app
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
-        run: |
-          touch .env.local
-          echo NODE_ENV=${{ secrets.NODE_ENV }} >> .env.local
-          echo TMDB_API_KEY=${{ secrets.TMDB_API_KEY }} >> .env.local
-          echo NEXT_PUBLIC_TMDB_API_KEY=${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }} >> .env.local
-          npm run build
+        run: npm run build
 
       - name: Check formatting
         run: npx prettier --check . --ignore-path .gitignore
@@ -51,4 +49,7 @@ jobs:
         run: npm run type-check
 
       - name: Run tests
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
         run: npm run test-ci
