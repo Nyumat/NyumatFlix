@@ -2,7 +2,7 @@
 
 # [NyumatFlix](https://nyumatflix.com)
 
-The successor to NyumatFlix V1. Now including Next.js, a design system, and server-side rendering.
+Welcome to the NyumatFlix repository! NyumatFlix is a streaming platform that allows you to watch your favorite movies and TV shows. The app is built with Next.js, TypeScript, and Tailwind CSS. It uses The Movie Database (TMDb) API to fetch movie and TV show data.
 
 ## 🚀 Features 🚀
 
