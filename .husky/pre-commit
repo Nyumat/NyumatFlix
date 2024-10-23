@@ -1,42 +1,28 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+clear
+echo "🧹 Linting Code..."
 
-echo '🏗️👷 Styling, testing and building NyumatFlix before committing'
+# Run linting
+npm run lint
 
-# Check Prettier standards
-npm run check-format ||
-(
-    echo '🤢🤮🤢🤮 Its F**KING RAW - Your styling looks disgusting. 🤢🤮🤢🤮
-            Prettier Check Failed. Run npm run format, add changes and try commit again.';
-    false;
-)
+# Run tests
+clear
+echo "🧪 Running Tests..."
 
-# Check ESLint Standards
-npm run lint ||
-(
-        echo '😤🏀👋😤 Get that weak s**t out of here! 😤🏀👋😤
-                ESLint Check Failed. Make the required changes listed above, add changes and try to commit again.'
-        false;
-)
+npm run test-ci
 
-# Check tsconfig standards
-npm run type-check ||
-(
-    echo '🤡😂❌🤡 Failed Type check. 🤡😂❌🤡
-            Are you seriously trying to write that? Make the changes required above.'
-    false;
-)
+# Check formatting
+clear
+echo "📝 Checking Code Formatting..."
 
-# If everything passes... Now we can build
-echo '🤔🤔🤔🤔... Alright... Code looks good to me... Trying to build now. 🤔🤔🤔🤔'
+npm run check-format
 
-npm run build ||
-(
-    echo '❌👷🔨❌ Better call Bob... Because your build failed ❌👷🔨❌
-            Next build failed: View the errors above to see why.
-    '
-    false;
-)
+# Checking types
+clear
+echo "🔍 Checking Types..."
 
-# If everything passes... Now we can commit
-echo 'Hey NyumatFlix Developer...You win this time... I am committing this now. 🛳'
+npm run type-check
+
+if [ $? -ne 0 ]; then
+  echo "🚨 Pre-commit checks failed. Please fix the above issues before committing."
+  exit 1
+fi

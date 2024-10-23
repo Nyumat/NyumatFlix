@@ -1,0 +1,56 @@
+name: nyumatflix-ci
+
+env:
+  HUSKY: 0
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    environment: nyumatflix-v2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env file
+        run: |
+          echo "TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env.local
+          echo "NEXT_PUBLIC_TMDB_API_KEY=${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}" >> .env.local
+
+      - name: Build the app
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
+        run: npm run build
+
+      - name: Check formatting
+        run: npx prettier --check . --ignore-path .gitignore
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Run tests
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
+        run: npm run test-ci
