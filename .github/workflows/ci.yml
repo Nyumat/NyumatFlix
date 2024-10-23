@@ -14,6 +14,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    environment: nyumatflix-v2
 
     steps:
       - name: Checkout code
