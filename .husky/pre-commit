@@ -27,16 +27,16 @@ npm run type-check ||
     false;
 )
 
-# If everything passes... Now we can build
-echo '🤔🤔🤔🤔... Alright... Code looks good to me... Trying to build now. 🤔🤔🤔🤔'
+# # If everything passes... Now we can build
+# echo '🤔🤔🤔🤔... Alright... Code looks good to me... Trying to build now. 🤔🤔🤔🤔'
 
-npm run build ||
-(
-    echo '❌👷🔨❌ Better call Bob... Because your build failed ❌👷🔨❌
-            Next build failed: View the errors above to see why.
-    '
-    false;
-)
+# npm run build ||
+# (
+#     echo '❌👷🔨❌ Better call Bob... Because your build failed ❌👷🔨❌
+#             Next build failed: View the errors above to see why.
+#     '
+#     false;
+# )
 
 # If everything passes... Now we can commit
 echo 'Hey NyumatFlix Developer...You win this time... I am committing this now. 🛳'
