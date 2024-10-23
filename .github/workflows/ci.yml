@@ -33,7 +33,11 @@ jobs:
       - name: Build the app
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-        run: npm run build
+        run: |
+          touch .env.local
+          echo NODE_ENV=${{ secrets.NODE_ENV }} >> .env.local
+          echo TMDB_API_KEY=${{ secrets.TMDB_API_KEY }} >> .env.local
+          npm run build
 
       - name: Check formatting
         run: npx prettier --check . --ignore-path .gitignore
