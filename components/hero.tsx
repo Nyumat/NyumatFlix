@@ -6,11 +6,13 @@ interface HeroProps {
   subtitle?: string;
 }
 
-export function HeaderHero({ imageUrl, title, subtitle }: HeroProps) {
+export function HeaderHero({ imageUrl, title }: HeroProps) {
   return (
     <>
       <div
-        className={`relative w-full ${imageUrl.includes("search") ? "h-[50vh]" : "h-[40vh]"}`}
+        className={`relative w-full ${
+          imageUrl.includes("search") ? "h-[50vh]" : "h-[40vh]"
+        }`}
       >
         <Image
           src={imageUrl}

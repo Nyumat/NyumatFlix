@@ -1,5 +1,5 @@
 import { ContentRowActual } from "@/components/content-row";
-import { fetchTMDBData, buildItemsWithCategories } from "../actions";
+import { buildItemsWithCategories, fetchTMDBData } from "../actions";
 
 export interface Movie {
   adult: boolean;
@@ -26,11 +26,11 @@ export default async function MoviesPage() {
   ]);
 
   const popularMoviesWithCategories = await buildItemsWithCategories(
-    popularMovies.results,
+    popularMovies.results ?? [],
     "movie",
   );
   const topRatedMoviesWithCategories = await buildItemsWithCategories(
-    topRatedMovies.results,
+    topRatedMovies.results ?? [],
     "movie",
   );
 
@@ -39,12 +39,12 @@ export default async function MoviesPage() {
       <ContentRowActual
         title="Popular Movies"
         items={popularMoviesWithCategories}
-        href="/movies?sort=popular"
+        href="/movies/browse?type=popular"
       />
       <ContentRowActual
         title="Top Rated Movies"
         items={topRatedMoviesWithCategories}
-        href="/movies?sort=top_rated"
+        href="/movies/browse?type=top-rated"
       />
     </>
   );

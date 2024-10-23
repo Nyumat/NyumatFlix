@@ -8,11 +8,11 @@ export default async function TVShowsPage() {
   ]);
 
   const popularTVShowsWithCategories = await buildItemsWithCategories(
-    popularMovies.results,
+    popularMovies.results ?? [],
     "tv",
   );
   const topRatedTVShowsWithCategories = await buildItemsWithCategories(
-    topRatedMovies.results,
+    topRatedMovies.results ?? [],
     "tv",
   );
 

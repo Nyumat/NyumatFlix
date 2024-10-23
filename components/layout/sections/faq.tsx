@@ -15,7 +15,8 @@ interface FAQProps {
 const FAQList: FAQProps[] = [
   {
     question: "Is this going to give me viruses?",
-    answer: "No, not at all. This is a safe website.",
+    answer:
+      "No, NyumatFlix will not give you viruses. We do not host any content on our servers. We only provide links to third-party websites. If you are worried about viruses, I recommend using an adblocker and a VPN.",
     value: "item-1",
   },
   {
@@ -27,7 +28,7 @@ const FAQList: FAQProps[] = [
   {
     question: "Where is the source code for this website? Can I contribute?",
     answer:
-      "The source code for this website is available on GitHub (and linked in the navbar) And yes, you can contribute—just submit a pull request!",
+      "The source code for this website is available on GitHub (linked in the navbar) And yes, you can contribute—just submit a pull request!",
     value: "item-3",
   },
   {
