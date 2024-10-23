@@ -1,8 +1,28 @@
-echo "🚀 Linting code..."
+clear
+echo "🧹 Linting Code..."
+
+# Run linting
 npm run lint
 
-echo "🚀 Checking for format..."
+# Run tests
+clear
+echo "🧪 Running Tests..."
 
-npm run format
+npm run test-ci
 
-npx --yes @humankode/git-commit-emojify@latest
+# Check formatting
+clear
+echo "📝 Checking Code Formatting..."
+
+npm run check-format
+
+# Checking types
+clear
+echo "🔍 Checking Types..."
+
+npm run type-check
+
+if [ $? -ne 0 ]; then
+  echo "🚨 Pre-commit checks failed. Please fix the above issues before committing."
+  exit 1
+fi
