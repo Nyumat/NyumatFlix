@@ -45,6 +45,10 @@ const Page = ({
     <>
       <Head>
         <title>Movies | NyumatFlix</title>
+        <meta
+          name="description"
+          content="View the latest movies on NyumatFlix."
+        />
       </Head>
       <PageTransition>
         <div>

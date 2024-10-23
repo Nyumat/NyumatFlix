@@ -17,8 +17,17 @@ const Home: NextPage = () => {
   return (
     <div className="text-shark-50 flex min-h-screen flex-col items-start justify-center">
       <Head>
-        <title>NyumatFlix - Streaming, Streamlined.</title>
+        <title>NyumatFlix - Home</title>
         <link rel="icon" href="/favicon.ico" />
+        <meta name="description" content="The home page for NyumatFlix." />
+        <meta property="og:title" content="NyumatFlix - Home" key="ogtitle" />
+        <meta
+          property="og:description"
+          content="The home page for NyumatFlix."
+          key="ogdesc"
+        />
+        <meta property="og:image" content="/preview.jpg" key="ogimage" />
+        <meta property="og:url" content="https://nyumatflix.com" key="ogurl" />
       </Head>
 
       <div className="bg-movie-banner flex w-full pt-8 flex-1 flex-col items-center justify-center px-20 text-center"></div>

@@ -70,8 +70,8 @@ const MyApp = (props: AppProps) => {
       >
         <Layout isPathRoot={isPathRoot}>
           <Component key={router.asPath} {...pageProps} />
+          <Analytics />
         </Layout>
-        <Analytics />
       </MantineProvider>
     </>
   );
