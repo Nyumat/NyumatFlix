@@ -31,6 +31,8 @@ jobs:
         run: npm ci
 
       - name: Build the app
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: npm run build
 
       - name: Check formatting
