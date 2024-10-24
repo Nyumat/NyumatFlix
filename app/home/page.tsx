@@ -1,5 +1,5 @@
 import { ContentRowActual } from "@/components/content-row";
-import { buildMaybeItemsWithCategories, fetchAllData, test } from "../actions";
+import { buildMaybeItemsWithCategories, fetchAllData } from "../actions";
 import { HeroSection } from "./render-row";
 
 export const metadata = {
@@ -85,8 +85,6 @@ export default async function Home() {
   }
 
   const popularMoviesWithVideos = await attachVideosToPopularMovies();
-  const tesst = await test();
-  console.log(tesst); // TODO: Remove this line
   return (
     <div>
       <main>
