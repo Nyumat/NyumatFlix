@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { z } from "zod";
+
 export type MediaItem = Movie | TvShow;
 
 export function isMovie(item: MediaItem): item is Movie {
@@ -157,3 +159,21 @@ const mapEnumToGenres = (enumObj: any): Genre[] => {
 };
 
 export const genres = mapEnumToGenres(MapGenreMovie);
+
+export const TVShowCategoryEnum = z.enum([
+  "popular",
+  "top-rated",
+  "on-the-air",
+  "airing-today",
+]);
+
+export const MovieCategoryEnum = z.enum([
+  "popular",
+  "top-rated",
+  "now-playing",
+  "upcoming",
+]);
+
+export type TVShowCategory = z.infer<typeof TVShowCategoryEnum>;
+export type MovieCategory = z.infer<typeof MovieCategoryEnum>;
+export type UnifiedCategory = TVShowCategory | MovieCategory;
