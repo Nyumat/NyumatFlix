@@ -1,6 +1,7 @@
-import { getMovies, MovieCategory } from "@/app/actions";
+import { getMovies } from "@/app/actions";
 import { ContentGrid } from "@/components/content-grid";
 import { LoadMore } from "./load-more";
+import { MovieCategory } from "@/utils/typings";
 
 interface ICProps {
   type: MovieCategory;
@@ -23,7 +24,7 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
         offset < (response.total_pages || 0) ? offset + 1 : null;
 
       return [
-        <ContentGrid items={response.results} key={offset} />,
+        <ContentGrid items={response.results} key={offset} type="movie" />,
         nextOffset,
       ] as const;
     } catch (error) {
@@ -38,7 +39,7 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
       getMovieListNodes={getMovieListNodes}
       initialOffset={initialOffset}
     >
-      <ContentGrid items={initialMovies.results} />
+      <ContentGrid items={initialMovies.results} type="movie" />
     </LoadMore>
   );
 }
