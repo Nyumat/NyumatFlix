@@ -1,4 +1,5 @@
-import { getMovies, MovieCategory } from "@/app/actions";
+import { getMovies } from "@/app/actions";
+import { MovieCategory } from "@/utils/typings";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
