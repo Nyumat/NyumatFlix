@@ -1,5 +1,10 @@
 import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
-import { MediaItem, TmdbResponse } from "@/utils/typings";
+import {
+  MediaItem,
+  MovieCategory,
+  TmdbResponse,
+  TVShowCategory,
+} from "@/utils/typings";
 
 interface Params {
   [key: string]: string;
@@ -200,15 +205,13 @@ export async function fetchMediaDetails(id: string | number) {
   }
 }
 
-export async function test() {
+export async function getMovieGenreList() {
   return await movieDb.genreMovieList();
 }
 
-export type MovieCategory =
-  | "popular"
-  | "top-rated"
-  | "now-playing"
-  | "upcoming";
+export async function getTVGenreList() {
+  return await movieDb.genreTvList();
+}
 
 export async function getMovies(type: MovieCategory, page: number) {
   switch (type) {
@@ -222,5 +225,20 @@ export async function getMovies(type: MovieCategory, page: number) {
       return await movieDb.upcomingMovies({ language: "en-US", page });
     default:
       return await movieDb.moviePopular({ language: "en-US", page });
+  }
+}
+
+export async function getTVShows(type: TVShowCategory, page: number) {
+  switch (type) {
+    case "popular":
+      return await movieDb.tvPopular({ language: "en-US", page });
+    case "top-rated":
+      return await movieDb.tvTopRated({ language: "en-US", page });
+    case "on-the-air":
+      return await movieDb.tvOnTheAir({ language: "en-US", page });
+    case "airing-today":
+      return await movieDb.tvAiringToday({ language: "en-US", page });
+    default:
+      return await movieDb.tvPopular({ language: "en-US", page });
   }
 }

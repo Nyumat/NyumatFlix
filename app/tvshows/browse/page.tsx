@@ -1,13 +1,13 @@
 import { ContentLoader } from "@/components/animated/load-more";
+import { TVShowCategory } from "@/utils/typings";
 import { Suspense } from "react";
 import { InfiniteContent } from "./inf-scroll";
-import { MovieCategory } from "@/utils/typings";
 
 export default async function Page({
   searchParams,
 }: {
   searchParams: {
-    type?: MovieCategory;
+    type?: TVShowCategory;
   };
 }) {
   const type = searchParams.type || "popular";
