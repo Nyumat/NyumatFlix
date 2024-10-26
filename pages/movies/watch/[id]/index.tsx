@@ -19,12 +19,9 @@ interface PlayerProps {
 
 const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
   const router = useRouter();
-
   const { id } = router.query;
   const ts_id = parseInt(id as string);
 
-  // const { isAvailable } = useAvailable(ts_id);
-  //console.log(url);
   if (!url) {
     return (
       <div>
