@@ -1,7 +1,7 @@
-const API_KEY = process.env.API_KEY;
+export const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const VPS = process.env.NYUMATFLIX_VPS;
 const VPS2 = process.env.NYUMATFLIX_VPS2;
-const BASE_URL = "https://api.themoviedb.org/3";
+export const BASE_URL = "https://api.themoviedb.org/3";
 
 const defaultQueryParams =
   "language=en-US&include_adult=false&with_original_language=en";
