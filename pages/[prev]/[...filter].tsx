@@ -8,11 +8,6 @@ const Filter = () => {
   const { filter } = router.query;
   const { filterData } = useFilter({ filter });
   const [, setShow] = useState<boolean>(false);
-
-  //console.log("Filter: ", filter);
-
-  //console.log(router);
-
   return (
     <div>
       <h1>Filter {filter}</h1>
