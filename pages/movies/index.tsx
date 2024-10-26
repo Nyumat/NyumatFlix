@@ -1,46 +1,24 @@
 import Card from "@components/Card";
 import PageTransition from "@components/Transition";
-import requests from "@utils/requests";
-import { Movie, Title, TmdbResponse } from "@utils/typings";
+import { MOVIE_CATEGORIES } from "@utils/requests";
+import { Movie } from "@utils/typings";
 import axios from "axios";
+import { ChevronRight } from "lucide-react";
 import Head from "next/head";
+import Link from "next/link";
+import { filterMovies } from "./[category]";
 
-interface Props {
-  horrorMovies: Movie[];
-  popularMovies: Movie[];
-  topRatedMovies: Movie[];
-  upcomingMovies: Movie[];
-  titles: Title[];
+interface MovieCategory {
+  title: string;
+  movies: Movie[];
+  query: string;
 }
 
-const Page = ({
-  popularMovies,
-  topRatedMovies,
-  upcomingMovies,
-  horrorMovies,
-  titles,
-}: Props) => {
-  const movies: TmdbResponse = [
-    popularMovies,
-    topRatedMovies,
-    upcomingMovies,
-    horrorMovies,
-  ];
+interface Props {
+  categories: MovieCategory[];
+}
 
-  /*
-  const [page, setPage] = useState(1);
-  const [pages, setPages] = useState<any>([popularMovies]);
-  const fetchMoreData = async (e: any) => {
-    e.preventDefault();
-    setPage(page + 1);
-    await fetch(`/api/movies?page=${page}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const copy = [...pages];
-        setPages([...copy, data]);
-      });
-  };
-*/
+const Page = ({ categories }: Props) => {
   return (
     <>
       <Head>
@@ -52,23 +30,28 @@ const Page = ({
       </Head>
       <PageTransition>
         <div>
-          {titles.map((title: Title, index: number) => (
-            <div key={title.query}>
-              <h1 className="text-4xl font-bold text-white">{title.title}</h1>
-              <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4 mb-4">
-                {movies[index].results.map((movie: Movie) => (
-                  <Card key={movie.id} item={movie} />
-                ))}
-                {/* TODO: Fix this/Add it back
-                <Button
-                  onClick={fetchMoreData}
-                  className="col-span-2 md:col-span-3 lg:col-span-4"
-                  variant="outline"
-                  color="cyan"
-                  size="lg"
+          {categories.map((category) => (
+            <div key={category.query} className="mb-8">
+              <div className="flex items-center justify-between mb-4 px-4">
+                <h1 className="text-xl md:text-2xl lg:text-4xl font-bold text-white">
+                  {category.title}
+                </h1>
+                <Link
+                  href={`/movies/${category.query}`}
+                  className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors"
                 >
-                  Load More
-                </Button> */}
+                  View All
+                  <ChevronRight className="w-5 h-5" />
+                </Link>
+              </div>
+              <div className="relative">
+                <div className="flex overflow-x-scroll scrollbar-hide space-x-4 px-4">
+                  {category.movies.map((movie: Movie) => (
+                    <div key={movie.id} className="flex-none w-[200px]">
+                      <Card item={movie} />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
@@ -78,31 +61,82 @@ const Page = ({
   );
 };
 
+async function fetchMoviesUntilCount(
+  categoryKey: string,
+  category: (typeof MOVIE_CATEGORIES)[keyof typeof MOVIE_CATEGORIES],
+  targetCount: number = 20,
+): Promise<Movie[]> {
+  let allMovies: Movie[] = [];
+  let page = 1;
+  const maxPages = 5;
+
+  while (allMovies.length < targetCount && page <= maxPages) {
+    const url = `${category.url}&page=${page}`;
+    const response = await axios.get(url);
+    const filteredMovies = filterMovies(response.data.results);
+    allMovies = [...allMovies, ...filteredMovies];
+    if (response.data.results.length === 0) break;
+    page++;
+  }
+
+  return allMovies.slice(0, targetCount);
+}
+
 export async function getStaticProps() {
-  const titles: Title[] = [
-    { query: "popular", title: "Popular Movies" },
-    { query: "top_rated", title: "Top Rated Movies" },
-    { query: "upcoming", title: "Upcoming Movies" },
-    { query: "horror", title: "Horror Movies" },
-  ];
+  try {
+    const categoriesToShow = [
+      "popular",
+      "top_rated",
+      "now_playing",
+      "action",
+      "animation",
+      "adventure",
+      "comedy",
+      "drama",
+      "thriller",
+      "horror",
+      "science_fiction",
+      "fantasy",
+      "family",
+      "upcoming",
+      "romance",
+      "crime",
+      "mystery",
+      "documentary",
+      "history",
+      "music",
+      "war",
+      "western",
+    ];
 
-  const [PopularMovies, TopRatedMovies, UpcomingMovies, HorrorMovies] =
-    await Promise.all([
-      axios.get(requests.fetchPopularMovies).then((res) => res.data),
-      axios.get(requests.fetchTopRatedMovies).then((res) => res.data),
-      axios.get(requests.fetchUpcomingMovies).then((res) => res.data),
-      axios.get(requests.fetchHorrorMovies).then((res) => res.data),
-    ]);
+    const categoryPromises = categoriesToShow.map(async (categoryKey) => {
+      const category =
+        MOVIE_CATEGORIES[categoryKey as keyof typeof MOVIE_CATEGORIES];
+      const movies = await fetchMoviesUntilCount(categoryKey, category);
+      return {
+        query: categoryKey,
+        title: category.title,
+        movies,
+      };
+    });
 
-  return {
-    props: {
-      popularMovies: PopularMovies,
-      topRatedMovies: TopRatedMovies,
-      upcomingMovies: UpcomingMovies,
-      horrorMovies: HorrorMovies,
-      titles,
-    },
-  };
+    const categories = await Promise.all(categoryPromises);
+
+    return {
+      props: {
+        categories,
+      },
+      revalidate: 60 * 60,
+    };
+  } catch (error) {
+    console.error("Error fetching movies:", error);
+    return {
+      props: {
+        categories: [],
+      },
+      revalidate: 60,
+    };
+  }
 }
 
 export default Page;
