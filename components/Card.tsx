@@ -1,3 +1,4 @@
+import { IconPlayerPlay } from "@tabler/icons";
 import moment from "moment";
 import Image from "next/image";
 import { useRouter } from "next/router";
@@ -17,13 +18,12 @@ const MovieCard = ({ movie }: MovieCardProps) => {
     router.push(`/movies/watch/${movie.id}`);
   };
 
-  if (!movie?.poster_path || movie.vote_average === 0) return null;
-
   return (
     <div
       className="card cursor-pointer"
       onClick={handleClick}
       tabIndex={0}
+      aria-label={movie.title}
       role="button"
       onKeyDown={(event) => {
         if (event.key === "Enter") {
@@ -36,24 +36,25 @@ const MovieCard = ({ movie }: MovieCardProps) => {
           className="image"
           src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
           alt={movie.title}
+          aria-label={movie.title}
           width={IMAGE_WIDTH}
           height={IMAGE_HEIGHT}
         />
       </div>
       <div className="info">
-        {/*
-          Maybe add this back in later.
-          <IconPlayerPlay
-            className="opacity-50 hover:opacity-100 cursor-pointer absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-            size={48}
-            stroke={1}
-            color={"rgba(251, 244, 244, 0.75)"}
-          /> */}
+        <IconPlayerPlay
+          className="opacity-50 hover:opacity-100 cursor-pointer absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+          size={48}
+          stroke={1}
+          color={"rgba(251, 244, 244, 0.75)"}
+        />
         <h1 className="title">{movie.title}</h1>
         <p className="date">
           {moment(movie.release_date).format("MMMM Do, YYYY")}
         </p>
-        <p className="rating">{movie.vote_average}</p>
+        <p className="rating">
+          {movie.vote_average === 0 ? "Upcoming" : movie.vote_average}
+        </p>
       </div>
     </div>
   );
@@ -61,7 +62,6 @@ const MovieCard = ({ movie }: MovieCardProps) => {
 
 const TvShowCard = ({ tvShow }: { tvShow: TvShow }) => {
   const router = useRouter();
-  if (!tvShow?.poster_path || tvShow.vote_average === 0) return null;
 
   const handleClick = () => {
     router.push(`/tvshows/watch/${tvShow.id}`);
@@ -89,6 +89,12 @@ const TvShowCard = ({ tvShow }: { tvShow: TvShow }) => {
         />
       </div>
       <div className="info">
+        <IconPlayerPlay
+          className="opacity-50 hover:opacity-100 cursor-pointer absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+          size={48}
+          stroke={1}
+          color={"rgba(251, 244, 244, 0.75)"}
+        />
         <h1 className="title">{tvShow.name}</h1>
         <p className="date">
           {moment(tvShow.first_air_date).format("MMMM Do, YYYY")}
@@ -107,7 +113,6 @@ interface CardProps {
 
 const Card = ({ item }: CardProps) => {
   if (!item || item.media_type === "person") return null;
-  //console.log(item);
   return (
     <div className="container mx-auto">
       {item.name ? (
