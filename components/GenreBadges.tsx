@@ -1,5 +1,4 @@
 import { Badge, MediaQuery } from "@mantine/core";
-import { useEffect } from "react";
 import { MapGenreMovie } from "@utils/typings";
 
 interface GenreBadgesProps {
@@ -12,19 +11,6 @@ interface GenreBadgesProps {
 }
 
 const GenreBadges = ({ genres }: GenreBadgesProps) => {
-  // const [color, setColor] = useState("gray");
-
-  useEffect(() => {
-    // console.log(genres);
-    // const fac = new FastAverageColor();
-    // const color = fac
-    //   //poster_path
-    //   .getColorAsync(`https://image.tmdb.org/t/p/w185${poster_path}`)
-    //   .then((color) => {
-    //     // setColor(color.hex);
-    //     console.log(color);
-    //   });
-  }, []);
   return (
     <>
       <MediaQuery
