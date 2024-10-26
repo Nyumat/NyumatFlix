@@ -8,7 +8,8 @@ import {
   MediaQuery,
   useMantineTheme,
 } from "@mantine/core";
-import { useState } from "react";
+import { ChevronUp } from "lucide-react";
+import { useEffect, useState } from "react";
 import useCurrentState from "../hooks/useCurrentState";
 import useDefaultMovies from "../hooks/useDefaultMovies";
 import useFilter from "../hooks/useFilter";
@@ -27,6 +28,7 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
   const [filter, setFilter] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showChildren, setShowChildren] = useState(true);
+  const [showScrollButton, setShowScrollUp] = useState(false);
 
   const { filterData, filterLoading } = useFilter({ filter });
   const { searchData, searchLoading } = useSearch({ search: searchTerm });
@@ -37,7 +39,23 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
     searchTerm,
   });
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const isLoaded = useLoading({ filterLoading, searchLoading, defaultLoading });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.addEventListener("scroll", () => {
+        if (window.scrollY > 100) {
+          setShowScrollUp(true);
+        } else {
+          setShowScrollUp(false);
+        }
+      });
+    }
+  }, []);
 
   return (
     <>
@@ -90,6 +108,14 @@ export default function Layout({ children, isPathRoot }: LayoutProps) {
                     setShow={setShowChildren}
                     show={showChildren}
                   />
+                  {showScrollButton && (
+                    <button
+                      onClick={scrollToTop}
+                      className="z-50 fixed bottom-16 right-4 bg-blue-600 text-black rounded-full p-2 shadow-md"
+                    >
+                      <ChevronUp className="w-6 h-6" />
+                    </button>
+                  )}
                 </Center>
               </Aside>
             </MediaQuery>
