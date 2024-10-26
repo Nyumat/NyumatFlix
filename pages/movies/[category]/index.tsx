@@ -1,5 +1,6 @@
 import Card from "@components/Card";
 import PageTransition from "@components/Transition";
+import { API_KEY, BASE_URL } from "@utils/requests";
 import { Movie, TmdbResponse } from "@utils/typings";
 import axios from "axios";
 import { ChevronLeft } from "lucide-react";
@@ -60,8 +61,7 @@ const categoryTitles: { [key: string]: string } = {
   family: "Family Movies",
 };
 
-const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+const TMDB_BASE_URL = BASE_URL;
 
 export const filterMovies = (movies: Movie[]): Movie[] => {
   if (!Array.isArray(movies)) return [];
@@ -89,9 +89,10 @@ const getApiUrl = (category: string, page: number): string => {
 
 export default function CategoryPage({ initialMovies, category }: Props) {
   const router = useRouter();
-  const [movies, setMovies] = useState<Movie[]>(
-    initialMovies.results as Movie[],
-  );
+  const [movies, setMovies] = useState<Movie[]>(() => {
+    const initialResults = initialMovies?.results || [];
+    return filterMovies(initialResults as Movie[]); // This is a hack — TODO: Declare better types
+  });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -104,7 +105,7 @@ export default function CategoryPage({ initialMovies, category }: Props) {
       setLoading(true);
       const nextPage = page + 1;
       const response = await axios.get(getApiUrl(category, nextPage));
-      const newMovies = filterMovies(response.data.results);
+      const newMovies = filterMovies(response.data?.results || []);
 
       if (newMovies.length === 0) {
         setHasMore(false);
@@ -128,23 +129,31 @@ export default function CategoryPage({ initialMovies, category }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inView]);
 
-  if (router.isFallback) {
-    return <div>Loading...</div>;
-  }
+  const renderContent = () => {
+    if (router.isFallback) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="w-8 h-8 border-4 border-t-white border-white/20 rounded-full animate-spin" />
+        </div>
+      );
+    }
 
-  if (!movies.length) {
-    return <div>No movies found</div>;
-  }
+    if (!movies.length) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <h2 className="text-xl text-white mb-4">No movies found</h2>
+          <Link
+            href="/movies"
+            className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            Back to Movies
+          </Link>
+        </div>
+      );
+    }
 
-  return (
-    <>
-      <Head>
-        <title>{categoryTitles[category] || "Movies"} | NyumatFlix</title>
-        <meta
-          name="description"
-          content={`View ${categoryTitles[category] || "movies"} on NyumatFlix.`}
-        />
-      </Head>
+    return (
       <PageTransition>
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
@@ -171,11 +180,26 @@ export default function CategoryPage({ initialMovies, category }: Props) {
               ref={ref}
               className="w-full h-20 flex items-center justify-center"
             >
-              {loading && <div>Loading more movies...</div>}
+              {loading && (
+                <div className="w-8 h-8 border-4 border-t-white border-white/20 rounded-full animate-spin" />
+              )}
             </div>
           )}
         </div>
       </PageTransition>
+    );
+  };
+
+  return (
+    <>
+      <Head>
+        <title>{`${categoryTitles[category] || "Movies"} | NyumatFlix`}</title>
+        <meta
+          name="description"
+          content={`View ${categoryTitles[category] || "movies"} on NyumatFlix.`}
+        />
+      </Head>
+      {renderContent()}
     </>
   );
 }
@@ -224,10 +248,22 @@ export async function getStaticProps({
   try {
     const response = await axios.get(getApiUrl(params.category, 1));
 
+    if (!response?.data?.results) {
+      throw new Error("Invalid API response");
+    }
+
+    const filteredMovies = filterMovies(response.data.results);
+
+    if (filteredMovies.length === 0) {
+      return {
+        notFound: true,
+      };
+    }
+
     return {
       props: {
         initialMovies: {
-          results: response.data.results,
+          results: filteredMovies,
         },
         category: params.category,
       },
