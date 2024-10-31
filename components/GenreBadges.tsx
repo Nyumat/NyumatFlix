@@ -26,19 +26,20 @@ const GenreBadges = ({ genres }: GenreBadgesProps) => {
         >
           {genres &&
             genres.map((genre, index) => {
-              return (
-                <Badge
-                  key={index}
-                  variant="gradient"
-                  // gradient={{ from: "gray", to: `${color}` }}
-                  gradient={{ from: "darkgray", to: "darkgray" }}
-                  radius="md"
-                  size="xl"
-                  className="mx-2 text-black"
-                >
-                  {MapGenreMovie[genre.id]}
-                </Badge>
-              );
+              if (MapGenreMovie[genre.id]) {
+                return (
+                  <Badge
+                    key={index}
+                    variant="gradient"
+                    gradient={{ from: "gray", to: "gray" }}
+                    radius="md"
+                    size="xl"
+                    className="mx-2 text-black"
+                  >
+                    {MapGenreMovie[genre.id]}
+                  </Badge>
+                );
+              }
             })}
         </div>
       </MediaQuery>
