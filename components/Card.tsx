@@ -63,12 +63,6 @@ export default function Component({ item, mediaType }: CardProps) {
 
   if (!item) return null;
 
-  console.log({
-    itemFirstAirDate: item.first_air_date,
-    itemReleaseDate: item.release_date,
-    mediaType,
-  });
-
   return (
     <>
       <MantineCard
