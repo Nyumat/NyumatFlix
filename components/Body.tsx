@@ -1,7 +1,7 @@
 /* eslint-disable react/display-name */
 import { Chip, Loader } from "@mantine/core";
 import React, { forwardRef } from "react";
-import { MapGenreMovie, Movie, TvShow } from "../utils/typings";
+import { MapGenreMovie, MediaItem, Movie, TvShow } from "../utils/typings";
 import Card from "./Card";
 
 type Data = {
@@ -39,11 +39,9 @@ const CardComponent = React.memo(
       onKeyDown={onClick}
     >
       {data.media_type === "movie" ? (
-        // Render Movie component if it's a movie
-        <Card item={data} />
+        <Card item={data} mediaType="movie" />
       ) : (
-        // Render TvShow component if it's a tv show
-        <Card item={data} />
+        <Card item={data} mediaType="tv" />
       )}
     </div>
   ),
@@ -66,18 +64,9 @@ const MovieList = ({
   filterData: Data | undefined;
   handleShow: () => void;
 }) => {
-  // remove the items with null poster_path
-  // and vote_average of 0
-  // and media_type of person
-
-  const filteredData = filterData?.filter_data.filter(
-    (item: Movie | TvShow) =>
-      item.poster_path !== null || item.vote_average !== 0,
-  );
-
   return (
     <>
-      {filteredData ? (
+      {filterData ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filterData?.filter_data.map(
             (item: Movie | TvShow, index: number) => (
@@ -132,7 +121,7 @@ export const renderSearch = (
 ) => {
   if (searchData && isLoaded && !show) {
     const filteredSearchData = searchData.filter(
-      (item: Movie | TvShow) => item.media_type !== "person",
+      (item: MediaItem) => item.media_type !== "person",
     );
 
     const renderMessage = () => (
