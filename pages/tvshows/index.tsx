@@ -1,74 +1,101 @@
-import Card from "@components/Card";
+import { CategoryRow } from "@components/CategoryRow";
 import PageTransition from "@components/Transition";
-import requests from "@utils/requests";
-import { Title, TmdbResponse, TvShow } from "@utils/typings";
-import axios from "axios";
+import { CONTENT_CATEGORIES, fetchContentUntilCount } from "@utils/requests";
+import { ContentCategory } from "@utils/typings";
 import Head from "next/head";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
-  popularTvShows: TvShow[];
-  topRatedTvShows: TvShow[];
-  airingTodayTvShows: TvShow[];
-  onTheAirTvShows: TvShow[];
-  titles: Title[];
+  initialCategories: ContentCategory[];
+  categoryKeys: string[];
 }
 
-const Page = ({
-  popularTvShows,
-  topRatedTvShows,
-  airingTodayTvShows,
-  onTheAirTvShows,
-  titles,
-}: Props) => {
-  const tvShows: TmdbResponse = [
-    popularTvShows,
-    topRatedTvShows,
-    airingTodayTvShows,
-    onTheAirTvShows,
-  ];
-  /*
-  const [page, setPage] = useState(1);
-  const [pages, setPages] = useState<any>([popularTvShows]);
+const TvShowsPage = ({ initialCategories, categoryKeys }: Props) => {
+  const [loadedCategories, setLoadedCategories] =
+    useState<ContentCategory[]>(initialCategories);
+  const [isLoading, setIsLoading] = useState(false);
+  const loaderRef = useRef<HTMLDivElement>(null);
+  const remainingKeysRef = useRef(categoryKeys.slice(5));
 
-  const fetchMoreData = async (e: any) => {
-    e.preventDefault();
-    setPage(page + 1);
-    await fetch(`/api/tvshows?page=${page}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const copy = [...pages];
-        setPages([...copy, data]);
-      });
+  const fetchNextCategories = async () => {
+    const nextKeys = remainingKeysRef.current.slice(0, 5);
+    if (nextKeys.length === 0) return;
+
+    const categories = await Promise.all(
+      nextKeys.map(async (categoryKey) => {
+        const category = CONTENT_CATEGORIES.tv[categoryKey];
+        const items = await fetchContentUntilCount(
+          categoryKey,
+          category,
+          "tv",
+          10,
+        );
+        return {
+          query: categoryKey,
+          title: category.title,
+          items,
+        };
+      }),
+    );
+
+    remainingKeysRef.current = remainingKeysRef.current.slice(5);
+    return categories;
   };
-*/
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      async (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          !isLoading &&
+          remainingKeysRef.current.length > 0
+        ) {
+          setIsLoading(true);
+          const newCategories = await fetchNextCategories();
+          if (newCategories) {
+            setLoadedCategories((prev) => [...prev, ...newCategories]);
+          }
+          setIsLoading(false);
+        }
+      },
+      { rootMargin: "200px" },
+    );
+
+    if (loaderRef.current) {
+      observer.observe(loaderRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isLoading]);
+
   return (
     <>
       <Head>
-        <title>Tv Shows | NyumatFlix</title>
+        <title>TV Shows | NyumatFlix</title>
         <meta
           name="description"
-          content="View the latest TV Shows on NyumatFlix."
+          content="View the latest TV shows on NyumatFlix."
         />
       </Head>
       <PageTransition>
         <div>
-          {titles.map((title: Title, index: number) => (
-            <div key={title.query}>
-              <h1 className="text-4xl font-bold text-white">{title.title}</h1>
-              <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4 mb-4">
-                {tvShows[index].results.map((tvShow: TvShow) => (
-                  <Card key={tvShow.id} item={tvShow} />
-                ))}
-                {/* TODO: Fix this/Add it back
-                <Button
-                  onClick={fetchMoreData}
-                  className="bg-red-600 text-white font-bold"
-                >
-                  Load More
-                </Button> */}
-              </div>
-            </div>
+          {loadedCategories.map((category) => (
+            <CategoryRow
+              key={category.query}
+              category={category}
+              mediaType="tv"
+            />
           ))}
+          {remainingKeysRef.current.length > 0 && (
+            <div
+              ref={loaderRef}
+              className="h-20 flex items-center justify-center"
+            >
+              {isLoading && (
+                <div className="w-8 h-8 border-4 border-t-white border-white/20 rounded-full animate-spin" />
+              )}
+            </div>
+          )}
         </div>
       </PageTransition>
     </>
@@ -76,30 +103,64 @@ const Page = ({
 };
 
 export async function getStaticProps() {
-  const titles: Title[] = [
-    { title: "Top Rated TV Series", query: "top_rated" },
-    { title: "Airing Today", query: "airing_today" },
-    { title: "Popular Series", query: "popular" },
-    { title: "On The Air", query: "on_the_air" },
-  ];
+  try {
+    const allCategories = [
+      //   "popular",
+      "top_rated",
+      "airing_today",
+      "action_adventure",
+      "animation",
+      "comedy",
+      "crime",
+      "documentary",
+      "drama",
+      "on_the_air",
+      "family",
+      "kids",
+      "mystery",
+      "news",
+      "reality",
+      "sci_fi_fantasy",
+      "soap",
+      "talk",
+      "war_politics",
+      "western",
+    ];
 
-  const [popularTvShows, topRatedTvShows, airingTodayTvShows, onTheAirTvShows] =
-    await Promise.all([
-      axios.get(requests.fetchTopRatedTvShows).then((res) => res.data),
-      axios.get(requests.fetchAiringTodayTvShows).then((res) => res.data),
-      axios.get(requests.fetchPopularTvShows).then((res) => res.data),
-      axios.get(requests.fetchOnTheAirTvShows).then((res) => res.data),
-    ]);
+    const initialCategories = await Promise.all(
+      allCategories.slice(0, 5).map(async (categoryKey) => {
+        const category = CONTENT_CATEGORIES.tv[categoryKey];
+        const items = await fetchContentUntilCount(
+          categoryKey,
+          category,
+          "tv",
+          10,
+        );
+        return {
+          query: categoryKey,
+          title: category.title,
+          items,
+        };
+      }),
+    );
 
-  return {
-    props: {
-      popularTvShows,
-      topRatedTvShows,
-      airingTodayTvShows,
-      onTheAirTvShows,
-      titles,
-    },
-  };
+    return {
+      props: {
+        initialCategories,
+        categoryKeys: allCategories,
+      },
+      revalidate: 60 * 60, // Revalidate every hour
+    };
+  } catch (error) {
+    console.error("Error fetching TV shows:", error);
+    return {
+      props: {
+        initialCategories: [],
+        categoryKeys: [],
+      },
+      revalidate: 60,
+    };
+  }
 }
 
-export default Page;
+export default TvShowsPage;
