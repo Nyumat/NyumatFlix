@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 // import { act } from "react-dom/test-utils";
 
-import useSearch from "./useSearch";
+import useSearch from "../hooks/useSearch";
 
 jest.mock("axios"); // Mock the entire axios module
 
