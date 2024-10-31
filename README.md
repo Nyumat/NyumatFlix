@@ -2,15 +2,28 @@
 
 # [NyumatFlix](https://nyumatflix.com)
 
-Welcome to the NyumatFlix repository! NyumatFlix is a streaming platform that allows you to watch your favorite movies and TV shows. The app is built with Next.js, TypeScript, and Tailwind CSS. It uses The Movie Database (TMDb) API to fetch movie and TV show data.
+Welcome to the NyumatFlix repository and home of the source code!
+
+NyumatFlix is a ~~totally legal~~ streaming service that allows you to watch your favorite movies and TV shows for free.
+
+The app is built with the 'ancient' Next.js pages router, TypeScript, Tailwind CSS, Mantine, Framer Motion, and Tabler Icons. It uses The Movie Database (TMDb) API to fetch movie and TV show data.
 
 ## 🚀 Features 🚀
 
-- 🎞️ **Multi-modal Streaming:** Anime, TV shows, Movies, we got you covered.
-- 🎬 **Latest Releases:** Stay up to date with the latest movie and TV show releases.
-- 🔍 **Search:** Find your favorite movies and TV shows with the search feature.
-- 🎭 **Filter by Genre:** Filter movies and TV shows by genre.
-- 📱 **Responsive Design:** The app is designed to work well on both desktop and mobile devices.
+- Browse popular movies and TV shows
+- Search for movies and TV shows
+- View movie and TV show media content
+- Watch media trailers (if available)
+- View movie and TV show cast and crew
+
+### Coming Soon
+
+- User accounts
+- Watch lists
+- More filters and sorting options
+- Theme switcher
+- PWA support
+- More...
 
 ## ⚡️ Tech Stack ⚡️
 
@@ -24,10 +37,16 @@ Welcome to the NyumatFlix repository! NyumatFlix is a streaming platform that al
 - [Mantine](https://mantine.dev/)
 - [Framer Motion](https://www.framer.com/motion/)
 - [Tabler Icons](https://tablericons.com/)
+- [The Movie Database (TMDb) API](https://www.themoviedb.org/)
+- [Intersect Observer API](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API)
+- [FMHY](https://fmhy.net/)
+
+> [!TIP]
+> If you made it to this point, you're probably wondering where the streams come from. I recommend checking out that last link in the tech stack list. 😉
 
 ## 🏃🏾‍♂️ Run NyumatFlix Locally 🏃🏾‍♂️
 
-To install the project, follow these steps:
+To run the project, follow these steps:
 
 1. Clone the repository
 
@@ -45,7 +64,8 @@ NYUMATFLIX_VPS=
 NYUMATFLIX_VPS2=
 ```
 
-I purposely left the API key blank so that you can get your own. You can get one by creating an account on [TMDb](https://www.themoviedb.org/). For the other two variables, you can get them by checking out [FMHY](https://fmhy.net/).
+> [!TIP]
+> I purposely left the API key blank so that you can get your own. You can get one by creating an account on [TMDb](https://www.themoviedb.org/). The VPS URLs are for the streams. You can get them from the FMHY website.
 
 3. Install dependencies
 
@@ -79,8 +99,13 @@ npm run dev
 
 ## 🤝 Contributing 🤝
 
-Contributions are welcome. I'm currently working on a test suite so that contributions can be made easier without breaking NyumatFlix. If you have any questions, feel free to open an issue.
+Contributions are welcome. I'm currently working on a test suite so that contributions can be made easier without breaking NyumatFlix. If you have any questions, bug findings, or feature requests, feel free to open an issue.
 
 ## 📄 License 📄
 
 [MIT](LICENSE)
+
+## ⚠️ Disclaimer ⚠️
+
+> [!CAUTION]
+> NyumatFlix is a project for educational purposes only. It is not intended for commercial use. The project is not affiliated with The Movie Database (TMDb) or FMHY. Additionally, this project does not host any media content, as the streams are provided by FMHY. For DMCA takedown requests, please contact FMHY, not me.
