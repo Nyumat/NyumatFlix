@@ -1,106 +1,18 @@
-import React, { useEffect, useRef, useState } from "react";
-import Head from "next/head";
+import { CategoryRow } from "@components/CategoryRow";
 import PageTransition from "@components/Transition";
-import Card from "@components/Card";
-import { MOVIE_CATEGORIES } from "@utils/requests";
-import { Movie } from "@utils/typings";
-import { ChevronRight } from "lucide-react";
-import Link from "next/link";
-import { filterMovies } from "./[category]";
-import axios from "axios";
-
-interface MovieCategory {
-  title: string;
-  movies: Movie[];
-  query: string;
-}
+import { CONTENT_CATEGORIES, fetchContentUntilCount } from "@utils/requests";
+import { ContentCategory } from "@utils/typings";
+import Head from "next/head";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
-  initialCategories: MovieCategory[];
+  initialCategories: ContentCategory[];
   categoryKeys: string[];
 }
 
-async function fetchMoviesUntilCount(
-  categoryKey: string,
-  category: (typeof MOVIE_CATEGORIES)[keyof typeof MOVIE_CATEGORIES],
-  targetCount: number = 20,
-): Promise<Movie[]> {
-  let allMovies: Movie[] = [];
-  let page = 1;
-  const maxPages = 5;
-
-  while (allMovies.length < targetCount && page <= maxPages) {
-    const url = `${category.url}&page=${page}`;
-    const response = await axios.get(url);
-    const filteredMovies = filterMovies(response.data.results);
-    allMovies = [...allMovies, ...filteredMovies];
-    if (response.data.results.length === 0) break;
-    page++;
-  }
-
-  return allMovies.slice(0, targetCount);
-}
-
-const CategoryRow = ({ category }: { category: MovieCategory }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setIsLoaded(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "200px" },
-    );
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={containerRef} className="mb-8">
-      <div className="flex items-center justify-between mb-4 px-4">
-        <h1 className="text-xl md:text-2xl lg:text-4xl font-bold text-white">
-          {category.title}
-        </h1>
-        <Link
-          href={`/movies/${category.query}`}
-          className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors"
-        >
-          View All
-          <ChevronRight className="w-5 h-5" />
-        </Link>
-      </div>
-      <div className="relative">
-        <div className="flex overflow-x-scroll scrollbar-hide space-x-4 px-4">
-          {isLoaded
-            ? category.movies.map((movie: Movie) => (
-                <div key={movie.id} className="flex-none w-[200px]">
-                  <Card item={movie} />
-                </div>
-              ))
-            : [...Array(5)].map((_, i) => (
-                <div key={i} className="flex-none w-[200px] animate-pulse">
-                  <div className="w-full aspect-[2/3] bg-gray-700 rounded-lg mb-2" />
-                  <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
-                  <div className="h-4 bg-gray-700 rounded w-1/2" />
-                </div>
-              ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const Page = ({ initialCategories, categoryKeys }: Props) => {
+const MoviesPage = ({ initialCategories, categoryKeys }: Props) => {
   const [loadedCategories, setLoadedCategories] =
-    useState<MovieCategory[]>(initialCategories);
+    useState<ContentCategory[]>(initialCategories);
   const [isLoading, setIsLoading] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
   const remainingKeysRef = useRef(categoryKeys.slice(5));
@@ -111,13 +23,17 @@ const Page = ({ initialCategories, categoryKeys }: Props) => {
 
     const categories = await Promise.all(
       nextKeys.map(async (categoryKey) => {
-        const category =
-          MOVIE_CATEGORIES[categoryKey as keyof typeof MOVIE_CATEGORIES];
-        const movies = await fetchMoviesUntilCount(categoryKey, category, 10);
+        const category = CONTENT_CATEGORIES.movie[categoryKey];
+        const items = await fetchContentUntilCount(
+          categoryKey,
+          category,
+          "movie",
+          10,
+        );
         return {
           query: categoryKey,
           title: category.title,
-          movies,
+          items,
         };
       }),
     );
@@ -164,7 +80,11 @@ const Page = ({ initialCategories, categoryKeys }: Props) => {
       <PageTransition>
         <div>
           {loadedCategories.map((category) => (
-            <CategoryRow key={category.query} category={category} />
+            <CategoryRow
+              key={category.query}
+              category={category}
+              mediaType="movie"
+            />
           ))}
           {remainingKeysRef.current.length > 0 && (
             <div
@@ -211,13 +131,17 @@ export async function getStaticProps() {
 
     const initialCategories = await Promise.all(
       allCategories.slice(0, 5).map(async (categoryKey) => {
-        const category =
-          MOVIE_CATEGORIES[categoryKey as keyof typeof MOVIE_CATEGORIES];
-        const movies = await fetchMoviesUntilCount(categoryKey, category, 10);
+        const category = CONTENT_CATEGORIES.movie[categoryKey];
+        const items = await fetchContentUntilCount(
+          categoryKey,
+          category,
+          "movie",
+          10,
+        );
         return {
           query: categoryKey,
           title: category.title,
-          movies,
+          items,
         };
       }),
     );
@@ -241,4 +165,4 @@ export async function getStaticProps() {
   }
 }
 
-export default Page;
+export default MoviesPage;
