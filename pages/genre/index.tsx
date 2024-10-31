@@ -7,6 +7,7 @@ import useFilter from "@hooks/useFilter";
 import useLoading from "@hooks/useLoading";
 import useSearch from "@hooks/useSearch";
 import { Loader, Text } from "@mantine/core";
+import { MediaItem } from "@utils/typings";
 import { useState } from "react";
 const Page = () => {
   const [filter, setFilter] = useState<string[]>([]);
@@ -24,7 +25,7 @@ const Page = () => {
   const [show, setShow] = useState(false);
   const handleShow = () => setShow(!show);
 
-  const filteredSearchData = searchData.filter((item) => {
+  const filteredSearchData = searchData.filter((item: MediaItem) => {
     return item.media_type !== "person";
   });
 
