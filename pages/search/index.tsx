@@ -23,10 +23,6 @@ const Search = (props: TextInputProps) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   // const [parent] = useAutoAnimate<HTMLDivElement>();
 
-  const filteredSearchData = searchData.filter((item: Movie | TvShow) => {
-    return item.media_type !== "person";
-  });
-
   useEffect(() => {
     if (debouncedSearch.length === 0) {
       setIsLoading(false);
@@ -112,9 +108,15 @@ const Search = (props: TextInputProps) => {
             className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-4 gap-4 my-4"
           >
             {searchData &&
-              filteredSearchData.map((item: Movie | TvShow) => {
+              searchData.map((item: Movie | TvShow) => {
                 if (item.poster_path !== null || item.vote_average !== 0) {
-                  return <Card key={item.id} item={item} />;
+                  return (
+                    <Card
+                      key={item.id}
+                      item={item}
+                      mediaType={item.media_type}
+                    />
+                  );
                 } else {
                   return null;
                 }
