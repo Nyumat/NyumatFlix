@@ -26,7 +26,7 @@ const Home: NextPage = () => {
           content="The home page for NyumatFlix."
           key="ogdesc"
         />
-        <meta property="og:image" content="/preview.jpg" key="ogimage" />
+        <meta property="og:image" content="/preview.png" key="ogimage" />
         <meta property="og:url" content="https://nyumatflix.com" key="ogurl" />
       </Head>
 

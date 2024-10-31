@@ -48,7 +48,7 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
           content={`Watch ${movie.title} on NyumatFlix`}
           key="ogdesc"
         />
-        <meta property="og:image" content={`/preview.jpg`} key="ogimage" />
+        <meta property="og:image" content={`/preview.png`} key="ogimage" />
         <meta
           property="og:url"
           content={`https://nyumatflix.com/movies/watch/${id}`}
