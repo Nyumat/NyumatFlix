@@ -47,7 +47,17 @@ const Home: NextPage = () => {
             ease: "anticipate",
           }}
         >
-          <h1 className="text-6xl xs:text-6xl sm:text-7xl lg:text-7xl xl:text-8xl font-bold drop-shadow-2xl">
+          <h1
+            className="text-6xl xs:text-6xl sm:text-7xl lg:text-7xl xl:text-8xl font-bold drop-shadow-2xl"
+            style={{
+              textShadow: `
+              -2px -2px 0 #000,  
+               2px -2px 0 #000,
+              -2px  2px 0 #000,
+               2px  2px 0 #000
+            `,
+            }}
+          >
             NyumatFlix
           </h1>
         </motion.div>
@@ -68,7 +78,17 @@ const Home: NextPage = () => {
             delay: 1.0,
           }}
         >
-          <p className="mt-3 text-2xl lg:text-4xl md:text-2xl drop-shadow-2xl font-semibold whitespace-nowrap">
+          <p
+            className="mt-3 text-2xl lg:text-4xl md:text-2xl drop-shadow-2xl font-semibold whitespace-nowrap"
+            style={{
+              textShadow: `
+              -1px -1px 0 #000,  
+               1px -1px 0 #000,
+              -1px  1px 0 #000,
+               1px  1px 0 #000
+            `,
+            }}
+          >
             Streaming made simple.
           </p>
         </motion.div>
@@ -90,12 +110,12 @@ const Home: NextPage = () => {
             delay: 2.0,
           }}
         >
-          <span className="flex flex-col gap-2 mt-6 justify-center items-center scale-100 xs:scale-90 sm:scale-90 md:scale-95 lg:scale-100 xl:scale-100">
+          <span className="flex flex-col gap-2 mt-6 justify-center items-center scale-125">
             <Link
               href="/home"
               className="relative inline-flex items-center justify-start px-8 py-4 overflow-hidden font-bold rounded-full group"
             >
-              <button className="shadow-[inset_0_0_0_2px_#616467] px-12 py-4  rounded-full tracking-widest uppercase font-bold bg-neutral-600 hover:bg-[#616467] hover:text-white transition duration-200">
+              <button className="px-8 py-0.5  border-2 border-black uppercase bg-white text-neutral-700 text-sm shadow-[1px_1px_rgba(0,0,0),2px_2px_rgba(0,0,0),3px_3px_rgba(0,0,0),4px_4px_rgba(0,0,0),5px_5px_0px_0px_rgba(0,0,0)] transition duration-200">
                 Get Started
               </button>
             </Link>
