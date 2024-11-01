@@ -16,11 +16,11 @@ import {
   IconMovie,
   IconPlayerPlay,
 } from "@tabler/icons";
+import { cn } from "@utils/styling";
 import { MapGenreMovie, MediaItem, Movie, TvShow } from "@utils/typings";
 import moment from "moment";
 import Image from "next/image";
 import { useRouter } from "next/router";
-import { useState } from "react";
 
 interface CardProps {
   item: MediaItem | Movie | TvShow;
@@ -31,7 +31,6 @@ export default function Component({ item, mediaType }: CardProps) {
   const router = useRouter();
   const [previewOpened, { open: openPreview, close: closePreview }] =
     useDisclosure(false);
-  const [isLongPressed, setIsLongPressed] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const handleWatch = () => {
@@ -46,21 +45,6 @@ export default function Component({ item, mediaType }: CardProps) {
     }
   };
 
-  const handleTouchStart = () => {
-    const timer = setTimeout(() => {
-      setIsLongPressed(true);
-      openPreview();
-    }, 1000);
-    return () => clearTimeout(timer);
-  };
-
-  const handleTouchEnd = () => {
-    if (!isLongPressed && !previewOpened) {
-      handleWatch();
-    }
-    setIsLongPressed(false);
-  };
-
   if (!item) return null;
 
   return (
@@ -68,14 +52,16 @@ export default function Component({ item, mediaType }: CardProps) {
       <MantineCard
         p={0}
         radius="md"
-        className="w-full transition-transform duration-300 cursor-pointer bg-transparent border-0 hover:scale-105 hover:z-10"
+        className={cn(
+          "w-full transition-transform duration-300 bg-transparent border-0",
+          {
+            "hover:scale-105 hover:z-10": !isMobile,
+          },
+        )}
         tabIndex={0}
-        role="button"
         aria-label={item.title}
         onKeyDown={handleKeyDown}
-        onClick={isMobile ? undefined : undefined}
-        onTouchStart={isMobile ? handleTouchStart : undefined}
-        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+        onClick={isMobile ? openPreview : undefined}
       >
         <div className="relative aspect-[2/3] w-full">
           <Image
