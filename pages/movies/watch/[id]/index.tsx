@@ -69,11 +69,11 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
             shadow="lg"
             radius="md"
             p="md"
-            withBorder
+            withBorder={false}
             className="h-full py-4"
           >
             <Stack spacing="xs" align="center">
-              <Box className="relative w-32 h-32 rounded-full overflow-hidden py-12">
+              <Box className="relative w-40 h-40 rounded-full overflow-hidden py-6">
                 <Image
                   src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
                   alt={actor.name}
@@ -81,10 +81,20 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
                   className="object-cover"
                 />
               </Box>
-              <Text size="sm" weight={600} align="center">
+              <Text
+                size="sm"
+                weight={600}
+                align="center"
+                className="text-white"
+              >
                 {actor.name}
               </Text>
-              <Text size="xs" color="dimmed" align="center">
+              <Text
+                size="xs"
+                color="dimmed"
+                align="center"
+                className="text-gray-400"
+              >
                 {actor.character}
               </Text>
             </Stack>
@@ -128,7 +138,7 @@ const WatchMovie = ({ movie, actors, url }: PlayerProps) => {
       />
 
       {/* black div overlays */}
-      <div className="absolute inset-0 z-0 bg-black/70 rounded-md -m-2"></div>
+      <div className="absolute inset-0 z-0 bg-black/60 rounded-md -m-2"></div>
 
       <Container size="xl" className="relative h-full z-10">
         <Group position="apart" className="h-full">
