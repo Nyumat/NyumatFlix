@@ -19,7 +19,7 @@ describe("Landing Page", () => {
     expect(subtitle).toBeInTheDocument();
   });
 
-  test("renders the two buttons", () => {
+  test("renders the two CTA buttons", () => {
     render(<Page />);
     const button1 = screen.getByText("Get Started");
     const button2 = screen.getByText((_content, element) => {
@@ -32,9 +32,17 @@ describe("Landing Page", () => {
     expect(button2).toBeInTheDocument();
   });
 
-  test("renders the preview image", () => {
-    render(<Page />);
-    const image = screen.getByAltText("NyumatFlix Platform");
-    expect(image).toBeInTheDocument();
+  describe("Preview Image", () => {
+    test("renders the preview image on desktop", () => {
+      render(<Page />);
+      const image = screen.getByAltText("NyumatFlix Platform");
+      expect(image).toBeInTheDocument();
+    });
+
+    test("renders the preview image on mobile", () => {
+      render(<Page />);
+      const image = screen.getByAltText("NyumatFlix on Mobile");
+      expect(image).toBeInTheDocument();
+    });
   });
 });
