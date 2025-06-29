@@ -4,21 +4,19 @@ import ShineBorder from "@/components/ui/shine-border";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import { useTheme } from "next-themes";
-import Image from "next/image";
+import Image from "next/legacy/image";
 import Link from "next/link";
 
 export const HeroSection = () => {
-  useTheme();
   return (
     <section className="container w-full pointer-events-none select-none">
       <div className="grid place-items-center lg:max-w-screen-xl gap-8 mx-auto py-20 md:py-32">
         <div className="text-center space-y-8">
           <Badge variant="outline" className="text-sm py-2" role="note">
             <span className="mr-2 text-primary">
-              <Badge>New</Badge>
+              <Badge>BETA</Badge>
             </span>
-            <span> Welcome to NyumatFlix 3.0! </span>
+            <span> Welcome to NyumatFlix 3.0</span>
           </Badge>
 
           <div className="max-w-screen-md mx-auto text-center text-4xl md:text-6xl font-bold">
@@ -40,13 +38,9 @@ export const HeroSection = () => {
               className="w-5/6 md:w-1/4 font-bold group/arrow pointer-events-auto select-auto"
               asChild
             >
-              <Link
-                href="/movies/browse?type=popular"
-                passHref
-                aria-label="Get Started"
-              >
+              <Link href="/home" passHref aria-label="Get Started">
                 Get Started
-                <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
+                <ArrowRight className="size-5 ml-2 group-hover/arrow" />
               </Link>
             </Button>
 
@@ -70,14 +64,25 @@ export const HeroSection = () => {
               className="relative flex h-1/2 w-full flex-col items-center justify-center overflow-hidden rounded-lg bg-black md:shadow-xl border-2 border-primary/30 p-2"
               color={["#103AC1", "#8B2AD4", "#CC44C0"]}
             >
-              <Image
-                width={1200}
-                height={1200}
-                className="pointer-events-none select-none"
-                // TODO: Support light mode?
-                src={`/home2.png`}
-                alt="NyumatFlix Platform"
-              />
+              <div className="relative block md:hidden">
+                <Image
+                  width={768}
+                  height={1680}
+                  className="pointer-events-none select-none object-cover"
+                  src="/mobile.png"
+                  alt="NyumatFlix on Mobile"
+                />
+              </div>
+              <div className="relative hidden md:block">
+                <Image
+                  width={1920}
+                  height={1080}
+                  className="pointer-events-none select-none object-cover"
+                  // TODO: Support light mode?
+                  src={`/home2.png`}
+                  alt="NyumatFlix Platform"
+                />
+              </div>
             </ShineBorder>
           </div>
           <div className="absolute bottom-0 left-0 w-full h-20 md:h-28 bg-gradient-to-b from-background/0 via-background/60 to-background rounded-lg"></div>

@@ -1,6 +1,6 @@
 import { Marquee } from "@devnomic/marquee";
 import "@devnomic/marquee/dist/index.css";
-import Image from "next/image";
+import Image from "next/legacy/image";
 interface StreamingService {
   filePath: string;
   name: string;
