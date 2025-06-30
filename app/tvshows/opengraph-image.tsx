@@ -34,10 +34,6 @@ export default async function Image() {
             right: 0,
             bottom: 0,
             opacity: 0.4,
-            backgroundImage:
-              "url(https://image.tmdb.org/t/p/original/tv-hero.png)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
             filter: "blur(20px)",
           }}
         />

@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { fetchMediaDetails } from "@/app/actions";
+import * as ImageComponent from "next/legacy/image";
 
 export const alt = "Movie | NyumatFlix";
 export const size = {
@@ -151,7 +152,8 @@ export default async function Image({ params }: { params: { id: string } }) {
                 width: "300px",
               }}
             >
-              <img
+              <ImageComponent.default
+                alt={title}
                 src={posterUrl}
                 width={300}
                 height={450}
