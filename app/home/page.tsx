@@ -1,8 +1,8 @@
-import { fetchAllData, fetchAndEnrichMediaItems } from "../actions";
-import { TrendingHeroCarousel } from "@/components/hero";
 import { ContentRowLoader } from "@/components/content/content-row-loader";
-import { Suspense } from "react";
+import { MediaCarousel } from "@/components/hero";
 import { MediaItem } from "@/utils/typings";
+import { Suspense } from "react";
+import { fetchAllData, fetchAndEnrichMediaItems } from "../actions";
 
 export const metadata = {
   title: "NyumatFlix - Watch Movies and TV Shows Online",
@@ -65,7 +65,7 @@ export default async function Home() {
     <div>
       <main>
         {/* Use the top 5 enriched fan favorite classics for the carousel */}
-        <TrendingHeroCarousel
+        <MediaCarousel
           items={fanFavoriteClassicsProcessedForHero.slice(0, 5)}
         />
 

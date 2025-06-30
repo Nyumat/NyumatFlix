@@ -1,23 +1,20 @@
 import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
-import { ContentGrid } from "@/components/content-grid";
-import { buildFilterParams, getFilterConfig } from "@/utils/content-filters";
+import { ContentGrid } from "@/components/content/content-grid";
+import { buildFilterParams } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
+import { getMoreMovies } from "./actions";
 import { LoadMore } from "./load-more";
 
 interface FilteredMovieContentProps {
   filterId?: string;
   genre?: string;
   year?: string;
-  director?: string;
-  studio?: string;
 }
 
 export async function FilteredMovieContent({
   filterId,
   genre,
   year,
-  director,
-  studio,
 }: FilteredMovieContentProps): Promise<JSX.Element> {
   // Determine the filter ID based on the parameters
   let resolvedFilterId = filterId || "";
@@ -46,8 +43,7 @@ export async function FilteredMovieContent({
     }
   }
 
-  // Get the filter configuration
-  const filterConfig = getFilterConfig(resolvedFilterId);
+  // Get the filter configuration and build params
   const { endpoint, params } = buildFilterParams(resolvedFilterId);
 
   // Fetch content
@@ -102,45 +98,14 @@ export async function FilteredMovieContent({
   // Initial offset for pagination
   const initialOffset = currentPage;
 
-  // Get the page title from the filter config or use a default
-  const pageTitle = filterConfig?.title || "Movies";
-
-  // Server action for loading more movies
-  const getMoreMovies = async (offset: number) => {
-    "use server";
-    try {
-      const response = await fetchTMDBData(endpoint, {
-        ...params,
-        page: offset.toString(),
-      });
-
-      if (!response?.results || response.results.length === 0) {
-        return null;
-      }
-
-      const processedMovies = await buildItemsWithCategories<MediaItem>(
-        response.results,
-        "movie",
-      );
-
-      const nextOffset =
-        offset < (response.total_pages || 0) ? offset + 1 : null;
-
-      return [
-        <ContentGrid items={processedMovies} key={offset} type="movie" />,
-        nextOffset,
-      ] as const;
-    } catch (error) {
-      console.error("Error loading more movies:", error);
-      return null;
-    }
-  };
+  // Create a bound server action with the current endpoint and params
+  const boundGetMoreMovies = getMoreMovies.bind(null, endpoint, params);
 
   return (
     <>
       <LoadMore
         key={`${resolvedFilterId}-${genre}-${year}`}
-        getMovieListNodes={getMoreMovies}
+        getMovieListNodes={boundGetMoreMovies}
         initialOffset={initialOffset}
       >
         <ContentGrid items={processedContent} type="movie" />

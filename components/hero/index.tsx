@@ -1,29 +1,29 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
 import { MediaItem } from "@/utils/typings";
 import { useAnimation } from "framer-motion";
-import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import Script from "next/script";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { HeroBackground } from "./hero-background";
 import { HeroContent } from "./hero-content";
 import { HeroPagination } from "./hero-pagination";
-import { YouTubePlayer } from "./youtube-types";
 import { showToast } from "./toast-utils";
+import { YouTubePlayer } from "./youtube-types";
 
-interface HeroSectionProps {
+interface MediaDetailHeroProps {
   media: MediaItem[];
   noSlide?: boolean;
   isWatch?: boolean;
 }
 
-export function HeroSection({
+export function MediaDetailHero({
   media,
   noSlide,
   isWatch = false,
-}: HeroSectionProps) {
+}: MediaDetailHeroProps) {
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);

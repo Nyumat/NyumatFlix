@@ -1,6 +1,6 @@
 import { ContentRow } from "@/components/content/content-row";
 import { ContentRowLoader } from "@/components/content/content-row-loader";
-import { TrendingHeroCarousel } from "@/components/hero";
+import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { AggressivePrefetchProvider } from "@/components/providers/aggressive-prefetch-provider";
 import { MediaItem } from "@/utils/typings";
@@ -100,7 +100,7 @@ export default async function MoviesPage() {
       enableImmediate={true}
     >
       {/* Hero carousel for trending movies */}
-      <TrendingHeroCarousel items={enrichedTrendingItems.slice(0, 5)} />
+      <MediaCarousel items={enrichedTrendingItems.slice(0, 5)} />
 
       <ContentContainer>
         {/* Recent Releases - moved to top */}

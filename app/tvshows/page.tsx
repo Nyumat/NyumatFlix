@@ -1,15 +1,15 @@
+import { ContentRow } from "@/components/content/content-row";
+import { ContentRowLoader } from "@/components/content/content-row-loader";
+import { MediaCarousel } from "@/components/hero";
+import { ContentContainer } from "@/components/layout/content-container";
+import { MediaItem } from "@/utils/typings";
+import { Metadata } from "next";
+import { Suspense } from "react";
 import {
   buildItemsWithCategories,
-  fetchTMDBData,
   fetchAndEnrichMediaItems,
+  fetchTMDBData,
 } from "../actions";
-import { Metadata } from "next";
-import { TrendingHeroCarousel } from "@/components/hero";
-import { MediaItem } from "@/utils/typings";
-import { ContentRow } from "@/components/content/content-row";
-import { ContentContainer } from "@/components/layout/content-container";
-import { ContentRowLoader } from "@/components/content/content-row-loader";
-import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "TV Shows | NyumatFlix",
@@ -51,8 +51,9 @@ export default async function TVShowsPage() {
 
   return (
     <>
-      {/* Hero carousel for trending TV shows */}
-      <TrendingHeroCarousel items={enrichedTrendingItems.slice(0, 5)} />
+      <main>
+        <MediaCarousel items={enrichedTrendingItems.slice(0, 5)} />
+      </main>
 
       <ContentContainer>
         {/* Currently Airing - Order 1 */}

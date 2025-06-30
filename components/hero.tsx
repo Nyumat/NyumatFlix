@@ -74,7 +74,7 @@ function BackgroundImage({
   );
 }
 
-export function HeaderHero({ imageUrl, title, route, logo }: HeroProps) {
+export function StaticHero({ imageUrl, title, route, logo }: HeroProps) {
   const pathname = usePathname();
   const isSearchPage = pathname === "/search" || !!route;
   const isBrowsePage = pathname.includes("/browse");
@@ -93,7 +93,7 @@ export function HeaderHero({ imageUrl, title, route, logo }: HeroProps) {
   );
 }
 
-interface TrendingHeroCarouselProps {
+interface MediaCarouselProps {
   items: MediaItem[];
 }
 
@@ -196,7 +196,7 @@ function CarouselDetails({ current }: { current: MediaItem }) {
   );
 }
 
-export function TrendingHeroCarousel({ items }: TrendingHeroCarouselProps) {
+export function MediaCarousel({ items }: MediaCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);

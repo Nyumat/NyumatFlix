@@ -1,4 +1,5 @@
-import SearchResults, { ContentGrid } from "@/components/search-results";
+import { ContentGrid } from "@/components/content/content-grid";
+import { SearchResults } from "@/components/search";
 import { Movie, TvShow } from "@/utils/typings";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -160,14 +161,7 @@ describe("ContentGrid Component", () => {
   test("renders the title correctly", async () => {
     await act(async () => {
       render(
-        <ContentGrid
-          title="Test Results"
-          items={mockItems}
-          currentPage={1}
-          totalPages={5}
-          onPageChange={() => {}}
-          genres={mockGenres}
-        />,
+        <ContentGrid title="Test Results" items={mockItems} type="movie" />,
       );
     });
 
@@ -177,47 +171,28 @@ describe("ContentGrid Component", () => {
   test("renders the correct number of items", async () => {
     await act(async () => {
       render(
-        <ContentGrid
-          title="Test Results"
-          items={mockItems}
-          currentPage={1}
-          totalPages={5}
-          onPageChange={() => {}}
-          genres={mockGenres}
-        />,
+        <ContentGrid title="Test Results" items={mockItems} type="movie" />,
       );
     });
 
+    // Test that the main content (titles) renders correctly
     await waitFor(() => {
       expect(screen.getByText("Test Movie")).toBeInTheDocument();
       expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
 
-    await waitFor(() => {
-      expect(screen.getByText("Action")).toBeInTheDocument();
-      expect(screen.getByText("Adventure")).toBeInTheDocument();
-      expect(screen.getByText("Animation")).toBeInTheDocument();
-    });
+    // Test that we have the correct number of items rendered
+    expect(screen.getAllByRole("img")).toHaveLength(2); // Each MediaCard has a poster image
   });
 
-  test("renders pagination information correctly", async () => {
+  test("renders without title when title is not provided", async () => {
     await act(async () => {
-      render(
-        <ContentGrid
-          title="Test Results"
-          items={mockItems}
-          currentPage={2}
-          totalPages={5}
-          onPageChange={() => {}}
-          genres={mockGenres}
-        />,
-      );
+      render(<ContentGrid items={mockItems} type="movie" />);
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Page 2 of 5")).toBeInTheDocument();
-      expect(screen.getByText("Previous")).toBeInTheDocument();
-      expect(screen.getByText("Next")).toBeInTheDocument();
+      expect(screen.getByText("Test Movie")).toBeInTheDocument();
+      expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
   });
 });

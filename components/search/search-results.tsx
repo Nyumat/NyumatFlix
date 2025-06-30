@@ -1,5 +1,8 @@
 "use client";
 
+import { MediaCard } from "@/components/media";
+import { MultiSelect } from "@/components/multi-select";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Genre as GenreType,
@@ -8,9 +11,6 @@ import {
   TvShow,
 } from "@/utils/typings";
 import { useEffect, useState } from "react";
-import { MediaCard } from "./media-card";
-import { MultiSelect } from "./multi-select";
-import { Button } from "./ui/button";
 
 // Helper function to validate media items
 const isValidMediaItem = (item: Movie | TvShow): boolean => {

@@ -1,5 +1,5 @@
 import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
-import { ContentGrid } from "@/components/content-grid";
+import { ContentGrid } from "@/components/content/content-grid";
 import { buildFilterParams } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { LoadMore } from "./load-more";

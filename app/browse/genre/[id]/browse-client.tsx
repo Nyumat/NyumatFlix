@@ -1,6 +1,6 @@
 "use client";
 
-import { ContentGrid } from "@/components/content-grid";
+import { ContentGrid } from "@/components/content/content-grid";
 import type { MediaItem } from "@/utils/typings";
 import { useCallback, useEffect, useRef, useState } from "react";
 

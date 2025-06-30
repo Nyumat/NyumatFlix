@@ -1,5 +1,5 @@
 import { buildItemsWithCategories, getMovies } from "@/app/actions";
-import { ContentGrid } from "@/components/content-grid";
+import { ContentGrid } from "@/components/content/content-grid";
 import { MovieCategory } from "@/utils/typings";
 import { LoadMore } from "./load-more";
 
