@@ -1,30 +1,17 @@
 import { determineMediaType } from "@/app/actions";
-import { HeroSection } from "@/app/home/render-row";
-
-async function fetchDetails(id: string, mediaType: "movie" | "tv" | "unknown") {
-  if (mediaType === "unknown") {
-    return null;
-  }
-  let data;
-  try {
-    data = await fetch(
-      `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US&append_to_response=videos,images,credits,recommendations`,
-    );
-    data = await data.json();
-  } catch (error) {
-    console.error(error);
-    throw new Error("Failed to fetch movie details");
-  }
-  return data;
-}
+import { redirect } from "next/navigation";
 
 export default async function Watch({ params }: { params: { id: string } }) {
   const { id } = params;
   const mediaType = await determineMediaType(id);
-  const details = await fetchDetails(id, mediaType);
-  return (
-    <>
-      <HeroSection media={[details]} noSlide isWatch />
-    </>
-  );
+
+  // Redirect to the appropriate content page
+  if (mediaType === "movie") {
+    redirect(`/movies/${id}`);
+  } else if (mediaType === "tv") {
+    redirect(`/tvshows/${id}`);
+  } else {
+    // If we can't determine the media type, redirect to homepage
+    redirect("/");
+  }
 }
