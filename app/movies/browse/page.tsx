@@ -1,9 +1,9 @@
 import { ContentLoader } from "@/components/animated/load-more";
-import { Suspense } from "react";
-import { FilteredMovieContent } from "./filtered-content";
-import { HeaderHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
+import { Suspense } from "react";
+import { FilteredMovieContent } from "./filtered-content";
 
 export default async function Page({
   searchParams,
@@ -29,7 +29,7 @@ export default async function Page({
   return (
     <div className="w-full flex flex-col">
       {/* Background - using static position instead of absolute */}
-      <HeaderHero imageUrl="/movie-banner.jpg" title="" route="" />
+      <StaticHero imageUrl="/movie-banner.jpg" title="" route="" />
 
       {/* Content area - using flex instead of absolute positioning */}
       <ContentContainer className="w-full flex flex-col items-center z-10">
@@ -53,8 +53,6 @@ export default async function Page({
               filterId={filterId}
               genre={genre}
               year={year}
-              director={director}
-              studio={studio}
             />
           </Suspense>
         </div>

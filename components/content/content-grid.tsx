@@ -1,7 +1,7 @@
+import { MediaCard } from "@/components/media";
 import { Card, CardContent } from "@/components/ui/card";
 import type { MediaItem } from "@/utils/typings";
 import { Suspense } from "react";
-import { MediaCard } from "./media-card";
 
 const SuspenseSkeleton = () => (
   <Card className="overflow-hidden">

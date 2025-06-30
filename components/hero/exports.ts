@@ -1,11 +1,11 @@
-export { HeroSection } from "./index";
 export { HeroBackground } from "./hero-background";
-export { HeroContent } from "./hero-content";
-export { HeroGradients } from "./hero-gradients";
-export { HeroGenres } from "./hero-genres";
-export { HeroDetails } from "./hero-details";
 export { HeroButtons } from "./hero-buttons";
+export { HeroContent } from "./hero-content";
+export { HeroDetails } from "./hero-details";
+export { HeroGenres } from "./hero-genres";
+export { HeroGradients } from "./hero-gradients";
 export { HeroPagination } from "./hero-pagination";
+export { MediaDetailHero as HeroSection } from "./index";
 export { showToast } from "./toast-utils";
 
 // Types

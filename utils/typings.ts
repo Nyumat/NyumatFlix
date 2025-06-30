@@ -304,14 +304,6 @@ export type ReleaseDate = z.infer<typeof ReleaseDateSchema>;
 export type ReleaseInfo = z.infer<typeof ReleaseInfoSchema>;
 export type ReleaseDatesResponse = z.infer<typeof ReleaseDatesResponseSchema>;
 
-// TMDB API Parameters interface
-export interface TMDBParams {
-  language: string;
-  include_adult: string;
-  sort_by: string;
-  [key: string]: string; // Allow for dynamic parameters
-}
-
 // Enhanced helper functions for ts-pattern compatibility
 export function isMovie(item: MediaItem): item is Movie {
   return "title" in item;
@@ -342,72 +334,3 @@ export function getAirDate(item: MediaItem): string | undefined {
   }
   return undefined;
 }
-
-export enum MapGenreMovie {
-  Action = 28,
-  Adventure = 12,
-  Animation = 16,
-  Comedy = 35,
-  Crime = 80,
-  Documentary = 99,
-  Drama = 18,
-  Family = 10751,
-  Fantasy = 14,
-  History = 36,
-  Horror = 27,
-  "Science Fiction" = 878,
-  Thriller = 53,
-  War = 10752,
-  Western = 37,
-  Mystery = 9648,
-  Music = 10402,
-  Romance = 10749,
-  "TV Movie" = 10770,
-  "Action & Adventure" = 10759,
-  Kids = 10762,
-  News = 10763,
-  Reality = 10764,
-  "Sci-Fi & Fantasy" = 10765,
-  Soap = 10766,
-  Talk = 10767,
-  "War & Politics" = 10768,
-}
-
-const orderedGenreKeys: (keyof typeof MapGenreMovie)[] = [
-  "Action",
-  "Adventure",
-  "Animation",
-  "Comedy",
-  "Crime",
-  "Documentary",
-  "Drama",
-  "Family",
-  "Fantasy",
-  "History",
-  "Horror",
-  "Science Fiction",
-  "Thriller",
-  "War",
-  "Western",
-  "Mystery",
-  "Music",
-  "Romance",
-  "TV Movie",
-  "Action & Adventure",
-  "Kids",
-  "News",
-  "Reality",
-  "Sci-Fi & Fantasy",
-  "Soap",
-  "Talk",
-  "War & Politics",
-];
-
-const mapEnumToGenres = (enumObj: any): Genre[] => {
-  return orderedGenreKeys.map((key) => ({
-    id: enumObj[key].toString(),
-    name: key,
-  }));
-};
-
-export const genres = mapEnumToGenres(MapGenreMovie);

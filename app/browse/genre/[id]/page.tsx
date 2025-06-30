@@ -1,7 +1,7 @@
-import { HeaderHero } from "@/components/hero";
-import { PageContainer } from "@/components/layout/page-container";
-import { ContentContainer } from "@/components/layout/content-container";
 import { fetchTMDBData, getCategories } from "@/app/actions";
+import { StaticHero } from "@/components/hero";
+import { ContentContainer } from "@/components/layout/content-container";
+import { PageContainer } from "@/components/layout/page-container";
 import type { MediaItem } from "@/utils/typings";
 import BrowseGenreClient from "./browse-client";
 
@@ -46,7 +46,7 @@ export default async function BrowseGenrePage({
 
   return (
     <PageContainer>
-      <HeaderHero imageUrl={backdropImage} title={genreName} route="" />
+      <StaticHero imageUrl={backdropImage} title={genreName} route="" />
       <ContentContainer className="relative z-10" topSpacing={false}>
         <div className="pt-32 md:pt-48 pb-8 w-full flex flex-col items-center">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-10 text-center">

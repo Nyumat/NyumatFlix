@@ -5,8 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const noop = () => {};
-
 export function on<T extends Window | Document | HTMLElement | EventTarget>(
   obj: T | null,
   ...args: Parameters<T["addEventListener"]> | [string, Function | null, ...any]
@@ -32,5 +30,3 @@ export function off<T extends Window | Document | HTMLElement | EventTarget>(
 }
 
 export const isBrowser = typeof window !== "undefined";
-
-export const isNavigator = typeof navigator !== "undefined";
