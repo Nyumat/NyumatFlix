@@ -1,10 +1,11 @@
+import { Navbar } from "@/components/layout/navbar";
+import { FooterSection } from "@/components/layout/sections/footer";
+import { ThemeProvider } from "@/components/layout/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
-import { Navbar } from "@/components/layout/navbar";
-import { ThemeProvider } from "@/components/layout/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 const resolveBase = () =>
@@ -41,15 +42,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn("min-h-screen bg-background", inter.className)}>
+      <body
+        className={cn(
+          "min-h-screen bg-background flex flex-col",
+          inter.className,
+        )}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
           disableTransitionOnChange
         >
           <Navbar />
-
-          {children}
+          <main className="flex-1">{children}</main>
+          <FooterSection />
           <Toaster richColors closeButton />
         </ThemeProvider>
       </body>

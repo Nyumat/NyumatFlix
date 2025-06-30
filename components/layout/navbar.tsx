@@ -1,16 +1,14 @@
 "use client";
-import { ChevronsDown, Github, Menu } from "lucide-react";
-import Image from "next/legacy/image";
+
+import { ChevronsDown, Github, Menu, X } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 import { Button } from "../ui/button";
 import {
   NavigationMenu,
-  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuTrigger,
 } from "../ui/navigation-menu";
 import { Separator } from "../ui/separator";
 import {
@@ -27,34 +25,6 @@ interface RouteProps {
   href: string;
   label: string;
 }
-
-interface FeatureProps {
-  title: string;
-  description: string;
-}
-
-const routeList: RouteProps[] = [
-  {
-    href: "#testimonials",
-    label: "Testimonials",
-  },
-  {
-    href: "#team",
-    label: "Team",
-  },
-  {
-    href: "#contact",
-    label: "Contact",
-  },
-  {
-    href: "#faq",
-    label: "FAQ",
-  },
-  {
-    href: "/home",
-    label: "Home",
-  },
-];
 
 const mainRouteList: RouteProps[] = [
   {
@@ -75,227 +45,165 @@ const mainRouteList: RouteProps[] = [
   },
 ];
 
-const featureList: FeatureProps[] = [
+const mobileRouteList: RouteProps[] = [
+  ...mainRouteList,
   {
-    title: "Showcase Your Value ",
-    description: "Highlight how your product solves user problems.",
-  },
-  {
-    title: "Build Trust",
-    description:
-      "Leverages social proof elements to establish trust and credibility.",
-  },
-  {
-    title: "Capture Leads",
-    description:
-      "Make your lead capture form visually appealing and strategically.",
+    href: "/search",
+    label: "Search",
   },
 ];
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
-  // Maybe make sticky again at some point?
+
   return (
-    <header className="absolute min-w-full z-50 flex justify-between items-center p-2 px-16 top-6">
-      <Link href="/" className="font-bold text-lg flex items-center">
-        NyumatFlix
-      </Link>
-      {/* <!-- Mobile --> */}
-      <div className="flex items-center lg:hidden">
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetTrigger asChild>
-            <Menu
-              onClick={() => setIsOpen(!isOpen)}
-              className="cursor-pointer lg:hidden"
-            />
-          </SheetTrigger>
-
-          <SheetContent
-            side="left"
-            className="flex flex-col justify-between rounded-tr-2xl rounded-br-2xl bg-card border-secondary"
-          >
-            <div>
-              <SheetHeader className="mb-4 ml-4">
-                <SheetTitle className="flex items-center">
-                  <Link href="/" className="flex items-center">
-                    <ChevronsDown className="bg-gradient-to-tr border-secondary from-primary via-primary/70 to-primary rounded-lg w-9 h-9 mr-2 border text-white" />
-                    NyumatFlix
-                  </Link>
-                </SheetTitle>
-              </SheetHeader>
-
-              <div className="flex flex-col gap-2">
-                {routeList.map(({ href, label }) => (
-                  <Button
-                    key={href}
-                    onClick={() => setIsOpen(false)}
-                    asChild
-                    variant="ghost"
-                    className="justify-start text-base"
-                  >
-                    <Link href={href}>{label}</Link>
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <SheetFooter className="flex-col sm:flex-col justify-start items-start">
-              <Separator className="mb-2" />
-
-              <ToggleTheme />
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      {/* <!-- Desktop --> */}
-      <NavigationMenu className="hidden lg:block mx-auto">
-        <NavigationMenuList>
-          <NavigationMenuItem>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 max-w-screen-2xl items-center px-4 md:px-8">
+        {/* Logo Section */}
+        <Link
+          href="/"
+          className="flex items-center space-x-3"
+          aria-label="NyumatFlix Home"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <ChevronsDown className="h-6 w-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold tracking-tight text-foreground">
+              NyumatFlix
+            </span>
+            <span className="text-xs text-muted-foreground hidden sm:block"></span>
+          </div>
+        </Link>
+        <Separator
+          orientation="vertical"
+          className="hidden lg:block h-6 mx-6"
+        />
+        <NavigationMenu className="hidden lg:flex">
+          <NavigationMenuList className="flex space-x-2">
             {mainRouteList.map(({ href, label }) => (
-              <NavigationMenuLink key={href} asChild>
-                <Link href={href} className="text-base px-2">
-                  {label}
-                </Link>
-              </NavigationMenuLink>
-            ))}
-          </NavigationMenuItem>
-        </NavigationMenuList>
-      </NavigationMenu>
-
-      <div className="hidden lg:flex">
-        {/* 
-        TODO: Maybe add this back later
-        <ToggleTheme /> */}
-
-        <Button asChild size="sm" variant="ghost" aria-label="View on GitHub">
-          <Link
-            aria-label="View NyumatFlix on GitHub"
-            href="https://github.com/nyumat/nyumatflix"
-            target="_blank"
-          >
-            <Github className="size-5" />
-          </Link>
-        </Button>
-      </div>
-    </header>
-  );
-};
-
-export const MarketingNavbar = () => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  return (
-    <header className="shadow-inner bg-opacity-15 w-[70%] md:w-[50%] lg:w-[65%] lg:max-w-screen-xl top-5 mx-auto sticky border border-secondary z-40 rounded-2xl flex justify-between items-center p-2 bg-card">
-      <Link href="/" className="font-bold text-lg flex items-center">
-        Marketing Page
-      </Link>
-      {/* <!-- Mobile --> */}
-      <div className="flex items-center lg:hidden">
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetTrigger asChild>
-            <Menu
-              onClick={() => setIsOpen(!isOpen)}
-              className="cursor-pointer lg:hidden"
-            />
-          </SheetTrigger>
-
-          <SheetContent
-            side="left"
-            className="flex flex-col justify-between rounded-tr-2xl rounded-br-2xl bg-card border-secondary"
-          >
-            <div>
-              <SheetHeader className="mb-4 ml-4">
-                <SheetTitle className="flex items-center">
-                  <Link href="/" className="flex items-center">
-                    <ChevronsDown className="bg-gradient-to-tr border-secondary from-primary via-primary/70 to-primary rounded-lg w-9 h-9 mr-2 border text-white" />
-                    NyumatFlix
-                  </Link>
-                </SheetTitle>
-              </SheetHeader>
-
-              <div className="flex flex-col gap-2">
-                {routeList.map(({ href, label }) => (
-                  <Button
-                    key={href}
-                    onClick={() => setIsOpen(false)}
-                    asChild
-                    variant="ghost"
-                    className="justify-start text-base"
+              <NavigationMenuItem key={href}>
+                <NavigationMenuLink asChild>
+                  <Link
+                    href={href}
+                    className="inline-flex h-10 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
                   >
-                    <Link href={href}>{label}</Link>
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <SheetFooter className="flex-col sm:flex-col justify-start items-start">
-              <Separator className="mb-2" />
-
-              <ToggleTheme />
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      {/* <!-- Desktop --> */}
-      <NavigationMenu className="hidden lg:block mx-auto">
-        <NavigationMenuList>
-          <NavigationMenuItem>
-            <NavigationMenuTrigger className="bg-card text-base">
-              Features
-            </NavigationMenuTrigger>
-            <NavigationMenuContent>
-              <div className="grid w-[600px] grid-cols-2 gap-5 p-4">
-                <Image
-                  src="https://avatars.githubusercontent.com/u/75042455?v=4"
-                  alt="RadixLogo"
-                  className="h-full w-full rounded-md object-cover"
-                  width={600}
-                  height={600}
-                />
-                <ul className="flex flex-col gap-2">
-                  {featureList.map(({ title, description }) => (
-                    <li
-                      key={title}
-                      className="rounded-md p-3 text-sm hover:bg-muted"
-                    >
-                      <p className="mb-1 font-semibold leading-none text-foreground">
-                        {title}
-                      </p>
-                      <p className="line-clamp-2 text-muted-foreground">
-                        {description}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </NavigationMenuContent>
-          </NavigationMenuItem>
-
-          <NavigationMenuItem>
-            {routeList.map(({ href, label }) => (
-              <NavigationMenuLink key={href} asChild>
-                <Link href={href} className="text-base px-2">
-                  {label}
-                </Link>
-              </NavigationMenuLink>
+                    {label}
+                  </Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
             ))}
-          </NavigationMenuItem>
-        </NavigationMenuList>
-      </NavigationMenu>
+          </NavigationMenuList>
+        </NavigationMenu>
+        {/* Right Section */}
+        <div className="ml-auto hidden lg:flex items-center space-x-2">
+          <ToggleTheme />
 
-      <div className="hidden lg:flex">
-        <ToggleTheme />
+          <Separator orientation="vertical" className="h-6 mx-4" />
 
-        <Button asChild size="sm" variant="ghost" aria-label="View on GitHub">
-          <Link
-            aria-label="View on GitHub"
-            href="https://github.com/nobruf/shadcn-landing-page.git"
-            target="_blank"
-          >
-            <Github className="size-5" />
-          </Link>
-        </Button>
+          <Button variant="ghost" size="sm" className="h-10 w-10" asChild>
+            <Link
+              href="https://github.com/nyumat/nyumatflix"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View on GitHub"
+            >
+              <Github className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+
+        {/* Mobile Menu Button */}
+        <div className="ml-auto lg:hidden">
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 w-10"
+                aria-label={isOpen ? "Close menu" : "Open menu"}
+              >
+                {isOpen ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Menu className="h-4 w-4" />
+                )}
+              </Button>
+            </SheetTrigger>
+
+            <SheetContent
+              side="right"
+              className="w-80 flex flex-col justify-between"
+              aria-describedby="mobile-menu-description"
+            >
+              <div className="flex-1">
+                <SheetHeader className="mb-6">
+                  <SheetTitle className="flex items-center space-x-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <ChevronsDown className="h-5 w-5" />
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="text-lg font-bold text-foreground">
+                        NyumatFlix
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Premium Streaming
+                      </span>
+                    </div>
+                  </SheetTitle>
+                </SheetHeader>
+
+                <nav
+                  className="flex flex-col space-y-2"
+                  aria-label="Main navigation"
+                  id="mobile-menu-description"
+                >
+                  {mobileRouteList.map(({ href, label }) => (
+                    <Button
+                      key={href}
+                      variant="ghost"
+                      className="justify-start h-12 px-4 text-base"
+                      onClick={() => setIsOpen(false)}
+                      asChild
+                    >
+                      <Link href={href}>{label}</Link>
+                    </Button>
+                  ))}
+                </nav>
+              </div>
+
+              <SheetFooter className="flex-col space-y-4">
+                <Separator />
+
+                <div className="flex items-center justify-between w-full">
+                  <ToggleTheme />
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 w-10"
+                    asChild
+                  >
+                    <Link
+                      href="https://github.com/nyumat/nyumatflix"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="View on GitHub"
+                    >
+                      <Github className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+
+                <div className="text-center pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    © 2024 NyumatFlix. All rights reserved.
+                  </p>
+                </div>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );
