@@ -1,6 +1,8 @@
-import { ContentRowActual } from "@/components/content-row";
-import { buildMaybeItemsWithCategories, fetchAllData } from "../actions";
-import { HeroSection } from "./render-row";
+import { fetchAllData, fetchAndEnrichMediaItems } from "../actions";
+import { TrendingHeroCarousel } from "@/components/hero";
+import { ContentRowLoader } from "@/components/content/content-row-loader";
+import { Suspense } from "react";
+import { MediaItem } from "@/utils/typings";
 
 export const metadata = {
   title: "NyumatFlix - Watch Movies and TV Shows Online",
@@ -34,81 +36,236 @@ export const metadata = {
 };
 
 export default async function Home() {
-  const data = await fetchAllData();
+  // Only fetch data for the hero carousel
+  const { fanFavoriteClassicsForHero } = await fetchAllData();
 
-  const { popularMovies, topRatedMovies, popularTVShows, topRatedTVShows } =
-    data;
-
-  if (
-    !popularMovies ||
-    !topRatedMovies ||
-    !popularTVShows ||
-    !topRatedTVShows
-  ) {
+  // Exit if no fan favorite classics are available for the hero
+  if (!fanFavoriteClassicsForHero) {
     return null;
   }
 
-  const popularMoviesWithCategories = await buildMaybeItemsWithCategories(
-    popularMovies,
+  // Process hero movies
+  const seenIds = new Set<number>();
+  const filteredFanFavoriteClassics = fanFavoriteClassicsForHero
+    .filter((item: MediaItem) => {
+      if (!item.poster_path) return false; // Ensure movies have a poster
+      if (seenIds.has(item.id)) return false; // Avoid duplicates if any
+      seenIds.add(item.id);
+      return true;
+    })
+    .slice(0, 10); // Take the top 10 for enrichment
+
+  // Enrich these items with logos and full video details
+  const fanFavoriteClassicsProcessedForHero = await fetchAndEnrichMediaItems(
+    filteredFanFavoriteClassics,
     "movie",
   );
 
-  const topRatedMoviesWithCategories = await buildMaybeItemsWithCategories(
-    topRatedMovies,
-    "movie",
-  );
-
-  const popularTVShowsWithCategories = await buildMaybeItemsWithCategories(
-    popularTVShows,
-    "tv",
-  );
-
-  const topRatedTVShowsWithCategories = await buildMaybeItemsWithCategories(
-    topRatedTVShows,
-    "tv",
-  );
-
-  async function attachVideosToPopularMovies() {
-    const popularMoviesWithVideos = await Promise.all(
-      popularMoviesWithCategories.map(async (movie) => {
-        const movieDetailsVideosAppend = await fetch(
-          `https://api.themoviedb.org/3/movie/${movie.id}?&append_to_response=videos&api_key=${process.env.TMDB_API_KEY}`,
-        );
-        const movieDetailsVideos = await movieDetailsVideosAppend.json();
-        return {
-          ...movie,
-          videos: movieDetailsVideos.videos.results,
-        };
-      }),
-    );
-    return popularMoviesWithVideos;
-  }
-
-  const popularMoviesWithVideos = await attachVideosToPopularMovies();
   return (
     <div>
       <main>
-        <HeroSection media={popularMoviesWithVideos.slice(0, 5)} />
-        <ContentRowActual
-          title="Popular Movies"
-          items={popularMoviesWithCategories}
-          href="/movies"
+        {/* Use the top 5 enriched fan favorite classics for the carousel */}
+        <TrendingHeroCarousel
+          items={fanFavoriteClassicsProcessedForHero.slice(0, 5)}
         />
-        <ContentRowActual
-          title="Top Rated Movies"
-          items={topRatedMoviesWithCategories}
-          href="/movies?sort=top_rated"
-        />
-        <ContentRowActual
-          title="Popular TV Shows"
-          items={popularTVShowsWithCategories}
-          href="/tvshows"
-        />
-        <ContentRowActual
-          title="Top Rated TV Shows"
-          items={topRatedTVShowsWithCategories}
-          href="/tvshows?sort=top_rated"
-        />
+
+        {/* Recent Releases - moved to top */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="recent-releases"
+            title="New Releases"
+            href="/movies/browse?year=2023"
+            globalCache={false}
+          />
+        </Suspense>
+
+        {/* Upcoming Releases - new section */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="upcoming-movies"
+            title="Coming Soon"
+            href="/movies/browse?type=upcoming"
+            globalCache={false}
+          />
+        </Suspense>
+
+        {/* Standard Categories */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="popular-movies"
+            title="Popular Movies"
+            href="/movies/browse"
+            globalCache={false}
+          />
+        </Suspense>
+
+        {/* TV specific row for variety */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="popular-tvshows"
+            title="Popular TV Shows"
+            href="/tvshows/browse?filter=tv-popular"
+            globalCache={true}
+          />
+        </Suspense>
+
+        {/* Genre-Based Categories */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="action-movies"
+            title="Action-Packed Adventures"
+            href="/movies/browse?genre=28"
+          />
+        </Suspense>
+
+        {/* Director Showcase */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="nolan-films"
+            title="Christopher Nolan Films"
+            href="/movies/browse?type=director-nolan"
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="top-rated-movies"
+            title="Top Rated Movies"
+            href="/movies/browse?type=top-rated"
+            variant="ranked"
+            globalCache={false}
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="scifi-fantasy-movies"
+            title="Sci-Fi & Fantasy Worlds"
+            href="/movies/browse?genre=878,14"
+          />
+        </Suspense>
+
+        {/* TV specific row for variety */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="binge-worthy-series"
+            title="Binge-Worthy Series"
+            href="/tvshows/browse?filter=tv-popular"
+            globalCache={true}
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="comedy-movies"
+            title="Laugh Out Loud (Comedies)"
+            href="/movies/browse?genre=35"
+          />
+        </Suspense>
+
+        {/* Studio Spotlight */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="a24-films"
+            title="A24 Films"
+            href="/movies/browse?type=studio-a24"
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="thriller-movies"
+            title="Edge-of-Your-Seat Thrillers"
+            href="/movies/browse?genre=53"
+          />
+        </Suspense>
+
+        {/* TV specific row for variety */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="limited-series"
+            title="Limited Series That Hit Hard"
+            href="/tvshows/browse?filter=tv-limited-series"
+            globalCache={true}
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="drama-movies"
+            title="Heartfelt Dramas"
+            href="/movies/browse?genre=18"
+          />
+        </Suspense>
+
+        {/* Curated picks */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="critically-acclaimed"
+            title="Critically Acclaimed"
+            href="/movies/browse?filter=critically_acclaimed"
+          />
+        </Suspense>
+
+        {/* Time-Based Categories */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="eighties-movies"
+            title="80s Throwbacks"
+            href="/movies/browse?year=1980-1989"
+          />
+        </Suspense>
+
+        {/* TV specific row for variety */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="reality-tv"
+            title="Reality TV Picks"
+            href="/tvshows/browse?filter=tv-reality"
+            globalCache={true}
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="nineties-movies"
+            title="90s Favorites"
+            href="/movies/browse?year=1990-1999"
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="romcom-movies"
+            title="Chill with Rom-Coms"
+            href="/movies/browse?genre=10749,35"
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="docuseries"
+            title="Docuseries You Can't Miss"
+            href="/tvshows/browse?filter=tv-docuseries"
+            globalCache={true}
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="early-2000s-movies"
+            title="Early 2000s Nostalgia"
+            href="/movies/browse?year=2000-2009"
+          />
+        </Suspense>
+
+        <Suspense>
+          <ContentRowLoader
+            rowId="hidden-gems"
+            title="Hidden Gems"
+            href="/movies/browse?filter=hidden_gems"
+          />
+        </Suspense>
       </main>
     </div>
   );
