@@ -1,16 +1,17 @@
 import { ContentRow } from "@/components/content/content-row";
 import { ContentRowLoader } from "@/components/content/content-row-loader";
-import {
-  buildItemsWithCategories,
-  fetchTMDBData,
-  fetchMovieCertification,
-  fetchAndEnrichMediaItems,
-} from "../actions";
-import { Metadata } from "next";
-import { Suspense } from "react";
-import { MediaItem } from "@/utils/typings";
 import { TrendingHeroCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
+import { AggressivePrefetchProvider } from "@/components/providers/aggressive-prefetch-provider";
+import { MediaItem } from "@/utils/typings";
+import { Metadata } from "next";
+import { Suspense } from "react";
+import {
+  buildItemsWithCategories,
+  fetchAndEnrichMediaItems,
+  fetchMovieCertification,
+  fetchTMDBData,
+} from "../actions";
 
 export const metadata: Metadata = {
   title: "Movies | NyumatFlix",
@@ -90,7 +91,14 @@ export default async function MoviesPage() {
   await Promise.all(certificationPromises);
 
   return (
-    <>
+    <AggressivePrefetchProvider
+      items={[
+        ...enrichedTrendingItems,
+        ...popularMoviesWithCategories,
+        ...topRatedMoviesWithCategories,
+      ]}
+      enableImmediate={true}
+    >
       {/* Hero carousel for trending movies */}
       <TrendingHeroCarousel items={enrichedTrendingItems.slice(0, 5)} />
 
@@ -277,6 +285,6 @@ export default async function MoviesPage() {
           />
         </Suspense>
       </ContentContainer>
-    </>
+    </AggressivePrefetchProvider>
   );
 }

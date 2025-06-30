@@ -3,6 +3,7 @@ import { FAQSection } from "@/components/layout/sections/faq";
 import { HeroSection } from "@/components/layout/sections/hero";
 import StreamingServices from "@/components/layout/sections/steaming-services";
 import { WhyNyumatFlix } from "@/components/layout/sections/why";
+import { AggressivePrefetchProvider } from "@/components/providers/aggressive-prefetch-provider";
 
 export const metadata = {
   title: "NyumatFlix - Movies and TV Shows, Anytime, Anywhere",
@@ -37,12 +38,12 @@ export const metadata = {
 
 export default function Home() {
   return (
-    <>
+    <AggressivePrefetchProvider enableImmediate={true}>
       <HeroSection />
       <StreamingServices />
       <WhyNyumatFlix />
       <CommunitySection />
       <FAQSection />
-    </>
+    </AggressivePrefetchProvider>
   );
 }

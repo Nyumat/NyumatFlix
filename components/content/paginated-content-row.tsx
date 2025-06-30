@@ -1,70 +1,170 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+import { EnhancedLink } from "@/components/ui/enhanced-link";
+import { useIntersectionPrefetch } from "@/hooks/useIntersectionPrefetch";
+import { MediaItem, isMovie } from "@/utils/typings";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { MediaItem } from "@/utils/typings";
-import { ContentRow } from "@/components/content/content-row";
+import { ContentCard } from "./content-card";
+import { ContentRowHeader } from "./content-row-header";
 
-interface PaginatedContentRowProps {
+export interface PaginatedContentRowProps {
   title: string;
   items: MediaItem[];
   href: string;
-  category: string;
-  mediaType: "movie" | "tv";
-  variant?: "standard" | "ranked";
-  filterUsOnly?: boolean;
+  onLoadMore?: () => Promise<MediaItem[]>;
+  hasMoreItems?: boolean;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
-/**
- * Client component wrapper for ContentRowActual that handles pagination logic
- */
+function PaginatedContentItem({
+  item,
+  index,
+}: {
+  item: MediaItem;
+  index: number;
+}) {
+  const href = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
+  const mediaType = isMovie(item) ? "movie" : "tv";
+
+  // Use intersection observer for items that are not immediately visible
+  const elementRef = useIntersectionPrefetch(href, mediaType, item.id, {
+    rootMargin: "100px",
+  });
+
+  return (
+    <CarouselItem
+      ref={elementRef}
+      key={`${item.id}-${index}`}
+      className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
+    >
+      <EnhancedLink
+        href={href}
+        className="block group"
+        mediaItem={item}
+        prefetchDelay={100}
+      >
+        <ContentCard item={item} isMobile={false} rating="" />
+      </EnhancedLink>
+    </CarouselItem>
+  );
+}
+
 export function PaginatedContentRow({
   title,
-  items: initialItems,
+  items,
   href,
-  category,
-  mediaType,
-  variant,
-  filterUsOnly = false,
+  onLoadMore,
+  hasMoreItems = false,
+  currentPage,
+  totalPages,
+  onPageChange,
 }: PaginatedContentRowProps) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [api, setApi] = useState<CarouselApi>();
+  const [loading, setLoading] = useState(false);
 
-  const loadMoreContent = async () => {
+  const handleLoadMore = async () => {
+    if (!onLoadMore || loading) return;
+
+    setLoading(true);
     try {
-      const nextPage = currentPage + 1;
+      await onLoadMore();
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Fetch the next page from the server
-      const response = await fetch(
-        `/api/content?category=${category}&type=${mediaType}&page=${nextPage}&filterUsOnly=${filterUsOnly}`,
-      );
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      onPageChange(currentPage - 1);
+    }
+  };
 
-      if (!response.ok) {
-        throw new Error(`Error fetching data: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const newItems = data.results || [];
-
-      if (newItems.length > 0) {
-        setCurrentPage(nextPage);
-        // Results are already processed and filtered by the API
-        return newItems;
-      }
-
-      return [];
-    } catch (error) {
-      console.error("Error loading more content:", error);
-      return [];
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      onPageChange(currentPage + 1);
     }
   };
 
   return (
-    <ContentRow
-      title={title}
-      items={initialItems}
-      href={href}
-      variant={variant}
-      onLoadMore={loadMoreContent}
-      hasMoreItems={true}
-    />
+    <div className="mx-4 md:mx-8 mb-8">
+      <ContentRowHeader title={title} href={href} />
+
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Carousel
+          opts={{
+            align: "start",
+            loop: false,
+            dragFree: true,
+            skipSnaps: true,
+          }}
+          setApi={setApi}
+          className="w-full"
+        >
+          <CarouselContent className="-ml-3 md:-ml-4">
+            {items.map((item, index) => (
+              <PaginatedContentItem
+                key={`${item.id}-${index}`}
+                item={item}
+                index={index}
+              />
+            ))}
+
+            {hasMoreItems && (
+              <CarouselItem className="pl-3 md:pl-4 basis-[48%] sm:basis-[35%] md:basis-[28%] lg:basis-[22%] xl:basis-[18%] flex items-center justify-center">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={loading}
+                  className="h-full min-h-[200px] w-full"
+                >
+                  {loading ? "Loading..." : "Load More"}
+                </Button>
+              </CarouselItem>
+            )}
+          </CarouselContent>
+
+          <CarouselPrevious className="absolute -left-3 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm hover:bg-background/90 border-0 shadow-md" />
+          <CarouselNext className="absolute -right-3 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm hover:bg-background/90 border-0 shadow-md" />
+        </Carousel>
+      </div>
+    </div>
   );
 }
