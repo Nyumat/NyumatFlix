@@ -41,7 +41,7 @@ export interface Movie {
 }
 
 export async function buildItemsWithCategories<
-  T extends Record<string, any> & { id: number; genre_ids?: number[] },
+  T extends { id: number; genre_ids?: number[] },
 >(items: T[], type: "movie" | "tv" | "multi"): Promise<MediaItem[]> {
   if (!items || items.length === 0) {
     return [];
@@ -78,7 +78,7 @@ export async function buildItemsWithCategories<
 }
 
 export async function buildMaybeItemsWithCategories<
-  T extends Record<string, any> & { id: number; genre_ids?: number[] },
+  T extends { id: number; genre_ids?: number[] },
 >(items: T[], type: "movie" | "tv" | "multi"): Promise<MediaItem[]> {
   if (items.length === 0) {
     return [];
