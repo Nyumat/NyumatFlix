@@ -1,12 +1,6 @@
 "use client";
 
-import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
-import Link from "next/link";
-import useMedia from "@/hooks/useMedia";
-import { ContentCard } from "./content-card";
-import { ContentRowHeader } from "./content-row-header";
-import { useEffect, useState, useRef } from "react";
-import Image from "next/legacy/image";
+import { Badge } from "@/components/ui/badge";
 import {
   Carousel,
   CarouselContent,
@@ -15,9 +9,15 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import { EnhancedLink } from "@/components/ui/enhanced-link";
+import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
+import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import Image from "next/legacy/image";
+import { useEffect, useRef, useState } from "react";
+import { ContentCard } from "./content-card";
+import { ContentRowHeader } from "./content-row-header";
 import { getGenreName } from "./genre-helpers";
 
 // Props for the RankedContentRow, similar to StandardContentRowProps
@@ -146,9 +146,11 @@ export function RankedContentRow({
                   key={`${item.id}-${index}`}
                   className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
                 >
-                  <Link
+                  <EnhancedLink
                     href={`/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`}
                     className="block group"
+                    mediaItem={item}
+                    prefetchDelay={100}
                   >
                     <div className="relative">
                       <div className="absolute top-0 left-0 z-10 flex items-center justify-center w-10 h-10 bg-neutral-900/90 text-white font-bold text-lg rounded-tl-md rounded-br-md">
@@ -160,7 +162,7 @@ export function RankedContentRow({
                         rating={getContentRating(item)}
                       />
                     </div>
-                  </Link>
+                  </EnhancedLink>
                 </CarouselItem>
               ))}
 
@@ -190,10 +192,12 @@ export function RankedContentRow({
             item.genre_ids?.slice(0, 1).map((id) => getGenreName(id)) || []; // Show only the primary genre for density
 
           return (
-            <Link
+            <EnhancedLink
               key={`${item.id}-${index}`}
               href={`/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`}
               className="flex group relative overflow-hidden rounded-md hover:bg-neutral-800/60 transition-colors duration-200 p-2 items-center"
+              mediaItem={item}
+              prefetchDelay={100}
             >
               {/* Rank number */}
               <div className="flex items-center justify-center w-12 shrink-0">
@@ -259,7 +263,7 @@ export function RankedContentRow({
                   )}
                 </div>
               </div>
-            </Link>
+            </EnhancedLink>
           );
         })}
       </div>

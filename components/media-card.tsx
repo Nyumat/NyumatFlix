@@ -1,10 +1,10 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { EnhancedLink } from "@/components/ui/enhanced-link";
 import type { Genre, MediaItem } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
 import { Play } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { match, P } from "ts-pattern";
 import { Info } from "./media-info";
@@ -150,12 +150,14 @@ export const MediaCard = ({ item, type }: MediaCardProps) => {
           genres={itemGenres}
         />
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100">
-          <Link
+          <EnhancedLink
             href={href}
             className="bg-primary rounded-full p-3 transform scale-0 group-hover:scale-100 transition-transform duration-300"
+            mediaItem={item}
+            prefetchDelay={0}
           >
             <Play size={24} className="stroke-black" />
-          </Link>
+          </EnhancedLink>
         </div>
       </CardContent>
     </Card>

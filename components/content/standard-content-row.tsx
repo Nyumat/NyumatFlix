@@ -1,11 +1,5 @@
 "use client";
 
-import { MediaItem, isMovie, Movie, TvShow } from "@/utils/typings";
-import Link from "next/link";
-import useMedia from "@/hooks/useMedia";
-import { ContentCard } from "./content-card";
-import { ContentRowHeader } from "./content-row-header";
-import { useEffect, useState, useRef } from "react";
 import {
   Carousel,
   CarouselContent,
@@ -14,6 +8,12 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import { EnhancedLink } from "@/components/ui/enhanced-link";
+import useMedia from "@/hooks/useMedia";
+import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
+import { useEffect, useRef, useState } from "react";
+import { ContentCard } from "./content-card";
+import { ContentRowHeader } from "./content-row-header";
 
 // Interface to ensure item has an id property
 interface ItemWithId {
@@ -138,13 +138,18 @@ export function StandardContentRow({
                 key={`${item.id}-${index}`}
                 className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
               >
-                <Link href={getItemLink(item)} className="block group">
+                <EnhancedLink
+                  href={getItemLink(item)}
+                  className="block group"
+                  mediaItem={item}
+                  prefetchDelay={100}
+                >
                   <ContentCard
                     item={item}
                     isMobile={!!isMobile}
                     rating={getContentRating(item)}
                   />
-                </Link>
+                </EnhancedLink>
               </CarouselItem>
             ))}
 

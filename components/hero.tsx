@@ -1,17 +1,17 @@
 "use client";
 
-import Image from "next/legacy/image";
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { MediaItem, Logo } from "@/utils/typings";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import { EnhancedLink } from "@/components/ui/enhanced-link";
+import { Logo, MediaItem } from "@/utils/typings";
 import Fade from "embla-carousel-fade";
+import Image from "next/legacy/image";
 import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { match, P } from "ts-pattern";
 
 interface HeroProps {
@@ -175,7 +175,7 @@ function CarouselDetails({ current }: { current: MediaItem }) {
         {current.overview}
       </p>
 
-      <Link
+      <EnhancedLink
         href={match(current)
           .with(
             { title: P.string, id: P.number },
@@ -187,9 +187,11 @@ function CarouselDetails({ current }: { current: MediaItem }) {
           )
           .otherwise(() => "#")}
         className="bg-primary hover:bg-primary/80 text-white font-semibold py-2 px-6 rounded transition-colors pointer-events-auto"
+        mediaItem={current}
+        prefetchDelay={0}
       >
         Watch Now
-      </Link>
+      </EnhancedLink>
     </div>
   );
 }
@@ -251,7 +253,7 @@ export function TrendingHeroCarousel({ items }: TrendingHeroCarouselProps) {
 
       {isMobile && items[currentIndex] && (
         <div className="md:hidden absolute bottom-72 sm:bottom-52 right-4 w-32 h-48 rounded-lg overflow-hidden shadow-lg pointer-events-auto xs:bottom-40">
-          <Link
+          <EnhancedLink
             href={match(items[currentIndex])
               .with(
                 { title: P.string, id: P.number },
@@ -262,6 +264,8 @@ export function TrendingHeroCarousel({ items }: TrendingHeroCarouselProps) {
                 (tvShow) => `/tvshows/${tvShow.id}`,
               )
               .otherwise(() => "#")}
+            mediaItem={items[currentIndex]}
+            prefetchDelay={0}
           >
             <div className="relative w-full h-full">
               <Image
@@ -274,7 +278,7 @@ export function TrendingHeroCarousel({ items }: TrendingHeroCarouselProps) {
                 objectFit="cover"
               />
             </div>
-          </Link>
+          </EnhancedLink>
         </div>
       )}
 
