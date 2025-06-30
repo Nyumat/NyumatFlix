@@ -1,34 +1,35 @@
 "use client";
 
 import { MediaItem } from "@/utils/typings";
+import { RankedContentRow, RankedContentRowProps } from "./ranked-content-row";
 import {
   StandardContentRow,
   StandardContentRowProps,
 } from "./standard-content-row";
-import { RankedContentRow, RankedContentRowProps } from "./ranked-content-row";
 
 export type ContentRowVariant = "standard" | "ranked";
-
-// The main ContentRowProps interface now includes the variant
-export interface ContentRowProps<T extends MediaItem> {
+export interface ContentRowProps {
   title: string;
-  items: T[];
+  items: MediaItem[];
   href: string;
   variant?: ContentRowVariant;
   contentRating?: Record<number, string | null>;
-  onLoadMore?: () => Promise<T[]>;
+  onLoadMore?: () => Promise<MediaItem[]>;
   hasMoreItems?: boolean;
 }
 
-// This component now acts as a dispatcher
-export function ContentRow<T extends MediaItem>(props: ContentRowProps<T>) {
+/**
+ * ContentRow is a component that displays a list of media items.
+ * It can be either a standard or ranked list, depending on the variant prop.
+ * @param props - The props for the ContentRow component.
+ * @returns The ContentRow component.
+ */
+export function ContentRow(props: ContentRowProps) {
   const { variant = "standard", ...restProps } = props;
 
   if (variant === "ranked") {
-    // Pass RankedContentRowProps, ensure type compatibility
-    return <RankedContentRow {...(restProps as RankedContentRowProps<T>)} />;
+    return <RankedContentRow {...(restProps as RankedContentRowProps)} />;
   }
 
-  // Pass StandardContentRowProps, ensure type compatibility
-  return <StandardContentRow {...(restProps as StandardContentRowProps<T>)} />;
+  return <StandardContentRow {...(restProps as StandardContentRowProps)} />;
 }

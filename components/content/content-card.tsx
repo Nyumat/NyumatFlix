@@ -7,21 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { getGenreName } from "./genre-helpers";
 import { GenreBadge } from "@/components/ui/genre-badge";
 
-interface ContentCardProps<T extends MediaItem> {
-  item: T;
+interface ContentCardProps {
+  item: MediaItem;
   isRanked?: boolean;
   rank?: number;
   isMobile: boolean;
   rating: string;
 }
 
-export function ContentCard<T extends MediaItem>({
+export function ContentCard({
   item,
   isRanked = false,
   rank,
   isMobile,
   rating,
-}: ContentCardProps<T>) {
+}: ContentCardProps) {
   // Cast to more specific types for type safety
   const movieItem = isMovie(item) ? (item as Movie) : null;
   const tvShowItem = isTVShow(item) ? (item as TvShow) : null;

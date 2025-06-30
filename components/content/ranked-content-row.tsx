@@ -21,12 +21,12 @@ import { Badge } from "@/components/ui/badge";
 import { getGenreName } from "./genre-helpers";
 
 // Props for the RankedContentRow, similar to StandardContentRowProps
-export interface RankedContentRowProps<T extends MediaItem> {
+export interface RankedContentRowProps {
   title: string;
-  items: T[];
+  items: MediaItem[];
   href: string;
   contentRating?: Record<number, string | null>;
-  onLoadMore?: () => Promise<T[]>;
+  onLoadMore?: () => Promise<MediaItem[]>;
   hasMoreItems?: boolean;
 }
 
@@ -35,16 +35,16 @@ interface ItemWithId {
   id: number;
 }
 
-export function RankedContentRow<T extends MediaItem & ItemWithId>({
+export function RankedContentRow({
   title,
   items: initialItems,
   href,
   contentRating = {},
   onLoadMore,
   hasMoreItems = false,
-}: RankedContentRowProps<T>) {
+}: RankedContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
-  const [items, setItems] = useState<T[]>(initialItems);
+  const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
   const [api, setApi] = useState<CarouselApi>();
   const lastScrollProgressRef = useRef(0);
@@ -107,7 +107,7 @@ export function RankedContentRow<T extends MediaItem & ItemWithId>({
     </div>
   );
 
-  const getItemDetails = (item: T) => {
+  const getItemDetails = (item: MediaItem) => {
     // Create type-safe representations
     const movieItem = isMovie(item) ? (item as Movie) : null;
     const tvShowItem = !isMovie(item) ? (item as TvShow) : null;
