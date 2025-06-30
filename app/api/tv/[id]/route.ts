@@ -1,0 +1,32 @@
+import { NextResponse } from "next/server";
+import { movieDb } from "@/lib/constants";
+
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } },
+) {
+  const id = params.id;
+
+  if (!id) {
+    return NextResponse.json(
+      { error: "TV show ID is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const tvDetails = await movieDb.tvInfo({ id });
+
+    if (!tvDetails) {
+      return NextResponse.json({ error: "TV show not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(tvDetails);
+  } catch (error) {
+    console.error(`Error fetching TV show details for ID ${id}:`, error);
+    return NextResponse.json(
+      { error: "Failed to fetch TV show details" },
+      { status: 500 },
+    );
+  }
+}
