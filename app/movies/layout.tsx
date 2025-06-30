@@ -1,14 +1,13 @@
-import { HeaderHero } from "@/components/hero";
+import { PageContainer } from "@/components/layout/page-container";
 
-export default async function MoviePageLayout({
+export default function MoviePageLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
-      <HeaderHero title="Movies" imageUrl={`/movie-hero.svg`} />
-      <main className="mt-4">{children}</main>
-    </div>
+    <PageContainer>
+      <main>{children}</main>
+    </PageContainer>
   );
 }

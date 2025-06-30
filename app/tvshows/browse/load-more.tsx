@@ -1,59 +1,49 @@
 "use client";
 
 import { ContentLoader } from "@/components/animated/load-more";
-import { UnifiedCategory } from "@/utils/typings";
 import { useRef, useState, useTransition } from "react";
 import { useInView } from "react-intersection-observer";
 
 interface LoadMoreProps extends React.PropsWithChildren {
-  type: UnifiedCategory;
-  initialOffset: number;
-  getListNodes: (
+  getTVShowListNodes: (
     offset: number,
-    type: UnifiedCategory,
   ) => Promise<readonly [React.JSX.Element, number | null] | null>;
+  initialOffset: number;
 }
 
 export function LoadMore({
-  type,
-  initialOffset,
-  getListNodes,
   children,
+  getTVShowListNodes,
+  initialOffset,
 }: LoadMoreProps) {
   const [isPending, startTransition] = useTransition();
   const offsetRef = useRef<number | null>(initialOffset);
-  const [contentListNodes, setContentListNodes] = useState<React.JSX.Element[]>(
+  const [tvShowListNodes, setTVShowListNodes] = useState<React.JSX.Element[]>(
     [],
   );
 
   const { ref } = useInView({
     onChange: (inView) => {
       if (inView) {
-        updateContentListNodes();
+        updateTVShowListNodes();
       }
     },
     threshold: 0.1,
     rootMargin: "200px",
   });
 
-  const updateContentListNodes = () => {
+  const updateTVShowListNodes = () => {
     if (!offsetRef.current) {
       return;
     }
 
     startTransition(async () => {
-      const response = await getListNodes(offsetRef.current as number, type);
+      const response = await getTVShowListNodes(offsetRef.current as number);
 
       if (response) {
         const [listNode, nextOffset] = response;
-        if (nextOffset !== null) {
-          offsetRef.current = nextOffset;
-          setContentListNodes((prev) => [...prev, listNode]);
-        } else {
-          offsetRef.current = null;
-        }
-      } else {
-        offsetRef.current = null;
+        offsetRef.current = nextOffset;
+        setTVShowListNodes((prev) => [...prev, listNode]);
       }
     });
   };
@@ -62,7 +52,7 @@ export function LoadMore({
     <>
       <div className="container mx-auto">
         {children}
-        {contentListNodes}
+        {tvShowListNodes}
       </div>
       <div ref={ref} className="h-20" />
       {isPending && (

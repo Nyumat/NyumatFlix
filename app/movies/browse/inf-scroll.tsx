@@ -1,15 +1,22 @@
-import { getMovies } from "@/app/actions";
+import { buildItemsWithCategories, getMovies } from "@/app/actions";
 import { ContentGrid } from "@/components/content-grid";
-import { LoadMore } from "./load-more";
 import { MovieCategory } from "@/utils/typings";
+import { LoadMore } from "./load-more";
 
 interface ICProps {
   type: MovieCategory;
 }
 
 export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
-  const initialMovies = await getMovies(type, 1);
-  if (!initialMovies?.results) return <div>No movies found</div>;
+  const initialMoviesResponse = await getMovies(type, 1);
+  if (!initialMoviesResponse?.results) return <div>No movies found</div>;
+
+  // Transform the raw results into MediaItem[]
+  const initialMovies = await buildItemsWithCategories(
+    initialMoviesResponse.results as any,
+    "movie",
+  );
+
   const initialOffset = 2;
   const getMovieListNodes = async (offset: number) => {
     "use server";
@@ -20,11 +27,17 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
         return null;
       }
 
+      // Transform the raw results into MediaItem[]
+      const processedMovies = await buildItemsWithCategories(
+        response.results as any,
+        "movie",
+      );
+
       const nextOffset =
         offset < (response.total_pages || 0) ? offset + 1 : null;
 
       return [
-        <ContentGrid items={response.results} key={offset} type="movie" />,
+        <ContentGrid items={processedMovies} key={offset} type="movie" />,
         nextOffset,
       ] as const;
     } catch (error) {
@@ -39,7 +52,7 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
       getMovieListNodes={getMovieListNodes}
       initialOffset={initialOffset}
     >
-      <ContentGrid items={initialMovies.results} type="movie" />
+      <ContentGrid items={initialMovies} type="movie" />
     </LoadMore>
   );
 }
