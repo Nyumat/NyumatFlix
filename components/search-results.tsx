@@ -1,248 +1,297 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Genre, Movie, TmdbResponse, TvShow } from "@/utils/typings";
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  Suspense,
-} from "react";
-import { Card, CardContent } from "./ui/card";
-import { format } from "date-fns";
-import { Badge } from "./ui/badge";
-import { Rating } from "./ui/rating";
-import { Button } from "./ui/button";
+import {
+  Genre as GenreType,
+  Movie,
+  TmdbResponse,
+  TvShow,
+} from "@/utils/typings";
+import { useEffect, useState } from "react";
+import { MediaCard } from "./media-card";
 import { MultiSelect } from "./multi-select";
-import Image from "next/image";
+import { Button } from "./ui/button";
 
-async function searchTMDBData(
-  endpoint: string,
-  params: any,
-  page: number,
-  apiKey: string,
-): Promise<TmdbResponse<Movie | TvShow>> {
-  if (!apiKey) {
-    throw new Error("TMDB API key is missing");
-  }
+// Helper function to validate media items
+const isValidMediaItem = (item: Movie | TvShow): boolean => {
+  // Check if the item has either a poster_path or backdrop_path
+  return Boolean(item.poster_path || item.backdrop_path);
+};
 
-  const url = new URL(`https://api.themoviedb.org/3${endpoint}`);
-  url.searchParams.append("api_key", apiKey);
-  url.searchParams.append("page", page.toString());
+// Extend Movie and TvShow types to include the recommendation flag
+type MediaItemWithRecommendation = (Movie | TvShow) & {
+  isRecommendation?: boolean;
+};
 
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.append(key, value as string);
-  }
-
-  const response = await fetch(url.toString());
-
-  if (!response.ok) {
-    throw new Error(
-      `TMDB API error: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  return response.json();
+interface ContentGridProps {
+  title: string;
+  items: Array<MediaItemWithRecommendation>;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  genres: { [key: number]: string };
 }
 
 export function ContentGrid({
   title,
   items,
-  href,
   currentPage,
   totalPages,
   onPageChange,
   genres,
-}: {
-  title: string;
-  items: any[];
-  href: string;
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-  genres: { [key: number]: string };
-}) {
-  const parsedGenres = Object.entries(genres).map(([key, value]) => ({
-    label: value,
-    value: key,
-  }));
+}: ContentGridProps) {
+  // Items to display
+  const displayItems = items;
+
+  // Map our items to the format expected by MediaCard and filter out invalid items
+  const processedItems = displayItems.filter(isValidMediaItem).map((item) => {
+    const mediaType = "title" in item ? "movie" : "tv";
+    return {
+      ...item,
+      genres: item.genre_ids
+        ?.map((id) => ({ id, name: genres[id] }))
+        .filter((g) => g.name && g.id),
+      media_type: mediaType,
+    };
+  });
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8" data-testid="content-grid">
       <div className="flex justify-between items-center mb-6">
         <h2 className={cn("text-3xl font-semibold", "text-primary-foreground")}>
           {title}
         </h2>
-        {/* Filter combobox */}
-        <div className="md:w-64 w-min md:max-w-72 max-w-40">
-          <MultiSelect
-            options={parsedGenres}
-            maxCount={3}
-            onValueChange={(values) => {
-              // TODO: filter data based on selected genres
-            }}
-            placeholder="Filter"
-            defaultValue={[]}
-          />
-        </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {items.map((item) => (
-          <Card
-            key={item.id}
-            className={cn("flex flex-col border-none bg-transparent")}
-          >
-            <div className="relative aspect-[2/3]">
-              <Image
-                width={300}
-                height={450}
-                src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
-                alt={item.title || item.name}
-                className="w-full h-full object-cover transition-transform hover:scale-105 rounded-sm"
-              />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {processedItems.map((item) => {
+          const itemType = item.media_type === "movie" ? "movie" : "tv";
+
+          return (
+            <div
+              key={`${item.id}-${itemType}`}
+              className={cn(
+                "rounded-lg transition-all duration-300",
+                "hover:scale-102",
+              )}
+            >
+              <MediaCard item={item} type={itemType} />
             </div>
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-sm mb-1 line-clamp-1">
-                {item.title || item.name}
-              </h3>
-              <p className="text-xs text-muted-foreground mb-2">
-                {item.release_date &&
-                  format(new Date(item.release_date), "MMM d, yyyy")}
-              </p>
-              <div className="flex flex-wrap gap-1 mb-2">
-                {item.genre_ids.map((genreId: number) => (
-                  <Badge
-                    key={genreId}
-                    variant="secondary"
-                    className="text-xs px-1 py-0"
-                  >
-                    {genres[genreId]}
-                  </Badge>
-                ))}
-              </div>
-              <Rating rating={item.vote_average / 2} />
-            </CardContent>
-          </Card>
-        ))}
+          );
+        })}
       </div>
-      <div className="flex justify-between items-center mt-8">
-        <Button
-          variant="outline"
-          disabled={currentPage === 1}
-          onClick={() => onPageChange(currentPage - 1)}
-        >
-          Previous
-        </Button>
-        <span className="text-muted-foreground">
-          Page {currentPage} of {totalPages}
-        </span>
-        <Button
-          variant="outline"
-          disabled={currentPage === totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-        >
-          Next
-        </Button>
-      </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-8">
+          <Button
+            variant="outline"
+            disabled={currentPage === 1}
+            onClick={() => onPageChange(currentPage - 1)}
+          >
+            Previous
+          </Button>
+          <span className="text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            disabled={currentPage === totalPages}
+            onClick={() => onPageChange(currentPage + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
-export default function SearchResults({
-  query,
-  apiKey,
-}: {
-  query: string;
-  apiKey: string;
-}) {
-  const itemsPerPage = 20;
-  const [items, setItems] = useState<any[]>([]);
+export default function SearchResults({ query }: { query: string }) {
+  const [items, setItems] = useState<Array<Movie | TvShow>>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
+
+  const [allGenres, setAllGenres] = useState<{ [key: number]: string }>({});
+  const [genresLoading, setGenresLoading] = useState(true);
+
+  // Filter items by selected genres
+  const filteredItems =
+    selectedGenreIds.length > 0
+      ? items.filter((item) =>
+          item.genre_ids?.some((genreId) =>
+            selectedGenreIds.includes(genreId.toString()),
+          ),
+        )
+      : items;
+
+  useEffect(() => {
+    const fetchAllGenres = async () => {
+      setGenresLoading(true);
+      try {
+        const movieGenresRes = await fetch("/api/genres?type=movie");
+        const tvGenresRes = await fetch("/api/genres?type=tv");
+
+        if (!movieGenresRes.ok || !tvGenresRes.ok) {
+          throw new Error("Failed to fetch genres");
+        }
+
+        const movieGenresData = await movieGenresRes.json();
+        const tvGenresData = await tvGenresRes.json();
+
+        const combinedGenres: { [key: number]: string } = {};
+
+        // Add null checks to handle potential undefined genres
+        if (
+          movieGenresData &&
+          movieGenresData.genres &&
+          Array.isArray(movieGenresData.genres)
+        ) {
+          movieGenresData.genres.forEach((genre: GenreType) => {
+            if (genre && genre.id) {
+              combinedGenres[genre.id] = genre.name;
+            }
+          });
+        }
+
+        if (
+          tvGenresData &&
+          tvGenresData.genres &&
+          Array.isArray(tvGenresData.genres)
+        ) {
+          tvGenresData.genres.forEach((genre: GenreType) => {
+            if (genre && genre.id && !combinedGenres[genre.id]) {
+              combinedGenres[genre.id] = genre.name;
+            }
+          });
+        }
+
+        setAllGenres(combinedGenres);
+      } catch (err: unknown) {
+        console.error("Error fetching genres:", err);
+        // Set empty object as fallback
+        setAllGenres({});
+      } finally {
+        setGenresLoading(false);
+      }
+    };
+    fetchAllGenres();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
-      const searchResults = await searchTMDBData(
-        "/search/multi",
-        { query },
-        currentPage,
-        apiKey,
-      );
-
-      if (!searchResults.results) {
+      if (!query) {
+        setItems([]);
+        setTotalPages(1);
+        setCurrentPage(1);
         return;
       }
+      setIsLoading(true);
+      setError(null);
+      try {
+        const url = new URL("/api/search", window.location.origin);
+        url.searchParams.append("query", query);
+        url.searchParams.append("page", currentPage.toString());
 
-      if (!searchResults.total_results) {
-        return;
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error ||
+              `Failed to fetch search results: ${response.statusText}`,
+          );
+        }
+        const searchResults: TmdbResponse<Movie | TvShow> =
+          await response.json();
+
+        setItems(searchResults.results || []);
+        setTotalPages(searchResults.total_pages || 1);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(
+            err.message || "An unknown error occurred while fetching results.",
+          );
+        } else {
+          setError("An unknown error occurred while fetching results.");
+        }
+        setItems([]);
+        setTotalPages(1);
+      } finally {
+        setIsLoading(false);
       }
-
-      const filteredItems = searchResults.results
-        .filter(
-          (item) =>
-            item.poster_path &&
-            item.release_date &&
-            new Date(item.release_date) <= new Date() &&
-            item.vote_average > 0 &&
-            item.vote_count > 0,
-        )
-        .map((item) => ({
-          ...item,
-        }));
-
-      setItems(filteredItems);
-      setTotalPages(Math.ceil(searchResults.total_results / itemsPerPage));
     };
-
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, currentPage]);
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
   };
 
-  const [genres, setGenres] = useState<{ [key: number]: string }>({});
-
-  async function getCategories(mediaType: "movie" | "tv"): Promise<Genre[]> {
-    const endpoint =
-      mediaType === "movie" ? "genre/movie/list" : "genre/tv/list";
-    const response = await fetch(
-      `https://api.themoviedb.org/3/${endpoint}?api_key=${apiKey}`,
+  if (isLoading && items.length === 0 && query) {
+    return (
+      <div className="text-center py-10">
+        Loading search results for &quot;{query}&quot;...
+      </div>
     );
-    const data = await response.json();
-    return data.genres;
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const movieGenres = await getCategories("movie");
-      const tvGenres = await getCategories("tv");
+  if (error) {
+    return <div className="text-red-500 text-center py-10">{error}</div>;
+  }
 
-      const allGenres = movieGenres.concat(tvGenres);
-      const genresMap: { [key: number]: string } = {};
+  if (!query) {
+    return (
+      <div className="text-center py-10">Please enter a search query.</div>
+    );
+  }
 
-      allGenres.forEach((genre) => {
-        genresMap[genre.id] = genre.name;
-      });
+  if (items.length === 0 && !isLoading) {
+    return (
+      <div className="text-center py-10">
+        No results found for &quot;{query}&quot;.
+      </div>
+    );
+  }
 
-      setGenres(genresMap);
-    };
-
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const parsedGenresForFilter = Object.entries(allGenres).map(([id, name]) => ({
+    label: name,
+    value: id,
+  }));
 
   return (
-    <ContentGrid
-      title={`Search Results for "${query}"`}
-      items={items}
-      href={`/search?query=${query}`}
-      currentPage={currentPage}
-      totalPages={totalPages}
-      onPageChange={handlePageChange}
-      genres={genres}
-    />
+    <div className="container mx-auto px-4">
+      <div className="flex justify-end items-center mb-6">
+        {!genresLoading && parsedGenresForFilter.length > 0 && (
+          <div
+            className="w-full md:w-64 max-w-sm rounded-lg overflow-hidden shadow-lg bg-background/80 backdrop-blur-sm border border-accent/20"
+            data-testid="genre-filter"
+          >
+            <MultiSelect
+              options={parsedGenresForFilter}
+              maxCount={3}
+              onValueChange={(selectedIds) => {
+                setSelectedGenreIds(selectedIds);
+              }}
+              placeholder="Filter by Genre"
+              defaultValue={selectedGenreIds}
+              className="border-none focus:ring-0 focus:ring-offset-0"
+            />
+          </div>
+        )}
+      </div>
+
+      <ContentGrid
+        title={`Search Results for "${query}"`}
+        items={filteredItems}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        genres={allGenres}
+      />
+    </div>
   );
 }

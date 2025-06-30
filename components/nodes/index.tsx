@@ -1,6 +1,6 @@
 "use server";
 
-import { getMovies, getTVShows } from "@/app/actions";
+import { buildItemsWithCategories, getMovies, getTVShows } from "@/app/actions";
 import {
   MovieCategory,
   TVShowCategory,
@@ -19,10 +19,21 @@ export const getTvShowListNodes = async (
       return null;
     }
 
+    const validResults = response.results.filter(
+      (item): item is typeof item & { id: number } =>
+        typeof item.id === "number",
+    );
+
+    if (validResults.length === 0) {
+      return null;
+    }
+
+    const processedShows = await buildItemsWithCategories(validResults, "tv");
+
     const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
 
     return [
-      <ContentGrid items={response.results} key={offset} type="tv" />,
+      <ContentGrid items={processedShows} key={offset} type="tv" />,
       nextOffset,
     ] as const;
   } catch (error) {
@@ -42,10 +53,24 @@ export const getMovieListNodes = async (
       return null;
     }
 
+    const validResults = response.results.filter(
+      (item): item is typeof item & { id: number } =>
+        typeof item.id === "number",
+    );
+
+    if (validResults.length === 0) {
+      return null;
+    }
+
+    const processedMovies = await buildItemsWithCategories(
+      validResults,
+      "movie",
+    );
+
     const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
 
     return [
-      <ContentGrid items={response.results} key={offset} type="movie" />,
+      <ContentGrid items={processedMovies} key={offset} type="movie" />,
       nextOffset,
     ] as const;
   } catch (error) {

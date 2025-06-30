@@ -1,14 +1,15 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { GenreBadge } from "@/components/ui/genre-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Clock, DollarSign, PlayCircle, Star } from "lucide-react";
-import Image from "next/image";
+import Image from "next/legacy/image";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export function MovieDetailView({ details }) {
   const [showTrailer, setShowTrailer] = useState(false);
@@ -35,9 +36,12 @@ export function MovieDetailView({ details }) {
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
             {details.genres.map((genre) => (
-              <Badge key={genre.id} variant="secondary">
-                {genre.name}
-              </Badge>
+              <GenreBadge
+                key={genre.id}
+                genreId={genre.id}
+                genreName={genre.name}
+                mediaType="movie"
+              />
             ))}
           </div>
           <p className="text-lg mb-6">{details.overview}</p>
@@ -74,7 +78,13 @@ export function MovieDetailView({ details }) {
             </div>
           </div>
           <Button
-            onClick={() => setShowTrailer(!showTrailer)}
+            onClick={() => {
+              if (trailer) {
+                setShowTrailer(!showTrailer);
+              } else {
+                toast.error("No trailer available");
+              }
+            }}
             className="flex items-center"
           >
             <PlayCircle className="mr-2" />
