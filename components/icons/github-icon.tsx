@@ -1,12 +1,12 @@
-import * as React from "react";
+import { SVGProps } from "react";
 
-function GithubIcon(props: React.SVGProps<SVGSVGElement> | undefined) {
+export function GithubIcon(props: SVGProps<SVGSVGElement> | undefined) {
   return (
     <svg
       width="20px"
       height="20px"
       xmlns="http://www.w3.org/2000/svg"
-      className="ionicon fill-foreground"
+      className="ionicon"
       viewBox="0 0 512 512"
       {...props}
     >
@@ -14,5 +14,3 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement> | undefined) {
     </svg>
   );
 }
-
-export default GithubIcon;

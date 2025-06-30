@@ -1,5 +1,5 @@
 "use client";
-import GithubIcon from "@/components/icons/github-icon";
+import { GithubIcon } from "@/components/icons/github-icon";
 import ShineBorder from "@/components/ui/shine-border";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
