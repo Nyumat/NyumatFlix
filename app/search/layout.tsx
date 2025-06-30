@@ -1,14 +1,17 @@
-import { HeaderHero } from "@/components/hero";
+// import { HeaderHero } from "@/components/hero"; // Removed for search page
+import { PageContainer } from "@/components/layout/page-container";
 
-export default async function MoviePageLayout({
+export default function SearchPageLayout({
+  // Renamed from MoviePageLayout for clarity
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <HeaderHero title="Search" imageUrl={`/search-hero3.svg`} />
-      <main className="mt-4">{children}</main>
-    </>
+    <PageContainer>
+      {/* <HeaderHero title="Search" imageUrl={`/search-hero3.svg`} /> */}
+      {/* The HeaderHero is removed to allow the search page to define its own header/title structure */}
+      <main>{children}</main>
+    </PageContainer>
   );
 }
