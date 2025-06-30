@@ -18,6 +18,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Search as SearchIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import SearchResults from "./search-results";
+import Image from "next/legacy/image";
 
 export function SearchComponent({
   onSearch,
@@ -177,7 +178,9 @@ export function SearchComponent({
                             <div className="flex items-center w-full">
                               <div className="w-12 h-16 relative flex-shrink-0 mr-4 overflow-hidden rounded-md bg-muted">
                                 {result.poster_path ? (
-                                  <img
+                                  <Image
+                                    width={48}
+                                    height={72}
                                     src={`https://image.tmdb.org/t/p/w92${result.poster_path}`}
                                     alt={
                                       result.title || result.name || "Poster"
