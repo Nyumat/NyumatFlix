@@ -1,14 +1,15 @@
-import { HeaderHero } from "@/components/hero";
+import { PageContainer } from "@/components/layout/page-container";
 
-export default async function TVShowPageLayout({
+export default function TVShowPageLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
-      <HeaderHero title="TV Shows" imageUrl={`/tv-show-hero.svg`} />
-      <main className="mt-4">{children}</main>
-    </div>
+    <PageContainer>
+      <main>{children}</main>
+    </PageContainer>
   );
 }
+
+// This file has been simplified to not render any hero by default
