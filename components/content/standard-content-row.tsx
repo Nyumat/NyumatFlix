@@ -22,25 +22,25 @@ interface ItemWithId {
 
 // Note: ContentRowVariant might be defined elsewhere or become unnecessary if pages import specific rows.
 // For now, we keep ContentRowProps similar, minus the variant prop for this specific component.
-export interface StandardContentRowProps<T extends MediaItem & ItemWithId> {
+export interface StandardContentRowProps {
   title: string;
-  items: T[];
+  items: MediaItem[];
   href: string;
   contentRating?: Record<number, string | null>;
-  onLoadMore?: () => Promise<T[]>;
+  onLoadMore?: () => Promise<MediaItem[]>;
   hasMoreItems?: boolean;
 }
 
-export function StandardContentRow<T extends MediaItem & ItemWithId>({
+export function StandardContentRow({
   title,
   items: initialItems,
   href,
   contentRating = {},
   onLoadMore,
   hasMoreItems = false,
-}: StandardContentRowProps<T>) {
+}: StandardContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
-  const [items, setItems] = useState<T[]>(initialItems);
+  const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
   const [api, setApi] = useState<CarouselApi>();
   const lastScrollProgressRef = useRef(0);
@@ -104,7 +104,7 @@ export function StandardContentRow<T extends MediaItem & ItemWithId>({
     </div>
   );
 
-  const getItemLink = (item: T): string => {
+  const getItemLink = (item: MediaItem): string => {
     const movieItem = isMovie(item) ? (item as unknown as Movie) : null;
     const tvShowItem = !isMovie(item) ? (item as unknown as TvShow) : null;
 

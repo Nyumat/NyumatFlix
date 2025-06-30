@@ -1,26 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import useEmblaCarousel from "embla-carousel-react";
 import { MediaItem } from "@/utils/typings";
+import useEmblaCarousel from "embla-carousel-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-// Interface to ensure item has an id property
-interface ItemWithId {
-  id: number;
-}
-
-interface UseContentCarouselOptions<T extends MediaItem & ItemWithId> {
-  initialItems: T[];
-  onLoadMore?: () => Promise<T[]>;
+interface UseContentCarouselOptions {
+  initialItems: MediaItem[];
+  onLoadMore?: () => Promise<MediaItem[]>;
   hasMoreItems?: boolean;
 }
 
-export function useContentCarousel<T extends MediaItem & ItemWithId>({
+export function useContentCarousel({
   initialItems,
   onLoadMore,
   hasMoreItems = false,
-}: UseContentCarouselOptions<T>) {
-  const [items, setItems] = useState<T[]>(initialItems);
+}: UseContentCarouselOptions) {
+  const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [hasMore, setHasMore] = useState(hasMoreItems);

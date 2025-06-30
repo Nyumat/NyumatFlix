@@ -1,12 +1,13 @@
-import { MediaItem } from "@/utils/typings";
-import { ContentRow, ContentRowProps } from "./content-row";
 import { Suspense } from "react";
+import { ContentRow, ContentRowProps } from "./content-row";
 
-// This component is a server wrapper for the client-side ContentRow component
-// It allows for proper SSR and Suspense support
-export function ServerContentRow<T extends MediaItem>(
-  props: ContentRowProps<T>,
-) {
+/**
+ * ServerContentRow is a server wrapper for the client-side ContentRow component.
+ * It allows for proper SSR and Suspense support.
+ * @param props - The props for the ServerContentRow component.
+ * @returns The ServerContentRow component.
+ */
+export function ServerContentRow(props: ContentRowProps) {
   return (
     <Suspense fallback={<ContentRowSkeleton />}>
       <ContentRow {...props} />
@@ -14,7 +15,10 @@ export function ServerContentRow<T extends MediaItem>(
   );
 }
 
-// Simple skeleton UI when content is loading
+/**
+ * ContentRowSkeleton is a simple skeleton UI when content is loading.
+ * @returns The ContentRowSkeleton component.
+ */
 function ContentRowSkeleton() {
   return (
     <div className="mx-4 md:mx-8 mb-8">
