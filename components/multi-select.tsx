@@ -31,25 +31,22 @@ import {
  * Variants for the multi-select component to handle different styles.
  * Uses class-variance-authority (cva) to define different styles based on "variant" prop.
  */
-const multiSelectVariants = cva(
-  "m-1 transition ease-in-out delay-150 hover:-translate-y-1 hover:scale-110 duration-300",
-  {
-    variants: {
-      variant: {
-        default:
-          "border-foreground/10 text-foreground bg-card hover:bg-card/80",
-        secondary:
-          "border-foreground/10 bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive:
-          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        inverted: "inverted",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
+const multiSelectVariants = cva("m-1 transition ease-in-out", {
+  variants: {
+    variant: {
+      default:
+        "border-foreground/10 text-foreground bg-primary/10 hover:bg-primary/20 backdrop-blur-sm border border-primary/30",
+      secondary:
+        "border-foreground/10 bg-secondary text-secondary-foreground hover:bg-secondary/80",
+      destructive:
+        "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+      inverted: "inverted",
     },
   },
-);
+  defaultVariants: {
+    variant: "default",
+  },
+});
 
 /**
  * Props for MultiSelect component
@@ -204,7 +201,7 @@ export const MultiSelect = React.forwardRef<
             {...props}
             onClick={handleTogglePopover}
             className={cn(
-              "flex w-full p-1 rounded-md border min-h-10 h-auto items-center justify-between bg-inherit hover:bg-inherit",
+              "flex w-full p-1 rounded-md border min-h-10 h-auto items-center justify-between bg-background hover:bg-background/90 shadow-inner",
               className,
             )}
           >
@@ -212,7 +209,7 @@ export const MultiSelect = React.forwardRef<
               <div className="flex justify-between items-center w-full">
                 {/* Modified From OG */}
                 <div
-                  className="flex items-center overflow-x-scroll"
+                  className="flex items-center overflow-x-scroll px-2 py-1 gap-1"
                   id="scrollbar_hide"
                 >
                   {selectedValues.slice(0, maxCount).map((value) => {
@@ -224,6 +221,7 @@ export const MultiSelect = React.forwardRef<
                         className={cn(
                           isAnimating ? "animate-bounce" : "",
                           multiSelectVariants({ variant }),
+                          "px-2 py-1 font-semibold",
                         )}
                         style={{ animationDuration: `${animation}s` }}
                       >
@@ -232,7 +230,7 @@ export const MultiSelect = React.forwardRef<
                         )}
                         {option?.label}
                         <XCircle
-                          className="ml-2 h-4 w-4 cursor-pointer"
+                          className="ml-2 h-4 w-4 cursor-pointer hover:text-destructive transition-colors"
                           onClick={(event) => {
                             event.stopPropagation();
                             toggleOption(value);
@@ -263,7 +261,7 @@ export const MultiSelect = React.forwardRef<
                 </div>
                 <div className="flex items-center justify-between">
                   <XIcon
-                    className="h-4 mx-2 cursor-pointer text-muted-foreground"
+                    className="h-4 mx-2 cursor-pointer text-muted-foreground hover:text-destructive transition-colors"
                     onClick={(event) => {
                       event.stopPropagation();
                       handleClear();
@@ -273,7 +271,7 @@ export const MultiSelect = React.forwardRef<
                     orientation="vertical"
                     className="flex min-h-6 h-full"
                   />
-                  <ChevronDown className="h-4 mx-2 cursor-pointer text-muted-foreground" />
+                  <ChevronDown className="h-4 mx-2 cursor-pointer text-muted-foreground hover:text-primary transition-colors" />
                 </div>
               </div>
             ) : (
@@ -281,13 +279,13 @@ export const MultiSelect = React.forwardRef<
                 <span className="text-sm text-muted-foreground mx-3">
                   {placeholder}
                 </span>
-                <ChevronDown className="h-4 cursor-pointer text-muted-foreground mx-2" />
+                <ChevronDown className="h-4 cursor-pointer text-muted-foreground hover:text-primary transition-colors mx-2" />
               </div>
             )}
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto p-0"
+          className="w-auto p-0 border border-primary/20 shadow-lg"
           align="start"
           onEscapeKeyDown={() => setIsPopoverOpen(false)}
         >
