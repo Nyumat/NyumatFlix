@@ -1,11 +1,11 @@
 "use client";
 
-import { MediaItem, isMovie, isTVShow, Movie, TvShow } from "@/utils/typings";
-import Image from "next/legacy/image";
-import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
+import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
+import { Star } from "lucide-react";
+import Image from "next/legacy/image";
 import { getGenreName } from "./genre-helpers";
-import { GenreBadge } from "@/components/ui/genre-badge";
 
 interface ContentCardProps {
   item: MediaItem;
@@ -51,7 +51,17 @@ export function ContentCard({
       >
         <div className="z-10 flex items-center justify-center">
           <span
-            className="text-4xl md:text-5xl font-bold text-white opacity-90 font-serif"
+            className="text-4xl md:text-5xl font-bold text-foreground opacity-90 font-serif"
+            style={{
+              color:
+                rank === 1
+                  ? "#FFD700"
+                  : rank === 2
+                    ? "#C0C0C0"
+                    : rank === 3
+                      ? "#CD7F32"
+                      : undefined,
+            }}
             aria-label={`Rank ${rank}`}
           >
             {rank}
@@ -68,7 +78,7 @@ export function ContentCard({
               priority={rank !== undefined && rank <= 3}
             />
           </div>
-          <div className="text-white flex flex-col flex-1 max-w-[calc(100%-1rem)]">
+          <div className="text-foreground flex flex-col flex-1 max-w-[calc(100%-1rem)]">
             <h3 className="font-medium text-xs md:text-base mb-0.5 max-w-[90%]">
               {displayTitle}
             </h3>
@@ -76,37 +86,39 @@ export function ContentCard({
               {item.genre_ids
                 ?.slice(0, 2)
                 .map((genreId) => (
-                  <GenreBadge
+                  <PrimaryGenreBadge
                     key={genreId}
                     genreId={genreId}
-                    genreName={getGenreName(genreId)}
+                    genreName={getGenreName(
+                      genreId,
+                      isMovieItem ? "movie" : "tv",
+                    )}
                     mediaType={isMovieItem ? "movie" : "tv"}
-                    className="bg-gray-700/50 text-gray-300 px-1 py-0.5 text-[10px] h-auto"
-                    variant="outline"
+                    className="text-[10px] h-auto"
                   />
                 ))}
             </div>
             <div className="flex items-center gap-1 text-[10px]">
               {item.vote_average !== undefined && item.vote_average > 0 ? (
                 <div
-                  className="flex items-center"
+                  className="flex items-center text-foreground"
                   aria-label={`Rating: ${item.vote_average?.toFixed(1)} out of 10`}
                 >
                   <span className="text-yellow-400 mr-0.5" aria-hidden="true">
                     ★
                   </span>
-                  <span className="font-medium text-white">
+                  <span className="font-medium">
                     {item.vote_average?.toFixed(1)}
                   </span>
                 </div>
               ) : null}
               {isMovieItem && (
-                <span className="text-gray-400 ml-1">| Movie</span>
+                <span className="text-muted-foreground ml-1">| Movie</span>
               )}
               {rating && (
                 <Badge
                   variant="outline"
-                  className="border-gray-500 text-gray-300 px-1 py-0 text-[10px] font-normal h-4 rounded ml-1"
+                  className="border-border text-muted-foreground px-1 py-0 text-[10px] font-normal h-4 rounded ml-1"
                 >
                   {rating}
                 </Badge>
@@ -134,12 +146,12 @@ export function ContentCard({
           priority={isRanked && rank !== undefined && rank <= 3}
         />
       </div>
-      <div className="mt-2 text-white">
+      <div className="mt-2 text-foreground">
         <h3 className="font-semibold text-sm truncate mb-1">{displayTitle}</h3>
         <div className="flex items-center gap-2 text-xs mb-1">
           {item.vote_average !== undefined && item.vote_average > 0 ? (
             <div
-              className="flex items-center text-white"
+              className="flex items-center text-foreground"
               aria-label={`Rating: ${item.vote_average?.toFixed(1)} out of 10`}
             >
               <Star
@@ -155,34 +167,38 @@ export function ContentCard({
           {rating && (
             <Badge
               variant="outline"
-              className="border-gray-400 text-gray-300 px-1 py-0.5 text-[10px] font-normal h-auto rounded-sm"
+              className="border-border text-muted-foreground px-1 py-0.5 text-[10px] font-normal h-auto rounded-sm"
             >
               {rating}
             </Badge>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-1 text-[10px] text-gray-400">
+        <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
           {itemYear && (
-            <span className="inline-block bg-gray-500/20 text-gray-300 px-1 py-0.5 rounded-sm">
+            <span className="inline-block bg-muted/20 text-muted-foreground px-1 py-0.5 rounded-sm">
               {itemYear}
             </span>
           )}
           {item.genre_ids?.[0] && (
-            <GenreBadge
+            <PrimaryGenreBadge
               genreId={item.genre_ids[0]}
-              genreName={getGenreName(item.genre_ids[0])}
+              genreName={getGenreName(
+                item.genre_ids[0],
+                isMovieItem ? "movie" : "tv",
+              )}
               mediaType={isMovieItem ? "movie" : "tv"}
-              className="bg-gray-500/20 text-gray-300 px-1 py-0.5 text-[10px] h-auto"
-              variant="outline"
+              className="text-[10px] h-auto bg-muted/20 text-muted-foreground px-1 py-0.5 border border-border"
             />
           )}
           {item.genre_ids?.[1] && !isMobile && (
-            <GenreBadge
+            <PrimaryGenreBadge
               genreId={item.genre_ids[1]}
-              genreName={getGenreName(item.genre_ids[1])}
+              genreName={getGenreName(
+                item.genre_ids[1],
+                isMovieItem ? "movie" : "tv",
+              )}
               mediaType={isMovieItem ? "movie" : "tv"}
-              className="bg-gray-500/20 text-gray-300 px-1 py-0.5 text-[10px] h-auto"
-              variant="outline"
+              className="text-[10px] h-auto bg-muted/20 text-muted-foreground px-1 py-0.5 border border-border"
             />
           )}
         </div>

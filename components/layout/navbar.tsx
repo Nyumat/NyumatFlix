@@ -1,210 +1,135 @@
 "use client";
 
-import { ChevronsDown, Github, Menu, X } from "lucide-react";
+import { ToggleTheme } from "@/components/layout/toogle-theme";
+import { NavbarSearchClient } from "@/components/search/search";
+import { Button } from "@/components/ui/button";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import React from "react";
-import { Button } from "../ui/button";
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-} from "../ui/navigation-menu";
-import { Separator } from "../ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "../ui/sheet";
-import { ToggleTheme } from "./toogle-theme";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 
-interface RouteProps {
-  href: string;
+/**
+ * Navigation link configuration
+ */
+interface NavLink {
+  /** Display text for the link */
   label: string;
+  /** URL path for the link */
+  href: string;
+  /** Whether this is an external link */
+  external?: boolean;
 }
 
-const mainRouteList: RouteProps[] = [
-  {
-    href: "/home",
-    label: "Home",
-  },
-  {
-    href: "/movies",
-    label: "Movies",
-  },
-  {
-    href: "/tvshows",
-    label: "TV Shows",
-  },
-  {
-    href: "/search",
-    label: "Search",
-  },
+/**
+ * Navigation links configuration
+ */
+const NAV_LINKS: NavLink[] = [
+  { label: "Home", href: "/home" },
+  { label: "Movies", href: "/movies" },
+  { label: "TV Shows", href: "/tvshows" },
+  { label: "Search", href: "/search" },
 ];
 
-const mobileRouteList: RouteProps[] = [
-  ...mainRouteList,
-  {
-    href: "/search",
-    label: "Search",
-  },
-];
-
+/**
+ * Navbar component provides the main navigation for the application
+ * Features: responsive design, mobile menu, search integration, theme toggle
+ * @returns A responsive navigation bar with search and theme controls
+ */
 export const Navbar = () => {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const isActiveLink = (href: string) => {
+    if (href === "/") {
+      return pathname === "/";
+    }
+    return pathname.startsWith(href);
+  };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 max-w-screen-2xl items-center px-4 md:px-8">
-        {/* Logo Section */}
-        <Link
-          href="/"
-          className="flex items-center space-x-3"
-          aria-label="NyumatFlix Home"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <ChevronsDown className="h-6 w-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl font-bold tracking-tight text-foreground">
-              NyumatFlix
-            </span>
-            <span className="text-xs text-muted-foreground hidden sm:block"></span>
-          </div>
-        </Link>
-        <Separator
-          orientation="vertical"
-          className="hidden lg:block h-6 mx-6"
-        />
-        <NavigationMenu className="hidden lg:flex">
-          <NavigationMenuList className="flex space-x-2">
-            {mainRouteList.map(({ href, label }) => (
-              <NavigationMenuItem key={href}>
-                <NavigationMenuLink asChild>
-                  <Link
-                    href={href}
-                    className="inline-flex h-10 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
-                  >
-                    {label}
-                  </Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            ))}
-          </NavigationMenuList>
-        </NavigationMenu>
-        {/* Right Section */}
-        <div className="ml-auto hidden lg:flex items-center space-x-2">
-          <ToggleTheme />
-
-          <Separator orientation="vertical" className="h-6 mx-4" />
-
-          <Button variant="ghost" size="sm" className="h-10 w-10" asChild>
-            <Link
-              href="https://github.com/nyumat/nyumatflix"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="View on GitHub"
-            >
-              <Github className="h-4 w-4" />
+    <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-4">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            <Link href="/" className="flex items-center space-x-2">
+              <span className="text-xl font-bold text-primary">NyumatFlix</span>
             </Link>
-          </Button>
-        </div>
+          </div>
 
-        {/* Mobile Menu Button */}
-        <div className="ml-auto lg:hidden">
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
+          {/* Desktop Search - Wider and more prominent */}
+          <div className="hidden md:block flex-1 max-w-2xl mx-4">
+            <NavbarSearchClient />
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:block">
+            <div className="flex items-center space-x-4">
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 whitespace-nowrap ${
+                    isActiveLink(link.href)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Theme Toggle and Mobile Menu */}
+          <div className="flex items-center space-x-2">
+            <ToggleTheme />
+
+            {/* Mobile menu button */}
+            <div className="md:hidden">
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-10 w-10"
-                aria-label={isOpen ? "Close menu" : "Open menu"}
+                size="icon"
+                onClick={toggleMobileMenu}
+                aria-label="Toggle mobile menu"
               >
-                {isOpen ? (
-                  <X className="h-4 w-4" />
-                ) : (
-                  <Menu className="h-4 w-4" />
-                )}
+                {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               </Button>
-            </SheetTrigger>
+            </div>
+          </div>
+        </div>
 
-            <SheetContent
-              side="right"
-              className="w-80 flex flex-col justify-between"
-              aria-describedby="mobile-menu-description"
-            >
-              <div className="flex-1">
-                <SheetHeader className="mb-6">
-                  <SheetTitle className="flex items-center space-x-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                      <ChevronsDown className="h-5 w-5" />
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span className="text-lg font-bold text-foreground">
-                        NyumatFlix
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Premium Streaming
-                      </span>
-                    </div>
-                  </SheetTitle>
-                </SheetHeader>
-
-                <nav
-                  className="flex flex-col space-y-2"
-                  aria-label="Main navigation"
-                  id="mobile-menu-description"
-                >
-                  {mobileRouteList.map(({ href, label }) => (
-                    <Button
-                      key={href}
-                      variant="ghost"
-                      className="justify-start h-12 px-4 text-base"
-                      onClick={() => setIsOpen(false)}
-                      asChild
-                    >
-                      <Link href={href}>{label}</Link>
-                    </Button>
-                  ))}
-                </nav>
+        {/* Mobile Navigation */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-border">
+              {/* Mobile Search - Full width */}
+              <div className="px-3 py-2">
+                <NavbarSearchClient />
               </div>
 
-              <SheetFooter className="flex-col space-y-4">
-                <Separator />
-
-                <div className="flex items-center justify-between w-full">
-                  <ToggleTheme />
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 w-10"
-                    asChild
-                  >
-                    <Link
-                      href="https://github.com/nyumat/nyumatflix"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="View on GitHub"
-                    >
-                      <Github className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-
-                <div className="text-center pt-2">
-                  <p className="text-xs text-muted-foreground">
-                    © 2024 NyumatFlix. All rights reserved.
-                  </p>
-                </div>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
-        </div>
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
+                    isActiveLink(link.href)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-    </header>
+    </nav>
   );
 };

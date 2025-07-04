@@ -3,7 +3,6 @@
 import { MediaItem } from "@/utils/typings";
 import { useAnimation } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
-import Link from "next/link";
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -119,9 +118,6 @@ export function MediaDetailHero({
     showToast.info("Press X key or pause to stop trailer");
   };
 
-  // Determine media type (movie or TV show)
-  const mediaType = currentItem && "title" in currentItem ? "movie" : "tv";
-
   return (
     <div className={`relative ${isWatch ? "h-[75vh]" : "h-[82vh]"}`}>
       {/* YouTube API script */}
@@ -137,14 +133,13 @@ export function MediaDetailHero({
       />
 
       {isWatch && (
-        <Link href={mediaType === "movie" ? "/movies" : "/tvshows"}>
-          <button
-            className="absolute top-6 left-6 z-30 bg-black/50 hover:bg-black/70 transition-colors rounded-full p-2 text-white"
-            aria-label="Go back"
-          >
-            <ChevronLeft size={24} />
-          </button>
-        </Link>
+        <button
+          onClick={() => window.history.back()}
+          className="absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border"
+          aria-label="Go back"
+        >
+          <ChevronLeft size={24} />
+        </button>
       )}
 
       <HeroBackground
@@ -167,7 +162,7 @@ export function MediaDetailHero({
       />
 
       {!noSlide && !isPlayingVideo && !isWatch && media.length > 1 && (
-        <HeroPagination media={media} currentItemIndex={currentItemIndex} />
+        <HeroPagination items={media} currentIndex={currentItemIndex} />
       )}
     </div>
   );

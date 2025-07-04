@@ -39,9 +39,11 @@ const services: StreamingService[] = [
 
 export default function Sponsors() {
   return (
-    <section id="sponsors" className="max-w-[75%] mx-auto pb-24 sm:pb-32">
-      <h2 className="text-lg md:text-xl text-center mb-6 select-none pointer-events-none">
-        Curated From All Your Favorite Services
+    <section id="sponsors" className="max-w-[75%] mx-auto">
+      <h2 className="text-lg max-w-screen-sm mx-auto md:text-xl text-center select-none pointer-events-none">
+        Curated from all the <span className="line-through">expensive ass</span>{" "}
+        streaming services below, Nyumatflix is a no-cost, ad-free, and
+        open-source aggregator.
       </h2>
 
       <div className="mx-auto">

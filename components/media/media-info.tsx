@@ -1,19 +1,34 @@
 "use client";
 
-import { CountryBadge } from "@/components/ui/country-badge";
+import { CountryBadgeList } from "@/components/ui/country-badge";
 import type { Genre } from "@/utils/typings";
 import { Clock, Star } from "lucide-react";
 
+/**
+ * Props for the Info component
+ */
 interface InfoProps {
+  /** Title of the media content */
   title?: string;
-  releaseDate?: string; // Or firstAirDate for TV
+  /** Release date for movies or first air date for TV shows */
+  releaseDate?: string;
+  /** Average vote rating (0-10) */
   voteAverage?: number;
-  runtime?: number; // For movies
-  country?: import("@/components/ui/country-badge").ProductionCountry[]; // For TV
-  genres?: Genre[]; // For displaying genre badges
+  /** Runtime in minutes (for movies) */
+  runtime?: number;
+  /** Production countries (for TV shows) */
+  country?: import("@/components/ui/country-badge").ProductionCountry[];
+  /** Array of genre objects for displaying genre badges */
+  genres?: Genre[];
+  /** Type of media - used for conditional rendering */
   mediaType?: "movie" | "tv";
 }
 
+/**
+ * Info component displays media information including title, rating, runtime, and genres
+ * @param props - The component props
+ * @returns A component displaying formatted media information
+ */
 export const Info = ({
   title,
   releaseDate,
@@ -21,55 +36,65 @@ export const Info = ({
   runtime,
   country,
   genres,
-}: InfoProps) => (
-  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent text-white hidden sm:block backdrop-blur-sm">
-    <h3 className="font-medium text-sm mb-2 line-clamp-1 text-white/90">
-      {title}
-    </h3>
+  mediaType = "movie",
+}: InfoProps) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "TBA";
+    try {
+      return new Date(dateString).getFullYear().toString();
+    } catch {
+      return "TBA";
+    }
+  };
 
-    <div className="flex flex-wrap items-center gap-2">
-      {voteAverage !== undefined && voteAverage > 0 && (
-        <span className="inline-flex items-center gap-1 text-yellow-400 h-5 px-2 py-0.5 text-xs font-medium border border-white/20 bg-white/5 rounded">
-          <Star size={12} className="fill-current" />
-          {voteAverage.toFixed(1)}
-        </span>
+  const formatRuntime = (minutes?: number) => {
+    if (!minutes) return null;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return hours > 0
+      ? `${hours}h ${remainingMinutes}m`
+      : `${remainingMinutes}m`;
+  };
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/80 to-transparent p-5 text-foreground">
+      <h3 className="text-lg font-bold truncate">{title}</h3>
+      <span className="text-muted-foreground">{formatDate(releaseDate)}</span>
+
+      <div className="flex items-center gap-4 mb-3 text-base">
+        {voteAverage && voteAverage > 0 && (
+          <div className="flex items-center gap-1.5">
+            <Star className="w-5 h-5 fill-yellow-500 text-yellow-500" />
+            <span>{voteAverage.toFixed(1)}</span>
+          </div>
+        )}
+
+        {runtime && (
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-5 h-5" />
+            <span>{formatRuntime(runtime)}</span>
+          </div>
+        )}
+      </div>
+
+      {mediaType === "tv" && country && country.length > 0 && (
+        <div className="mb-3">
+          <CountryBadgeList countries={country} size="sm" maxDisplay={2} />
+        </div>
       )}
-      {releaseDate && (
-        <span className="inline-flex items-center h-5 px-2 py-0.5 text-xs border border-white/20 bg-white/5 text-white/80 rounded">
-          {releaseDate.split("-")[0]}
-        </span>
-      )}
-      {runtime !== undefined && (
-        <span className="inline-flex items-center gap-1 h-5 px-2 py-0.5 text-xs border border-white/20 bg-white/5 text-white/80 rounded">
-          <Clock size={10} />
-          {runtime}m
-        </span>
-      )}
-      {genres &&
-        genres.length > 0 &&
-        genres.slice(0, 2).map((genre) => (
-          <span
-            key={genre.id}
-            className="inline-flex items-center h-5 px-2 py-0.5 text-xs border border-white/20 bg-white/5 text-white/80 rounded"
-          >
-            {genre.name}
-          </span>
-        ))}
-      {country &&
-        country.length > 0 &&
-        country
-          .slice(0, 2)
-          .map((c) => (
-            <CountryBadge
-              key={c.iso_3166_1}
-              country={c}
-              showFlag={true}
-              showName={false}
-              size="sm"
-              variant="outline"
-              className="inline-flex items-center h-5 px-2 py-0.5 border-white/20 bg-white/5 rounded"
-            />
+
+      {genres && genres.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {genres.slice(0, 3).map((genre) => (
+            <span
+              key={genre.id}
+              className="px-2.5 py-1.5 bg-white/20 rounded-md text-sm"
+            >
+              {genre.name}
+            </span>
           ))}
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};

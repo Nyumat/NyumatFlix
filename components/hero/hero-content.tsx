@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
 import { MediaItem } from "@/utils/typings";
-import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/legacy/image";
+import { useMemo } from "react";
 
-import { HeroGradients } from "./hero-gradients";
-import { HeroGenres } from "./hero-genres";
-import { HeroDetails } from "./hero-details";
 import { HeroButtons } from "./hero-buttons";
+import { HeroDetails } from "./hero-details";
+import { HeroGenres } from "./hero-genres";
+import { HeroGradients } from "./hero-gradients";
 
 interface HeroContentProps {
   media: MediaItem;
@@ -66,11 +66,17 @@ export function HeroContent({
                   />
                 </div>
               ) : (
-                <h1 className="text-4xl font-bold text-white mb-4">{title}</h1>
+                <h1 className="text-4xl font-bold text-foreground mb-4">
+                  {title}
+                </h1>
               )}
               {isWatch && (
                 <>
-                  <p className="text-xl text-gray-300 mb-4">{media.tagline}</p>
+                  {media.tagline && (
+                    <p className="text-xl text-muted-foreground mb-4">
+                      {media.tagline}
+                    </p>
+                  )}
                   <HeroGenres genres={media.genres} />
                 </>
               )}
@@ -83,7 +89,9 @@ export function HeroContent({
                 seasons={media.number_of_seasons}
                 episodes={media.number_of_episodes}
               />
-              <p className="text-gray-200 mb-6">{media.overview}</p>
+              {media.overview && (
+                <p className="text-foreground/80 mb-6">{media.overview}</p>
+              )}
               <HeroButtons
                 isWatch={isWatch}
                 handleWatch={handleWatch}

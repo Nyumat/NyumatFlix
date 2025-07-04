@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Play, Plus } from "lucide-react";
+import Link from "next/link";
 
 interface HeroButtonsProps {
   isWatch: boolean;
@@ -20,7 +20,7 @@ export function HeroButtons({
     <div className="flex items-center space-x-4 mb-6">
       {isWatch ? (
         <button
-          className="bg-primary text-white py-3 px-6 rounded-full font-bold hover:bg-primary/80 transition flex items-center"
+          className="bg-primary text-primary-foreground py-3 px-6 rounded-full font-bold hover:bg-primary/80 transition flex items-center"
           onClick={handleWatch}
         >
           <Play className="mr-2" size={20} />
@@ -28,7 +28,7 @@ export function HeroButtons({
         </button>
       ) : (
         <Link href={`/movies/${mediaId}`}>
-          <div className="bg-primary text-white py-3 px-6 rounded-full font-bold hover:bg-primary/80 transition flex items-center">
+          <div className="bg-primary text-primary-foreground py-3 px-6 rounded-full font-bold hover:bg-primary/80 transition flex items-center">
             <Play className="mr-2" size={20} />
             Watch Now
           </div>
@@ -36,7 +36,7 @@ export function HeroButtons({
       )}
 
       <button
-        className="border border-white text-white py-3 px-6 rounded-full font-bold hover:bg-white hover:text-black transition flex items-center"
+        className="border border-foreground/20 text-foreground py-3 px-6 rounded-full font-bold hover:bg-foreground hover:text-background transition flex items-center"
         onClick={handlePlayTrailer}
       >
         <Plus className="mr-2" size={20} />

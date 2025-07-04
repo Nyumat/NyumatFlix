@@ -1,8 +1,8 @@
-import { Suspense } from "react";
-import Image from "next/legacy/image";
-import { Tv } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Season, TvShowDetails } from "@/utils/typings";
+import { Tv } from "lucide-react";
+import Image from "next/legacy/image";
+import { Suspense } from "react";
 import { SeasonEpisodes } from "./season-episodes";
 
 type SeasonTabsProps = {
@@ -16,7 +16,7 @@ export function SeasonTabs({ details, tvId, firstSeason }: SeasonTabsProps) {
 
   return (
     <section>
-      <h2 className="text-2xl font-semibold text-white mb-4">
+      <h2 className="text-2xl font-semibold text-foreground mb-4">
         Seasons & Episodes
       </h2>
       <Tabs
@@ -24,7 +24,7 @@ export function SeasonTabs({ details, tvId, firstSeason }: SeasonTabsProps) {
         className="w-full"
       >
         <div className="overflow-x-auto pb-2">
-          <TabsList className="mb-4 bg-gray-800 p-1 rounded-lg flex w-max min-w-full">
+          <TabsList className="mb-4 bg-card p-1 rounded-lg flex w-max min-w-full">
             {details.seasons
               .filter((season: Season) => season.season_number > 0)
               .map((season: Season) => (
@@ -58,25 +58,25 @@ export function SeasonTabs({ details, tvId, firstSeason }: SeasonTabsProps) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                        <Tv size={24} className="text-gray-500" />
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <Tv size={24} className="text-muted-foreground" />
                       </div>
                     )}
                   </div>
                   <div>
-                    <h3 className="text-white text-lg font-medium">
+                    <h3 className="text-foreground text-lg font-medium">
                       {season.name}
                     </h3>
-                    <div className="text-gray-400 text-sm">
+                    <div className="text-muted-foreground text-sm">
                       {season.episode_count} Episodes
                     </div>
                     {season.air_date && (
-                      <div className="text-gray-400 text-sm">
+                      <div className="text-muted-foreground text-sm">
                         {new Date(season.air_date).getFullYear()}
                       </div>
                     )}
                     {season.overview && (
-                      <p className="text-gray-300 text-sm mt-2 line-clamp-2">
+                      <p className="text-muted-foreground text-sm mt-2 line-clamp-2">
                         {season.overview}
                       </p>
                     )}
@@ -85,7 +85,7 @@ export function SeasonTabs({ details, tvId, firstSeason }: SeasonTabsProps) {
 
                 <Suspense
                   fallback={
-                    <div className="text-gray-400 py-4">
+                    <div className="text-muted-foreground py-4">
                       Loading episodes...
                     </div>
                   }
