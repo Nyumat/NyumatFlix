@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import {
   buildMaybeItemsWithCategories,
-  fetchPaginatedCategory,
   fetchAndEnrichMediaItems,
+  fetchPaginatedCategory,
 } from "@/app/actions";
 import { MediaItem } from "@/utils/typings";
+import { NextResponse } from "next/server";
 
 /**
  * Maps row IDs to their corresponding category and type information
@@ -134,7 +134,6 @@ function resetCacheIfNeeded() {
   if (Date.now() > GLOBAL_MEDIA_CACHE.resetAfter) {
     GLOBAL_MEDIA_CACHE.seenIds.clear();
     GLOBAL_MEDIA_CACHE.resetAfter = Date.now() + 3600000;
-    // console.log("Global media cache reset");
   }
 }
 
@@ -232,8 +231,6 @@ async function fetchStandardizedRow(
   // For popular and top-rated, if we still don't have enough items, keep adding more
   // without global cache restrictions to ensure these rows are always well-populated
   if (priorityRows.includes(rowId) && items.length < minCount) {
-    // console.log(`Priority row ${rowId} has only ${items.length} items, fetching more without global cache check`,);
-
     // Reset page counter and try again with no global cache restrictions
     page = 1;
     while (items.length < minCount && page <= 3) {
