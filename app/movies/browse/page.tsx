@@ -23,8 +23,8 @@ export default async function Page({
   // Legacy support for old URL parameters
   const genre = searchParams.genre || "";
   const year = searchParams.year || "";
-  const director = searchParams.director || "";
-  const studio = searchParams.studio || "";
+  // const director = searchParams.director || "";
+  // const studio = searchParams.studio || "";
 
   return (
     <div className="w-full flex flex-col">
@@ -33,10 +33,10 @@ export default async function Page({
 
       {/* Content area - using flex instead of absolute positioning */}
       <ContentContainer className="w-full flex flex-col items-center z-10">
-        {/* Title Area */}
-        <div className="text-center my-8 mt-24">
-          <h1 className="text-6xl md:text-7xl font-bold text-white tracking-tight">
-            Browse Movies
+        {/* Title Area - Center */}
+        <div className="text-center my-12 mt-44">
+          <h1 className="text-6xl md:text-7xl font-bold text-foreground tracking-tight">
+            Movies
           </h1>
         </div>
 
