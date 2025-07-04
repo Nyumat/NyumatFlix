@@ -94,6 +94,17 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
       },
     },
   },
+  "genre-horror": {
+    id: "genre-horror",
+    title: "Horror Movies",
+    type: "genre",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        with_genres: "27",
+      },
+    },
+  },
   "genre-scifi-fantasy": {
     id: "genre-scifi-fantasy",
     title: "Sci-Fi & Fantasy Movies",

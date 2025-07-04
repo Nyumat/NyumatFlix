@@ -11,10 +11,12 @@ export default async function Page({
   searchParams: {
     filter?: string;
     type?: string;
+    genre?: string;
   };
 }) {
   // Use filter parameter if provided, otherwise fall back to type for backward compatibility
-  const filterId = searchParams.filter || searchParams.type || "tv-popular";
+  const filterId = searchParams.filter || searchParams.type || "";
+  const genre = searchParams.genre || "";
 
   return (
     <div className="w-full flex flex-col">
@@ -23,10 +25,10 @@ export default async function Page({
 
       {/* Content area - using flex instead of absolute positioning */}
       <ContentContainer className="w-full flex flex-col items-center z-10">
-        {/* Title Area */}
-        <div className="text-center my-8 mt-24">
-          <h1 className="text-6xl md:text-7xl font-bold text-white tracking-tight">
-            Browse TV Shows
+        {/* Title Area - Center */}
+        <div className="text-center my-12 mt-44">
+          <h1 className="text-6xl md:text-7xl font-bold text-foreground tracking-tight">
+            TV Shows
           </h1>
         </div>
 
@@ -39,7 +41,7 @@ export default async function Page({
               </div>
             }
           >
-            <InfiniteContent filterId={filterId} />
+            <InfiniteContent filterId={filterId} genre={genre} />
           </Suspense>
         </div>
       </ContentContainer>
