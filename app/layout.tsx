@@ -2,6 +2,7 @@ import { Navbar } from "@/components/layout/navbar";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -51,12 +52,15 @@ export default function RootLayout({
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
+          forcedTheme="dark"
           disableTransitionOnChange
         >
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <FooterSection />
-          <Toaster richColors closeButton />
+          <TooltipProvider>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <FooterSection />
+            <Toaster richColors closeButton />
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

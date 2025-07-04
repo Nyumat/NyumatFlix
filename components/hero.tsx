@@ -32,7 +32,9 @@ function BackgroundImage({
   return (
     <div
       className={`${
-        isFullPage ? "fixed -mt-5 h-screen w-full" : "absolute w-full h-[40vh]"
+        isFullPage
+          ? "fixed -mt-5 h-[100dvh] w-full"
+          : "absolute w-full h-[40vh]"
       } z-0 overflow-hidden`}
     >
       <Image
@@ -64,9 +66,24 @@ function BackgroundImage({
               />
             </div>
           ) : (
-            <h1 className="text-6xl md:text-7xl font-bold text-white tracking-tight px-4">
-              {title}
-            </h1>
+            <div className="text-center my-12 mt-44">
+              {logo ? (
+                <div className="flex justify-center items-center">
+                  <Image
+                    src={logo}
+                    alt={title}
+                    width={400}
+                    height={200}
+                    className="max-w-full h-auto"
+                    priority
+                  />
+                </div>
+              ) : (
+                <h1 className="text-6xl md:text-7xl font-bold text-foreground tracking-tight px-4">
+                  {title}
+                </h1>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -78,7 +95,12 @@ export function StaticHero({ imageUrl, title, route, logo }: HeroProps) {
   const pathname = usePathname();
   const isSearchPage = pathname === "/search" || !!route;
   const isBrowsePage = pathname.includes("/browse");
-  const isFullPageBackground = isSearchPage || isBrowsePage;
+  const isLegalPage =
+    pathname.includes("/terms") ||
+    pathname.includes("/privacy") ||
+    pathname.includes("/cookie-policy") ||
+    pathname.includes("/dmca");
+  const isFullPageBackground = isSearchPage || isBrowsePage || isLegalPage;
 
   return (
     <>
@@ -88,7 +110,7 @@ export function StaticHero({ imageUrl, title, route, logo }: HeroProps) {
         title={route || title}
         logo={logo}
       />
-      <div className="absolute inset-0 bg-black opacity-70 -z-10" />
+      <div className="absolute inset-0 bg-black/50 dark:bg-black/70 opacity-70 -z-10" />
     </>
   );
 }
@@ -157,7 +179,7 @@ function CarouselDetails({ current }: { current: MediaItem }) {
           />
         </div>
       ) : (
-        <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">
+        <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-2">
           {titleText}
         </h1>
       )}
