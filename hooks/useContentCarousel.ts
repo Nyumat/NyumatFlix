@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/utils";
 import { MediaItem } from "@/utils/typings";
 import useEmblaCarousel from "embla-carousel-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -86,7 +87,7 @@ export function useContentCarousel({
         });
       }
     } catch (error) {
-      console.error("Error loading more items:", error);
+      logger.error("Error loading more items", error);
       if (isMountedRef.current) {
         clearLoadingTimeout();
         setLoading(false);
