@@ -1,10 +1,9 @@
-import { ContentGrid } from "@/components/content/content-grid";
-import { SearchResults } from "@/components/search";
 import { Movie, TvShow } from "@/utils/typings";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-// Mock fetch globally
+import SearchResults, { ContentGrid } from "@/components/search/search-results";
+
 interface MockResponse {
   ok: boolean;
   json: () => Promise<unknown>;
@@ -20,12 +19,6 @@ const mockFetchResponse = (data: unknown): MockResponse => {
 const originalFetch = global.fetch;
 beforeEach(() => {
   global.fetch = vi.fn((url) => {
-    if (url.toString().includes("/api/genres")) {
-      return Promise.resolve(
-        mockFetchResponse({ 28: "Action", 12: "Adventure", 16: "Animation" }),
-      );
-    }
-
     if (url.toString().includes("/api/search")) {
       return Promise.resolve(
         mockFetchResponse({
@@ -36,7 +29,18 @@ beforeEach(() => {
       );
     }
 
-    // Mock movie details API
+    if (url.toString().includes("/api/genres")) {
+      return Promise.resolve(
+        mockFetchResponse({
+          genres: [
+            { id: 28, name: "Action" },
+            { id: 12, name: "Adventure" },
+            { id: 16, name: "Animation" },
+          ],
+        }),
+      );
+    }
+
     if (
       url.toString().includes("/api/movies/") &&
       url.toString().includes("/recommendations")
@@ -104,13 +108,7 @@ afterEach(() => {
   global.fetch = originalFetch;
 });
 
-const mockGenres = {
-  28: "Action",
-  12: "Adventure",
-  16: "Animation",
-};
-
-const mockMovie: Movie = {
+const mockMovie = {
   id: 123,
   title: "Test Movie",
   media_type: "movie",
@@ -120,9 +118,7 @@ const mockMovie: Movie = {
   release_date: "2023-01-01",
   backdrop_path: "/backdrop.jpg",
   name: "",
-  origin_country: [],
   original_language: "en",
-  original_name: "",
   overview: "A test movie description",
   popularity: 100,
   vote_count: 500,
@@ -132,7 +128,7 @@ const mockMovie: Movie = {
   first_air_date: "",
 };
 
-const mockTvShow: TvShow = {
+const mockTvShow = {
   id: 456,
   name: "Test Show",
   media_type: "tv",
@@ -151,17 +147,19 @@ const mockTvShow: TvShow = {
 
 const mockItems: (Movie | TvShow)[] = [mockMovie, mockTvShow];
 
-vi.mock("next/legacy/image", () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => (
-    <img src={src} alt={alt} />
-  ),
-}));
+const mockGenres = { 28: "Action", 12: "Adventure", 16: "Animation" };
 
 describe("ContentGrid Component", () => {
   test("renders the title correctly", async () => {
     await act(async () => {
       render(
-        <ContentGrid title="Test Results" items={mockItems} type="movie" />,
+        <ContentGrid
+          title="Test Results"
+          items={mockItems}
+          currentPage={1}
+          totalPages={1}
+          genres={mockGenres}
+        />,
       );
     });
 
@@ -171,49 +169,76 @@ describe("ContentGrid Component", () => {
   test("renders the correct number of items", async () => {
     await act(async () => {
       render(
-        <ContentGrid title="Test Results" items={mockItems} type="movie" />,
+        <ContentGrid
+          title="Test Results"
+          items={mockItems}
+          currentPage={1}
+          totalPages={1}
+          genres={mockGenres}
+        />,
       );
     });
 
-    // Test that the main content (titles) renders correctly
     await waitFor(() => {
       expect(screen.getByText("Test Movie")).toBeInTheDocument();
       expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
 
-    // Test that we have the correct number of items rendered
-    expect(screen.getAllByRole("img")).toHaveLength(2); // Each MediaCard has a poster image
+    expect(screen.getAllByRole("img")).toHaveLength(2);
   });
 
-  test("renders without title when title is not provided", async () => {
+  test("renders pagination info when there are multiple pages", async () => {
     await act(async () => {
-      render(<ContentGrid items={mockItems} type="movie" />);
+      render(
+        <ContentGrid
+          title="Test Results"
+          items={mockItems}
+          currentPage={1}
+          totalPages={3}
+          genres={mockGenres}
+        />,
+      );
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Test Movie")).toBeInTheDocument();
-      expect(screen.getByText("Test Show")).toBeInTheDocument();
+      expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    });
+  });
+
+  test("hides pagination info when there is only one page", async () => {
+    await act(async () => {
+      render(
+        <ContentGrid
+          title="Test Results"
+          items={mockItems}
+          currentPage={1}
+          totalPages={1}
+          genres={mockGenres}
+        />,
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Page 1 of 1")).not.toBeInTheDocument();
     });
   });
 });
 
 describe("SearchResults Component", () => {
-  test("renders search results after loading", async () => {
+  test("renders search results with fetched data", async () => {
     await act(async () => {
       render(<SearchResults query="test" />);
     });
 
-    // Then it shows the results
+    await waitFor(() => {
+      expect(screen.getByText("Test Movie")).toBeInTheDocument();
+      expect(screen.getByText("Test Show")).toBeInTheDocument();
+    });
+
     await waitFor(() => {
       expect(
         screen.getByText(/Search Results for "test"/i),
       ).toBeInTheDocument();
-    });
-
-    // Check that content was loaded
-    await waitFor(() => {
-      expect(screen.getByText("Test Movie")).toBeInTheDocument();
-      expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
   });
 
@@ -222,109 +247,36 @@ describe("SearchResults Component", () => {
       render(<SearchResults query="" />);
     });
 
-    // Empty query should render nothing
-    await waitFor(() => {
-      expect(screen.queryByText(/search results for/i)).not.toBeInTheDocument();
-    });
-  });
-
-  test("renders no results message when search returns empty", async () => {
-    // Override the mock for this specific test - need to handle both API calls
-    global.fetch = vi.fn().mockImplementation((url) => {
-      // For genres API call
-      if (url.toString().includes("/api/genres")) {
-        return Promise.resolve(
-          mockFetchResponse({
-            28: "Action",
-            12: "Adventure",
-            16: "Animation",
-          }),
-        );
-      }
-
-      // For search API call
-      if (url.toString().includes("/api/search")) {
-        return Promise.resolve(
-          mockFetchResponse({ results: [], total_results: 0, total_pages: 0 }),
-        );
-      }
-
-      // Mock movie details API
-      if (url.toString().includes("/api/movies/")) {
-        return Promise.resolve(
-          mockFetchResponse({
-            id: 123,
-            title: "Test Movie",
-            runtime: 120,
-            genres: [
-              { id: 28, name: "Action" },
-              { id: 12, name: "Adventure" },
-            ],
-          }),
-        );
-      }
-
-      // Mock TV details API
-      if (url.toString().includes("/api/tv/")) {
-        return Promise.resolve(
-          mockFetchResponse({
-            id: 456,
-            name: "Test Show",
-            origin_country: ["US"],
-            genres: [{ id: 16, name: "Animation" }],
-          }),
-        );
-      }
-
-      return Promise.resolve(mockFetchResponse({}));
-    }) as unknown as typeof global.fetch;
-
-    await act(async () => {
-      render(<SearchResults query="nonexistent" />);
-    });
-
-    // Skip checking for loading state as it may resolve too quickly in tests
-
     await waitFor(() => {
       expect(
-        screen.getByText(/No results found for "nonexistent"/i),
+        screen.getByText("Please enter a search query."),
       ).toBeInTheDocument();
     });
   });
 
-  test("filters content by genre", async () => {
-    // Since we can't easily test the MultiSelect component in isolation,
-    // we'll test that the search results with different genres render properly
+  test("renders empty state for whitespace-only query", async () => {
+    await act(async () => {
+      render(<SearchResults query="   " />);
+    });
 
-    // First, create a setup with mixed genre content
-    const mockAction = {
-      ...mockMovie,
-      id: 201,
-      title: "Action Movie",
-      genre_ids: [28],
-    };
-    const mockAnimation = {
-      ...mockTvShow,
-      id: 202,
-      name: "Animation Show",
-      genre_ids: [16],
-    };
-    const mockAdventure = {
-      ...mockMovie,
-      id: 203,
-      title: "Adventure Movie",
-      genre_ids: [12],
-    };
+    await waitFor(() => {
+      expect(
+        screen.getByText("Please enter a search query."),
+      ).toBeInTheDocument();
+    });
+  });
 
-    // Create search results with multiple genres
-    const mixedGenreResults = {
-      results: [mockAction, mockAnimation, mockAdventure],
-      total_results: 3,
-      total_pages: 1,
-    };
-
-    // Override fetch for this specific test
-    global.fetch = vi.fn().mockImplementation((url) => {
+  test("renders no results message when search returns empty", async () => {
+    global.fetch = vi.fn((url) => {
+      if (url.toString().includes("/api/search")) {
+        return Promise.resolve(
+          mockFetchResponse({
+            results: [],
+            total_results: 0,
+            total_pages: 0,
+          }),
+        );
+      }
       if (url.toString().includes("/api/genres")) {
         return Promise.resolve(
           mockFetchResponse({
@@ -336,28 +288,91 @@ describe("SearchResults Component", () => {
           }),
         );
       }
-
-      if (url.toString().includes("/api/search")) {
-        return Promise.resolve(mockFetchResponse(mixedGenreResults));
-      }
-
-      // Return empty data for other API calls to simplify the test
-      return Promise.resolve(mockFetchResponse({ results: [] }));
+      return Promise.resolve(mockFetchResponse({}));
     }) as unknown as typeof global.fetch;
 
-    // Just test that the component renders with the filter UI
+    await act(async () => {
+      render(<SearchResults query="nonexistent" />);
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/No results found for "nonexistent"/i),
+      ).toBeInTheDocument();
+    });
+  });
+
+  test("handles pagination correctly", async () => {
+    global.fetch = vi.fn((url) => {
+      if (url.toString().includes("/api/search")) {
+        return Promise.resolve(
+          mockFetchResponse({
+            results: [mockMovie, mockTvShow],
+            total_results: 60,
+            total_pages: 3,
+          }),
+        );
+      }
+      if (url.toString().includes("/api/genres")) {
+        return Promise.resolve(
+          mockFetchResponse({
+            genres: [
+              { id: 28, name: "Action" },
+              { id: 12, name: "Adventure" },
+              { id: 16, name: "Animation" },
+            ],
+          }),
+        );
+      }
+      return Promise.resolve(mockFetchResponse({}));
+    }) as unknown as typeof global.fetch;
+
     await act(async () => {
       render(<SearchResults query="test" />);
     });
 
-    // Verify all content is displayed
+    // Check initial state
     await waitFor(() => {
-      expect(screen.getByText("Action Movie")).toBeInTheDocument();
-      expect(screen.getByText("Animation Show")).toBeInTheDocument();
-      expect(screen.getByText("Adventure Movie")).toBeInTheDocument();
+      expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
     });
 
-    // Skip checking for the filter text which may not be visible due to conditional rendering
-    // Instead, just confirm the test passed with the content rendering properly
+    // Check that pagination controls are rendered
+    expect(screen.getByText("Previous")).toBeInTheDocument();
+    expect(screen.getByText("Next")).toBeInTheDocument();
+  });
+
+  test("displays genre filter when genres are available", async () => {
+    // Mock genres API
+    global.fetch = vi.fn((url) => {
+      if (url.toString().includes("/api/search")) {
+        return Promise.resolve(
+          mockFetchResponse({
+            results: [mockMovie, mockTvShow],
+            total_results: 2,
+            total_pages: 1,
+          }),
+        );
+      }
+      if (url.toString().includes("/api/genres")) {
+        return Promise.resolve(
+          mockFetchResponse({
+            genres: [
+              { id: 28, name: "Action" },
+              { id: 12, name: "Adventure" },
+              { id: 16, name: "Animation" },
+            ],
+          }),
+        );
+      }
+      return Promise.resolve(mockFetchResponse({}));
+    }) as unknown as typeof global.fetch;
+
+    await act(async () => {
+      render(<SearchResults query="test" />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Filter by Genre")).toBeInTheDocument();
+    });
   });
 });
