@@ -1,42 +1,56 @@
-import { MediaCard } from "@/components/media";
-import { Card, CardContent } from "@/components/ui/card";
+import { MediaCard } from "@/components/media/media-card";
 import type { MediaItem } from "@/utils/typings";
-import { Suspense } from "react";
 
-const SuspenseSkeleton = () => (
-  <Card className="overflow-hidden">
-    <CardContent className="p-0 relative">
-      <div className="aspect-[2/3] bg-gray-900 animate-pulse" />
-    </CardContent>
-  </Card>
-);
-
-const Fallback = Array.from({ length: 16 }).map((_, i) => (
-  <SuspenseSkeleton key={i} />
-));
-
-export function ContentGrid({
-  items,
-  title,
-  type,
-}: {
-  items: MediaItem[];
+/**
+ * Props for the ContentGrid component
+ */
+interface ContentGridProps {
+  /** Optional title to display above the grid */
   title?: string;
+  /** Array of media items to display in the grid */
+  items: MediaItem[];
+  /** Media type for all items in the grid */
   type: "movie" | "tv";
-}) {
-  if (items.length === 0) {
-    return <div>No content found for {type}</div>;
+}
+
+/**
+ * ContentGrid component displays media items in a responsive grid layout
+ * Used for showcasing collections of movies or TV shows with consistent spacing
+ * @param props - The component props
+ * @returns A responsive grid of media cards with optional title
+ */
+export function ContentGrid({ title, items, type }: ContentGridProps) {
+  if (!items.length) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">No items to display</p>
+      </div>
+    );
   }
 
-  const mediaCards = items.map((item) => (
-    <MediaCard key={item.id} item={item} type={type} />
-  ));
+  // Map our items to the format expected by MediaCard
+  const processedItems = items.map((item) => ({
+    ...item,
+    media_type: type, // Ensure media_type is correctly passed
+  }));
 
   return (
-    <div className="p-4">
-      {title && <h2 className="text-2xl font-bold mb-4">{title}</h2>}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
-        <Suspense fallback={Fallback}>{mediaCards}</Suspense>
+    <div className="space-y-6">
+      {title && <h2 className="text-2xl font-bold text-foreground">{title}</h2>}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        {processedItems.map((item: any, i: number) => {
+          const itemType = item.media_type;
+
+          return (
+            <div
+              key={`${item.id}-${i}`}
+              className="rounded-lg transition-all duration-300 transform hover:scale-105"
+            >
+              <MediaCard item={item} type={itemType} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

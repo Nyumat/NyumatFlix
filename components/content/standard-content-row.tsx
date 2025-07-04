@@ -9,6 +9,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { EnhancedLink } from "@/components/ui/enhanced-link";
+import { getRating, useContentRatings } from "@/hooks/useContentRatings";
 import useMedia from "@/hooks/useMedia";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { useEffect, useRef, useState } from "react";
@@ -45,6 +46,13 @@ export function StandardContentRow({
   const [api, setApi] = useState<CarouselApi>();
   const lastScrollProgressRef = useRef(0);
 
+  // Fetch actual ratings for the items
+  const { ratings: fetchedRatings, loading: ratingsLoading } =
+    useContentRatings(items);
+
+  // Combine passed ratings with fetched ratings
+  const combinedRatings = { ...contentRating, ...fetchedRatings };
+
   useEffect(() => {
     if (
       initialItems.length > 0 &&
@@ -79,7 +87,7 @@ export function StandardContentRow({
   }, [api, hasMoreItems, loading]);
 
   const getContentRating = (item: MediaItem & ItemWithId) => {
-    return contentRating[item.id] || (isMovie(item) ? "PG" : "TV-14");
+    return getRating(item, combinedRatings);
   };
 
   const loadMoreItems = async () => {
