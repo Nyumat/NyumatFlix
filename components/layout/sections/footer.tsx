@@ -41,12 +41,12 @@ export const FooterSection = () => {
             >
               <Link
                 href="https://github.com/Nyumat/NyumatFlix"
-                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-[#24292e] hover:bg-[#1c2128] border border-[#30363d] transition-all duration-200 group"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-muted hover:bg-accent border border-border transition-all duration-200 group"
                 aria-label="Visit our GitHub repository"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <GithubIcon className="w-5 h-5 fill-white group-hover:scale-110 transition-transform duration-200" />
+                <GithubIcon className="w-5 h-5 fill-foreground group-hover:scale-110 transition-transform duration-200" />
               </Link>
               <Link
                 href="#"
@@ -59,12 +59,12 @@ export const FooterSection = () => {
               </Link>
               <Link
                 href="#"
-                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-black hover:bg-gray-800 border border-gray-700 transition-all duration-200 group"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 border border-gray-700 dark:border-gray-300 transition-all duration-200 group"
                 aria-label="Follow us on X (Twitter)"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <XIcon className="w-4 h-4 fill-white group-hover:scale-110 transition-transform duration-200" />
+                <XIcon className="w-4 h-4 fill-white dark:fill-black group-hover:scale-110 transition-transform duration-200" />
               </Link>
             </div>
           </div>
@@ -80,7 +80,7 @@ export const FooterSection = () => {
             <ul className="space-y-3" role="list">
               <li>
                 <Link
-                  href="/"
+                  href="/home"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                 >
                   Home
@@ -188,7 +188,7 @@ export const FooterSection = () => {
               </li>
               <li>
                 <Link
-                  href="#"
+                  href="/cookie-policy"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                 >
                   Cookie Policy
@@ -196,7 +196,7 @@ export const FooterSection = () => {
               </li>
               <li>
                 <Link
-                  href="#"
+                  href="/dmca"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                 >
                   DMCA
