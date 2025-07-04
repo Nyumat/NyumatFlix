@@ -1,4 +1,5 @@
 import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
+import { logger } from "@/lib/utils";
 import {
   Logo,
   LogoSchema,
@@ -66,7 +67,7 @@ export async function buildItemsWithCategories<
     } else {
       // If validation fails, we'll still return the item as is
       // but with proper type assertion to MediaItem
-      console.warn(
+      logger.warn(
         `Validation failed for item ${item.id}:`,
         result.error.message,
       );
@@ -342,7 +343,7 @@ export async function fetchTMDBData<T = MediaItem>(
   const result = TmdbResponseSchema.safeParse(rawData);
 
   if (!result.success) {
-    console.warn("TMDB response failed validation:", result.error.message);
+    logger.warn("TMDB response failed validation:", result.error.message);
     // Fall back to raw data to maintain backward compatibility
     return {
       ...rawData,
@@ -396,7 +397,7 @@ export async function determineMediaType(id: string | number) {
     // If neither worked, return unknown
     return "unknown";
   } catch (error) {
-    console.error("Error determining media type:", error);
+    logger.error("Error determining media type:", error);
     return "unknown";
   }
 }
@@ -423,7 +424,7 @@ export async function fetchMediaDetails(id: string | number) {
     }
     return null;
   } catch (error) {
-    console.error("Error fetching media details:", error);
+    logger.error("Error fetching media details:", error);
     return null;
   }
 }
@@ -499,7 +500,7 @@ export async function fetchMovieCertification(
     const result = ReleaseDatesResponseSchema.safeParse(response);
 
     if (!result.success) {
-      console.error("Invalid release dates response:", result.error);
+      logger.error("Invalid release dates response:", result.error);
       return null;
     }
 
@@ -543,9 +544,99 @@ export async function fetchMovieCertification(
 
     return null;
   } catch (error) {
-    console.error("Error fetching movie certification:", error);
+    logger.error("Error fetching movie certification:", error);
     return null;
   }
+}
+
+// New function to fetch TV show certification
+export async function fetchTVShowCertification(
+  tvShowId: number,
+): Promise<string | null> {
+  try {
+    const response = await fetchTMDBData(`/tv/${tvShowId}/content_ratings`);
+
+    if (!response || !response.results) {
+      return null;
+    }
+
+    // Look for US content rating first
+    const usRating = response.results.find(
+      (rating: { iso_3166_1: string; rating: string }) =>
+        rating.iso_3166_1 === "US",
+    );
+
+    if (usRating && usRating.rating) {
+      return usRating.rating;
+    }
+
+    // If no US rating, look for any available rating
+    for (const rating of response.results) {
+      if (rating.rating) {
+        return rating.rating;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    logger.error("Error fetching TV show certification:", error);
+    return null;
+  }
+}
+
+// Utility function to fetch ratings for multiple media items
+export async function fetchContentRatings(
+  items: MediaItem[],
+): Promise<Record<number, string | null>> {
+  const ratings: Record<number, string | null> = {};
+  const processedIds = new Set<number>();
+
+  // Create promises for fetching ratings
+  const ratingPromises = items.map(async (item: MediaItem) => {
+    // Ensure item has an id property
+    if (!item.id || processedIds.has(item.id)) return;
+
+    processedIds.add(item.id);
+
+    try {
+      let rating: string | null = null;
+
+      // Use Zod to safely parse and determine type
+      const movieResult = MovieSchema.safeParse(item);
+      const tvShowResult = TvShowSchema.safeParse(item);
+
+      if (movieResult.success) {
+        rating = await fetchMovieCertification(movieResult.data.id);
+      } else if (tvShowResult.success) {
+        rating = await fetchTVShowCertification(tvShowResult.data.id);
+      }
+
+      if (rating) {
+        ratings[item.id] = rating;
+      }
+    } catch (error) {
+      logger.error(`Error fetching rating for item ${item.id}:`, error);
+    }
+  });
+
+  // Wait for all rating fetches to complete
+  await Promise.all(ratingPromises);
+
+  return ratings;
+}
+
+// Helper function to get fallback rating
+export function getFallbackRating(item: MediaItem): string {
+  // Use Zod to safely parse and determine type
+  const movieResult = MovieSchema.safeParse(item);
+  const tvShowResult = TvShowSchema.safeParse(item);
+
+  if (movieResult.success) {
+    return "PG";
+  } else if (tvShowResult.success) {
+    return "TV-14";
+  }
+  return "NR";
 }
 
 // Functions to fetch paginated content for each category
@@ -562,7 +653,7 @@ export async function fetchPaginatedMovies(
     );
     return data.results || [];
   } catch (error) {
-    console.error(`Error fetching paginated movies from ${endpoint}:`, error);
+    logger.error(`Error fetching paginated movies from ${endpoint}:`, error);
     return [];
   }
 }
@@ -1321,14 +1412,14 @@ export async function fetchPaginatedCategory(
         page,
       );
     } else {
-      console.warn(`Unknown category: ${category}, type: ${type}`);
+      logger.warn(`Unknown category: ${category}, type: ${type}`);
       return [];
     }
 
     // console.log(`Fetched ${results.length} results for category: ${category}, type: ${type}, page: ${page}`,);
     return results;
   } catch (error) {
-    console.error(`Error fetching paginated category ${category}:`, error);
+    logger.error(`Error fetching paginated category ${category}:`, error);
     return [];
   }
 }
@@ -1395,7 +1486,7 @@ export async function fetchAndEnrichMediaItems<
         // If validation fails, return with type assertion
         return enrichedItem as T;
       } catch (error) {
-        console.error(
+        logger.error(
           `Error fetching details for ${type} ID ${item.id}:`,
           error,
         );
@@ -1435,7 +1526,7 @@ export async function fetchMoviesByCompany(
       total_results: data.total_results,
     };
   } catch (error) {
-    console.error(`Error fetching movies for company ${companyId}:`, error);
+    logger.error(`Error fetching movies for company ${companyId}:`, error);
     return { page, results: [], total_pages: 0, total_results: 0 };
   }
 }
@@ -1493,7 +1584,93 @@ export async function fetchMoviesByPerson(
       total_results: data.total_results,
     };
   } catch (error) {
-    console.error(`Error fetching movies for person ${personId}:`, error);
+    logger.error(`Error fetching movies for person ${personId}:`, error);
     return { page, results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+export async function getPaginatedContentByCategory(
+  category: MovieCategory | TVShowCategory,
+  type: "movie" | "tv",
+  page: number = 1,
+): Promise<{ results: MediaItem[]; totalPages: number; totalResults: number }> {
+  try {
+    const endpoint = await getCategoryEndpoint(category, type, page);
+    if (!endpoint) {
+      logger.warn(`Unknown category: ${category}, type: ${type}`);
+      return { results: [], totalPages: 0, totalResults: 0 };
+    }
+
+    const results = await fetchPaginatedData<MediaItem>(endpoint);
+
+    return {
+      results: results.results || [],
+      totalPages: results.total_pages || 0,
+      totalResults: results.total_results || 0,
+    };
+  } catch (error) {
+    logger.error(`Error fetching paginated category ${category}`, error);
+    return { results: [], totalPages: 0, totalResults: 0 };
+  }
+}
+
+/**
+ * Maps category and type to TMDB API endpoint
+ */
+async function getCategoryEndpoint(
+  category: string,
+  type: "movie" | "tv",
+  page: number = 1,
+): Promise<string | null> {
+  const baseParams = {
+    language: "en-US",
+    include_adult: "false",
+    page: page.toString(),
+  };
+
+  // Add region param for movies only
+  const params =
+    type === "movie" ? { ...baseParams, region: "US" } : baseParams;
+  const paramString = new URLSearchParams(params).toString();
+
+  // Map categories to endpoints - use the constant already defined
+  if (category === "popular") {
+    return `${TMDB_BASE_URL}/${type}/popular?${paramString}`;
+  } else if (category === "top_rated") {
+    return `${TMDB_BASE_URL}/${type}/top_rated?${paramString}`;
+  } else if (category === "upcoming" && type === "movie") {
+    return `${TMDB_BASE_URL}/movie/upcoming?${paramString}`;
+  } else if (category === "now_playing" && type === "movie") {
+    return `${TMDB_BASE_URL}/movie/now_playing?${paramString}`;
+  } else if (category === "on_the_air" && type === "tv") {
+    return `${TMDB_BASE_URL}/tv/on_the_air?${paramString}`;
+  }
+
+  // For other categories, we'll use the existing fetchPaginatedCategory function
+  return null;
+}
+
+/**
+ * Generic function to fetch paginated data from a URL
+ */
+async function fetchPaginatedData<T>(url: string): Promise<TmdbResponse<T>> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch data: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data as TmdbResponse<T>;
+  } catch (error) {
+    logger.error(`Error fetching paginated data from ${url}:`, error);
+    return {
+      page: 1,
+      results: [],
+      total_pages: 0,
+      total_results: 0,
+    } as TmdbResponse<T>;
   }
 }
