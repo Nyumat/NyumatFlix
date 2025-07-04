@@ -1,8 +1,9 @@
+import { getGenreNames } from "@/components/content/genre-helpers";
 import {
-  TmdbResponse,
   Movie,
-  TvShow,
+  TmdbResponse,
   TmdbResponseSchema,
+  TvShow,
 } from "@/utils/typings";
 import { NextResponse } from "next/server";
 
@@ -12,6 +13,9 @@ type PreviewResult = {
   name?: string;
   poster_path: string | null;
   media_type: string;
+  release_date?: string;
+  first_air_date?: string;
+  genre_names?: string[];
 };
 
 export async function GET(request: Request) {
@@ -64,13 +68,22 @@ export async function GET(request: Request) {
             item.poster_path &&
             (item.media_type === "movie" || item.media_type === "tv"),
         )
-        .slice(0, 5)
+        .slice(0, 8)
         .map((item) => ({
           id: item.id,
           title: "title" in item ? item.title : undefined,
           name: "name" in item ? item.name : undefined,
           poster_path: item.poster_path,
           media_type: item.media_type,
+          release_date: "release_date" in item ? item.release_date : undefined,
+          first_air_date:
+            "first_air_date" in item ? item.first_air_date : undefined,
+          genre_names: item.genre_ids
+            ? getGenreNames(
+                item.genre_ids,
+                item.media_type === "tv" ? "tv" : "movie",
+              )
+            : undefined,
         })) || [];
 
     return NextResponse.json({ results: filteredResults });
