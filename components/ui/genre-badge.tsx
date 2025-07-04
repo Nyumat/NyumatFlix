@@ -52,3 +52,16 @@ export function GenreBadge({
     </Badge>
   );
 }
+
+// Reusable genre badge with primary styling for all usages
+export function PrimaryGenreBadge(props: GenreBadgeProps) {
+  return (
+    <GenreBadge
+      {...props}
+      className={cn(
+        "bg-primary/20 text-primary border-primary focus:ring-0 focus:ring-offset-0 active:ring-0 active:ring-offset-0",
+        props.className,
+      )}
+    />
+  );
+}

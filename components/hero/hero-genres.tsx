@@ -1,6 +1,6 @@
 "use client";
 
-import { GenreBadge } from "@/components/ui/genre-badge";
+import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
 
 interface HeroGenresProps {
   genres?: { id: number; name: string }[];
@@ -15,7 +15,7 @@ export function HeroGenres({ genres, mediaType = "movie" }: HeroGenresProps) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
       {genres.map((genre) => (
-        <GenreBadge
+        <PrimaryGenreBadge
           key={genre.id}
           genreId={genre.id}
           genreName={genre.name}

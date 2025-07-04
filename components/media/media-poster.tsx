@@ -2,26 +2,41 @@
 
 import Image from "next/legacy/image";
 
+/**
+ * Props for the Poster component
+ */
 interface PosterProps {
+  /** Path to the poster image from TMDB */
   posterPath?: string;
+  /** Title of the media for alt text */
   title?: string;
+  /** Alternative text for accessibility */
   altText?: string;
 }
 
-export const Poster = ({ posterPath, title, altText }: PosterProps) =>
-  posterPath ? (
-    <Image
-      src={`https://image.tmdb.org/t/p/w500${posterPath}`}
-      alt={altText || title || "Media Poster"}
-      width={500}
-      height={750}
-      className="w-full h-full object-cover"
-    />
-  ) : (
-    <div className="w-full h-full bg-gray-200 flex items-center justify-center aspect-[2/3] text-gray-500 text-sm">
-      <div className="text-center p-4">
-        <p className="font-medium">No Image</p>
-        {title && <p className="mt-2">{title}</p>}
-      </div>
+/**
+ * Poster component displays media poster images with fallback handling
+ * @param props - The component props
+ * @returns An optimized image component for media posters
+ */
+export const Poster = ({ posterPath, title, altText }: PosterProps) => {
+  const imageUrl = posterPath
+    ? `https://image.tmdb.org/t/p/w780${posterPath}`
+    : "/placeholder-poster.jpg";
+
+  const alt = altText || title || "Media poster";
+
+  return (
+    <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg">
+      <Image
+        src={imageUrl}
+        alt={alt}
+        layout="fill"
+        objectFit="cover"
+        className="transition-transform duration-300 group-hover:scale-105"
+        placeholder="blur"
+        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+      />
     </div>
   );
+};

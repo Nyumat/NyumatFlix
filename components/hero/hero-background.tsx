@@ -1,21 +1,38 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { AnimatePresence, AnimationControls, motion } from "framer-motion";
+import { logger } from "@/lib/utils";
 import { MediaItem } from "@/utils/typings";
+import { AnimatePresence, AnimationControls, motion } from "framer-motion";
 import { X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { YouTubePlayer } from "./youtube-types";
 
+/**
+ * Props for the HeroBackground component
+ */
 interface HeroBackgroundProps {
+  /** Media item to display in the background */
   media: MediaItem;
+  /** Whether a video is currently playing */
   isPlayingVideo: boolean;
+  /** Whether a trailer is currently playing */
   isPlayingTrailer: boolean;
+  /** Animation controls for the background */
   controls: AnimationControls;
+  /** Callback function when trailer ends */
   onTrailerEnded: () => void;
+  /** YouTube player instance */
   youtubePlayer: YouTubePlayer;
+  /** Setter for YouTube player instance */
   setYoutubePlayer: React.Dispatch<React.SetStateAction<YouTubePlayer>>;
 }
 
+/**
+ * HeroBackground component manages the background display for hero sections
+ * Handles background images, video playback, and YouTube trailer integration
+ * @param props - The component props
+ * @returns A dynamic background component with video and image support
+ */
 export function HeroBackground({
   media,
   isPlayingVideo,
@@ -113,7 +130,7 @@ export function HeroBackground({
                         onTrailerEnded();
                       }
                     } catch {
-                      // no-op
+                      // Silently handle player state errors
                     }
                   }, 1000);
                   return;
@@ -129,7 +146,7 @@ export function HeroBackground({
           });
           setYoutubePlayer(player);
         } catch (error) {
-          console.error("Error initializing YouTube player:", error);
+          logger.error("Error initializing YouTube player", error);
         }
       }
     }
@@ -177,8 +194,8 @@ export function HeroBackground({
                   }
                   onTrailerEnded();
                 }}
-                className="absolute top-6 left-6 z-50 bg-black/50 hover:bg-black/70 transition-colors rounded-full p-2 text-white"
-                aria-label="Close trailer"
+                className="absolute top-6 left-6 z-50 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border"
+                aria-label="Stop trailer"
               >
                 <X size={24} />
               </button>
@@ -195,7 +212,7 @@ export function HeroBackground({
             >
               <button
                 onClick={() => onTrailerEnded()}
-                className="absolute top-6 left-6 z-50 bg-black/50 hover:bg-black/70 transition-colors rounded-full p-2 text-white"
+                className="absolute top-6 left-6 z-50 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border"
                 aria-label="Close video"
               >
                 <X size={24} />

@@ -1,9 +1,9 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { GenreBadge } from "@/components/ui/genre-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Clock, DollarSign, PlayCircle, Star } from "lucide-react";
@@ -36,7 +36,7 @@ export function MovieDetailView({ details }) {
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
             {details.genres.map((genre) => (
-              <GenreBadge
+              <PrimaryGenreBadge
                 key={genre.id}
                 genreId={genre.id}
                 genreName={genre.name}

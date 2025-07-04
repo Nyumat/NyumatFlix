@@ -47,8 +47,7 @@ export function StandardContentRow({
   const lastScrollProgressRef = useRef(0);
 
   // Fetch actual ratings for the items
-  const { ratings: fetchedRatings, loading: ratingsLoading } =
-    useContentRatings(items);
+  const { ratings: fetchedRatings } = useContentRatings(items);
 
   // Combine passed ratings with fetched ratings
   const combinedRatings = { ...contentRating, ...fetchedRatings };
