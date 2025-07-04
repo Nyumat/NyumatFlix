@@ -49,7 +49,7 @@ export default async function BrowseGenrePage({
       <StaticHero imageUrl={backdropImage} title={genreName} route="" />
       <ContentContainer className="relative z-10" topSpacing={false}>
         <div className="pt-32 md:pt-48 pb-8 w-full flex flex-col items-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-10 text-center">
+          <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-10 text-center">
             {genreName}
           </h1>
           <div className="w-full max-w-7xl">
