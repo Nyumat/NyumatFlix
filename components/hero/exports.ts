@@ -7,6 +7,4 @@ export { HeroGradients } from "./hero-gradients";
 export { HeroPagination } from "./hero-pagination";
 export { MediaDetailHero as HeroSection } from "./index";
 export { showToast } from "./toast-utils";
-
-// Types
 export type { YouTubePlayer } from "./youtube-types";

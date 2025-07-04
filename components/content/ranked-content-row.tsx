@@ -10,6 +10,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { EnhancedLink } from "@/components/ui/enhanced-link";
+import { getRating, useContentRatings } from "@/hooks/useContentRatings";
 import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
@@ -49,6 +50,13 @@ export function RankedContentRow({
   const [api, setApi] = useState<CarouselApi>();
   const lastScrollProgressRef = useRef(0);
 
+  // Fetch actual ratings for the items
+  const { ratings: fetchedRatings, loading: ratingsLoading } =
+    useContentRatings(items);
+
+  // Combine passed ratings with fetched ratings
+  const combinedRatings = { ...contentRating, ...fetchedRatings };
+
   useEffect(() => {
     if (
       initialItems.length > 0 &&
@@ -82,7 +90,7 @@ export function RankedContentRow({
   }, [api, hasMoreItems, loading, isMobile]);
 
   const getContentRating = (item: MediaItem & ItemWithId) => {
-    return contentRating[item.id] || (isMovie(item) ? "PG" : "TV-14");
+    return getRating(item, combinedRatings);
   };
 
   const loadMoreItems = async () => {
@@ -153,7 +161,7 @@ export function RankedContentRow({
                     prefetchDelay={100}
                   >
                     <div className="relative">
-                      <div className="absolute top-0 left-0 z-10 flex items-center justify-center w-10 h-10 bg-neutral-900/90 text-white font-bold text-lg rounded-tl-md rounded-br-md">
+                      <div className="absolute top-0 left-0 z-10 flex items-center justify-center w-10 h-10 bg-background/90 dark:bg-background/90 text-foreground font-bold text-lg rounded-tl-md rounded-br-md">
                         {index + 1}
                       </div>
                       <ContentCard
@@ -189,13 +197,16 @@ export function RankedContentRow({
         {items.slice(0, 8).map((item, index) => {
           const { displayTitle, year } = getItemDetails(item);
           const genres =
-            item.genre_ids?.slice(0, 1).map((id) => getGenreName(id)) || []; // Show only the primary genre for density
+            item.genre_ids
+              ?.slice(0, 1)
+              .map((id) => getGenreName(id, isMovie(item) ? "movie" : "tv")) ||
+            []; // Show only the primary genre for density
 
           return (
             <EnhancedLink
               key={`${item.id}-${index}`}
               href={`/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`}
-              className="flex group relative overflow-hidden rounded-md hover:bg-neutral-800/60 transition-colors duration-200 p-2 items-center"
+              className="flex group relative overflow-hidden rounded-md hover:bg-accent/60 transition-colors duration-200 p-2 items-center"
               mediaItem={item}
               prefetchDelay={100}
             >
@@ -206,7 +217,7 @@ export function RankedContentRow({
                     "text-4xl xl:text-5xl font-medium",
                     index === 0
                       ? "text-primary font-semibold"
-                      : "text-neutral-500 group-hover:text-primary/80 transition-colors duration-200",
+                      : "text-muted-foreground group-hover:text-primary/80 transition-colors duration-200",
                   )}
                 >
                   {index + 1}
@@ -226,11 +237,11 @@ export function RankedContentRow({
 
               {/* Text details */}
               <div className="flex flex-col justify-center flex-1 min-w-0">
-                <h3 className="font-semibold text-sm sm:text-base text-neutral-100 truncate group-hover:text-white transition-colors duration-200">
+                <h3 className="font-semibold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors duration-200">
                   {displayTitle}
                 </h3>
 
-                <div className="flex flex-wrap items-center text-xs text-neutral-400 mt-0.5">
+                <div className="flex flex-wrap items-center text-xs text-muted-foreground mt-0.5">
                   <div className="flex items-center mr-1.5">
                     <Star
                       className="w-3 h-3 text-yellow-400 mr-0.5"
@@ -249,14 +260,14 @@ export function RankedContentRow({
                 <div className="flex items-center gap-1 mt-1">
                   <Badge
                     variant="outline"
-                    className="text-[10px] py-0 h-4 px-1.5 border-neutral-700 text-neutral-400 group-hover:border-neutral-600 group-hover:text-neutral-300 transition-colors duration-200"
+                    className="text-[10px] py-0 h-4 px-1.5 border-border text-muted-foreground group-hover:border-accent group-hover:text-accent-foreground transition-colors duration-200"
                   >
                     {isMovie(item) ? "Movie" : "TV"}
                   </Badge>
                   {getContentRating(item) && (
                     <Badge
                       variant="outline"
-                      className="text-[10px] py-0 h-4 px-1.5 border-neutral-700 text-neutral-400 group-hover:border-neutral-600 group-hover:text-neutral-300 transition-colors duration-200"
+                      className="text-[10px] py-0 h-4 px-1.5 border-border text-muted-foreground group-hover:border-accent group-hover:text-accent-foreground transition-colors duration-200"
                     >
                       {getContentRating(item)}
                     </Badge>
@@ -275,7 +286,7 @@ export function RankedContentRow({
           ) : (
             <button
               onClick={loadMoreItems}
-              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-md text-sm text-neutral-300 hover:text-white transition-colors duration-200"
+              className="px-4 py-2 bg-accent hover:bg-accent/80 rounded-md text-sm text-accent-foreground transition-colors duration-200"
             >
               Load More Ranked
             </button>

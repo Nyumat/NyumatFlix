@@ -1,44 +1,52 @@
-import { Suspense } from "react";
-import { ContentRow, ContentRowProps } from "./content-row";
+import { MediaItem } from "@/utils/typings";
+import { ContentRow, ContentRowVariant } from "./content-row";
 
 /**
- * ServerContentRow is a server wrapper for the client-side ContentRow component.
- * It allows for proper SSR and Suspense support.
- * @param props - The props for the ServerContentRow component.
- * @returns The ServerContentRow component.
+ * Props for the ServerContentRow component
  */
-export function ServerContentRow(props: ContentRowProps) {
-  return (
-    <Suspense fallback={<ContentRowSkeleton />}>
-      <ContentRow {...props} />
-    </Suspense>
-  );
+interface ServerContentRowProps {
+  /** Title to display for the content row */
+  title: string;
+  /** Array of media items to display */
+  items: MediaItem[];
+  /** Link href for the "View All" button */
+  href: string;
+  /** Optional variant for the content row */
+  variant?: ContentRowVariant;
+  /** Optional content rating mapping */
+  contentRating?: Record<number, string | null>;
 }
 
 /**
- * ContentRowSkeleton is a simple skeleton UI when content is loading.
- * @returns The ContentRowSkeleton component.
+ * ServerContentRow is a server component that renders content rows with data
+ * passed directly as props, eliminating the need for client-side data fetching
+ * @param props - The props for the ServerContentRow component.
+ * @returns The ServerContentRow component.
  */
-function ContentRowSkeleton() {
+export function ServerContentRow({
+  title,
+  items,
+  href,
+  variant = "standard",
+  contentRating = {},
+}: ServerContentRowProps) {
+  // Filter out items without poster paths
+  const validItems = items.filter((item) => item.poster_path);
+
+  // Don't render if no valid items
+  if (validItems.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="mx-4 md:mx-8 mb-8">
-      <div className="mb-6">
-        <div className="h-8 w-40 bg-gray-700/50 rounded-md animate-pulse"></div>
-      </div>
-      <div className="flex gap-3 overflow-hidden">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="min-w-0 shrink-0 basis-[48%] sm:basis-[35%] md:basis-[28%] lg:basis-[22%] xl:basis-[18%] animate-pulse"
-          >
-            <div className="bg-gray-700/50 rounded-lg aspect-[2/3]"></div>
-            <div className="mt-2">
-              <div className="h-4 w-3/4 bg-gray-700/50 rounded-md mb-2"></div>
-              <div className="h-3 w-1/2 bg-gray-700/50 rounded-md"></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <section className="my-4">
+      <ContentRow
+        title={title}
+        items={validItems}
+        href={href}
+        variant={variant}
+        contentRating={contentRating}
+      />
+    </section>
   );
 }
