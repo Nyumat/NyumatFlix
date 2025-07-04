@@ -1,8 +1,16 @@
 "use client";
 
-import { MediaCard } from "@/components/media";
+import { MediaCard } from "@/components/media/media-card";
 import { MultiSelect } from "@/components/multi-select";
-import { Button } from "@/components/ui/button";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import {
   Genre as GenreType,
@@ -12,9 +20,7 @@ import {
 } from "@/utils/typings";
 import { useEffect, useState } from "react";
 
-// Helper function to validate media items
 const isValidMediaItem = (item: Movie | TvShow): boolean => {
-  // Check if the item has either a poster_path or backdrop_path
   return Boolean(item.poster_path || item.backdrop_path);
 };
 
@@ -28,8 +34,128 @@ interface ContentGridProps {
   items: Array<MediaItemWithRecommendation>;
   currentPage: number;
   totalPages: number;
-  onPageChange: (page: number) => void;
   genres: { [key: number]: string };
+}
+
+/**
+ * Enhanced Pagination Component using shadcn components
+ */
+interface EnhancedPaginationProps {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+
+function EnhancedPagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: EnhancedPaginationProps) {
+  // Don't render if there's only one page or no pages
+  if (totalPages <= 1) return null;
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    const maxVisible = 7; // Maximum number of page buttons to show
+
+    if (totalPages <= maxVisible) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+
+      if (currentPage <= 4) {
+        // Near the beginning
+        for (let i = 2; i <= 5; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        // Near the end
+        pages.push("ellipsis");
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          if (i > 1) pages.push(i);
+        }
+      } else {
+        // In the middle
+        pages.push("ellipsis");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
+  const pageNumbers = getPageNumbers();
+
+  return (
+    <Pagination className="mt-8">
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              if (currentPage > 1) {
+                onPageChange(currentPage - 1);
+              }
+            }}
+            className={
+              currentPage === 1
+                ? "pointer-events-none opacity-50"
+                : "cursor-pointer"
+            }
+          />
+        </PaginationItem>
+
+        {pageNumbers.map((page, index) => (
+          <PaginationItem key={index}>
+            {page === "ellipsis" ? (
+              <PaginationEllipsis />
+            ) : (
+              <PaginationLink
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onPageChange(page);
+                }}
+                isActive={currentPage === page}
+                className="cursor-pointer"
+              >
+                {page}
+              </PaginationLink>
+            )}
+          </PaginationItem>
+        ))}
+
+        <PaginationItem>
+          <PaginationNext
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              if (currentPage < totalPages) {
+                onPageChange(currentPage + 1);
+              }
+            }}
+            className={
+              currentPage === totalPages
+                ? "pointer-events-none opacity-50"
+                : "cursor-pointer"
+            }
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  );
 }
 
 export function ContentGrid({
@@ -37,7 +163,6 @@ export function ContentGrid({
   items,
   currentPage,
   totalPages,
-  onPageChange,
   genres,
 }: ContentGridProps) {
   // Items to display
@@ -61,9 +186,16 @@ export function ContentGrid({
         <h2 className={cn("text-3xl font-semibold", "text-primary-foreground")}>
           {title}
         </h2>
+        <div className="text-sm text-muted-foreground">
+          {totalPages > 1 && (
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
         {processedItems.map((item) => {
           const itemType = item.media_type === "movie" ? "movie" : "tv";
 
@@ -71,8 +203,7 @@ export function ContentGrid({
             <div
               key={`${item.id}-${itemType}`}
               className={cn(
-                "rounded-lg transition-all duration-300",
-                "hover:scale-102",
+                "rounded-lg transition-all duration-300 transform hover:scale-105",
               )}
             >
               <MediaCard item={item} type={itemType} />
@@ -80,28 +211,6 @@ export function ContentGrid({
           );
         })}
       </div>
-
-      {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-8">
-          <Button
-            variant="outline"
-            disabled={currentPage === 1}
-            onClick={() => onPageChange(currentPage - 1)}
-          >
-            Previous
-          </Button>
-          <span className="text-muted-foreground">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            disabled={currentPage === totalPages}
-            onClick={() => onPageChange(currentPage + 1)}
-          >
-            Next
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
@@ -126,6 +235,12 @@ export default function SearchResults({ query }: { query: string }) {
           ),
         )
       : items;
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   useEffect(() => {
     const fetchAllGenres = async () => {
@@ -182,7 +297,7 @@ export default function SearchResults({ query }: { query: string }) {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!query) {
+      if (!query || !query.trim()) {
         setItems([]);
         setTotalPages(1);
         setCurrentPage(1);
@@ -192,7 +307,7 @@ export default function SearchResults({ query }: { query: string }) {
       setError(null);
       try {
         const url = new URL("/api/search", window.location.origin);
-        url.searchParams.append("query", query);
+        url.searchParams.append("query", query.trim());
         url.searchParams.append("page", currentPage.toString());
 
         const response = await fetch(url.toString());
@@ -225,34 +340,30 @@ export default function SearchResults({ query }: { query: string }) {
     fetchData();
   }, [query, currentPage]);
 
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
-  if (isLoading && items.length === 0 && query) {
+  if (isLoading && items.length === 0 && query && query.trim()) {
     return (
-      <div className="text-center py-10">
-        Loading search results for &quot;{query}&quot;...
+      <div className="text-center py-10 text-muted-foreground">
+        Loading search results for &quot;{query.trim()}&quot;...
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-red-500 text-center py-10">{error}</div>;
+    return <div className="text-destructive text-center py-10">{error}</div>;
   }
 
-  if (!query) {
+  if (!query || !query.trim()) {
     return (
-      <div className="text-center py-10">Please enter a search query.</div>
+      <div className="text-center py-10 text-muted-foreground">
+        Please enter a search query.
+      </div>
     );
   }
 
   if (items.length === 0 && !isLoading) {
     return (
-      <div className="text-center py-10">
-        No results found for &quot;{query}&quot;.
+      <div className="text-center py-10 text-muted-foreground">
+        No results found for &quot;{query.trim()}&quot;.
       </div>
     );
   }
@@ -289,8 +400,14 @@ export default function SearchResults({ query }: { query: string }) {
         items={filteredItems}
         currentPage={currentPage}
         totalPages={totalPages}
-        onPageChange={handlePageChange}
         genres={allGenres}
+      />
+
+      {/* Enhanced Pagination */}
+      <EnhancedPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
       />
     </div>
   );

@@ -1,53 +1,56 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  useSearchPreview,
-  type PreviewResult,
-} from "@/hooks/use-search-preview";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Search as SearchIcon, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import SearchResults from "./search-results";
+import { useSearchPreview } from "@/hooks/use-search-preview";
+import { cn } from "@/lib/utils";
+import { ArrowRight, Search } from "lucide-react";
 import Image from "next/legacy/image";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import SearchResults from "./search-results";
 
-export function SearchComponent({
-  onSearch,
-}: { onSearch?: (query: string) => void } = {}) {
+/**
+ * Props for the SearchComponent
+ */
+interface SearchComponentProps {
+  /** Optional callback function when search is performed */
+  onSearch?: (query: string) => void;
+}
+
+/**
+ * SearchComponent provides a search input with keyboard shortcuts and preview functionality
+ * Features: keyboard shortcuts (/ to focus, ESC to blur), auto-focus on typing, search suggestions
+ * @param props - The component props
+ * @returns A search input component with enhanced UX features
+ */
+export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const commandRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-  const { previewResults, isLoadingPreview } = useSearchPreview({
-    query,
-    disablePreview: false,
-  });
+  const handleSearch = useCallback(
+    (searchQuery: string) => {
+      if (searchQuery.trim()) {
+        onSearch?.(searchQuery);
+        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      }
+    },
+    [onSearch, router],
+  );
 
-  const handleSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (query.trim()) {
-      setIsFocused(false);
-      if (onSearch) onSearch(query.trim());
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSearch(query);
   };
 
-  const clearSearch = () => {
-    setQuery("");
-    setIsFocused(true);
-    if (inputRef.current) {
-      inputRef.current.focus();
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch(query);
     }
-    if (onSearch) onSearch("");
   };
 
   useEffect(() => {
@@ -84,171 +87,429 @@ export function SearchComponent({
   }, []);
 
   return (
-    <div className="relative w-full max-w-3xl">
-      <form onSubmit={handleSearch} className="relative" autoComplete="off">
+    <div className="relative w-full max-w-lg mx-auto">
+      <form onSubmit={handleSubmit}>
         <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Just start typing..."
-            className="pl-5 pr-20 py-6 text-base md:text-lg rounded-xl border border-border shadow-sm"
+            placeholder="Search movies, TV shows..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-            autoComplete="off"
-            spellCheck={false}
+            onBlur={() => {
+              setIsFocused(false);
+              // Don't hide preview on blur - let user interactions handle it
+            }}
+            onKeyDown={handleKeyDown}
+            className="pl-10 pr-20 py-2.5 w-full rounded-xl bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
           />
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-            {query && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={clearSearch}
-                className="h-8 w-8"
-                type="button"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+            {/* Only show / shortcut when input is empty and not focused */}
+            {!query && !isFocused && (
+              <kbd className="hidden sm:inline-block px-2 py-1 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
+                /
+              </kbd>
             )}
             <Button
-              size="icon"
-              variant="ghost"
               type="submit"
-              aria-label="Search"
-              className="h-8 w-8"
-              disabled={isLoadingPreview || !query.trim()}
+              size="sm"
+              className="h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={!query.trim()}
             >
-              <SearchIcon className="h-4 w-4" />
+              <Search className="h-3 w-3" />
+              <span className="ml-1 hidden sm:inline">Search</span>
+            </Button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * SearchPageClient provides a Google-style search interface with results shown below
+ * Features: direct typing, search results display, keyboard navigation
+ * @returns A search interface component with integrated results
+ */
+export function SearchPageClient() {
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") || "";
+
+  const [query, setQuery] = useState(urlQuery);
+  const [searchQuery, setSearchQuery] = useState(urlQuery); // Initialize with URL query
+  const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  // Update query when URL changes
+  useEffect(() => {
+    const newQuery = searchParams.get("q") || "";
+    setQuery(newQuery);
+    setSearchQuery(newQuery);
+  }, [searchParams]);
+
+  const handleSearch = useCallback(() => {
+    if (query.trim()) {
+      const trimmedQuery = query.trim();
+      setSearchQuery(trimmedQuery);
+      // Update URL with new query
+      router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+    }
+  }, [query, router]);
+
+  // Global keyboard shortcut (⌘K)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
+  return (
+    <div className="w-full flex flex-col gap-8">
+      {/* Search Input */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSearch();
+        }}
+      >
+        <div className="relative max-w-2xl mx-auto">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+          <Input
+            ref={inputRef}
+            type="text"
+            placeholder="Search movies and TV shows..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
+            className="pl-10 pr-16 py-3 text-base w-full rounded-xl bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground"
+          />
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+            <Button
+              type="submit"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={!query.trim()}
+            >
+              <ArrowRight className="h-5 w-5" />
             </Button>
           </div>
         </div>
       </form>
 
-      <AnimatePresence>
-        {isFocused && query.length >= 2 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="absolute top-full left-0 right-0 mt-2 z-[200]"
-            ref={commandRef}
-          >
-            <Command className="rounded-xl border border-white/10 shadow-2xl bg-black/70 backdrop-blur-lg">
-              {isLoadingPreview ? (
-                <div className="p-4 flex flex-col space-y-3">
-                  <div className="flex items-center space-x-4">
-                    <Skeleton className="h-12 w-12 rounded-md" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[200px]" />
-                      <Skeleton className="h-3 w-[100px]" />
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <Skeleton className="h-12 w-12 rounded-md" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[150px]" />
-                      <Skeleton className="h-3 w-[80px]" />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <CommandList>
-                    {previewResults.length === 0 && !isLoadingPreview ? (
-                      <CommandEmpty>
-                        No results found for &quot;{query}&quot;
-                      </CommandEmpty>
-                    ) : (
-                      <CommandGroup heading="Results">
-                        {previewResults.map((result: PreviewResult) => (
-                          <CommandItem
-                            key={`${result.id}-${result.media_type}`}
-                            onSelect={() => {
-                              const selectedValue =
-                                result.title || result.name || "";
-                              setQuery(selectedValue);
-                              if (onSearch) onSearch(selectedValue);
-                              setIsFocused(false);
-                            }}
-                            className="py-2 px-2 data-[selected='true']:bg-white/10 data-[selected=true]:text-white cursor-pointer"
-                          >
-                            <div className="flex items-center w-full">
-                              <div className="w-12 h-16 relative flex-shrink-0 mr-4 overflow-hidden rounded-md bg-muted">
-                                {result.poster_path ? (
-                                  <Image
-                                    width={48}
-                                    height={72}
-                                    src={`https://image.tmdb.org/t/p/w92${result.poster_path}`}
-                                    alt={
-                                      result.title || result.name || "Poster"
-                                    }
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
-                                    No Image
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-grow overflow-hidden">
-                                <div className="font-medium truncate">
-                                  {result.title || result.name}
-                                </div>
-                                <div className="text-xs text-muted-foreground capitalize">
-                                  {result.media_type.replace("_", " ")}
-                                </div>
-                              </div>
-                              <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
-                  </CommandList>
-                  {previewResults.length > 0 && (
-                    <div className="p-2 border-t border-white/10 mt-1">
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start text-sm text-muted-foreground hover:text-white"
-                        onClick={() => handleSearch()}
-                        disabled={!query.trim()}
-                      >
-                        <SearchIcon className="h-4 w-4 mr-2" /> See all results
-                        for &quot;{query}&quot;
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </Command>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Search Results */}
+      {searchQuery && <SearchResults query={searchQuery} />}
     </div>
   );
 }
 
-export function SearchPageClient() {
+/**
+ * Props for NavbarSearchClient component
+ */
+interface NavbarSearchClientProps {
+  /** Optional className for styling */
+  className?: string;
+}
+
+/**
+ * NavbarSearchClient provides a more compact search interface optimized for navbar use
+ * Features: responsive sizing, compact design, same functionality as SearchPageClient
+ * @returns A navbar-optimized search component
+ */
+export const NavbarSearchClient = forwardRef<
+  HTMLInputElement,
+  NavbarSearchClientProps
+>(({ className }, ref) => {
   const [query, setQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [isMouseOverResults, setIsMouseOverResults] = useState(false);
+  const innerRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Use the forwarded ref if available, otherwise use innerRef
+  const inputRef = (ref as React.RefObject<HTMLInputElement>) || innerRef;
+
+  const { results, isLoading } = useSearchPreview(query);
+
+  const handleSearch = useCallback(() => {
+    if (query.trim()) {
+      // Navigate to search page with query parameters
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      setShowPreview(false);
+    }
+  }, [query, router]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!showPreview || !results.length) return;
+
+      // Total navigable items: results + "View all results" option
+      const totalItems = results.length + 1;
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setSelectedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : prev));
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+          break;
+        case "Enter":
+          e.preventDefault();
+          // If selected index is within results, go to that result
+          if (selectedIndex < results.length) {
+            const selectedResult = results[selectedIndex];
+            if (selectedResult) {
+              const mediaType =
+                selectedResult.media_type === "movie" ? "movies" : "tvshows";
+              router.push(`/${mediaType}/${selectedResult.id}`);
+              setShowPreview(false);
+            }
+          } else {
+            // If selected index is the "View all results" option
+            handleSearch();
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setShowPreview(false);
+          setSelectedIndex(0);
+          if (inputRef.current) {
+            inputRef.current.blur();
+          }
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showPreview, results, selectedIndex, handleSearch, router, inputRef]);
+
+  // Reset selection when results change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [results]);
+
+  // Show/hide preview based on query and focus
+  useEffect(() => {
+    setShowPreview(
+      query.trim().length > 0 && isFocused && (results.length > 0 || isLoading),
+    );
+  }, [query, results, isLoading, isFocused]);
+
+  // Global keyboard shortcut (⌘K)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [inputRef]);
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const searchContainer = (inputRef as React.RefObject<HTMLInputElement>)
+        ?.current?.parentElement?.parentElement;
+
+      if (searchContainer && !searchContainer.contains(target)) {
+        setShowPreview(false);
+      }
+    };
+
+    if (showPreview) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showPreview, inputRef]);
 
   return (
-    <>
-      {/* Search Box Area - higher z-index to ensure dropdown visibility */}
-      <div className="max-w-3xl w-full px-4 mb-12 relative z-50">
-        <div className="bg-black/70 backdrop-blur-lg p-6 md:p-8 rounded-xl border border-white/10 shadow-2xl relative">
-          <SearchComponent onSearch={setQuery} />
+    <div className={cn("w-full", className)}>
+      {/* Search Input - More compact for navbar */}
+      <div className="relative">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+          <Input
+            ref={inputRef}
+            type="text"
+            placeholder="Search..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => {
+              setIsFocused(true);
+              if (query.trim().length > 0) {
+                setShowPreview(true);
+              }
+            }}
+            onBlur={() => {
+              setIsFocused(false);
+              // Hide preview after a delay if mouse is not over results
+              setTimeout(() => {
+                if (!isMouseOverResults) {
+                  setShowPreview(false);
+                }
+              }, 100);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (!showPreview || !results.length)) {
+                handleSearch();
+              }
+            }}
+            className="pl-10 pr-12 py-2 text-sm w-full rounded-lg bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
+          />
+          {/* Only show ⌘K when input is empty and not focused */}
+          {!query && !isFocused && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
+                ⌘K
+              </kbd>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Search Results Area - lower z-index than search box */}
-      {query && (
-        <div className="w-full max-w-7xl mx-auto px-4 pb-12 z-10">
-          <SearchResults query={query} />
-        </div>
-      )}
-    </>
+        {/* Inline Preview Results */}
+        {showPreview && (
+          <div
+            className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-sm border border-border rounded-xl shadow-xl z-50 max-h-80 overflow-hidden"
+            onMouseEnter={() => setIsMouseOverResults(true)}
+            onMouseLeave={() => setIsMouseOverResults(false)}
+          >
+            <div className="max-h-72 overflow-y-auto" ref={resultsRef}>
+              {isLoading ? (
+                <div className="p-3">
+                  <div className="space-y-2">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <Skeleton className="h-12 w-8 rounded" />
+                        <div className="space-y-1 flex-1">
+                          <Skeleton className="h-3 w-32" />
+                          <Skeleton className="h-2 w-24" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : query.trim().length > 0 && results.length > 0 ? (
+                <>
+                  <div className="py-1">
+                    {results.slice(0, 6).map((item, index) => {
+                      const title = item.title || item.name || "Unknown Title";
+                      const mediaType =
+                        item.media_type === "movie" ? "movies" : "tvshows";
+                      const href = `/${mediaType}/${item.id}`;
+
+                      return (
+                        <Link
+                          key={`${item.id}-${item.media_type}`}
+                          href={href}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            router.push(href);
+                            setShowPreview(false);
+                          }}
+                          className={`flex items-center gap-2 p-2 cursor-pointer transition-all duration-150 hover:bg-accent/50 ${
+                            index === selectedIndex ? "bg-accent/80" : ""
+                          }`}
+                        >
+                          <div className="relative w-8 h-12 flex-shrink-0">
+                            {item.poster_path ? (
+                              <Image
+                                src={`https://image.tmdb.org/t/p/w92${item.poster_path}`}
+                                alt={title}
+                                layout="fill"
+                                objectFit="cover"
+                                className="rounded"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-muted rounded flex items-center justify-center">
+                                <Search className="w-2 h-2 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate text-xs">
+                              {title}
+                            </p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {item.media_type}
+                            </p>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                  {/* View all results option for navbar */}
+                  <div className="border-t border-border">
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSearch();
+                      }}
+                      className={`w-full p-2 text-left transition-colors duration-150 flex items-center justify-between text-xs text-muted-foreground ${
+                        selectedIndex === results.length
+                          ? "bg-accent/80 border border-accent-foreground/20"
+                          : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <span>Go to search page</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                </>
+              ) : query.trim().length > 0 ? (
+                <div className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    No results found
+                  </p>
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSearch();
+                    }}
+                    className="mt-1 text-xs text-primary hover:underline"
+                  >
+                    Search anyway
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    Start typing to search...
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
-}
+});
+
+NavbarSearchClient.displayName = "NavbarSearchClient";
