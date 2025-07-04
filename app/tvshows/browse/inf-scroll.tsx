@@ -6,14 +6,37 @@ import { LoadMore } from "./load-more";
 
 interface ICProps {
   filterId: string;
+  genre?: string;
 }
 
 export async function InfiniteContent({
   filterId,
+  genre,
 }: ICProps): Promise<JSX.Element> {
-  // Get the filter configuration
-  // const filterConfig = getFilterConfig(filterId);
-  const { endpoint, params } = buildFilterParams(filterId);
+  // Determine the endpoint and params based on the parameters
+  let endpoint = "";
+  let params: Record<string, string> = {};
+
+  // If genre is provided and no filterId, use direct genre filtering
+  if (!filterId && genre) {
+    endpoint = "/discover/tv";
+    params = {
+      with_genres: genre,
+      language: "en-US",
+      include_adult: "false",
+      sort_by: "popularity.desc",
+    };
+  } else if (filterId) {
+    // Use the filter configuration if filterId is provided
+    const filterConfig = buildFilterParams(filterId);
+    endpoint = filterConfig.endpoint;
+    params = filterConfig.params;
+  } else {
+    // Default to popular TV shows if no parameters
+    const filterConfig = buildFilterParams("tv-popular");
+    endpoint = filterConfig.endpoint;
+    params = filterConfig.params;
+  }
 
   // Fetch initial TV shows
   const initialResponse = await fetchTMDBData(endpoint, {
@@ -22,7 +45,11 @@ export async function InfiniteContent({
   });
 
   if (!initialResponse?.results || initialResponse.results.length === 0) {
-    return <div className="p-8 text-center text-white">No TV shows found</div>;
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        No TV shows found
+      </div>
+    );
   }
 
   // Process the results with categories

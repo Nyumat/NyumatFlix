@@ -18,33 +18,40 @@ export async function FilteredMovieContent({
 }: FilteredMovieContentProps): Promise<JSX.Element> {
   // Determine the filter ID based on the parameters
   let resolvedFilterId = filterId || "";
+  let endpoint = "";
+  let params: Record<string, string> = {};
 
   // If no filterId provided, try to build one from legacy parameters
-  if (!resolvedFilterId) {
-    if (genre) {
-      // Map genre IDs to filter IDs
-      const genreMap: Record<string, string> = {
-        "28": "genre-action",
-        "35": "genre-comedy",
-        "18": "genre-drama",
-        "53": "genre-thriller",
-        "878,14": "genre-scifi-fantasy",
-        "10749,35": "genre-romcom",
-      };
-      resolvedFilterId = genreMap[genre] || "";
-    } else if (year) {
-      // Map year ranges to filter IDs
-      const yearMap: Record<string, string> = {
-        "1980-1989": "year-80s",
-        "1990-1999": "year-90s",
-        "2000-2009": "year-2000s",
-      };
-      resolvedFilterId = yearMap[year] || "";
-    }
+  if (!resolvedFilterId && genre) {
+    // Direct genre filtering without needing predefined filters
+    endpoint = "/discover/movie";
+    params = {
+      with_genres: genre,
+      language: "en-US",
+      include_adult: "false",
+      sort_by: "popularity.desc",
+    };
+  } else if (!resolvedFilterId && year) {
+    // Map year ranges to filter IDs
+    const yearMap: Record<string, string> = {
+      "1980-1989": "year-80s",
+      "1990-1999": "year-90s",
+      "2000-2009": "year-2000s",
+    };
+    resolvedFilterId = yearMap[year] || "";
   }
 
-  // Get the filter configuration and build params
-  const { endpoint, params } = buildFilterParams(resolvedFilterId);
+  // If we have a filter ID, use the filter configuration
+  if (resolvedFilterId) {
+    const filterConfig = buildFilterParams(resolvedFilterId);
+    endpoint = filterConfig.endpoint;
+    params = filterConfig.params;
+  } else if (!endpoint) {
+    // Fallback to default if no filter or genre specified
+    const filterConfig = buildFilterParams("");
+    endpoint = filterConfig.endpoint;
+    params = filterConfig.params;
+  }
 
   // Fetch content
   const allMovies: MediaItem[] = [];
@@ -83,8 +90,8 @@ export async function FilteredMovieContent({
 
   if (allMovies.length === 0) {
     return (
-      <div className="p-8 text-center text-white">
-        No movies found matching your criteria
+      <div className="p-8 text-center text-muted-foreground">
+        No movies found matching your criteria.
       </div>
     );
   }
