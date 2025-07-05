@@ -24,8 +24,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const title = movie.title || "Movie";
-  const description = movie.overview || "Watch this movie on NyumatFlix";
+  const title = movie.title;
+  const description = movie.overview;
   const releaseYear = movie.release_date
     ? new Date(movie.release_date).getFullYear()
     : "";
