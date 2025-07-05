@@ -39,15 +39,22 @@ const services: StreamingService[] = [
 
 export default function Sponsors() {
   return (
-    <section id="sponsors" className="max-w-[75%] mx-auto">
-      <h2 className="text-lg max-w-screen-sm mx-auto md:text-xl text-center select-none pointer-events-none">
+    <section
+      id="sponsors"
+      className="w-full max-w-full mx-auto overflow-hidden"
+    >
+      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl max-w-screen-sm mx-auto text-center select-none pointer-events-none px-4 mb-6">
         Curated from all the <span className="line-through">expensive ass</span>{" "}
         streaming services below, Nyumatflix is a no-cost, ad-free, and
         open-source aggregator.
       </h2>
 
-      <div className="mx-auto">
-        <Marquee className="gap-[3rem]" fade innerClassName="gap-[3rem]">
+      <div className="w-full overflow-hidden">
+        <Marquee
+          className="gap-[2rem] sm:gap-[3rem]"
+          fade
+          innerClassName="gap-[2rem] sm:gap-[3rem]"
+        >
           {services.map(({ filePath, name }) => (
             <div
               key={name}
@@ -56,9 +63,9 @@ export default function Sponsors() {
               <Image
                 src={filePath}
                 alt={name}
-                width={100}
-                height={100}
-                className="flex-none w-20 h-20 mr-4 grayscale select-none pointer-events-none"
+                width={80}
+                height={80}
+                className="flex-none w-16 h-16 sm:w-20 sm:h-20 grayscale select-none pointer-events-none"
                 unselectable="on"
               />
             </div>

@@ -257,7 +257,7 @@ export const fetchAllData = async () => {
     }), // Docuseries
     // Fetch for Fan Favorite Classics Hero Carousel
     fetchTMDBData("/discover/movie", {
-      with_genres: "16|10751|12|878|35|28", // Animation, Family, Adventure, Sci-Fi, Comedy, Action
+      with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
       sort_by: "popularity.desc",
       "vote_average.gte": "7.0",
       "vote_count.gte": "1500",
