@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     images: [
       {
-        url: "https://nyumatflix.com",
+        url: "https://nyumatflix.com/opengraph-image.png",
         width: 1200,
         height: 630,
         alt: "NyumatFlix - Watch Movies and TV Shows Online",
