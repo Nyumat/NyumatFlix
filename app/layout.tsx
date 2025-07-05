@@ -10,25 +10,18 @@ import Script from "next/script";
 import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
-const resolveBase = () =>
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : "https://nyumatflix.com";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(resolveBase()),
+  metadataBase: new URL("https://nyumatflix.com"),
   title: "NyumatFlix - Watch Movies and TV Shows Online",
-  description:
-    "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online for free.",
+  description: "Yet another Netflix clone, but with actual streams.",
   openGraph: {
     type: "website",
     url: "https://nyumatflix.com",
     title: "NyumatFlix - Watch Movies and TV Shows Online",
-    description:
-      "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
+    description: "Yet another Netflix clone, but with actual streams.",
     images: [
       {
-        url: "https://nyumatflix.com/opengraph-image.png",
+        url: "https://nyumatflix.com/opengraph-alt.png",
         width: 1200,
         height: 630,
         alt: "NyumatFlix - Watch Movies and TV Shows Online",
@@ -39,9 +32,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "https://nyumatflix.com",
     title: "NyumatFlix - Watch Movies and TV Shows Online",
-    description:
-      "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
-    images: ["https://nyumatflix.com/opengraph-image.png"],
+    description: "Yet another Netflix clone, but with actual streams.",
+    images: ["https://nyumatflix.com/opengraph-alt.png"],
   },
 };
 

@@ -30,31 +30,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? new Date(movie.release_date).getFullYear()
     : "";
 
-  const titleWithYear = releaseYear ? `${title} (${releaseYear})` : title;
+  const titleWithYear = releaseYear
+    ? `${title} (${releaseYear}) | NyumatFlix`
+    : `${title} | NyumatFlix`;
 
   return {
-    title: `${titleWithYear} | NyumatFlix`,
+    title: titleWithYear,
     description,
     openGraph: {
       title: titleWithYear,
       description,
       type: "video.movie",
-      images: movie.backdrop_path
-        ? [
-            {
-              url: `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}`,
-              width: 1280,
-              height: 720,
-              alt: title,
-            },
-            {
-              url: `https://image.tmdb.org/t/p/original${movie.backdrop_path}`,
-              width: 1920,
-              height: 1080,
-              alt: title,
-            },
-          ]
-        : [],
+      images: [
+        {
+          url: `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}`,
+          width: 1280,
+          height: 720,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      title: titleWithYear,
+      description,
+      images: [`https://image.tmdb.org/t/p/w1280${movie.backdrop_path}`],
     },
   };
 }

@@ -15,14 +15,16 @@ import {
 
 export const metadata: Metadata = {
   title: "Movies | NyumatFlix",
-  description:
-    "Discover popular and top-rated movies. Stream your favorites instantly on NyumatFlix.",
+  description: "Discover popular and top-rated movies on NyumatFlix.",
   openGraph: {
     title: "Movies | NyumatFlix",
-    description:
-      "Discover popular and top-rated movies. Stream your favorites instantly on NyumatFlix.",
+    description: "Discover popular and top-rated movies on NyumatFlix.",
     type: "website",
     siteName: "NyumatFlix",
+  },
+  twitter: {
+    title: "Movies | NyumatFlix",
+    description: "Discover popular and top-rated movies on NyumatFlix.",
   },
 };
 
