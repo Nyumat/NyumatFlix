@@ -10,7 +10,7 @@ export const metadata = {
     "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
   openGraph: {
     type: "website",
-    url: "https://github.com/nyumat/nyumatflix",
+    url: "https://nyumatflix.com",
     title: "NyumatFlix - Watch Movies and TV Shows Online",
     description:
       "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
@@ -25,7 +25,7 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    site: "https://github.com/nobruf/shadcn-landing-page.git",
+    site: "https://nyumatflix.com",
     title: "NyumatFlix - Watch Movies and TV Shows Online",
     description:
       "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
