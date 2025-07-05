@@ -11,9 +11,10 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nyumatflix.com"),
+  metadataBase: new URL("https://nyumatflix.com/"),
   title: "NyumatFlix - Watch Movies and TV Shows Online",
   description: "Yet another Netflix clone, but with actual streams.",
+  colorScheme: "dark",
   openGraph: {
     type: "website",
     url: "https://nyumatflix.com",

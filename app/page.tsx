@@ -1,7 +1,5 @@
-import { CommunitySection } from "@/components/layout/sections/community";
 import { FAQSection } from "@/components/layout/sections/faq";
 import { HeroSection } from "@/components/layout/sections/hero";
-import { WhyNyumatFlix } from "@/components/layout/sections/why";
 import { AggressivePrefetchProvider } from "@/components/providers/aggressive-prefetch-provider";
 
 export const metadata = {
