@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   description:
     "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online for free.",
   openGraph: {
+    type: "website",
+    url: "https://nyumatflix.com",
+    title: "NyumatFlix - Watch Movies and TV Shows Online",
+    description:
+      "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
     images: [
       {
         url: "https://nyumatflix.com/opengraph-image.png",
@@ -29,11 +34,14 @@ export const metadata: Metadata = {
         alt: "NyumatFlix - Watch Movies and TV Shows Online",
       },
     ],
-    tags: ["movies", "tv shows", "streaming", "watch online", "free"],
-    description:
-      "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online for free.",
-    siteName: "NyumatFlix",
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "https://nyumatflix.com",
     title: "NyumatFlix - Watch Movies and TV Shows Online",
+    description:
+      "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
+    images: ["https://nyumatflix.com/opengraph-image.png"],
   },
 };
 
