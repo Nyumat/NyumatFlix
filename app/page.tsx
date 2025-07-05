@@ -47,8 +47,6 @@ export default function Home() {
   return (
     <AggressivePrefetchProvider enableImmediate={true}>
       <HeroSection />
-      <WhyNyumatFlix />
-      <CommunitySection />
       <FAQSection />
     </AggressivePrefetchProvider>
   );
