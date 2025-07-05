@@ -16,7 +16,7 @@ export const metadata = {
       "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
     images: [
       {
-        url: "https://res.cloudinary.com/dbzv9xfjp/image/upload/v1723499276/og-images/shadcn-vue.jpg",
+        url: "https://nyumatflix.com/opengraph-image.png",
         width: 1200,
         height: 630,
         alt: "NyumatFlix - Watch Movies and TV Shows Online",
@@ -29,9 +29,7 @@ export const metadata = {
     title: "NyumatFlix - Watch Movies and TV Shows Online",
     description:
       "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
-    images: [
-      "https://res.cloudinary.com/dbzv9xfjp/image/upload/v1723499276/og-images/shadcn-vue.jpg",
-    ],
+    images: ["https://nyumatflix.com/opengraph-image.png"],
   },
 };
 
