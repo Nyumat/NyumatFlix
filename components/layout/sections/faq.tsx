@@ -14,6 +14,12 @@ interface FAQProps {
 
 const FAQList: FAQProps[] = [
   {
+    question: "Why Do I need an Adblocker?",
+    answer:
+      "Unfortunately, I do not host any content on my servers. I only provide links to third-party websites. These third parties often inject scripts into their iframes (the ones that play the movies/tv shows) which show ads. I purely recommend using an adblocker to block these ads - as Nyumatflix itself is ad-free!",
+    value: "item-0",
+  },
+  {
     question: "Is this going to give me viruses?",
     answer:
       "No, NyumatFlix will not give you viruses. We do not host any content on our servers. We only provide links to third-party websites. If you are worried about viruses, I recommend using an adblocker and a VPN.",

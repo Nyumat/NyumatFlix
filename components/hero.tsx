@@ -164,11 +164,8 @@ function CarouselDetails({ current }: { current: MediaItem }) {
 
   return (
     <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 flex flex-col items-start pointer-events-none">
-      {/* <Badge className="mb-4 bg-black/50 text-white backdrop-blur-sm">
-        Now Playing
-      </Badge> */}
       {current.logo ? (
-        <div className="mb-2 max-w-[300px] md:max-w-[400px] w-full">
+        <div className={`mb-2 max-w-[200px] md:max-w-[300px] w-full`}>
           <Image
             src={`https://image.tmdb.org/t/p/w342${current.logo.file_path}`}
             alt={titleText}

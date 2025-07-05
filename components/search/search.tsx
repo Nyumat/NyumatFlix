@@ -180,7 +180,7 @@ export function SearchPageClient() {
           handleSearch();
         }}
       >
-        <div className="relative max-w-2xl mx-auto">
+        <div className="relative max-w-sm md:max-w-lg mx-auto md:scale-150">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
           <Input
             ref={inputRef}
@@ -194,14 +194,14 @@ export function SearchPageClient() {
                 handleSearch();
               }
             }}
-            className="pl-10 pr-16 py-3 text-base w-full rounded-xl bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground"
+            className="pl-10 pr-16 py-3 text-base w-full rounded-xl bg-black/60 border border-white/10 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground"
           />
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+          <div className="absolute md:scale-50 right-2 top-1/2 transform -translate-y-1/2">
             <Button
               type="submit"
               variant="ghost"
               size="icon"
-              className="h-10 w-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+              className="size-6 md:size-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={!query.trim()}
             >
               <ArrowRight className="h-5 w-5" />
@@ -383,20 +383,17 @@ export const NavbarSearchClient = forwardRef<
             }}
             className="pl-10 pr-12 py-2 text-sm w-full rounded-lg bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
           />
-          {/* Only show ⌘K when input is empty and not focused */}
           {!query && !isFocused && (
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
               <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
-                ⌘K
+                ⌘ K
               </kbd>
             </div>
           )}
         </div>
-
-        {/* Inline Preview Results */}
         {showPreview && (
           <div
-            className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-sm border border-border rounded-xl shadow-xl z-50 max-h-80 overflow-hidden"
+            className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl z-50 max-h-80 overflow-hidden"
             onMouseEnter={() => setIsMouseOverResults(true)}
             onMouseLeave={() => setIsMouseOverResults(false)}
           >

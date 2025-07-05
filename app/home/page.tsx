@@ -50,6 +50,7 @@ export default async function Home() {
     .filter((item: MediaItem) => {
       if (!item.poster_path) return false; // Ensure movies have a poster
       if (seenIds.has(item.id)) return false; // Avoid duplicates if any
+      if (item.title === "28 Days Later") return false;
       seenIds.add(item.id);
       return true;
     })
@@ -66,7 +67,7 @@ export default async function Home() {
       <main>
         {/* Use the top 5 enriched fan favorite classics for the carousel */}
         <MediaCarousel
-          items={fanFavoriteClassicsProcessedForHero.slice(0, 5)}
+          items={fanFavoriteClassicsProcessedForHero.slice(0, 10)}
         />
 
         {/* Recent Releases - moved to top */}
