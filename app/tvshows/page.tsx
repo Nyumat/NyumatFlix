@@ -13,14 +13,16 @@ import {
 
 export const metadata: Metadata = {
   title: "TV Shows | NyumatFlix",
-  description:
-    "Stream popular and top-rated TV shows on NyumatFlix. Discover your next binge-worthy series.",
+  description: "Discover your next binge-worthy series on NyumatFlix.",
   openGraph: {
     title: "TV Shows | NyumatFlix",
-    description:
-      "Stream popular and top-rated TV shows on NyumatFlix. Discover your next binge-worthy series.",
+    description: "Discover your next binge-worthy series on NyumatFlix.",
     type: "website",
     siteName: "NyumatFlix",
+  },
+  twitter: {
+    title: "TV Shows | NyumatFlix",
+    description: "Discover your next binge-worthy series on NyumatFlix.",
   },
 };
 

@@ -26,37 +26,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const title = tvShow.name || "TV Show";
-  const description = tvShow.overview || "Watch this TV show on NyumatFlix";
+  const title = tvShow.name;
+  const description = tvShow.overview || `Watch ${title} on NyumatFlix`;
   const firstAirYear = tvShow.first_air_date
     ? new Date(tvShow.first_air_date).getFullYear()
     : "";
 
-  const titleWithYear = firstAirYear ? `${title} (${firstAirYear})` : title;
+  const titleWithYear = firstAirYear
+    ? `${title} (${firstAirYear}) | NyumatFlix`
+    : `${title} | NyumatFlix`;
 
   return {
-    title: `${titleWithYear} | NyumatFlix`,
+    title: titleWithYear,
     description,
     openGraph: {
       title: titleWithYear,
       description,
       type: "video.tv_show",
-      images: tvShow.backdrop_path
-        ? [
-            {
-              url: `https://image.tmdb.org/t/p/w1280${tvShow.backdrop_path}`,
-              width: 1280,
-              height: 720,
-              alt: title,
-            },
-            {
-              url: `https://image.tmdb.org/t/p/original${tvShow.backdrop_path}`,
-              width: 1920,
-              height: 1080,
-              alt: title,
-            },
-          ]
-        : [],
+      images: [
+        {
+          url: `https://image.tmdb.org/t/p/w1280${tvShow.backdrop_path}`,
+          width: 1280,
+          height: 720,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      title: titleWithYear,
+      description,
+      images: [`https://image.tmdb.org/t/p/w1280${tvShow.backdrop_path}`],
     },
   };
 }

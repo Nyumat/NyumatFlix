@@ -5,31 +5,41 @@ import { WhyNyumatFlix } from "@/components/layout/sections/why";
 import { AggressivePrefetchProvider } from "@/components/providers/aggressive-prefetch-provider";
 
 export const metadata = {
-  title: "NyumatFlix - Movies and TV Shows, Anytime, Anywhere",
-  description:
-    "NyumatFlix is the best place to watch movies and TV shows online. With our platform, you can watch anywhere, anytime, on any device.",
+  title: "NyumatFlix - Watch Movies and TV Shows",
+  description: "Yet another Netflix clone, but with actual streams.",
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      "max-video-preview": 0,
+      "max-image-preview": "large",
+      "max-snippet": 150,
+    },
+  },
   openGraph: {
     type: "website",
-    url: "https://nyumatflix.com",
-    title: "NyumatFlix - Movies and TV Shows, Anytime, Anywhere",
-    description:
-      "NyumatFlix is the best place to watch movies and TV shows online. With our platform, you can watch anywhere, anytime, on any device.",
+    url: "/",
+    title: "NyumatFlix - Watch Movies and TV Shows",
+    description: "Yet another Netflix clone, but with actual streams.",
     images: [
       {
-        url: "https://nyumatflix.com/opengraph-image.png",
+        url: "https://nyumatflix.com/opengraph-alt.png",
         width: 1200,
         height: 630,
-        alt: "NyumatFlix - Movies and TV Shows, Anytime, Anywhere",
+        alt: "NyumatFlix - Watch Movies and TV Shows",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "https://nyumatflix.com",
-    title: "NyumatFlix - Movies and TV Shows, Anytime, Anywhere",
-    description:
-      "NyumatFlix is the best place to watch movies and TV shows online. With our platform, you can watch anywhere, anytime, on any device.",
-    images: ["https://nyumatflix.com/opengraph-image.png"],
+    site: "/",
+    title: "NyumatFlix - Watch Movies and TV Shows",
+    description: "Yet another Netflix clone, but with actual streams.",
+    images: ["https://nyumatflix.com/opengraph-alt.png"],
   },
 };
 
