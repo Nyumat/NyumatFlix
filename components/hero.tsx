@@ -295,6 +295,8 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                   .otherwise(() => "Media Poster")}
                 layout="fill"
                 objectFit="cover"
+                priority
+                className="pt-12"
               />
             </div>
           </EnhancedLink>

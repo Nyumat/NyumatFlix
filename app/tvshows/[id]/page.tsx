@@ -1,4 +1,3 @@
-import { fetchMediaDetails } from "@/app/actions";
 import { HeroSection } from "@/components/hero/exports";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
@@ -17,7 +16,7 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const tvShow = await fetchMediaDetails(params.id);
+  const tvShow = await fetchTVShowDetails(params.id);
 
   if (!tvShow) {
     return {

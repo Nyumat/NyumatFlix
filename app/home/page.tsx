@@ -5,31 +5,31 @@ import { Suspense } from "react";
 import { fetchAllData, fetchAndEnrichMediaItems } from "../actions";
 
 export const metadata = {
-  title: "NyumatFlix - Watch Movies and TV Shows Online",
+  title: "Home | NyumatFlix",
   description:
-    "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
+    "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
   openGraph: {
     type: "website",
     url: "https://nyumatflix.com",
-    title: "NyumatFlix - Watch Movies and TV Shows Online",
+    title: "Home | NyumatFlix",
     description:
-      "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
+      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
     images: [
       {
-        url: "https://nyumatflix.com/opengraph-image.png",
+        url: "https://nyumatflix.com/nyumatflix-alt.webp",
         width: 1200,
         height: 630,
-        alt: "NyumatFlix - Watch Movies and TV Shows Online",
+        alt: "Home | NyumatFlix",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     site: "https://nyumatflix.com",
-    title: "NyumatFlix - Watch Movies and TV Shows Online",
+    title: "Home |NyumatFlix",
     description:
-      "Tired of Netflix? Try NyumatFlix! Watch movies and TV shows online. No subscription required. No sign-up required. Just watch.",
-    images: ["https://nyumatflix.com/opengraph-image.png"],
+      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
+    images: ["https://nyumatflix.com/nyumatflix-alt.webp"],
   },
 };
 

@@ -12,29 +12,31 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nyumatflix.com/"),
-  title: "NyumatFlix - Watch Movies and TV Shows Online",
-  description: "Yet another Netflix clone, but with actual streams.",
-  colorScheme: "dark",
+  title: "NyumatFlix | Watch Movies and TV Shows",
+  description:
+    "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
   openGraph: {
     type: "website",
     url: "https://nyumatflix.com",
-    title: "NyumatFlix - Watch Movies and TV Shows Online",
-    description: "Yet another Netflix clone, but with actual streams.",
+    title: "NyumatFlix | Watch Movies and TV Shows",
+    description:
+      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
     images: [
       {
-        url: "https://nyumatflix.com/opengraph-alt.png",
+        url: "https://nyumatflix.com/og.webp",
         width: 1200,
         height: 630,
-        alt: "NyumatFlix - Watch Movies and TV Shows Online",
+        alt: "NyumatFlix | Watch Movies and TV Shows",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     site: "https://nyumatflix.com",
-    title: "NyumatFlix - Watch Movies and TV Shows Online",
-    description: "Yet another Netflix clone, but with actual streams.",
-    images: ["https://nyumatflix.com/opengraph-alt.png"],
+    title: "NyumatFlix | Watch Movies and TV Shows",
+    description:
+      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
+    images: ["https://nyumatflix.com/og.webp"],
   },
 };
 

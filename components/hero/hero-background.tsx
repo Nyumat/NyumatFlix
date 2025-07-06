@@ -59,7 +59,7 @@ export function HeroBackground({
     }
   }
 
-  const mediaType = "title" in media ? "movie" : "tv";
+  const mediaType = media.media_type;
   const trailerKey = currentItemVideos.find(
     (video: { type: string }) => video.type === "Trailer",
   )?.key;
