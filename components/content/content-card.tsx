@@ -16,7 +16,7 @@ interface ContentCardProps {
   isRanked?: boolean;
   rank?: number;
   isMobile: boolean;
-  rating: string;
+  rating?: string;
   href?: string; // Optional link href
 }
 
