@@ -24,11 +24,11 @@ interface HeroBackgroundProps {
   /** Animation controls for the background */
   controls: AnimationControls;
   /** Callback function when trailer ends */
-  onTrailerEnded: () => void;
+  onTrailerEnded(): void;
   /** YouTube player instance */
   youtubePlayer: YouTubePlayer;
   /** Setter for YouTube player instance */
-  setYoutubePlayer: React.Dispatch<React.SetStateAction<YouTubePlayer>>;
+  setYoutubePlayer(player: YouTubePlayer): void;
 }
 
 /**

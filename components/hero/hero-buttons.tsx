@@ -12,8 +12,8 @@ import {
 } from "../ui/tooltip";
 
 interface HeroButtonsProps {
-  handleWatch: () => void;
-  handlePlayTrailer: () => void;
+  handleWatch(): void;
+  handlePlayTrailer(): void;
   mediaType?: "tv" | "movie";
 }
 

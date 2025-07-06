@@ -20,8 +20,8 @@ interface HeroContentProps {
   isWatch: boolean;
   isPlayingVideo: boolean;
   isPlayingTrailer: boolean;
-  handleWatch: () => void;
-  handlePlayTrailer: () => void;
+  handleWatch(): void;
+  handlePlayTrailer(): void;
 }
 
 export function HeroContent({
