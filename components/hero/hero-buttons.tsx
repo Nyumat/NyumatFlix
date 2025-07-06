@@ -17,7 +17,7 @@ export function HeroButtons({
   mediaId,
 }: HeroButtonsProps) {
   return (
-    <div className="flex items-center space-x-4 mb-6">
+    <div className="flex items-center space-x-4">
       {isWatch ? (
         <button
           className="bg-primary text-primary-foreground py-3 px-6 rounded-full font-bold hover:bg-primary/80 transition flex items-center"

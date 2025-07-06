@@ -1,5 +1,7 @@
 "use client";
 
+import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useServerStore } from "@/lib/stores/server-store";
 import { logger } from "@/lib/utils";
 import { MediaItem } from "@/utils/typings";
 import { AnimatePresence, AnimationControls, motion } from "framer-motion";
@@ -42,6 +44,11 @@ export function HeroBackground({
   youtubePlayer,
   setYoutubePlayer,
 }: HeroBackgroundProps) {
+  // Get episode store state
+  const { getEmbedUrl } = useEpisodeStore();
+  // Get server store state
+  const { selectedServer } = useServerStore();
+
   // Extract videos from media object
   let currentItemVideos: { type: string; key: string }[] = [];
 
@@ -63,6 +70,33 @@ export function HeroBackground({
   const trailerKey = currentItemVideos.find(
     (video: { type: string }) => video.type === "Trailer",
   )?.key;
+
+  // Get the appropriate embed URL
+  const getVideoSrc = () => {
+    // Check if we have a specific episode selected
+    const episodeEmbedUrl = getEmbedUrl();
+    if (episodeEmbedUrl) {
+      return episodeEmbedUrl;
+    }
+
+    // Determine if this is a TV show or movie
+    // Check multiple indicators to properly identify TV shows
+    const isTvShow =
+      mediaType === "tv" ||
+      media.media_type === "tv" ||
+      media.name !== undefined || // TV shows have 'name' instead of 'title'
+      media.first_air_date !== undefined || // TV shows have 'first_air_date' instead of 'release_date'
+      media.number_of_seasons !== undefined || // TV shows have seasons
+      media.number_of_episodes !== undefined || // TV shows have episodes
+      window.location.pathname.includes("/tvshows/"); // Check URL path
+
+    // Default to the main show/movie using the selected server
+    if (isTvShow) {
+      return selectedServer.getTvUrl(media.id);
+    } else {
+      return selectedServer.getMovieUrl(media.id);
+    }
+  };
 
   // Timeout ref to detect long pauses (>1s)
   const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -171,6 +205,9 @@ export function HeroBackground({
     setYoutubePlayer,
   ]);
 
+  console.log({ selectedServer, media });
+  console.log(getVideoSrc());
+
   return (
     <div className="absolute inset-0 z-0">
       <AnimatePresence mode="popLayout">
@@ -218,7 +255,7 @@ export function HeroBackground({
                 <X size={24} />
               </button>
               <motion.iframe
-                src={`https://vidsrc.xyz/embed/${mediaType}/${media.id}`}
+                src={getVideoSrc()}
                 className="w-full h-full"
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
@@ -230,6 +267,7 @@ export function HeroBackground({
               src={`https://image.tmdb.org/t/p/original${
                 media.backdrop_path ?? media.poster_path
               }`}
+              fetchPriority="high"
               alt={media.title || media.name}
               className="w-full h-full object-cover absolute inset-0"
               initial={{ opacity: 0 }}

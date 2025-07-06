@@ -25,9 +25,9 @@ export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
 }
 
 /**
- * Fetches details for a specific season of a TV show
+ * Fetches details for a specific season of a TV show (server-side)
  */
-export async function fetchSeasonDetails(
+export async function fetchSeasonDetailsServer(
   tvId: string,
   seasonNumber: number,
 ): Promise<SeasonDetails | null> {
@@ -35,6 +35,26 @@ export async function fetchSeasonDetails(
     const response = await fetch(
       `https://api.themoviedb.org/3/tv/${tvId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
     );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch season details: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+/**
+ * Fetches details for a specific season of a TV show (client-side)
+ */
+export async function fetchSeasonDetails(
+  tvId: string,
+  seasonNumber: number,
+): Promise<SeasonDetails | null> {
+  try {
+    // Call the API route instead of directly calling TMDB
+    const response = await fetch(`/api/tv/${tvId}/season/${seasonNumber}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch season details: ${response.status}`);
     }

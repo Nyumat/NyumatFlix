@@ -1,6 +1,10 @@
+"use client";
+
+import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { Episode } from "@/utils/typings";
 import { Tv } from "lucide-react";
 import Image from "next/legacy/image";
+import { useEffect, useState } from "react";
 import { fetchSeasonDetails } from "./tvshow-api";
 
 type SeasonEpisodesProps = {
@@ -8,11 +12,36 @@ type SeasonEpisodesProps = {
   seasonNumber: number;
 };
 
-export async function SeasonEpisodes({
-  tvId,
-  seasonNumber,
-}: SeasonEpisodesProps) {
-  const seasonDetails = await fetchSeasonDetails(tvId, seasonNumber);
+export function SeasonEpisodes({ tvId, seasonNumber }: SeasonEpisodesProps) {
+  const [seasonDetails, setSeasonDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { selectedEpisode, setSelectedEpisode } = useEpisodeStore();
+
+  useEffect(() => {
+    const loadSeasonDetails = async () => {
+      setLoading(true);
+      try {
+        const details = await fetchSeasonDetails(tvId, seasonNumber);
+        setSeasonDetails(details);
+      } catch (error) {
+        console.error("Error loading season details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSeasonDetails();
+  }, [tvId, seasonNumber]);
+
+  const handleEpisodeClick = (episode: Episode) => {
+    setSelectedEpisode(episode, tvId, seasonNumber);
+  };
+
+  if (loading) {
+    return (
+      <div className="text-muted-foreground py-4">Loading episodes...</div>
+    );
+  }
 
   if (
     !seasonDetails ||
@@ -34,7 +63,12 @@ export async function SeasonEpisodes({
           {seasonDetails.episodes.map((episode: Episode) => (
             <div
               key={episode.id}
-              className="bg-card/50 rounded-lg p-4 hover:bg-card transition cursor-pointer"
+              onClick={() => handleEpisodeClick(episode)}
+              className={`bg-card/50 rounded-lg p-4 transition cursor-pointer border-2 ${
+                selectedEpisode?.id === episode.id
+                  ? "border-primary bg-primary/10 hover:bg-primary/20"
+                  : "border-transparent hover:bg-card hover:border-border"
+              }`}
             >
               <div className="flex">
                 <div className="w-32 h-20 rounded overflow-hidden mr-4 flex-shrink-0">
@@ -69,6 +103,11 @@ export async function SeasonEpisodes({
                   <p className="text-muted-foreground text-sm line-clamp-2">
                     {episode.overview}
                   </p>
+                  {selectedEpisode?.id === episode.id && (
+                    <div className="mt-2 text-primary text-sm font-medium">
+                      Selected for viewing
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
