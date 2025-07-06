@@ -2,7 +2,8 @@
 const nextConfig = {
   optimizeFonts: true,
   images: {
-    minimumCacheTTL: 2678400,
+    unoptimized: true,
+    // minimumCacheTTL: 2678400,
     remotePatterns: [
       {
         protocol: "https",
