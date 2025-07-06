@@ -137,6 +137,14 @@ function resetCacheIfNeeded() {
   }
 }
 
+// Rows that should allow international content
+const internationalRows = [
+  "kdrama",
+  "kdrama-romance",
+  "tv-anime",
+  "tv-british-comedy",
+];
+
 /**
  * Fetches content for a specific row with at least minCount unique items
  */
@@ -176,6 +184,20 @@ async function fetchStandardizedRow(
 
   // Additional filter for US TV content
   const isUsTvContent = (item: MediaItem): boolean => {
+    // For international rows, allow their specific origin countries
+    if (internationalRows.includes(rowId)) {
+      if (rowId === "kdrama" || rowId === "kdrama-romance") {
+        return item.origin_country?.includes("KR") || false;
+      }
+      if (rowId === "tv-anime") {
+        return item.origin_country?.includes("JP") || false;
+      }
+      if (rowId === "tv-british-comedy") {
+        return item.origin_country?.includes("GB") || false;
+      }
+    }
+
+    // For other rows, keep the original logic
     return (
       mediaType !== "tv" ||
       item.origin_country?.includes("US") ||
