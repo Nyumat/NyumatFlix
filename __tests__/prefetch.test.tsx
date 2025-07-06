@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // Sample media item for testing
-const mockMovie: MediaItem = {
+const mockMovie = {
   id: 123,
   title: "Test Movie",
   media_type: "movie",
@@ -25,7 +25,7 @@ const mockMovie: MediaItem = {
   video: false,
   original_title: "Test Movie Original",
   first_air_date: "",
-};
+} satisfies MediaItem;
 
 describe("Prefetching System", () => {
   beforeEach(() => {
