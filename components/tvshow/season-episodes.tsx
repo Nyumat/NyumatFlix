@@ -1,7 +1,7 @@
 "use client";
 
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { Episode } from "@/utils/typings";
+import { Episode, SeasonDetails } from "@/utils/typings";
 import { Tv } from "lucide-react";
 import Image from "next/legacy/image";
 import { useEffect, useState } from "react";
@@ -13,7 +13,9 @@ type SeasonEpisodesProps = {
 };
 
 export function SeasonEpisodes({ tvId, seasonNumber }: SeasonEpisodesProps) {
-  const [seasonDetails, setSeasonDetails] = useState<any>(null);
+  const [seasonDetails, setSeasonDetails] = useState<SeasonDetails | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const { selectedEpisode, setSelectedEpisode } = useEpisodeStore();
 

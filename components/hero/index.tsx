@@ -6,12 +6,12 @@ import { ChevronLeft } from "lucide-react";
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useRouter } from "next/navigation";
 import { HeroBackground } from "./hero-background";
 import { HeroContent } from "./hero-content";
 import { HeroPagination } from "./hero-pagination";
 import { showToast } from "./toast-utils";
 import { YouTubePlayer } from "./youtube-types";
-import { useRouter } from "next/navigation";
 
 interface MediaDetailHeroProps {
   media: MediaItem[];
@@ -123,6 +123,51 @@ export function MediaDetailHero({
   const isMoviesPath = window.location.pathname.includes("/movies/");
   const isTvShowsPath = window.location.pathname.includes("/tvshows/");
 
+  // Determine media type from route with more robust checking
+  const getRouteBasedMediaType = (): "tv" | "movie" | undefined => {
+    if (typeof window === "undefined") {
+      return undefined; // SSR fallback
+    }
+
+    const pathname = window.location.pathname;
+
+    if (pathname.includes("/tvshows/")) {
+      return "tv";
+    } else if (pathname.includes("/movies/")) {
+      return "movie";
+    }
+
+    // Also check for watch route patterns
+    if (pathname.includes("/watch/")) {
+      // Try to determine from media object
+      const currentMedia = media[currentItemIndex];
+      if (currentMedia) {
+        const isTvShow =
+          currentMedia.media_type === "tv" ||
+          currentMedia.name !== undefined ||
+          currentMedia.first_air_date !== undefined ||
+          currentMedia.number_of_seasons !== undefined ||
+          currentMedia.number_of_episodes !== undefined;
+
+        return isTvShow ? "tv" : "movie";
+      }
+    }
+
+    return undefined;
+  };
+
+  const mediaType = getRouteBasedMediaType();
+
+  console.log("🛣️ Route-based media type detection:", {
+    pathname: typeof window !== "undefined" ? window.location.pathname : "SSR",
+    isMoviesPath,
+    isTvShowsPath,
+    detectedMediaType: mediaType,
+    currentMedia:
+      media[currentItemIndex]?.title || media[currentItemIndex]?.name,
+    hasMediaType: !!mediaType,
+  });
+
   return (
     <div className={`relative ${isWatch ? "h-[75vh]" : "h-[82vh]"}`}>
       {/* YouTube API script */}
@@ -155,6 +200,7 @@ export function MediaDetailHero({
 
       <HeroBackground
         media={currentItem}
+        mediaType={mediaType}
         isPlayingVideo={isPlayingVideo}
         isPlayingTrailer={isPlayingTrailer}
         controls={controls}
@@ -165,6 +211,7 @@ export function MediaDetailHero({
 
       <HeroContent
         media={currentItem}
+        mediaType={mediaType}
         isWatch={isWatch}
         isPlayingVideo={isPlayingVideo}
         isPlayingTrailer={isPlayingTrailer}
