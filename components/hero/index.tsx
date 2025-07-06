@@ -17,12 +17,14 @@ interface MediaDetailHeroProps {
   media: MediaItem[];
   noSlide?: boolean;
   isWatch?: boolean;
+  mediaType?: "tv" | "movie";
 }
 
 export function MediaDetailHero({
   media,
   noSlide,
   isWatch = false,
+  mediaType: passedMediaType,
 }: MediaDetailHeroProps) {
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
@@ -125,6 +127,11 @@ export function MediaDetailHero({
 
   // Determine media type from route with more robust checking
   const getRouteBasedMediaType = (): "tv" | "movie" | undefined => {
+    // Use passed mediaType first if provided
+    if (passedMediaType) {
+      return passedMediaType;
+    }
+
     if (typeof window === "undefined") {
       return undefined; // SSR fallback
     }
@@ -160,6 +167,7 @@ export function MediaDetailHero({
 
   console.log("🛣️ Route-based media type detection:", {
     pathname: typeof window !== "undefined" ? window.location.pathname : "SSR",
+    passedMediaType,
     isMoviesPath,
     isTvShowsPath,
     detectedMediaType: mediaType,

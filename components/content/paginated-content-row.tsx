@@ -9,16 +9,16 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { EnhancedLink } from "@/components/ui/enhanced-link";
-import { getRating, useContentRatings } from "@/hooks/useContentRatings";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useIntersectionPrefetch } from "@/hooks/useIntersectionPrefetch";
 import useMedia from "@/hooks/useMedia";
-import { MediaItem, isMovie } from "@/utils/typings";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { isMovie, MediaItem } from "@/utils/typings";
 import { useEffect, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 
-export interface PaginatedContentRowProps {
+// Props for the PaginatedContentRow
+interface PaginatedContentRowProps {
   title: string;
   items: MediaItem[];
   href: string;
@@ -57,7 +57,11 @@ function PaginatedContentItem({
         mediaItem={item}
         prefetchDelay={100}
       >
-        <ContentCard item={item} isMobile={false} rating="" />
+        <ContentCard
+          item={item}
+          isMobile={false}
+          rating={item.content_rating || undefined}
+        />
       </EnhancedLink>
     </CarouselItem>
   );
@@ -77,10 +81,6 @@ export function PaginatedContentRow({
   const isMobile = useMedia("(max-width: 768px)", false);
   const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
-
-  // Fetch actual ratings for the items
-  const { ratings: fetchedRatings, loading: ratingsLoading } =
-    useContentRatings(items);
 
   useEffect(() => {
     if (
@@ -111,7 +111,7 @@ export function PaginatedContentRow({
   };
 
   const getContentRating = (item: MediaItem) => {
-    return getRating(item, fetchedRatings);
+    return item.content_rating || undefined;
   };
 
   const handlePrevPage = () => {
@@ -126,41 +126,15 @@ export function PaginatedContentRow({
     }
   };
 
-  const LoadingSpinner = () => (
+  const LoadingComponent = () => (
     <div className="flex items-center justify-center min-h-[150px] w-full">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <LoadingSpinner size="lg" />
     </div>
   );
 
   return (
     <div className="mx-4 md:mx-8 mb-8">
       <ContentRowHeader title={title} href={href} />
-
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePrevPage}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
 
       <div className="relative">
         <Carousel
@@ -195,7 +169,7 @@ export function PaginatedContentRow({
 
             {hasMoreItems && (loading || isLoadingMore) && (
               <CarouselItem className="pl-3 md:pl-4 basis-[48%] sm:basis-[35%] md:basis-[28%] lg:basis-[22%] xl:basis-[18%] flex items-center justify-center">
-                <LoadingSpinner />
+                <LoadingComponent />
               </CarouselItem>
             )}
           </CarouselContent>
@@ -205,17 +179,37 @@ export function PaginatedContentRow({
         </Carousel>
       </div>
 
+      {/* Pagination controls for manual page navigation */}
+      <div className="flex justify-center items-center gap-4 mt-4">
+        <Button
+          variant="outline"
+          onClick={handlePrevPage}
+          disabled={currentPage <= 1}
+          size="sm"
+        >
+          Previous
+        </Button>
+        <span className="text-sm text-muted-foreground">
+          Page {currentPage} of {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          onClick={handleNextPage}
+          disabled={currentPage >= totalPages}
+          size="sm"
+        >
+          Next
+        </Button>
+      </div>
+
+      {/* Load more for infinite scroll if needed */}
       {hasMoreItems && !isMobile && (
         <div className="flex justify-center mt-4">
           {loading || isLoadingMore ? (
-            <LoadingSpinner />
+            <LoadingComponent />
           ) : (
-            <Button
-              onClick={loadMoreItems}
-              variant="outline"
-              className="hover:bg-accent"
-            >
-              Load More
+            <Button onClick={loadMoreItems} variant="outline">
+              Load More Items
             </Button>
           )}
         </div>

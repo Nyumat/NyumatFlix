@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { CountryBadge } from "@/components/ui/country-badge";
 import { Network, ProductionCountry, TvShowDetails } from "@/utils/typings";
 import { Calendar, Star, Tv } from "lucide-react";
 import Image from "next/legacy/image";
@@ -86,9 +87,12 @@ export function TVShowSidebar({
             <div className="flex flex-wrap gap-2">
               {details.production_countries.map(
                 (country: ProductionCountry) => (
-                  <Badge key={country.iso_3166_1} variant="outline">
-                    {country.name}
-                  </Badge>
+                  <CountryBadge
+                    key={country.iso_3166_1}
+                    country={country}
+                    variant="outline"
+                    mediaType="tv"
+                  />
                 ),
               )}
             </div>

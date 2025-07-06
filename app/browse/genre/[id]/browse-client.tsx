@@ -1,6 +1,7 @@
 "use client";
 
 import { ContentGrid } from "@/components/content/content-grid";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { MediaItem } from "@/utils/typings";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -72,13 +73,13 @@ export default function BrowseGenreClient({
 
   return (
     <div>
-      <ContentGrid items={items} type={mediaType} title={genreName} />
+      <ContentGrid items={items} type={mediaType} />
       {currentPage < totalPages && (
         <div ref={sentinelRef} className="h-1 w-full" />
       )}
       {isLoading && (
-        <div className="flex justify-center py-6 text-muted-foreground">
-          Loading more {mediaType === "movie" ? "movies" : "shows"}...
+        <div className="flex justify-center py-6">
+          <LoadingSpinner text="Loading more content..." />
         </div>
       )}
     </div>

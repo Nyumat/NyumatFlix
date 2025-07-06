@@ -165,6 +165,78 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
       },
     },
   },
+  "year-2010s": {
+    id: "year-2010s",
+    title: "2010s Movies",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        "primary_release_date.gte": "2010-01-01",
+        "primary_release_date.lte": "2019-12-31",
+      },
+    },
+  },
+  "year-2020": {
+    id: "year-2020",
+    title: "2020 Movies",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        "primary_release_date.gte": "2020-01-01",
+        "primary_release_date.lte": "2020-12-31",
+      },
+    },
+  },
+  "year-2021": {
+    id: "year-2021",
+    title: "2021 Movies",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        "primary_release_date.gte": "2021-01-01",
+        "primary_release_date.lte": "2021-12-31",
+      },
+    },
+  },
+  "year-2022": {
+    id: "year-2022",
+    title: "2022 Movies",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        "primary_release_date.gte": "2022-01-01",
+        "primary_release_date.lte": "2022-12-31",
+      },
+    },
+  },
+  "year-2023": {
+    id: "year-2023",
+    title: "2023 Movies",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        "primary_release_date.gte": "2023-01-01",
+        "primary_release_date.lte": "2023-12-31",
+      },
+    },
+  },
+  "year-2024": {
+    id: "year-2024",
+    title: "2024 Movies",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        "primary_release_date.gte": "2024-01-01",
+        "primary_release_date.lte": "2024-12-31",
+      },
+    },
+  },
 
   // Studio filters
   "studio-a24": {
@@ -351,6 +423,18 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
     type: "category",
     fetchConfig: {
       endpoint: "/tv/airing_today",
+    },
+  },
+  "tv-upcoming": {
+    id: "tv-upcoming",
+    title: "Upcoming TV Shows",
+    type: "category",
+    fetchConfig: {
+      endpoint: "/discover/tv",
+      params: {
+        "first_air_date.gte": new Date().toISOString().split("T")[0],
+        sort_by: "first_air_date.asc",
+      },
     },
   },
 
@@ -546,6 +630,66 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
       params: {
         "first_air_date.gte": "2010-01-01",
         "first_air_date.lte": "2019-12-31",
+      },
+    },
+  },
+  "tv-year-2020": {
+    id: "tv-year-2020",
+    title: "2020 TV Shows",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/tv",
+      params: {
+        "first_air_date.gte": "2020-01-01",
+        "first_air_date.lte": "2020-12-31",
+      },
+    },
+  },
+  "tv-year-2021": {
+    id: "tv-year-2021",
+    title: "2021 TV Shows",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/tv",
+      params: {
+        "first_air_date.gte": "2021-01-01",
+        "first_air_date.lte": "2021-12-31",
+      },
+    },
+  },
+  "tv-year-2022": {
+    id: "tv-year-2022",
+    title: "2022 TV Shows",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/tv",
+      params: {
+        "first_air_date.gte": "2022-01-01",
+        "first_air_date.lte": "2022-12-31",
+      },
+    },
+  },
+  "tv-year-2023": {
+    id: "tv-year-2023",
+    title: "2023 TV Shows",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/tv",
+      params: {
+        "first_air_date.gte": "2023-01-01",
+        "first_air_date.lte": "2023-12-31",
+      },
+    },
+  },
+  "tv-year-2024": {
+    id: "tv-year-2024",
+    title: "2024 TV Shows",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/tv",
+      params: {
+        "first_air_date.gte": "2024-01-01",
+        "first_air_date.lte": "2024-12-31",
       },
     },
   },
@@ -877,4 +1021,64 @@ export function buildFilterParams(filterId: string): {
       ...(filter.fetchConfig.params || {}),
     },
   };
+}
+
+// Helper function to generate filter ID from year
+export function generateYearFilterId(
+  year: string,
+  mediaType: "movie" | "tv" = "movie",
+): string {
+  if (mediaType === "tv") {
+    return `tv-year-${year}`;
+  }
+  return `year-${year}`;
+}
+
+// Helper function to create year filter params for any year
+export function createYearFilterParams(
+  year: string,
+  mediaType: "movie" | "tv" = "movie",
+): {
+  endpoint: string;
+  params: Record<string, string>;
+} {
+  const dateField =
+    mediaType === "tv" ? "first_air_date" : "primary_release_date";
+
+  return {
+    endpoint: `/discover/${mediaType}`,
+    params: {
+      language: "en-US",
+      include_adult: "false",
+      sort_by: "popularity.desc",
+      [`${dateField}.gte`]: `${year}-01-01`,
+      [`${dateField}.lte`]: `${year}-12-31`,
+    },
+  };
+}
+
+// Helper function to get filter title
+export function getFilterTitle(
+  filterId: string,
+  year?: string,
+  mediaType: "movie" | "tv" = "movie",
+): string {
+  // Handle year filters
+  if (year) {
+    return mediaType === "tv" ? `${year} TV Shows` : `${year} Movies`;
+  }
+
+  // Handle predefined filters
+  const filter = getFilterConfig(filterId);
+  if (filter) {
+    return filter.title;
+  }
+
+  // Handle special cases
+  if (filterId === "upcoming") {
+    return mediaType === "tv" ? "Upcoming TV Shows" : "Upcoming Movies";
+  }
+
+  // Default fallback
+  return mediaType === "tv" ? "TV Shows" : "Movies";
 }

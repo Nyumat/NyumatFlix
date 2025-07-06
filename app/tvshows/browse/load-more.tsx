@@ -1,6 +1,6 @@
 "use client";
 
-import { ContentLoader } from "@/components/animated/load-more";
+import { LoadingSpinnerFullHeight } from "@/components/ui/loading-spinner";
 import { useRef, useState, useTransition } from "react";
 import { useInView } from "react-intersection-observer";
 
@@ -57,7 +57,7 @@ export function LoadMore({
       <div ref={ref} className="h-20" />
       {isPending && (
         <div className="relative mb-20">
-          <ContentLoader />
+          <LoadingSpinnerFullHeight />
         </div>
       )}
     </>

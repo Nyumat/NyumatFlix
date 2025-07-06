@@ -1,6 +1,10 @@
 import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
 import { ContentGrid } from "@/components/content/content-grid";
-import { buildFilterParams } from "@/utils/content-filters";
+import {
+  buildFilterParams,
+  createYearFilterParams,
+  generateYearFilterId,
+} from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { getMoreMovies } from "./actions";
 import { LoadMore } from "./load-more";
@@ -21,8 +25,14 @@ export async function FilteredMovieContent({
   let endpoint = "";
   let params: Record<string, string> = {};
 
-  // If no filterId provided, try to build one from legacy parameters
-  if (!resolvedFilterId && genre) {
+  // Handle year filtering first
+  if (year) {
+    // Try to find predefined year filter first
+    const yearFilterId = generateYearFilterId(year, "movie");
+    const yearFilterConfig = createYearFilterParams(year, "movie");
+    endpoint = yearFilterConfig.endpoint;
+    params = yearFilterConfig.params;
+  } else if (genre) {
     // Direct genre filtering without needing predefined filters
     endpoint = "/discover/movie";
     params = {
@@ -31,24 +41,14 @@ export async function FilteredMovieContent({
       include_adult: "false",
       sort_by: "popularity.desc",
     };
-  } else if (!resolvedFilterId && year) {
-    // Map year ranges to filter IDs
-    const yearMap: Record<string, string> = {
-      "1980-1989": "year-80s",
-      "1990-1999": "year-90s",
-      "2000-2009": "year-2000s",
-    };
-    resolvedFilterId = yearMap[year] || "";
-  }
-
-  // If we have a filter ID, use the filter configuration
-  if (resolvedFilterId) {
+  } else if (resolvedFilterId) {
+    // Use the filter configuration if filterId is provided
     const filterConfig = buildFilterParams(resolvedFilterId);
     endpoint = filterConfig.endpoint;
     params = filterConfig.params;
-  } else if (!endpoint) {
-    // Fallback to default if no filter or genre specified
-    const filterConfig = buildFilterParams("");
+  } else {
+    // Fallback to popular movies if no parameters
+    const filterConfig = buildFilterParams("popular");
     endpoint = filterConfig.endpoint;
     params = filterConfig.params;
   }

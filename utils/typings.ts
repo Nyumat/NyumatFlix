@@ -109,6 +109,7 @@ export const MovieSchema = z
     adult: z.boolean(),
     video: z.boolean(),
     original_title: z.string(),
+    content_rating: z.string().optional().nullable(),
     logo: LogoSchema.optional(),
     videos: z.array(z.any()).optional(),
     results: z.array(z.lazy(() => MovieSchema)).optional(),
@@ -133,6 +134,7 @@ export const TvShowSchema = z
     original_language: z.string(),
     original_name: z.string(),
     media_type: z.string().optional(),
+    content_rating: z.string().optional().nullable(),
     logo: LogoSchema.optional(),
     videos: z.array(z.any()).optional(),
   })
