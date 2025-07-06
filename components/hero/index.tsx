@@ -11,6 +11,7 @@ import { HeroContent } from "./hero-content";
 import { HeroPagination } from "./hero-pagination";
 import { showToast } from "./toast-utils";
 import { YouTubePlayer } from "./youtube-types";
+import { useRouter } from "next/navigation";
 
 interface MediaDetailHeroProps {
   media: MediaItem[];
@@ -29,6 +30,7 @@ export function MediaDetailHero({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controls = useAnimation();
   const [youtubePlayer, setYoutubePlayer] = useState<YouTubePlayer>(null);
+  const router = useRouter();
 
   const handleNext = useCallback(() => {
     setCurrentItemIndex((prevIndex) =>
@@ -118,6 +120,9 @@ export function MediaDetailHero({
     showToast.info("Press X key or pause to stop trailer");
   };
 
+  const isMoviesPath = window.location.pathname.includes("/movies/");
+  const isTvShowsPath = window.location.pathname.includes("/tvshows/");
+
   return (
     <div className={`relative ${isWatch ? "h-[75vh]" : "h-[82vh]"}`}>
       {/* YouTube API script */}
@@ -125,7 +130,6 @@ export function MediaDetailHero({
         src="https://www.youtube.com/iframe_api"
         strategy="lazyOnload"
         onLoad={() => {
-          // YouTube API is loaded and ready to use
           window.onYouTubeIframeAPIReady = () => {
             // console.log("YouTube API ready");
           };
@@ -134,8 +138,15 @@ export function MediaDetailHero({
 
       {isWatch && (
         <button
-          onClick={() => window.history.back()}
-          className="absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border"
+          title="Go back"
+          disabled={window.history.length <= 2}
+          aria-disabled={window.history.length <= 2}
+          onClick={() => {
+            if (isMoviesPath) router.push("/movies");
+            if (isTvShowsPath) router.push("/tvshows");
+            if (window.history.length > 2) window.history.back();
+          }}
+          className="absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Go back"
         >
           <ChevronLeft size={24} />
