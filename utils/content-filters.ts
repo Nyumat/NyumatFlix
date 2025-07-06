@@ -572,8 +572,9 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
       endpoint: "/discover/tv",
       params: {
         with_origin_country: "KR",
+        with_genres: "18",
         sort_by: "popularity.desc",
-        "vote_count.gte": "50",
+        "vote_count.gte": "5",
       },
     },
   },

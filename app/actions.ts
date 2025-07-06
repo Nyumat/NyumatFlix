@@ -382,15 +382,18 @@ export async function determineMediaType(id: string | number) {
     const movieResponse = await fetch(
       `${TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}`,
     );
-    if (movieResponse.ok) {
-      return "movie";
-    }
 
     // If not a movie, try to fetch as a TV show
     const tvResponse = await fetch(
       `${TMDB_BASE_URL}/tv/${id}?api_key=${TMDB_API_KEY}`,
     );
-    if (tvResponse.ok) {
+
+    const movieResponseData = await movieResponse.json();
+    const tvResponseData = await tvResponse.json();
+    if (movieResponseData.media_type === "movie") {
+      return "movie";
+    }
+    if (tvResponseData.media_type === "tv") {
       return "tv";
     }
 
@@ -409,11 +412,6 @@ export async function determineMediaType(id: string | number) {
  */
 export async function fetchMediaDetails(id: string | number) {
   const mediaType = await determineMediaType(id);
-
-  if (mediaType === "unknown") {
-    return null;
-  }
-
   try {
     const response = await fetch(
       `${TMDB_BASE_URL}/${mediaType}/${id}?api_key=${TMDB_API_KEY}`,

@@ -89,7 +89,7 @@ export function HeroContent({
                 seasons={media.number_of_seasons}
                 episodes={media.number_of_episodes}
               />
-              {media.overview && (
+              {media.overview && !isWatch && (
                 <p className="text-foreground/80 mb-6">{media.overview}</p>
               )}
               <HeroButtons
