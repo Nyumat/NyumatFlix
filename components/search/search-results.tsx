@@ -183,7 +183,12 @@ export function ContentGrid({
   return (
     <div className="container mx-auto px-4 py-8" data-testid="content-grid">
       <div className="flex justify-between items-center mb-6">
-        <h2 className={cn("text-3xl font-semibold", "text-primary-foreground")}>
+        <h2
+          className={cn(
+            "text-2xl md:text-3xl font-semibold",
+            "text-primary-foreground",
+          )}
+        >
           {title}
         </h2>
         <div className="text-sm text-muted-foreground">
@@ -195,17 +200,12 @@ export function ContentGrid({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 md:gap-4 lg:gap-6">
         {processedItems.map((item) => {
           const itemType = item.media_type === "movie" ? "movie" : "tv";
 
           return (
-            <div
-              key={`${item.id}-${itemType}`}
-              className={cn(
-                "rounded-lg transition-all duration-300 transform hover:scale-105",
-              )}
-            >
+            <div key={`${item.id}-${itemType}`} className="w-full">
               <MediaCard item={item} type={itemType} />
             </div>
           );

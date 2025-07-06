@@ -1,24 +1,34 @@
 import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
 import { ContentGrid } from "@/components/content/content-grid";
-import { buildFilterParams } from "@/utils/content-filters";
+import {
+  buildFilterParams,
+  createYearFilterParams,
+} from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { LoadMore } from "./load-more";
 
 interface ICProps {
   filterId: string;
   genre?: string;
+  year?: string;
 }
 
 export async function InfiniteContent({
   filterId,
   genre,
+  year,
 }: ICProps): Promise<JSX.Element> {
   // Determine the endpoint and params based on the parameters
   let endpoint = "";
   let params: Record<string, string> = {};
 
-  // If genre is provided and no filterId, use direct genre filtering
-  if (!filterId && genre) {
+  // Handle year filtering first
+  if (year) {
+    const yearFilterConfig = createYearFilterParams(year, "tv");
+    endpoint = yearFilterConfig.endpoint;
+    params = yearFilterConfig.params;
+  } else if (genre) {
+    // If genre is provided and no filterId, use direct genre filtering
     endpoint = "/discover/tv";
     params = {
       with_genres: genre,
@@ -47,7 +57,7 @@ export async function InfiniteContent({
   if (!initialResponse?.results || initialResponse.results.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        No TV shows found
+        No TV shows found matching your criteria.
       </div>
     );
   }
@@ -96,7 +106,7 @@ export async function InfiniteContent({
   return (
     <>
       <LoadMore
-        key={filterId}
+        key={`${filterId}-${genre}-${year}`}
         getTVShowListNodes={getTVShowListNodes}
         initialOffset={initialOffset}
       >

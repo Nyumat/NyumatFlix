@@ -1,5 +1,10 @@
+import {
+  buildItemsWithCategories,
+  fetchAndEnrichMediaItems,
+  fetchTMDBData,
+} from "@/app/actions";
+import { MediaItem } from "@/utils/typings";
 import { NextRequest, NextResponse } from "next/server";
-import { fetchTMDBData } from "@/app/actions";
 
 export async function GET(
   req: NextRequest,
@@ -14,13 +19,14 @@ export async function GET(
   const page = parseInt(pageParam, 10);
 
   try {
-    const data = await fetchTMDBData<unknown>(
+    const data = await fetchTMDBData<MediaItem>(
       `/discover/${mediaType}`,
       {
         with_genres: genreId,
         sort_by: "popularity.desc",
         language: "en-US",
         include_adult: "false",
+        "vote_count.gte": "10", // Minimum vote count for quality
       },
       page,
     );
@@ -29,10 +35,22 @@ export async function GET(
       Boolean(item.poster_path),
     );
 
+    // Process with categories for consistent data structure
+    const processedResults = await buildItemsWithCategories<MediaItem>(
+      resultsWithPoster,
+      mediaType as "movie" | "tv",
+    );
+
+    // Enrich items with full details (runtime, logos, content ratings, etc.)
+    const enrichedResults = await fetchAndEnrichMediaItems(
+      processedResults,
+      mediaType as "movie" | "tv",
+    );
+
     return NextResponse.json({
       page: data.page,
       total_pages: data.total_pages,
-      results: resultsWithPoster,
+      results: enrichedResults,
       type: mediaType,
       genreId,
     });

@@ -113,7 +113,7 @@ export default async function MoviePage({ params }: Props) {
 
     return (
       <PageContainer className="bg-black/95 pb-16">
-        <HeroSection media={[details]} noSlide isWatch />
+        <HeroSection media={[details]} noSlide isWatch mediaType="movie" />
 
         {/* Additional content below hero */}
         <ContentContainer
@@ -186,6 +186,7 @@ export default async function MoviePage({ params }: Props) {
                             key={country.iso_3166_1}
                             country={country}
                             variant="outline"
+                            mediaType="movie"
                           />
                         ),
                       )}

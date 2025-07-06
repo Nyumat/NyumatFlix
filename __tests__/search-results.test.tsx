@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import SearchResults, { ContentGrid } from "@/components/search/search-results";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface MockResponse {
   ok: boolean;
@@ -149,10 +150,14 @@ const mockItems: (Movie | TvShow)[] = [mockMovie, mockTvShow];
 
 const mockGenres = { 28: "Action", 12: "Adventure", 16: "Animation" };
 
+const renderWithTooltipProvider = (component: React.ReactElement) => {
+  return render(<TooltipProvider>{component}</TooltipProvider>);
+};
+
 describe("ContentGrid Component", () => {
   test("renders the title correctly", async () => {
     await act(async () => {
-      render(
+      renderWithTooltipProvider(
         <ContentGrid
           title="Test Results"
           items={mockItems}
@@ -168,7 +173,7 @@ describe("ContentGrid Component", () => {
 
   test("renders the correct number of items", async () => {
     await act(async () => {
-      render(
+      renderWithTooltipProvider(
         <ContentGrid
           title="Test Results"
           items={mockItems}
@@ -189,7 +194,7 @@ describe("ContentGrid Component", () => {
 
   test("renders pagination info when there are multiple pages", async () => {
     await act(async () => {
-      render(
+      renderWithTooltipProvider(
         <ContentGrid
           title="Test Results"
           items={mockItems}
@@ -207,7 +212,7 @@ describe("ContentGrid Component", () => {
 
   test("hides pagination info when there is only one page", async () => {
     await act(async () => {
-      render(
+      renderWithTooltipProvider(
         <ContentGrid
           title="Test Results"
           items={mockItems}
@@ -227,7 +232,7 @@ describe("ContentGrid Component", () => {
 describe("SearchResults Component", () => {
   test("renders search results with fetched data", async () => {
     await act(async () => {
-      render(<SearchResults query="test" />);
+      renderWithTooltipProvider(<SearchResults query="test" />);
     });
 
     await waitFor(() => {
@@ -244,7 +249,7 @@ describe("SearchResults Component", () => {
 
   test("renders empty state for empty query", async () => {
     await act(async () => {
-      render(<SearchResults query="" />);
+      renderWithTooltipProvider(<SearchResults query="" />);
     });
 
     await waitFor(() => {
@@ -256,7 +261,7 @@ describe("SearchResults Component", () => {
 
   test("renders empty state for whitespace-only query", async () => {
     await act(async () => {
-      render(<SearchResults query="   " />);
+      renderWithTooltipProvider(<SearchResults query="   " />);
     });
 
     await waitFor(() => {
@@ -292,7 +297,7 @@ describe("SearchResults Component", () => {
     }) as unknown as typeof global.fetch;
 
     await act(async () => {
-      render(<SearchResults query="nonexistent" />);
+      renderWithTooltipProvider(<SearchResults query="nonexistent" />);
     });
 
     await waitFor(() => {
@@ -328,7 +333,7 @@ describe("SearchResults Component", () => {
     }) as unknown as typeof global.fetch;
 
     await act(async () => {
-      render(<SearchResults query="test" />);
+      renderWithTooltipProvider(<SearchResults query="test" />);
     });
 
     // Check initial state
@@ -368,7 +373,7 @@ describe("SearchResults Component", () => {
     }) as unknown as typeof global.fetch;
 
     await act(async () => {
-      render(<SearchResults query="test" />);
+      renderWithTooltipProvider(<SearchResults query="test" />);
     });
 
     await waitFor(() => {

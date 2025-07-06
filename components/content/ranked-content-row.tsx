@@ -10,7 +10,8 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { EnhancedLink } from "@/components/ui/enhanced-link";
-import { getRating, useContentRatings } from "@/hooks/useContentRatings";
+import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
@@ -19,7 +20,6 @@ import Image from "next/legacy/image";
 import { useEffect, useRef, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
-import { getGenreName } from "./genre-helpers";
 
 // Props for the RankedContentRow, similar to StandardContentRowProps
 export interface RankedContentRowProps {
@@ -49,13 +49,6 @@ export function RankedContentRow({
   const [loading, setLoading] = useState(false);
   const [api, setApi] = useState<CarouselApi>();
   const lastScrollProgressRef = useRef(0);
-
-  // Fetch actual ratings for the items
-  const { ratings: fetchedRatings, loading: ratingsLoading } =
-    useContentRatings(items);
-
-  // Combine passed ratings with fetched ratings
-  const combinedRatings = { ...contentRating, ...fetchedRatings };
 
   useEffect(() => {
     if (
@@ -90,7 +83,8 @@ export function RankedContentRow({
   }, [api, hasMoreItems, loading, isMobile]);
 
   const getContentRating = (item: MediaItem & ItemWithId) => {
-    return getRating(item, combinedRatings);
+    // Use embedded content_rating first, then fallback to passed contentRating prop
+    return item.content_rating || contentRating[item.id] || undefined;
   };
 
   const loadMoreItems = async () => {
@@ -109,9 +103,9 @@ export function RankedContentRow({
     }
   };
 
-  const LoadingSpinner = () => (
+  const LoadingComponent = () => (
     <div className="flex items-center justify-center min-h-[150px] w-full">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <LoadingSpinner size="lg" />
     </div>
   );
 
@@ -154,29 +148,23 @@ export function RankedContentRow({
                   key={`${item.id}-${index}`}
                   className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
                 >
-                  <EnhancedLink
-                    href={`/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`}
-                    className="block group"
-                    mediaItem={item}
-                    prefetchDelay={100}
-                  >
-                    <div className="relative">
-                      <div className="absolute top-0 left-0 z-10 flex items-center justify-center w-10 h-10 bg-background/90 dark:bg-background/90 text-foreground font-bold text-lg rounded-tl-md rounded-br-md">
-                        {index + 1}
-                      </div>
-                      <ContentCard
-                        item={item}
-                        isMobile={true}
-                        rating={getContentRating(item)}
-                      />
+                  <div className="relative">
+                    <div className="absolute top-0 left-0 z-10 flex items-center justify-center w-10 h-10 bg-background/90 dark:bg-background/90 text-foreground font-bold text-lg rounded-tl-md rounded-br-md">
+                      {index + 1}
                     </div>
-                  </EnhancedLink>
+                    <ContentCard
+                      item={item}
+                      isMobile={true}
+                      rating={getContentRating(item)}
+                      href={`/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`}
+                    />
+                  </div>
                 </CarouselItem>
               ))}
 
               {hasMoreItems && loading && (
                 <CarouselItem className="pl-3 basis-[48%] sm:basis-[35%] flex items-center justify-center">
-                  <LoadingSpinner />
+                  <LoadingComponent />
                 </CarouselItem>
               )}
             </CarouselContent>
@@ -196,19 +184,12 @@ export function RankedContentRow({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-4">
         {items.slice(0, 8).map((item, index) => {
           const { displayTitle, year } = getItemDetails(item);
-          const genres =
-            item.genre_ids
-              ?.slice(0, 1)
-              .map((id) => getGenreName(id, isMovie(item) ? "movie" : "tv")) ||
-            []; // Show only the primary genre for density
+          const href = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
 
           return (
-            <EnhancedLink
+            <div
               key={`${item.id}-${index}`}
-              href={`/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`}
               className="flex group relative overflow-hidden rounded-md hover:bg-accent/60 transition-colors duration-200 p-2 items-center"
-              mediaItem={item}
-              prefetchDelay={100}
             >
               {/* Rank number */}
               <div className="flex items-center justify-center w-12 shrink-0">
@@ -224,20 +205,27 @@ export function RankedContentRow({
                 </span>
               </div>
 
-              {/* Poster */}
-              <div className="relative overflow-hidden rounded h-20 w-14 sm:h-24 sm:w-16 shrink-0 mx-2">
-                <Image
-                  src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
-                  alt={displayTitle || "Media poster"}
-                  layout="fill"
-                  objectFit="cover"
-                  className="transition-transform duration-300 group-hover:scale-105"
-                />
-              </div>
+              {/* Poster - Only this is clickable */}
+              <EnhancedLink
+                href={href}
+                className="block group-poster"
+                mediaItem={item}
+                prefetchDelay={100}
+              >
+                <div className="relative overflow-hidden rounded h-20 w-14 sm:h-24 sm:w-16 shrink-0 mx-2 hover:scale-105 transition-transform duration-300">
+                  <Image
+                    src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
+                    alt={displayTitle || "Media poster"}
+                    layout="fill"
+                    objectFit="cover"
+                    className="transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+              </EnhancedLink>
 
-              {/* Text details */}
+              {/* Text details - Non-clickable */}
               <div className="flex flex-col justify-center flex-1 min-w-0">
-                <h3 className="font-semibold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors duration-200">
+                <h3 className="font-semibold text-sm sm:text-base text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
                   {displayTitle}
                 </h3>
 
@@ -250,10 +238,18 @@ export function RankedContentRow({
                     <span>{item.vote_average?.toFixed(1)}</span>
                   </div>
                   {year && <span className="mr-1.5">• {year}</span>}
-                  {genres.length > 0 && (
-                    <span className="truncate hidden sm:inline">
-                      • {genres.join(", ")}
-                    </span>
+                  {item.genre_ids && item.genre_ids.length > 0 && (
+                    <div className="flex items-center">
+                      <span className="mr-1.5">•</span>
+                      <SmartGenreBadgeGroup
+                        genreIds={item.genre_ids}
+                        mediaType={isMovie(item) ? "movie" : "tv"}
+                        maxVisible={1}
+                        className="hidden sm:flex"
+                        badgeClassName="text-[10px] h-auto px-1 py-0.5 bg-muted/20 text-muted-foreground border border-border"
+                        variant="outline"
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -274,7 +270,7 @@ export function RankedContentRow({
                   )}
                 </div>
               </div>
-            </EnhancedLink>
+            </div>
           );
         })}
       </div>
@@ -282,7 +278,7 @@ export function RankedContentRow({
       {hasMoreItems && !isMobile && (
         <div className="flex justify-center mt-8">
           {loading ? (
-            <LoadingSpinner />
+            <LoadingComponent />
           ) : (
             <button
               onClick={loadMoreItems}

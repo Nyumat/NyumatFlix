@@ -8,8 +8,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { EnhancedLink } from "@/components/ui/enhanced-link";
-import { getRating, useContentRatings } from "@/hooks/useContentRatings";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { useEffect, useRef, useState } from "react";
@@ -46,12 +45,6 @@ export function StandardContentRow({
   const [api, setApi] = useState<CarouselApi>();
   const lastScrollProgressRef = useRef(0);
 
-  // Fetch actual ratings for the items
-  const { ratings: fetchedRatings } = useContentRatings(items);
-
-  // Combine passed ratings with fetched ratings
-  const combinedRatings = { ...contentRating, ...fetchedRatings };
-
   useEffect(() => {
     if (
       initialItems.length > 0 &&
@@ -86,7 +79,8 @@ export function StandardContentRow({
   }, [api, hasMoreItems, loading]);
 
   const getContentRating = (item: MediaItem & ItemWithId) => {
-    return getRating(item, combinedRatings);
+    // Use embedded content_rating first, then fallback to passed contentRating prop
+    return item.content_rating || contentRating[item.id] || undefined;
   };
 
   const loadMoreItems = async () => {
@@ -105,9 +99,9 @@ export function StandardContentRow({
     }
   };
 
-  const LoadingSpinner = () => (
+  const LoadingComponent = () => (
     <div className="flex items-center justify-center min-h-[150px] w-full">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <LoadingSpinner size="lg" />
     </div>
   );
 
@@ -145,24 +139,18 @@ export function StandardContentRow({
                 key={`${item.id}-${index}`}
                 className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
               >
-                <EnhancedLink
+                <ContentCard
+                  item={item}
+                  isMobile={!!isMobile}
+                  rating={getContentRating(item)}
                   href={getItemLink(item)}
-                  className="block group"
-                  mediaItem={item}
-                  prefetchDelay={100}
-                >
-                  <ContentCard
-                    item={item}
-                    isMobile={!!isMobile}
-                    rating={getContentRating(item)}
-                  />
-                </EnhancedLink>
+                />
               </CarouselItem>
             ))}
 
             {hasMoreItems && loading && (
-              <CarouselItem className="pl-3 md:pl-4 basis-[48%] sm:basis-[35%] md:basis-[28%] lg:basis-[22%] xl:basis-[18%] flex items-center justify-center">
-                <LoadingSpinner />
+              <CarouselItem className="pl-3 basis-[48%] sm:basis-[35%] flex items-center justify-center">
+                <LoadingComponent />
               </CarouselItem>
             )}
           </CarouselContent>

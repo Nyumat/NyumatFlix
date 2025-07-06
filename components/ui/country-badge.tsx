@@ -1,6 +1,13 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
+import { EnhancedLink } from "@/components/ui/enhanced-link";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { getFriendlyCountryName } from "@/utils/country-helpers";
 import { countries } from "country-data-list";
 
 const sizeClasses = {
@@ -21,6 +28,8 @@ type CountryBadgeProps = {
   showFlag?: boolean;
   showName?: boolean;
   size?: "sm" | "md" | "lg";
+  clickable?: boolean;
+  mediaType?: "movie" | "tv";
 };
 
 type CountryBadgeListProps = {
@@ -31,6 +40,8 @@ type CountryBadgeListProps = {
   showName?: boolean;
   size?: "sm" | "md" | "lg";
   maxDisplay?: number;
+  clickable?: boolean;
+  mediaType?: "movie" | "tv";
 };
 
 const CountryBadge = ({
@@ -40,10 +51,14 @@ const CountryBadge = ({
   showFlag = true,
   showName = true,
   size = "md",
+  clickable = true,
+  mediaType = "movie",
 }: CountryBadgeProps) => {
   const countryData = countries.all.find(
     (c) => c.alpha2 === country.iso_3166_1,
   );
+
+  const displayName = getFriendlyCountryName(country.iso_3166_1, country.name);
 
   const emojiSizeClasses = {
     sm: "text-xs",
@@ -51,12 +66,17 @@ const CountryBadge = ({
     lg: "text-base",
   };
 
-  return (
+  const href = `/browse/country/${country.iso_3166_1.toLowerCase()}?type=${mediaType}`;
+  const tooltipText = `Browse ${displayName} ${mediaType === "movie" ? "movies" : "TV shows"}`;
+
+  const badgeContent = (
     <Badge
       variant={variant}
       className={cn(
         "inline-flex items-center font-medium",
         sizeClasses[size],
+        clickable &&
+          "cursor-pointer transition-all hover:scale-105 hover:shadow-md",
         className,
       )}
     >
@@ -65,8 +85,30 @@ const CountryBadge = ({
           {countryData.emoji}
         </span>
       )}
-      {showName && <span className="truncate">{country.name}</span>}
+      {showName && <span className="truncate">{displayName}</span>}
     </Badge>
+  );
+
+  if (!clickable) {
+    return badgeContent;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <EnhancedLink
+          href={href}
+          prefetchDelay={100}
+          className="inline-block"
+          aria-label={tooltipText}
+        >
+          {badgeContent}
+        </EnhancedLink>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{tooltipText}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 };
 
@@ -78,6 +120,8 @@ const CountryBadgeList = ({
   showName = true,
   size = "md",
   maxDisplay,
+  clickable = true,
+  mediaType = "movie",
 }: CountryBadgeListProps) => {
   const displayCountries = maxDisplay
     ? countries.slice(0, maxDisplay)
@@ -97,6 +141,8 @@ const CountryBadgeList = ({
           showFlag={showFlag}
           showName={showName}
           size={size}
+          clickable={clickable}
+          mediaType={mediaType}
         />
       ))}
       {remainingCount > 0 && (

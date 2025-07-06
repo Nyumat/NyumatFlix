@@ -39,15 +39,17 @@ export function ContentGrid({ title, items, type }: ContentGridProps) {
       {title && <h2 className="text-2xl font-bold text-foreground">{title}</h2>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-        {processedItems.map((item: any, i: number) => {
-          const itemType = item.media_type;
-
+        {processedItems.map((item: MediaItem, i: number) => {
           return (
             <div
               key={`${item.id}-${i}`}
               className="rounded-lg transition-all duration-300 transform hover:scale-105"
             >
-              <MediaCard item={item} type={itemType} />
+              <MediaCard
+                item={item}
+                type={type}
+                rating={item.content_rating || undefined}
+              />
             </div>
           );
         })}

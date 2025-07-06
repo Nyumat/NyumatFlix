@@ -1,8 +1,7 @@
-import { fetchTMDBData, getCategories } from "@/app/actions";
+import { getCategories } from "@/app/actions";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
-import type { MediaItem } from "@/utils/typings";
 import BrowseGenreClient from "./browse-client";
 
 interface PageProps {
@@ -25,19 +24,18 @@ export default async function BrowseGenrePage({
   const matchedGenre = categories.find((g) => g.id.toString() === genreId);
   const genreName = matchedGenre ? matchedGenre.name : "Unknown Genre";
 
-  // Initial content fetch (page 1)
-  const data = await fetchTMDBData<MediaItem>(
-    `/discover/${mediaType}`,
-    {
-      with_genres: genreId,
-      sort_by: "popularity.desc",
-      language: "en-US",
-      include_adult: "false",
-    },
-    1,
+  // Fetch initial content from the new API endpoint with enriched data
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/genre/${genreId}?type=${mediaType}&page=1`,
+    { cache: "no-store" },
   );
 
-  const initialItems = (data.results || []).filter((item) => item.poster_path);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch genre content: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const initialItems = data.results || [];
 
   const backdropImage =
     initialItems.length > 0 && initialItems[0].backdrop_path
@@ -46,7 +44,12 @@ export default async function BrowseGenrePage({
 
   return (
     <PageContainer>
-      <StaticHero imageUrl={backdropImage} title={genreName} route="" />
+      <StaticHero
+        imageUrl={backdropImage}
+        title={genreName}
+        route=""
+        hideTitle
+      />
       <ContentContainer className="relative z-10" topSpacing={false}>
         <div className="pt-32 md:pt-48 pb-8 w-full flex flex-col items-center">
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-10 text-center">

@@ -20,6 +20,7 @@ interface HeroProps {
   subtitle?: string;
   route?: string;
   logo?: Logo;
+  hideTitle?: boolean;
 }
 
 function BackgroundImage({
@@ -27,6 +28,7 @@ function BackgroundImage({
   imageUrl,
   title,
   logo,
+  hideTitle = false,
 }: HeroProps & { isFullPage: boolean }) {
   const backgroundImage = imageUrl;
   return (
@@ -52,7 +54,7 @@ function BackgroundImage({
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent opacity-70" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-black/70 via-black/50 to-transparent opacity-70" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent opacity-70" />
-      {(isFullPage || logo) && title && (
+      {!hideTitle && (isFullPage || logo) && title && (
         <div className="absolute inset-0 flex items-center justify-center">
           {logo ? (
             <div className="max-w-[300px] md:max-w-[500px] w-auto px-4">
@@ -91,7 +93,13 @@ function BackgroundImage({
   );
 }
 
-export function StaticHero({ imageUrl, title, route, logo }: HeroProps) {
+export function StaticHero({
+  imageUrl,
+  title,
+  route,
+  logo,
+  hideTitle = false,
+}: HeroProps) {
   const pathname = usePathname();
   const isSearchPage = pathname === "/search" || !!route;
   const isBrowsePage = pathname.includes("/browse");
@@ -109,6 +117,7 @@ export function StaticHero({ imageUrl, title, route, logo }: HeroProps) {
         imageUrl={imageUrl}
         title={route || title}
         logo={logo}
+        hideTitle={hideTitle}
       />
       <div className="absolute inset-0 bg-black/50 dark:bg-black/70 opacity-70 -z-10" />
     </>

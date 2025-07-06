@@ -122,6 +122,7 @@ export default async function TVShowPage({ params }: Props) {
           ]}
           noSlide
           isWatch
+          mediaType="tv"
         />
 
         {/* Additional content below hero */}

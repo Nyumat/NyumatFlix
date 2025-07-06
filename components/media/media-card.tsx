@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EnhancedLink } from "@/components/ui/enhanced-link";
 import type { Genre, MediaItem } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
-import { Play } from "lucide-react";
 import { match, P } from "ts-pattern";
 import { Info } from "./media-info";
 import { Poster } from "./media-poster";
@@ -16,6 +15,7 @@ interface MovieDetails {
   id?: number;
   runtime?: number;
   genres?: Genre[];
+  production_countries?: Array<{ iso_3166_1: string; name: string }>;
 }
 
 /**
@@ -35,6 +35,8 @@ interface MediaCardProps {
   item: MediaItem;
   /** The type of media (movie or tv) */
   type: "movie" | "tv";
+  /** Optional content rating (e.g., PG-13, R, etc.) */
+  rating?: string;
 }
 
 /**
@@ -43,7 +45,7 @@ interface MediaCardProps {
  * @param props - The component props
  * @returns A card component displaying media information with hover interactions
  */
-export const MediaCard = ({ item, type }: MediaCardProps) => {
+export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
   if (item.id === undefined) {
     return <div>No content ID found</div>;
   }
@@ -68,6 +70,19 @@ export const MediaCard = ({ item, type }: MediaCardProps) => {
       }
       return (item as TvDetails)?.origin_country;
     })
+    .with("movie", () => {
+      // For movies, check production_countries first
+      if ("production_countries" in item && item.production_countries?.length) {
+        return item.production_countries.map(
+          (pc: { iso_3166_1: string; name: string }) => pc.iso_3166_1,
+        );
+      }
+      // Fallback to origin_country if available
+      if ("origin_country" in item && item.origin_country?.length) {
+        return item.origin_country;
+      }
+      return undefined;
+    })
     .otherwise(() => undefined);
 
   const itemGenres = (() => {
@@ -88,26 +103,33 @@ export const MediaCard = ({ item, type }: MediaCardProps) => {
   })();
 
   return (
-    <Card className="overflow-hidden group relative border-none h-full flex flex-col">
-      <CardContent className="p-0 relative flex-grow">
-        <Poster posterPath={posterPath} title={title} />
-        <Info
-          title={title}
-          releaseDate={releaseDate}
-          voteAverage={voteAverage && voteAverage > 0 ? voteAverage : undefined}
-          runtime={runtime}
-          country={country?.map((c) => ({ iso_3166_1: c, name: c }))}
-          genres={itemGenres}
-        />
-        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/60 dark:bg-background/0 dark:group-hover:bg-background/60 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100">
-          <EnhancedLink
-            href={href}
-            className="bg-primary rounded-full p-3 transform scale-0 group-hover:scale-100 transition-transform duration-300"
-            mediaItem={item}
-            prefetchDelay={0}
-          >
-            <Play className="w-16 h-16 text-background dark:text-foreground" />
-          </EnhancedLink>
+    <Card className="overflow-hidden group relative border-none h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
+      <CardContent className="p-0 relative h-full flex flex-col">
+        <EnhancedLink
+          href={href}
+          className="block relative flex-shrink-0"
+          mediaItem={item}
+          prefetchDelay={0}
+        >
+          <div className="relative">
+            <Poster posterPath={posterPath} title={title} />
+            <div className="absolute inset-0 bg-background/0 hover:bg-background/20 hover:backdrop-blur-sm transition-all duration-300 pointer-events-none"></div>
+          </div>
+        </EnhancedLink>
+
+        <div className="flex-grow">
+          <Info
+            title={title}
+            releaseDate={releaseDate}
+            voteAverage={
+              voteAverage && voteAverage > 0 ? voteAverage : undefined
+            }
+            runtime={runtime}
+            country={country?.map((c) => ({ iso_3166_1: c, name: c }))}
+            genres={itemGenres}
+            mediaType={type}
+            rating={rating}
+          />
         </div>
       </CardContent>
     </Card>
