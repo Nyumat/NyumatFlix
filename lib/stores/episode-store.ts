@@ -23,6 +23,16 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   seasonNumber: null,
   watchCallback: null,
   setSelectedEpisode: (episode, tvShowId, seasonNumber) => {
+    console.log("🎯 Episode Selected:", {
+      episode: {
+        id: episode.id,
+        name: episode.name,
+        episode_number: episode.episode_number,
+      },
+      tvShowId,
+      seasonNumber,
+    });
+
     set({
       selectedEpisode: episode,
       tvShowId,
@@ -32,10 +42,12 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     // Trigger the watch callback if it exists
     const { watchCallback } = get();
     if (watchCallback) {
+      console.log("🎬 Triggering watch callback for episode");
       watchCallback();
     }
   },
   clearSelectedEpisode: () => {
+    console.log("🧹 Clearing selected episode");
     set({
       selectedEpisode: null,
       tvShowId: null,
@@ -44,14 +56,32 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   },
   getEmbedUrl: () => {
     const { selectedEpisode, tvShowId, seasonNumber } = get();
+    console.log("🔗 Getting embed URL:", {
+      hasSelectedEpisode: !!selectedEpisode,
+      hasTvShowId: !!tvShowId,
+      hasSeasonNumber: !!seasonNumber,
+    });
+
     if (selectedEpisode && tvShowId && seasonNumber) {
       const { selectedServer } = useServerStore.getState();
-      return selectedServer.getEpisodeUrl(
+      const url = selectedServer.getEpisodeUrl(
         parseInt(tvShowId),
         seasonNumber,
         selectedEpisode.episode_number,
       );
+
+      console.log("🎬 Generated episode URL:", {
+        server: selectedServer.name,
+        tvShowId: parseInt(tvShowId),
+        seasonNumber,
+        episodeNumber: selectedEpisode.episode_number,
+        url,
+      });
+
+      return url;
     }
+
+    console.log("❌ Cannot generate episode URL - missing data");
     return null;
   },
   setWatchCallback: (callback) => {

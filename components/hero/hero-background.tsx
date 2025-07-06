@@ -15,6 +15,8 @@ import { YouTubePlayer } from "./youtube-types";
 interface HeroBackgroundProps {
   /** Media item to display in the background */
   media: MediaItem;
+  /** Media type from route (tv or movie) */
+  mediaType?: "tv" | "movie";
   /** Whether a video is currently playing */
   isPlayingVideo: boolean;
   /** Whether a trailer is currently playing */
@@ -37,6 +39,7 @@ interface HeroBackgroundProps {
  */
 export function HeroBackground({
   media,
+  mediaType,
   isPlayingVideo,
   isPlayingTrailer,
   controls,
@@ -66,36 +69,115 @@ export function HeroBackground({
     }
   }
 
-  const mediaType = media.media_type;
   const trailerKey = currentItemVideos.find(
     (video: { type: string }) => video.type === "Trailer",
   )?.key;
 
+  // Helper function to determine media type when it's not passed
+  const getMediaType = (): "movie" | "tv" => {
+    // Use passed mediaType first (from route detection)
+    if (mediaType) {
+      return mediaType;
+    }
+
+    // Fall back to media object checking and URL path
+    if (media) {
+      // Check if it's a TV show using multiple indicators
+      const isTvShow =
+        media.media_type === "tv" ||
+        media.name !== undefined || // TV shows have 'name' instead of 'title'
+        media.first_air_date !== undefined || // TV shows have 'first_air_date' instead of 'release_date'
+        media.number_of_seasons !== undefined || // TV shows have seasons
+        media.number_of_episodes !== undefined; // TV shows have episodes
+
+      if (isTvShow) {
+        return "tv";
+      }
+    }
+
+    // Check URL path as final fallback
+    if (typeof window !== "undefined") {
+      if (window.location.pathname.includes("/tvshows/")) {
+        return "tv";
+      } else if (window.location.pathname.includes("/movies/")) {
+        return "movie";
+      }
+    }
+
+    return "movie"; // Final fallback
+  };
+
   // Get the appropriate embed URL
   const getVideoSrc = () => {
-    // Check if we have a specific episode selected
+    // Detect media type first
+    const detectedMediaType = getMediaType();
+
+    console.log("📺 Media type detection:", {
+      passedMediaType: mediaType,
+      detectedMediaType,
+      mediaMediaType: media.media_type,
+      hasName: media.name !== undefined,
+      hasFirstAirDate: media.first_air_date !== undefined,
+      hasSeasons: media.number_of_seasons !== undefined,
+      hasEpisodes: media.number_of_episodes !== undefined,
+      urlPath: typeof window !== "undefined" ? window.location.pathname : "SSR",
+      isTvShow: detectedMediaType === "tv",
+    });
+
+    // For TV shows, ONLY allow episode URLs
+    if (detectedMediaType === "tv") {
+      const episodeEmbedUrl = getEmbedUrl();
+
+      // Log episode store state for debugging
+      const { selectedEpisode, tvShowId, seasonNumber } =
+        useEpisodeStore.getState();
+      console.log("📺 TV Show - Episode Store State:", {
+        selectedEpisode: selectedEpisode
+          ? {
+              id: selectedEpisode.id,
+              name: selectedEpisode.name,
+              episode_number: selectedEpisode.episode_number,
+            }
+          : null,
+        tvShowId,
+        seasonNumber,
+        mediaId: media.id,
+        hasEpisodeUrl: !!episodeEmbedUrl,
+      });
+
+      if (episodeEmbedUrl) {
+        console.log("✅ Using TV episode embed URL:", episodeEmbedUrl);
+        console.log("🔧 Episode URL breakdown:", {
+          server: selectedServer.name,
+          tmdbId: tvShowId ? parseInt(tvShowId) : null,
+          season: seasonNumber,
+          episode: selectedEpisode?.episode_number,
+          finalUrl: episodeEmbedUrl,
+        });
+        return episodeEmbedUrl;
+      } else {
+        console.log("❌ TV Show: No episode selected - cannot generate URL");
+        // Return a placeholder or empty string to prevent generic TV URLs
+        return "";
+      }
+    }
+
+    // For movies, check if there's an episode URL (shouldn't happen, but safety check)
     const episodeEmbedUrl = getEmbedUrl();
+    console.log("🎬 Movie - Episode embed URL check:", episodeEmbedUrl);
+
     if (episodeEmbedUrl) {
+      console.log("⚠️ Movie has episode URL (unexpected):", episodeEmbedUrl);
       return episodeEmbedUrl;
     }
 
-    // Determine if this is a TV show or movie
-    // Check multiple indicators to properly identify TV shows
-    const isTvShow =
-      mediaType === "tv" ||
-      media.media_type === "tv" ||
-      media.name !== undefined || // TV shows have 'name' instead of 'title'
-      media.first_air_date !== undefined || // TV shows have 'first_air_date' instead of 'release_date'
-      media.number_of_seasons !== undefined || // TV shows have seasons
-      media.number_of_episodes !== undefined || // TV shows have episodes
-      window.location.pathname.includes("/tvshows/"); // Check URL path
+    // Generate movie URL
+    const finalUrl = selectedServer.getMovieUrl(media.id);
+    console.log("🎬 Movie URL generated:", finalUrl);
+    console.log("🔧 Selected server:", selectedServer.name);
+    console.log("🎯 Final video URL:", finalUrl);
 
-    // Default to the main show/movie using the selected server
-    if (isTvShow) {
-      return selectedServer.getTvUrl(media.id);
-    } else {
-      return selectedServer.getMovieUrl(media.id);
-    }
+    return finalUrl;
   };
 
   // Timeout ref to detect long pauses (>1s)

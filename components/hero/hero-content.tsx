@@ -16,6 +16,7 @@ import { HeroGradients } from "./hero-gradients";
 
 interface HeroContentProps {
   media: MediaItem;
+  mediaType?: "tv" | "movie";
   isWatch: boolean;
   isPlayingVideo: boolean;
   isPlayingTrailer: boolean;
@@ -25,6 +26,7 @@ interface HeroContentProps {
 
 export function HeroContent({
   media,
+  mediaType,
   isWatch,
   isPlayingVideo,
   isPlayingTrailer,
@@ -42,24 +44,21 @@ export function HeroContent({
 
   // Set the watch callback in the episode store
   useEffect(() => {
-    if (media.media_type === "tv") {
+    if (mediaType === "tv") {
       setWatchCallback(() => {
         handleWatch();
         // Scroll to top to show the video
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
     }
-  }, [handleWatch, media.media_type, setWatchCallback]);
+  }, [handleWatch, mediaType, setWatchCallback]);
 
   // Clear selected episode when switching to a different TV show or to a movie
   useEffect(() => {
-    if (
-      media.media_type !== "tv" ||
-      (tvShowId && tvShowId !== media.id.toString())
-    ) {
+    if (mediaType !== "tv" || (tvShowId && tvShowId !== media.id.toString())) {
       clearSelectedEpisode();
     }
-  }, [media.id, media.media_type, tvShowId, clearSelectedEpisode]);
+  }, [media.id, mediaType, tvShowId, clearSelectedEpisode]);
 
   const formattedDate = useMemo(() => {
     if (media?.release_date) {
@@ -76,7 +75,7 @@ export function HeroContent({
       {/* Server Selector when video/trailer is playing - top right */}
       {(isPlayingVideo || isPlayingTrailer) && (
         <div className="absolute top-6 right-6 z-50">
-          <ServerSelector media={media} />
+          <ServerSelector media={media} mediaType={mediaType} />
         </div>
       )}
 
@@ -112,32 +111,30 @@ export function HeroContent({
                 )}
 
                 {/* Episode Selection Display */}
-                {selectedEpisode &&
-                  seasonNumber &&
-                  media.media_type === "tv" && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between"
+                {selectedEpisode && seasonNumber && mediaType === "tv" && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="text-primary font-medium">
+                        Selected: Season {seasonNumber}, Episode{" "}
+                        {selectedEpisode.episode_number}
+                      </p>
+                      <p className="text-primary/80 text-sm">
+                        {selectedEpisode.name}
+                      </p>
+                    </div>
+                    <button
+                      onClick={clearSelectedEpisode}
+                      className="ml-4 p-1 hover:bg-primary/20 rounded-full transition-colors"
+                      aria-label="Clear episode selection"
                     >
-                      <div>
-                        <p className="text-primary font-medium">
-                          Selected: Season {seasonNumber}, Episode{" "}
-                          {selectedEpisode.episode_number}
-                        </p>
-                        <p className="text-primary/80 text-sm">
-                          {selectedEpisode.name}
-                        </p>
-                      </div>
-                      <button
-                        onClick={clearSelectedEpisode}
-                        className="ml-4 p-1 hover:bg-primary/20 rounded-full transition-colors"
-                        aria-label="Clear episode selection"
-                      >
-                        <X size={16} className="text-primary" />
-                      </button>
-                    </motion.div>
-                  )}
+                      <X size={16} className="text-primary" />
+                    </button>
+                  </motion.div>
+                )}
 
                 {isWatch && (
                   <>
@@ -165,12 +162,15 @@ export function HeroContent({
                 {/* Buttons and Server Selector together */}
                 <div className="flex items-center flex-wrap gap-4 mb-6">
                   <HeroButtons
-                    isWatch={isWatch}
                     handleWatch={handleWatch}
                     handlePlayTrailer={handlePlayTrailer}
-                    mediaId={media.id}
+                    mediaType={mediaType}
                   />
-                  <ServerSelector media={media} className="flex-shrink-0" />
+                  <ServerSelector
+                    media={media}
+                    mediaType={mediaType}
+                    className="flex-shrink-0"
+                  />
                 </div>
               </div>
             </motion.div>

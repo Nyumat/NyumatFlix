@@ -17,6 +17,13 @@ export interface VideoServer {
   ) => Promise<boolean>;
 }
 
+// Manual server availability overrides
+export interface ServerOverride {
+  serverId: string;
+  isAvailable: boolean;
+  reason?: string; // Optional reason for the override (e.g., "Server down", "Maintenance")
+}
+
 export const videoServers: VideoServer[] = [
   {
     id: "vidsrc",
@@ -27,6 +34,17 @@ export const videoServers: VideoServer[] = [
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
     // VidSrc doesn't have availability checking, assume always available
+  },
+  {
+    id: "superembed",
+    name: "SuperEmbed",
+    baseUrl: "https://multiembed.mov",
+    getMovieUrl: (tmdbId) =>
+      `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
+    getTvUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
+    // SuperEmbed regular player doesn't have availability checking, assume always available
   },
   {
     id: "embedsu",
@@ -105,8 +123,23 @@ export const videoServers: VideoServer[] = [
   },
 ];
 
+// Default server overrides - you can easily modify these
+export const defaultServerOverrides: ServerOverride[] = [
+  {
+    serverId: "embedsu",
+    isAvailable: false,
+    reason: "Server down",
+  },
+  {
+    serverId: "filmku",
+    isAvailable: false,
+    reason: "Server down",
+  },
+];
+
 interface ServerState {
   selectedServer: VideoServer;
+  serverOverrides: ServerOverride[];
   setSelectedServer: (server: VideoServer) => void;
   getServerById: (id: string) => VideoServer | undefined;
   getAvailableServer: (
@@ -120,12 +153,22 @@ interface ServerState {
       };
     },
   ) => VideoServer;
+  setServerOverride: (
+    serverId: string,
+    isAvailable: boolean,
+    reason?: string,
+  ) => void;
+  removeServerOverride: (serverId: string) => void;
+  isServerOverridden: (serverId: string) => boolean;
+  getServerOverride: (serverId: string) => ServerOverride | undefined;
+  resetServerOverrides: () => void;
 }
 
 export const useServerStore = create<ServerState>()(
   persist(
     (set, get) => ({
       selectedServer: videoServers[0], // Default to VidSrc
+      serverOverrides: defaultServerOverrides,
       setSelectedServer: (server) => {
         set({ selectedServer: server });
       },
@@ -133,24 +176,59 @@ export const useServerStore = create<ServerState>()(
         return videoServers.find((server) => server.id === id);
       },
       getAvailableServer: (tmdbId, type, availabilityData) => {
-        // If no availability data provided, return current selected server
+        const { serverOverrides } = get();
+
+        // If no availability data provided, return current selected server if it's not overridden as unavailable
         if (!availabilityData) {
-          return get().selectedServer;
+          const currentServer = get().selectedServer;
+          const override = serverOverrides.find(
+            (o) => o.serverId === currentServer.id,
+          );
+          if (override && !override.isAvailable) {
+            // Current server is manually marked as unavailable, find alternative
+            for (const server of videoServers) {
+              const serverOverride = serverOverrides.find(
+                (o) => o.serverId === server.id,
+              );
+              if (!serverOverride || serverOverride.isAvailable) {
+                return server;
+              }
+            }
+          }
+          return currentServer;
         }
 
         // Check current selected server first
         const currentServer = get().selectedServer;
-        const currentServerData = availabilityData[currentServer.id];
+        const currentServerOverride = serverOverrides.find(
+          (o) => o.serverId === currentServer.id,
+        );
 
-        if (currentServerData && !currentServerData.isLoading) {
-          const isCurrentAvailable = currentServerData[type]?.includes(tmdbId);
-          if (isCurrentAvailable) {
-            return currentServer;
+        // If current server is manually marked as unavailable, skip it
+        if (currentServerOverride && !currentServerOverride.isAvailable) {
+          // Skip to finding alternative server
+        } else {
+          const currentServerData = availabilityData[currentServer.id];
+          if (currentServerData && !currentServerData.isLoading) {
+            const isCurrentAvailable =
+              currentServerData[type]?.includes(tmdbId);
+            if (isCurrentAvailable) {
+              return currentServer;
+            }
           }
         }
 
-        // Find first available server
+        // Find first available server, considering manual overrides
         for (const server of videoServers) {
+          const serverOverride = serverOverrides.find(
+            (o) => o.serverId === server.id,
+          );
+
+          // If server is manually marked as unavailable, skip it
+          if (serverOverride && !serverOverride.isAvailable) {
+            continue;
+          }
+
           const serverData = availabilityData[server.id];
           if (!serverData || serverData.isLoading) continue;
 
@@ -168,8 +246,52 @@ export const useServerStore = create<ServerState>()(
           }
         }
 
-        // If no available server found, return VidSrc as fallback
+        // If no available server found, return VidSrc as fallback (if not overridden as unavailable)
+        const vidsrcOverride = serverOverrides.find(
+          (o) => o.serverId === "vidsrc",
+        );
+        if (!vidsrcOverride || vidsrcOverride.isAvailable) {
+          return videoServers[0];
+        }
+
+        // If VidSrc is also unavailable, return any available server
+        for (const server of videoServers) {
+          const serverOverride = serverOverrides.find(
+            (o) => o.serverId === server.id,
+          );
+          if (!serverOverride || serverOverride.isAvailable) {
+            return server;
+          }
+        }
+
+        // Fallback to VidSrc even if marked unavailable
         return videoServers[0];
+      },
+      setServerOverride: (serverId, isAvailable, reason) => {
+        set((state) => ({
+          serverOverrides: [
+            ...state.serverOverrides.filter((o) => o.serverId !== serverId),
+            { serverId, isAvailable, reason },
+          ],
+        }));
+      },
+      removeServerOverride: (serverId) => {
+        set((state) => ({
+          serverOverrides: state.serverOverrides.filter(
+            (o) => o.serverId !== serverId,
+          ),
+        }));
+      },
+      isServerOverridden: (serverId) => {
+        const { serverOverrides } = get();
+        return serverOverrides.some((o) => o.serverId === serverId);
+      },
+      getServerOverride: (serverId) => {
+        const { serverOverrides } = get();
+        return serverOverrides.find((o) => o.serverId === serverId);
+      },
+      resetServerOverrides: () => {
+        set({ serverOverrides: defaultServerOverrides });
       },
     }),
     {

@@ -15,7 +15,7 @@ export function SeasonTabs({ details, tvId, firstSeason }: SeasonTabsProps) {
   if (!details.seasons?.length) return null;
 
   return (
-    <section>
+    <section data-episodes-section id="seasons">
       <h2 className="text-2xl font-semibold text-foreground mb-4">
         Seasons & Episodes
       </h2>
