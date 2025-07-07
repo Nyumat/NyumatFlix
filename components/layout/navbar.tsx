@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 /**
  * Navigation link configuration
@@ -57,8 +58,8 @@ export const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex-shrink-0 min-w-0">
-            <Link href="/" className="flex items-center space-x-2">
+          <div className="flex flex-row justify-center items-center gap-2">
+            <Link href="/">
               <Image
                 src="/logo.svg"
                 alt="NyumatFlix Logo"
@@ -66,10 +67,30 @@ export const Navbar = () => {
                 height={150}
                 className="size-10"
               />
-              <Badge className={cn("text-xs", "bg-primary/10 text-primary")}>
-                You're using the NyumatFlix 3.0 Beta
-              </Badge>
             </Link>
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge
+                  className={cn(
+                    "text-xs",
+                    "bg-primary/10 hover:bg-primary/20 text-primary",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "animate-pulse rounded-full px-2 py-1 text-primary font-bold",
+                      "text-yellow-500 scale-150",
+                    )}
+                  >
+                    •
+                  </span>
+                  Beta
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>You're using the NyumatFlix 3.0 Beta</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Desktop Search - Centered and responsive */}
