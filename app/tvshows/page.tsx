@@ -1,15 +1,10 @@
-import { ContentRow } from "@/components/content/content-row";
 import { ContentRowLoader } from "@/components/content/content-row-loader";
 import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
 import { Suspense } from "react";
-import {
-  buildItemsWithCategories,
-  fetchAndEnrichMediaItems,
-  fetchTMDBData,
-} from "../actions";
+import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
 
 export const metadata: Metadata = {
   title: "TV Shows | NyumatFlix",
@@ -37,20 +32,6 @@ export default async function TVShowsPage() {
     "tv",
   );
 
-  const [popularShows, topRatedShows] = await Promise.all([
-    fetchTMDBData("/tv/popular"),
-    fetchTMDBData("/tv/top_rated"),
-  ]);
-
-  const popularShowsWithCategories = await buildItemsWithCategories<MediaItem>(
-    popularShows.results ?? [],
-    "tv",
-  );
-  const topRatedShowsWithCategories = await buildItemsWithCategories<MediaItem>(
-    topRatedShows.results ?? [],
-    "tv",
-  );
-
   return (
     <>
       <main>
@@ -67,21 +48,25 @@ export default async function TVShowsPage() {
           />
         </Suspense>
 
-        {/* Popular Shows - Order 2 */}
-        <ContentRow
-          title="Popular TV Shows"
-          items={popularShowsWithCategories}
-          href="/tvshows/browse?filter=tv-popular"
-          variant="ranked"
-        />
+        {/* Convert static Popular Shows to ContentRowLoader - Order 2 */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="popular-tvshows"
+            title="Popular TV Shows"
+            href="/tvshows/browse?filter=tv-popular"
+            variant="ranked"
+          />
+        </Suspense>
 
-        {/* Top Rated - Order 3 */}
-        <ContentRow
-          title="Top Rated TV Shows"
-          items={topRatedShowsWithCategories}
-          href="/tvshows/browse?filter=tv-top-rated"
-          variant="ranked"
-        />
+        {/* Convert static Top Rated to ContentRowLoader - Order 3 */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="top-rated-tvshows"
+            title="Top Rated TV Shows"
+            href="/tvshows/browse?filter=tv-top-rated"
+            variant="ranked"
+          />
+        </Suspense>
 
         {/* Popular K-Dramas - Order 4 */}
         <Suspense>

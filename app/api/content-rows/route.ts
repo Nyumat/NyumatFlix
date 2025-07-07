@@ -170,16 +170,91 @@ async function fetchStandardizedRow(
     `[ContentRows] Fetching row: ${rowId}, respectGlobalCache: ${respectGlobalCache}`,
   );
 
-  // Disable global cache for specific categories that should always appear
-  // like popular and top-rated movies/shows regardless of duplication
-  const priorityRows = [
-    "popular-movies",
-    "top-rated-movies",
-    "popular-tvshows",
-    "top-rated-tvshows",
-  ];
-  const shouldRespectGlobalCache =
-    respectGlobalCache && !priorityRows.includes(rowId);
+  // Define row groups that can share content between them but avoid duplicates across groups
+  const rowGroups = {
+    // Core movie categories - can share between popular and top-rated
+    popularMovies: ["popular-movies", "top-rated-movies"],
+
+    // Core TV categories - can share between popular and top-rated
+    popularTV: ["popular-tvshows", "top-rated-tvshows", "binge-worthy-series"],
+
+    // Genre-based movie groups
+    actionMovies: ["action-movies"],
+    comedyMovies: ["comedy-movies"],
+    dramaMovies: ["drama-movies"],
+    scifiMovies: ["scifi-fantasy-movies"],
+    thrillerMovies: ["thriller-movies"],
+    romanceMovies: ["romcom-movies"],
+
+    // Genre-based TV groups
+    comedyTV: ["tv-comedy"],
+    dramaTV: ["tv-drama", "period-dramas"],
+    scifiTV: ["tv-scifi-fantasy", "mind-bending-scifi"],
+    crimeTV: ["tv-crime", "romantic-crime"],
+    realityTV: ["tv-reality"],
+    animationTV: ["tv-animation", "90s-cartoons"],
+    kidsTV: [
+      "tv-kids",
+      "cartoon-network",
+      "nickelodeon",
+      "disney-channel",
+      "disneyxd",
+    ],
+
+    // Studio/Director groups
+    directorFilms: [
+      "nolan-films",
+      "tarantino-films",
+      "spielberg-films",
+      "scorsese-films",
+      "fincher-films",
+    ],
+    studioFilms: [
+      "a24-films",
+      "disney-magic",
+      "pixar-animation",
+      "warner-bros",
+      "universal-films",
+      "dreamworks-films",
+    ],
+
+    // International/Cultural content
+    international: [
+      "kdrama",
+      "kdrama-romance",
+      "tv-anime",
+      "tv-british-comedy",
+    ],
+
+    // Specialized categories
+    timeBasedMovies: [
+      "eighties-movies",
+      "nineties-movies",
+      "early-2000s-movies",
+      "recent-releases",
+    ],
+    timeBasedTV: ["tv-90s", "tv-2000s", "tv-2010s"],
+    curatedMovies: ["critically-acclaimed", "hidden-gems", "upcoming-movies"],
+    curatedTV: [
+      "tv-on-the-air",
+      "miniseries",
+      "limited-series",
+      "network-hits",
+      "tv-sitcoms",
+    ],
+    familyContent: ["family", "workplace-comedies"],
+    mysteryContent: ["2010s-mystery", "teen-supernatural"],
+    cookingContent: ["cooking-food"],
+  };
+
+  // Find which group this row belongs to
+  const currentRowGroup = Object.keys(rowGroups).find((group) =>
+    rowGroups[group].includes(rowId),
+  );
+
+  // Should respect global cache unless explicitly disabled
+  // But allow some flexibility for popular/top-rated content
+  const shouldRespectGlobalCache = respectGlobalCache;
 
   const { category, mediaType } = ROW_CONFIG[rowId];
   const rowSeenIds = new Set<number>(); // Local cache for this specific row
@@ -224,16 +299,33 @@ async function fetchStandardizedRow(
     // Check global cache if requested
     if (shouldRespectGlobalCache) {
       const existingRowId = GLOBAL_MEDIA_CACHE.seenIds.get(item.id);
-      // Skip if this item has been seen in another row
       if (existingRowId && existingRowId !== rowId) {
-        return false;
+        // Find which group the existing row belongs to
+        const existingRowGroup = Object.keys(rowGroups).find((group) =>
+          rowGroups[group].includes(existingRowId),
+        );
+
+        // If current row and existing row are in different groups, skip to avoid duplicates
+        // But allow duplicates within the same group (e.g., popular and top-rated can share)
+        if (
+          currentRowGroup &&
+          existingRowGroup &&
+          currentRowGroup !== existingRowGroup
+        ) {
+          return false;
+        }
+
+        // If no group classification, apply stricter deduplication
+        if (!currentRowGroup || !existingRowGroup) {
+          return false;
+        }
       }
     }
 
     // Mark as seen both locally and globally
     rowSeenIds.add(item.id);
 
-    // Only update global cache for non-priority rows
+    // Update global cache to track this item
     if (shouldRespectGlobalCache) {
       GLOBAL_MEDIA_CACHE.seenIds.set(item.id, rowId);
     }
@@ -268,9 +360,11 @@ async function fetchStandardizedRow(
     page++;
   }
 
-  // For popular and top-rated, if we still don't have enough items, keep adding more
+  // For popular and top-rated content, if we still don't have enough items, keep adding more
   // without global cache restrictions to ensure these rows are always well-populated
-  if (priorityRows.includes(rowId) && items.length < minCount) {
+  const isPriorityContent =
+    currentRowGroup === "popularMovies" || currentRowGroup === "popularTV";
+  if (isPriorityContent && items.length < minCount) {
     // Reset page counter and try again with no global cache restrictions
     page = 1;
     while (items.length < minCount && page <= 3) {

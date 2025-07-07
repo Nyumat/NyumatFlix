@@ -74,7 +74,6 @@ export default async function Home() {
             rowId="recent-releases"
             title="New Releases"
             href="/movies/browse?year=2023"
-            globalCache={false}
           />
         </Suspense>
 
@@ -84,7 +83,6 @@ export default async function Home() {
             rowId="upcoming-movies"
             title="Coming Soon"
             href="/movies/browse?type=upcoming"
-            globalCache={false}
           />
         </Suspense>
 
@@ -94,7 +92,6 @@ export default async function Home() {
             rowId="popular-movies"
             title="Popular Movies"
             href="/movies/browse"
-            globalCache={false}
           />
         </Suspense>
 
@@ -132,7 +129,6 @@ export default async function Home() {
             title="Top Rated Movies"
             href="/movies/browse?type=top-rated"
             variant="ranked"
-            globalCache={false}
           />
         </Suspense>
 

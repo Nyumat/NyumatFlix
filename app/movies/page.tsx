@@ -1,4 +1,3 @@
-import { ContentRow } from "@/components/content/content-row";
 import { ContentRowLoader } from "@/components/content/content-row-loader";
 import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -6,12 +5,7 @@ import { AggressivePrefetchProvider } from "@/components/providers/aggressive-pr
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
 import { Suspense } from "react";
-import {
-  buildItemsWithCategories,
-  fetchAndEnrichMediaItems,
-  fetchMovieCertification,
-  fetchTMDBData,
-} from "../actions";
+import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
 
 export const metadata: Metadata = {
   title: "Movies | NyumatFlix",
@@ -57,48 +51,9 @@ export default async function MoviesPage() {
     "movie",
   );
 
-  const [popularMovies, topRatedMovies] = await Promise.all([
-    fetchTMDBData("/movie/popular"),
-    fetchTMDBData("/movie/top_rated"),
-  ]);
-
-  const popularMoviesWithCategories = await buildItemsWithCategories<MediaItem>(
-    popularMovies.results ?? [],
-    "movie",
-  );
-  const topRatedMoviesWithCategories =
-    await buildItemsWithCategories<MediaItem>(
-      topRatedMovies.results ?? [],
-      "movie",
-    );
-
-  const certifications: Record<number, string | null> = {};
-
-  const allMovies = [
-    ...popularMoviesWithCategories,
-    ...topRatedMoviesWithCategories,
-  ];
-
-  const processedIds = new Set<number>();
-  const certificationPromises = allMovies.map(async (movie) => {
-    if (processedIds.has(movie.id)) return;
-
-    processedIds.add(movie.id);
-    const cert = await fetchMovieCertification(movie.id);
-    if (cert) {
-      certifications[movie.id] = cert;
-    }
-  });
-
-  await Promise.all(certificationPromises);
-
   return (
     <AggressivePrefetchProvider
-      items={[
-        ...enrichedTrendingItems,
-        ...popularMoviesWithCategories,
-        ...topRatedMoviesWithCategories,
-      ]}
+      items={enrichedTrendingItems}
       enableImmediate={true}
     >
       {/* Hero carousel for trending movies */}
@@ -123,13 +78,15 @@ export default async function MoviesPage() {
           />
         </Suspense>
 
-        <ContentRow
-          title="Popular Movies"
-          items={popularMoviesWithCategories}
-          href="/movies/browse?type=popular"
-          variant="ranked"
-          contentRating={certifications}
-        />
+        {/* Convert static Popular Movies to ContentRowLoader */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="popular-movies"
+            title="Popular Movies"
+            href="/movies/browse?type=popular"
+            variant="standard"
+          />
+        </Suspense>
 
         {/* Director Showcases */}
         <Suspense>
@@ -158,12 +115,15 @@ export default async function MoviesPage() {
           />
         </Suspense>
 
-        <ContentRow
-          title="Top Rated Movies"
-          items={topRatedMoviesWithCategories}
-          href="/movies/browse?type=top-rated"
-          contentRating={certifications}
-        />
+        {/* Convert static Top Rated Movies to ContentRowLoader */}
+        <Suspense>
+          <ContentRowLoader
+            rowId="top-rated-movies"
+            title="Top Rated Movies"
+            href="/movies/browse?type=top-rated"
+            variant="ranked"
+          />
+        </Suspense>
 
         <Suspense>
           <ContentRowLoader
