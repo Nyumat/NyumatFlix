@@ -1,5 +1,6 @@
 import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
 import { logger } from "@/lib/utils";
+import { buildFilterParams } from "@/utils/content-filters";
 import {
   Logo,
   LogoSchema,
@@ -607,6 +608,27 @@ export async function fetchPaginatedCategory(
   page: number = 1,
 ): Promise<MediaItem[]> {
   try {
+    // First try to get filter configuration from content-filters
+    const filterConfig = buildFilterParams(category);
+
+    // If we have a valid filter configuration, use it
+    if (filterConfig.endpoint && Object.keys(filterConfig.params).length > 0) {
+      // Add page parameter
+      const params = {
+        ...filterConfig.params,
+        page: page.toString(),
+      };
+
+      const results = await fetchPaginatedMovies(
+        filterConfig.endpoint,
+        params,
+        page,
+      );
+
+      return results;
+    }
+
+    // Otherwise fall back to the original logic
     // Use standard params for all requests
     const baseParams = {
       language: "en-US",
