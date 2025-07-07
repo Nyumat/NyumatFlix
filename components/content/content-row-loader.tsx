@@ -1,8 +1,9 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { ContentRow, ContentRowVariant } from "./content-row";
 import { useContentRow } from "@/hooks/useContentRow";
+import { useEffect } from "react";
+import { ContentRow, ContentRowVariant } from "./content-row";
 
 export interface ContentRowLoaderProps {
   rowId: string;
@@ -33,6 +34,16 @@ export function ContentRowLoader({
     globalCache,
   });
 
+  // Debug logging
+  useEffect(() => {
+    console.log(`[ContentRowLoader] ${rowId}:`, {
+      isLoading,
+      itemsCount: items.length,
+      error: error?.message,
+      title,
+    });
+  }, [rowId, isLoading, items.length, error, title]);
+
   // Show skeleton while loading
   if (isLoading) {
     return (
@@ -52,9 +63,29 @@ export function ContentRowLoader({
   }
 
   // Show error or return ContentRow with items
-  if (error || items.length === 0) {
-    console.error(`Error loading content row ${rowId}:`, error);
-    return null; // Hide row completely on error
+  if (error) {
+    console.error(
+      `[ContentRowLoader] Error loading content row ${rowId}:`,
+      error,
+    );
+    return (
+      <div className="space-y-4 py-4 px-4 md:px-6 lg:px-8">
+        <div className="text-red-500 text-sm">
+          Failed to load {title}: {error.message}
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    console.warn(`[ContentRowLoader] No items found for row ${rowId}`);
+    return (
+      <div className="space-y-4 py-4 px-4 md:px-6 lg:px-8">
+        <div className="text-muted-foreground text-sm">
+          No content available for {title}
+        </div>
+      </div>
+    );
   }
 
   return (

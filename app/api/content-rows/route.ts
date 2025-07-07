@@ -19,101 +19,104 @@ const ROW_CONFIG: Record<
   "upcoming-movies": { category: "upcoming", mediaType: "movie" },
 
   // Genre-based categories
-  "action-movies": { category: "action", mediaType: "movie" },
-  "comedy-movies": { category: "comedy", mediaType: "movie" },
-  "drama-movies": { category: "drama", mediaType: "movie" },
-  "thriller-movies": { category: "thriller", mediaType: "movie" },
-  "scifi-fantasy-movies": { category: "scifi_fantasy", mediaType: "movie" },
-  "romcom-movies": { category: "romcom", mediaType: "movie" },
+  "action-movies": { category: "genre-action", mediaType: "movie" },
+  "comedy-movies": { category: "genre-comedy", mediaType: "movie" },
+  "drama-movies": { category: "genre-drama", mediaType: "movie" },
+  "thriller-movies": { category: "genre-thriller", mediaType: "movie" },
+  "scifi-fantasy-movies": {
+    category: "genre-scifi-fantasy",
+    mediaType: "movie",
+  },
+  "romcom-movies": { category: "genre-romcom", mediaType: "movie" },
 
   // Studio categories
-  "a24-films": { category: "studio_a24", mediaType: "movie" },
-  "disney-magic": { category: "studio_disney", mediaType: "movie" },
-  "pixar-animation": { category: "studio_pixar", mediaType: "movie" },
-  "warner-bros": { category: "studio_warner_bros", mediaType: "movie" },
-  "universal-films": { category: "studio_universal", mediaType: "movie" },
-  "dreamworks-films": { category: "studio_dreamworks", mediaType: "movie" },
+  "a24-films": { category: "studio-a24", mediaType: "movie" },
+  "disney-magic": { category: "studio-disney", mediaType: "movie" },
+  "pixar-animation": { category: "studio-pixar", mediaType: "movie" },
+  "warner-bros": { category: "studio-warner-bros", mediaType: "movie" },
+  "universal-films": { category: "studio-universal", mediaType: "movie" },
+  "dreamworks-films": { category: "studio-dreamworks", mediaType: "movie" },
 
   // Director categories
-  "nolan-films": { category: "director_nolan", mediaType: "movie" },
-  "tarantino-films": { category: "director_tarantino", mediaType: "movie" },
-  "spielberg-films": { category: "director_spielberg", mediaType: "movie" },
-  "scorsese-films": { category: "director_scorsese", mediaType: "movie" },
-  "fincher-films": { category: "director_fincher", mediaType: "movie" },
+  "nolan-films": { category: "director-nolan", mediaType: "movie" },
+  "tarantino-films": { category: "director-tarantino", mediaType: "movie" },
+  "spielberg-films": { category: "director-spielberg", mediaType: "movie" },
+  "scorsese-films": { category: "director-scorsese", mediaType: "movie" },
+  "fincher-films": { category: "director-fincher", mediaType: "movie" },
 
   // Curated picks
-  "hidden-gems": { category: "hidden_gems", mediaType: "movie" },
+  "hidden-gems": { category: "hidden-gems", mediaType: "movie" },
   "critically-acclaimed": {
-    category: "critically_acclaimed",
+    category: "critically-acclaimed",
     mediaType: "movie",
   },
 
   // Time-based categories
-  "eighties-movies": { category: "eighties", mediaType: "movie" },
-  "nineties-movies": { category: "nineties", mediaType: "movie" },
-  "early-2000s-movies": { category: "early_2000s", mediaType: "movie" },
-  "recent-releases": { category: "recent", mediaType: "movie" },
+  "eighties-movies": { category: "year-80s", mediaType: "movie" },
+  "nineties-movies": { category: "year-90s", mediaType: "movie" },
+  "early-2000s-movies": { category: "year-2000s", mediaType: "movie" },
+  "recent-releases": { category: "year-2023", mediaType: "movie" },
 
   // TV-specific categories
-  "popular-tvshows": { category: "popular", mediaType: "tv" },
-  "top-rated-tvshows": { category: "top_rated", mediaType: "tv" },
-  "binge-worthy-series": { category: "binge_worthy", mediaType: "tv" },
-  "limited-series": { category: "limited_series", mediaType: "tv" },
-  "reality-tv": { category: "reality", mediaType: "tv" },
-  docuseries: { category: "docuseries", mediaType: "tv" },
+  "popular-tvshows": { category: "tv-popular", mediaType: "tv" },
+  "top-rated-tvshows": { category: "tv-top-rated", mediaType: "tv" },
+  "binge-worthy-series": { category: "tv-popular", mediaType: "tv" },
+  "limited-series": { category: "tv-limited-series", mediaType: "tv" },
+  "reality-tv": { category: "tv-reality", mediaType: "tv" },
+  docuseries: { category: "tv-docuseries", mediaType: "tv" },
 
   // New TV show categories
-  "tv-on-the-air": { category: "on_the_air", mediaType: "tv" },
-  "tv-comedy": { category: "tv_comedy", mediaType: "tv" },
-  "tv-drama": { category: "tv_drama", mediaType: "tv" },
-  "tv-crime": { category: "tv_crime", mediaType: "tv" },
-  "tv-scifi-fantasy": { category: "tv_scifi_fantasy", mediaType: "tv" },
-  "tv-animation": { category: "tv_animation", mediaType: "tv" },
-  "tv-kids": { category: "tv_kids", mediaType: "tv" },
+  "tv-on-the-air": { category: "tv-on-the-air", mediaType: "tv" },
+  "tv-comedy": { category: "tv-genre-comedy", mediaType: "tv" },
+  "tv-drama": { category: "tv-genre-drama", mediaType: "tv" },
+  "tv-crime": { category: "tv-genre-crime", mediaType: "tv" },
+  "tv-scifi-fantasy": { category: "tv-genre-scifi-fantasy", mediaType: "tv" },
+  "tv-animation": { category: "tv-genre-animation", mediaType: "tv" },
+  "tv-kids": { category: "tv-genre-kids", mediaType: "tv" },
 
   // TV Network categories
-  "hbo-originals": { category: "tv_network_hbo", mediaType: "tv" },
-  "netflix-originals": { category: "tv_network_netflix", mediaType: "tv" },
-  "disney-channel": { category: "tv_network_disney_channel", mediaType: "tv" },
+  "hbo-originals": { category: "tv-network-hbo", mediaType: "tv" },
+  "netflix-originals": { category: "tv-network-netflix", mediaType: "tv" },
+  "disney-channel": { category: "tv-network-disney-channel", mediaType: "tv" },
   "cartoon-network": {
-    category: "tv_network_cartoon_network",
+    category: "tv-network-cartoon-network",
     mediaType: "tv",
   },
-  nickelodeon: { category: "tv_network_nickelodeon", mediaType: "tv" },
-  "fx-originals": { category: "tv_network_fx", mediaType: "tv" },
-  "amc-shows": { category: "tv_network_amc", mediaType: "tv" },
-  "bbc-productions": { category: "tv_network_bbc", mediaType: "tv" },
+  nickelodeon: { category: "tv-network-nickelodeon", mediaType: "tv" },
+  "fx-originals": { category: "tv-network-fx", mediaType: "tv" },
+  "amc-shows": { category: "tv-network-amc", mediaType: "tv" },
+  "bbc-productions": { category: "tv-network-bbc", mediaType: "tv" },
 
   // TV Special categories
-  "90s-cartoons": { category: "tv_90s_cartoons", mediaType: "tv" },
-  "tv-anime": { category: "tv_anime", mediaType: "tv" },
-  "tv-british-comedy": { category: "tv_british_comedy", mediaType: "tv" },
-  "tv-true-crime": { category: "tv_true_crime", mediaType: "tv" },
-  "tv-sitcoms": { category: "tv_sitcoms", mediaType: "tv" },
-  "tv-limited-series": { category: "tv_limited_series", mediaType: "tv" },
-  "tv-medical-dramas": { category: "tv_medical_dramas", mediaType: "tv" },
-  "tv-superhero": { category: "tv_superhero", mediaType: "tv" },
-  "tv-cooking-shows": { category: "tv_cooking_shows", mediaType: "tv" },
+  "90s-cartoons": { category: "tv-90s-cartoons", mediaType: "tv" },
+  "tv-anime": { category: "tv-anime", mediaType: "tv" },
+  "tv-british-comedy": { category: "tv-british-comedy", mediaType: "tv" },
+  "tv-true-crime": { category: "tv-true-crime", mediaType: "tv" },
+  "tv-sitcoms": { category: "tv-sitcoms", mediaType: "tv" },
+  "tv-limited-series": { category: "tv-limited-series", mediaType: "tv" },
+  "tv-medical-dramas": { category: "tv-medical-dramas", mediaType: "tv" },
+  "tv-superhero": { category: "tv-superhero", mediaType: "tv" },
+  "tv-cooking-shows": { category: "tv-cooking-shows", mediaType: "tv" },
 
   // TV Time period categories
-  "tv-90s": { category: "tv_90s", mediaType: "tv" },
-  "tv-2000s": { category: "tv_2000s", mediaType: "tv" },
-  "tv-2010s": { category: "tv_2010s", mediaType: "tv" },
+  "tv-90s": { category: "tv-year-90s", mediaType: "tv" },
+  "tv-2000s": { category: "tv-year-2000s", mediaType: "tv" },
+  "tv-2010s": { category: "tv-year-2010s", mediaType: "tv" },
 
   // Additional TV categories from original page
-  kdrama: { category: "tv_kdrama", mediaType: "tv" },
-  miniseries: { category: "tv_limited_series", mediaType: "tv" },
-  "mind-bending-scifi": { category: "tv_mind_bending_scifi", mediaType: "tv" },
-  "teen-supernatural": { category: "tv_teen_supernatural", mediaType: "tv" },
-  "cooking-food": { category: "tv_cooking_shows", mediaType: "tv" },
-  disneyxd: { category: "tv_network_disney_xd", mediaType: "tv" },
-  "period-dramas": { category: "tv_period_dramas", mediaType: "tv" },
-  "network-hits": { category: "tv_network_hits", mediaType: "tv" },
-  "romantic-crime": { category: "tv_romantic_crime", mediaType: "tv" },
-  family: { category: "tv_family", mediaType: "tv" },
-  "kdrama-romance": { category: "tv_kdrama_romance", mediaType: "tv" },
-  "workplace-comedies": { category: "tv_workplace_comedies", mediaType: "tv" },
-  "2010s-mystery": { category: "tv_mystery", mediaType: "tv" },
+  kdrama: { category: "tv-kdrama", mediaType: "tv" },
+  miniseries: { category: "tv-limited-series", mediaType: "tv" },
+  "mind-bending-scifi": { category: "tv-mind-bending-scifi", mediaType: "tv" },
+  "teen-supernatural": { category: "tv-teen-supernatural", mediaType: "tv" },
+  "cooking-food": { category: "tv-cooking-shows", mediaType: "tv" },
+  disneyxd: { category: "tv-network-disney-xd", mediaType: "tv" },
+  "period-dramas": { category: "tv-period-dramas", mediaType: "tv" },
+  "network-hits": { category: "tv-network-hits", mediaType: "tv" },
+  "romantic-crime": { category: "tv-romantic-crime", mediaType: "tv" },
+  family: { category: "tv-family", mediaType: "tv" },
+  "kdrama-romance": { category: "tv-kdrama-romance", mediaType: "tv" },
+  "workplace-comedies": { category: "tv-workplace-comedies", mediaType: "tv" },
+  "2010s-mystery": { category: "tv-mystery", mediaType: "tv" },
 };
 
 // Global cache to track seen media IDs across different row types
@@ -126,14 +129,15 @@ type MediaCache = {
 // Global cache with 1-hour expiration
 const GLOBAL_MEDIA_CACHE: MediaCache = {
   seenIds: new Map<number, string>(),
-  resetAfter: Date.now() + 3600000, // 1 hour from now
+  resetAfter: Date.now() + 86400000, // 24 hours from now (increased from 1 hour)
 };
 
 // Reset cache if it's older than the expiration time
 function resetCacheIfNeeded() {
   if (Date.now() > GLOBAL_MEDIA_CACHE.resetAfter) {
+    console.log("[ContentRows] Resetting global media cache");
     GLOBAL_MEDIA_CACHE.seenIds.clear();
-    GLOBAL_MEDIA_CACHE.resetAfter = Date.now() + 3600000;
+    GLOBAL_MEDIA_CACHE.resetAfter = Date.now() + 86400000; // 24 hours
   }
 }
 
@@ -158,9 +162,13 @@ async function fetchStandardizedRow(
 
   // Check if row ID is valid
   if (!ROW_CONFIG[rowId]) {
-    console.error(`Invalid row ID: ${rowId}`);
+    console.error(`[ContentRows] Invalid row ID: ${rowId}`);
     return [];
   }
+
+  console.log(
+    `[ContentRows] Fetching row: ${rowId}, respectGlobalCache: ${respectGlobalCache}`,
+  );
 
   // Disable global cache for specific categories that should always appear
   // like popular and top-rated movies/shows regardless of duplication
@@ -237,6 +245,11 @@ async function fetchStandardizedRow(
   while (items.length < minCount && page <= 5) {
     // Limit to 5 pages (100 items max) to prevent infinite loops
     const newItems = await fetchPaginatedCategory(category, mediaType, page);
+
+    console.log(
+      `[ContentRows] Row ${rowId}, page ${page}: fetched ${newItems?.length || 0} items`,
+    );
+
     if (!newItems || newItems.length === 0) break;
 
     // Process the new batch of items
@@ -245,6 +258,11 @@ async function fetchStandardizedRow(
       mediaType,
     );
     const filteredItems = processedItems.filter(filterAndDeduplicate);
+
+    console.log(
+      `[ContentRows] Row ${rowId}, page ${page}: ${filteredItems.length} items after filtering`,
+    );
+
     items = [...items, ...filteredItems];
 
     page++;
@@ -276,6 +294,10 @@ async function fetchStandardizedRow(
       page++;
     }
   }
+
+  console.log(
+    `[ContentRows] Row ${rowId} final count: ${items.slice(0, minCount).length} items`,
+  );
 
   return items.slice(0, minCount);
 }
