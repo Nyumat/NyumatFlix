@@ -214,7 +214,6 @@ export async function ServerContentRowAsync({
 
     // If no items, don't render anything
     if (finalItems.length === 0) {
-      console.warn(`[ServerContentRowAsync] No items found for row ${rowId}`);
       return null;
     }
 
