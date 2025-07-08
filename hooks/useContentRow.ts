@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
 import { MediaItem } from "@/utils/typings";
+import { useEffect, useState } from "react";
 
 interface UseContentRowOptions {
   rowId: string;
   count?: number;
   enrich?: boolean;
-  globalCache?: boolean;
+  hide?: boolean;
 }
 
 interface UseContentRowResult {
@@ -15,13 +15,13 @@ interface UseContentRowResult {
 }
 
 /**
- * Hook for fetching standardized content rows with a guaranteed minimum number of items
+ * I created this hook to fetch standardized content rows and ensure they have a minimum number of items.
  */
 export function useContentRow({
   rowId,
   count = 20,
   enrich = false,
-  globalCache = true,
+  hide = false,
 }: UseContentRowOptions): UseContentRowResult {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,12 +32,16 @@ export function useContentRow({
       setIsLoading(true);
       setError(null);
 
+      if (hide) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const params = new URLSearchParams({
           id: rowId,
           count: count.toString(),
           enrich: enrich.toString(),
-          globalCache: globalCache.toString(),
         });
 
         const response = await fetch(`/api/content-rows?${params}`);
@@ -57,7 +61,7 @@ export function useContentRow({
     }
 
     fetchContentRow();
-  }, [rowId, count, enrich, globalCache]);
+  }, [rowId, count, enrich, hide]);
 
   return { items, isLoading, error };
 }

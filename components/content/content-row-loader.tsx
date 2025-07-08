@@ -2,7 +2,6 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContentRow } from "@/hooks/useContentRow";
-import { useEffect } from "react";
 import { ContentRow, ContentRowVariant } from "./content-row";
 
 export interface ContentRowLoaderProps {
@@ -12,7 +11,7 @@ export interface ContentRowLoaderProps {
   minCount?: number;
   variant?: ContentRowVariant;
   enrich?: boolean;
-  globalCache?: boolean;
+  hide?: boolean;
 }
 
 /**
@@ -25,26 +24,19 @@ export function ContentRowLoader({
   minCount = 20,
   variant,
   enrich = false,
-  globalCache = true,
+  hide = false,
 }: ContentRowLoaderProps) {
   const { items, isLoading, error } = useContentRow({
     rowId,
     count: minCount,
     enrich,
-    globalCache,
+    hide,
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log(`[ContentRowLoader] ${rowId}:`, {
-      isLoading,
-      itemsCount: items.length,
-      error: error?.message,
-      title,
-    });
-  }, [rowId, isLoading, items.length, error, title]);
+  if (hide) {
+    return null;
+  }
 
-  // Show skeleton while loading
   if (isLoading) {
     return (
       <div className="space-y-4 py-4 px-4 md:px-6 lg:px-8">

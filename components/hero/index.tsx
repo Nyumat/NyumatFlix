@@ -42,7 +42,6 @@ export function MediaDetailHero({
     setIsPlayingTrailer(false);
   }, [media.length]);
 
-  // Clear timeout on unmount
   useEffect(() => {
     const ref = timeoutRef.current;
     return () => {
@@ -52,7 +51,6 @@ export function MediaDetailHero({
     };
   }, [timeoutRef]);
 
-  // Auto-advance slide if not playing video
   useEffect(() => {
     if (!isPlayingVideo && !noSlide && !isWatch && !isPlayingTrailer) {
       const interval = setInterval(() => {
@@ -84,7 +82,6 @@ export function MediaDetailHero({
   };
 
   const handlePlayTrailer = () => {
-    // Find trailer if available
     let currentItemVideos: { type: string; key: string }[] = [];
 
     if (currentItem.videos) {
@@ -111,13 +108,11 @@ export function MediaDetailHero({
       (video: { type: string }) => video.type === "Trailer",
     )?.key;
 
-    // If no trailer is available, show a toast and don't transition the UI
     if (!trailerKey) {
       showToast.error("No trailer available for this title");
       return;
     }
 
-    // If trailer exists, proceed with playing it
     setIsPlayingTrailer(true);
     showToast.info("Press X key or pause to stop trailer");
   };
@@ -125,15 +120,14 @@ export function MediaDetailHero({
   const isMoviesPath = window.location.pathname.includes("/movies/");
   const isTvShowsPath = window.location.pathname.includes("/tvshows/");
 
-  // Determine media type from route with more robust checking
   const getRouteBasedMediaType = (): "tv" | "movie" | undefined => {
-    // Use passed mediaType first if provided
     if (passedMediaType) {
       return passedMediaType;
     }
 
     if (typeof window === "undefined") {
-      return undefined; // SSR fallback
+      // We need to have a fallback for SSR.
+      return undefined;
     }
 
     const pathname = window.location.pathname;
@@ -144,9 +138,7 @@ export function MediaDetailHero({
       return "movie";
     }
 
-    // Also check for watch route patterns
     if (pathname.includes("/watch/")) {
-      // Try to determine from media object
       const currentMedia = media[currentItemIndex];
       if (currentMedia) {
         const isTvShow =
@@ -165,27 +157,13 @@ export function MediaDetailHero({
 
   const mediaType = getRouteBasedMediaType();
 
-  console.log("🛣️ Route-based media type detection:", {
-    pathname: typeof window !== "undefined" ? window.location.pathname : "SSR",
-    passedMediaType,
-    isMoviesPath,
-    isTvShowsPath,
-    detectedMediaType: mediaType,
-    currentMedia:
-      media[currentItemIndex]?.title || media[currentItemIndex]?.name,
-    hasMediaType: !!mediaType,
-  });
-
   return (
     <div className={`relative ${isWatch ? "h-[75vh]" : "h-[82vh]"}`}>
-      {/* YouTube API script */}
       <Script
         src="https://www.youtube.com/iframe_api"
         strategy="lazyOnload"
         onLoad={() => {
-          window.onYouTubeIframeAPIReady = () => {
-            // console.log("YouTube API ready");
-          };
+          window.onYouTubeIframeAPIReady = () => {};
         }}
       />
 

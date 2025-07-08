@@ -40,14 +40,11 @@ export function ServerSelector({
   }>({});
   const [hasAutoSelected, setHasAutoSelected] = useState(false);
 
-  // Helper function to determine media type in a type-safe way
   const getMediaType = (): "movie" | "tv" => {
-    // Use passed mediaType first (from route detection)
     if (mediaType) {
       return mediaType;
     }
 
-    // Fall back to media object type checking
     if (media) {
       if (isMovie(media)) {
         return "movie";
@@ -56,7 +53,6 @@ export function ServerSelector({
       }
     }
 
-    // Default fallback - could also check URL path here
     if (typeof window !== "undefined") {
       if (window.location.pathname.includes("/tvshows/")) {
         return "tv";
@@ -65,22 +61,19 @@ export function ServerSelector({
       }
     }
 
-    return "movie"; // Final fallback
+    return "movie";
   };
 
-  // Fetch availability data for all servers when component mounts or media changes
   useEffect(() => {
     const fetchAvailabilityForAllServers = async () => {
       if (!media) return;
 
       const detectedMediaType = getMediaType();
 
-      // Initialize loading states with proper default values
       const initialData: typeof availabilityData = {};
       videoServers.forEach((server) => {
         const serverOverride = getServerOverride(server.id);
 
-        // If server is manually marked as unavailable, don't check API
         if (serverOverride && !serverOverride.isAvailable) {
           initialData[server.id] = {
             movies: [],
@@ -100,17 +93,14 @@ export function ServerSelector({
       });
       setAvailabilityData(initialData);
 
-      // Fetch data for servers that support availability checking and are not manually overridden
       const fetchPromises = videoServers.map(async (server) => {
         const serverOverride = getServerOverride(server.id);
 
-        // Skip API check if server is manually marked as unavailable
         if (serverOverride && !serverOverride.isAvailable) {
           return;
         }
 
         if (server.checkAvailability) {
-          // Bulk availability checking (for servers that support it)
           try {
             const [movies, tv] = await Promise.all([
               server.checkAvailability("movie"),
@@ -140,16 +130,11 @@ export function ServerSelector({
             }));
           }
         } else if (server.checkIndividualAvailability) {
-          // Individual availability checking (like filmku and embed.su)
+          // I've set up individual availability checking for servers like filmku and embed.su.
           try {
             const isAvailable = await server.checkIndividualAvailability(
               media.id,
               detectedMediaType,
-            );
-
-            console.log(
-              `${server.name} availability for ${media.title || media.name} (${detectedMediaType}):`,
-              isAvailable,
             );
 
             setAvailabilityData((prev) => ({
@@ -178,7 +163,6 @@ export function ServerSelector({
             }));
           }
         } else {
-          // No availability checking - assume always available (unless overridden)
           setAvailabilityData((prev) => ({
             ...prev,
             [server.id]: {
@@ -194,16 +178,14 @@ export function ServerSelector({
     };
 
     fetchAvailabilityForAllServers();
-    setHasAutoSelected(false); // Reset auto-selection flag when media changes
+    setHasAutoSelected(false);
   }, [media, mediaType, serverOverrides, getServerOverride]);
 
-  // Auto-select available server on initial render
   useEffect(() => {
     if (!media || hasAutoSelected) return;
 
     const detectedMediaType = getMediaType();
 
-    // Check if all servers have finished loading
     const allServersLoaded = videoServers.every((server) => {
       const serverData = availabilityData[server.id];
       return serverData && !serverData.isLoading;
@@ -216,7 +198,6 @@ export function ServerSelector({
         availabilityData,
       );
 
-      // Only change server if current one is not available
       const currentServerOverride = getServerOverride(selectedServer.id);
       const isCurrentManuallyUnavailable =
         currentServerOverride && !currentServerOverride.isAvailable;
@@ -231,9 +212,6 @@ export function ServerSelector({
 
       if (!isCurrentAvailable && availableServer.id !== selectedServer.id) {
         setSelectedServer(availableServer);
-        console.log(
-          `Auto-selected ${availableServer.name} for ${media.title || media.name}`,
-        );
       }
 
       setHasAutoSelected(true);
@@ -261,13 +239,11 @@ export function ServerSelector({
     const server = videoServers.find((s) => s.id === serverId);
     if (!server) return null;
 
-    // Check manual override first
     const serverOverride = getServerOverride(serverId);
     if (serverOverride) {
       return serverOverride.isAvailable;
     }
 
-    // If server has no availability checking, assume available
     if (!server.checkAvailability && !server.checkIndividualAvailability) {
       return true;
     }
@@ -278,23 +254,14 @@ export function ServerSelector({
     const detectedMediaType = getMediaType();
     const contentArray = serverData[detectedMediaType];
 
-    // Add null check for the content array
     if (!contentArray || !Array.isArray(contentArray)) return null;
 
     const isAvailable = contentArray.includes(media.id);
-    console.log(`${server.name} content availability check:`, {
-      serverId,
-      mediaId: media.id,
-      detectedMediaType,
-      contentArray,
-      isAvailable,
-    });
 
     return isAvailable;
   };
 
   const isCheckingAvailability = (serverId: string): boolean => {
-    // If server is manually overridden, don't show as checking
     if (isServerOverridden(serverId)) {
       return false;
     }
@@ -331,21 +298,6 @@ export function ServerSelector({
   const currentServerAvailability = getCurrentServerAvailability();
   const isCurrentServerLoading = isCheckingAvailability(selectedServer.id);
 
-  // Debug logging
-  const detectedMediaType = getMediaType();
-  console.log("Server Selector Debug:", {
-    media: media?.title || media?.name,
-    passedMediaType: mediaType,
-    detectedMediaType,
-    isMovie: media ? isMovie(media) : null,
-    isTVShow: media ? isTVShow(media) : null,
-    selectedServer: selectedServer.name,
-    serverOverrides,
-    availabilityData,
-    currentServerAvailability,
-    isCurrentServerLoading,
-  });
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -366,16 +318,14 @@ export function ServerSelector({
       <DropdownMenuContent align="end" className="w-56">
         {videoServers
           .sort((a, b) => {
-            // Get availability status for both servers
             const aAvailable = isContentAvailable(a.id);
             const bAvailable = isContentAvailable(b.id);
 
-            // Available servers first (true > false in boolean comparison)
+            // We should prioritize available servers.
             if (aAvailable !== bAvailable) {
               return bAvailable ? 1 : -1;
             }
 
-            // If same availability, maintain original order
             return 0;
           })
           .map((server) => {
