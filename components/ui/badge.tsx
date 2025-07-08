@@ -1,3 +1,5 @@
+"use client";
+
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
@@ -30,19 +32,24 @@ export interface BadgeProps
   href?: string;
 }
 
-function Badge({ className, variant, href, ...props }: BadgeProps) {
-  const router = useRouter();
-  return (
-    <div
-      className={cn(badgeVariants({ variant }), className)}
-      {...props}
-      onClick={() => {
-        if (href) {
-          router.push(href);
-        }
-      }}
-    />
-  );
-}
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, href, ...props }, ref) => {
+    const router = useRouter();
+    return (
+      <div
+        ref={ref}
+        className={cn(badgeVariants({ variant }), className)}
+        {...props}
+        onClick={(e) => {
+          props.onClick?.(e);
+          if (href) {
+            router.push(href);
+          }
+        }}
+      />
+    );
+  },
+);
+Badge.displayName = "Badge";
 
 export { Badge, badgeVariants };

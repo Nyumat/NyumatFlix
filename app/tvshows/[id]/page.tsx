@@ -62,6 +62,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TVShowPage({ params }: Props) {
   const { id } = params;
 
+  const metadata = await generateMetadata({ params });
+  console.log("metadata", metadata);
+
   try {
     const details = await fetchTVShowDetails(id);
 
