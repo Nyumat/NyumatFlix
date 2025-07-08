@@ -68,50 +68,7 @@ export default async function MoviesPage() {
         </div>
         <div className="relative z-10">
           <ContentContainer>
-            {/* Recent Releases - moved to top */}
-            <SuspenseContentRow
-              rowId="recent-releases"
-              title="New Releases"
-              href="/movies/browse?year=2023"
-            />
-
-            {/* Upcoming Releases - new section */}
-            <SuspenseContentRow
-              rowId="upcoming-movies"
-              title="Coming Soon"
-              href="/movies/browse?type=upcoming"
-            />
-
-            {/* Convert static Popular Movies to ContentRowLoader */}
-            <SuspenseContentRow
-              rowId="popular-movies"
-              title="Popular Movies"
-              href="/movies/browse?type=popular"
-              variant="standard"
-            />
-
-            {/* Director Showcases */}
-            <SuspenseContentRow
-              rowId="nolan-films"
-              title="Christopher Nolan Films"
-              href="/movies/browse?type=director-nolan"
-            />
-
-            {/* Genre-Based Categories */}
-            <SuspenseContentRow
-              rowId="action-movies"
-              title="Action-Packed Adventures"
-              href="/movies/browse?genre=28"
-            />
-
-            {/* Studio Spotlights */}
-            <SuspenseContentRow
-              rowId="a24-films"
-              title="A24 Films"
-              href="/movies/browse?type=studio-a24"
-            />
-
-            {/* Convert static Top Rated Movies to ContentRowLoader */}
+            {/* Keep Top Rated first as requested */}
             <SuspenseContentRow
               rowId="top-rated-movies"
               title="Top Rated Movies"
@@ -120,70 +77,39 @@ export default async function MoviesPage() {
             />
 
             <SuspenseContentRow
-              rowId="scifi-fantasy-movies"
-              title="Sci-Fi & Fantasy Worlds"
-              href="/movies/browse?genre=878,14"
-            />
-
-            <SuspenseContentRow
-              rowId="tarantino-films"
-              title="Quentin Tarantino's Collection"
-              href="/movies/browse?type=director-tarantino"
-            />
-
-            <SuspenseContentRow
-              rowId="comedy-movies"
-              title="Laugh Out Loud (Comedies)"
-              href="/movies/browse?genre=35"
-            />
-
-            <SuspenseContentRow
-              rowId="disney-magic"
-              title="Disney Magic"
-              href="/movies/browse?type=studio-disney"
-            />
-
-            {/* Curated Picks */}
-            <SuspenseContentRow
-              rowId="critically-acclaimed"
-              title="Critically Acclaimed"
-              href="/movies/browse?filter=critically_acclaimed"
-            />
-
-            <SuspenseContentRow
-              rowId="thriller-movies"
-              title="Edge-of-Your-Seat Thrillers"
-              href="/movies/browse?genre=53"
-            />
-
-            <SuspenseContentRow
-              rowId="spielberg-films"
-              title="Steven Spielberg Classics"
-              href="/movies/browse?type=director-spielberg"
-            />
-
-            <SuspenseContentRow
-              rowId="pixar-animation"
-              title="Pixar Animation"
-              href="/movies/browse?type=studio-pixar"
-            />
-
-            <SuspenseContentRow
               rowId="drama-movies"
-              title="Heartfelt Dramas"
+              title="Drama Movies"
               href="/movies/browse?genre=18"
             />
 
             <SuspenseContentRow
-              rowId="scorsese-films"
-              title="Martin Scorsese's Masterpieces"
-              href="/movies/browse?type=director-scorsese"
+              rowId="disney-magic"
+              title="Disney Movies"
+              href="/movies/browse?type=studio-disney"
             />
 
             <SuspenseContentRow
-              rowId="romcom-movies"
-              title="Chill with Rom-Coms"
-              href="/movies/browse?genre=10749,35"
+              rowId="nineties-movies"
+              title="90s Movies"
+              href="/movies/browse?year=1990-1999"
+            />
+
+            <SuspenseContentRow
+              rowId="scifi-fantasy-movies"
+              title="Sci-Fi & Fantasy Movies"
+              href="/movies/browse?genre=878,14"
+            />
+
+            <SuspenseContentRow
+              rowId="recent-releases"
+              title="New Releases"
+              href="/movies/browse?year=2023"
+            />
+
+            <SuspenseContentRow
+              rowId="spielberg-films"
+              title="Steven Spielberg Movies"
+              href="/movies/browse?type=director-spielberg"
             />
 
             <SuspenseContentRow
@@ -192,23 +118,89 @@ export default async function MoviesPage() {
               href="/movies/browse?filter=hidden_gems"
             />
 
-            {/* Time-Based Categories */}
             <SuspenseContentRow
-              rowId="eighties-movies"
-              title="80s Throwbacks"
-              href="/movies/browse?year=1980-1989"
-            />
-
-            <SuspenseContentRow
-              rowId="nineties-movies"
-              title="90s Favorites"
-              href="/movies/browse?year=1990-1999"
+              rowId="comedy-movies"
+              title="Comedy Movies"
+              href="/movies/browse?genre=35"
             />
 
             <SuspenseContentRow
               rowId="early-2000s-movies"
-              title="Early 2000s Nostalgia"
+              title="2000s Movies"
               href="/movies/browse?year=2000-2009"
+            />
+
+            <SuspenseContentRow
+              rowId="nolan-films"
+              title="Christopher Nolan Movies"
+              href="/movies/browse?type=director-nolan"
+            />
+
+            <SuspenseContentRow
+              rowId="pixar-animation"
+              title="Pixar Movies"
+              href="/movies/browse?type=studio-pixar"
+            />
+
+            <SuspenseContentRow
+              rowId="upcoming-movies"
+              title="Upcoming Movies"
+              href="/movies/browse?type=upcoming"
+            />
+
+            <SuspenseContentRow
+              rowId="scorsese-films"
+              title="Martin Scorsese Movies"
+              href="/movies/browse?type=director-scorsese"
+            />
+
+            <SuspenseContentRow
+              rowId="a24-films"
+              title="A24 Movies"
+              href="/movies/browse?type=studio-a24"
+            />
+
+            <SuspenseContentRow
+              rowId="eighties-movies"
+              title="80s Movies"
+              href="/movies/browse?year=1980-1989"
+            />
+
+            <SuspenseContentRow
+              rowId="popular-movies"
+              title="Popular Movies"
+              href="/movies/browse?type=popular"
+              variant="standard"
+            />
+
+            <SuspenseContentRow
+              rowId="critically-acclaimed"
+              title="Critically Acclaimed Movies"
+              href="/movies/browse?filter=critically_acclaimed"
+            />
+
+            <SuspenseContentRow
+              rowId="action-movies"
+              title="Action Movies"
+              href="/movies/browse?genre=28"
+            />
+
+            <SuspenseContentRow
+              rowId="tarantino-films"
+              title="Quentin Tarantino Movies"
+              href="/movies/browse?type=director-tarantino"
+            />
+
+            <SuspenseContentRow
+              rowId="thriller-movies"
+              title="Thriller Movies"
+              href="/movies/browse?genre=53"
+            />
+
+            <SuspenseContentRow
+              rowId="romcom-movies"
+              title="Romantic Comedies"
+              href="/movies/browse?genre=10749,35"
             />
           </ContentContainer>
         </div>
