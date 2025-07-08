@@ -10,7 +10,7 @@ import {
 import { Actor, Movie, TvShow, Video } from "@/utils/typings";
 import { Star, Tv, User } from "lucide-react";
 import Image from "next/legacy/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -188,6 +188,7 @@ export function RecommendationsCarousel({
   recommendations,
   mediaType,
 }: RecommendationsCarouselProps) {
+  const router = useRouter();
   if (!recommendations.length) return null;
 
   const getTitle = (item: Movie | TvShow) => {
@@ -220,9 +221,11 @@ export function RecommendationsCarousel({
                 key={item.id}
                 className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8"
               >
-                <Link
-                  href={getHref(item)}
+                <div
                   className="w-full flex-shrink-0 hover:opacity-80 transition block"
+                  onClick={() => {
+                    router.push(getHref(item));
+                  }}
                 >
                   <div className="rounded-lg overflow-hidden mb-3 aspect-[2/3] bg-muted">
                     {item.poster_path ? (
@@ -252,7 +255,7 @@ export function RecommendationsCarousel({
                       </span>
                     </div>
                   </div>
-                </Link>
+                </div>
               </CarouselItem>
             ))}
           </CarouselContent>

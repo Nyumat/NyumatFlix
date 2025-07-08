@@ -1,6 +1,5 @@
 import { FAQSection } from "@/components/layout/sections/faq";
 import { HeroSection } from "@/components/layout/sections/hero";
-import { AggressivePrefetchProvider } from "@/components/providers/aggressive-prefetch-provider";
 
 export const metadata = {
   title: "NyumatFlix | Watch Movies and TV Shows",
@@ -46,9 +45,9 @@ export const metadata = {
 
 export default function Home() {
   return (
-    <AggressivePrefetchProvider enableImmediate={true}>
+    <>
       <HeroSection />
       <FAQSection />
-    </AggressivePrefetchProvider>
+    </>
   );
 }

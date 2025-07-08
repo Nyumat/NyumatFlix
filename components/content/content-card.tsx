@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { EnhancedLink } from "@/components/ui/enhanced-link";
 import {
   PrimaryGenreBadge,
   SmartGenreBadgeGroup,
@@ -9,6 +8,7 @@ import {
 import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
 import Image from "next/legacy/image";
+import { useRouter } from "next/navigation";
 import { getGenreName } from "./genre-helpers";
 
 interface ContentCardProps {
@@ -28,6 +28,7 @@ export function ContentCard({
   rating,
   href,
 }: ContentCardProps) {
+  const router = useRouter();
   // Cast to more specific types for type safety
   const movieItem = isMovie(item) ? (item as Movie) : null;
   const tvShowItem = isTVShow(item) ? (item as TvShow) : null;
@@ -78,23 +79,22 @@ export function ContentCard({
           </span>
         </div>
         <div className="flex flex-1 relative items-center space-x-2">
-          <EnhancedLink
-            href={cardHref}
-            className="block group"
-            mediaItem={item}
-            prefetchDelay={100}
+          <div
+            className="relative overflow-hidden rounded-lg aspect-[3/4] w-20 lg:w-24"
+            onClick={() => {
+              router.push(cardHref);
+            }}
           >
-            <div className="relative overflow-hidden rounded-lg aspect-[3/4] w-20 lg:w-24">
-              <Image
-                src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
-                alt={displayTitle || "Media poster"}
-                layout="fill"
-                objectFit="cover"
-                className="transition-transform duration-300 group-hover:scale-105"
-                priority={rank !== undefined && rank <= 3}
-              />
-            </div>
-          </EnhancedLink>
+            <Image
+              src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
+              alt={displayTitle || "Media poster"}
+              layout="fill"
+              objectFit="cover"
+              className="transition-transform duration-300 group-hover:scale-105"
+              priority={rank !== undefined && rank <= 3}
+            />
+          </div>
+
           <div className="text-foreground flex flex-col flex-1 max-w-[calc(100%-1rem)]">
             <h3 className="font-medium text-xs md:text-base mb-0.5 max-w-[90%]">
               {displayTitle}
@@ -147,29 +147,28 @@ export function ContentCard({
     );
   }
 
+  // Default card for standard and mobile ranked views
   return (
     <div
       className="w-full select-none"
       role="article"
       aria-label={displayTitle || "Media item"}
     >
-      <EnhancedLink
-        href={cardHref}
-        className="block group"
-        mediaItem={item}
-        prefetchDelay={100}
+      <div
+        className="relative overflow-hidden rounded-lg aspect-[2/3] group"
+        onClick={() => {
+          router.push(cardHref);
+        }}
       >
-        <div className="relative overflow-hidden rounded-lg aspect-[2/3] group">
-          <Image
-            src={`https://image.tmdb.org/t/p/w342${item.poster_path}`}
-            alt={displayTitle || "Media poster"}
-            layout="fill"
-            objectFit="cover"
-            className="transition-transform duration-300 group-hover:scale-105"
-            priority={isRanked && rank !== undefined && rank <= 3}
-          />
-        </div>
-      </EnhancedLink>
+        <Image
+          src={`https://image.tmdb.org/t/p/w342${item.poster_path}`}
+          alt={displayTitle || "Media poster"}
+          layout="fill"
+          objectFit="cover"
+          className="transition-transform duration-300 group-hover:scale-105"
+          priority={isRanked && rank !== undefined && rank <= 3}
+        />
+      </div>
       <div className="mt-2 text-foreground">
         <h3 className="font-semibold text-sm mb-1 leading-tight">
           {displayTitle}
@@ -178,7 +177,7 @@ export function ContentCard({
           {item.vote_average !== undefined && item.vote_average > 0 ? (
             <div
               className="flex items-center text-foreground"
-              aria-label={`Rating: ${item.vote_average?.toFixed(1)} out of 10`}
+              aria-label={`Rating: ${item.vote_average.toFixed(1)} out of 10`}
             >
               <Star
                 className="w-3 h-3 mr-1 text-yellow-400"
@@ -186,14 +185,14 @@ export function ContentCard({
                 aria-hidden="true"
               />
               <span className="font-medium">
-                {item.vote_average?.toFixed(1)}
+                {item.vote_average.toFixed(1)}
               </span>
             </div>
           ) : null}
           {rating && (
             <Badge
               variant="outline"
-              className="border-border text-muted-foreground px-1 py-0.5 text-[10px] font-normal h-auto rounded-sm"
+              className="border-border text-muted-foreground px-1 py-0 text-xs font-normal"
             >
               {rating}
             </Badge>

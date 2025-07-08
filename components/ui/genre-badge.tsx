@@ -2,13 +2,13 @@
 
 import { getGenreName } from "@/components/content/genre-helpers";
 import { Badge } from "@/components/ui/badge";
-import { EnhancedLink } from "@/components/ui/enhanced-link";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface GenreBadgeProps {
   genreId: number;
@@ -44,12 +44,7 @@ export function GenreBadge({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <EnhancedLink
-          href={href}
-          prefetchDelay={100}
-          className="inline-block"
-          aria-label={tooltipText}
-        >
+        <Link href={href} className="inline-block" aria-label={tooltipText}>
           <Badge
             variant={variant}
             className={cn(
@@ -59,7 +54,7 @@ export function GenreBadge({
           >
             {genreName}
           </Badge>
-        </EnhancedLink>
+        </Link>
       </TooltipTrigger>
       <TooltipContent>
         <p>{tooltipText}</p>
@@ -105,8 +100,6 @@ export function SmartGenreBadgeGroup({
   const hiddenGenres = genreIds.slice(maxVisible);
   const hasHiddenGenres = hiddenGenres.length > 0;
 
-  // Import and use the existing getGenreName function from genre-helpers
-
   const hiddenGenreNames = hiddenGenres.map((id) =>
     getGenreName(id, mediaType),
   );
@@ -114,7 +107,7 @@ export function SmartGenreBadgeGroup({
   return (
     <div className={cn("flex flex-wrap items-center gap-1", className)}>
       {visibleGenres.map((genreId) => (
-        <PrimaryGenreBadge
+        <GenreBadge
           key={genreId}
           genreId={genreId}
           genreName={getGenreName(genreId, mediaType)}

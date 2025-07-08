@@ -9,7 +9,6 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { EnhancedLink } from "@/components/ui/enhanced-link";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
@@ -17,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
 import Image from "next/legacy/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
@@ -44,6 +44,7 @@ export function RankedContentRow({
   onLoadMore,
   hasMoreItems = false,
 }: RankedContentRowProps) {
+  const router = useRouter();
   const isMobile = useMedia("(max-width: 768px)", false);
   const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
@@ -148,17 +149,13 @@ export function RankedContentRow({
                   key={`${item.id}-${index}`}
                   className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
                 >
-                  <div className="relative">
-                    <div className="absolute top-0 left-0 z-10 flex items-center justify-center w-10 h-10 bg-background/90 dark:bg-background/90 text-foreground font-bold text-lg rounded-tl-md rounded-br-md">
-                      {index + 1}
-                    </div>
-                    <ContentCard
-                      item={item}
-                      isMobile={true}
-                      rating={getContentRating(item)}
-                      href={`/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`}
-                    />
-                  </div>
+                  <ContentCard
+                    item={item}
+                    isRanked
+                    rank={index + 1}
+                    isMobile={true}
+                    rating={getContentRating(item)}
+                  />
                 </CarouselItem>
               ))}
 
@@ -189,6 +186,9 @@ export function RankedContentRow({
           return (
             <div
               key={`${item.id}-${index}`}
+              onClick={() => {
+                router.push(href);
+              }}
               className="flex group relative overflow-hidden rounded-md hover:bg-accent/60 transition-colors duration-200 p-2 items-center"
             >
               {/* Rank number */}
@@ -205,25 +205,18 @@ export function RankedContentRow({
                 </span>
               </div>
 
-              {/* Poster - Only this is clickable */}
-              <EnhancedLink
-                href={href}
-                className="block group-poster"
-                mediaItem={item}
-                prefetchDelay={100}
-              >
-                <div className="relative overflow-hidden rounded h-20 w-14 sm:h-24 sm:w-16 shrink-0 mx-2 hover:scale-105 transition-transform duration-300">
-                  <Image
-                    src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
-                    alt={displayTitle || "Media poster"}
-                    layout="fill"
-                    objectFit="cover"
-                    className="transition-transform duration-300 group-hover:scale-105"
-                  />
-                </div>
-              </EnhancedLink>
+              {/* Poster */}
+              <div className="relative overflow-hidden rounded h-20 w-14 sm:h-24 sm:w-16 shrink-0 mx-2 group-hover:scale-105 transition-transform duration-300">
+                <Image
+                  src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
+                  alt={displayTitle || "Media poster"}
+                  layout="fill"
+                  objectFit="cover"
+                  className="transition-transform duration-300"
+                />
+              </div>
 
-              {/* Text details - Non-clickable */}
+              {/* Text details */}
               <div className="flex flex-col justify-center flex-1 min-w-0">
                 <h3 className="font-semibold text-sm sm:text-base text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
                   {displayTitle}

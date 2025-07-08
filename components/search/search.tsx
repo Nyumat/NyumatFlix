@@ -7,7 +7,6 @@ import { useSearchPreview } from "@/hooks/use-search-preview";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Search } from "lucide-react";
 import Image from "next/legacy/image";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import SearchResults from "./search-results";
@@ -422,9 +421,8 @@ export const NavbarSearchClient = forwardRef<
                       const href = `/${mediaType}/${item.id}`;
 
                       return (
-                        <Link
+                        <div
                           key={`${item.id}-${item.media_type}`}
-                          href={href}
                           onMouseDown={(e) => {
                             e.preventDefault();
                             router.push(href);
@@ -457,7 +455,7 @@ export const NavbarSearchClient = forwardRef<
                               {item.media_type}
                             </p>
                           </div>
-                        </Link>
+                        </div>
                       );
                     })}
                   </div>

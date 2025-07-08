@@ -8,11 +8,9 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { EnhancedLink } from "@/components/ui/enhanced-link";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { useIntersectionPrefetch } from "@/hooks/useIntersectionPrefetch";
 import useMedia from "@/hooks/useMedia";
-import { isMovie, MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/utils/typings";
 import { useEffect, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
@@ -28,43 +26,6 @@ interface PaginatedContentRowProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   isLoadingMore?: boolean;
-}
-
-function PaginatedContentItem({
-  item,
-  index,
-}: {
-  item: MediaItem;
-  index: number;
-}) {
-  const href = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
-  const mediaType = isMovie(item) ? "movie" : "tv";
-
-  // Use intersection observer for items that are not immediately visible
-  const elementRef = useIntersectionPrefetch(href, mediaType, item.id, {
-    rootMargin: "100px",
-  });
-
-  return (
-    <CarouselItem
-      ref={elementRef}
-      key={`${item.id}-${index}`}
-      className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
-    >
-      <EnhancedLink
-        href={href}
-        className="block group"
-        mediaItem={item}
-        prefetchDelay={100}
-      >
-        <ContentCard
-          item={item}
-          isMobile={false}
-          rating={item.content_rating || undefined}
-        />
-      </EnhancedLink>
-    </CarouselItem>
-  );
 }
 
 export function PaginatedContentRow({
@@ -152,18 +113,11 @@ export function PaginatedContentRow({
                 key={`${item.id}-${index}`}
                 className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
               >
-                <EnhancedLink
-                  href={`/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`}
-                  className="block group"
-                  mediaItem={item}
-                  prefetchDelay={100}
-                >
-                  <ContentCard
-                    item={item}
-                    isMobile={false}
-                    rating={getContentRating(item)}
-                  />
-                </EnhancedLink>
+                <ContentCard
+                  item={item}
+                  isMobile={false}
+                  rating={getContentRating(item)}
+                />
               </CarouselItem>
             ))}
 
