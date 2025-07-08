@@ -47,12 +47,9 @@ export function HeroBackground({
   youtubePlayer,
   setYoutubePlayer,
 }: HeroBackgroundProps) {
-  // Get episode store state
   const { getEmbedUrl } = useEpisodeStore();
-  // Get server store state
   const { selectedServer } = useServerStore();
 
-  // Extract videos from media object
   let currentItemVideos: { type: string; key: string }[] = [];
 
   if (media.videos) {
@@ -73,29 +70,26 @@ export function HeroBackground({
     (video: { type: string }) => video.type === "Trailer",
   )?.key;
 
-  // Helper function to determine media type when it's not passed
   const getMediaType = (): "movie" | "tv" => {
-    // Use passed mediaType first (from route detection)
     if (mediaType) {
       return mediaType;
     }
 
-    // Fall back to media object checking and URL path
     if (media) {
-      // Check if it's a TV show using multiple indicators
+      // I found that checking for a 'name' property is a reliable way to identify a TV show.
+      // a 'first_air_date' is also a good indicator, as are season and episode counts.
       const isTvShow =
         media.media_type === "tv" ||
-        media.name !== undefined || // TV shows have 'name' instead of 'title'
-        media.first_air_date !== undefined || // TV shows have 'first_air_date' instead of 'release_date'
-        media.number_of_seasons !== undefined || // TV shows have seasons
-        media.number_of_episodes !== undefined; // TV shows have episodes
+        media.name !== undefined ||
+        media.first_air_date !== undefined ||
+        media.number_of_seasons !== undefined ||
+        media.number_of_episodes !== undefined;
 
       if (isTvShow) {
         return "tv";
       }
     }
 
-    // Check URL path as final fallback
     if (typeof window !== "undefined") {
       if (window.location.pathname.includes("/tvshows/")) {
         return "tv";
@@ -104,86 +98,39 @@ export function HeroBackground({
       }
     }
 
-    return "movie"; // Final fallback
+    return "movie";
   };
 
-  // Get the appropriate embed URL
   const getVideoSrc = () => {
-    // Detect media type first
     const detectedMediaType = getMediaType();
 
-    console.log("📺 Media type detection:", {
-      passedMediaType: mediaType,
-      detectedMediaType,
-      mediaMediaType: media.media_type,
-      hasName: media.name !== undefined,
-      hasFirstAirDate: media.first_air_date !== undefined,
-      hasSeasons: media.number_of_seasons !== undefined,
-      hasEpisodes: media.number_of_episodes !== undefined,
-      urlPath: typeof window !== "undefined" ? window.location.pathname : "SSR",
-      isTvShow: detectedMediaType === "tv",
-    });
-
-    // For TV shows, ONLY allow episode URLs
+    // For TV shows, we should only allow episode URLs.
     if (detectedMediaType === "tv") {
       const episodeEmbedUrl = getEmbedUrl();
 
-      // Log episode store state for debugging
-      const { selectedEpisode, tvShowId, seasonNumber } =
-        useEpisodeStore.getState();
-      console.log("📺 TV Show - Episode Store State:", {
-        selectedEpisode: selectedEpisode
-          ? {
-              id: selectedEpisode.id,
-              name: selectedEpisode.name,
-              episode_number: selectedEpisode.episode_number,
-            }
-          : null,
-        tvShowId,
-        seasonNumber,
-        mediaId: media.id,
-        hasEpisodeUrl: !!episodeEmbedUrl,
-      });
-
       if (episodeEmbedUrl) {
-        console.log("✅ Using TV episode embed URL:", episodeEmbedUrl);
-        console.log("🔧 Episode URL breakdown:", {
-          server: selectedServer.name,
-          tmdbId: tvShowId ? parseInt(tvShowId) : null,
-          season: seasonNumber,
-          episode: selectedEpisode?.episode_number,
-          finalUrl: episodeEmbedUrl,
-        });
         return episodeEmbedUrl;
       } else {
-        console.log("❌ TV Show: No episode selected - cannot generate URL");
-        // Return a placeholder or empty string to prevent generic TV URLs
+        // We'll return a placeholder or empty string to prevent generic TV URLs.
         return "";
       }
     }
 
-    // For movies, check if there's an episode URL (shouldn't happen, but safety check)
+    // This is a safety check for movies, in case there's an episode URL, which shouldn't happen.
     const episodeEmbedUrl = getEmbedUrl();
-    console.log("🎬 Movie - Episode embed URL check:", episodeEmbedUrl);
 
     if (episodeEmbedUrl) {
-      console.log("⚠️ Movie has episode URL (unexpected):", episodeEmbedUrl);
       return episodeEmbedUrl;
     }
 
-    // Generate movie URL
     const finalUrl = selectedServer.getMovieUrl(media.id);
-    console.log("🎬 Movie URL generated:", finalUrl);
-    console.log("🔧 Selected server:", selectedServer.name);
-    console.log("🎯 Final video URL:", finalUrl);
 
     return finalUrl;
   };
 
-  // Timeout ref to detect long pauses (>1s)
+  // I'm using a timeout to detect long pauses (>1s).
   const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Add keyboard event listener for stopping trailer with X key
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (isPlayingTrailer && (e.key === "x" || e.key === "X")) {
@@ -204,7 +151,6 @@ export function HeroBackground({
     };
   }, [isPlayingTrailer, youtubePlayer, onTrailerEnded, setYoutubePlayer]);
 
-  // Setup YouTube player when trailer is played
   useEffect(() => {
     if (
       isPlayingTrailer &&
@@ -212,7 +158,6 @@ export function HeroBackground({
       typeof window !== "undefined" &&
       window.YT
     ) {
-      // If YouTube API is loaded and player does not exist
       if (!youtubePlayer) {
         try {
           const player = new window.YT.Player("trailer-player", {
@@ -224,13 +169,12 @@ export function HeroBackground({
             },
             events: {
               onStateChange: (event: { data: number }) => {
-                // 0 = ended
                 if (event.data === 0) {
                   onTrailerEnded();
                   return;
                 }
 
-                // 2 = paused. Only treat as end if paused > 1s.
+                // I'm only treating a pause as the end of the trailer if it's paused for more than a second.
                 if (event.data === 2) {
                   if (pauseTimeoutRef.current) {
                     clearTimeout(pauseTimeoutRef.current);
@@ -238,7 +182,6 @@ export function HeroBackground({
 
                   pauseTimeoutRef.current = setTimeout(() => {
                     try {
-                      // If the player is still paused after 1 second, end the trailer
                       const playerState = (
                         player as YouTubePlayer
                       )?.getPlayerState?.();
@@ -246,13 +189,12 @@ export function HeroBackground({
                         onTrailerEnded();
                       }
                     } catch {
-                      // Silently handle player state errors
+                      // I'm silently handling player state errors here.
                     }
                   }, 1000);
                   return;
                 }
 
-                // Any other state (playing, buffering, etc.) => clear pending timeout
                 if (pauseTimeoutRef.current) {
                   clearTimeout(pauseTimeoutRef.current);
                   pauseTimeoutRef.current = null;
@@ -267,7 +209,6 @@ export function HeroBackground({
       }
     }
 
-    // Cleanup
     return () => {
       if (pauseTimeoutRef.current) {
         clearTimeout(pauseTimeoutRef.current);
@@ -286,9 +227,6 @@ export function HeroBackground({
     youtubePlayer,
     setYoutubePlayer,
   ]);
-
-  console.log({ selectedServer, media });
-  console.log(getVideoSrc());
 
   return (
     <div className="absolute inset-0 z-0">
@@ -318,7 +256,6 @@ export function HeroBackground({
               >
                 <X size={24} />
               </button>
-              {/* Use a div for YouTube API to attach to */}
               <div id="trailer-player" className="w-full h-full"></div>
             </motion.div>
           )}

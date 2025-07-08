@@ -43,6 +43,21 @@ const ROW_CONFIG: Record<
   "spielberg-films": { category: "director-spielberg", mediaType: "movie" },
   "scorsese-films": { category: "director-scorsese", mediaType: "movie" },
   "fincher-films": { category: "director-fincher", mediaType: "movie" },
+  "villeneuve-films": { category: "director-villeneuve", mediaType: "movie" },
+  "wright-films": { category: "director-wright", mediaType: "movie" },
+  "wes-anderson-films": {
+    category: "director-wes-anderson",
+    mediaType: "movie",
+  },
+  "coen-films": { category: "director-coen", mediaType: "movie" },
+  "ridley-scott-films": {
+    category: "director-ridley-scott",
+    mediaType: "movie",
+  },
+  "cameron-films": { category: "director-cameron", mediaType: "movie" },
+  "kubrick-films": { category: "director-kubrick", mediaType: "movie" },
+  "hitchcock-films": { category: "director-hitchcock", mediaType: "movie" },
+  "pta-films": { category: "director-pta", mediaType: "movie" },
 
   // Curated picks
   "hidden-gems": { category: "hidden-gems", mediaType: "movie" },
@@ -50,6 +65,22 @@ const ROW_CONFIG: Record<
     category: "critically-acclaimed",
     mediaType: "movie",
   },
+  "blockbuster-hits": { category: "blockbuster-hits", mediaType: "movie" },
+  "award-winners": { category: "award-winners", mediaType: "movie" },
+  "cult-classics": { category: "cult-classics", mediaType: "movie" },
+  "indie-films": { category: "indie-films", mediaType: "movie" },
+
+  // Collection/Franchise categories
+  "marvel-mcu": { category: "marvel-mcu", mediaType: "movie" },
+  "star-wars": { category: "star-wars", mediaType: "movie" },
+  "fast-furious": { category: "fast-furious", mediaType: "movie" },
+  "harry-potter": { category: "harry-potter", mediaType: "movie" },
+  "lord-of-rings": { category: "lord-of-rings", mediaType: "movie" },
+  "mission-impossible": { category: "mission-impossible", mediaType: "movie" },
+  "james-bond": { category: "james-bond", mediaType: "movie" },
+  "batman-dark-knight": { category: "batman-dark-knight", mediaType: "movie" },
+  "jurassic-park": { category: "jurassic-park", mediaType: "movie" },
+  transformers: { category: "transformers", mediaType: "movie" },
 
   // Time-based categories
   "eighties-movies": { category: "year-80s", mediaType: "movie" },
@@ -97,6 +128,10 @@ const ROW_CONFIG: Record<
   "tv-medical-dramas": { category: "tv-medical-dramas", mediaType: "tv" },
   "tv-superhero": { category: "tv-superhero", mediaType: "tv" },
   "tv-cooking-shows": { category: "tv-cooking-shows", mediaType: "tv" },
+  "tv-animated-adventures": {
+    category: "tv-animated-adventures",
+    mediaType: "tv",
+  },
 
   // TV Time period categories
   "tv-90s": { category: "tv-year-90s", mediaType: "tv" },
@@ -112,34 +147,12 @@ const ROW_CONFIG: Record<
   disneyxd: { category: "tv-network-disney-xd", mediaType: "tv" },
   "period-dramas": { category: "tv-period-dramas", mediaType: "tv" },
   "network-hits": { category: "tv-network-hits", mediaType: "tv" },
-  "romantic-crime": { category: "tv-romantic-crime", mediaType: "tv" },
   family: { category: "tv-family", mediaType: "tv" },
   "kdrama-romance": { category: "tv-kdrama-romance", mediaType: "tv" },
   "workplace-comedies": { category: "tv-workplace-comedies", mediaType: "tv" },
   "2010s-mystery": { category: "tv-mystery", mediaType: "tv" },
+  "tv-game-shows": { category: "tv-game-shows", mediaType: "tv" },
 };
-
-// Global cache to track seen media IDs across different row types
-// Use a Map to store when an ID was first seen and in which row
-type MediaCache = {
-  seenIds: Map<number, string>; // Maps media ID to the rowId that first used it
-  resetAfter: number; // Timestamp to reset cache after
-};
-
-// Global cache with 1-hour expiration
-const GLOBAL_MEDIA_CACHE: MediaCache = {
-  seenIds: new Map<number, string>(),
-  resetAfter: Date.now() + 86400000, // 24 hours from now (increased from 1 hour)
-};
-
-// Reset cache if it's older than the expiration time
-function resetCacheIfNeeded() {
-  if (Date.now() > GLOBAL_MEDIA_CACHE.resetAfter) {
-    console.log("[ContentRows] Resetting global media cache");
-    GLOBAL_MEDIA_CACHE.seenIds.clear();
-    GLOBAL_MEDIA_CACHE.resetAfter = Date.now() + 86400000; // 24 hours
-  }
-}
 
 // Rows that should allow international content
 const internationalRows = [
@@ -155,109 +168,15 @@ const internationalRows = [
 async function fetchStandardizedRow(
   rowId: string,
   minCount: number = 20,
-  respectGlobalCache: boolean = true,
 ): Promise<MediaItem[]> {
-  // Reset cache if needed
-  resetCacheIfNeeded();
-
-  // Check if row ID is valid
   if (!ROW_CONFIG[rowId]) {
     console.error(`[ContentRows] Invalid row ID: ${rowId}`);
     return [];
   }
 
-  console.log(
-    `[ContentRows] Fetching row: ${rowId}, respectGlobalCache: ${respectGlobalCache}`,
-  );
-
-  // Define row groups that can share content between them but avoid duplicates across groups
-  const rowGroups = {
-    // Core movie categories - can share between popular and top-rated
-    popularMovies: ["popular-movies", "top-rated-movies"],
-
-    // Core TV categories - can share between popular and top-rated
-    popularTV: ["popular-tvshows", "top-rated-tvshows", "binge-worthy-series"],
-
-    // Genre-based movie groups
-    actionMovies: ["action-movies"],
-    comedyMovies: ["comedy-movies"],
-    dramaMovies: ["drama-movies"],
-    scifiMovies: ["scifi-fantasy-movies"],
-    thrillerMovies: ["thriller-movies"],
-    romanceMovies: ["romcom-movies"],
-
-    // Genre-based TV groups
-    comedyTV: ["tv-comedy"],
-    dramaTV: ["tv-drama", "period-dramas"],
-    scifiTV: ["tv-scifi-fantasy", "mind-bending-scifi"],
-    crimeTV: ["tv-crime", "romantic-crime"],
-    realityTV: ["tv-reality"],
-    animationTV: ["tv-animation", "90s-cartoons"],
-    kidsTV: [
-      "tv-kids",
-      "cartoon-network",
-      "nickelodeon",
-      "disney-channel",
-      "disneyxd",
-    ],
-
-    // Studio/Director groups
-    directorFilms: [
-      "nolan-films",
-      "tarantino-films",
-      "spielberg-films",
-      "scorsese-films",
-      "fincher-films",
-    ],
-    studioFilms: [
-      "a24-films",
-      "disney-magic",
-      "pixar-animation",
-      "warner-bros",
-      "universal-films",
-      "dreamworks-films",
-    ],
-
-    // International/Cultural content
-    international: [
-      "kdrama",
-      "kdrama-romance",
-      "tv-anime",
-      "tv-british-comedy",
-    ],
-
-    // Specialized categories
-    timeBasedMovies: [
-      "eighties-movies",
-      "nineties-movies",
-      "early-2000s-movies",
-      "recent-releases",
-    ],
-    timeBasedTV: ["tv-90s", "tv-2000s", "tv-2010s"],
-    curatedMovies: ["critically-acclaimed", "hidden-gems", "upcoming-movies"],
-    curatedTV: [
-      "tv-on-the-air",
-      "miniseries",
-      "limited-series",
-      "network-hits",
-      "tv-sitcoms",
-    ],
-    familyContent: ["family", "workplace-comedies"],
-    mysteryContent: ["2010s-mystery", "teen-supernatural"],
-    cookingContent: ["cooking-food"],
-  };
-
-  // Find which group this row belongs to
-  const currentRowGroup = Object.keys(rowGroups).find((group) =>
-    rowGroups[group].includes(rowId),
-  );
-
-  // Should respect global cache unless explicitly disabled
-  // But allow some flexibility for popular/top-rated content
-  const shouldRespectGlobalCache = respectGlobalCache;
-
   const { category, mediaType } = ROW_CONFIG[rowId];
-  const rowSeenIds = new Set<number>(); // Local cache for this specific row
+  // We use a local cache just for this specific row
+  const rowSeenIds = new Set<number>();
   let items: MediaItem[] = [];
   let page = 1;
 
@@ -265,7 +184,6 @@ async function fetchStandardizedRow(
   const hasValidPoster = (item: MediaItem): boolean =>
     Boolean(item.poster_path);
 
-  // Additional filter for US TV content
   const isUsTvContent = (item: MediaItem): boolean => {
     // For international rows, allow their specific origin countries
     if (internationalRows.includes(rowId)) {
@@ -288,110 +206,29 @@ async function fetchStandardizedRow(
     );
   };
 
-  // Function to filter and deduplicate items
   const filterAndDeduplicate = (item: MediaItem): boolean => {
-    // Skip items without posters or non-US TV content
     if (!hasValidPoster(item) || !isUsTvContent(item)) return false;
 
-    // Skip items already used in this row
     if (rowSeenIds.has(item.id)) return false;
 
-    // Check global cache if requested
-    if (shouldRespectGlobalCache) {
-      const existingRowId = GLOBAL_MEDIA_CACHE.seenIds.get(item.id);
-      if (existingRowId && existingRowId !== rowId) {
-        // Find which group the existing row belongs to
-        const existingRowGroup = Object.keys(rowGroups).find((group) =>
-          rowGroups[group].includes(existingRowId),
-        );
-
-        // If current row and existing row are in different groups, skip to avoid duplicates
-        // But allow duplicates within the same group (e.g., popular and top-rated can share)
-        if (
-          currentRowGroup &&
-          existingRowGroup &&
-          currentRowGroup !== existingRowGroup
-        ) {
-          return false;
-        }
-
-        // If no group classification, apply stricter deduplication
-        if (!currentRowGroup || !existingRowGroup) {
-          return false;
-        }
-      }
-    }
-
-    // Mark as seen both locally and globally
     rowSeenIds.add(item.id);
-
-    // Update global cache to track this item
-    if (shouldRespectGlobalCache) {
-      GLOBAL_MEDIA_CACHE.seenIds.set(item.id, rowId);
-    }
 
     return true;
   };
 
-  // Keep fetching pages until we have at least minCount items or no more results
-  while (items.length < minCount && page <= 5) {
-    // Limit to 5 pages (100 items max) to prevent infinite loops
+  // I think it's wise to keep fetching pages until we have at least
+  // minCount items, but also to limit to 10 pages to prevent infinite loops.
+  while (items.length < minCount && page <= 10) {
     const newItems = await fetchPaginatedCategory(category, mediaType, page);
-
-    console.log(
-      `[ContentRows] Row ${rowId}, page ${page}: fetched ${newItems?.length || 0} items`,
-    );
-
     if (!newItems || newItems.length === 0) break;
-
-    // Process the new batch of items
     const processedItems = await buildMaybeItemsWithCategories<MediaItem>(
       newItems,
       mediaType,
     );
     const filteredItems = processedItems.filter(filterAndDeduplicate);
-
-    console.log(
-      `[ContentRows] Row ${rowId}, page ${page}: ${filteredItems.length} items after filtering`,
-    );
-
     items = [...items, ...filteredItems];
-
     page++;
   }
-
-  // For popular and top-rated content, if we still don't have enough items, keep adding more
-  // without global cache restrictions to ensure these rows are always well-populated
-  const isPriorityContent =
-    currentRowGroup === "popularMovies" || currentRowGroup === "popularTV";
-  if (isPriorityContent && items.length < minCount) {
-    // Reset page counter and try again with no global cache restrictions
-    page = 1;
-    while (items.length < minCount && page <= 3) {
-      const newItems = await fetchPaginatedCategory(category, mediaType, page);
-      if (!newItems || newItems.length === 0) break;
-
-      const processedItems = await buildMaybeItemsWithCategories<MediaItem>(
-        newItems,
-        mediaType,
-      );
-
-      // Only filter by valid poster and local deduplication, no global cache check
-      const filteredItems = processedItems.filter((item) => {
-        if (!hasValidPoster(item) || !isUsTvContent(item)) return false;
-        if (rowSeenIds.has(item.id)) return false;
-        rowSeenIds.add(item.id);
-        return true;
-      });
-
-      items = [...items, ...filteredItems];
-      page++;
-    }
-  }
-
-  console.log(
-    `[ContentRows] Row ${rowId} final count: ${items.slice(0, minCount).length} items`,
-  );
 
   return items.slice(0, minCount);
 }
@@ -404,14 +241,11 @@ export async function GET(request: Request) {
   const rowId = searchParams.get("id");
   const enrichRaw = searchParams.get("enrich");
   const countRaw = searchParams.get("count");
-  const globalCacheRaw = searchParams.get("globalCache");
 
-  // Default to 20 items if not specified
+  // For now, I like defaulting to 20 items
   const minCount = countRaw ? parseInt(countRaw, 10) : 20;
   const shouldEnrich = enrichRaw === "true";
-  const respectGlobalCache = globalCacheRaw !== "false"; // Default to true
 
-  // Validate row ID
   if (!rowId || !ROW_CONFIG[rowId]) {
     return NextResponse.json(
       { error: "Invalid row ID provided" },
@@ -420,12 +254,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Fetch standardized row content
-    const items = await fetchStandardizedRow(
-      rowId,
-      minCount,
-      respectGlobalCache,
-    );
+    const items = await fetchStandardizedRow(rowId, minCount);
 
     // Optionally enrich items with additional details (videos, logos, etc.)
     const response = shouldEnrich

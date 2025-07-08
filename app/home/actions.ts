@@ -3,9 +3,7 @@
 import { MediaItem } from "@/utils/typings";
 import { buildMaybeItemsWithCategories, fetchTMDBData } from "../actions";
 
-// Mapping of row types to endpoints
 const ROW_TYPE_TO_ENDPOINT = {
-  // Movies
   "popular-movies": "/movie/popular",
   "top-rated-movies": "/movie/top_rated",
   "action-movies": "/discover/movie?with_genres=28",
@@ -26,7 +24,6 @@ const ROW_TYPE_TO_ENDPOINT = {
     "/discover/movie?primary_release_date.gte=2000-01-01&primary_release_date.lte=2009-12-31",
   "recent-releases": "/discover/movie?primary_release_date.gte=2023-01-01",
 
-  // TV Shows
   "popular-tvshows": "/tv/popular",
   "top-rated-tvshows": "/tv/top_rated",
   "binge-worthy-series":
@@ -37,7 +34,7 @@ const ROW_TYPE_TO_ENDPOINT = {
 };
 
 /**
- * Fetches more items for a specific content row on the home page
+ * I created this to fetch more items for a specific content row on the home page.
  */
 export async function getMoreHomepageItems(
   rowType: keyof typeof ROW_TYPE_TO_ENDPOINT,
@@ -50,11 +47,11 @@ export async function getMoreHomepageItems(
       return [];
     }
 
-    // Determine media type based on endpoint
+    // I'll determine the media type based on the endpoint.
     const mediaType =
       endpoint.includes("/tv/") || endpoint.includes("tv?") ? "tv" : "movie";
 
-    // Add page parameter to endpoint
+    // I need to add the page parameter to the endpoint.
     const separator = endpoint.includes("?") ? "&" : "?";
     const url = `${endpoint}${separator}page=${page}`;
 
@@ -64,13 +61,13 @@ export async function getMoreHomepageItems(
       return [];
     }
 
-    // Process the results with categories
+    // Now, I'll process the results and add categories.
     const itemsWithCategories = await buildMaybeItemsWithCategories<MediaItem>(
       data.results,
       mediaType,
     );
 
-    // Filter out items without posters
+    // I'm filtering out items that don't have a poster.
     return itemsWithCategories.filter((item) => item.poster_path);
   } catch (error) {
     console.error(`Error fetching more items for ${rowType}:`, error);

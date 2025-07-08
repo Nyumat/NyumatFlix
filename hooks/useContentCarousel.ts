@@ -37,7 +37,7 @@ export function useContentCarousel({
     axis: "x",
   });
 
-  // Clean loading state if it takes too long (network error, etc)
+  // I need to clean up the loading state if it takes too long (e.g. due to a network error).
   const clearLoadingTimeout = useCallback(() => {
     if (loadingTimerRef.current) {
       clearTimeout(loadingTimerRef.current);
@@ -50,26 +50,23 @@ export function useContentCarousel({
     if (!onLoadMore || !hasMore || loading || !isMountedRef.current) return;
 
     try {
-      // console.log("Loading more items...");
       setLoading(true);
       listenForScrollRef.current = false;
 
-      // Set a safety timeout to clear loading state if it takes too long
+      // I've set a safety timeout to clear the loading state if it takes too long.
       loadingTimerRef.current = setTimeout(() => {
         if (isMountedRef.current) {
-          // console.log("Loading timeout reached");
           setLoading(false);
           listenForScrollRef.current = true;
         }
       }, 8000); // 8 seconds timeout
 
       const newItems = await onLoadMore();
-      // console.log(`Loaded ${newItems.length} new items`);
 
       if (isMountedRef.current) {
         clearLoadingTimeout();
 
-        // Batch these state updates together
+        // I'm batching these state updates together for performance.
         if (newItems.length === 0) {
           setHasMore(false);
           hasMoreToLoadRef.current = false;
@@ -77,7 +74,7 @@ export function useContentCarousel({
           setItems((prevItems) => [...prevItems, ...newItems]);
         }
 
-        // Allow a small delay for the DOM to update before recalculating
+        // I'll allow a small delay for the DOM to update before recalculating.
         requestAnimationFrame(() => {
           if (emblaApi && isMountedRef.current) {
             emblaApi.reInit();
@@ -106,17 +103,16 @@ export function useContentCarousel({
       const lastSlideIndex = emblaApi.slideNodes().length - 1;
       const lastSlideInView = slidesInView.includes(lastSlideIndex);
 
-      // Check if we're at the end of the carousel (either by progress or last slide in view)
+      // Here I'm checking if we're at the end of the carousel.
       if (
         (scrollProgress > 0.85 || lastSlideInView) &&
         !loading &&
         hasMoreToLoadRef.current
       ) {
-        // console.log("Detected end of carousel, loading more...", {scrollProgress,lastSlideInView,currentItems: items.length,});
         loadMoreItems();
       }
     },
-    [loadMoreItems, loading, items.length],
+    [loadMoreItems, loading],
   );
 
   // Set up scroll and scroll end listeners
@@ -169,7 +165,7 @@ export function useContentCarousel({
     };
   }, [emblaApi, onScroll]);
 
-  // Check if initial items are few and we need to load more
+  // If the initial items aren't enough, we might need to load more right away.
   useEffect(() => {
     if (emblaApi && hasMore && items.length < 8 && onLoadMore) {
       requestAnimationFrame(() => {
@@ -180,7 +176,6 @@ export function useContentCarousel({
     }
   }, [emblaApi, hasMore, items.length, onLoadMore, onScroll]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -188,7 +183,6 @@ export function useContentCarousel({
     };
   }, [clearLoadingTimeout]);
 
-  // Update references when props change
   useEffect(() => {
     setHasMore(hasMoreItems);
     hasMoreToLoadRef.current = hasMoreItems;

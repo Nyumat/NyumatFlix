@@ -61,16 +61,11 @@ export async function GET(request: NextRequest) {
     // Now use the IMDB ID for FilmKu status check
     let filmkuUrl;
     if (type === "movie") {
-      console.log(
-        "Checking movie availability for IMDB",
-        `https://filmku.stream/api/status?imdb=${imdbId}&type=movie`,
-      );
       filmkuUrl = `https://filmku.stream/api/status?imdb=${imdbId}&type=movie`;
     } else if (season !== undefined && episode !== undefined) {
-      // For specific episodes - note: FilmKu API uses type=movie for TV shows too
+      // I noticed that for specific episodes, the FilmKu API uses type=movie for TV shows too.
       filmkuUrl = `https://filmku.stream/api/status?imdb=${imdbId}&sea=${season}&epi=${episode}&type=movie`;
     } else {
-      // For TV show in general, check first episode of first season
       filmkuUrl = `https://filmku.stream/api/status?imdb=${imdbId}&sea=1&epi=1&type=movie`;
     }
 
@@ -89,8 +84,6 @@ export async function GET(request: NextRequest) {
     }
 
     const filmkuData = await filmkuResponse.json();
-    console.log("FilmKu API response:", filmkuData);
-    // Based on the API documentation, check for success or available status
     const isAvailable =
       filmkuData &&
       (filmkuData.success === true ||

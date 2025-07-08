@@ -1,6 +1,10 @@
 import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
 import { logger } from "@/lib/utils";
-import { buildFilterParams } from "@/utils/content-filters";
+import {
+  buildFilterParams,
+  buildFilterParamsAsync,
+  getFilterConfig,
+} from "@/utils/content-filters";
 import {
   Logo,
   LogoSchema,
@@ -608,8 +612,22 @@ export async function fetchPaginatedCategory(
   page: number = 1,
 ): Promise<MediaItem[]> {
   try {
-    // First try to get filter configuration from content-filters
-    const filterConfig = buildFilterParams(category);
+    // Check if this filter has a custom fetch function first
+    const filter = getFilterConfig(category);
+    if (filter?.fetchConfig.customFetch) {
+      const result = await filter.fetchConfig.customFetch(page);
+      return result.results || [];
+    }
+
+    // Check if the filter has keyword strings that need resolution
+    const hasKeywordStrings =
+      filter?.fetchConfig.params?.with_keywords &&
+      !filter.fetchConfig.params.with_keywords.match(/^\d+(\|\d+)*$/);
+
+    // Use async version if keywords need resolution, otherwise use sync version
+    const filterConfig = hasKeywordStrings
+      ? await buildFilterParamsAsync(category)
+      : buildFilterParams(category);
 
     // If we have a valid filter configuration, use it
     if (filterConfig.endpoint && Object.keys(filterConfig.params).length > 0) {

@@ -62,19 +62,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TVShowPage({ params }: Props) {
   const { id } = params;
 
-  console.log("TVShowPage debug: Fetching details for ID:", id);
-
   try {
     const details = await fetchTVShowDetails(id);
 
-    console.log("TVShowPage debug: Details fetched successfully:", {
-      id: details?.id,
-      name: details?.name,
-      has_details: !!details,
-    });
-
     if (!details) {
-      console.log("TVShowPage debug: No details found, returning not found");
       return (
         <div className="flex flex-col items-center justify-center min-h-screen p-8">
           <h1 className="text-2xl font-bold text-foreground mb-4">
@@ -90,18 +81,15 @@ export default async function TVShowPage({ params }: Props) {
       );
     }
 
-    // Get first season details for initial view
     const firstSeason = details.seasons?.find(
       (season: Season) => season.season_number > 0,
     );
 
-    // Get content rating
     const contentRating =
       details.content_ratings?.results?.find(
         (rating) => rating.iso_3166_1 === "US",
       )?.rating || "";
 
-    // Format release date
     const firstAirDate = details.first_air_date
       ? new Date(details.first_air_date).toLocaleDateString("en-US", {
           year: "numeric",
@@ -125,24 +113,20 @@ export default async function TVShowPage({ params }: Props) {
           mediaType="tv"
         />
 
-        {/* Additional content below hero */}
         <ContentContainer
           className="container mx-auto px-4 mt-10 relative z-10"
           topSpacing={false}
         >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left sidebar - Poster and quick info */}
             <TVShowSidebar
               details={details}
               firstAirDate={firstAirDate}
               contentRating={contentRating}
             />
 
-            {/* Main content - Overview, cast, similar */}
             <div className="lg:col-span-2 space-y-8">
               <TVShowOverview details={details} />
 
-              {/* Seasons and Episodes */}
               <Suspense fallback={<div>Loading seasons...</div>}>
                 <SeasonTabs
                   details={details}
@@ -151,7 +135,6 @@ export default async function TVShowPage({ params }: Props) {
                 />
               </Suspense>
 
-              {/* Media Carousels - Cast, Videos, Recommendations */}
               <MediaCarousels
                 cast={details.credits?.cast}
                 videos={details.videos?.results}
