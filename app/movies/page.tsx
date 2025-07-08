@@ -38,12 +38,16 @@ export interface Movie {
   categories?: string[];
 }
 
+// Opt-out of static generation – dynamic data is fetched.
+export const dynamic = "force-dynamic";
+
 export default async function MoviesPage() {
   // Fetch trending movies for hero carousel
   const trendingMoviesResponse = await fetchTMDBData("/trending/movie/week");
-  const basicTrendingItems = trendingMoviesResponse.results?.slice(0, 10) || [];
+  // We only need a handful of items for the hero carousel, so keep it light
+  const basicTrendingItems = trendingMoviesResponse.results?.slice(0, 5) || [];
 
-  // Enrich these items with logos and full video details
+  // Enrich just those items
   const enrichedTrendingItems = await fetchAndEnrichMediaItems(
     basicTrendingItems as MediaItem[],
     "movie",
@@ -52,7 +56,7 @@ export default async function MoviesPage() {
   return (
     <>
       {/* Hero carousel for trending movies */}
-      <MediaCarousel items={enrichedTrendingItems.slice(0, 5)} />
+      <MediaCarousel items={enrichedTrendingItems} />
 
       {/* Content rows section with background */}
       <div className="relative min-h-screen">

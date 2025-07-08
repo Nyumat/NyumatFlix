@@ -30,6 +30,7 @@ const nextConfig = {
   },
   experimental: {
     scrollRestoration: true,
+    taint: true,
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",

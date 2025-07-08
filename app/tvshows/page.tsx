@@ -20,9 +20,13 @@ export const metadata: Metadata = {
   },
 };
 
+// Opt-out of static generation – dynamic data is fetched.
+export const dynamic = "force-dynamic";
+
 export default async function TVShowsPage() {
   const trendingTVResponse = await fetchTMDBData("/trending/tv/week");
-  const basicTrendingItems = trendingTVResponse.results?.slice(0, 10) || [];
+  // Only take a few items for the hero carousel to keep build time low
+  const basicTrendingItems = trendingTVResponse.results?.slice(0, 5) || [];
 
   const enrichedTrendingItems = await fetchAndEnrichMediaItems(
     basicTrendingItems as MediaItem[],
@@ -32,7 +36,7 @@ export default async function TVShowsPage() {
   return (
     <>
       <main>
-        <MediaCarousel items={enrichedTrendingItems.slice(0, 5)} />
+        <MediaCarousel items={enrichedTrendingItems} />
       </main>
 
       {/* Content rows section with background */}
