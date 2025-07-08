@@ -1,12 +1,13 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { EnhancedLink } from "@/components/ui/enhanced-link";
 import type { Genre, MediaItem } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
+import { useRouter } from "next/navigation";
 import { match, P } from "ts-pattern";
 import { Info } from "./media-info";
 import { Poster } from "./media-poster";
+import { Play } from "lucide-react";
 
 /**
  * Movie details interface for enriched data
@@ -46,6 +47,7 @@ interface MediaCardProps {
  * @returns A card component displaying media information with hover interactions
  */
 export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
+  const router = useRouter();
   if (item.id === undefined) {
     return <div>No content ID found</div>;
   }
@@ -104,20 +106,25 @@ export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
 
   return (
     <Card className="overflow-hidden group relative border-none h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
-      <CardContent className="p-0 relative h-full flex flex-col">
-        <EnhancedLink
-          href={href}
-          className="block relative flex-shrink-0"
-          mediaItem={item}
-          prefetchDelay={0}
-        >
-          <div className="relative">
-            <Poster posterPath={posterPath} title={title} />
-            <div className="absolute inset-0 bg-background/0 hover:bg-background/20 hover:backdrop-blur-sm transition-all duration-300 pointer-events-none"></div>
+      <div
+        className="block relative flex-shrink-0"
+        onClick={() => {
+          router.push(href);
+        }}
+      >
+        <div className="relative">
+          <Poster posterPath={posterPath} title={title} />
+          <div className="absolute inset-0 bg-background/0 hover:bg-background/20 hover:backdrop-blur-sm transition-all duration-300 pointer-events-none">
+            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 backdrop-blur-md rounded-full border border-white/20 transition-transform duration-300 transform-gpu group-hover:scale-110">
+                <Play className="text-white text-3xl" />
+              </div>
+            </div>
           </div>
-        </EnhancedLink>
-
-        <div className="flex-grow">
+        </div>
+      </div>
+      <CardContent className="p-0 relative h-full flex flex-col">
+        <div className="flex-grow p-4">
           <Info
             title={title}
             releaseDate={releaseDate}
@@ -135,3 +142,5 @@ export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
     </Card>
   );
 };
+
+export default MediaCard;

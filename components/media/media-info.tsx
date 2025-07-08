@@ -5,7 +5,6 @@ import { CountryBadge } from "@/components/ui/country-badge";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import type { Genre } from "@/utils/typings";
 import { Clock, Star } from "lucide-react";
-import Link from "next/link";
 
 /**
  * Props for the Info component
@@ -98,14 +97,13 @@ export const Info = ({
           </Badge>
         )}
 
-        <Link href={mediaType === "movie" ? "/movies" : "/tvshows"}>
-          <Badge
-            variant="outline"
-            className="text-[10px] py-0 h-4 px-1.5 bg-primary/10 border-primary/30 text-primary font-medium rounded-sm hover:bg-primary/20 hover:border-primary/50 transition-colors cursor-pointer"
-          >
-            {mediaType === "movie" ? "Movie" : "TV"}
-          </Badge>
-        </Link>
+        <Badge
+          href={mediaType === "movie" ? "/movies" : "/tvshows"}
+          variant="outline"
+          className="text-[10px] py-0 h-4 px-1.5 bg-primary/10 border-primary/30 text-primary font-medium rounded-sm hover:bg-primary/20 hover:border-primary/50 transition-colors cursor-pointer"
+        >
+          {mediaType === "movie" ? "Movie" : "TV"}
+        </Badge>
 
         {country && country.length > 0 && (
           <CountryBadge

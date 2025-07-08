@@ -4,7 +4,11 @@ import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useServerStore } from "@/lib/stores/server-store";
 import { logger } from "@/lib/utils";
 import { MediaItem } from "@/utils/typings";
-import { AnimatePresence, AnimationControls, motion } from "framer-motion";
+import {
+  AnimatePresence,
+  LegacyAnimationControls,
+  motion,
+} from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { YouTubePlayer } from "./youtube-types";
@@ -22,7 +26,7 @@ interface HeroBackgroundProps {
   /** Whether a trailer is currently playing */
   isPlayingTrailer: boolean;
   /** Animation controls for the background */
-  controls: AnimationControls;
+  controls: LegacyAnimationControls;
   /** Callback function when trailer ends */
   onTrailerEnded(): void;
   /** YouTube player instance */

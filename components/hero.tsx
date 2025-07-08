@@ -6,13 +6,15 @@ import {
   CarouselItem,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { EnhancedLink } from "@/components/ui/enhanced-link";
 import { Logo, MediaItem } from "@/utils/typings";
 import Fade from "embla-carousel-fade";
+import { Info, Play } from "lucide-react";
 import Image from "next/legacy/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { match, P } from "ts-pattern";
+import { Button } from "./ui/button";
 
 interface HeroProps {
   imageUrl: string;
@@ -128,27 +130,6 @@ interface MediaCarouselProps {
   items: MediaItem[];
 }
 
-function CarouselSlide({ item, index }: { item: MediaItem; index: number }) {
-  return (
-    <CarouselItem key={item.id} className="pl-0">
-      <div className="relative w-full md:h-[60vh] xl:h-[60vh] h-[70vh]">
-        <Image
-          src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
-          alt={match(item)
-            .with({ title: P.string }, (movie) => movie.title)
-            .with({ name: P.string }, (tvShow) => tvShow.name)
-            .otherwise(() => "Media Item")}
-          layout="fill"
-          objectFit="cover"
-          priority={index === 0}
-          className="brightness-50 select-none pointer-events-none"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent opacity-20" />
-      </div>
-    </CarouselItem>
-  );
-}
-
 function CarouselDetails({ current }: { current: MediaItem }) {
   const titleText = match(current)
     .with({ title: P.string }, (movie) => movie.title)
@@ -170,6 +151,11 @@ function CarouselDetails({ current }: { current: MediaItem }) {
       (tvShow) => tvShow.first_air_date?.substring(0, 4),
     )
     .otherwise(() => undefined);
+
+  const href = match(current)
+    .with({ title: P.string, id: P.number }, (movie) => `/movies/${movie.id}`)
+    .with({ name: P.string, id: P.number }, (tvShow) => `/tvshows/${tvShow.id}`)
+    .otherwise(() => "#");
 
   return (
     <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 flex flex-col items-start pointer-events-none">
@@ -203,23 +189,26 @@ function CarouselDetails({ current }: { current: MediaItem }) {
         {current.overview}
       </p>
 
-      <EnhancedLink
-        href={match(current)
-          .with(
-            { title: P.string, id: P.number },
-            (movie) => `/movies/${movie.id}`,
-          )
-          .with(
-            { name: P.string, id: P.number },
-            (tvShow) => `/tvshows/${tvShow.id}`,
-          )
-          .otherwise(() => "#")}
-        className="bg-primary hover:bg-primary/80 text-white font-semibold py-2 px-6 rounded transition-colors pointer-events-auto"
-        mediaItem={current}
-        prefetchDelay={0}
-      >
-        Watch Now
-      </EnhancedLink>
+      <div className="flex items-center space-x-4 pointer-events-auto">
+        <Button asChild>
+          <Link
+            href={href}
+            className="bg-primary hover:bg-primary/80 text-white font-semibold py-2 px-6 rounded transition-colors"
+          >
+            <Play className="mr-2 h-5 w-5" />
+            <span>Play</span>
+          </Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link
+            href={href}
+            className="bg-secondary/20 hover:bg-secondary/40 text-white font-semibold py-2 px-6 rounded transition-colors"
+          >
+            <Info className="mr-2 h-5 w-5" />
+            <span>More Info</span>
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
@@ -229,15 +218,15 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
 
-  const handleSizeChange = useCallback(() => {
+  const handleSizeChange = () => {
     setIsMobile(window.innerWidth < 768);
-  }, []);
+  };
 
   useEffect(() => {
     handleSizeChange();
     window.addEventListener("resize", handleSizeChange);
     return () => window.removeEventListener("resize", handleSizeChange);
-  }, [handleSizeChange]);
+  }, []);
 
   useEffect(() => {
     if (!api) return;
@@ -249,10 +238,12 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
     api.on("select", onSelect);
 
     const interval = setInterval(() => {
-      if (api.canScrollNext()) {
-        api.scrollNext();
-      } else {
-        api.scrollTo(0);
+      if (document.visibilityState === "visible") {
+        if (api.canScrollNext()) {
+          api.scrollNext();
+        } else {
+          api.scrollTo(0);
+        }
       }
     }, 7000);
 
@@ -272,16 +263,32 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
       >
         <CarouselContent className="!ml-0">
           {items.map((item, index) => (
-            <CarouselSlide key={item.id} item={item} index={index} />
+            <CarouselItem key={item.id} className="pl-0">
+              <div className="relative w-full md:h-[60vh] xl:h-[60vh] h-[70vh]">
+                <Image
+                  src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
+                  alt={match(item)
+                    .with({ title: P.string }, (movie) => movie.title)
+                    .with({ name: P.string }, (tvShow) => tvShow.name)
+                    .otherwise(() => "Media Item")}
+                  layout="fill"
+                  objectFit="cover"
+                  priority={index === 0}
+                  className="brightness-50 select-none pointer-events-none"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent opacity-20" />
+              </div>
+            </CarouselItem>
           ))}
         </CarouselContent>
       </Carousel>
 
+      {/* Details and Overlays moved outside of CarouselContent to prevent hydration issues */}
       {items[currentIndex] && <CarouselDetails current={items[currentIndex]} />}
 
       {isMobile && items[currentIndex] && (
         <div className="md:hidden absolute bottom-72 sm:bottom-52 right-4 w-32 h-48 rounded-lg overflow-hidden shadow-lg pointer-events-auto xs:bottom-40">
-          <EnhancedLink
+          <Link
             href={match(items[currentIndex])
               .with(
                 { title: P.string, id: P.number },
@@ -292,8 +299,6 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                 (tvShow) => `/tvshows/${tvShow.id}`,
               )
               .otherwise(() => "#")}
-            mediaItem={items[currentIndex]}
-            prefetchDelay={0}
           >
             <div className="relative w-full h-full">
               <Image
@@ -308,7 +313,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                 className="pt-12"
               />
             </div>
-          </EnhancedLink>
+          </Link>
         </div>
       )}
 

@@ -1,10 +1,8 @@
-import { ContentRowLoader } from "@/components/content/content-row-loader";
+import { SuspenseContentRow } from "@/components/content/suspense-content-row";
 import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
-import { AggressivePrefetchProvider } from "@/components/providers/aggressive-prefetch-provider";
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
-import { Suspense } from "react";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
 
 export const metadata: Metadata = {
@@ -52,10 +50,7 @@ export default async function MoviesPage() {
   );
 
   return (
-    <AggressivePrefetchProvider
-      items={enrichedTrendingItems}
-      enableImmediate={true}
-    >
+    <>
       {/* Hero carousel for trending movies */}
       <MediaCarousel items={enrichedTrendingItems.slice(0, 5)} />
 
@@ -74,194 +69,150 @@ export default async function MoviesPage() {
         <div className="relative z-10">
           <ContentContainer>
             {/* Recent Releases - moved to top */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="recent-releases"
-                title="New Releases"
-                href="/movies/browse?year=2023"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="recent-releases"
+              title="New Releases"
+              href="/movies/browse?year=2023"
+            />
 
             {/* Upcoming Releases - new section */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="upcoming-movies"
-                title="Coming Soon"
-                href="/movies/browse?type=upcoming"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="upcoming-movies"
+              title="Coming Soon"
+              href="/movies/browse?type=upcoming"
+            />
 
             {/* Convert static Popular Movies to ContentRowLoader */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="popular-movies"
-                title="Popular Movies"
-                href="/movies/browse?type=popular"
-                variant="standard"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="popular-movies"
+              title="Popular Movies"
+              href="/movies/browse?type=popular"
+              variant="standard"
+            />
 
             {/* Director Showcases */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="nolan-films"
-                title="Christopher Nolan Films"
-                href="/movies/browse?type=director-nolan"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="nolan-films"
+              title="Christopher Nolan Films"
+              href="/movies/browse?type=director-nolan"
+            />
 
             {/* Genre-Based Categories */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="action-movies"
-                title="Action-Packed Adventures"
-                href="/movies/browse?genre=28"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="action-movies"
+              title="Action-Packed Adventures"
+              href="/movies/browse?genre=28"
+            />
 
             {/* Studio Spotlights */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="a24-films"
-                title="A24 Films"
-                href="/movies/browse?type=studio-a24"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="a24-films"
+              title="A24 Films"
+              href="/movies/browse?type=studio-a24"
+            />
 
             {/* Convert static Top Rated Movies to ContentRowLoader */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="top-rated-movies"
-                title="Top Rated Movies"
-                href="/movies/browse?type=top-rated"
-                variant="ranked"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="top-rated-movies"
+              title="Top Rated Movies"
+              href="/movies/browse?type=top-rated"
+              variant="ranked"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="scifi-fantasy-movies"
-                title="Sci-Fi & Fantasy Worlds"
-                href="/movies/browse?genre=878,14"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="scifi-fantasy-movies"
+              title="Sci-Fi & Fantasy Worlds"
+              href="/movies/browse?genre=878,14"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="tarantino-films"
-                title="Quentin Tarantino's Collection"
-                href="/movies/browse?type=director-tarantino"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="tarantino-films"
+              title="Quentin Tarantino's Collection"
+              href="/movies/browse?type=director-tarantino"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="comedy-movies"
-                title="Laugh Out Loud (Comedies)"
-                href="/movies/browse?genre=35"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="comedy-movies"
+              title="Laugh Out Loud (Comedies)"
+              href="/movies/browse?genre=35"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="disney-magic"
-                title="Disney Magic"
-                href="/movies/browse?type=studio-disney"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="disney-magic"
+              title="Disney Magic"
+              href="/movies/browse?type=studio-disney"
+            />
 
             {/* Curated Picks */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="critically-acclaimed"
-                title="Critically Acclaimed"
-                href="/movies/browse?filter=critically_acclaimed"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="critically-acclaimed"
+              title="Critically Acclaimed"
+              href="/movies/browse?filter=critically_acclaimed"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="thriller-movies"
-                title="Edge-of-Your-Seat Thrillers"
-                href="/movies/browse?genre=53"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="thriller-movies"
+              title="Edge-of-Your-Seat Thrillers"
+              href="/movies/browse?genre=53"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="spielberg-films"
-                title="Steven Spielberg Classics"
-                href="/movies/browse?type=director-spielberg"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="spielberg-films"
+              title="Steven Spielberg Classics"
+              href="/movies/browse?type=director-spielberg"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="pixar-animation"
-                title="Pixar Animation"
-                href="/movies/browse?type=studio-pixar"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="pixar-animation"
+              title="Pixar Animation"
+              href="/movies/browse?type=studio-pixar"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="drama-movies"
-                title="Heartfelt Dramas"
-                href="/movies/browse?genre=18"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="drama-movies"
+              title="Heartfelt Dramas"
+              href="/movies/browse?genre=18"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="scorsese-films"
-                title="Martin Scorsese's Masterpieces"
-                href="/movies/browse?type=director-scorsese"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="scorsese-films"
+              title="Martin Scorsese's Masterpieces"
+              href="/movies/browse?type=director-scorsese"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="romcom-movies"
-                title="Chill with Rom-Coms"
-                href="/movies/browse?genre=10749,35"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="romcom-movies"
+              title="Chill with Rom-Coms"
+              href="/movies/browse?genre=10749,35"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="hidden-gems"
-                title="Hidden Gems"
-                href="/movies/browse?filter=hidden_gems"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="hidden-gems"
+              title="Hidden Gems"
+              href="/movies/browse?filter=hidden_gems"
+            />
 
             {/* Time-Based Categories */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="eighties-movies"
-                title="80s Throwbacks"
-                href="/movies/browse?year=1980-1989"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="eighties-movies"
+              title="80s Throwbacks"
+              href="/movies/browse?year=1980-1989"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="nineties-movies"
-                title="90s Favorites"
-                href="/movies/browse?year=1990-1999"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="nineties-movies"
+              title="90s Favorites"
+              href="/movies/browse?year=1990-1999"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="early-2000s-movies"
-                title="Early 2000s Nostalgia"
-                href="/movies/browse?year=2000-2009"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="early-2000s-movies"
+              title="Early 2000s Nostalgia"
+              href="/movies/browse?year=2000-2009"
+            />
           </ContentContainer>
         </div>
       </div>
-    </AggressivePrefetchProvider>
+    </>
   );
 }

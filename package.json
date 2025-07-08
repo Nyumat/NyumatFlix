@@ -55,7 +55,7 @@
     "embla-carousel": "^8.6.0",
     "embla-carousel-fade": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
-    "framer-motion": "^11.3.31",
+    "framer-motion": "^12.23.0",
     "input-otp": "^1.2.4",
     "lodash": "^4.17.21",
     "lucide-react": "^0.383.0",

@@ -1,6 +1,5 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
-import { EnhancedLink } from "@/components/ui/enhanced-link";
 import {
   Tooltip,
   TooltipContent,
@@ -67,11 +66,14 @@ const CountryBadge = ({
   };
 
   const href = `/browse/country/${country.iso_3166_1.toLowerCase()}?type=${mediaType}`;
-  const tooltipText = `Browse ${displayName} ${mediaType === "movie" ? "movies" : "TV shows"}`;
+  const tooltipText = `Browse ${displayName} ${
+    mediaType === "movie" ? "movies" : "TV shows"
+  }`;
 
-  const badgeContent = (
+  const badgeContent = (href?: string) => (
     <Badge
       variant={variant}
+      href={href}
       className={cn(
         "inline-flex items-center font-medium",
         sizeClasses[size],
@@ -90,21 +92,12 @@ const CountryBadge = ({
   );
 
   if (!clickable) {
-    return badgeContent;
+    return badgeContent();
   }
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <EnhancedLink
-          href={href}
-          prefetchDelay={100}
-          className="inline-block"
-          aria-label={tooltipText}
-        >
-          {badgeContent}
-        </EnhancedLink>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{badgeContent(href)}</TooltipTrigger>
       <TooltipContent>
         <p>{tooltipText}</p>
       </TooltipContent>
