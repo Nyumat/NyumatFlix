@@ -76,6 +76,13 @@ export default async function Home() {
           </div>
           <div className="relative z-10">
             <SuspenseContentRow
+              rowId="top-rated-movies"
+              title="Top Rated Movies"
+              href="/movies/browse?type=top-rated"
+              variant="ranked"
+            />
+
+            <SuspenseContentRow
               rowId="recent-releases"
               title="New Releases"
               href="/movies/browse?year=2023"
@@ -109,13 +116,6 @@ export default async function Home() {
               rowId="nolan-films"
               title="Christopher Nolan Films"
               href="/movies/browse?type=director-nolan"
-            />
-
-            <SuspenseContentRow
-              rowId="top-rated-movies"
-              title="Top Rated Movies"
-              href="/movies/browse?type=top-rated"
-              variant="ranked"
             />
 
             <SuspenseContentRow

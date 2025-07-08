@@ -1,9 +1,8 @@
-import { ContentRowLoader } from "@/components/content/content-row-loader";
+import { SuspenseContentRow } from "@/components/content/suspense-content-row";
 import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
-import { Suspense } from "react";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
 
 export const metadata: Metadata = {
@@ -50,224 +49,153 @@ export default async function TVShowsPage() {
         </div>
         <div className="relative z-10">
           <ContentContainer>
-            <Suspense>
-              <ContentRowLoader
-                rowId="tv-on-the-air"
-                title="Currently Airing"
-                href="/tvshows/browse?filter=tv-on-the-air"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="top-rated-tvshows"
+              title="Top Rated TV Shows"
+              href="/tvshows/browse?filter=tv-top-rated"
+              variant="ranked"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="popular-tvshows"
-                title="Popular TV Shows"
-                href="/tvshows/browse?filter=tv-popular"
-                variant="ranked"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="tv-on-the-air"
+              title="Currently Airing"
+              href="/tvshows/browse?filter=tv-on-the-air"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="top-rated-tvshows"
-                title="Top Rated TV Shows"
-                href="/tvshows/browse?filter=tv-top-rated"
-                variant="ranked"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="popular-tvshows"
+              title="Popular TV Shows"
+              href="/tvshows/browse?filter=tv-popular"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="kdrama"
-                title="Popular K-Dramas"
-                href="/tvshows/browse?filter=tv-kdrama"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="kdrama"
+              title="Popular K-Dramas"
+              href="/tvshows/browse?filter=tv-kdrama"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="tv-crime"
-                title="Crime & Mystery"
-                href="/tvshows/browse?filter=tv-genre-crime"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="tv-crime"
+              title="Crime & Mystery"
+              href="/tvshows/browse?filter=tv-genre-crime"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="cartoon-network"
-                title="Cartoon Network"
-                href="/tvshows/browse?filter=tv-network-cartoon-network"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="cartoon-network"
+              title="Cartoon Network"
+              href="/tvshows/browse?filter=tv-network-cartoon-network"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="miniseries"
-                title="Critically Acclaimed Miniseries"
-                href="/tvshows/browse?filter=tv-limited-series"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="miniseries"
+              title="Critically Acclaimed Miniseries"
+              href="/tvshows/browse?filter=tv-limited-series"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="tv-comedy"
-                title="Laugh Out Loud Comedies"
-                href="/tvshows/browse?filter=tv-genre-comedy"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="tv-comedy"
+              title="Laugh Out Loud Comedies"
+              href="/tvshows/browse?filter=tv-genre-comedy"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="mind-bending-scifi"
-                title="Mind-Bending Sci-Fi"
-                href="/tvshows/browse?filter=tv-mind-bending-scifi"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="mind-bending-scifi"
+              title="Mind-Bending Sci-Fi"
+              href="/tvshows/browse?filter=tv-mind-bending-scifi"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="nickelodeon"
-                title="Nickelodeon"
-                href="/tvshows/browse?filter=tv-network-nickelodeon"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="nickelodeon"
+              title="Nickelodeon"
+              href="/tvshows/browse?filter=tv-network-nickelodeon"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="tv-drama"
-                title="Critically Acclaimed Dramas"
-                href="/tvshows/browse?filter=tv-genre-drama"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="tv-drama"
+              title="Critically Acclaimed Dramas"
+              href="/tvshows/browse?filter=tv-genre-drama"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="teen-supernatural"
-                title="Teen Supernatural Dramas"
-                href="/tvshows/browse?filter=tv-teen-supernatural"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="teen-supernatural"
+              title="Teen Supernatural Dramas"
+              href="/tvshows/browse?filter=tv-teen-supernatural"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="cooking-food"
-                title="Cooking & Food Shows"
-                href="/tvshows/browse?filter=tv-cooking-shows"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="cooking-food"
+              title="Cooking & Food Shows"
+              href="/tvshows/browse?filter=tv-cooking-shows"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="disneyxd"
-                title="Disney XD"
-                href="/tvshows/browse?filter=tv-network-disney-xd"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="disneyxd"
+              title="Disney XD"
+              href="/tvshows/browse?filter=tv-network-disney-xd"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="period-dramas"
-                title="Period Piece Dramas"
-                href="/tvshows/browse?filter=tv-period-dramas"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="period-dramas"
+              title="Period Piece Dramas"
+              href="/tvshows/browse?filter=tv-period-dramas"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="tv-scifi-fantasy"
-                title="Sci-Fi & Fantasy Adventures"
-                href="/tvshows/browse?filter=tv-genre-scifi-fantasy"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="tv-scifi-fantasy"
+              title="Sci-Fi & Fantasy Adventures"
+              href="/tvshows/browse?filter=tv-genre-scifi-fantasy"
+            />
 
-            <Suspense>
-              <ContentRowLoader
-                rowId="reality-tv"
-                title="Reality TV Hits"
-                href="/tvshows/browse?filter=tv-reality"
-              />
-            </Suspense>
-
-            {/* Animated Shows - Order 18 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="tv-animation"
-                title="Animated Shows"
-                href="/tvshows/browse?filter=tv-genre-animation"
-              />
-            </Suspense>
-
-            {/* Network TV Hits - Order 19 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="network-hits"
-                title="Network TV Hits"
-                href="/tvshows/browse?filter=tv-network-hits"
-              />
-            </Suspense>
-
-            {/* Classic Sitcoms - Order 20 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="tv-sitcoms"
-                title="Classic Sitcoms"
-                href="/tvshows/browse?filter=tv-sitcoms"
-              />
-            </Suspense>
-
-            {/* Disney Channel - Order 21 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="disney-channel"
-                title="Disney Channel"
-                href="/tvshows/browse?filter=tv-network-disney-channel"
-              />
-            </Suspense>
-
-            {/* Family Favorites - Order 22 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="family"
-                title="Family Favorites"
-                href="/tvshows/browse?filter=tv-family"
-              />
-            </Suspense>
-
-            {/* K-Drama Romances - Order 23 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="kdrama-romance"
-                title="K-Drama Romances"
-                href="/tvshows/browse?filter=tv-kdrama-romance"
-              />
-            </Suspense>
-
-            {/* Mystery Shows - Order 26 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="2010s-mystery"
-                title="Mystery Shows"
-                href="/tvshows/browse?filter=tv-mystery"
-              />
-            </Suspense>
-
-            {/* Kids Shows - Order 27 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="tv-kids"
-                title="Kids Shows"
-                href="/tvshows/browse?filter=tv-genre-kids"
-              />
-            </Suspense>
-
-            {/* 90s Cartoons - Order 28 */}
-            <Suspense>
-              <ContentRowLoader
-                rowId="90s-cartoons"
-                title="90s Cartoons"
-                href="/tvshows/browse?filter=tv-90s-cartoons"
-              />
-            </Suspense>
+            <SuspenseContentRow
+              rowId="reality-tv"
+              title="Reality TV Hits"
+              href="/tvshows/browse?filter=tv-reality"
+            />
+            <SuspenseContentRow
+              rowId="tv-animation"
+              title="Animated Shows"
+              href="/tvshows/browse?filter=tv-genre-animation"
+            />
+            <SuspenseContentRow
+              rowId="network-hits"
+              title="Network TV Hits"
+              href="/tvshows/browse?filter=tv-network-hits"
+            />
+            <SuspenseContentRow
+              rowId="tv-sitcoms"
+              title="Classic Sitcoms"
+              href="/tvshows/browse?filter=tv-sitcoms"
+            />
+            <SuspenseContentRow
+              rowId="disney-channel"
+              title="Disney Channel"
+              href="/tvshows/browse?filter=tv-network-disney-channel"
+            />
+            <SuspenseContentRow
+              rowId="family"
+              title="Family Favorites"
+              href="/tvshows/browse?filter=tv-family"
+            />
+            <SuspenseContentRow
+              rowId="kdrama-romance"
+              title="K-Drama Romances"
+              href="/tvshows/browse?filter=tv-kdrama-romance"
+            />
+            <SuspenseContentRow
+              rowId="2010s-mystery"
+              title="Mystery Shows"
+              href="/tvshows/browse?filter=tv-mystery"
+            />
+            <SuspenseContentRow
+              rowId="tv-kids"
+              title="Kids Shows"
+              href="/tvshows/browse?filter=tv-genre-kids"
+            />
+            <SuspenseContentRow
+              rowId="90s-cartoons"
+              title="90s Cartoons"
+              href="/tvshows/browse?filter=tv-90s-cartoons"
+            />
           </ContentContainer>
         </div>
       </div>
