@@ -1,7 +1,10 @@
 import { SuspenseContentRow } from "@/components/content/suspense-content-row";
 import { MediaCarousel } from "@/components/hero";
 import { MediaItem } from "@/utils/typings";
-import { fetchAllData, fetchAndEnrichMediaItems } from "../actions";
+import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
+
+// Opt-out of static generation – this page fetches dynamic data and is heavy at build time.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Home | NyumatFlix",
@@ -33,8 +36,22 @@ export const metadata = {
 };
 
 export default async function Home() {
-  // Only fetch data for the hero carousel
-  const { fanFavoriteClassicsForHero } = await fetchAllData();
+  // Fetch only the data needed for the hero carousel to avoid long build times
+  const fanFavoriteClassicsForHeroResponse = await fetchTMDBData(
+    "/discover/movie",
+    {
+      with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
+      sort_by: "popularity.desc",
+      "vote_average.gte": "7.0",
+      "vote_count.gte": "1500",
+      include_adult: "false",
+      language: "en-US",
+      region: "US",
+    },
+  );
+
+  const fanFavoriteClassicsForHero =
+    fanFavoriteClassicsForHeroResponse?.results ?? [];
 
   // Exit if no fan favorite classics are available for the hero
   if (!fanFavoriteClassicsForHero) {
