@@ -1,7 +1,7 @@
 "use client";
 import { GithubIcon } from "@/components/icons/github-icon";
+import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
-import ShineBorder from "@/components/ui/shine-border";
 import {
   Tooltip,
   TooltipContent,
@@ -200,12 +200,9 @@ export const HeroSection = () => {
 
           {/* Preview Image */}
           <div className="relative w-full max-w-6xl mt-8 sm:mt-12 lg:mt-16">
-            <div className="absolute top-2 lg:-top-8 left-1/2 transform -translate-x-1/2 w-[90%] mx-auto h-24 lg:h-80 bg-primary/50 rounded-full blur-3xl"></div>
+            <div className="absolute top-2 lg:-top-8 left-1/2 transform -translate-x-1/2 w-[90%] mx-auto h-24 lg:h-80 bg-fuchsia-600/20 rounded-full blur-3xl"></div>
             <div onContextMenu={(e) => e.preventDefault()}>
-              <ShineBorder
-                className="relative flex w-full flex-col items-center justify-center overflow-hidden rounded-lg bg-background border md:shadow-xl border-primary/30 p-2"
-                color={["#103AC1", "#8B2AD4", "#CC44C0"]}
-              >
+              <div className="relative flex w-full flex-col items-center justify-center overflow-hidden rounded-lg bg-background border md:shadow-xl border-primary/30 p-2">
                 <div className="relative block md:hidden">
                   <Image
                     width={768}
@@ -222,11 +219,29 @@ export const HeroSection = () => {
                     height={1080}
                     className="pointer-events-none select-none object-cover w-full h-auto"
                     priority
-                    src={`/home2.png`}
+                    src="/preview.webp"
                     alt="NyumatFlix Platform"
                   />
                 </div>
-              </ShineBorder>
+
+                <BorderBeam
+                  duration={10}
+                  size={400}
+                  borderWidth={2}
+                  colorFrom="#103AC1"
+                  colorTo="#8B2AD4"
+                  className="from-transparent via-fuchsia-600 to-transparent"
+                />
+                <BorderBeam
+                  duration={10}
+                  delay={5}
+                  size={400}
+                  borderWidth={2}
+                  colorFrom="#103AC1"
+                  colorTo="#8B2AD4"
+                  className="from-transparent via-fuchsia-600 to-transparent"
+                />
+              </div>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-20 md:h-28 bg-gradient-to-b from-background/0 via-background/60 to-background rounded-lg"></div>
             <div className="absolute bottom-0 left-0 w-full h-20 md:h-28 bg-gradient-to-b from-background/0 via-background/60 to-background rounded-lg"></div>
