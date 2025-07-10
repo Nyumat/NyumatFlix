@@ -181,7 +181,10 @@ export function ContentGrid({
   });
 
   return (
-    <div className="container mx-auto px-4 py-8" data-testid="content-grid">
+    <div
+      className="container mx-auto px-2 sm:px-4 py-4 sm:py-8"
+      data-testid="content-grid"
+    >
       <div className="flex justify-between items-center mb-6">
         <h2
           className={cn(
@@ -200,7 +203,7 @@ export function ContentGrid({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 md:gap-4 lg:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
         {processedItems.map((item) => {
           const itemType = item.media_type === "movie" ? "movie" : "tv";
 
@@ -374,11 +377,11 @@ export default function SearchResults({ query }: { query: string }) {
   }));
 
   return (
-    <div className="container mx-auto px-4">
+    <div className="container mx-auto px-2 sm:px-4">
       <div className="flex justify-end items-center mb-6">
         {!genresLoading && parsedGenresForFilter.length > 0 && (
           <div
-            className="w-full md:w-64 max-w-sm rounded-lg overflow-hidden shadow-lg bg-background/80 backdrop-blur-sm border border-accent/20"
+            className="w-full md:w-64 max-w-sm rounded-lg overflow-hidden shadow-xl bg-black/30 backdrop-blur-md border border-white/20"
             data-testid="genre-filter"
           >
             <MultiSelect

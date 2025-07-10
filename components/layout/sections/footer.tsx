@@ -1,8 +1,7 @@
-import { DiscordIcon } from "@/components/icons/discord-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
-import { XIcon } from "@/components/icons/x-icon";
 import { Separator } from "@/components/ui/separator";
-import { ChevronsDownIcon } from "lucide-react";
+import { Cannabis, Globe, Heart } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 export const FooterSection = () => {
@@ -15,7 +14,7 @@ export const FooterSection = () => {
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
           {/* Brand Section */}
           <div className="col-span-1 md:col-span-2 lg:col-span-1">
             <Link
@@ -23,14 +22,18 @@ export const FooterSection = () => {
               className="flex items-center space-x-2 mb-4"
               aria-label="NyumatFlix homepage"
             >
-              <ChevronsDownIcon className="w-8 h-8 bg-gradient-to-tr from-primary via-primary/70 to-primary rounded-lg border border-secondary p-1" />
-              <h3 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                NyumatFlix
-              </h3>
+              <Image
+                src="/logo.svg"
+                alt="NyumatFlix Logo"
+                width={30}
+                height={30}
+                className="hover:scale-105 transition-transform duration-200"
+              />
+              <h3 className="text-xl font-bold text-secondary">NyumatFlix</h3>
             </Link>
             <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-              Your ultimate destination for movies and TV shows. Discover,
-              explore, and enjoy entertainment like never before.
+              An open source aggregator which curates movies and TV shows online
+              for everyone to enjoy freely.
             </p>
 
             {/* Social Media Links */}
@@ -42,29 +45,22 @@ export const FooterSection = () => {
               <Link
                 href="https://github.com/Nyumat/NyumatFlix"
                 className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-muted hover:bg-accent border border-border transition-all duration-200 group"
-                aria-label="Visit our GitHub repository"
+                aria-label="NyumatFlix GitHub repository"
+                title="NyumatFlix GitHub repository"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <GithubIcon className="w-5 h-5 fill-foreground group-hover:scale-110 transition-transform duration-200" />
               </Link>
               <Link
-                href="#"
-                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] border border-[#4752C4] transition-all duration-200 group"
-                aria-label="Join our Discord server"
+                href="https://nyuma.dev"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-muted hover:bg-accent border border-border transition-all duration-200 group"
+                aria-label="Creator's website"
+                title="Creator's website"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <DiscordIcon className="w-5 h-5 fill-white group-hover:scale-110 transition-transform duration-200" />
-              </Link>
-              <Link
-                href="#"
-                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 border border-gray-700 dark:border-gray-300 transition-all duration-200 group"
-                aria-label="Follow us on X (Twitter)"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <XIcon className="w-4 h-4 fill-white dark:fill-black group-hover:scale-110 transition-transform duration-200" />
+                <Globe className="w-4 h-4 fill-white dark:fill-black group-hover:scale-110 transition-transform duration-200" />
               </Link>
             </div>
           </div>
@@ -108,54 +104,6 @@ export const FooterSection = () => {
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                 >
                   Search
-                </Link>
-              </li>
-            </ul>
-          </nav>
-
-          {/* Community Links */}
-          <nav className="col-span-1" aria-labelledby="community-heading">
-            <h4
-              id="community-heading"
-              className="font-semibold text-foreground mb-4"
-            >
-              Community
-            </h4>
-            <ul className="space-y-3" role="list">
-              <li>
-                <Link
-                  href="https://github.com/Nyumat/NyumatFlix"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  GitHub
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Discord Server
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                >
-                  Feedback
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="#"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                >
-                  Support
                 </Link>
               </li>
             </ul>
@@ -214,7 +162,10 @@ export const FooterSection = () => {
             &copy; {new Date().getFullYear()} NyumatFlix. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
-            Made with ❤️ for movie and TV show enthusiasts
+            Made with{" "}
+            <Cannabis className="inline-block w-4 h-4 text-green-500 mb-1" />{" "}
+            and <Heart className="inline-block w-4 h-4 text-red-500 mb-1" /> for
+            movie, TV show, and anime enthusiasts.
           </p>
         </div>
       </div>

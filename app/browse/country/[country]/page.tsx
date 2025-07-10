@@ -56,15 +56,15 @@ export default async function BrowseCountryPage({
       />
       <ContentContainer className="relative z-10" topSpacing={false}>
         <div className="pt-12 md:pt-24 pb-8 w-full flex flex-col items-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 text-center flex items-center gap-4">
-            <span className="text-6xl">{countryEmoji}</span>
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-foreground mb-4 text-center flex items-center gap-2 sm:gap-4">
+            <span className="text-4xl sm:text-6xl">{countryEmoji}</span>
             {countryName}
           </h1>
           <p className="text-lg text-muted-foreground mb-10 text-center">
             Discover the best {mediaType === "movie" ? "movies" : "TV shows"}{" "}
             from {countryName}
           </p>
-          <div className="w-full max-w-7xl">
+          <div className="w-full max-w-7xl px-2 sm:px-4">
             <BrowseCountryClient
               countryCode={countryCode}
               countryName={countryName}

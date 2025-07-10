@@ -3,11 +3,11 @@
 import { Card, CardContent } from "@/components/ui/card";
 import type { Genre, MediaItem } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
+import { Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { match, P } from "ts-pattern";
 import { Info } from "./media-info";
 import { Poster } from "./media-poster";
-import { Play } from "lucide-react";
 
 /**
  * Movie details interface for enriched data
@@ -105,19 +105,20 @@ export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
   })();
 
   return (
-    <Card className="overflow-hidden group relative border-none h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
+    <Card className="overflow-hidden relative border-none h-full flex flex-col bg-black/30 backdrop-blur-md border border-white/20 shadow-lg hover:border-primary/60 transition-colors duration-200">
       <div
-        className="block relative flex-shrink-0"
+        className="block relative flex-shrink-0 cursor-pointer"
         onClick={() => {
           router.push(href);
         }}
       >
-        <div className="relative">
+        <div className="relative group">
           <Poster posterPath={posterPath} title={title} />
-          <div className="absolute inset-0 bg-background/0 hover:bg-background/20 hover:backdrop-blur-sm transition-all duration-300 pointer-events-none">
-            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <div className="flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 backdrop-blur-md rounded-full border border-white/20 transition-transform duration-300 transform-gpu group-hover:scale-110">
-                <Play className="text-white text-3xl" />
+          {/* Desktop-only play button overlay */}
+          <div className="hidden md:block absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 pointer-events-none p-2">
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="flex items-center justify-center w-8 h-8 bg-black/70 backdrop-blur-md rounded-full border border-white/40 shadow-lg">
+                <Play className="text-white text-sm ml-0.5" />
               </div>
             </div>
           </div>
