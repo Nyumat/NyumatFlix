@@ -4,7 +4,6 @@ import { useServerStore, videoServers } from "@/lib/stores/server-store";
 import { MediaItem, isMovie, isTVShow } from "@/utils/typings";
 import { Check, Server, Wifi, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button } from "./button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -301,19 +300,21 @@ export function ServerSelector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className={`gap-2 ${className}`}>
+        <button
+          className={`backdrop-blur-md bg-white/10 border border-white/30 text-white py-3 px-6 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg gap-2 ${className}`}
+        >
           <Server className="h-4 w-4" />
           {selectedServer.name}
           {isCurrentServerLoading ? (
-            <Wifi className="h-4 w-4 animate-pulse text-yellow-500" />
+            <Wifi className="h-4 w-4 animate-pulse text-yellow-300" />
           ) : currentServerAvailability ? (
-            <Wifi className="h-4 w-4 text-green-500" />
+            <Wifi className="h-4 w-4 text-green-400" />
           ) : currentServerAvailability === false ? (
-            <WifiOff className="h-4 w-4 text-red-500" />
+            <WifiOff className="h-4 w-4 text-red-400" />
           ) : (
-            <Wifi className="h-4 w-4 text-gray-500" />
+            <Wifi className="h-4 w-4 text-gray-300" />
           )}
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         {videoServers
