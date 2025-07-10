@@ -13,6 +13,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL("https://nyumatflix.com/"),
   title: "NyumatFlix | Watch Movies and TV Shows",
+  icons: {
+    icon: "/favicon.ico",
+  },
   description:
     "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
   openGraph: {
