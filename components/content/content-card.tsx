@@ -7,8 +7,9 @@ import {
 } from "@/components/ui/genre-badge";
 import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
-import Image from "next/legacy/image";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { getGenreName } from "./genre-helpers";
 
 interface ContentCardProps {
@@ -29,6 +30,12 @@ export function ContentCard({
   href,
 }: ContentCardProps) {
   const router = useRouter();
+  const [isClientMounted, setIsClientMounted] = useState(false);
+
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
+
   // Cast to more specific types for type safety
   const movieItem = isMovie(item) ? (item as Movie) : null;
   const tvShowItem = isTVShow(item) ? (item as TvShow) : null;
@@ -51,6 +58,18 @@ export function ContentCard({
   // Generate href if not provided
   const cardHref =
     href || (isMovieItem ? `/movies/${item.id}` : `/tvshows/${item.id}`);
+
+  const handleClick = () => {
+    if (!isClientMounted) return;
+    router.push(cardHref);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
+    }
+  };
 
   // Ranked variant's desktop card is quite different, handle it separately
   if (isRanked && !isMobile && rank !== undefined) {
@@ -80,17 +99,19 @@ export function ContentCard({
         </div>
         <div className="flex flex-1 relative items-center space-x-2">
           <div
-            className="relative overflow-hidden rounded-lg aspect-[3/4] w-20 lg:w-24"
-            onClick={() => {
-              router.push(cardHref);
-            }}
+            className="relative overflow-hidden rounded-lg aspect-[3/4] w-20 lg:w-24 cursor-pointer"
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            role="button"
+            tabIndex={0}
+            aria-label={`View ${displayTitle}`}
           >
             <Image
               src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
               alt={displayTitle || "Media poster"}
-              layout="fill"
-              objectFit="cover"
-              className="transition-transform duration-300 group-hover:scale-105"
+              fill
+              sizes="(max-width: 1024px) 80px, 96px"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
               priority={rank !== undefined && rank <= 3}
             />
           </div>
@@ -155,17 +176,19 @@ export function ContentCard({
       aria-label={displayTitle || "Media item"}
     >
       <div
-        className="relative overflow-hidden rounded-lg aspect-[2/3] group"
-        onClick={() => {
-          router.push(cardHref);
-        }}
+        className="relative overflow-hidden rounded-lg aspect-[2/3] group cursor-pointer"
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label={`View ${displayTitle}`}
       >
         <Image
           src={`https://image.tmdb.org/t/p/w342${item.poster_path}`}
           alt={displayTitle || "Media poster"}
-          layout="fill"
-          objectFit="cover"
-          className="transition-transform duration-300 group-hover:scale-105"
+          fill
+          sizes="(max-width: 640px) 40vw, (max-width: 768px) 28vw, (max-width: 1024px) 22vw, (max-width: 1280px) 18vw, 12vw"
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
           priority={isRanked && rank !== undefined && rank <= 3}
         />
       </div>

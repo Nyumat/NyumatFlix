@@ -15,7 +15,7 @@ import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
-import Image from "next/legacy/image";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ContentCard } from "./content-card";
@@ -44,12 +44,17 @@ export function RankedContentRow({
   onLoadMore,
   hasMoreItems = false,
 }: RankedContentRowProps) {
-  const router = useRouter();
   const isMobile = useMedia("(max-width: 768px)", false);
   const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
   const [api, setApi] = useState<CarouselApi>();
   const lastScrollProgressRef = useRef(0);
+  const router = useRouter();
+  const [isClientMounted, setIsClientMounted] = useState(false);
+
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
 
   useEffect(() => {
     if (
@@ -127,6 +132,12 @@ export function RankedContentRow({
     return { displayTitle, year };
   };
 
+  const handleItemClick = (item: MediaItem) => {
+    if (!isClientMounted) return;
+    const itemHref = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
+    router.push(itemHref);
+  };
+
   // Mobile: Standard carousel of ranked cards
   if (isMobile) {
     return (
@@ -181,15 +192,21 @@ export function RankedContentRow({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-4">
         {items.slice(0, 8).map((item, index) => {
           const { displayTitle, year } = getItemDetails(item);
-          const href = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
 
           return (
             <div
               key={`${item.id}-${index}`}
-              onClick={() => {
-                router.push(href);
+              onClick={() => handleItemClick(item)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleItemClick(item);
+                }
               }}
-              className="flex group relative overflow-hidden rounded-md hover:bg-accent/60 transition-colors duration-200 p-2 items-center"
+              role="button"
+              tabIndex={0}
+              className="flex group relative overflow-hidden rounded-md hover:bg-accent/60 transition-colors duration-200 p-2 items-center cursor-pointer"
+              aria-label={`View details for ${displayTitle}`}
             >
               {/* Rank number */}
               <div className="flex items-center justify-center w-12 shrink-0">
@@ -210,9 +227,9 @@ export function RankedContentRow({
                 <Image
                   src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
                   alt={displayTitle || "Media poster"}
-                  layout="fill"
-                  objectFit="cover"
-                  className="transition-transform duration-300"
+                  fill
+                  sizes="(max-width: 640px) 56px, 64px"
+                  className="object-cover transition-transform duration-300"
                 />
               </div>
 
