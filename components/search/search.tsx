@@ -193,7 +193,7 @@ export function SearchPageClient() {
                 handleSearch();
               }
             }}
-            className="pl-10 pr-16 py-3 text-base w-full rounded-xl bg-black/60 border border-white/10 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground"
+            className="pl-10 pr-16 py-3 text-base w-full rounded-xl bg-black/30 backdrop-blur-md border border-white/20 focus:border-primary focus:bg-black/40 transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground shadow-xl"
           />
           <div className="absolute md:scale-50 right-2 top-1/2 transform -translate-y-1/2">
             <Button
@@ -392,7 +392,7 @@ export const NavbarSearchClient = forwardRef<
         </div>
         {showPreview && (
           <div
-            className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl z-50 max-h-80 overflow-hidden"
+            className="absolute top-full left-0 right-0 mt-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-lg shadow-xl z-50 max-h-80 overflow-hidden"
             onMouseEnter={() => setIsMouseOverResults(true)}
             onMouseLeave={() => setIsMouseOverResults(false)}
           >

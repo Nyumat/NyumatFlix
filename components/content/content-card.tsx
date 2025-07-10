@@ -231,7 +231,7 @@ export function ContentCard({
             <SmartGenreBadgeGroup
               genreIds={item.genre_ids}
               mediaType={isMovieItem ? "movie" : "tv"}
-              maxVisible={isMobile ? 1 : 2}
+              maxVisible={isMobile ? 1 : 1}
               className="flex-wrap"
               badgeClassName="text-[10px] h-auto bg-muted/20 text-muted-foreground px-1 py-0.5 border border-border"
               variant="outline"

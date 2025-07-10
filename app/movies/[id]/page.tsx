@@ -8,6 +8,7 @@ import { Genre, ProductionCountry } from "@/utils/typings";
 import { Calendar, Clock, Star } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/legacy/image";
+import { memo } from "react";
 
 type Props = {
   params: { id: string };
@@ -78,6 +79,22 @@ async function fetchDetails(id: string) {
   }
 }
 
+const StableBackground = memo(function StableBackground() {
+  return (
+    <div className="absolute inset-0 w-full min-h-full z-0">
+      <div
+        className="w-full min-h-full bg-repeat bg-center"
+        style={{
+          backgroundImage: "url('/movie-banner.jpg')",
+          filter: "blur(8px)",
+          opacity: 0.3,
+        }}
+      />
+      <div className="absolute inset-0 bg-black/50 -mt-4 -mb-4" />
+    </div>
+  );
+});
+
 export default async function MoviePage({ params }: Props) {
   const { id } = params;
   try {
@@ -115,121 +132,126 @@ export default async function MoviePage({ params }: Props) {
       <PageContainer className="bg-black/95 pb-16">
         <HeroSection media={[details]} noSlide isWatch mediaType="movie" />
 
-        {/* Additional content below hero */}
-        <ContentContainer
-          className="container mx-auto px-4 -mt-10 relative z-10"
-          topSpacing={false}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left sidebar - Poster and quick info */}
-            <div className="lg:col-span-1">
-              <div className="rounded-lg overflow-hidden shadow-xl mt-12 mb-6">
-                <Image
-                  src={`https://image.tmdb.org/t/p/w500${details.poster_path}`}
-                  alt={details.title}
-                  width={500}
-                  height={750}
-                  className="w-full h-auto"
-                />
-              </div>
+        {/* Additional content below hero with stable background */}
+        <div className="relative min-h-screen">
+          <StableBackground />
+          <div className="relative z-10">
+            <ContentContainer
+              className="container mx-auto px-4 -mt-10 relative z-10"
+              topSpacing={false}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left sidebar - Poster and quick info */}
+                <div className="lg:col-span-1">
+                  <div className="rounded-lg overflow-hidden shadow-xl mt-12 mb-6">
+                    <Image
+                      src={`https://image.tmdb.org/t/p/w500${details.poster_path}`}
+                      alt={details.title}
+                      width={500}
+                      height={750}
+                      className="w-full h-auto"
+                    />
+                  </div>
 
-              <div className="bg-gray-900 rounded-lg p-6 space-y-4">
-                <div className="flex items-center space-x-3">
-                  <Clock size={18} className="text-gray-400" />
-                  <span className="text-white">{formattedRuntime}</span>
-                </div>
+                  <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-lg p-6 space-y-4 shadow-xl">
+                    <div className="flex items-center space-x-3">
+                      <Clock size={18} className="text-gray-400" />
+                      <span className="text-white">{formattedRuntime}</span>
+                    </div>
 
-                <div className="flex items-center space-x-3">
-                  <Calendar size={18} className="text-gray-400" />
-                  <span className="text-white">{releaseDate}</span>
-                </div>
+                    <div className="flex items-center space-x-3">
+                      <Calendar size={18} className="text-gray-400" />
+                      <span className="text-white">{releaseDate}</span>
+                    </div>
 
-                <div className="flex items-center space-x-3">
-                  <Star size={18} className="text-yellow-500" />
-                  <span className="text-white">
-                    {details.vote_average?.toFixed(1)}/10
-                  </span>
-                  <span className="text-gray-400">
-                    ({details.vote_count?.toLocaleString()} votes)
-                  </span>
-                </div>
-
-                {details.budget > 0 && (
-                  <div className="border-t border-gray-700 pt-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Budget:</span>
+                    <div className="flex items-center space-x-3">
+                      <Star size={18} className="text-yellow-500" />
                       <span className="text-white">
-                        ${details.budget?.toLocaleString()}
+                        {details.vote_average?.toFixed(1)}/10
+                      </span>
+                      <span className="text-gray-400">
+                        ({details.vote_count?.toLocaleString()} votes)
                       </span>
                     </div>
-                  </div>
-                )}
 
-                {details.revenue > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Revenue:</span>
-                    <span className="text-white">
-                      ${details.revenue?.toLocaleString()}
-                    </span>
-                  </div>
-                )}
+                    {details.budget > 0 && (
+                      <div className="border-t border-gray-700 pt-4">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Budget:</span>
+                          <span className="text-white">
+                            ${details.budget?.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
-                {details.production_countries?.length > 0 && (
-                  <div className="border-t border-gray-700 pt-4">
-                    <h3 className="text-gray-400 text-sm mb-2">
-                      Production Countries
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {details.production_countries.map(
-                        (country: ProductionCountry) => (
-                          <CountryBadge
-                            key={country.iso_3166_1}
-                            country={country}
-                            variant="outline"
+                    {details.revenue > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Revenue:</span>
+                        <span className="text-white">
+                          ${details.revenue?.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+
+                    {details.production_countries?.length > 0 && (
+                      <div className="border-t border-gray-700 pt-4">
+                        <h3 className="text-gray-400 text-sm mb-2">
+                          Production Countries
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {details.production_countries.map(
+                            (country: ProductionCountry) => (
+                              <CountryBadge
+                                key={country.iso_3166_1}
+                                country={country}
+                                variant="outline"
+                                mediaType="movie"
+                              />
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Main content - Overview, cast, similar */}
+                <div className="lg:col-span-2 space-y-8 lg:mt-12">
+                  <section>
+                    <h2 className="text-2xl font-semibold text-white mb-4">
+                      Overview
+                    </h2>
+                    <p className="text-gray-300 leading-relaxed">
+                      {details.overview}
+                    </p>
+
+                    {details.genres?.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {details.genres.map((genre: Genre) => (
+                          <PrimaryGenreBadge
+                            key={genre.id}
+                            genreId={genre.id}
+                            genreName={genre.name}
                             mediaType="movie"
                           />
-                        ),
-                      )}
-                    </div>
-                  </div>
-                )}
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* Media Carousels - Cast, Videos, Similar Movies */}
+                  <MediaCarousels
+                    cast={details.credits?.cast}
+                    videos={details.videos?.results}
+                    recommendations={details.similar?.results}
+                    mediaType="movie"
+                  />
+                </div>
               </div>
-            </div>
-
-            {/* Main content - Overview, cast, similar */}
-            <div className="lg:col-span-2 space-y-8 lg:mt-12">
-              <section>
-                <h2 className="text-2xl font-semibold text-white mb-4">
-                  Overview
-                </h2>
-                <p className="text-gray-300 leading-relaxed">
-                  {details.overview}
-                </p>
-
-                {details.genres?.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {details.genres.map((genre: Genre) => (
-                      <PrimaryGenreBadge
-                        key={genre.id}
-                        genreId={genre.id}
-                        genreName={genre.name}
-                        mediaType="movie"
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* Media Carousels - Cast, Videos, Similar Movies */}
-              <MediaCarousels
-                cast={details.credits?.cast}
-                videos={details.videos?.results}
-                recommendations={details.similar?.results}
-                mediaType="movie"
-              />
-            </div>
+            </ContentContainer>
           </div>
-        </ContentContainer>
+        </div>
       </PageContainer>
     );
   } catch (error) {

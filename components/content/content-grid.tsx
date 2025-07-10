@@ -38,13 +38,10 @@ export function ContentGrid({ title, items, type }: ContentGridProps) {
     <div className="space-y-6">
       {title && <h2 className="text-2xl font-bold text-foreground">{title}</h2>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
         {processedItems.map((item: MediaItem, i: number) => {
           return (
-            <div
-              key={`${item.id}-${i}`}
-              className="rounded-lg transition-all duration-300 transform hover:scale-105"
-            >
+            <div key={`${item.id}-${i}`} className="w-full">
               <MediaCard
                 item={item}
                 type={type}

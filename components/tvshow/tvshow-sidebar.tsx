@@ -27,7 +27,7 @@ export function TVShowSidebar({
         />
       </div>
 
-      <div className="bg-card rounded-lg p-6 space-y-4">
+      <div className="bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-6 space-y-4 shadow-xl">
         <div className="flex items-center gap-2">
           <Tv size={18} className="text-muted-foreground" />
           <span className="text-foreground">

@@ -100,8 +100,6 @@ export default function BrowseCountryClient({
   return (
     <div>
       <ContentGrid items={items} type={mediaType} />
-
-      {/* Loading indicator and sentinel for infinite scroll */}
       {currentPage < totalPages && (
         <div ref={sentinelRef} className="h-1 w-full" />
       )}
@@ -111,7 +109,6 @@ export default function BrowseCountryClient({
           <LoadingSpinner text="Loading more content..." />
         </div>
       )}
-
       {hasError && (
         <div className="flex justify-center py-8">
           <div className="text-center">

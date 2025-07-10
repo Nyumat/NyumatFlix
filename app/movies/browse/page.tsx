@@ -120,14 +120,14 @@ export default async function Page({ searchParams }: PageProps) {
       {/* Content area - using flex instead of absolute positioning */}
       <ContentContainer className="w-full flex flex-col items-center z-10">
         {/* Title Area - Center */}
-        <div className="text-center my-12">
-          <h1 className="text-6xl md:text-7xl font-bold text-foreground tracking-tight">
+        <div className="text-center my-6 sm:my-12">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold text-foreground tracking-tight">
             {pageTitle}
           </h1>
         </div>
 
         {/* Movies Content Area */}
-        <div className="w-full max-w-7xl mx-auto px-4 pb-12">
+        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 pb-8 sm:pb-12">
           <Suspense
             fallback={
               <div className="mb-20">
