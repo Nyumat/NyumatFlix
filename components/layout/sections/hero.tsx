@@ -199,7 +199,7 @@ export const HeroSection = () => {
           </div>
 
           {/* Preview Image */}
-          <div className="relative w-full max-w-6xl mt-8 sm:mt-12 lg:mt-16">
+          <div className="relative w-full max-w-6xl mt-8 sm:mt-12 lg:mt-16 hidden md:block">
             <div className="absolute top-2 lg:-top-8 left-1/2 transform -translate-x-1/2 w-[90%] mx-auto h-24 lg:h-80 bg-fuchsia-600/20 rounded-full blur-3xl"></div>
             <div onContextMenu={(e) => e.preventDefault()}>
               <div className="relative flex w-full flex-col items-center justify-center overflow-hidden rounded-lg bg-background border md:shadow-xl border-primary/30 p-2">
