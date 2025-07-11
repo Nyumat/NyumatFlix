@@ -230,7 +230,10 @@ async function fetchStandardizedRow(
     page++;
   }
 
-  return items.slice(0, minCount);
+  // deterministic sorting to ensure consistent order every time on client
+  const sortedItems = items.sort((a, b) => a.id - b.id);
+
+  return sortedItems.slice(0, minCount);
 }
 
 /**
@@ -261,7 +264,14 @@ export async function GET(request: Request) {
       ? await fetchAndEnrichMediaItems(items, ROW_CONFIG[rowId].mediaType)
       : items;
 
-    return NextResponse.json(response);
+    // Cache headers <3
+    return NextResponse.json(response, {
+      headers: {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "CDN-Cache-Control": "public, s-maxage=300",
+        "Vercel-CDN-Cache-Control": "public, s-maxage=300",
+      },
+    });
   } catch (error) {
     console.error(`Error fetching row ${rowId}:`, error);
     return NextResponse.json(

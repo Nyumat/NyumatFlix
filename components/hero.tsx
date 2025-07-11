@@ -216,17 +216,6 @@ function CarouselDetails({ current }: { current: MediaItem }) {
 export function MediaCarousel({ items }: MediaCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
-
-  const handleSizeChange = () => {
-    setIsMobile(window.innerWidth < 768);
-  };
-
-  useEffect(() => {
-    handleSizeChange();
-    window.addEventListener("resize", handleSizeChange);
-    return () => window.removeEventListener("resize", handleSizeChange);
-  }, []);
 
   useEffect(() => {
     if (!api) return;
@@ -264,7 +253,8 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
         <CarouselContent className="!ml-0">
           {items.map((item, index) => (
             <CarouselItem key={item.id} className="pl-0">
-              <div className="relative w-full md:h-[60vh] xl:h-[60vh] h-[70vh]">
+              {/* fixed height to prevent layout shifts */}
+              <div className="relative w-full h-[60vh]">
                 <Image
                   src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
                   alt={match(item)
@@ -283,10 +273,11 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
         </CarouselContent>
       </Carousel>
 
-      {/* Details and Overlays moved outside of CarouselContent to prevent hydration issues */}
+      {/* moved outside of CarouselContent to prevent hydration issues */}
       {items[currentIndex] && <CarouselDetails current={items[currentIndex]} />}
 
-      {isMobile && items[currentIndex] && (
+      {/* tw media queries instead to prevent hydration mismatch */}
+      {items[currentIndex] && (
         <div className="md:hidden absolute bottom-72 sm:bottom-52 right-4 w-32 h-48 rounded-lg overflow-hidden shadow-lg pointer-events-auto xs:bottom-40">
           <Link
             href={match(items[currentIndex])

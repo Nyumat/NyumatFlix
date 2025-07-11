@@ -9,7 +9,6 @@ import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { getGenreName } from "./genre-helpers";
 
 interface ContentCardProps {
@@ -18,7 +17,7 @@ interface ContentCardProps {
   rank?: number;
   isMobile: boolean;
   rating?: string;
-  href?: string; // Optional link href
+  href?: string;
 }
 
 export function ContentCard({
@@ -30,37 +29,24 @@ export function ContentCard({
   href,
 }: ContentCardProps) {
   const router = useRouter();
-  const [isClientMounted, setIsClientMounted] = useState(false);
-
-  useEffect(() => {
-    setIsClientMounted(true);
-  }, []);
-
-  // Cast to more specific types for type safety
   const movieItem = isMovie(item) ? (item as Movie) : null;
   const tvShowItem = isTVShow(item) ? (item as TvShow) : null;
-
-  // Safely get the display title based on the type
   const displayTitle = movieItem
     ? movieItem.title
     : tvShowItem
       ? tvShowItem.name
       : "";
 
-  // Get the release year based on item type
   const itemYear =
     movieItem?.release_date?.substring(0, 4) ||
     tvShowItem?.first_air_date?.substring(0, 4);
 
-  // Determine if it's a movie for display purposes
   const isMovieItem = !!movieItem;
 
-  // Generate href if not provided
   const cardHref =
     href || (isMovieItem ? `/movies/${item.id}` : `/tvshows/${item.id}`);
 
   const handleClick = () => {
-    if (!isClientMounted) return;
     router.push(cardHref);
   };
 
@@ -71,7 +57,6 @@ export function ContentCard({
     }
   };
 
-  // Ranked variant's desktop card is quite different, handle it separately
   if (isRanked && !isMobile && rank !== undefined) {
     return (
       <div
@@ -168,7 +153,6 @@ export function ContentCard({
     );
   }
 
-  // Default card for standard and mobile ranked views
   return (
     <div
       className="w-full select-none"
@@ -185,11 +169,11 @@ export function ContentCard({
       >
         <Image
           src={`https://image.tmdb.org/t/p/w342${item.poster_path}`}
-          alt={displayTitle || "Media poster"}
           fill
           sizes="(max-width: 640px) 40vw, (max-width: 768px) 28vw, (max-width: 1024px) 22vw, (max-width: 1280px) 18vw, 12vw"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           priority={isRanked && rank !== undefined && rank <= 3}
+          alt={displayTitle || "Media poster"}
         />
       </div>
       <div className="mt-2 text-foreground">

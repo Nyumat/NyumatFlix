@@ -1,10 +1,12 @@
 "use client";
 
 import { MediaItem } from "@/utils/typings";
+import { useEffect, useState } from "react";
 import { ContentRow, ContentRowVariant } from "./content-row";
+import { ContentRowSkeleton } from "./content-row-skeleton";
 
-// cache for resolved data only
-const resolvedDataCache = new Map<string, MediaItem[]>();
+// Remove the problematic client-side cache that causes hydration mismatches
+// const resolvedDataCache = new Map<string, MediaItem[]>();
 
 interface AsyncContentRowProps {
   rowId: string;
@@ -53,7 +55,11 @@ async function fetchData(
 
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}/api/content-rows?${params}`;
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    // Add cache control to ensure consistent data
+    cache: "force-cache",
+    next: { revalidate: 300 }, // 5 minutes
+  });
 
   if (!response.ok) {
     throw new Error(
@@ -65,7 +71,9 @@ async function fetchData(
 }
 
 /**
- * Suspense component that properly throws promises
+ * Fixed AsyncContentRow that uses useState instead of throwing promises
+ * This prevents hydration mismatches by using standard React patterns
+ * Now uses proper glassmorphism skeleton with consistent heights
  */
 export function AsyncContentRow({
   rowId,
@@ -75,31 +83,72 @@ export function AsyncContentRow({
   variant = "standard",
   enrich = false,
 }: AsyncContentRowProps) {
-  const cacheKey = `${rowId}-${minCount}-${enrich}`;
-  if (resolvedDataCache.has(cacheKey)) {
-    const items = resolvedDataCache.get(cacheKey)!;
+  const [items, setItems] = useState<MediaItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    if (items.length === 0) {
-      return null;
-    }
+  useEffect(() => {
+    let mounted = true;
 
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const data = await fetchData(rowId, minCount, enrich);
+
+        if (mounted) {
+          setItems(data);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load content",
+          );
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [rowId, minCount, enrich]);
+
+  if (isLoading) {
+    return (
+      <ContentRowSkeleton
+        title={title}
+        href={href}
+        count={Math.min(minCount, 10)}
+      />
+    );
+  }
+
+  if (error) {
     return (
       <section id={rowId} className="my-4">
-        <ContentRow title={title} items={items} href={href} variant={variant} />
+        <div className="mx-4 md:mx-8 mb-8">
+          <div className="text-red-500 text-sm">
+            Failed to load {title}: {error}
+          </div>
+        </div>
       </section>
     );
   }
 
-  const promise = fetchData(rowId, minCount, enrich)
-    .then((data) => {
-      resolvedDataCache.set(cacheKey, data);
-      return data;
-    })
-    .catch((error) => {
-      // don't cache errors. allow retry
-      throw error;
-    });
+  if (items.length === 0) {
+    return null;
+  }
 
-  // This throw triggers Suspense fallback
-  throw promise;
+  return (
+    <section id={rowId} className="my-4">
+      <ContentRow title={title} items={items} href={href} variant={variant} />
+    </section>
+  );
 }

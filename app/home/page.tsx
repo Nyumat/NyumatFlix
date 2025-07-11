@@ -79,11 +79,13 @@ export default async function Home() {
   return (
     <div>
       <main>
+        {/* Hero carousel - remains fully visible */}
         <MediaCarousel items={fanFavoriteClassicsProcessedForHero} />
-        <div className="relative min-h-screen">
-          <div className="absolute inset-0 w-full min-h-full z-0">
+        <div className="relative">
+          {/* only cover content area, not hero */}
+          <div className="absolute inset-0 w-full h-full z-0">
             <div
-              className="w-full min-h-full bg-repeat bg-center"
+              className="w-full h-full bg-repeat bg-center"
               style={{
                 backgroundImage: "url('/movie-banner.jpg')",
                 filter: "blur(8px)",
@@ -91,7 +93,8 @@ export default async function Home() {
               }}
             />
           </div>
-          <div className="relative z-10">
+          {/* Content with sufficient min-height to prevent shifts */}
+          <div className="relative z-10 min-h-[200vh]">
             <SuspenseContentRow
               rowId="top-rated-movies"
               title="Top Rated Movies"

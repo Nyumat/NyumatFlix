@@ -36,14 +36,16 @@ export default async function TVShowsPage() {
   return (
     <>
       <main>
+        {/* Hero carousel for trending TV shows - remains fully visible */}
         <MediaCarousel items={enrichedTrendingItems} />
       </main>
 
       {/* Content rows section with background */}
-      <div className="relative min-h-screen">
-        <div className="absolute inset-0 w-full min-h-full z-0">
+      <div className="relative">
+        {/* Fix: Position background to only cover content area, not hero */}
+        <div className="absolute inset-0 w-full h-full z-0">
           <div
-            className="w-full min-h-full bg-repeat bg-center"
+            className="w-full h-full bg-repeat bg-center"
             style={{
               backgroundImage: "url('/movie-banner.jpg')",
               filter: "blur(8px)",
@@ -51,7 +53,8 @@ export default async function TVShowsPage() {
             }}
           />
         </div>
-        <div className="relative z-10">
+        {/* Content with sufficient min-height to prevent shifts */}
+        <div className="relative z-10 min-h-[200vh]">
           <ContentContainer>
             <SuspenseContentRow
               rowId="top-rated-tvshows"
