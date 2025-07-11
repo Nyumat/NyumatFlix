@@ -106,7 +106,7 @@ export function HeroButtons({
       </TooltipProvider>
 
       <button
-        className="backdrop-blur-md bg-white/10 border border-white/30 text-white py-3 px-6 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg"
+        className="backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg"
         onClick={handlePlayTrailer}
       >
         <Youtube className="mr-2" size={20} />

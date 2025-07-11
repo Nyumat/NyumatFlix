@@ -310,7 +310,7 @@ export function ServerSelector({
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <button
-                className={`backdrop-blur-md bg-white/10 border border-white/30 text-white py-3 px-6 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg gap-2 ${className}`}
+                className={`backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg gap-2 ${className}`}
               >
                 <Server className="h-4 w-4" />
                 {selectedServer.name}

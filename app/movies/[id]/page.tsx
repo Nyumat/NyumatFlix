@@ -129,7 +129,7 @@ export default async function MoviePage({ params }: Props) {
       : "Unknown";
 
     return (
-      <PageContainer className="bg-black/95 pb-16">
+      <PageContainer className="pb-16">
         <HeroSection media={[details]} noSlide isWatch mediaType="movie" />
 
         {/* Additional content below hero with stable background */}

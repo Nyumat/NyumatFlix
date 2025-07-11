@@ -129,7 +129,6 @@ export function VideoCarousel({ videos }: VideoCarouselProps) {
     }
   };
 
-  // Filter YouTube videos only
   const youtubeVideos = videos.filter((video) => video.site === "YouTube");
 
   return (
@@ -145,10 +144,7 @@ export function VideoCarousel({ videos }: VideoCarouselProps) {
         >
           <CarouselContent>
             {youtubeVideos.slice(0, 10).map((video: Video) => (
-              <CarouselItem
-                key={video.id}
-                className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5"
-              >
+              <CarouselItem key={video.id} className="basis-1/2 sm:basis-1/3">
                 <div className="w-full flex-shrink-0">
                   <div className="rounded-lg overflow-hidden mb-3 aspect-video bg-muted">
                     <iframe

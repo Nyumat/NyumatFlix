@@ -38,16 +38,10 @@ export interface Movie {
   categories?: string[];
 }
 
-// Opt-out of static generation – dynamic data is fetched.
-export const dynamic = "force-dynamic";
-
 export default async function MoviesPage() {
-  // Fetch trending movies for hero carousel
   const trendingMoviesResponse = await fetchTMDBData("/trending/movie/week");
-  // We only need a handful of items for the hero carousel, so keep it light
   const basicTrendingItems = trendingMoviesResponse.results?.slice(0, 5) || [];
 
-  // Enrich just those items
   const enrichedTrendingItems = await fetchAndEnrichMediaItems(
     basicTrendingItems as MediaItem[],
     "movie",
@@ -55,14 +49,11 @@ export default async function MoviesPage() {
 
   return (
     <>
-      {/* Hero carousel for trending movies */}
       <MediaCarousel items={enrichedTrendingItems} />
-
-      {/* Content rows section with background */}
-      <div className="relative min-h-screen">
-        <div className="absolute inset-0 w-full min-h-full z-0">
+      <div className="relative">
+        <div className="absolute inset-0 w-full h-full z-0">
           <div
-            className="w-full min-h-full bg-repeat bg-center"
+            className="w-full h-full bg-repeat bg-center"
             style={{
               backgroundImage: "url('/movie-banner.jpg')",
               filter: "blur(8px)",
@@ -70,9 +61,8 @@ export default async function MoviesPage() {
             }}
           />
         </div>
-        <div className="relative z-10">
+        <div className="relative z-10 min-h-[200vh]">
           <ContentContainer>
-            {/* Keep Top Rated first as requested */}
             <SuspenseContentRow
               rowId="top-rated-movies"
               title="Top Rated Movies"
@@ -151,7 +141,6 @@ export default async function MoviesPage() {
               title="Upcoming Movies"
               href="/movies/browse?type=upcoming"
             />
-
             <SuspenseContentRow
               rowId="scorsese-films"
               title="Martin Scorsese Movies"
@@ -169,7 +158,6 @@ export default async function MoviesPage() {
               title="80s Movies"
               href="/movies/browse?year=1980-1989"
             />
-
             <SuspenseContentRow
               rowId="popular-movies"
               title="Popular Movies"

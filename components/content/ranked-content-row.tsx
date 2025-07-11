@@ -50,11 +50,6 @@ export function RankedContentRow({
   const [api, setApi] = useState<CarouselApi>();
   const lastScrollProgressRef = useRef(0);
   const router = useRouter();
-  const [isClientMounted, setIsClientMounted] = useState(false);
-
-  useEffect(() => {
-    setIsClientMounted(true);
-  }, []);
 
   useEffect(() => {
     if (
@@ -133,7 +128,6 @@ export function RankedContentRow({
   };
 
   const handleItemClick = (item: MediaItem) => {
-    if (!isClientMounted) return;
     const itemHref = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
     router.push(itemHref);
   };
