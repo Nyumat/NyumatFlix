@@ -248,13 +248,12 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
         className="w-full"
         setApi={setApi}
         plugins={[Fade()]}
-        opts={{ loop: true, containScroll: false, duration: 300 }}
+        opts={{ loop: true, containScroll: false, duration: 100 }}
       >
         <CarouselContent className="!ml-0">
           {items.map((item, index) => (
             <CarouselItem key={item.id} className="pl-0">
-              {/* fixed height to prevent layout shifts */}
-              <div className="relative w-full h-[60vh]">
+              <div className="relative w-full min-h-[80vh]">
                 <Image
                   src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
                   alt={match(item)
