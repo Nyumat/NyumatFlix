@@ -1,10 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { Season, TvShowDetails } from "@/utils/typings";
 import { Tv } from "lucide-react";
 import Image from "next/legacy/image";
 import { Suspense } from "react";
 import { SeasonEpisodes } from "./season-episodes";
-import { cn } from "@/lib/utils";
 
 type SeasonTabsProps = {
   details: TvShowDetails;

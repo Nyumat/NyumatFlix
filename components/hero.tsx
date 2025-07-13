@@ -22,7 +22,7 @@ import Fade from "embla-carousel-fade";
 import { Calendar, Clock, Globe, Info, Play, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { match, P } from "ts-pattern";
 import { GenreBadge } from "./ui/genre-badge";
@@ -146,6 +146,8 @@ function MediaInfoDialog({
   onClose: () => void;
   media: MediaItem;
 }) {
+  const router = useRouter();
+
   const titleText = match(media)
     .with({ title: P.string }, (movie) => movie.title)
     .otherwise((tvShow) => tvShow.name);
@@ -198,6 +200,13 @@ function MediaInfoDialog({
     .with({ title: P.string, id: P.number }, (movie) => `/movies/${movie.id}`)
     .with({ name: P.string, id: P.number }, (tvShow) => `/tvshows/${tvShow.id}`)
     .otherwise(() => "#");
+
+  const handleWatchNow = () => {
+    onClose(); // Close the dialog first
+
+    // Navigate to the page with autoplay parameter
+    router.push(`${href}?autoplay=true`);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -337,20 +346,15 @@ function MediaInfoDialog({
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button
-                  asChild
+                  onClick={handleWatchNow}
                   className={cn(
                     "flex-1 font-bold transition-all duration-200 shadow-lg",
                     "backdrop-blur-md bg-white/20 border border-white/30 text-white",
                     "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
                   )}
                 >
-                  <Link
-                    href={href}
-                    className="flex items-center justify-center"
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Watch Now
-                  </Link>
+                  <Play className="mr-2 h-4 w-4" />
+                  Watch Now
                 </Button>
                 <Button
                   asChild
@@ -388,6 +392,7 @@ function CarouselDetails({
 }) {
   const [showDialog, setShowDialog] = useState(false);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const router = useRouter();
 
   const titleText = match(current)
     .with({ title: P.string }, (movie) => movie.title)
@@ -406,6 +411,11 @@ function CarouselDetails({
     .with({ title: P.string, id: P.number }, (movie) => `/movies/${movie.id}`)
     .with({ name: P.string, id: P.number }, (tvShow) => `/tvshows/${tvShow.id}`)
     .otherwise(() => "#");
+
+  const handlePlay = () => {
+    // Navigate to the page with autoplay parameter
+    router.push(`${href}?autoplay=true`);
+  };
 
   useEffect(() => {
     if (carouselApi) {
@@ -452,7 +462,7 @@ function CarouselDetails({
 
           <div className="flex items-center space-x-4 mb-6">
             <Button
-              asChild
+              onClick={handlePlay}
               size="lg"
               className={cn(
                 "font-bold transition-all duration-200 shadow-lg",
@@ -460,10 +470,8 @@ function CarouselDetails({
                 "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
               )}
             >
-              <Link href={href}>
-                <Play className="mr-2 h-5 w-5" />
-                Play
-              </Link>
+              <Play className="mr-2 h-5 w-5" />
+              Play
             </Button>
             <Button
               size="lg"
