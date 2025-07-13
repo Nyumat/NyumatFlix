@@ -24,7 +24,16 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function TVShowsPage() {
-  const trendingTVResponse = await fetchTMDBData("/trending/tv/week");
+  const trendingTVResponse = await fetchTMDBData("/discover/tv", {
+    sort_by: "popularity.desc",
+    "vote_average.gte": "7.0",
+    "release_date.gte": "2023-01-01",
+    "release_date.lte": "2025-07-12",
+    "vote_count.gte": "1500",
+    include_adult: "false",
+    language: "en-US",
+    region: "US",
+  });
   // Only take a few items for the hero carousel to keep build time low
   const basicTrendingItems = trendingTVResponse.results?.slice(0, 5) || [];
 

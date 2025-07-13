@@ -36,51 +36,98 @@ export const metadata = {
 };
 
 export default async function Home() {
-  // Fetch only the data needed for the hero carousel to avoid long build times
-  const fanFavoriteClassicsForHeroResponse = await fetchTMDBData(
-    "/discover/movie",
-    {
-      with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
-      sort_by: "popularity.desc",
-      "vote_average.gte": "7.0",
-      "vote_count.gte": "1500",
-      include_adult: "false",
-      language: "en-US",
-      region: "US",
-    },
-  );
+  // Fetch both movies and TV shows for the hero carousel
+  const [fanFavoriteMoviesResponse, fanFavoriteTVShowsResponse] =
+    await Promise.all([
+      fetchTMDBData("/discover/movie", {
+        with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
+        sort_by: "popularity.desc",
+        "vote_average.gte": "7.0",
+        "release_date.gte": "2023-01-01",
+        "release_date.lte": "2025-07-12",
+        "vote_count.gte": "1500",
+        include_adult: "false",
+        language: "en-US",
+        region: "US",
+      }),
+      fetchTMDBData("/discover/tv", {
+        with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
+        sort_by: "popularity.desc",
+        "vote_average.gte": "7.0",
+        "first_air_date.gte": "2023-01-01",
+        "first_air_date.lte": "2025-07-12",
+        "vote_count.gte": "1500",
+        include_adult: "false",
+        language: "en-US",
+      }),
+    ]);
 
-  const fanFavoriteClassicsForHero =
-    fanFavoriteClassicsForHeroResponse?.results ?? [];
+  const fanFavoriteMovies = fanFavoriteMoviesResponse?.results ?? [];
+  const fanFavoriteTVShows = fanFavoriteTVShowsResponse?.results ?? [];
 
-  // Exit if no fan favorite classics are available for the hero
-  if (!fanFavoriteClassicsForHero) {
+  // Add media_type to each item before combining
+  const moviesWithType = fanFavoriteMovies.map((item: MediaItem) => ({
+    ...item,
+    media_type: "movie" as const,
+  }));
+
+  const tvShowsWithType = fanFavoriteTVShows.map((item: MediaItem) => ({
+    ...item,
+    media_type: "tv" as const,
+  }));
+
+  // Combine movies and TV shows
+  const combinedFanFavorites = [...moviesWithType, ...tvShowsWithType];
+
+  // Exit if no fan favorite content is available for the hero
+  if (combinedFanFavorites.length === 0) {
     return null;
   }
 
-  // Process hero movies
+  // Process hero content (both movies and TV shows)
   const seenIds = new Set<number>();
-  const filteredFanFavoriteClassics = fanFavoriteClassicsForHero
+  const filteredFanFavoriteContent = combinedFanFavorites
     .filter((item: MediaItem) => {
-      if (!item.poster_path) return false; // Ensure movies have a poster
-      if (seenIds.has(item.id)) return false; // Avoid duplicates if any
-      if (item.title === "28 Days Later") return false;
+      if (!item.poster_path) return false; // Ensure content has a poster
+      if (seenIds.has(item.id)) return false; // Avoid duplicates
+      if (item.title === "28 Days Later" || item.name === "28 Days Later")
+        return false;
+      if (item.id === 986056) return false;
       seenIds.add(item.id);
       return true;
     })
-    .slice(0, 10); // Take the top 10 for enrichment
+    .sort((a, b) => b.vote_average - a.vote_average) // Sort by rating for better quality
+    .slice(1, 10); // Take the top 10 for enrichment
 
-  // Enrich these items with logos and full video details
-  const fanFavoriteClassicsProcessedForHero = await fetchAndEnrichMediaItems(
-    filteredFanFavoriteClassics,
-    "movie",
+  // Separate movies and TV shows for enrichment
+  const moviesToEnrich = filteredFanFavoriteContent.filter(
+    (item) => item.media_type === "movie",
   );
+  const tvShowsToEnrich = filteredFanFavoriteContent.filter(
+    (item) => item.media_type === "tv",
+  );
+
+  // Enrich movies and TV shows separately with proper media type
+  const [enrichedMovies, enrichedTVShows] = await Promise.all([
+    moviesToEnrich.length > 0
+      ? fetchAndEnrichMediaItems(moviesToEnrich, "movie")
+      : Promise.resolve([]),
+    tvShowsToEnrich.length > 0
+      ? fetchAndEnrichMediaItems(tvShowsToEnrich, "tv")
+      : Promise.resolve([]),
+  ]);
+
+  // Combine enriched items and sort by vote average again
+  const fanFavoriteContentProcessedForHero = [
+    ...enrichedMovies,
+    ...enrichedTVShows,
+  ].sort((a, b) => b.vote_average - a.vote_average);
 
   return (
     <div>
       <main>
         {/* Hero carousel - remains fully visible */}
-        <MediaCarousel items={fanFavoriteClassicsProcessedForHero} />
+        <MediaCarousel items={fanFavoriteContentProcessedForHero} />
         <div className="relative">
           {/* only cover content area, not hero */}
           <div className="absolute inset-0 w-full h-full z-0">
