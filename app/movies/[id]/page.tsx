@@ -131,17 +131,14 @@ export default async function MoviePage({ params }: Props) {
     return (
       <PageContainer className="pb-16">
         <HeroSection media={[details]} noSlide isWatch mediaType="movie" />
-
-        {/* Additional content below hero with stable background */}
         <div className="relative min-h-screen">
           <StableBackground />
           <div className="relative z-10">
             <ContentContainer
-              className="container mx-auto px-4 -mt-10 relative z-10"
+              className="container mx-auto px-4 mt-10 relative z-10"
               topSpacing={false}
             >
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left sidebar - Poster and quick info */}
                 <div className="lg:col-span-1">
                   <div className="rounded-lg overflow-hidden shadow-xl mt-12 mb-6">
                     <Image
@@ -216,7 +213,6 @@ export default async function MoviePage({ params }: Props) {
                   </div>
                 </div>
 
-                {/* Main content - Overview, cast, similar */}
                 <div className="lg:col-span-2 space-y-8 lg:mt-12">
                   <section>
                     <h2 className="text-2xl font-semibold text-white mb-4">
@@ -240,7 +236,6 @@ export default async function MoviePage({ params }: Props) {
                     )}
                   </section>
 
-                  {/* Media Carousels - Cast, Videos, Similar Movies */}
                   <MediaCarousels
                     cast={details.credits?.cast}
                     videos={details.videos?.results}
