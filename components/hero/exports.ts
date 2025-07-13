@@ -1,10 +1,8 @@
-export { HeroBackground } from "./hero-background";
-export { HeroButtons } from "./hero-buttons";
-export { HeroContent } from "./hero-content";
-export { HeroDetails } from "./hero-details";
+/**
+ * Hero components exports
+ * This file provides a clean export interface for all hero-related components
+ */
+
 export { HeroGenres } from "./hero-genres";
-export { HeroGradients } from "./hero-gradients";
-export { HeroPagination } from "./hero-pagination";
+
 export { MediaDetailHero as HeroSection } from "./index";
-export { showToast } from "./toast-utils";
-export type { YouTubePlayer } from "./youtube-types";

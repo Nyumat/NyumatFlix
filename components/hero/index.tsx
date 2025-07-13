@@ -6,7 +6,8 @@ import { ChevronLeft } from "lucide-react";
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useRouter } from "next/navigation";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { HeroBackground } from "./hero-background";
 import { HeroContent } from "./hero-content";
 import { HeroPagination } from "./hero-pagination";
@@ -33,6 +34,8 @@ export function MediaDetailHero({
   const controls = useAnimation();
   const [youtubePlayer, setYoutubePlayer] = useState<YouTubePlayer>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const handleNext = useCallback(() => {
     setCurrentItemIndex((prevIndex) =>
@@ -81,6 +84,52 @@ export function MediaDetailHero({
     setIsPlayingTrailer(false);
   };
 
+  // Check for autoplay parameter
+  useEffect(() => {
+    const shouldAutoplay = searchParams.get("autoplay") === "true";
+    if (shouldAutoplay && isWatch) {
+      // For TV shows, we need to select the first episode
+      if (passedMediaType === "tv" && currentItem) {
+        // Get first season number (skip season 0 which is usually specials)
+        const firstSeason = currentItem.seasons?.find(
+          (season) => season.season_number > 0,
+        );
+        if (firstSeason) {
+          // Fetch and select first episode
+          fetch(`/api/tv/${currentItem.id}/season/${firstSeason.season_number}`)
+            .then((res) => res.json())
+            .then((seasonData) => {
+              if (seasonData.episodes?.length > 0) {
+                const firstEpisode = seasonData.episodes[0];
+                useEpisodeStore
+                  .getState()
+                  .setSelectedEpisode(
+                    firstEpisode,
+                    currentItem.id.toString(),
+                    firstSeason.season_number,
+                  );
+              }
+            })
+            .catch(console.error);
+        }
+      }
+
+      // Small delay to ensure everything is loaded
+      const timer = setTimeout(() => {
+        handleWatch();
+
+        // Remove autoplay param from URL without reload
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("autoplay");
+        const newSearch = params.toString();
+        router.replace(`${pathname}${newSearch ? `?${newSearch}` : ""}`, {
+          scroll: false,
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, isWatch, router, pathname, passedMediaType, currentItem]);
+
   const handlePlayTrailer = () => {
     let currentItemVideos: { type: string; key: string }[] = [];
 
@@ -117,20 +166,13 @@ export function MediaDetailHero({
     showToast.info("Press X key or pause to stop trailer");
   };
 
-  const isMoviesPath = window.location.pathname.includes("/movies/");
-  const isTvShowsPath = window.location.pathname.includes("/tvshows/");
+  const isMoviesPath = pathname.includes("/movies/");
+  const isTvShowsPath = pathname.includes("/tvshows/");
 
   const getRouteBasedMediaType = (): "tv" | "movie" | undefined => {
     if (passedMediaType) {
       return passedMediaType;
     }
-
-    if (typeof window === "undefined") {
-      // We need to have a fallback for SSR.
-      return undefined;
-    }
-
-    const pathname = window.location.pathname;
 
     if (pathname.includes("/tvshows/")) {
       return "tv";
@@ -157,6 +199,14 @@ export function MediaDetailHero({
 
   const mediaType = getRouteBasedMediaType();
 
+  const [historyLength, setHistoryLength] = useState(2);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setHistoryLength(window.history.length);
+    }
+  }, []);
+
   return (
     <div className={`relative ${isWatch ? "h-[75vh]" : "h-[82vh]"}`}>
       <Script
@@ -170,12 +220,12 @@ export function MediaDetailHero({
       {isWatch && (
         <button
           title="Go back"
-          disabled={window.history.length <= 2}
-          aria-disabled={window.history.length <= 2}
+          disabled={historyLength <= 2}
+          aria-disabled={historyLength <= 2}
           onClick={() => {
             if (isMoviesPath) router.push("/movies");
             if (isTvShowsPath) router.push("/tvshows");
-            if (window.history.length > 2) window.history.back();
+            if (historyLength > 2) window.history.back();
           }}
           className="absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Go back"
