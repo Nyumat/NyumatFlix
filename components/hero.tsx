@@ -1,20 +1,29 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
+  CarouselNext,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Logo, MediaItem } from "@/utils/typings";
 import Fade from "embla-carousel-fade";
-import { Info, Play } from "lucide-react";
-import Image from "next/legacy/image";
+import { Calendar, Clock, Globe, Info, Play, Star } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { match, P } from "ts-pattern";
-import { Button } from "./ui/button";
 
 interface HeroProps {
   imageUrl: string;
@@ -46,11 +55,8 @@ function BackgroundImage({
         alt={title}
         width={1920}
         height={1080}
-        layout="fill"
-        objectFit="cover"
-        objectPosition="center center"
+        className="rounded-lg object-cover w-full h-full"
         priority
-        className="rounded-lg"
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/50 to-transparent opacity-70" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent opacity-70" />
@@ -65,8 +71,7 @@ function BackgroundImage({
                 alt={title}
                 width={logo.width}
                 height={logo.height}
-                layout="responsive"
-                objectFit="contain"
+                className="max-w-full h-auto"
               />
             </div>
           ) : (
@@ -130,12 +135,20 @@ interface MediaCarouselProps {
   items: MediaItem[];
 }
 
-function CarouselDetails({ current }: { current: MediaItem }) {
-  const titleText = match(current)
+function MediaInfoDialog({
+  isOpen,
+  onClose,
+  media,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  media: MediaItem;
+}) {
+  const titleText = match(media)
     .with({ title: P.string }, (movie) => movie.title)
     .otherwise((tvShow) => tvShow.name);
 
-  const year = match(current)
+  const year = match(media)
     .with(
       {
         title: P.string,
@@ -152,168 +165,437 @@ function CarouselDetails({ current }: { current: MediaItem }) {
     )
     .otherwise(() => undefined);
 
-  const href = match(current)
+  const isMovie = "title" in media;
+  const mediaType = isMovie ? "Movie" : "TV Show";
+
+  // Safely access enhanced properties
+  const runtime =
+    "runtime" in media
+      ? (media as MediaItem & { runtime?: number }).runtime
+      : undefined;
+  const contentRating =
+    "content_rating" in media
+      ? (media as MediaItem & { content_rating?: string }).content_rating
+      : undefined;
+  const genres =
+    "genres" in media
+      ? (media as MediaItem & { genres?: Array<{ id: number; name: string }> })
+          .genres
+      : undefined;
+
+  const formatRuntime = (minutes?: number) => {
+    if (!minutes) return null;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return hours > 0
+      ? `${hours}h ${remainingMinutes}m`
+      : `${remainingMinutes}m`;
+  };
+
+  const href = match(media)
     .with({ title: P.string, id: P.number }, (movie) => `/movies/${movie.id}`)
     .with({ name: P.string, id: P.number }, (tvShow) => `/tvshows/${tvShow.id}`)
     .otherwise(() => "#");
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 flex flex-col items-start pointer-events-none">
-      {current.logo ? (
-        <div className={`mb-2 max-w-[200px] md:max-w-[300px] w-full`}>
-          <Image
-            src={`https://image.tmdb.org/t/p/w342${current.logo.file_path}`}
-            alt={titleText}
-            width={current.logo.width}
-            height={current.logo.height}
-            layout="responsive"
-            objectFit="contain"
-          />
-        </div>
-      ) : (
-        <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-2">
-          {titleText}
-        </h1>
-      )}
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] bg-background/95 backdrop-blur-md border border-border/50 mx-4">
+        <DialogHeader>
+          <DialogTitle className="text-xl md:text-2xl font-bold">
+            {titleText}
+          </DialogTitle>
+        </DialogHeader>
 
-      <div className="flex items-center mb-4 space-x-4">
-        <div className="flex items-center space-x-1">
-          <span className="text-yellow-400">★</span>
-          <span className="text-white">{current.vote_average.toFixed(1)}</span>
-        </div>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          {/* Poster */}
+          <div className="flex-shrink-0">
+            <div className="relative w-32 h-48 md:w-48 md:h-72 mx-auto md:mx-0 rounded-lg overflow-hidden shadow-lg">
+              <Image
+                src={`https://image.tmdb.org/t/p/w342${media.poster_path}`}
+                alt={titleText}
+                fill
+                className="object-cover"
+              />
+            </div>
+          </div>
 
-        {year && <span className="text-gray-300">{year}</span>}
+          {/* Content */}
+          <div className="flex-1">
+            <ScrollArea className="h-[40vh] md:h-[50vh] pr-2 md:pr-4">
+              {/* Metadata */}
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-3 md:mb-4">
+                <div className="flex items-center gap-1">
+                  <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                  <span className="font-semibold text-sm md:text-base">
+                    {media.vote_average.toFixed(1)}
+                  </span>
+                </div>
+
+                {year && (
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm md:text-base">{year}</span>
+                  </div>
+                )}
+
+                {runtime && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm md:text-base">
+                      {formatRuntime(runtime)}
+                    </span>
+                  </div>
+                )}
+
+                <Badge variant="secondary" className="text-xs md:text-sm">
+                  {mediaType}
+                </Badge>
+
+                {contentRating && (
+                  <Badge variant="outline" className="text-xs md:text-sm">
+                    {contentRating}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Genres */}
+              {genres && genres.length > 0 && (
+                <div className="mb-3 md:mb-4">
+                  <h4 className="font-semibold mb-2 text-sm md:text-base">
+                    Genres
+                  </h4>
+                  <div className="flex flex-wrap gap-1 md:gap-2">
+                    {genres.map((genre) => (
+                      <Badge
+                        key={genre.id}
+                        variant="outline"
+                        className="text-xs"
+                      >
+                        {genre.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Overview */}
+              <div className="mb-4 md:mb-6">
+                <h4 className="font-semibold mb-2 text-sm md:text-base">
+                  Overview
+                </h4>
+                <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                  {media.overview}
+                </p>
+              </div>
+
+              {/* Additional Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
+                <div>
+                  <h4 className="font-semibold mb-1 text-sm md:text-base">
+                    Language
+                  </h4>
+                  <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    {media.original_language?.toUpperCase()}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold mb-1 text-sm md:text-base">
+                    Popularity
+                  </h4>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    {Math.round(media.popularity)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button
+                  asChild
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm transition-colors"
+                >
+                  <Link
+                    href={href}
+                    className="flex items-center justify-center"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Watch Now
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  asChild
+                  className="flex-1 hover:bg-accent"
+                >
+                  <Link
+                    href={href}
+                    className="flex items-center justify-center"
+                  >
+                    <Info className="mr-2 h-4 w-4" />
+                    View Details
+                  </Link>
+                </Button>
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CarouselDetails({
+  current,
+  items,
+  onPosterClick,
+}: {
+  current: MediaItem;
+  items: MediaItem[];
+  onPosterClick: (index: number) => void;
+}) {
+  const [showDialog, setShowDialog] = useState(false);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+
+  const titleText = match(current)
+    .with({ title: P.string }, (movie) => movie.title)
+    .otherwise((tvShow) => tvShow.name);
+
+  const year = match(current)
+    .with({ title: P.string, release_date: P.string.optional() }, (movie) =>
+      movie.release_date?.substring(0, 4),
+    )
+    .with({ name: P.string, first_air_date: P.string.optional() }, (tvShow) =>
+      tvShow.first_air_date?.substring(0, 4),
+    )
+    .otherwise(() => undefined);
+
+  const href = match(current)
+    .with({ title: P.string, id: P.number }, (movie) => `/movies/${movie.id}`)
+    .with({ name: P.string, id: P.number }, (tvShow) => `/tvshows/${tvShow.id}`)
+    .otherwise(() => "#");
+
+  useEffect(() => {
+    if (carouselApi) {
+      const currentIndex = items.findIndex((item) => item.id === current.id);
+      if (currentIndex !== -1) {
+        carouselApi.scrollTo(currentIndex);
+      }
+    }
+  }, [current, items, carouselApi]);
+
+  return (
+    <>
+      <div className="absolute bottom-0 left-0 p-4 md:p-8 lg:p-12 w-full md:w-3/4 lg:w-1/2">
+        <div className="bg-gradient-to-r from-black/50 via-black/30 to-transparent p-4 rounded-lg">
+          {current.logo ? (
+            <div className={`mb-4 max-w-[250px] md:max-w-[350px] w-full`}>
+              <Image
+                src={`https://image.tmdb.org/t/p/w500${current.logo.file_path}`}
+                alt={titleText}
+                width={current.logo.width}
+                height={current.logo.height}
+                className="w-full h-auto object-contain"
+              />
+            </div>
+          ) : (
+            <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 shadow-black/50 text-shadow-lg">
+              {titleText}
+            </h1>
+          )}
+
+          <div className="flex items-center mb-4 space-x-4">
+            <div className="flex items-center space-x-1">
+              <Star className="text-yellow-400 w-5 h-5" />
+              <span className="text-white font-semibold">
+                {current.vote_average.toFixed(1)}
+              </span>
+            </div>
+            {year && <span className="text-gray-300">{year}</span>}
+          </div>
+
+          <p className="text-white/90 text-sm md:text-base max-w-xl mb-6 line-clamp-2 md:line-clamp-3">
+            {current.overview}
+          </p>
+
+          <div className="flex items-center space-x-4 mb-6">
+            <Button
+              asChild
+              size="lg"
+              className="bg-white/90 hover:bg-white text-black font-bold"
+            >
+              <Link href={href}>
+                <Play className="mr-2 h-5 w-5" />
+                Play
+              </Link>
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => setShowDialog(true)}
+              className="bg-gray-500/50 hover:bg-gray-500/70 text-white font-bold"
+            >
+              <Info className="mr-2 h-5 w-5" />
+              More Info
+            </Button>
+          </div>
+
+          <div className="relative">
+            <Carousel
+              setApi={setCarouselApi}
+              opts={{
+                align: "start",
+                loop: false,
+                skipSnaps: true,
+                dragFree: true,
+              }}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-3">
+                {items.map((item, index) => {
+                  const isActive = item.id === current.id;
+                  const itemTitle = match(item)
+                    .with({ title: P.string }, (m) => m.title)
+                    .otherwise((t) => t.name);
+
+                  return (
+                    <CarouselItem
+                      key={item.id}
+                      className="pl-3 basis-1/4 md:basis-1/5 lg:basis-1/6"
+                      onClick={() => onPosterClick(index)}
+                    >
+                      <div className="flex flex-col items-center text-center cursor-pointer group">
+                        <div
+                          className={`relative w-full aspect-[2/3] rounded-lg overflow-hidden transition-all duration-300 transform-gpu ${
+                            isActive
+                              ? "border-2 border-primary"
+                              : "border-2 border-transparent"
+                          }`}
+                        >
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w185${item.poster_path}`}
+                            alt={itemTitle}
+                            fill
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        </div>
+                        <p
+                          className={`mt-2 text-xs font-medium text-white transition-opacity duration-300 line-clamp-2 ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                        >
+                          {itemTitle}
+                        </p>
+                      </div>
+                    </CarouselItem>
+                  );
+                })}
+              </CarouselContent>
+              <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white z-10" />
+            </Carousel>
+          </div>
+        </div>
       </div>
 
-      <p className="text-white/80 text-sm md:text-base max-w-2xl mb-6 line-clamp-2 md:line-clamp-3">
-        {current.overview}
-      </p>
-
-      <div className="flex items-center space-x-4 pointer-events-auto">
-        <Button asChild>
-          <Link
-            href={href}
-            className="bg-primary hover:bg-primary/80 text-white font-semibold py-2 px-6 rounded transition-colors"
-          >
-            <Play className="mr-2 h-5 w-5" />
-            <span>Play</span>
-          </Link>
-        </Button>
-        <Button asChild variant="secondary">
-          <Link
-            href={href}
-            className="bg-secondary/20 hover:bg-secondary/40 text-white font-semibold py-2 px-6 rounded transition-colors"
-          >
-            <Info className="mr-2 h-5 w-5" />
-            <span>More Info</span>
-          </Link>
-        </Button>
-      </div>
-    </div>
+      <MediaInfoDialog
+        isOpen={showDialog}
+        onClose={() => setShowDialog(false)}
+        media={current}
+      />
+    </>
   );
 }
 
 export function MediaCarousel({ items }: MediaCarouselProps) {
-  const [api, setApi] = useState<CarouselApi>();
+  const [mainCarouselApi, setMainCarouselApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Use useEffect with proper cleanup to prevent memory leaks
   useEffect(() => {
-    if (!api) return;
+    if (!mainCarouselApi) return;
 
     const onSelect = () => {
-      setCurrentIndex(api.selectedScrollSnap());
+      if (mainCarouselApi.selectedScrollSnap() !== currentIndex) {
+        setCurrentIndex(mainCarouselApi.selectedScrollSnap());
+      }
     };
 
-    api.on("select", onSelect);
+    mainCarouselApi.on("select", onSelect);
 
+    // Auto-advance carousel
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        if (api.canScrollNext()) {
-          api.scrollNext();
-        } else {
-          api.scrollTo(0);
-        }
+        mainCarouselApi.scrollNext();
       }
     }, 7000);
 
+    // Clean up event listeners and interval
     return () => {
-      api.off("select", onSelect);
+      mainCarouselApi.off("select", onSelect);
       clearInterval(interval);
     };
-  }, [api]);
+  }, [mainCarouselApi, currentIndex]);
+
+  const handlePosterClick = (index: number) => {
+    if (mainCarouselApi && index !== currentIndex) {
+      setCurrentIndex(index);
+      mainCarouselApi.scrollTo(index);
+    }
+  };
 
   return (
-    <div className="relative">
+    <div className="relative h-[90vh] overflow-hidden bg-black">
       <Carousel
-        className="w-full"
-        setApi={setApi}
+        className="w-full h-full"
+        setApi={setMainCarouselApi}
         plugins={[Fade()]}
-        opts={{ loop: true, containScroll: false, duration: 100 }}
+        opts={{ loop: true, duration: 50, containScroll: "trimSnaps" }}
       >
-        <CarouselContent className="!ml-0">
+        <CarouselContent className="!ml-0 h-full">
           {items.map((item, index) => (
-            <CarouselItem key={item.id} className="pl-0">
-              <div className="relative w-full min-h-[80vh]">
-                <Image
-                  src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
-                  alt={match(item)
-                    .with({ title: P.string }, (movie) => movie.title)
-                    .with({ name: P.string }, (tvShow) => tvShow.name)
-                    .otherwise(() => "Media Item")}
-                  layout="fill"
-                  objectFit="cover"
-                  priority={index === 0}
-                  className="brightness-50 select-none pointer-events-none"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent opacity-20" />
+            <CarouselItem key={item.id} className="pl-0 h-full">
+              <div className="relative w-full h-full z-50">
+                {item.backdrop_path ? (
+                  <Image
+                    src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
+                    alt={match(item)
+                      .with({ title: P.string }, (movie) => movie.title)
+                      .with({ name: P.string }, (tvShow) => tvShow.name)
+                      .otherwise(() => "Media Item")}
+                    fill
+                    priority={index === 0}
+                    className="object-cover brightness-75 z-50"
+                    onError={(e) => {
+                      console.error(
+                        "Failed to load backdrop image:",
+                        item.backdrop_path,
+                      );
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
               </div>
             </CarouselItem>
           ))}
         </CarouselContent>
       </Carousel>
 
-      {/* moved outside of CarouselContent to prevent hydration issues */}
-      {items[currentIndex] && <CarouselDetails current={items[currentIndex]} />}
-
-      {/* tw media queries instead to prevent hydration mismatch */}
       {items[currentIndex] && (
-        <div className="md:hidden absolute bottom-72 sm:bottom-52 right-4 w-32 h-48 rounded-lg overflow-hidden shadow-lg pointer-events-auto xs:bottom-40">
-          <Link
-            href={match(items[currentIndex])
-              .with(
-                { title: P.string, id: P.number },
-                (movie) => `/movies/${movie.id}`,
-              )
-              .with(
-                { name: P.string, id: P.number },
-                (tvShow) => `/tvshows/${tvShow.id}`,
-              )
-              .otherwise(() => "#")}
-          >
-            <div className="relative w-full h-full">
-              <Image
-                src={`https://image.tmdb.org/t/p/w500${items[currentIndex].poster_path}`}
-                alt={match(items[currentIndex])
-                  .with({ title: P.string }, (movie) => movie.title)
-                  .with({ name: P.string }, (tvShow) => tvShow.name)
-                  .otherwise(() => "Media Poster")}
-                layout="fill"
-                objectFit="cover"
-                priority
-                className="pt-12"
-              />
-            </div>
-          </Link>
-        </div>
+        <CarouselDetails
+          current={items[currentIndex]}
+          items={items}
+          onPosterClick={handlePosterClick}
+        />
       )}
 
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-10">
         {items.map((_, index) => (
           <button
             key={index}
-            onClick={() => api?.scrollTo(index)}
-            className={`w-2.5 h-2.5 rounded-full transition-colors ${
-              currentIndex === index ? "bg-primary" : "bg-white/50"
+            onClick={() => handlePosterClick(index)}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+              currentIndex === index ? "w-4 bg-primary" : "bg-white/50"
             }`}
             aria-label={`Go to slide ${index + 1}`}
           />

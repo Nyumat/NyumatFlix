@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 const StableBackground = memo(function StableBackground() {
   return (
-    <div className="absolute inset-0 w-full min-h-full z-0">
+    <div className="absolute inset-0 w-full min-h-full">
       <div
         className="w-full min-h-full bg-repeat bg-center"
         style={{
@@ -182,7 +182,7 @@ export default async function TVShowPage({ params }: Props) {
       : "Unknown";
 
     return (
-      <PageContainer className="bg-background/95 dark:bg-background/95 pb-16">
+      <PageContainer className="pb-16">
         <HeroSection
           media={[
             {
@@ -196,13 +196,10 @@ export default async function TVShowPage({ params }: Props) {
           mediaType="tv"
         />
 
-        <div className="relative min-h-screen">
+        <div className="relative min-h-screen pt-10">
           <StableBackground />
-          <div className="relative z-10">
-            <ContentContainer
-              className="container mx-auto px-4 mt-10 relative z-10"
-              topSpacing={false}
-            >
+          <div className="relative">
+            <ContentContainer className="container mx-auto px-4">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <TVShowSidebar
                   details={details}
