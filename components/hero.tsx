@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 import { Logo, MediaItem } from "@/utils/typings";
 import Fade from "embla-carousel-fade";
 import { Calendar, Clock, Globe, Info, Play, Star } from "lucide-react";
@@ -199,9 +200,14 @@ function MediaInfoDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] bg-background/95 backdrop-blur-md border border-border/50 mx-4">
+      <DialogContent
+        className={cn(
+          "w-[95vw] max-w-4xl max-h-[90vh] mx-4",
+          "bg-black/60 backdrop-blur-md border border-white/20 shadow-xl",
+        )}
+      >
         <DialogHeader>
-          <DialogTitle className="text-xl md:text-2xl font-bold">
+          <DialogTitle className="text-xl md:text-2xl font-bold text-white">
             {titleText}
           </DialogTitle>
         </DialogHeader>
@@ -209,7 +215,7 @@ function MediaInfoDialog({
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           {/* Poster */}
           <div className="flex-shrink-0">
-            <div className="relative w-32 h-48 md:w-48 md:h-72 mx-auto md:mx-0 rounded-lg overflow-hidden shadow-lg">
+            <div className="relative w-32 h-48 md:w-48 md:h-72 mx-auto md:mx-0 rounded-lg overflow-hidden shadow-xl">
               <Image
                 src={`https://image.tmdb.org/t/p/w342${media.poster_path}`}
                 alt={titleText}
@@ -222,37 +228,50 @@ function MediaInfoDialog({
           {/* Content */}
           <div className="flex-1">
             <ScrollArea className="h-[40vh] md:h-[50vh] pr-2 md:pr-4">
-              {/* Metadata */}
-              <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-3 md:mb-4">
+              {/* Metadata Card */}
+              <div
+                className={cn(
+                  "bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-4 mb-4 shadow-lg",
+                  "flex flex-wrap items-center gap-3",
+                )}
+              >
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                  <span className="font-semibold text-sm md:text-base">
-                    {media.vote_average.toFixed(1)}
+                  <span className="font-semibold text-sm md:text-base text-white">
+                    {media.vote_average.toFixed(1)}/10
                   </span>
                 </div>
 
                 {year && (
                   <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm md:text-base">{year}</span>
+                    <Calendar className="w-4 h-4 text-gray-300" />
+                    <span className="text-sm md:text-base text-white">
+                      {year}
+                    </span>
                   </div>
                 )}
 
                 {runtime && (
                   <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm md:text-base">
+                    <Clock className="w-4 h-4 text-gray-300" />
+                    <span className="text-sm md:text-base text-white">
                       {formatRuntime(runtime)}
                     </span>
                   </div>
                 )}
 
-                <Badge variant="secondary" className="text-xs md:text-sm">
+                <Badge
+                  variant="outline"
+                  className="text-xs md:text-sm bg-white/10 border-white/20 text-white"
+                >
                   {mediaType}
                 </Badge>
 
                 {contentRating && (
-                  <Badge variant="outline" className="text-xs md:text-sm">
+                  <Badge
+                    variant="outline"
+                    className="text-xs md:text-sm bg-white/15 border-white/30 text-white"
+                  >
                     {contentRating}
                   </Badge>
                 )}
@@ -260,8 +279,8 @@ function MediaInfoDialog({
 
               {/* Genres */}
               {genres && genres.length > 0 && (
-                <div className="mb-3 md:mb-4">
-                  <h4 className="font-semibold mb-2 text-sm md:text-base">
+                <div className="mb-4">
+                  <h4 className="font-semibold mb-2 text-sm md:text-base text-white">
                     Genres
                   </h4>
                   <div className="flex flex-wrap gap-1 md:gap-2">
@@ -269,7 +288,7 @@ function MediaInfoDialog({
                       <Badge
                         key={genre.id}
                         variant="outline"
-                        className="text-xs"
+                        className="text-xs bg-white/10 border-white/20 text-white"
                       >
                         {genre.name}
                       </Badge>
@@ -279,40 +298,51 @@ function MediaInfoDialog({
               )}
 
               {/* Overview */}
-              <div className="mb-4 md:mb-6">
-                <h4 className="font-semibold mb-2 text-sm md:text-base">
+              <div className="mb-4">
+                <h4 className="font-semibold mb-2 text-sm md:text-base text-white">
                   Overview
                 </h4>
-                <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                <p className="text-gray-300 leading-relaxed text-sm md:text-base">
                   {media.overview}
                 </p>
               </div>
 
-              {/* Additional Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
+              {/* Additional Info Card */}
+              <div
+                className={cn(
+                  "bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-4 mb-4 shadow-lg",
+                  "grid grid-cols-1 sm:grid-cols-2 gap-4",
+                )}
+              >
                 <div>
-                  <h4 className="font-semibold mb-1 text-sm md:text-base">
+                  <h4 className="font-semibold mb-1 text-sm md:text-base text-white">
                     Language
                   </h4>
-                  <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
+                  <p className="text-xs md:text-sm text-gray-300 flex items-center gap-1">
                     <Globe className="w-3 h-3" />
                     {media.original_language?.toUpperCase()}
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold mb-1 text-sm md:text-base">
+                  <h4 className="font-semibold mb-1 text-sm md:text-base text-white">
                     Popularity
                   </h4>
-                  <p className="text-xs md:text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm text-gray-300">
                     {Math.round(media.popularity)}
                   </p>
                 </div>
               </div>
+
+              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button
                   asChild
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm transition-colors"
+                  className={cn(
+                    "flex-1 font-bold transition-all duration-200 shadow-lg",
+                    "backdrop-blur-md bg-white/20 border border-white/30 text-white",
+                    "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
+                  )}
                 >
                   <Link
                     href={href}
@@ -323,9 +353,12 @@ function MediaInfoDialog({
                   </Link>
                 </Button>
                 <Button
-                  variant="outline"
                   asChild
-                  className="flex-1 hover:bg-accent"
+                  className={cn(
+                    "flex-1 font-bold transition-all duration-200 shadow-lg",
+                    "backdrop-blur-md bg-white/10 border border-white/30 text-white",
+                    "hover:bg-white/20 hover:border-white/40 hover:shadow-xl",
+                  )}
                 >
                   <Link
                     href={href}
@@ -386,7 +419,7 @@ function CarouselDetails({
   return (
     <>
       <div className="absolute bottom-0 left-0 p-4 md:p-8 lg:p-12 w-full md:w-3/4 lg:w-1/2">
-        <div className="p-4 rounded-lg">
+        <div className={cn("p-4 rounded-lg")}>
           {current.logo ? (
             <div className={`mb-4 max-w-[250px] md:max-w-[350px] w-full`}>
               <Image
@@ -421,7 +454,11 @@ function CarouselDetails({
             <Button
               asChild
               size="lg"
-              className="bg-white/90 hover:bg-white text-black font-bold"
+              className={cn(
+                "font-bold transition-all duration-200 shadow-lg",
+                "backdrop-blur-md bg-white/20 border border-white/30 text-white",
+                "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
+              )}
             >
               <Link href={href}>
                 <Play className="mr-2 h-5 w-5" />
@@ -429,10 +466,13 @@ function CarouselDetails({
               </Link>
             </Button>
             <Button
-              variant="secondary"
               size="lg"
               onClick={() => setShowDialog(true)}
-              className="bg-gray-500/50 hover:bg-gray-500/70 text-white font-bold"
+              className={cn(
+                "font-bold transition-all duration-200 shadow-lg",
+                "backdrop-blur-md bg-white/10 border border-white/30 text-white",
+                "hover:bg-white/20 hover:border-white/40 hover:shadow-xl",
+              )}
             >
               <Info className="mr-2 h-5 w-5" />
               More Info
