@@ -25,6 +25,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { match, P } from "ts-pattern";
+import { GenreBadge } from "./ui/genre-badge";
 
 interface HeroProps {
   imageUrl: string;
@@ -283,15 +284,14 @@ function MediaInfoDialog({
                   <h4 className="font-semibold mb-2 text-sm md:text-base text-white">
                     Genres
                   </h4>
-                  <div className="flex flex-wrap gap-1 md:gap-2">
+                  <div className="flex flex-wrap gap-1 md:gap-2 pl-2">
                     {genres.map((genre) => (
-                      <Badge
+                      <GenreBadge
                         key={genre.id}
-                        variant="outline"
-                        className="text-xs bg-white/10 border-white/20 text-white"
-                      >
-                        {genre.name}
-                      </Badge>
+                        genreId={genre.id}
+                        className="text-xs md:text-sm bg-white/10 border-white/20 text-white"
+                        genreName={genre.name}
+                      />
                     ))}
                   </div>
                 </div>
