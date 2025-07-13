@@ -8,7 +8,7 @@ type TVShowOverviewProps = {
 export function TVShowOverview({ details }: TVShowOverviewProps) {
   return (
     <section>
-      <h2 className="text-2xl font-semibold text-foreground mb-4">Overview</h2>
+      <h2 className="text-2xl font-semibold text-foreground mt-4">Overview</h2>
       <p className="text-muted-foreground leading-relaxed">
         {details.overview}
       </p>
