@@ -212,20 +212,20 @@ function MediaInfoDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className={cn(
-          "w-[95vw] max-w-4xl max-h-[90vh] mx-4",
+          "w-[95vw] max-w-3xl max-h-[90vh] mx-4 p-4 md:p-6",
           "bg-black/60 backdrop-blur-md border border-white/20 shadow-xl",
         )}
       >
-        <DialogHeader>
-          <DialogTitle className="text-xl md:text-2xl font-bold text-white">
+        <DialogHeader className="flex-shrink-0 mb-3">
+          <DialogTitle className="text-lg md:text-xl font-bold text-white pr-6">
             {titleText}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <div className="flex flex-col md:flex-row gap-3 md:gap-4 min-h-0">
           {/* Poster */}
           <div className="flex-shrink-0">
-            <div className="relative w-32 h-48 md:w-48 md:h-72 mx-auto md:mx-0 rounded-lg overflow-hidden shadow-xl">
+            <div className="relative w-28 h-40 md:w-40 md:h-60 mx-auto md:mx-0 rounded-lg overflow-hidden shadow-xl">
               <Image
                 src={`https://image.tmdb.org/t/p/w342${media.poster_path}`}
                 alt={titleText}
@@ -236,13 +236,13 @@ function MediaInfoDialog({
           </div>
 
           {/* Content */}
-          <div className="flex-1">
-            <ScrollArea className="h-[40vh] md:h-[50vh] pr-2 md:pr-4">
+          <div className="flex-1 min-w-0">
+            <ScrollArea className="h-[40vh] md:h-[50vh] pr-1 md:pr-2">
               {/* Metadata Card */}
               <div
                 className={cn(
-                  "bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-4 mb-4 shadow-lg",
-                  "flex flex-wrap items-center gap-3",
+                  "bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-3 mb-3 shadow-lg",
+                  "flex flex-wrap items-center gap-2",
                 )}
               >
                 <div className="flex items-center gap-1">
@@ -289,16 +289,16 @@ function MediaInfoDialog({
 
               {/* Genres */}
               {genres && genres.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="font-semibold mb-2 text-sm md:text-base text-white">
+                <div className="mb-3">
+                  <h4 className="font-semibold mb-1 text-sm md:text-base text-white">
                     Genres
                   </h4>
-                  <div className="flex flex-wrap gap-1 md:gap-2 pl-2">
+                  <div className="flex flex-wrap gap-1 pl-1">
                     {genres.map((genre) => (
                       <GenreBadge
                         key={genre.id}
                         genreId={genre.id}
-                        className="text-xs md:text-sm bg-white/10 border-white/20 text-white"
+                        className="text-xs bg-white/10 border-white/20 text-white"
                         genreName={genre.name}
                       />
                     ))}
@@ -307,11 +307,11 @@ function MediaInfoDialog({
               )}
 
               {/* Overview */}
-              <div className="mb-4">
-                <h4 className="font-semibold mb-2 text-sm md:text-base text-white">
+              <div className="mb-3">
+                <h4 className="font-semibold mb-1 text-sm md:text-base text-white">
                   Overview
                 </h4>
-                <p className="text-gray-300 leading-relaxed text-sm md:text-base">
+                <p className="text-gray-300 leading-relaxed text-sm">
                   {media.overview}
                 </p>
               </div>
@@ -319,32 +319,32 @@ function MediaInfoDialog({
               {/* Additional Info Card */}
               <div
                 className={cn(
-                  "bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-4 mb-4 shadow-lg",
-                  "grid grid-cols-1 sm:grid-cols-2 gap-4",
+                  "bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-3 mb-3 shadow-lg",
+                  "grid grid-cols-1 sm:grid-cols-2 gap-3",
                 )}
               >
                 <div>
-                  <h4 className="font-semibold mb-1 text-sm md:text-base text-white">
+                  <h4 className="font-semibold mb-1 text-sm text-white">
                     Language
                   </h4>
-                  <p className="text-xs md:text-sm text-gray-300 flex items-center gap-1">
+                  <p className="text-xs text-gray-300 flex items-center gap-1">
                     <Globe className="w-3 h-3" />
                     {media.original_language?.toUpperCase()}
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold mb-1 text-sm md:text-base text-white">
+                  <h4 className="font-semibold mb-1 text-sm text-white">
                     Popularity
                   </h4>
-                  <p className="text-xs md:text-sm text-gray-300">
+                  <p className="text-xs text-gray-300">
                     {Math.round(media.popularity)}
                   </p>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={handleWatchNow}
                   className={cn(
