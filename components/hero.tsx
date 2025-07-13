@@ -386,7 +386,7 @@ function CarouselDetails({
   return (
     <>
       <div className="absolute bottom-0 left-0 p-4 md:p-8 lg:p-12 w-full md:w-3/4 lg:w-1/2">
-        <div className="bg-gradient-to-r from-black/50 via-black/30 to-transparent p-4 rounded-lg">
+        <div className="p-4 rounded-lg">
           {current.logo ? (
             <div className={`mb-4 max-w-[250px] md:max-w-[350px] w-full`}>
               <Image
@@ -559,8 +559,9 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                       .with({ title: P.string }, (movie) => movie.title)
                       .with({ name: P.string }, (tvShow) => tvShow.name)
                       .otherwise(() => "Media Item")}
-                    fill
-                    priority={index === 0}
+                    width={1920}
+                    height={1080}
+                    priority={index <= 2}
                     className="object-cover brightness-75 z-50"
                     onError={(e) => {
                       console.error(
