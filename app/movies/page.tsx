@@ -39,8 +39,21 @@ export interface Movie {
 }
 
 export default async function MoviesPage() {
-  const trendingMoviesResponse = await fetchTMDBData("/trending/movie/week");
-  const basicTrendingItems = trendingMoviesResponse.results?.slice(0, 5) || [];
+  const trendingMoviesResponse = await fetchTMDBData("/discover/movie", {
+    sort_by: "popularity.desc",
+    with_genres: "28|12|16|35|878|10749|10751|10765",
+    "release_date.gte": "2023-01-01",
+    "release_date.lte": "2025-07-12",
+    "vote_count.gte": "100",
+    include_adult: "false",
+    language: "en-US",
+    region: "US",
+  });
+
+  const basicTrendingItems =
+    trendingMoviesResponse.results
+      ?.filter((movie) => movie.id !== 1011477)
+      .slice(0, 10) || [];
 
   const enrichedTrendingItems = await fetchAndEnrichMediaItems(
     basicTrendingItems as MediaItem[],
