@@ -1,5 +1,5 @@
 import { buildItemsWithCategories, getMovies } from "@/app/actions";
-import { ContentGrid } from "@/components/content/content-grid";
+import { ContentGrid } from "@/components/content/media-content-grid";
 import { MovieCategory } from "@/utils/typings";
 import { LoadMore } from "./load-more";
 
@@ -13,7 +13,7 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
 
   // Transform the raw results into MediaItem[]
   const initialMovies = await buildItemsWithCategories(
-    initialMoviesResponse.results as any,
+    initialMoviesResponse.results,
     "movie",
   );
 
@@ -29,7 +29,7 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
 
       // Transform the raw results into MediaItem[]
       const processedMovies = await buildItemsWithCategories(
-        response.results as any,
+        response.results,
         "movie",
       );
 

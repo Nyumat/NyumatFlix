@@ -6,7 +6,7 @@ import {
   TVShowCategory,
   UnifiedCategory,
 } from "@/utils/typings";
-import { ContentGrid } from "../content/content-grid";
+import { ContentGrid } from "../content/media-content-grid";
 
 export const getTvShowListNodes = async (
   offset: number,

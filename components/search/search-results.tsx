@@ -1,6 +1,6 @@
 "use client";
 
-import { MediaCard } from "@/components/media/media-card";
+import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { MultiSelect } from "@/components/multi-select";
 import {
   Pagination,
@@ -11,9 +11,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { cn } from "@/lib/utils";
-import {
+import type {
   Genre as GenreType,
+  MediaItem,
   Movie,
   TmdbResponse,
   TvShow,
@@ -23,19 +23,6 @@ import { useEffect, useState } from "react";
 const isValidMediaItem = (item: Movie | TvShow): boolean => {
   return Boolean(item.poster_path || item.backdrop_path);
 };
-
-// Extend Movie and TvShow types to include the recommendation flag
-type MediaItemWithRecommendation = (Movie | TvShow) & {
-  isRecommendation?: boolean;
-};
-
-interface ContentGridProps {
-  title: string;
-  items: Array<MediaItemWithRecommendation>;
-  currentPage: number;
-  totalPages: number;
-  genres: { [key: number]: string };
-}
 
 /**
  * Enhanced Pagination Component using shadcn components
@@ -155,66 +142,6 @@ function EnhancedPagination({
         </PaginationItem>
       </PaginationContent>
     </Pagination>
-  );
-}
-
-export function ContentGrid({
-  title,
-  items,
-  currentPage,
-  totalPages,
-  genres,
-}: ContentGridProps) {
-  // Items to display
-  const displayItems = items;
-
-  // Map our items to the format expected by MediaCard and filter out invalid items
-  const processedItems = displayItems.filter(isValidMediaItem).map((item) => {
-    const mediaType = "title" in item ? "movie" : "tv";
-    return {
-      ...item,
-      genres: item.genre_ids
-        ?.map((id) => ({ id, name: genres[id] }))
-        .filter((g) => g.name && g.id),
-      media_type: mediaType,
-    };
-  });
-
-  return (
-    <div
-      className="container mx-auto px-2 sm:px-4 py-4 sm:py-8"
-      data-testid="content-grid"
-    >
-      <div className="flex justify-between items-center mb-6">
-        <h2
-          className={cn(
-            "text-2xl md:text-3xl font-semibold",
-            "text-primary-foreground",
-          )}
-        >
-          {title}
-        </h2>
-        <div className="text-sm text-muted-foreground">
-          {totalPages > 1 && (
-            <span>
-              Page {currentPage} of {totalPages}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
-        {processedItems.map((item) => {
-          const itemType = item.media_type === "movie" ? "movie" : "tv";
-
-          return (
-            <div key={`${item.id}-${itemType}`} className="w-full">
-              <MediaCard item={item} type={itemType} />
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
@@ -377,7 +304,7 @@ export default function SearchResults({ query }: { query: string }) {
   }));
 
   return (
-    <div className="container mx-auto px-2 sm:px-4">
+    <div className="container mx-auto px-2 sm:px-4 pb-12">
       <div className="flex justify-end items-center mb-6">
         {!genresLoading && parsedGenresForFilter.length > 0 && (
           <div
@@ -393,17 +320,45 @@ export default function SearchResults({ query }: { query: string }) {
               placeholder="Filter by Genre"
               defaultValue={selectedGenreIds}
               className="border-none focus:ring-0 focus:ring-offset-0"
+              data-testid="genre-multi-select"
             />
           </div>
         )}
       </div>
 
-      <ContentGrid
-        title={`Search Results for "${query}"`}
-        items={filteredItems}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        genres={allGenres}
+      {/* Page info */}
+      <div className="flex justify-between items-center mb-6">
+        <h2
+          className="text-2xl md:text-3xl font-semibold text-primary-foreground"
+          data-testid="search-results-title"
+        >
+          Search Results for "{query}"
+        </h2>
+        <div
+          className="text-sm text-muted-foreground"
+          data-testid="pagination-info"
+        >
+          {totalPages > 1 && (
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <MediaContentGrid
+        items={filteredItems.filter(isValidMediaItem).map((item) => {
+          const mediaType = "title" in item ? "movie" : "tv";
+          return {
+            ...item,
+            genres: item.genre_ids
+              ?.map((id) => ({ id, name: allGenres[id] }))
+              .filter((g) => g.name && g.id),
+            media_type: mediaType,
+          } as MediaItem;
+        })}
+        defaultViewMode="list"
+        data-testid="search-results-grid"
       />
 
       {/* Enhanced Pagination */}
@@ -411,6 +366,7 @@ export default function SearchResults({ query }: { query: string }) {
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
+        data-testid="search-pagination"
       />
     </div>
   );

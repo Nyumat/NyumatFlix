@@ -1,26 +1,80 @@
+import { MediaContentGrid } from "@/components/content/media-content-grid";
+import SearchResults from "@/components/search/search-results";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Movie, TvShow } from "@/utils/typings";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
 
-import SearchResults, { ContentGrid } from "@/components/search/search-results";
-import { TooltipProvider } from "@/components/ui/tooltip";
-
-interface MockResponse {
-  ok: boolean;
-  json: () => Promise<unknown>;
-}
-
-const mockFetchResponse = (data: unknown): MockResponse => {
-  return {
-    ok: true,
-    json: async () => data,
+beforeAll(() => {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
   };
+
+  global.matchMedia = vi.fn().mockImplementation(() => ({
+    matches: false,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+  }));
+
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
+const mockFetchResponse = (data: unknown) => ({
+  ok: true,
+  json: async () => data,
+});
+
+const mockMovie: Movie = {
+  id: 123,
+  title: "Test Movie",
+  poster_path: "/test.jpg",
+  genre_ids: [28, 12],
+  vote_average: 7.5,
+  release_date: "2023-01-01",
+  backdrop_path: "/backdrop.jpg",
+  media_type: "movie",
+  adult: false,
+  original_language: "en",
+  original_title: "Test Movie",
+  overview: "A test movie",
+  popularity: 100,
+  video: false,
+  vote_count: 500,
 };
 
-const originalFetch = global.fetch;
+const mockTvShow: TvShow = {
+  id: 456,
+  name: "Test Show",
+  poster_path: "/test2.jpg",
+  genre_ids: [16],
+  vote_average: 8.0,
+  first_air_date: "2023-02-01",
+  backdrop_path: "/backdrop2.jpg",
+  media_type: "tv",
+  origin_country: ["US"],
+  original_language: "en",
+  original_name: "Test Show",
+  overview: "A test show",
+  popularity: 95,
+  vote_count: 300,
+};
+
 beforeEach(() => {
   global.fetch = vi.fn((url) => {
-    if (url.toString().includes("/api/search")) {
+    const urlString = url.toString();
+
+    if (urlString.includes("/api/search")) {
       return Promise.resolve(
         mockFetchResponse({
           results: [mockMovie, mockTvShow],
@@ -30,7 +84,7 @@ beforeEach(() => {
       );
     }
 
-    if (url.toString().includes("/api/genres")) {
+    if (urlString.includes("/api/genres")) {
       return Promise.resolve(
         mockFetchResponse({
           genres: [
@@ -42,215 +96,32 @@ beforeEach(() => {
       );
     }
 
-    if (
-      url.toString().includes("/api/movies/") &&
-      url.toString().includes("/recommendations")
-    ) {
-      return Promise.resolve(
-        mockFetchResponse({
-          results: [
-            {
-              id: 789,
-              title: "Recommended Movie",
-              poster_path: "/rec-movie.jpg",
-              genre_ids: [28, 12],
-              vote_average: 8.0,
-              release_date: "2023-05-01",
-            },
-          ],
-        }),
-      );
-    } else if (
-      url.toString().includes("/api/tv/") &&
-      url.toString().includes("/recommendations")
-    ) {
-      return Promise.resolve(
-        mockFetchResponse({
-          results: [
-            {
-              id: 987,
-              name: "Recommended Show",
-              poster_path: "/rec-show.jpg",
-              genre_ids: [16],
-              vote_average: 7.8,
-              first_air_date: "2023-06-01",
-            },
-          ],
-        }),
-      );
-    } else if (url.toString().includes("/api/movies/")) {
-      return Promise.resolve(
-        mockFetchResponse({
-          id: 123,
-          title: "Test Movie",
-          runtime: 120,
-          genres: [
-            { id: 28, name: "Action" },
-            { id: 12, name: "Adventure" },
-          ],
-        }),
-      );
-    } else if (url.toString().includes("/api/tv/")) {
-      return Promise.resolve(
-        mockFetchResponse({
-          id: 456,
-          name: "Test Show",
-          origin_country: ["US"],
-          genres: [{ id: 16, name: "Animation" }],
-        }),
-      );
-    }
-
     return Promise.resolve(mockFetchResponse({}));
   }) as unknown as typeof global.fetch;
 });
 
 afterEach(() => {
-  global.fetch = originalFetch;
+  vi.clearAllMocks();
 });
-
-const mockMovie = {
-  id: 123,
-  title: "Test Movie",
-  media_type: "movie",
-  poster_path: "/test.jpg",
-  genre_ids: [28, 12],
-  vote_average: 7.5,
-  release_date: "2023-01-01",
-  backdrop_path: "/backdrop.jpg",
-  name: "",
-  original_language: "en",
-  overview: "A test movie description",
-  popularity: 100,
-  vote_count: 500,
-  adult: false,
-  video: false,
-  original_title: "Test Movie Original",
-  first_air_date: "",
-};
-
-const mockTvShow = {
-  id: 456,
-  name: "Test Show",
-  media_type: "tv",
-  poster_path: "/test2.jpg",
-  genre_ids: [16],
-  vote_average: 8.0,
-  first_air_date: "2023-02-01",
-  backdrop_path: "/backdrop2.jpg",
-  origin_country: ["US"],
-  original_language: "en",
-  original_name: "Test Show Original",
-  overview: "A test TV show description",
-  popularity: 95,
-  vote_count: 300,
-};
-
-const mockItems: (Movie | TvShow)[] = [mockMovie, mockTvShow];
-
-const mockGenres = { 28: "Action", 12: "Adventure", 16: "Animation" };
 
 const renderWithTooltipProvider = (component: React.ReactElement) => {
   return render(<TooltipProvider>{component}</TooltipProvider>);
 };
 
-describe("ContentGrid Component", () => {
-  test("renders the title correctly", async () => {
-    await act(async () => {
-      renderWithTooltipProvider(
-        <ContentGrid
-          title="Test Results"
-          items={mockItems}
-          currentPage={1}
-          totalPages={1}
-          genres={mockGenres}
-        />,
-      );
-    });
-
-    expect(screen.getByText("Test Results")).toBeInTheDocument();
-  });
-
-  test("renders the correct number of items", async () => {
-    await act(async () => {
-      renderWithTooltipProvider(
-        <ContentGrid
-          title="Test Results"
-          items={mockItems}
-          currentPage={1}
-          totalPages={1}
-          genres={mockGenres}
-        />,
-      );
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Movie")).toBeInTheDocument();
-      expect(screen.getByText("Test Show")).toBeInTheDocument();
-    });
-
-    expect(screen.getAllByRole("img")).toHaveLength(2);
-  });
-
-  test("renders pagination info when there are multiple pages", async () => {
-    await act(async () => {
-      renderWithTooltipProvider(
-        <ContentGrid
-          title="Test Results"
-          items={mockItems}
-          currentPage={1}
-          totalPages={3}
-          genres={mockGenres}
-        />,
-      );
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
-    });
-  });
-
-  test("hides pagination info when there is only one page", async () => {
-    await act(async () => {
-      renderWithTooltipProvider(
-        <ContentGrid
-          title="Test Results"
-          items={mockItems}
-          currentPage={1}
-          totalPages={1}
-          genres={mockGenres}
-        />,
-      );
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByText("Page 1 of 1")).not.toBeInTheDocument();
-    });
-  });
-});
-
 describe("SearchResults Component", () => {
-  test("renders search results with fetched data", async () => {
-    await act(async () => {
-      renderWithTooltipProvider(<SearchResults query="test" />);
-    });
+  test("displays search results for valid query", async () => {
+    renderWithTooltipProvider(<SearchResults query="test" />);
 
     await waitFor(() => {
       expect(screen.getByText("Test Movie")).toBeInTheDocument();
       expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Search Results for "test"/i),
-      ).toBeInTheDocument();
-    });
+    expect(screen.getByText(/Search Results for "test"/)).toBeInTheDocument();
   });
 
-  test("renders empty state for empty query", async () => {
-    await act(async () => {
-      renderWithTooltipProvider(<SearchResults query="" />);
-    });
+  test("shows empty state message for empty query", async () => {
+    renderWithTooltipProvider(<SearchResults query="" />);
 
     await waitFor(() => {
       expect(
@@ -259,30 +130,68 @@ describe("SearchResults Component", () => {
     });
   });
 
-  test("renders empty state for whitespace-only query", async () => {
-    await act(async () => {
-      renderWithTooltipProvider(<SearchResults query="   " />);
-    });
+  test("shows no results message when search returns empty", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve(
+        mockFetchResponse({
+          results: [],
+          total_results: 0,
+          total_pages: 0,
+        }),
+      ),
+    ) as unknown as typeof global.fetch;
+
+    renderWithTooltipProvider(<SearchResults query="nonexistent" />);
 
     await waitFor(() => {
       expect(
-        screen.getByText("Please enter a search query."),
+        screen.getByText(/No results found for "nonexistent"/),
       ).toBeInTheDocument();
     });
   });
 
-  test("renders no results message when search returns empty", async () => {
+  test("displays loading state", async () => {
+    let resolveSearch: (value: unknown) => void;
+    const searchPromise = new Promise((resolve) => {
+      resolveSearch = resolve;
+    });
+
     global.fetch = vi.fn((url) => {
-      if (url.toString().includes("/api/search")) {
-        return Promise.resolve(
-          mockFetchResponse({
-            results: [],
-            total_results: 0,
-            total_pages: 0,
-          }),
-        );
+      if (url.toString().includes("/api/search")) return searchPromise;
+      return Promise.resolve(mockFetchResponse({ genres: [] }));
+    }) as unknown as typeof global.fetch;
+
+    renderWithTooltipProvider(<SearchResults query="test" />);
+
+    expect(
+      screen.getByText(/Loading search results for "test"/),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      resolveSearch!(
+        mockFetchResponse({
+          results: [mockMovie],
+          total_results: 1,
+          total_pages: 1,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/)).not.toBeInTheDocument();
+      expect(screen.getByText("Test Movie")).toBeInTheDocument();
+    });
+  });
+
+  test("handles API errors gracefully", async () => {
+    global.fetch = vi.fn((url) => {
+      const urlString = url.toString();
+
+      if (urlString.includes("/api/search")) {
+        return Promise.reject(new Error("Network error"));
       }
-      if (url.toString().includes("/api/genres")) {
+
+      if (urlString.includes("/api/genres")) {
         return Promise.resolve(
           mockFetchResponse({
             genres: [
@@ -293,21 +202,18 @@ describe("SearchResults Component", () => {
           }),
         );
       }
+
       return Promise.resolve(mockFetchResponse({}));
     }) as unknown as typeof global.fetch;
 
-    await act(async () => {
-      renderWithTooltipProvider(<SearchResults query="nonexistent" />);
-    });
+    renderWithTooltipProvider(<SearchResults query="test" />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/No results found for "nonexistent"/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Network error")).toBeInTheDocument();
     });
   });
 
-  test("handles pagination correctly", async () => {
+  test("shows pagination when there are multiple pages", async () => {
     global.fetch = vi.fn((url) => {
       if (url.toString().includes("/api/search")) {
         return Promise.resolve(
@@ -318,66 +224,78 @@ describe("SearchResults Component", () => {
           }),
         );
       }
-      if (url.toString().includes("/api/genres")) {
-        return Promise.resolve(
-          mockFetchResponse({
-            genres: [
-              { id: 28, name: "Action" },
-              { id: 12, name: "Adventure" },
-              { id: 16, name: "Animation" },
-            ],
-          }),
-        );
-      }
-      return Promise.resolve(mockFetchResponse({}));
+      return Promise.resolve(mockFetchResponse({ genres: [] }));
     }) as unknown as typeof global.fetch;
 
-    await act(async () => {
-      renderWithTooltipProvider(<SearchResults query="test" />);
-    });
+    renderWithTooltipProvider(<SearchResults query="test" />);
 
-    // Check initial state
     await waitFor(() => {
       expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
-    });
 
-    // Check that pagination controls are rendered
-    expect(screen.getByText("Previous")).toBeInTheDocument();
-    expect(screen.getByText("Next")).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /previous/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /next/i })).toBeInTheDocument();
+    });
   });
 
-  test("displays genre filter when genres are available", async () => {
-    // Mock genres API
+  test("can navigate between pages", async () => {
+    const user = userEvent.setup();
+
     global.fetch = vi.fn((url) => {
-      if (url.toString().includes("/api/search")) {
+      const urlString = url.toString();
+      if (urlString.includes("/api/search")) {
+        const page = urlString.includes("page=2") ? 2 : 1;
         return Promise.resolve(
           mockFetchResponse({
-            results: [mockMovie, mockTvShow],
-            total_results: 2,
-            total_pages: 1,
+            results: page === 1 ? [mockMovie] : [mockTvShow],
+            total_results: 40,
+            total_pages: 2,
+            page,
           }),
         );
       }
-      if (url.toString().includes("/api/genres")) {
-        return Promise.resolve(
-          mockFetchResponse({
-            genres: [
-              { id: 28, name: "Action" },
-              { id: 12, name: "Adventure" },
-              { id: 16, name: "Animation" },
-            ],
-          }),
-        );
-      }
-      return Promise.resolve(mockFetchResponse({}));
+      return Promise.resolve(mockFetchResponse({ genres: [] }));
     }) as unknown as typeof global.fetch;
 
-    await act(async () => {
-      renderWithTooltipProvider(<SearchResults query="test" />);
+    renderWithTooltipProvider(<SearchResults query="test" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Movie")).toBeInTheDocument();
     });
+
+    const nextButton = screen.getByRole("link", { name: /next/i });
+    await user.click(nextButton);
+    await waitFor(() => {
+      expect(screen.queryByText("Test Movie")).not.toBeInTheDocument();
+      expect(screen.getByText("Test Show")).toBeInTheDocument();
+    });
+  });
+
+  test("shows genre filter", async () => {
+    renderWithTooltipProvider(<SearchResults query="test" />);
 
     await waitFor(() => {
       expect(screen.getByText("Filter by Genre")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("MediaContentGrid Component", () => {
+  test("renders media items", async () => {
+    const items = [mockMovie, mockTvShow].map((item) => ({
+      ...item,
+      media_type: "title" in item ? "movie" : ("tv" as const),
+      genres: [],
+    }));
+
+    renderWithTooltipProvider(
+      <MediaContentGrid items={items} defaultViewMode="grid" />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Movie")).toBeInTheDocument();
+      expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
   });
 });
