@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "precommit": "npm run check-format && npm run lint && npm run type-check",
     "prepare": "husky",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --project tsconfig.json",
     "test-ci": "vitest run",
     "test": "vitest --watch"
   },
