@@ -135,7 +135,7 @@ export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
             runtime={runtime}
             country={country?.map((c) => ({ iso_3166_1: c, name: c }))}
             genres={itemGenres}
-            mediaType={type}
+            mediaType={type as "movie" | "tv"} // TODO: fix this
             rating={rating}
           />
         </div>
