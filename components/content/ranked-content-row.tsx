@@ -63,9 +63,9 @@ export function RankedContentRow({
     }
   }, [initialItems, items]);
 
-  // Handle scroll end detection for infinite loading (mostly for mobile carousel)
+  // need scroll end detection for infinite loading (mostly for mobile carousel)
   useEffect(() => {
-    if (!api || !hasMoreItems || !isMobile) return; // Only apply to mobile carousel
+    if (!api || !hasMoreItems || !isMobile) return;
 
     const handleScroll = () => {
       const scrollProgress = api.scrollProgress();
@@ -84,7 +84,7 @@ export function RankedContentRow({
   }, [api, hasMoreItems, loading, isMobile]);
 
   const getContentRating = (item: MediaItem & ItemWithId) => {
-    // Use embedded content_rating first, then fallback to passed contentRating prop
+    // use embedded content_rating first, then fallback to contentRating if not found
     return item.content_rating || contentRating[item.id] || undefined;
   };
 
@@ -111,7 +111,6 @@ export function RankedContentRow({
   );
 
   const getItemDetails = (item: MediaItem) => {
-    // Create type-safe representations
     const movieItem = isMovie(item) ? (item as Movie) : null;
     const tvShowItem = !isMovie(item) ? (item as TvShow) : null;
 

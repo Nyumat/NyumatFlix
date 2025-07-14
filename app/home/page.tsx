@@ -152,7 +152,7 @@ export default async function Home() {
             <SuspenseContentRow
               rowId="recent-releases"
               title="New Releases"
-              href="/movies/browse?year=2023"
+              href="/movies/browse?year=2025"
             />
 
             <SuspenseContentRow
