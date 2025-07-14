@@ -273,7 +273,6 @@ export const TvResultSchema = z.object({
   media_type: z.literal("tv").optional(),
 });
 
-// Infer types from schemas
 export type Logo = z.infer<typeof LogoSchema>;
 export type Genre = z.infer<typeof GenreSchema>;
 export type Title = z.infer<typeof TitleSchema>;

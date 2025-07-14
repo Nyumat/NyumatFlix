@@ -1,9 +1,9 @@
 "use server";
 
-import React from "react";
 import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
-import { ContentGrid } from "@/components/content/content-grid";
+import { ContentGrid } from "@/components/content/media-content-grid";
 import { MediaItem } from "@/utils/typings";
+import React from "react";
 
 export async function getMoreMovies(
   endpoint: string,

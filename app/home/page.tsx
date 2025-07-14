@@ -140,7 +140,6 @@ export default async function Home() {
               }}
             />
           </div>
-          {/* Content with sufficient min-height to prevent shifts */}
           <div className="relative z-10 min-h-[200vh]">
             <SuspenseContentRow
               rowId="top-rated-movies"

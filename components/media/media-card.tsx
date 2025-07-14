@@ -35,7 +35,7 @@ interface MediaCardProps {
   /** The media item to display (should be pre-enriched with details) */
   item: MediaItem;
   /** The type of media (movie or tv) */
-  type: "movie" | "tv";
+  type: "movie" | "tv" | MediaItem["media_type"];
   /** Optional content rating (e.g., PG-13, R, etc.) */
   rating?: string;
 }

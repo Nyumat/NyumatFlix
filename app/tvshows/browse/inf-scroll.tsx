@@ -1,5 +1,5 @@
 import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
-import { ContentGrid } from "@/components/content/content-grid";
+import { ContentGrid } from "@/components/content/media-content-grid";
 import {
   buildFilterParams,
   createYearFilterParams,

@@ -1,13 +1,13 @@
 "use client";
 
-import { ContentGrid } from "@/components/content/content-grid";
+import { ContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { MediaItem } from "@/utils/typings";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface BrowseClientProps {
   genreId: string;
-  genreName: string;
+  genreName?: string;
   initialItems: MediaItem[];
   totalPages: number;
   mediaType: "movie" | "tv";
@@ -15,7 +15,6 @@ interface BrowseClientProps {
 
 export default function BrowseGenreClient({
   genreId,
-  genreName,
   initialItems,
   totalPages,
   mediaType,
