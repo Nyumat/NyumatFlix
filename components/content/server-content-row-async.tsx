@@ -158,7 +158,14 @@ async function fetchStandardizedRow(
     page++;
   }
 
-  return items.slice(0, minCount);
+  // For ranked categories (top_rated, popular), preserve the original order from TMDB
+  // For other categories, sort by ID for deterministic order
+  const rankedCategories = ["top_rated", "popular"];
+  const sortedItems = rankedCategories.includes(category)
+    ? items // Preserve original ranking order
+    : items.sort((a, b) => a.id - b.id); // Sort by ID for consistency
+
+  return sortedItems.slice(0, minCount);
 }
 
 /**
