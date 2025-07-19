@@ -86,7 +86,7 @@ const ROW_CONFIG: Record<
   "eighties-movies": { category: "year-80s", mediaType: "movie" },
   "nineties-movies": { category: "year-90s", mediaType: "movie" },
   "early-2000s-movies": { category: "year-2000s", mediaType: "movie" },
-  "recent-releases": { category: "year-2023", mediaType: "movie" },
+  "recent-releases": { category: "recent-releases", mediaType: "movie" },
 
   // TV-specific categories
   "popular-tvshows": { category: "tv-popular", mediaType: "tv" },
@@ -230,14 +230,7 @@ async function fetchStandardizedRow(
     page++;
   }
 
-  // For ranked categories (top_rated, popular), preserve the original order from TMDB
-  // For other categories, sort by ID for deterministic order
-  const rankedCategories = ["top_rated", "popular"];
-  const sortedItems = rankedCategories.includes(category)
-    ? items // Preserve original ranking order
-    : items.sort((a, b) => a.id - b.id); // Sort by ID for consistency
-
-  return sortedItems.slice(0, minCount);
+  return items.slice(0, minCount);
 }
 
 /**
@@ -270,11 +263,11 @@ export async function GET(request: Request) {
 
     // Cache headers <3
     return NextResponse.json(response, {
-      headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-        "CDN-Cache-Control": "public, s-maxage=300",
-        "Vercel-CDN-Cache-Control": "public, s-maxage=300",
-      },
+      // headers: {
+      //   "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+      //   "CDN-Cache-Control": "public, s-maxage=300",
+      //   "Vercel-CDN-Cache-Control": "public, s-maxage=300",
+      // },
     });
   } catch (error) {
     console.error(`Error fetching row ${rowId}:`, error);

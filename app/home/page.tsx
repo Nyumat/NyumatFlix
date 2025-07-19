@@ -146,19 +146,26 @@ export default async function Home() {
               title="Top Rated Movies"
               href="/movies/browse?type=top-rated"
               variant="ranked"
+              enrich
             />
 
             <SuspenseContentRow
+              rowId="early-2000s-movies"
+              title="Early 2000s Nostalgia"
+              href="/movies/browse?year=2000-2009"
+            />
+
+            {/* <SuspenseContentRow
               rowId="recent-releases"
               title="New Releases"
               href="/movies/browse?year=2025"
-            />
+            /> */}
 
-            <SuspenseContentRow
+            {/* <SuspenseContentRow
               rowId="upcoming-movies"
               title="Coming Soon"
               href="/movies/browse?type=upcoming"
-            />
+            /> */}
 
             <SuspenseContentRow
               rowId="popular-movies"
@@ -172,11 +179,11 @@ export default async function Home() {
               href="/tvshows/browse?filter=tv-popular"
             />
 
-            <SuspenseContentRow
+            {/* <SuspenseContentRow
               rowId="action-movies"
               title="Action-Packed Adventures"
               href="/movies/browse?genre=28"
-            />
+            /> */}
 
             <SuspenseContentRow
               rowId="nolan-films"
@@ -260,12 +267,6 @@ export default async function Home() {
               rowId="docuseries"
               title="Docuseries You Can't Miss"
               href="/tvshows/browse?filter=tv-docuseries"
-            />
-
-            <SuspenseContentRow
-              rowId="early-2000s-movies"
-              title="Early 2000s Nostalgia"
-              href="/movies/browse?year=2000-2009"
             />
 
             <SuspenseContentRow

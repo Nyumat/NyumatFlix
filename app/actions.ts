@@ -449,7 +449,11 @@ export async function getMovies(type: MovieCategory, page: number) {
     case "now-playing":
       return await movieDb.movieNowPlaying({ language: "en-US", page });
     case "upcoming":
-      return await movieDb.upcomingMovies({ language: "en-US", page });
+      return await movieDb.upcomingMovies({
+        language: "en-US",
+        page,
+        region: "US",
+      });
     case "studio-a24":
       return await fetchMoviesByCompany(41077, page); // A24 company ID
     case "studio-disney":
