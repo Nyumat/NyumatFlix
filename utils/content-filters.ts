@@ -290,6 +290,9 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
     type: "category",
     fetchConfig: {
       endpoint: "/movie/upcoming",
+      params: {
+        region: "US",
+      },
     },
   },
 
@@ -578,6 +581,36 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
         without_genres: "99,10770", // Exclude documentaries and TV movies
         "vote_count.gte": "50", // Lower threshold for newer movies
         "vote_average.gte": "6.0",
+      },
+    },
+  },
+  "year-2025": {
+    id: "year-2025",
+    title: "2025 Movies",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        "primary_release_date.gte": "2025-01-01",
+        "primary_release_date.lte": "2025-12-31",
+        without_genres: "99,10770", // Exclude documentaries and TV movies
+        "vote_count.gte": "10", // Very low threshold for upcoming movies
+        "vote_average.gte": "5.5", // Lower quality threshold for upcoming movies
+      },
+    },
+  },
+  "recent-releases": {
+    id: "recent-releases",
+    title: "Recent Releases",
+    type: "year",
+    fetchConfig: {
+      endpoint: "/discover/movie",
+      params: {
+        "primary_release_date.gte": "2025-01-01",
+        "primary_release_date.lte": `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`,
+        without_genres: "99,10770", // Exclude documentaries and TV movies
+        "vote_count.gte": "10", // Very low threshold for upcoming movies
+        "vote_average.gte": "5.5", // Lower quality threshold for upcoming movies
       },
     },
   },

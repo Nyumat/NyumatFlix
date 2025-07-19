@@ -73,6 +73,15 @@ export default async function TVShowsPage() {
             />
 
             <SuspenseContentRow
+              rowId="reality-tv"
+              title="Reality TV Hits"
+              enrich
+              href="/tvshows/browse?filter=tv-reality"
+            />
+
+            {/*
+
+            <SuspenseContentRow
               rowId="tv-on-the-air"
               title="Currently Airing"
               href="/tvshows/browse?filter=tv-on-the-air"
@@ -83,23 +92,18 @@ export default async function TVShowsPage() {
               title="Popular TV Shows"
               href="/tvshows/browse?filter=tv-popular"
             />
+            */}
 
             <SuspenseContentRow
-              rowId="kdrama"
-              title="Popular K-Dramas"
-              href="/tvshows/browse?filter=tv-kdrama"
+              rowId="cartoon-network"
+              title="Cartoon Network"
+              href="/tvshows/browse?filter=tv-network-cartoon-network"
             />
 
             <SuspenseContentRow
               rowId="tv-crime"
               title="Crime & Mystery"
               href="/tvshows/browse?filter=tv-genre-crime"
-            />
-
-            <SuspenseContentRow
-              rowId="cartoon-network"
-              title="Cartoon Network"
-              href="/tvshows/browse?filter=tv-network-cartoon-network"
             />
 
             <SuspenseContentRow
@@ -110,13 +114,14 @@ export default async function TVShowsPage() {
 
             <SuspenseContentRow
               rowId="tv-comedy"
-              title="Laugh Out Loud Comedies"
+              title="Comedies"
               href="/tvshows/browse?filter=tv-genre-comedy"
             />
 
             <SuspenseContentRow
               rowId="mind-bending-scifi"
               title="Mind-Bending Sci-Fi"
+              enrich
               href="/tvshows/browse?filter=tv-mind-bending-scifi"
             />
 
@@ -150,11 +155,11 @@ export default async function TVShowsPage() {
               href="/tvshows/browse?filter=tv-network-disney-xd"
             />
 
-            <SuspenseContentRow
+            {/* <SuspenseContentRow
               rowId="period-dramas"
               title="Period Piece Dramas"
               href="/tvshows/browse?filter=tv-period-dramas"
-            />
+            /> */}
 
             <SuspenseContentRow
               rowId="tv-scifi-fantasy"
@@ -162,11 +167,6 @@ export default async function TVShowsPage() {
               href="/tvshows/browse?filter=tv-genre-scifi-fantasy"
             />
 
-            <SuspenseContentRow
-              rowId="reality-tv"
-              title="Reality TV Hits"
-              href="/tvshows/browse?filter=tv-reality"
-            />
             <SuspenseContentRow
               rowId="tv-animation"
               title="Animated Shows"
@@ -192,11 +192,18 @@ export default async function TVShowsPage() {
               title="Family Favorites"
               href="/tvshows/browse?filter=tv-family"
             />
+
             <SuspenseContentRow
+              rowId="kdrama"
+              title="Popular K-Dramas"
+              href="/tvshows/browse?filter=tv-kdrama"
+            />
+
+            {/* <SuspenseContentRow
               rowId="kdrama-romance"
               title="K-Drama Romances"
               href="/tvshows/browse?filter=tv-kdrama-romance"
-            />
+            /> */}
             <SuspenseContentRow
               rowId="2010s-mystery"
               title="Mystery Shows"

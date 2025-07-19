@@ -22,7 +22,7 @@ const ROW_TYPE_TO_ENDPOINT = {
     "/discover/movie?primary_release_date.gte=1990-01-01&primary_release_date.lte=1999-12-31",
   "early-2000s-movies":
     "/discover/movie?primary_release_date.gte=2000-01-01&primary_release_date.lte=2009-12-31",
-  "recent-releases": "/discover/movie?primary_release_date.gte=2023-01-01",
+  "recent-releases": "/discover/movie?primary_release_date.gte=2025-01-01",
 
   "popular-tvshows": "/tv/popular",
   "top-rated-tvshows": "/tv/top_rated",
@@ -47,11 +47,11 @@ export async function getMoreHomepageItems(
       return [];
     }
 
-    // I'll determine the media type based on the endpoint.
+    // determine the media type based on the endpoint.
     const mediaType =
       endpoint.includes("/tv/") || endpoint.includes("tv?") ? "tv" : "movie";
 
-    // I need to add the page parameter to the endpoint.
+    // we need to add the page parameter to the endpoint.
     const separator = endpoint.includes("?") ? "&" : "?";
     const url = `${endpoint}${separator}page=${page}`;
 
@@ -61,13 +61,13 @@ export async function getMoreHomepageItems(
       return [];
     }
 
-    // Now, I'll process the results and add categories.
+    // process add categories.
     const itemsWithCategories = await buildMaybeItemsWithCategories<MediaItem>(
       data.results,
       mediaType,
     );
 
-    // I'm filtering out items that don't have a poster.
+    // filterout items that don't have a poster.
     return itemsWithCategories.filter((item) => item.poster_path);
   } catch (error) {
     console.error(`Error fetching more items for ${rowType}:`, error);
