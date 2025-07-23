@@ -1,20 +1,34 @@
 "use server";
 
-import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
+import {
+  buildItemsWithCategories,
+  fetchPaginatedCategory,
+  fetchTMDBData,
+} from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
 import { MediaItem } from "@/utils/typings";
 import React from "react";
 
 export async function getMoreMovies(
   endpoint: string,
-  params: Record<string, string>,
+  params: Record<string, string> | { useCustomFetch: boolean },
   offset: number,
 ): Promise<readonly [React.JSX.Element, number | null] | null> {
   try {
-    const response = await fetchTMDBData(endpoint, {
-      ...params,
-      page: offset.toString(),
-    });
+    let response;
+
+    // Check if this is a custom fetch filter (like director filters)
+    if (typeof params === "object" && "useCustomFetch" in params) {
+      // This is a custom fetch filter, use fetchPaginatedCategory
+      const results = await fetchPaginatedCategory(endpoint, "movie", offset);
+      response = { results, total_pages: 10 }; // Default total_pages for custom fetch
+    } else {
+      // This is a regular filter, use fetchTMDBData
+      response = await fetchTMDBData(endpoint, {
+        ...params,
+        page: offset.toString(),
+      });
+    }
 
     if (!response?.results || response.results.length === 0) {
       return null;
