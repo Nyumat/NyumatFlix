@@ -21,7 +21,7 @@ const ROW_TYPE_TO_ENDPOINT = {
   "nineties-movies":
     "/discover/movie?primary_release_date.gte=1990-01-01&primary_release_date.lte=1999-12-31",
   "early-2000s-movies":
-    "/discover/movie?primary_release_date.gte=2000-01-01&primary_release_date.lte=2009-12-31",
+    "/discover/movie?primary_release_date.gte=2000-01-01&primary_release_date.lte=2009-12-31&without_genres=10749",
   "recent-releases": "/discover/movie?primary_release_date.gte=2025-01-01",
 
   "popular-tvshows": "/tv/popular",

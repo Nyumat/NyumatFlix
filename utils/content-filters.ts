@@ -289,8 +289,9 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
     title: "Upcoming Movies",
     type: "category",
     fetchConfig: {
-      endpoint: "/movie/upcoming",
+      endpoint: "/discover/movie",
       params: {
+        "primary_release_date.gte": new Date().toISOString().split("T")[0],
         region: "US",
       },
     },
@@ -488,9 +489,7 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
       params: {
         "primary_release_date.gte": "2000-01-01",
         "primary_release_date.lte": "2009-12-31",
-        without_genres: "99,10770", // Exclude documentaries and TV movies
-        "vote_count.gte": "200",
-        "vote_average.gte": "6.0",
+        without_genres: "10749",
       },
     },
   },
@@ -503,9 +502,7 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
       params: {
         "primary_release_date.gte": "2010-01-01",
         "primary_release_date.lte": "2019-12-31",
-        without_genres: "99,10770", // Exclude documentaries and TV movies
-        "vote_count.gte": "300",
-        "vote_average.gte": "6.0",
+        without_genres: "10749",
       },
     },
   },
@@ -984,7 +981,85 @@ export const CONTENT_FILTERS: Record<string, ContentFilter> = {
     title: "Popular TV Shows",
     type: "category",
     fetchConfig: {
-      endpoint: "/tv/popular",
+      endpoint: "/discover/tv",
+      params: {
+        sort_by: "popularity.desc",
+        with_origin_country: "US",
+        "vote_count.gte": "100",
+        "vote_average.gte": "6.5",
+        without_genres: "99,10763,10767", // Exclude news, documentaries, and talk shows
+        without_keywords: "talk-show,reality-tv,game-show", // Exclude talk shows and reality TV
+        "first_air_date.gte": "2010-01-01", // Focus on more recent shows for diversity
+      },
+    },
+  },
+  "tv-diverse": {
+    id: "tv-diverse",
+    title: "Diverse TV Shows",
+    type: "special",
+    fetchConfig: {
+      customFetch: async (page: number) => {
+        // Fetch from multiple genres to ensure diversity
+        const genres = [
+          { id: "18", name: "Drama" },
+          { id: "35", name: "Comedy" },
+          { id: "10765", name: "Sci-Fi & Fantasy" },
+          { id: "80", name: "Crime" },
+          { id: "10759", name: "Action & Adventure" },
+        ];
+
+        const allResults: MediaItem[] = [];
+        const seenIds = new Set<number>();
+
+        // Fetch from each genre separately
+        for (const genre of genres) {
+          try {
+            const response = await fetch(
+              `https://api.themoviedb.org/3/discover/tv?api_key=${process.env.TMDB_API_KEY}&with_genres=${genre.id}&with_origin_country=US&language=en-US&include_adult=false&sort_by=popularity.desc&page=${page}&vote_count.gte=80&vote_average.gte=6.5&without_genres=99,10763,10767&first_air_date.gte=2010-01-01`,
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.results) {
+                // Filter out duplicates and items without posters
+                const validResults = data.results.filter((item: MediaItem) => {
+                  if (!item.poster_path || seenIds.has(item.id)) return false;
+                  // Additional filter to exclude talk shows and reality TV
+                  const showName = item.name?.toLowerCase() || "";
+                  const showOverview = item.overview?.toLowerCase() || "";
+                  const excludeKeywords = [
+                    "talk show",
+                    "reality",
+                    "game show",
+                    "news",
+                    "interview",
+                  ];
+                  const hasExcludedKeywords = excludeKeywords.some(
+                    (keyword) =>
+                      showName.includes(keyword) ||
+                      showOverview.includes(keyword),
+                  );
+                  if (hasExcludedKeywords) return false;
+
+                  seenIds.add(item.id);
+                  return true;
+                });
+                allResults.push(...validResults.slice(0, 4)); // Take top 4 from each genre
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching from genre ${genre.name}:`, error);
+          }
+        }
+
+        // Sort by popularity and return
+        allResults.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+
+        return {
+          results: allResults.slice(0, 20), // Return top 20
+          total_pages: 1, // Since we're combining multiple sources
+        };
+      },
     },
   },
   "tv-top-rated": {
@@ -1923,7 +1998,6 @@ export function generateYearFilterId(
   return `year-${year}`;
 }
 
-// Helper function to create year filter params for any year
 export function createYearFilterParams(
   year: string,
   mediaType: "movie" | "tv" = "movie",
@@ -1934,6 +2008,21 @@ export function createYearFilterParams(
   const dateField =
     mediaType === "tv" ? "first_air_date" : "primary_release_date";
 
+  if (year.includes("-")) {
+    const [startYear, endYear] = year.split("-");
+    return {
+      endpoint: `/discover/${mediaType}`,
+      params: {
+        language: "en-US",
+        include_adult: "false",
+        sort_by: "popularity.desc",
+        [`${dateField}.gte`]: `${startYear}-01-01`,
+        [`${dateField}.lte`]: `${endYear}-12-31`,
+        without_genres: "10749",
+      },
+    };
+  }
+
   return {
     endpoint: `/discover/${mediaType}`,
     params: {
@@ -1942,32 +2031,31 @@ export function createYearFilterParams(
       sort_by: "popularity.desc",
       [`${dateField}.gte`]: `${year}-01-01`,
       [`${dateField}.lte`]: `${year}-12-31`,
+      without_genres: "10749",
     },
   };
 }
 
-// Helper function to get filter title
 export function getFilterTitle(
   filterId: string,
   year?: string,
   mediaType: "movie" | "tv" = "movie",
 ): string {
-  // Handle year filters
   if (year) {
+    if (year.includes("-")) {
+      return mediaType === "tv" ? `${year} TV Shows` : `${year} Movies`;
+    }
     return mediaType === "tv" ? `${year} TV Shows` : `${year} Movies`;
   }
 
-  // Handle predefined filters
   const filter = getFilterConfig(filterId);
   if (filter) {
     return filter.title;
   }
 
-  // Handle special cases
   if (filterId === "upcoming") {
     return mediaType === "tv" ? "Upcoming TV Shows" : "Upcoming Movies";
   }
 
-  // Default fallback
   return mediaType === "tv" ? "TV Shows" : "Movies";
 }

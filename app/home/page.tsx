@@ -1,7 +1,12 @@
 import { SuspenseContentRow } from "@/components/content/suspense-content-row";
 import { MediaCarousel } from "@/components/hero";
 import { MediaItem } from "@/utils/typings";
-import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
+import {
+  buildMaybeItemsWithCategories,
+  fetchAndEnrichMediaItems,
+  fetchPaginatedCategory,
+  fetchTMDBData,
+} from "../actions";
 
 // Opt-out of static generation – this page fetches dynamic data and is heavy at build time.
 export const dynamic = "force-dynamic";
@@ -34,6 +39,102 @@ export const metadata = {
     images: ["https://nyumatflix.com/nyumatflix-alt.webp"],
   },
 };
+
+// Row configuration mapping - same as content-rows API
+const ROW_CONFIG: Record<
+  string,
+  { category: string; mediaType: "movie" | "tv" }
+> = {
+  // Standard categories
+  "popular-movies": { category: "popular", mediaType: "movie" },
+  "top-rated-movies": { category: "top_rated", mediaType: "movie" },
+  "upcoming-movies": { category: "upcoming", mediaType: "movie" },
+
+  // Genre-based categories
+  "action-movies": { category: "genre-action", mediaType: "movie" },
+  "comedy-movies": { category: "genre-comedy", mediaType: "movie" },
+  "drama-movies": { category: "genre-drama", mediaType: "movie" },
+  "thriller-movies": { category: "genre-thriller", mediaType: "movie" },
+  "scifi-fantasy-movies": {
+    category: "genre-scifi-fantasy",
+    mediaType: "movie",
+  },
+  "romcom-movies": { category: "genre-romcom", mediaType: "movie" },
+
+  // Studio categories
+  "a24-films": { category: "studio-a24", mediaType: "movie" },
+  "nolan-films": { category: "director-nolan", mediaType: "movie" },
+
+  // Curated picks
+  "hidden-gems": { category: "hidden-gems", mediaType: "movie" },
+  "critically-acclaimed": {
+    category: "critically-acclaimed",
+    mediaType: "movie",
+  },
+
+  // Time-based categories
+  "eighties-movies": { category: "year-80s", mediaType: "movie" },
+  "nineties-movies": { category: "year-90s", mediaType: "movie" },
+  "early-2000s-movies": { category: "year-2000s", mediaType: "movie" },
+
+  // TV-specific categories
+  "popular-tvshows": { category: "tv-popular", mediaType: "tv" },
+  "binge-worthy-series": { category: "tv-diverse", mediaType: "tv" },
+  "limited-series": { category: "tv-limited-series", mediaType: "tv" },
+  "reality-tv": { category: "tv-reality", mediaType: "tv" },
+  docuseries: { category: "tv-docuseries", mediaType: "tv" },
+};
+
+// Server-side content row fetching function
+async function fetchContentRowData(
+  rowId: string,
+  minCount: number,
+  globalSeenIds: Set<number>,
+): Promise<MediaItem[]> {
+  if (!ROW_CONFIG[rowId]) {
+    console.error(`[Home] Invalid row ID: ${rowId}`);
+    return [];
+  }
+
+  const { category, mediaType } = ROW_CONFIG[rowId];
+  let items: MediaItem[] = [];
+  let page = 1;
+
+  const hasValidPoster = (item: MediaItem): boolean =>
+    Boolean(item.poster_path);
+
+  const isUsTvContent = (item: MediaItem): boolean => {
+    return (
+      mediaType !== "tv" ||
+      item.origin_country?.includes("US") ||
+      item.original_language === "en"
+    );
+  };
+
+  const filterAndDeduplicate = (item: MediaItem): boolean => {
+    if (!hasValidPoster(item) || !isUsTvContent(item)) return false;
+    if (globalSeenIds.has(item.id)) return false;
+    globalSeenIds.add(item.id);
+    return true;
+  };
+
+  // Fetch enough pages to get minCount unique items
+  while (items.length < minCount && page <= 10) {
+    const newItems = await fetchPaginatedCategory(category, mediaType, page);
+    if (!newItems || newItems.length === 0) break;
+
+    const processedItems = await buildMaybeItemsWithCategories<MediaItem>(
+      newItems,
+      mediaType,
+    );
+
+    const filteredItems = processedItems.filter(filterAndDeduplicate);
+    items = [...items, ...filteredItems];
+    page++;
+  }
+
+  return items.slice(0, minCount);
+}
 
 export default async function Home() {
   // Fetch both movies and TV shows for the hero carousel
@@ -123,6 +224,125 @@ export default async function Home() {
     ...enrichedTVShows,
   ].sort((a, b) => b.vote_average - a.vote_average);
 
+  // Global tracking of seen IDs across ALL content rows
+  // Start with hero carousel items to ensure they don't appear in content rows
+  const globalSeenIds = new Set<number>();
+  fanFavoriteContentProcessedForHero.forEach((item) =>
+    globalSeenIds.add(item.id),
+  );
+
+  // Define content rows configuration
+  const contentRowsConfig = [
+    {
+      rowId: "top-rated-movies",
+      title: "Top Rated Movies",
+      href: "/movies/browse?type=top-rated",
+      variant: "ranked" as const,
+      enrich: true,
+    },
+    {
+      rowId: "early-2000s-movies",
+      title: "Early 2000s Nostalgia",
+      href: "/movies/browse?year=2000-2009",
+    },
+    {
+      rowId: "popular-movies",
+      title: "Popular Movies",
+      href: "/movies/browse",
+    },
+    {
+      rowId: "popular-tvshows",
+      title: "Popular TV Shows",
+      href: "/tvshows/browse?filter=tv-popular",
+    },
+    {
+      rowId: "nolan-films",
+      title: "Christopher Nolan Films",
+      href: "/movies/browse?type=director-nolan",
+    },
+    {
+      rowId: "scifi-fantasy-movies",
+      title: "Sci-Fi & Fantasy Worlds",
+      href: "/movies/browse?genre=878,14",
+    },
+    {
+      rowId: "binge-worthy-series",
+      title: "Binge-Worthy Series",
+      href: "/tvshows/browse?filter=tv-diverse",
+    },
+    {
+      rowId: "comedy-movies",
+      title: "Laugh Out Loud (Comedies)",
+      href: "/movies/browse?genre=35",
+    },
+    {
+      rowId: "a24-films",
+      title: "A24 Films",
+      href: "/movies/browse?type=studio-a24",
+    },
+    {
+      rowId: "thriller-movies",
+      title: "Edge-of-Your-Seat Thrillers",
+      href: "/movies/browse?genre=53",
+    },
+    {
+      rowId: "limited-series",
+      title: "Limited Series That Hit Hard",
+      href: "/tvshows/browse?filter=tv-limited-series",
+    },
+    {
+      rowId: "drama-movies",
+      title: "Heartfelt Dramas",
+      href: "/movies/browse?genre=18",
+    },
+    {
+      rowId: "critically-acclaimed",
+      title: "Critically Acclaimed",
+      href: "/movies/browse?filter=critically_acclaimed",
+    },
+    {
+      rowId: "eighties-movies",
+      title: "80s Throwbacks",
+      href: "/movies/browse?year=1980-1989",
+    },
+    {
+      rowId: "reality-tv",
+      title: "Reality TV Picks",
+      href: "/tvshows/browse?filter=tv-reality",
+    },
+    {
+      rowId: "nineties-movies",
+      title: "90s Favorites",
+      href: "/movies/browse?year=1990-1999",
+    },
+    {
+      rowId: "romcom-movies",
+      title: "Chill with Rom-Coms",
+      href: "/movies/browse?genre=10749,35",
+    },
+    {
+      rowId: "docuseries",
+      title: "Docuseries You Can't Miss",
+      href: "/tvshows/browse?filter=tv-docuseries",
+    },
+    {
+      rowId: "hidden-gems",
+      title: "Hidden Gems",
+      href: "/movies/browse?filter=hidden_gems",
+    },
+  ];
+
+  // Fetch all content row data server-side with global uniqueness
+  const contentRowsData = await Promise.all(
+    contentRowsConfig.map(async (config) => {
+      const items = await fetchContentRowData(config.rowId, 20, globalSeenIds);
+      return {
+        ...config,
+        items,
+      };
+    }),
+  );
+
   return (
     <div>
       <main>
@@ -141,139 +361,17 @@ export default async function Home() {
             />
           </div>
           <div className="relative z-10 min-h-[200vh]">
-            <SuspenseContentRow
-              rowId="top-rated-movies"
-              title="Top Rated Movies"
-              href="/movies/browse?type=top-rated"
-              variant="ranked"
-              enrich
-            />
-
-            <SuspenseContentRow
-              rowId="early-2000s-movies"
-              title="Early 2000s Nostalgia"
-              href="/movies/browse?year=2000-2009"
-            />
-
-            {/* <SuspenseContentRow
-              rowId="recent-releases"
-              title="New Releases"
-              href="/movies/browse?year=2025"
-            /> */}
-
-            {/* <SuspenseContentRow
-              rowId="upcoming-movies"
-              title="Coming Soon"
-              href="/movies/browse?type=upcoming"
-            /> */}
-
-            <SuspenseContentRow
-              rowId="popular-movies"
-              title="Popular Movies"
-              href="/movies/browse"
-            />
-
-            <SuspenseContentRow
-              rowId="popular-tvshows"
-              title="Popular TV Shows"
-              href="/tvshows/browse?filter=tv-popular"
-            />
-
-            {/* <SuspenseContentRow
-              rowId="action-movies"
-              title="Action-Packed Adventures"
-              href="/movies/browse?genre=28"
-            /> */}
-
-            <SuspenseContentRow
-              rowId="nolan-films"
-              title="Christopher Nolan Films"
-              href="/movies/browse?type=director-nolan"
-            />
-
-            <SuspenseContentRow
-              rowId="scifi-fantasy-movies"
-              title="Sci-Fi & Fantasy Worlds"
-              href="/movies/browse?genre=878,14"
-            />
-
-            <SuspenseContentRow
-              rowId="binge-worthy-series"
-              title="Binge-Worthy Series"
-              href="/tvshows/browse?filter=tv-popular"
-            />
-
-            <SuspenseContentRow
-              rowId="comedy-movies"
-              title="Laugh Out Loud (Comedies)"
-              href="/movies/browse?genre=35"
-            />
-
-            <SuspenseContentRow
-              rowId="a24-films"
-              title="A24 Films"
-              href="/movies/browse?type=studio-a24"
-            />
-
-            <SuspenseContentRow
-              rowId="thriller-movies"
-              title="Edge-of-Your-Seat Thrillers"
-              href="/movies/browse?genre=53"
-            />
-
-            <SuspenseContentRow
-              rowId="limited-series"
-              title="Limited Series That Hit Hard"
-              href="/tvshows/browse?filter=tv-limited-series"
-            />
-
-            <SuspenseContentRow
-              rowId="drama-movies"
-              title="Heartfelt Dramas"
-              href="/movies/browse?genre=18"
-            />
-
-            <SuspenseContentRow
-              rowId="critically-acclaimed"
-              title="Critically Acclaimed"
-              href="/movies/browse?filter=critically_acclaimed"
-            />
-
-            <SuspenseContentRow
-              rowId="eighties-movies"
-              title="80s Throwbacks"
-              href="/movies/browse?year=1980-1989"
-            />
-
-            <SuspenseContentRow
-              rowId="reality-tv"
-              title="Reality TV Picks"
-              href="/tvshows/browse?filter=tv-reality"
-            />
-
-            <SuspenseContentRow
-              rowId="nineties-movies"
-              title="90s Favorites"
-              href="/movies/browse?year=1990-1999"
-            />
-
-            <SuspenseContentRow
-              rowId="romcom-movies"
-              title="Chill with Rom-Coms"
-              href="/movies/browse?genre=10749,35"
-            />
-
-            <SuspenseContentRow
-              rowId="docuseries"
-              title="Docuseries You Can't Miss"
-              href="/tvshows/browse?filter=tv-docuseries"
-            />
-
-            <SuspenseContentRow
-              rowId="hidden-gems"
-              title="Hidden Gems"
-              href="/movies/browse?filter=hidden_gems"
-            />
+            {contentRowsData.map((rowData) => (
+              <SuspenseContentRow
+                key={rowData.rowId}
+                rowId={rowData.rowId}
+                title={rowData.title}
+                href={rowData.href}
+                variant={rowData.variant}
+                enrich={rowData.enrich}
+                preloadedItems={rowData.items}
+              />
+            ))}
           </div>
         </div>
       </main>

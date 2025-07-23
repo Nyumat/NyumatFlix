@@ -91,7 +91,8 @@ const ROW_CONFIG: Record<
   // TV-specific categories
   "popular-tvshows": { category: "tv-popular", mediaType: "tv" },
   "top-rated-tvshows": { category: "tv-top-rated", mediaType: "tv" },
-  "binge-worthy-series": { category: "tv-popular", mediaType: "tv" },
+  "tv-diverse": { category: "tv-diverse", mediaType: "tv" },
+  "binge-worthy-series": { category: "tv-diverse", mediaType: "tv" },
   "limited-series": { category: "tv-limited-series", mediaType: "tv" },
   "reality-tv": { category: "tv-reality", mediaType: "tv" },
   docuseries: { category: "tv-docuseries", mediaType: "tv" },
