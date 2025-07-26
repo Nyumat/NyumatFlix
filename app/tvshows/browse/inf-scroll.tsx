@@ -62,9 +62,22 @@ export async function InfiniteContent({
     );
   }
 
+  // Filter out items without poster_path for consistency
+  const validInitialResults = initialResponse.results.filter(
+    (item: MediaItem) => Boolean(item.poster_path),
+  );
+
+  if (validInitialResults.length === 0) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        No TV shows found matching your criteria.
+      </div>
+    );
+  }
+
   // Process the results with categories
   const processedShows = await buildItemsWithCategories<MediaItem>(
-    initialResponse.results,
+    validInitialResults,
     "tv",
   );
 
@@ -85,8 +98,17 @@ export async function InfiniteContent({
         return null;
       }
 
+      // Filter out items without poster_path to match initial load behavior
+      const validResults = response.results.filter((item: MediaItem) =>
+        Boolean(item.poster_path),
+      );
+
+      if (validResults.length === 0) {
+        return null;
+      }
+
       const processedShows = await buildItemsWithCategories<MediaItem>(
-        response.results,
+        validResults,
         "tv",
       );
 

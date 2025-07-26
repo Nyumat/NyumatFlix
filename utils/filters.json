@@ -1,0 +1,767 @@
+{
+  "movie": {
+    "category": [
+      {
+        "id": "popular",
+        "title": "Popular Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/movie/popular",
+          "without_genres": "10749"
+        }
+      },
+      {
+        "id": "top-rated",
+        "title": "Top Rated Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/movie/top_rated",
+          "without_genres": "10749"
+        }
+      },
+      {
+        "id": "now-playing",
+        "title": "Now Playing",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/movie/now_playing"
+        }
+      },
+      {
+        "id": "upcoming",
+        "title": "Upcoming Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "{{TODAY}}",
+          "primary_release_date.lte": "2026-12-31",
+          "sort_by": "primary_release_date.asc",
+          "without_genres": "99,10770,10749",
+          "vote_count.gte": "5",
+          "vote_average.gte": "4.5",
+          "region": "US"
+        }
+      }
+    ],
+    "genre": [
+      {
+        "id": "genre-action",
+        "title": "Action Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "28",
+          "without_genres": "16,99,10770,10749",
+          "vote_count.gte": "200",
+          "vote_average.gte": "6.2",
+          "runtime.gte": "90"
+        }
+      },
+      {
+        "id": "genre-comedy",
+        "title": "Comedy Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "35",
+          "without_genres": "16,99,10770,27,10749",
+          "vote_count.gte": "100",
+          "vote_average.gte": "6.0",
+          "runtime.gte": "80"
+        }
+      },
+      {
+        "id": "genre-drama",
+        "title": "Drama Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "18",
+          "without_genres": "99,10770,16,10749",
+          "vote_count.gte": "150",
+          "vote_average.gte": "6.8",
+          "runtime.gte": "90"
+        }
+      },
+      {
+        "id": "genre-thriller",
+        "title": "Thriller Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "53",
+          "without_genres": "99,10770,16,10749",
+          "vote_count.gte": "150",
+          "vote_average.gte": "6.3",
+          "runtime.gte": "90"
+        }
+      },
+      {
+        "id": "genre-horror",
+        "title": "Horror Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "27",
+          "without_genres": "99,10770,16,10751,10749",
+          "vote_count.gte": "100",
+          "vote_average.gte": "5.8",
+          "runtime.gte": "80"
+        }
+      },
+      {
+        "id": "genre-scifi-fantasy",
+        "title": "Sci-Fi & Fantasy Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "878|14",
+          "without_genres": "99,10770,10749",
+          "vote_count.gte": "150",
+          "vote_average.gte": "6.2",
+          "runtime.gte": "90"
+        }
+      },
+      {
+        "id": "genre-romcom",
+        "title": "Romantic Comedies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "10749,35",
+          "without_genres": "16,99,10770,27",
+          "vote_count.gte": "80",
+          "vote_average.gte": "6.0",
+          "runtime.gte": "80"
+        }
+      },
+      {
+        "id": "genre-romance",
+        "title": "Romance Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "10749",
+          "without_genres": "16,99,10770,27",
+          "vote_count.gte": "100",
+          "vote_average.gte": "6.0",
+          "runtime.gte": "85"
+        }
+      },
+      {
+        "id": "genre-crime",
+        "title": "Crime Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "80",
+          "without_genres": "16,99,10770,10749",
+          "vote_count.gte": "150",
+          "vote_average.gte": "6.5",
+          "runtime.gte": "90"
+        }
+      },
+      {
+        "id": "genre-mystery",
+        "title": "Mystery Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "with_genres": "9648",
+          "without_genres": "16,99,10770,10749",
+          "vote_count.gte": "100",
+          "vote_average.gte": "6.3",
+          "runtime.gte": "90"
+        }
+      }
+    ],
+    "year": [
+      {
+        "id": "year-80s",
+        "title": "80s Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "1980-01-01",
+          "primary_release_date.lte": "1989-12-31",
+          "without_genres": "99,10770,10749",
+          "vote_count.gte": "100",
+          "vote_average.gte": "6.0"
+        }
+      },
+      {
+        "id": "year-90s",
+        "title": "90s Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "1990-01-01",
+          "primary_release_date.lte": "1999-12-31",
+          "without_genres": "99,10770,10749",
+          "vote_count.gte": "150",
+          "vote_average.gte": "6.0"
+        }
+      },
+      {
+        "id": "year-2000s",
+        "title": "Early 2000s Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2000-01-01",
+          "primary_release_date.lte": "2009-12-31",
+          "without_genres": "10749"
+        }
+      },
+      {
+        "id": "year-2010s",
+        "title": "2010s Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2010-01-01",
+          "primary_release_date.lte": "2019-12-31",
+          "without_genres": "10749"
+        }
+      },
+      {
+        "id": "year-2020",
+        "title": "2020 Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2020-01-01",
+          "primary_release_date.lte": "2020-12-31",
+          "without_genres": "99,10770,10749",
+          "vote_count.gte": "200",
+          "vote_average.gte": "6.0"
+        }
+      },
+      {
+        "id": "year-2021",
+        "title": "2021 Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2021-01-01",
+          "primary_release_date.lte": "2021-12-31",
+          "without_genres": "99,10770",
+          "vote_count.gte": "150",
+          "vote_average.gte": "6.0"
+        }
+      },
+      {
+        "id": "year-2022",
+        "title": "2022 Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2022-01-01",
+          "primary_release_date.lte": "2022-12-31",
+          "without_genres": "99,10770",
+          "vote_count.gte": "150",
+          "vote_average.gte": "6.0"
+        }
+      },
+      {
+        "id": "year-2023",
+        "title": "2023 Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2023-01-01",
+          "primary_release_date.lte": "2023-12-31",
+          "without_genres": "99,10770",
+          "vote_count.gte": "100",
+          "vote_average.gte": "6.0"
+        }
+      },
+      {
+        "id": "year-2024",
+        "title": "2024 Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2024-01-01",
+          "primary_release_date.lte": "2024-12-31",
+          "without_genres": "99,10770",
+          "vote_count.gte": "50",
+          "vote_average.gte": "6.0"
+        }
+      },
+      {
+        "id": "year-2025",
+        "title": "2025 Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2025-01-01",
+          "primary_release_date.lte": "2025-12-31",
+          "without_genres": "99,10770",
+          "vote_count.gte": "10",
+          "vote_average.gte": "5.5"
+        }
+      }
+    ],
+    "studio": [
+      {
+        "id": "studio-a24",
+        "title": "A24 Films",
+        "mediaType": "movie",
+        "customFetcher": "fetchByStudio",
+        "customParams": {
+          "studioKey": "a24"
+        }
+      },
+      {
+        "id": "studio-pixar",
+        "title": "Pixar Animation Studios",
+        "mediaType": "movie",
+        "customFetcher": "fetchByStudio",
+        "customParams": {
+          "studioKey": "pixar"
+        }
+      },
+      {
+        "id": "studio-disney",
+        "title": "Disney Movies",
+        "mediaType": "movie",
+        "customFetcher": "fetchByStudio",
+        "customParams": {
+          "studioKey": "disney"
+        }
+      },
+      {
+        "id": "studio-warner-bros",
+        "title": "Warner Bros. Pictures",
+        "mediaType": "movie",
+        "customFetcher": "fetchByStudio",
+        "customParams": {
+          "studioKey": "warner-bros"
+        }
+      },
+      {
+        "id": "studio-universal",
+        "title": "Universal Pictures",
+        "mediaType": "movie",
+        "customFetcher": "fetchByStudio",
+        "customParams": {
+          "studioKey": "universal"
+        }
+      },
+      {
+        "id": "studio-dreamworks",
+        "title": "DreamWorks Pictures",
+        "mediaType": "movie",
+        "customFetcher": "fetchByStudio",
+        "customParams": {
+          "studioKey": "dreamworks"
+        }
+      }
+    ],
+    "director": [
+      {
+        "id": "director-nolan",
+        "title": "Christopher Nolan Films",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "nolan"
+        }
+      },
+      {
+        "id": "director-tarantino",
+        "title": "Quentin Tarantino Films",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "tarantino"
+        }
+      },
+      {
+        "id": "director-spielberg",
+        "title": "Steven Spielberg Films",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "spielberg"
+        }
+      },
+      {
+        "id": "director-scorsese",
+        "title": "Martin Scorsese Films",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "scorsese"
+        }
+      },
+      {
+        "id": "director-fincher",
+        "title": "David Fincher Films",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "fincher"
+        }
+      },
+      {
+        "id": "director-villeneuve",
+        "title": "Denis Villeneuve Films",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "villeneuve"
+        }
+      }
+    ],
+    "special": [
+      {
+        "id": "critically-acclaimed",
+        "title": "Critically Acclaimed Movies",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "vote_average.gte": "7.8",
+          "vote_count.gte": "1500",
+          "without_genres": "99,10770,16,10749",
+          "sort_by": "vote_average.desc",
+          "runtime.gte": "90"
+        }
+      },
+      {
+        "id": "hidden-gems",
+        "title": "Hidden Gems",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "vote_average.gte": "7.3",
+          "vote_count.gte": "500",
+          "vote_count.lte": "5000",
+          "without_genres": "99,10770,10749",
+          "sort_by": "vote_average.desc",
+          "runtime.gte": "85"
+        }
+      },
+      {
+        "id": "blockbuster-hits",
+        "title": "Blockbuster Hits",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "vote_count.gte": "3000",
+          "vote_average.gte": "6.5",
+          "without_genres": "99,10770,10749",
+          "sort_by": "revenue.desc",
+          "runtime.gte": "100"
+        }
+      },
+      {
+        "id": "award-winners",
+        "title": "Award Winners",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "vote_average.gte": "7.5",
+          "vote_count.gte": "1000",
+          "without_genres": "99,10770,10749",
+          "with_keywords": "162846|207320|159067",
+          "sort_by": "vote_average.desc"
+        }
+      },
+      {
+        "id": "cult-classics",
+        "title": "Cult Classics",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "vote_average.gte": "7.0",
+          "vote_count.gte": "800",
+          "primary_release_date.lte": "2010-12-31",
+          "without_genres": "99,10770,10749",
+          "sort_by": "vote_average.desc"
+        }
+      },
+      {
+        "id": "indie-films",
+        "title": "Independent Films",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "vote_average.gte": "6.8",
+          "vote_count.gte": "200",
+          "vote_count.lte": "2000",
+          "without_genres": "99,10770,16,10749",
+          "with_companies": "41077|1556|23243|10146",
+          "sort_by": "vote_average.desc"
+        }
+      },
+      {
+        "id": "marvel-mcu",
+        "title": "Marvel Cinematic Universe",
+        "mediaType": "movie",
+        "customFetcher": "fetchByCollection",
+        "customParams": {
+          "collectionKey": "marvel-mcu"
+        }
+      },
+      {
+        "id": "star-wars",
+        "title": "Star Wars Saga",
+        "mediaType": "movie",
+        "customFetcher": "fetchByCollection",
+        "customParams": {
+          "collectionKey": "star-wars"
+        }
+      },
+      {
+        "id": "fast-furious",
+        "title": "Fast & Furious",
+        "mediaType": "movie",
+        "customFetcher": "fetchByCollection",
+        "customParams": {
+          "collectionKey": "fast-furious"
+        }
+      },
+      {
+        "id": "harry-potter",
+        "title": "Harry Potter Collection",
+        "mediaType": "movie",
+        "customFetcher": "fetchByCollection",
+        "customParams": {
+          "collectionKey": "harry-potter"
+        }
+      },
+      {
+        "id": "lord-of-rings",
+        "title": "Lord of the Rings",
+        "mediaType": "movie",
+        "customFetcher": "fetchByCollection",
+        "customParams": {
+          "collectionKey": "lord-of-rings"
+        }
+      }
+    ]
+  },
+  "tv": {
+    "category": [
+      {
+        "id": "tv-popular",
+        "title": "Popular TV Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "sort_by": "popularity.desc",
+          "with_origin_country": "US",
+          "vote_count.gte": "100",
+          "vote_average.gte": "6.5",
+          "without_genres": "99,10763,10767",
+          "without_keywords": "talk-show,reality-tv,game-show",
+          "first_air_date.gte": "2010-01-01"
+        }
+      },
+      {
+        "id": "tv-diverse",
+        "title": "Diverse TV Shows",
+        "mediaType": "tv",
+        "customFetcher": "fetchDiverseTV"
+      },
+      {
+        "id": "tv-top-rated",
+        "title": "Top Rated TV Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/tv/top_rated"
+        }
+      },
+      {
+        "id": "tv-on-the-air",
+        "title": "Currently Airing",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/tv/on_the_air"
+        }
+      },
+      {
+        "id": "tv-airing-today",
+        "title": "Airing Today",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/tv/airing_today"
+        }
+      }
+    ],
+    "genre": [
+      {
+        "id": "tv-genre-comedy",
+        "title": "Comedy Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "35",
+          "with_origin_country": "US",
+          "vote_count.gte": "100",
+          "vote_average.gte": "7.0",
+          "without_genres": "99,10763",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-genre-drama",
+        "title": "Drama Series",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "18",
+          "with_origin_country": "US",
+          "vote_count.gte": "150",
+          "vote_average.gte": "7.2",
+          "without_genres": "99,10763",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-genre-scifi-fantasy",
+        "title": "Sci-Fi & Fantasy Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "10765",
+          "with_origin_country": "US",
+          "vote_count.gte": "120",
+          "vote_average.gte": "7.0",
+          "without_genres": "99,10763,16",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-genre-crime",
+        "title": "Crime & Mystery",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "80|9648",
+          "with_origin_country": "US",
+          "vote_count.gte": "150",
+          "vote_average.gte": "7.2",
+          "without_genres": "99,10763",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-genre-animation",
+        "title": "Animated Series",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "16",
+          "vote_count.gte": "80",
+          "vote_average.gte": "7.0",
+          "without_genres": "99,10763,10765",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-genre-kids",
+        "title": "Kids & Family",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "10762",
+          "vote_count.gte": "60",
+          "vote_average.gte": "6.5",
+          "without_genres": "99,10763",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-genre-action",
+        "title": "Action & Adventure",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "10759",
+          "with_origin_country": "US",
+          "vote_count.gte": "120",
+          "vote_average.gte": "7.0",
+          "without_genres": "99,10763",
+          "sort_by": "popularity.desc"
+        }
+      }
+    ],
+    "special": [
+      {
+        "id": "tv-limited-series",
+        "title": "Limited Series",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_type": "2",
+          "vote_average.gte": "7.5"
+        }
+      },
+      {
+        "id": "tv-sitcoms",
+        "title": "Classic Sitcoms",
+        "mediaType": "tv",
+        "customFetcher": "fetchSitcoms"
+      },
+      {
+        "id": "tv-reality",
+        "title": "Reality TV",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "10764",
+          "vote_count.gte": "50",
+          "vote_average.gte": "6.0",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-docuseries",
+        "title": "Docuseries",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "99",
+          "vote_count.gte": "30",
+          "vote_average.gte": "7.0",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-family",
+        "title": "Family Favorites",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "10751",
+          "with_origin_country": "US",
+          "vote_count.gte": "80",
+          "vote_average.gte": "6.8",
+          "without_genres": "99,10763",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-kdrama",
+        "title": "Popular K-Dramas",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_origin_country": "KR",
+          "with_genres": "18",
+          "sort_by": "popularity.desc",
+          "vote_count.gte": "5"
+        }
+      },
+      {
+        "id": "tv-network-hits",
+        "title": "Network TV Hits",
+        "mediaType": "tv",
+        "customFetcher": "fetchNetworkHits"
+      }
+    ]
+  }
+}

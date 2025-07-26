@@ -1,6 +1,6 @@
 import { buildItemsWithCategories, getMovies } from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
-import { MovieCategory } from "@/utils/typings";
+import { MediaItem, MovieCategory } from "@/utils/typings";
 import { LoadMore } from "./load-more";
 
 interface ICProps {
@@ -11,9 +11,16 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
   const initialMoviesResponse = await getMovies(type, 1);
   if (!initialMoviesResponse?.results) return <div>No movies found</div>;
 
+  // Filter out items without poster_path for consistency
+  const validInitialResults = initialMoviesResponse.results.filter(
+    (item: MediaItem) => Boolean(item.poster_path),
+  );
+
+  if (validInitialResults.length === 0) return <div>No movies found</div>;
+
   // Transform the raw results into MediaItem[]
   const initialMovies = await buildItemsWithCategories(
-    initialMoviesResponse.results,
+    validInitialResults,
     "movie",
   );
 
@@ -27,9 +34,18 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
         return null;
       }
 
+      // Filter out items without poster_path to match initial load behavior
+      const validResults = response.results.filter((item: MediaItem) =>
+        Boolean(item.poster_path),
+      );
+
+      if (validResults.length === 0) {
+        return null;
+      }
+
       // Transform the raw results into MediaItem[]
       const processedMovies = await buildItemsWithCategories(
-        response.results,
+        validResults,
         "movie",
       );
 

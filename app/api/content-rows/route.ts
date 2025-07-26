@@ -7,8 +7,10 @@ import { MediaItem } from "@/utils/typings";
 import { NextResponse } from "next/server";
 
 /**
- * Maps row IDs to their corresponding category and type information
+ * Use centralized content row configuration
  */
+
+// Legacy compatibility - this will be removed once all clients use the centralized system
 const ROW_CONFIG: Record<
   string,
   { category: string; mediaType: "movie" | "tv" }
