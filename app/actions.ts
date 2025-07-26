@@ -1,8 +1,10 @@
 import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
 import { logger } from "@/lib/utils";
 import {
+  addRomanceFiltering,
   buildFilterParams,
   buildFilterParamsAsync,
+  filterRomanceContent,
   getFilterConfig,
 } from "@/utils/content-filters";
 import {
@@ -80,7 +82,8 @@ export async function buildItemsWithCategories<
     }
   });
 
-  return processedItems;
+  // Apply romance content filtering as a final step
+  return filterRomanceContent(processedItems);
 }
 
 export async function buildMaybeItemsWithCategories<
@@ -127,16 +130,23 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/movie/top_rated", {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
-    fetchTMDBData("/tv/popular", { language: "en-US", include_adult: "false" }),
+    fetchTMDBData("/tv/popular", {
+      language: "en-US",
+      include_adult: "false",
+      without_genres: "10749",
+    }),
     fetchTMDBData("/tv/top_rated", {
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
 
     // Genre-Based Rows (Movies)
@@ -146,6 +156,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       with_genres: "35",
@@ -153,6 +164,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       with_genres: "18",
@@ -160,6 +172,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       with_genres: "53",
@@ -167,6 +180,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       with_genres: "878,14",
@@ -174,6 +188,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       with_genres: "10749,35",
@@ -192,6 +207,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       "vote_average.gte": "8.0",
@@ -200,6 +216,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
 
     // Time-Based Categories (Movies)
@@ -210,6 +227,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       "primary_release_date.gte": "1990-01-01",
@@ -218,6 +236,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       "primary_release_date.gte": "2000-01-01",
@@ -226,6 +245,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
     fetchTMDBData("/discover/movie", {
       "primary_release_date.gte": "2023-01-01",
@@ -233,6 +253,7 @@ export const fetchAllData = async () => {
       region: "US",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }),
 
     // TV-Specific
@@ -240,6 +261,7 @@ export const fetchAllData = async () => {
       sort_by: "popularity.desc",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }), // Binge-Worthy Series
     fetchTMDBData("/discover/tv", {
       with_type: "5",
@@ -247,18 +269,21 @@ export const fetchAllData = async () => {
       sort_by: "popularity.desc",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }), // Limited Series
     fetchTMDBData("/discover/tv", {
       with_genres: "10764",
       sort_by: "popularity.desc",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }), // Reality TV
     fetchTMDBData("/discover/tv", {
       with_genres: "99",
       sort_by: "popularity.desc",
       language: "en-US",
       include_adult: "false",
+      without_genres: "10749",
     }), // Docuseries
     // Fetch for Fan Favorite Classics Hero Carousel
     fetchTMDBData("/discover/movie", {
@@ -269,6 +294,7 @@ export const fetchAllData = async () => {
       include_adult: "false",
       language: "en-US",
       region: "US",
+      without_genres: "10749",
     }),
   ]);
 
@@ -328,7 +354,12 @@ export async function fetchTMDBData<T = MediaItem>(
   url.searchParams.append("api_key", apiKey);
   url.searchParams.append("page", page.toString());
 
-  for (const [key, value] of Object.entries(params)) {
+  // Apply romance filtering to params unless this is specifically a romance query
+  const isRomanceQuery =
+    params.with_genres?.includes("10749") || endpoint.includes("romance");
+  const filteredParams = isRomanceQuery ? params : addRomanceFiltering(params);
+
+  for (const [key, value] of Object.entries(filteredParams)) {
     if (typeof key === "string" && typeof value === "string") {
       url.searchParams.append(key, value);
     }
@@ -822,52 +853,41 @@ export async function fetchMoviesByPerson(
   personId: number,
   page: number = 1,
   job?: string,
-  releaseDateBefore?: string,
 ) {
   try {
-    const params: Params = {
-      with_people: personId.toString(),
-      sort_by: "popularity.desc",
-      language: "en-US",
-      include_adult: "false",
-      page: page.toString(),
-    };
+    // Get the person's credits directly - this is more accurate for specific directors
+    const creditsData = await fetchTMDBData(
+      `/person/${personId}/movie_credits`,
+    );
+    let creditsList = creditsData.crew || [];
 
-    // Add date filtering if provided
-    if (releaseDateBefore) {
-      params["primary_release_date.lte"] = releaseDateBefore;
-    }
-
-    const data = await fetchTMDBData("/discover/movie", params, page);
-
-    let results = data.results || [];
-
-    // If job is specified, we need to verify each person's role
-    if (job && results.length > 0) {
-      // Get the person's credits
-      const creditsData = await fetchTMDBData(
-        `/person/${personId}/movie_credits`,
-      );
-      const creditsList = creditsData.crew || [];
-
-      // Filter the movie IDs where the person has the specified job
-      const moviesWithSpecifiedJob = new Set(
-        creditsList
-          .filter((credit: { job: string }) => credit.job === job)
-          .map((credit: { id: number }) => credit.id),
-      );
-
-      // Filter our results to only include movies where the person had the specified job
-      results = results.filter((movie: MediaItem) =>
-        moviesWithSpecifiedJob.has(movie.id),
+    // Filter for movies where the person has the specified job (if provided)
+    if (job) {
+      creditsList = creditsList.filter(
+        (credit: { job: string }) => credit.job === job,
       );
     }
+
+    // Filter out items without posters and sort by popularity (most popular first)
+    const results = creditsList
+      .filter((item: MediaItem) => item.poster_path)
+      .sort((a: MediaItem, b: MediaItem) => {
+        // Sort by popularity (higher popularity first)
+        const popularityA = a.popularity || 0;
+        const popularityB = b.popularity || 0;
+        return popularityB - popularityA;
+      });
+
+    // Paginate results (20 per page)
+    const startIndex = (page - 1) * 20;
+    const endIndex = startIndex + 20;
+    const paginatedResults = results.slice(startIndex, endIndex);
 
     return {
-      page: data.page,
-      results: results,
-      total_pages: data.total_pages,
-      total_results: data.total_results,
+      page,
+      results: paginatedResults,
+      total_pages: Math.ceil(results.length / 20),
+      total_results: results.length,
     };
   } catch (error) {
     logger.error(`Error fetching movies for person ${personId}:`, error);

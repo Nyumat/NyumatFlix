@@ -176,12 +176,12 @@ export default async function TVShowsPage() {
   const contentRowsConfig = [
     {
       rowId: "tv-diverse",
-      title: "Popular TV Shows",
+      title: "Popular Shows",
       href: "/tvshows/browse?filter=tv-diverse",
     },
     {
       rowId: "top-rated-tvshows",
-      title: "Top Rated TV Shows",
+      title: "Top Rated Shows",
       href: "/tvshows/browse?filter=tv-top-rated",
       variant: "ranked" as const,
     },
@@ -203,7 +203,7 @@ export default async function TVShowsPage() {
     },
     {
       rowId: "miniseries",
-      title: "Critically Acclaimed Miniseries",
+      title: "Limited Series",
       href: "/tvshows/browse?filter=tv-limited-series",
     },
     {
@@ -213,7 +213,7 @@ export default async function TVShowsPage() {
     },
     {
       rowId: "mind-bending-scifi",
-      title: "Mind-Bending Sci-Fi",
+      title: "Sci-Fi & Fantasy",
       href: "/tvshows/browse?filter=tv-mind-bending-scifi",
       enrich: true,
     },
@@ -224,7 +224,7 @@ export default async function TVShowsPage() {
     },
     {
       rowId: "tv-drama",
-      title: "Critically Acclaimed Dramas",
+      title: "Drama & Mystery",
       href: "/tvshows/browse?filter=tv-genre-drama",
     },
     {
@@ -274,7 +274,7 @@ export default async function TVShowsPage() {
     },
     {
       rowId: "kdrama",
-      title: "Popular K-Dramas",
+      title: "K-Dramas",
       href: "/tvshows/browse?filter=tv-kdrama",
     },
     {

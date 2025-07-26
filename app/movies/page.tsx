@@ -3,12 +3,8 @@ import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
-import {
-  buildMaybeItemsWithCategories,
-  fetchAndEnrichMediaItems,
-  fetchPaginatedCategory,
-  fetchTMDBData,
-} from "../actions";
+import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
+import { fetchMultipleContentRows } from "@/lib/content-row-fetcher";
 
 export const metadata: Metadata = {
   title: "Movies | NyumatFlix",
@@ -43,97 +39,7 @@ export interface Movie {
   categories?: string[];
 }
 
-// Row configuration mapping - same as content-rows API for movies
-const ROW_CONFIG: Record<
-  string,
-  { category: string; mediaType: "movie" | "tv" }
-> = {
-  // Standard categories
-  "popular-movies": { category: "popular", mediaType: "movie" },
-  "top-rated-movies": { category: "top_rated", mediaType: "movie" },
-  "upcoming-movies": { category: "upcoming", mediaType: "movie" },
-
-  // Genre-based categories
-  "action-movies": { category: "genre-action", mediaType: "movie" },
-  "comedy-movies": { category: "genre-comedy", mediaType: "movie" },
-  "drama-movies": { category: "genre-drama", mediaType: "movie" },
-  "thriller-movies": { category: "genre-thriller", mediaType: "movie" },
-  "scifi-fantasy-movies": {
-    category: "genre-scifi-fantasy",
-    mediaType: "movie",
-  },
-  "romcom-movies": { category: "genre-romcom", mediaType: "movie" },
-
-  // Studio categories
-  "a24-films": { category: "studio-a24", mediaType: "movie" },
-  "disney-magic": { category: "studio-disney", mediaType: "movie" },
-  "pixar-animation": { category: "studio-pixar", mediaType: "movie" },
-  "warner-bros": { category: "studio-warner-bros", mediaType: "movie" },
-  "universal-films": { category: "studio-universal", mediaType: "movie" },
-  "dreamworks-films": { category: "studio-dreamworks", mediaType: "movie" },
-
-  // Director categories
-  "nolan-films": { category: "director-nolan", mediaType: "movie" },
-  "tarantino-films": { category: "director-tarantino", mediaType: "movie" },
-  "spielberg-films": { category: "director-spielberg", mediaType: "movie" },
-  "scorsese-films": { category: "director-scorsese", mediaType: "movie" },
-
-  // Curated picks
-  "hidden-gems": { category: "hidden-gems", mediaType: "movie" },
-  "critically-acclaimed": {
-    category: "critically-acclaimed",
-    mediaType: "movie",
-  },
-
-  // Time-based categories
-  "eighties-movies": { category: "year-80s", mediaType: "movie" },
-  "nineties-movies": { category: "year-90s", mediaType: "movie" },
-  "early-2000s-movies": { category: "year-2000s", mediaType: "movie" },
-  "recent-releases": { category: "recent-releases", mediaType: "movie" },
-};
-
-// Server-side content row fetching function for movies
-async function fetchContentRowData(
-  rowId: string,
-  minCount: number,
-  globalSeenIds: Set<number>,
-): Promise<MediaItem[]> {
-  if (!ROW_CONFIG[rowId]) {
-    console.error(`[Movies] Invalid row ID: ${rowId}`);
-    return [];
-  }
-
-  const { category, mediaType } = ROW_CONFIG[rowId];
-  let items: MediaItem[] = [];
-  let page = 1;
-
-  const hasValidPoster = (item: MediaItem): boolean =>
-    Boolean(item.poster_path);
-
-  const filterAndDeduplicate = (item: MediaItem): boolean => {
-    if (!hasValidPoster(item)) return false;
-    if (globalSeenIds.has(item.id)) return false;
-    globalSeenIds.add(item.id);
-    return true;
-  };
-
-  // Fetch enough pages to get minCount unique items
-  while (items.length < minCount && page <= 10) {
-    const newItems = await fetchPaginatedCategory(category, mediaType, page);
-    if (!newItems || newItems.length === 0) break;
-
-    const processedItems = await buildMaybeItemsWithCategories<MediaItem>(
-      newItems,
-      mediaType,
-    );
-
-    const filteredItems = processedItems.filter(filterAndDeduplicate);
-    items = [...items, ...filteredItems];
-    page++;
-  }
-
-  return items.slice(0, minCount);
-}
+// Use centralized content row configuration
 
 export default async function MoviesPage() {
   const trendingMoviesResponse = await fetchTMDBData("/discover/movie", {
@@ -157,12 +63,7 @@ export default async function MoviesPage() {
     "movie",
   );
 
-  // Global tracking of seen IDs across ALL content rows
-  // Start with hero carousel items to ensure they don't appear in content rows
-  const globalSeenIds = new Set<number>();
-  enrichedTrendingItems.forEach((item) => globalSeenIds.add(item.id));
-
-  // Define content rows configuration
+  // Define content rows configuration with display metadata
   const contentRowsConfig = [
     {
       rowId: "top-rated-movies",
@@ -192,7 +93,7 @@ export default async function MoviesPage() {
     },
     {
       rowId: "recent-releases",
-      title: "New Releases",
+      title: "Just Dropped",
       href: "/movies/browse?year=2025",
     },
     {
@@ -278,16 +179,28 @@ export default async function MoviesPage() {
     },
   ];
 
-  // Fetch all content row data server-side with global uniqueness
-  const contentRowsData = await Promise.all(
-    contentRowsConfig.map(async (config) => {
-      const items = await fetchContentRowData(config.rowId, 20, globalSeenIds);
-      return {
-        ...config,
-        items,
-      };
-    }),
+  // Extract hero carousel IDs to avoid duplicates in content rows
+  const heroIds = new Set(enrichedTrendingItems.map((item) => item.id));
+
+  // Fetch all content row data using centralized system
+  const contentRowResults = await fetchMultipleContentRows(
+    contentRowsConfig.map((config) => ({
+      rowId: config.rowId,
+      minCount: 20,
+    })),
   );
+
+  // Filter out hero content from results and combine with display metadata
+  const contentRowsData = contentRowsConfig.map((config) => {
+    const result = contentRowResults.find((r) => r.rowId === config.rowId);
+    const filteredItems =
+      result?.items.filter((item) => !heroIds.has(item.id)) || [];
+
+    return {
+      ...config,
+      items: filteredItems,
+    };
+  });
 
   return (
     <>

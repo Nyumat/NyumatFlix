@@ -3,7 +3,6 @@ import { ContentGrid } from "@/components/content/media-content-grid";
 import {
   buildFilterParams,
   createYearFilterParams,
-  generateYearFilterId,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { getMoreMovies } from "./actions";
@@ -21,14 +20,12 @@ export async function FilteredMovieContent({
   year,
 }: FilteredMovieContentProps): Promise<JSX.Element> {
   // Determine the filter ID based on the parameters
-  let resolvedFilterId = filterId || "";
+  const resolvedFilterId = filterId || "";
   let endpoint = "";
   let params: Record<string, string> = {};
 
   // Handle year filtering first
   if (year) {
-    // Try to find predefined year filter first
-    const yearFilterId = generateYearFilterId(year, "movie");
     const yearFilterConfig = createYearFilterParams(year, "movie");
     endpoint = yearFilterConfig.endpoint;
     params = yearFilterConfig.params;
@@ -40,6 +37,7 @@ export async function FilteredMovieContent({
       language: "en-US",
       include_adult: "false",
       sort_by: "popularity.desc",
+      with_original_language: "en",
     };
   } else if (resolvedFilterId) {
     // Use the filter configuration if filterId is provided

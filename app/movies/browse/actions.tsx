@@ -34,8 +34,17 @@ export async function getMoreMovies(
       return null;
     }
 
+    // Filter out items without poster_path to match initial load behavior
+    const validResults = response.results.filter((item: MediaItem) =>
+      Boolean(item.poster_path),
+    );
+
+    if (validResults.length === 0) {
+      return null;
+    }
+
     const processedMovies = await buildItemsWithCategories<MediaItem>(
-      response.results,
+      validResults,
       "movie",
     );
 
