@@ -22,7 +22,7 @@ interface GenreBadgeProps {
 export function GenreBadge({
   genreId,
   genreName,
-  mediaType = "movie",
+  mediaType,
   variant = "secondary",
   className,
   clickable = true,

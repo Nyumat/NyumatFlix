@@ -143,7 +143,7 @@ export function HeroContent({
                         {media.tagline}
                       </p>
                     )}
-                    <HeroGenres genres={media.genres} />
+                    <HeroGenres genres={media.genres} mediaType={mediaType} />
                   </>
                 )}
                 <HeroDetails
