@@ -7,7 +7,7 @@ interface HeroGenresProps {
   mediaType?: "movie" | "tv";
 }
 
-export function HeroGenres({ genres, mediaType = "movie" }: HeroGenresProps) {
+export function HeroGenres({ genres, mediaType }: HeroGenresProps) {
   if (!genres || genres.length === 0) {
     return null;
   }

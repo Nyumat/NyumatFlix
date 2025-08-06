@@ -171,6 +171,7 @@ function MediaInfoDialog({
 
   const isMovie = "title" in media;
   const mediaType = isMovie ? "Movie" : "TV Show";
+  const mediaInfoDialogType = isMovie ? "movie" : "tv";
 
   // Safely access enhanced properties
   const runtime =
@@ -300,6 +301,7 @@ function MediaInfoDialog({
                         genreId={genre.id}
                         className="text-xs bg-white/10 border-white/20 text-white"
                         genreName={genre.name}
+                        mediaType={mediaInfoDialogType}
                       />
                     ))}
                   </div>
