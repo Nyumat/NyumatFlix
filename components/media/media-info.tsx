@@ -66,8 +66,9 @@ export const Info = ({
       <h3 className="text-xs sm:text-sm md:text-base font-semibold mb-1 leading-tight line-clamp-2">
         {title}
       </h3>
-      <div className="sm:hidden flex items-center justify-between text-xs">
+      <div className="flex items-center gap-2 mb-2 text-xs md:text-sm flex-wrap">
         <span className="text-muted-foreground">{formatDate(releaseDate)}</span>
+
         {voteAverage && voteAverage > 0 && (
           <div className="flex items-center gap-1">
             <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
@@ -76,71 +77,55 @@ export const Info = ({
             </span>
           </div>
         )}
-      </div>
-      <div className="hidden sm:block">
-        <div className="flex items-center gap-2 mb-2 text-xs md:text-sm flex-wrap">
-          <span className="text-muted-foreground">
-            {formatDate(releaseDate)}
-          </span>
 
-          {voteAverage && voteAverage > 0 && (
-            <div className="flex items-center gap-1">
-              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-              <span className="text-muted-foreground">
-                {voteAverage.toFixed(1)}
-              </span>
-            </div>
-          )}
+        {runtime && (
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-muted-foreground">
+              {formatRuntime(runtime)}
+            </span>
+          </div>
+        )}
 
-          {runtime && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                {formatRuntime(runtime)}
-              </span>
-            </div>
-          )}
-
-          {rating && (
-            <Badge
-              variant="outline"
-              className="text-[10px] py-0 h-4 px-1.5 bg-muted/20 border-border text-muted-foreground font-normal rounded-sm whitespace-nowrap"
-            >
-              {rating}
-            </Badge>
-          )}
-
+        {rating && (
           <Badge
-            href={mediaType === "movie" ? "/movies" : "/tvshows"}
             variant="outline"
-            className="text-[10px] py-0 h-4 px-1.5 bg-primary/10 border-primary/30 text-primary font-medium rounded-sm hover:bg-primary/20 hover:border-primary/50 transition-colors cursor-pointer"
+            className="text-[10px] py-0 h-4 px-1.5 bg-muted/20 border-border text-muted-foreground font-normal rounded-sm whitespace-nowrap"
           >
-            {mediaType === "movie" ? "Movie" : "TV"}
+            {rating}
           </Badge>
+        )}
 
-          {country && country.length > 0 && (
-            <CountryBadge
-              country={country[0]}
-              variant="outline"
-              className="text-xs py-0 h-4 px-1.5 bg-muted/20 border-border text-muted-foreground font-normal rounded-sm"
-              size="sm"
-              showName={false}
-              mediaType={mediaType}
-            />
-          )}
-        </div>
+        <Badge
+          href={mediaType === "movie" ? "/movies" : "/tvshows"}
+          variant="outline"
+          className="text-[10px] py-0 h-4 px-1.5 bg-primary/10 border-primary/30 text-primary font-medium rounded-sm hover:bg-primary/20 hover:border-primary/50 transition-colors cursor-pointer"
+        >
+          {mediaType === "movie" ? "Movie" : "TV"}
+        </Badge>
 
-        {genres && genres.length > 0 && (
-          <SmartGenreBadgeGroup
-            genreIds={genres.map((g) => g.id)}
-            mediaType={mediaType}
-            maxVisible={1}
-            className="flex flex-wrap gap-1 items-center"
-            badgeClassName="text-[10px] h-auto bg-muted/20 text-muted-foreground px-1 py-0.5 border border-border font-normal hover:bg-primary/20 hover:text-primary hover:border-primary/50 transition-colors"
+        {country && country.length > 0 && (
+          <CountryBadge
+            country={country[0]}
             variant="outline"
+            className="text-xs py-0 h-4 px-1.5 bg-muted/20 border-border text-muted-foreground font-normal rounded-sm"
+            size="sm"
+            showName={false}
+            mediaType={mediaType}
           />
         )}
       </div>
+
+      {genres && genres.length > 0 && (
+        <SmartGenreBadgeGroup
+          genreIds={genres.map((g) => g.id)}
+          mediaType={mediaType}
+          maxVisible={1}
+          className="flex flex-wrap gap-1 items-center"
+          badgeClassName="text-[10px] h-auto bg-muted/20 text-muted-foreground px-1 py-0.5 border border-border font-normal hover:bg-primary/20 hover:text-primary hover:border-primary/50 transition-colors"
+          variant="outline"
+        />
+      )}
     </div>
   );
 };

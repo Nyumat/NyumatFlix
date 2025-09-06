@@ -33,7 +33,6 @@ export function ContentGrid({
 }: ContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
 
-  // Sync internal view mode when defaultViewMode prop changes
   useEffect(() => {
     setViewMode(defaultViewMode);
   }, [defaultViewMode]);

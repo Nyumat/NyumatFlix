@@ -38,7 +38,6 @@ function ListViewCard(props: {
   const voteAverage = item.vote_average;
   const overview = item.overview || "";
 
-  // Format date
   const formatDate = (dateString?: string) => {
     if (!dateString) return "TBA";
     try {
@@ -48,7 +47,6 @@ function ListViewCard(props: {
     }
   };
 
-  // Format runtime
   const formatRuntime = (minutes?: number) => {
     if (!minutes) return null;
     const hours = Math.floor(minutes / 60);
@@ -58,7 +56,6 @@ function ListViewCard(props: {
       : `${remainingMinutes}m`;
   };
 
-  // Get runtime from enriched data
   const runtime =
     type === "movie" && "runtime" in item
       ? (item as MediaItem & { runtime?: number }).runtime
@@ -111,7 +108,6 @@ function ListViewCard(props: {
       className="group relative overflow-hidden bg-card/50 backdrop-blur-md border border-border/20 hover:border-primary/40 transition-all duration-300 cursor-pointer"
       onClick={() => router.push(href)}
     >
-      {/* Backdrop Background */}
       {backdropUrl && (
         <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-300">
           <Image
@@ -124,12 +120,9 @@ function ListViewCard(props: {
         </div>
       )}
 
-      {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/60 to-transparent" />
 
-      {/* Content */}
       <div className="relative flex gap-4 p-4">
-        {/* Poster - Left Side */}
         <div className="flex-shrink-0 w-20 sm:w-24 md:w-28 lg:w-32">
           <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted">
             <Image
@@ -139,8 +132,6 @@ function ListViewCard(props: {
               objectFit="cover"
               className="transition-transform duration-300 group-hover:scale-105"
             />
-
-            {/* Play Button Overlay */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <div className="flex items-center justify-center w-8 h-8 bg-primary/90 backdrop-blur-sm rounded-full shadow-lg">
@@ -150,15 +141,10 @@ function ListViewCard(props: {
             </div>
           </div>
         </div>
-
-        {/* Content - Right Side */}
         <div className="flex-1 min-w-0 space-y-2">
-          {/* Title */}
           <h3 className="text-base sm:text-lg font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-200">
             {title}
           </h3>
-
-          {/* Metadata Row */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
             <span>{formatDate(releaseDate)}</span>
 
@@ -182,8 +168,6 @@ function ListViewCard(props: {
               </>
             )}
           </div>
-
-          {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
             <Badge
               variant="outline"
@@ -264,31 +248,26 @@ export function MediaContentGrid({
   onViewModeChange,
   "data-testid": testId,
 }: MediaContentGridProps) {
-  // Use Zustand store for global view mode state
   const {
     viewMode: storedViewMode,
     setViewMode,
     getResponsiveDefault,
   } = useViewModeStore();
 
-  // Calculate the effective view mode
   const effectiveViewMode =
     storedViewMode || defaultViewMode || getResponsiveDefault();
 
-  // Handle view mode changes
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     onViewModeChange?.(mode);
   };
 
-  // Process items to add media_type as expected by MediaCard
   const processedItems = items.map((item) => ({
     ...item,
     media_type: item.media_type,
   }));
 
   const renderMediaCard = (item: ContentItem, viewMode: ViewMode) => {
-    // Cast back to MediaItem since we know our items are MediaItems
     const mediaItem = item as MediaItem;
 
     if (viewMode === "list") {
@@ -328,5 +307,4 @@ export function MediaContentGrid({
   );
 }
 
-// Export with original name for backward compatibility
 export { MediaContentGrid as ContentGrid };
