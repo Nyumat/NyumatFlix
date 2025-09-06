@@ -116,7 +116,12 @@ export async function InfiniteContent({
         offset < (response.total_pages || 0) ? offset + 1 : null;
 
       return [
-        <ContentGrid items={processedShows} key={offset} type="tv" />,
+        <ContentGrid
+          items={processedShows}
+          key={offset}
+          type="tv"
+          showViewModeControls={false}
+        />,
         nextOffset,
       ] as const;
     } catch (error) {

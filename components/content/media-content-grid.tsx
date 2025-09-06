@@ -229,6 +229,8 @@ interface MediaContentGridProps {
   className?: string;
   /** Callback when view mode changes */
   onViewModeChange?: (mode: ViewMode) => void;
+  /** Whether to show view mode controls */
+  showViewModeControls?: boolean;
   /** Test ID for testing */
   "data-testid"?: string;
 }
@@ -246,6 +248,7 @@ export function MediaContentGrid({
   gridColumns = 6,
   className,
   onViewModeChange,
+  showViewModeControls = true,
   "data-testid": testId,
 }: MediaContentGridProps) {
   const {
@@ -301,6 +304,7 @@ export function MediaContentGrid({
         gridColumns={gridColumns}
         className={className}
         onViewModeChange={handleViewModeChange}
+        showViewModeControls={showViewModeControls}
         data-testid={testId}
       />
     </div>

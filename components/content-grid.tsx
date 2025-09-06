@@ -20,6 +20,7 @@ export interface ContentGridProps {
   className?: string;
   onViewModeChange?: (mode: ViewMode) => void;
   showItemsCount?: boolean;
+  showViewModeControls?: boolean;
 }
 
 export function ContentGrid({
@@ -30,6 +31,7 @@ export function ContentGrid({
   className,
   onViewModeChange,
   showItemsCount = false,
+  showViewModeControls = true,
 }: ContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
 
@@ -70,32 +72,36 @@ export function ContentGrid({
 
   return (
     <div className={cn("w-full space-y-4", className)}>
-      <div className="flex items-center justify-between">
-        {showItemsCount && (
-          <h2 className="text-2xl font-bold">
-            {items.length} {items.length === 1 ? "item" : "items"}
-          </h2>
-        )}
+      {(showItemsCount || showViewModeControls) && (
+        <div className="flex items-center justify-between">
+          {showItemsCount && (
+            <h2 className="text-2xl font-bold">
+              {items.length} {items.length === 1 ? "item" : "items"}
+            </h2>
+          )}
 
-        <div className="flex border rounded-lg p-1 gap-1">
-          <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => handleViewModeChange("grid")}
-            className="px-3"
-          >
-            <Grid2X2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => handleViewModeChange("list")}
-            className="px-3"
-          >
-            <List className="h-4 w-4" />
-          </Button>
+          {showViewModeControls && (
+            <div className="flex border rounded-lg p-1 gap-1">
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => handleViewModeChange("grid")}
+                className="px-3"
+              >
+                <Grid2X2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => handleViewModeChange("list")}
+                className="px-3"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       <div
         className={cn(

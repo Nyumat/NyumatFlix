@@ -33,7 +33,12 @@ export const getTvShowListNodes = async (
     const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
 
     return [
-      <ContentGrid items={processedShows} key={offset} type="tv" />,
+      <ContentGrid
+        items={processedShows}
+        key={offset}
+        type="tv"
+        showViewModeControls={false}
+      />,
       nextOffset,
     ] as const;
   } catch (error) {
@@ -70,7 +75,12 @@ export const getMovieListNodes = async (
     const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
 
     return [
-      <ContentGrid items={processedMovies} key={offset} type="movie" />,
+      <ContentGrid
+        items={processedMovies}
+        key={offset}
+        type="movie"
+        showViewModeControls={false}
+      />,
       nextOffset,
     ] as const;
   } catch (error) {
