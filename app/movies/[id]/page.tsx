@@ -17,8 +17,6 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const movie = await fetchDetails(params.id);
 
-  console.log(movie);
-
   if (!movie) {
     return {
       title: "Movie Not Found | NyumatFlix",
