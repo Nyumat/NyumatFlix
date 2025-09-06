@@ -591,7 +591,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
   };
 
   return (
-    <div className="relative h-[90vh] overflow-hidden bg-black">
+    <div className="relative h-[60vh] md:h-[90vh] overflow-hidden bg-black">
       <Carousel
         className="w-full h-full"
         setApi={setMainCarouselApi}
