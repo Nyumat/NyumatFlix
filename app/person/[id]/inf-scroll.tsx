@@ -83,7 +83,12 @@ export async function PersonInfiniteContent({
         offset < (response.total_pages || 0) ? offset + 1 : null;
 
       return [
-        <ContentGrid items={processedFilmography} key={offset} type="multi" />,
+        <ContentGrid
+          items={processedFilmography}
+          key={offset}
+          type="multi"
+          showViewModeControls={false}
+        />,
         nextOffset,
       ] as const;
     } catch (error) {

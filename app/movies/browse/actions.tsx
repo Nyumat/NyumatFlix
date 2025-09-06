@@ -51,7 +51,12 @@ export async function getMoreMovies(
     const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
 
     return [
-      <ContentGrid items={processedMovies} key={offset} type="movie" />,
+      <ContentGrid
+        items={processedMovies}
+        key={offset}
+        type="movie"
+        showViewModeControls={false}
+      />,
       nextOffset,
     ] as const;
   } catch (error) {
