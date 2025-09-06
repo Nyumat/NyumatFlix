@@ -114,7 +114,6 @@ export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
       >
         <div className="relative group">
           <Poster posterPath={posterPath} title={title} />
-          {/* Desktop-only play button overlay */}
           <div className="hidden md:block absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 pointer-events-none p-2">
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <div className="flex items-center justify-center w-8 h-8 bg-black/70 backdrop-blur-md rounded-full border border-white/40 shadow-lg">

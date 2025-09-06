@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <div
-      className="relative min-h-svh w-full flex items-center justify-center bg-cover bg-center"
+      className="relative min-h-[80vh] w-full flex items-center justify-center bg-cover bg-center"
       style={{ backgroundImage: "url('/movie-banner.jpg')" }}
     >
       <div className="absolute inset-0 bg-black/85"></div>

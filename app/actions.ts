@@ -98,6 +98,26 @@ export async function buildMaybeItemsWithCategories<
 export async function getCategories(
   type: "movie" | "tv" | "multi",
 ): Promise<Genre[]> {
+  if (type === "multi") {
+    // For multi type, combine movie and TV genres
+    const [movieGenres, tvGenres] = await Promise.all([
+      fetchTMDBData(`/genre/movie/list`),
+      fetchTMDBData(`/genre/tv/list`),
+    ]);
+
+    // Combine and deduplicate genres by ID
+    const allGenres = [
+      ...(movieGenres.genres || []),
+      ...(tvGenres.genres || []),
+    ];
+    const uniqueGenres = allGenres.filter(
+      (genre, index, self) =>
+        index === self.findIndex((g) => g.id === genre.id),
+    );
+
+    return uniqueGenres;
+  }
+
   const genres = await fetchTMDBData(`/genre/${type}/list`);
   return genres.genres;
 }
@@ -368,6 +388,9 @@ export async function fetchTMDBData<T = MediaItem>(
   const response = await fetch(url.toString());
 
   if (!response.ok) {
+    logger.error(
+      `TMDB API error: ${response.status} ${response.statusText} ${response.body} ${response.headers} ${response.url}`,
+    );
     throw new Error(
       `TMDB API error: ${response.status} ${response.statusText}`,
     );
@@ -469,6 +492,213 @@ export async function getMovieGenreList() {
 
 export async function getTVGenreList() {
   return await movieDb.genreTvList();
+}
+
+// Type for combined credits items (cast or crew)
+interface CreditItem {
+  order?: number;
+  character?: string;
+  job?: string;
+  department?: string;
+  popularity?: number;
+  vote_average?: number;
+  release_date?: string;
+  first_air_date?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Calculates a role importance score for sorting actor filmography
+ * Higher scores indicate more important/significant roles
+ */
+function calculateRoleImportanceScore(item: CreditItem): number {
+  let score = 0;
+
+  // Base score from movie/TV popularity (0-100 scale)
+  const popularity = item.popularity || 0;
+  score += Math.min(popularity * 0.1, 10); // Cap at 10 points
+
+  // Billing order bonus (lower order = higher billing = more important)
+  if (item.order !== undefined && item.order !== null) {
+    // Lead roles (order 0-2) get significant bonus
+    if (item.order <= 2) {
+      score += 50; // Major lead role
+    } else if (item.order <= 5) {
+      score += 30; // Supporting role
+    } else if (item.order <= 10) {
+      score += 15; // Minor role
+    } else {
+      score += 5; // Small role
+    }
+  }
+
+  // Character name analysis (lead characters often have names, extras don't)
+  if (item.character && item.character.trim()) {
+    const character = item.character.toLowerCase();
+
+    // Bonus for named characters (not just "Extra" or "Background")
+    if (
+      !character.includes("extra") &&
+      !character.includes("background") &&
+      !character.includes("uncredited") &&
+      !character.includes("voice") &&
+      character.length > 2
+    ) {
+      score += 10;
+    }
+
+    // Special bonus for protagonist-type character names
+    if (
+      character.includes("protagonist") ||
+      character.includes("hero") ||
+      character.includes("main")
+    ) {
+      score += 20;
+    }
+  }
+
+  // Crew role importance (Directors, Producers, Writers are very important)
+  if (item.job) {
+    const job = item.job.toLowerCase();
+    if (job.includes("director")) {
+      score += 40; // Director is very important
+    } else if (job.includes("producer") || job.includes("executive producer")) {
+      score += 35; // Producer is very important
+    } else if (job.includes("writer") || job.includes("screenplay")) {
+      score += 30; // Writer is important
+    } else if (job.includes("creator") || job.includes("showrunner")) {
+      score += 45; // Creator/Showrunner is most important for TV
+    } else if (job.includes("executive")) {
+      score += 25; // Executive roles are important
+    }
+  }
+
+  // Department importance
+  if (item.department) {
+    const dept = item.department.toLowerCase();
+    if (dept === "directing") {
+      score += 20;
+    } else if (dept === "production") {
+      score += 15;
+    } else if (dept === "writing") {
+      score += 15;
+    } else if (dept === "creators") {
+      score += 25;
+    }
+  }
+
+  // Recency bonus (more recent work gets slight boost)
+  if (item.release_date || item.first_air_date) {
+    const releaseDate = item.release_date || item.first_air_date;
+    if (releaseDate) {
+      const releaseYear = new Date(releaseDate).getFullYear();
+      const currentYear = new Date().getFullYear();
+      const yearsAgo = currentYear - releaseYear;
+
+      if (yearsAgo <= 2) {
+        score += 5; // Very recent
+      } else if (yearsAgo <= 5) {
+        score += 3; // Recent
+      } else if (yearsAgo <= 10) {
+        score += 1; // Somewhat recent
+      }
+    }
+  }
+
+  // Vote average bonus (well-received projects get boost)
+  if (item.vote_average && item.vote_average > 0) {
+    if (item.vote_average >= 8) {
+      score += 8; // Excellent
+    } else if (item.vote_average >= 7) {
+      score += 5; // Very good
+    } else if (item.vote_average >= 6) {
+      score += 2; // Good
+    }
+  }
+
+  return score;
+}
+
+// New function to fetch person filmography (movies and TV) - following your existing pattern
+export async function fetchPersonFilmography(
+  personId: number,
+  page: number = 1,
+) {
+  try {
+    // Use moviedb-promise to get combined credits directly
+    const creditsData = await movieDb.personCombinedCredits({
+      id: personId,
+      language: "en-US",
+    });
+
+    // Combine cast and crew credits
+    const creditsList = [
+      ...(creditsData.cast || []),
+      ...(creditsData.crew || []),
+    ];
+
+    // Filter out items without posters and deduplicate by ID
+    const uniqueCredits = creditsList.filter(
+      (item) => item.poster_path && item.id,
+    );
+
+    // Deduplicate by media ID to avoid showing the same movie/show multiple times
+    const deduplicatedCredits = uniqueCredits.reduce(
+      (acc, current) => {
+        const existingIndex = acc.findIndex((item) => item.id === current.id);
+        if (existingIndex === -1) {
+          acc.push(current);
+        } else {
+          // If we find a duplicate, keep the one with higher importance score
+          const existingScore = calculateRoleImportanceScore(
+            acc[existingIndex],
+          );
+          const currentScore = calculateRoleImportanceScore(current);
+          if (currentScore > existingScore) {
+            acc[existingIndex] = current;
+          }
+        }
+        return acc;
+      },
+      [] as typeof uniqueCredits,
+    );
+
+    // Sort by role importance
+    const results = deduplicatedCredits.sort((a, b) => {
+      // Calculate role importance score for each item
+      const scoreA = calculateRoleImportanceScore(a);
+      const scoreB = calculateRoleImportanceScore(b);
+      return scoreB - scoreA; // Higher score = more important role
+    });
+
+    // Paginate results (20 per page)
+    const startIndex = (page - 1) * 20;
+    const endIndex = startIndex + 20;
+    const paginatedResults = results.slice(startIndex, endIndex);
+
+    return {
+      page,
+      results: paginatedResults,
+      total_pages: Math.ceil(results.length / 20),
+      total_results: results.length,
+    };
+  } catch (error) {
+    logger.error(`Error fetching filmography for person ${personId}:`, error);
+    return { page, results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Get person details
+export async function getPersonDetails(personId: number) {
+  try {
+    return await movieDb.personInfo({
+      id: personId,
+      language: "en-US",
+    });
+  } catch (error) {
+    logger.error(`Error fetching person details for ${personId}:`, error);
+    return null;
+  }
 }
 
 export async function getMovies(type: MovieCategory, page: number) {

@@ -29,13 +29,8 @@ export function MediaCarousels({
 }: MediaCarouselsProps) {
   return (
     <div className="space-y-8">
-      {/* Cast Carousel */}
       {cast.length > 0 && <CastCarousel cast={cast} />}
-
-      {/* Videos Carousel */}
       {videos.length > 0 && <VideoCarousel videos={videos} />}
-
-      {/* Recommendations Carousel */}
       {recommendations.length > 0 && (
         <RecommendationsCarousel
           recommendations={recommendations}
@@ -51,6 +46,7 @@ type CastCarouselProps = {
 };
 
 export function CastCarousel({ cast }: CastCarouselProps) {
+  const router = useRouter();
   if (!cast.length) return null;
 
   return (
@@ -70,7 +66,10 @@ export function CastCarousel({ cast }: CastCarouselProps) {
                 key={person.id}
                 className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8"
               >
-                <div className="w-full flex-shrink-0">
+                <div
+                  className="w-full flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => router.push(`/person/${person.id}`)}
+                >
                   <div className="rounded-lg overflow-hidden mb-3 aspect-[2/3] bg-muted">
                     {person.profile_path ? (
                       <Image
