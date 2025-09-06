@@ -23,7 +23,7 @@ import { Calendar, Clock, Globe, Info, Play, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { match, P } from "ts-pattern";
 import { GenreBadge } from "./ui/genre-badge";
 
@@ -173,7 +173,6 @@ function MediaInfoDialog({
   const mediaType = isMovie ? "Movie" : "TV Show";
   const mediaInfoDialogType = isMovie ? "movie" : "tv";
 
-  // Safely access enhanced properties
   const runtime =
     "runtime" in media
       ? (media as MediaItem & { runtime?: number }).runtime
@@ -203,9 +202,7 @@ function MediaInfoDialog({
     .otherwise(() => "#");
 
   const handleWatchNow = () => {
-    onClose(); // Close the dialog first
-
-    // Navigate to the page with autoplay parameter
+    onClose();
     router.push(`${href}?autoplay=true`);
   };
 
@@ -224,7 +221,6 @@ function MediaInfoDialog({
         </DialogHeader>
 
         <div className="flex flex-col md:flex-row gap-3 md:gap-4 min-h-0">
-          {/* Poster */}
           <div className="flex-shrink-0">
             <div className="relative w-28 h-40 md:w-40 md:h-60 mx-auto md:mx-0 rounded-lg overflow-hidden shadow-xl">
               <Image
@@ -236,10 +232,8 @@ function MediaInfoDialog({
             </div>
           </div>
 
-          {/* Content */}
           <div className="flex-1 min-w-0">
             <ScrollArea className="h-[40vh] md:h-[50vh] pr-1 md:pr-2">
-              {/* Metadata Card */}
               <div
                 className={cn(
                   "bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-3 mb-3 shadow-lg",
@@ -287,8 +281,6 @@ function MediaInfoDialog({
                   </Badge>
                 )}
               </div>
-
-              {/* Genres */}
               {genres && genres.length > 0 && (
                 <div className="mb-3">
                   <h4 className="font-semibold mb-1 text-sm md:text-base text-white">
@@ -307,8 +299,6 @@ function MediaInfoDialog({
                   </div>
                 </div>
               )}
-
-              {/* Overview */}
               <div className="mb-3">
                 <h4 className="font-semibold mb-1 text-sm md:text-base text-white">
                   Overview
@@ -317,8 +307,6 @@ function MediaInfoDialog({
                   {media.overview}
                 </p>
               </div>
-
-              {/* Additional Info Card */}
               <div
                 className={cn(
                   "bg-black/30 backdrop-blur-md border border-white/20 rounded-lg p-3 mb-3 shadow-lg",
@@ -344,8 +332,6 @@ function MediaInfoDialog({
                   </p>
                 </div>
               </div>
-
-              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={handleWatchNow}
@@ -383,7 +369,7 @@ function MediaInfoDialog({
   );
 }
 
-function CarouselDetails({
+const CarouselDetails = React.memo(function CarouselDetails({
   current,
   items,
   onPosterClick,
@@ -393,31 +379,53 @@ function CarouselDetails({
   onPosterClick: (index: number) => void;
 }) {
   const [showDialog, setShowDialog] = useState(false);
+  const [dialogMedia, setDialogMedia] = useState<MediaItem | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const router = useRouter();
 
-  const titleText = match(current)
-    .with({ title: P.string }, (movie) => movie.title)
-    .otherwise((tvShow) => tvShow.name);
+  const titleText = useMemo(
+    () =>
+      match(current)
+        .with({ title: P.string }, (movie) => movie.title)
+        .otherwise((tvShow) => tvShow.name),
+    [current],
+  );
 
-  const year = match(current)
-    .with({ title: P.string, release_date: P.string.optional() }, (movie) =>
-      movie.release_date?.substring(0, 4),
-    )
-    .with({ name: P.string, first_air_date: P.string.optional() }, (tvShow) =>
-      tvShow.first_air_date?.substring(0, 4),
-    )
-    .otherwise(() => undefined);
+  const year = useMemo(
+    () =>
+      match(current)
+        .with({ title: P.string, release_date: P.string.optional() }, (movie) =>
+          movie.release_date?.substring(0, 4),
+        )
+        .with(
+          { name: P.string, first_air_date: P.string.optional() },
+          (tvShow) => tvShow.first_air_date?.substring(0, 4),
+        )
+        .otherwise(() => undefined),
+    [current],
+  );
 
-  const href = match(current)
-    .with({ title: P.string, id: P.number }, (movie) => `/movies/${movie.id}`)
-    .with({ name: P.string, id: P.number }, (tvShow) => `/tvshows/${tvShow.id}`)
-    .otherwise(() => "#");
+  const href = useMemo(
+    () =>
+      match(current)
+        .with(
+          { title: P.string, id: P.number },
+          (movie) => `/movies/${movie.id}`,
+        )
+        .with(
+          { name: P.string, id: P.number },
+          (tvShow) => `/tvshows/${tvShow.id}`,
+        )
+        .otherwise(() => "#"),
+    [current],
+  );
 
-  const handlePlay = () => {
-    // Navigate to the page with autoplay parameter
-    router.push(`${href}?autoplay=true`);
-  };
+  const handlePlay = useMemo(
+    () => () => {
+      router.push(`${href}?autoplay=true`);
+    },
+    [router, href],
+  );
 
   useEffect(() => {
     if (carouselApi) {
@@ -426,7 +434,7 @@ function CarouselDetails({
         carouselApi.scrollTo(currentIndex);
       }
     }
-  }, [current, items, carouselApi]);
+  }, [current.id, items, carouselApi]);
 
   return (
     <>
@@ -477,7 +485,10 @@ function CarouselDetails({
             </Button>
             <Button
               size="lg"
-              onClick={() => setShowDialog(true)}
+              onClick={() => {
+                setDialogMedia(current);
+                setShowDialog(true);
+              }}
               className={cn(
                 "font-bold transition-all duration-200 shadow-lg",
                 "backdrop-blur-md bg-white/10 border border-white/30 text-white",
@@ -544,20 +555,24 @@ function CarouselDetails({
         </div>
       </div>
 
-      <MediaInfoDialog
-        isOpen={showDialog}
-        onClose={() => setShowDialog(false)}
-        media={current}
-      />
+      {dialogMedia && (
+        <MediaInfoDialog
+          isOpen={showDialog}
+          onClose={() => {
+            setShowDialog(false);
+            setDialogMedia(null);
+          }}
+          media={dialogMedia}
+        />
+      )}
     </>
   );
-}
+});
 
 export function MediaCarousel({ items }: MediaCarouselProps) {
   const [mainCarouselApi, setMainCarouselApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Use useEffect with proper cleanup to prevent memory leaks
   useEffect(() => {
     if (!mainCarouselApi) return;
 
@@ -569,14 +584,12 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
 
     mainCarouselApi.on("select", onSelect);
 
-    // Auto-advance carousel
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         mainCarouselApi.scrollNext();
       }
     }, 7000);
 
-    // Clean up event listeners and interval
     return () => {
       mainCarouselApi.off("select", onSelect);
       clearInterval(interval);
@@ -591,7 +604,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
   };
 
   return (
-    <div className="relative h-[60vh] md:h-[90vh] overflow-hidden bg-black">
+    <div className="relative h-[80vh] md:h-[92vh] overflow-hidden bg-black">
       <Carousel
         className="w-full h-full"
         setApi={setMainCarouselApi}
@@ -632,13 +645,16 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
         </CarouselContent>
       </Carousel>
 
-      {items[currentIndex] && (
-        <CarouselDetails
-          current={items[currentIndex]}
-          items={items}
-          onPosterClick={handlePosterClick}
-        />
-      )}
+      {(() => {
+        const currentItem = items[currentIndex];
+        return currentItem ? (
+          <CarouselDetails
+            current={currentItem}
+            items={items}
+            onPosterClick={handlePosterClick}
+          />
+        ) : null;
+      })()}
 
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-10">
         {items.map((_, index) => (
