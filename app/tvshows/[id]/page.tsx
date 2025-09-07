@@ -196,7 +196,7 @@ export default async function TVShowPage({ params }: Props) {
           mediaType="tv"
         />
 
-        <div className="relative min-h-screen pt-10">
+        <div className="relative">
           <StableBackground />
           <div className="relative">
             <ContentContainer className="container mx-auto px-4">

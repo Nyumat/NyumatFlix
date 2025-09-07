@@ -50,7 +50,7 @@ export function CastCarousel({ cast }: CastCarouselProps) {
   if (!cast.length) return null;
 
   return (
-    <section>
+    <section className="py-2">
       <h2 className="text-2xl font-semibold text-foreground mb-4">Cast</h2>
       <div className="relative">
         <Carousel

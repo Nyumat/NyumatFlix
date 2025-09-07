@@ -1,6 +1,7 @@
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
+import { BackButton } from "@/components/ui/back-button";
 import { getFriendlyCountryName } from "@/utils/country-helpers";
 import { countries } from "country-data-list";
 import BrowseCountryClient from "./browse-client";
@@ -48,6 +49,9 @@ export default async function BrowseCountryPage({
 
   return (
     <PageContainer>
+      {/* Back Button */}
+      <BackButton />
+
       <StaticHero
         imageUrl={backdropImage}
         title={pageTitle}

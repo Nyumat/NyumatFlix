@@ -135,7 +135,7 @@ export default async function MoviePage({ params }: Props) {
           <StableBackground />
           <div className="relative z-10">
             <ContentContainer
-              className="container mx-auto px-4 mt-10 relative z-10"
+              className="container mx-auto px-4 relative z-10"
               topSpacing={false}
             >
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

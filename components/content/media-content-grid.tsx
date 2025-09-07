@@ -10,12 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CountryBadge } from "@/components/ui/country-badge";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
+import { useGlobalDock } from "@/components/ui/global-dock";
 import { useViewModeStore } from "@/lib/stores/view-mode-store";
 import type { Genre, MediaItem } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
 import { Clock, Play, Star } from "lucide-react";
 import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 /**
  * Custom ListViewCard component for YouTube-like list view
@@ -231,6 +233,10 @@ interface MediaContentGridProps {
   onViewModeChange?: (mode: ViewMode) => void;
   /** Whether to show view mode controls */
   showViewModeControls?: boolean;
+  /** Whether to show the animated dock */
+  showDock?: boolean;
+  /** Position of the dock */
+  dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   /** Test ID for testing */
   "data-testid"?: string;
 }
@@ -249,21 +255,39 @@ export function MediaContentGrid({
   className,
   onViewModeChange,
   showViewModeControls = true,
+  showDock = true,
+  dockPosition = "bottom-right",
   "data-testid": testId,
 }: MediaContentGridProps) {
   const {
     viewMode: storedViewMode,
-    setViewMode,
+    setViewMode: setStoredViewMode,
     getResponsiveDefault,
   } = useViewModeStore();
 
-  const effectiveViewMode =
-    storedViewMode || defaultViewMode || getResponsiveDefault();
+  const {
+    viewMode: globalViewMode,
+    setViewMode: setGlobalViewMode,
+    setShowDock,
+  } = useGlobalDock();
+
+  const effectiveViewMode = showDock
+    ? globalViewMode
+    : storedViewMode || defaultViewMode || getResponsiveDefault();
 
   const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
+    if (showDock) {
+      setGlobalViewMode(mode);
+    } else {
+      setStoredViewMode(mode);
+    }
     onViewModeChange?.(mode);
   };
+
+  // Enable/disable global dock based on showDock prop
+  useEffect(() => {
+    setShowDock(showDock);
+  }, [showDock, setShowDock]);
 
   const processedItems = items.map((item) => ({
     ...item,
@@ -305,6 +329,8 @@ export function MediaContentGrid({
         className={className}
         onViewModeChange={handleViewModeChange}
         showViewModeControls={showViewModeControls}
+        showDock={false}
+        dockPosition={dockPosition}
         data-testid={testId}
       />
     </div>

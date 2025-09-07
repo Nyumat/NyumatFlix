@@ -1,6 +1,7 @@
 import { getPersonDetails } from "@/app/actions";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
+import { BackButton } from "@/components/ui/back-button";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
@@ -77,7 +78,8 @@ export default async function PersonPage({ params }: PersonPageProps) {
   }
 
   return (
-    <PageContainer className="pb-16">
+    <PageContainer className="pb-4 mb-4">
+      <BackButton />
       <div className="relative min-h-screen">
         <StableBackground />
         <div className="relative z-10">

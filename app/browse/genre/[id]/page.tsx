@@ -2,6 +2,7 @@ import { getCategories } from "@/app/actions";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
+import { BackButton } from "@/components/ui/back-button";
 import BrowseGenreClient from "./browse-client";
 
 interface PageProps {
@@ -44,6 +45,9 @@ export default async function BrowseGenrePage({
 
   return (
     <PageContainer>
+      {/* Back Button */}
+      <BackButton />
+
       <StaticHero
         imageUrl={backdropImage}
         title={genreName}

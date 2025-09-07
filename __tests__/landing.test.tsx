@@ -1,4 +1,5 @@
 import { ThemeProvider } from "@/components/layout/theme-provider";
+import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
@@ -10,7 +11,9 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
     defaultTheme="system"
     disableTransitionOnChange
   >
-    <TooltipProvider>{children}</TooltipProvider>
+    <GlobalDockProvider>
+      <TooltipProvider>{children}</TooltipProvider>
+    </GlobalDockProvider>
   </ThemeProvider>
 );
 

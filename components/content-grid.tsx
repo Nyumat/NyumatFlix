@@ -21,6 +21,8 @@ export interface ContentGridProps {
   onViewModeChange?: (mode: ViewMode) => void;
   showItemsCount?: boolean;
   showViewModeControls?: boolean;
+  showDock?: boolean;
+  dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
 }
 
 export function ContentGrid({
@@ -32,6 +34,7 @@ export function ContentGrid({
   onViewModeChange,
   showItemsCount = false,
   showViewModeControls = true,
+  showDock = false,
 }: ContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
 
@@ -72,7 +75,7 @@ export function ContentGrid({
 
   return (
     <div className={cn("w-full space-y-4", className)}>
-      {(showItemsCount || showViewModeControls) && (
+      {(showItemsCount || (showViewModeControls && !showDock)) && (
         <div className="flex items-center justify-between">
           {showItemsCount && (
             <h2 className="text-2xl font-bold">
@@ -80,7 +83,7 @@ export function ContentGrid({
             </h2>
           )}
 
-          {showViewModeControls && (
+          {showViewModeControls && !showDock && (
             <div className="flex border rounded-lg p-1 gap-1">
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
