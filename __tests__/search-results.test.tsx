@@ -1,5 +1,6 @@
 import { MediaContentGrid } from "@/components/content/media-content-grid";
 import SearchResults from "@/components/search/search-results";
+import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Movie, TvShow } from "@/utils/typings";
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -104,13 +105,17 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const renderWithTooltipProvider = (component: React.ReactElement) => {
-  return render(<TooltipProvider>{component}</TooltipProvider>);
+const renderWithProviders = (component: React.ReactElement) => {
+  return render(
+    <GlobalDockProvider>
+      <TooltipProvider>{component}</TooltipProvider>
+    </GlobalDockProvider>,
+  );
 };
 
 describe("SearchResults Component", () => {
   test("displays search results for valid query", async () => {
-    renderWithTooltipProvider(<SearchResults query="test" />);
+    renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
       expect(screen.getByText("Test Movie")).toBeInTheDocument();
@@ -121,7 +126,7 @@ describe("SearchResults Component", () => {
   });
 
   test("shows empty state message for empty query", async () => {
-    renderWithTooltipProvider(<SearchResults query="" />);
+    renderWithProviders(<SearchResults query="" />);
 
     await waitFor(() => {
       expect(
@@ -141,7 +146,7 @@ describe("SearchResults Component", () => {
       ),
     ) as unknown as typeof global.fetch;
 
-    renderWithTooltipProvider(<SearchResults query="nonexistent" />);
+    renderWithProviders(<SearchResults query="nonexistent" />);
 
     await waitFor(() => {
       expect(
@@ -161,7 +166,7 @@ describe("SearchResults Component", () => {
       return Promise.resolve(mockFetchResponse({ genres: [] }));
     }) as unknown as typeof global.fetch;
 
-    renderWithTooltipProvider(<SearchResults query="test" />);
+    renderWithProviders(<SearchResults query="test" />);
 
     expect(
       screen.getByText(/Loading search results for "test"/),
@@ -206,7 +211,7 @@ describe("SearchResults Component", () => {
       return Promise.resolve(mockFetchResponse({}));
     }) as unknown as typeof global.fetch;
 
-    renderWithTooltipProvider(<SearchResults query="test" />);
+    renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
       expect(screen.getByText("Network error")).toBeInTheDocument();
@@ -227,7 +232,7 @@ describe("SearchResults Component", () => {
       return Promise.resolve(mockFetchResponse({ genres: [] }));
     }) as unknown as typeof global.fetch;
 
-    renderWithTooltipProvider(<SearchResults query="test" />);
+    renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
       expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
@@ -258,7 +263,7 @@ describe("SearchResults Component", () => {
       return Promise.resolve(mockFetchResponse({ genres: [] }));
     }) as unknown as typeof global.fetch;
 
-    renderWithTooltipProvider(<SearchResults query="test" />);
+    renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
       expect(screen.getByText("Test Movie")).toBeInTheDocument();
@@ -273,7 +278,7 @@ describe("SearchResults Component", () => {
   });
 
   test("shows genre filter", async () => {
-    renderWithTooltipProvider(<SearchResults query="test" />);
+    renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
       expect(screen.getByText("Filter by Genre")).toBeInTheDocument();
@@ -289,7 +294,7 @@ describe("MediaContentGrid Component", () => {
       genres: [],
     }));
 
-    renderWithTooltipProvider(
+    renderWithProviders(
       <MediaContentGrid items={items} defaultViewMode="grid" />,
     );
 

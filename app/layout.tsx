@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/layout/navbar";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { ThemeProvider } from "@/components/layout/theme-provider";
+import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -68,10 +69,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <FooterSection />
-            <Toaster richColors closeButton />
+            <GlobalDockProvider>
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <FooterSection />
+              <Toaster richColors closeButton />
+            </GlobalDockProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>

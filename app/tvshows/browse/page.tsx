@@ -2,6 +2,7 @@ import { ContentLoader } from "@/components/animated/load-more";
 import { getGenreName } from "@/components/content/genre-helpers";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
+import { BackButton } from "@/components/ui/back-button";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { getFilterTitle } from "@/utils/content-filters";
 import { Metadata } from "next";
@@ -108,6 +109,9 @@ export default async function Page({ searchParams }: PageProps) {
 
   return (
     <div className="w-full flex flex-col">
+      {/* Back Button */}
+      <BackButton fallbackUrl="/tvshows" />
+
       {/* Background - using static position instead of absolute */}
       <StaticHero imageUrl="/movie-banner.jpg" title="" route="" hideTitle />
 
