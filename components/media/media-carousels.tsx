@@ -8,11 +8,12 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Actor, Movie, TvShow, Video } from "@/utils/typings";
-import { Star, Tv, User } from "lucide-react";
+import { User } from "lucide-react";
 import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import MediaCard from "./media-card";
 
 type MediaCarouselsProps = {
   cast?: Actor[];
@@ -186,10 +187,6 @@ export function RecommendationsCarousel({
   const router = useRouter();
   if (!recommendations.length) return null;
 
-  const getTitle = (item: Movie | TvShow) => {
-    return "title" in item ? item.title : item.name;
-  };
-
   const getHref = (item: Movie | TvShow) => {
     const type = "title" in item ? "movies" : "tvshows";
     return `/${type}/${item.id}`;
@@ -214,43 +211,17 @@ export function RecommendationsCarousel({
             {recommendations.slice(0, 20).map((item: Movie | TvShow) => (
               <CarouselItem
                 key={item.id}
-                className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8"
+                className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8 w-full flex-shrink-0 hover:opacity-80 transition block"
+                onClick={() => {
+                  router.push(getHref(item));
+                }}
               >
-                <div
-                  className="w-full flex-shrink-0 hover:opacity-80 transition block"
-                  onClick={() => {
-                    router.push(getHref(item));
-                  }}
-                >
-                  <div className="rounded-lg overflow-hidden mb-3 aspect-[2/3] bg-muted">
-                    {item.poster_path ? (
-                      <Image
-                        src={`https://image.tmdb.org/t/p/w185${item.poster_path}`}
-                        alt={getTitle(item)}
-                        width={185}
-                        height={278}
-                        layout="responsive"
-                        objectFit="cover"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <Tv size={48} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-foreground font-medium text-sm mb-1 line-clamp-2">
-                      {getTitle(item)}
-                    </h3>
-                    <div className="flex items-center justify-center mt-1">
-                      <Star size={12} className="text-yellow-500 mr-1" />
-                      <span className="text-muted-foreground text-xs">
-                        {item.vote_average?.toFixed(1)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <MediaCard
+                  item={item}
+                  type={mediaType}
+                  rating={item.vote_average?.toString()}
+                  minimal
+                />
               </CarouselItem>
             ))}
           </CarouselContent>

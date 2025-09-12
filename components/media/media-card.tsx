@@ -38,7 +38,47 @@ interface MediaCardProps {
   type: "movie" | "tv" | MediaItem["media_type"];
   /** Optional content rating (e.g., PG-13, R, etc.) */
   rating?: string;
+  /** Whether to show the minimal version of the card
+   *  used for carosuel items within detail pages.
+   */
+  minimal?: boolean;
 }
+
+export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
+  const router = useRouter();
+  const href = (() => {
+    const itemId = item.id;
+    if (isMovie(item)) {
+      return `/movies/${itemId}`;
+    }
+    return `/tvshows/${itemId}`;
+  })();
+  const title = getTitle(item);
+  const posterPath = item.poster_path ?? undefined;
+  return (
+    <>
+      <Card className="overflow-hidden relative border-none h-full flex flex-col bg-black/30 backdrop-blur-md border border-white/20 shadow-lg hover:border-primary/60 transition-colors duration-200">
+        <div
+          className="block relative flex-shrink-0 cursor-pointer"
+          onClick={() => {
+            router.push(href);
+          }}
+        >
+          <div className="relative group">
+            <Poster posterPath={posterPath} title={title} altText={title} />
+            <div className="hidden md:block absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 pointer-events-none p-2">
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="flex items-center justify-center w-8 h-8 bg-black/70 backdrop-blur-md rounded-full border border-white/40 shadow-lg">
+                  <Play className="text-white text-sm ml-0.5" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </>
+  );
+};
 
 /**
  * MediaCard component displays a single media item with poster, info, and play overlay
@@ -46,7 +86,7 @@ interface MediaCardProps {
  * @param props - The component props
  * @returns A card component displaying media information with hover interactions
  */
-export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
+export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
   const router = useRouter();
   if (item.id === undefined) {
     return <div>No content ID found</div>;
@@ -103,6 +143,10 @@ export const MediaCard = ({ item, type, rating }: MediaCardProps) => {
     }
     return `/tvshows/${itemId}`;
   })();
+
+  if (minimal) {
+    return <MinimalMediaCard item={item} />;
+  }
 
   return (
     <Card className="overflow-hidden relative border-none h-full flex flex-col bg-black/30 backdrop-blur-md border border-white/20 shadow-lg hover:border-primary/60 transition-colors duration-200">
