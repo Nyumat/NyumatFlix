@@ -273,3 +273,15 @@ html {
   scrollbar-width: thin;
   scrollbar-color: rgba(75, 85, 99, 0.5) rgba(75, 85, 99, 0.1);
 }
+
+@theme inline {
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+}
