@@ -43,7 +43,7 @@ export default function Sponsors() {
       id="sponsors"
       className="w-full max-w-full mx-auto overflow-hidden"
     >
-      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl max-w-screen-sm mx-auto text-center select-none pointer-events-none px-4 mb-6">
+      <h2 className="text-sm font-extralight sm:text-base md:text-lg lg:text-xl max-w-screen-sm mx-auto text-center select-none pointer-events-none px-4 mb-6">
         Curated from all the <span className="line-through">expensive ass</span>{" "}
         streaming services below, Nyumatflix is a no-cost, ad-free, and
         open-source aggregator.

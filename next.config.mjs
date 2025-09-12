@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: [
+    "gsap",
+    "react-three-fiber",
+    "@react-three/drei",
+    "three",
+  ],
   optimizeFonts: true,
   images: {
     unoptimized: true,
