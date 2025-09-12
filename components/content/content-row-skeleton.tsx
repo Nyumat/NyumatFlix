@@ -48,19 +48,12 @@ export function ContentRowSkeleton({
                       <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent" />
                     </div>
                   </div>
-
-                  {/* Text content skeleton - exact typography match */}
                   <div className="mt-2 text-foreground min-h-[68px]">
-                    {/* Title skeleton - matches h3 text-sm mb-1 leading-tight */}
                     <div className="h-[20px] w-3/4 mb-1 bg-gradient-to-r from-white/15 to-white/5 backdrop-blur-sm border border-white/10 rounded-md leading-tight animate-pulse" />
-
-                    {/* Rating/Badge row - matches text-xs mb-1 */}
                     <div className="flex items-center gap-2 text-xs mb-1 h-[16px]">
                       <div className="h-3 w-12 bg-gradient-to-r from-white/12 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm animate-pulse" />
                       <div className="h-3 w-8 bg-gradient-to-r from-white/12 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm animate-pulse" />
                     </div>
-
-                    {/* Genre/Year row - matches text-[10px] */}
                     <div className="flex flex-wrap items-center gap-1 text-[10px] h-[14px]">
                       <div className="h-[14px] w-8 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm animate-pulse" />
                       <div className="h-[14px] w-16 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm animate-pulse" />

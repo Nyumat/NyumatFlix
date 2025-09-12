@@ -12,7 +12,6 @@ type SeasonTabsProps = {
   firstSeason: Season | undefined;
 };
 
-// Glassmorphism skeleton for episodes section
 function EpisodesSkeleton() {
   return (
     <div className="space-y-4 mt-2">

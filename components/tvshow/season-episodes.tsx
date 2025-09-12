@@ -68,11 +68,10 @@ export function SeasonEpisodes({ tvId, seasonNumber }: SeasonEpisodesProps) {
     [setSelectedEpisode, tvId, seasonNumber],
   );
 
-  // Always maintain the same JSX structure to prevent re-renders
   return (
     <div className="space-y-4 mt-2">
       <h3 className="text-xl font-semibold text-foreground">Episodes</h3>
-      <div className="min-h-[200px] max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+      <div className="min-h-[300px] max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
         {loading ? (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
