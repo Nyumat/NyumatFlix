@@ -1,7 +1,19 @@
 import "@testing-library/jest-dom/vitest";
-import { afterEach, vi } from "vitest";
+import { URLSearchParams } from "node:url";
+import ResizeObserver from "resize-observer-polyfill";
+import { afterEach, Mock, vi } from "vitest";
 
-// Mock Next.js navigation hooks for App Router
+type GlobalType = typeof globalThis & {
+  fetch: typeof fetch;
+  IntersectionObserver: typeof IntersectionObserver;
+  ResizeObserver: typeof ResizeObserver;
+  matchMedia: typeof matchMedia;
+};
+
+declare global {
+  let fn: GlobalType;
+}
+
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({
     push: vi.fn(),
@@ -16,18 +28,11 @@ vi.mock("next/navigation", () => ({
   notFound: vi.fn(),
 }));
 
-// Mock fetch globally if not already done
 if (!global.fetch) {
-  global.fetch = vi.fn(() =>
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({}),
-    }),
-  );
+  global.fetch = vi.fn() as Mock<() => Promise<Response>>;
 }
 
-// Mock intersection observer for prefetching tests
-global.IntersectionObserver = vi.fn().mockImplementation((callback) => ({
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
@@ -36,22 +41,22 @@ global.IntersectionObserver = vi.fn().mockImplementation((callback) => ({
   rootMargin: "",
 }));
 
-// Mock window.matchMedia for responsive hooks
-Object.defineProperty(window, "matchMedia", {
+global.ResizeObserver = ResizeObserver;
+
+Object.defineProperty(global, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
 });
 
-// Cleanup function for tests
 afterEach(() => {
   vi.clearAllMocks();
 });
