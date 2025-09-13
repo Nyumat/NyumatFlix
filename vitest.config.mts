@@ -1,9 +1,9 @@
 // vitest.config.ts
-import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
-import magicalSvg from "vite-plugin-magical-svg";
 import { loadEnv } from "vite";
+import magicalSvg from "vite-plugin-magical-svg";
+import tsconfigPaths from "vite-tsconfig-paths";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [
@@ -16,7 +16,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     reporters: process.env.GITHUB_ACTIONS ? ["dot", "github-actions"] : ["dot"],
-    setupFiles: ["./setupTests.js"],
+    setupFiles: ["./setupTests.ts"],
     globals: true,
     silent: false,
     env: loadEnv("", process.cwd(), ""),
