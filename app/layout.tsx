@@ -2,6 +2,8 @@ import CopycatWarning from "@/components/landing/copycat-warning";
 import { Navbar } from "@/components/layout/navbar";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { ThemeProvider } from "@/components/layout/theme-provider";
+import { OnboardingProvider } from "@/components/providers/onboarding-provider";
+import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -63,22 +65,26 @@ export default function RootLayout({
         )}
       </head>
       <body className={cn("min-h-screen bg-background", inter.className)}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          forcedTheme="dark"
-          disableTransitionOnChange
-        >
-          <TooltipProvider>
-            <GlobalDockProvider>
-              <CopycatWarning />
-              <Navbar />
-              <main className="flex-1">{children}</main>
-              <FooterSection />
-              <Toaster richColors closeButton />
-            </GlobalDockProvider>
-          </TooltipProvider>
-        </ThemeProvider>
+        <AuthSessionProvider>
+          <OnboardingProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              forcedTheme="dark"
+              disableTransitionOnChange
+            >
+              <TooltipProvider>
+                <GlobalDockProvider>
+                  <CopycatWarning />
+                  <Navbar />
+                  <main className="flex-1">{children}</main>
+                  <FooterSection />
+                  <Toaster richColors closeButton />
+                </GlobalDockProvider>
+              </TooltipProvider>
+            </ThemeProvider>
+          </OnboardingProvider>
+        </AuthSessionProvider>
       </body>
     </html>
   );
