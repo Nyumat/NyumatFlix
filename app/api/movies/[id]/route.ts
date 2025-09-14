@@ -1,7 +1,10 @@
-import { movieDb } from "@/lib/constants";
 import { NextResponse } from "next/server";
+import { movieDb } from "@/lib/constants";
 
-export async function GET({ params }: { params: { id: string } }) {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } },
+) {
   const id = params.id;
 
   if (!id) {
