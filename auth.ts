@@ -3,6 +3,10 @@ import { html, text } from "@/emails/email-helpers";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
+import {
+  MAGIC_LINK_RESEND_FROM,
+  MAGIC_LINK_RESEND_SUBJECT,
+} from "./lib/constants";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -13,12 +17,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   }),
   providers: [
     Resend({
-      from: "Nyumatflix <login@auth.nyumatflix.com>",
+      from: MAGIC_LINK_RESEND_FROM,
       sendVerificationRequest: async ({ identifier, url, provider, theme }) => {
         const { host } = new URL(url);
         const emailHtml = await html({ url, host, theme });
         const emailText = text({ url, host });
-        const subject = `nyumatflix.com - Here's your magic link to sign in`;
+        const subject = MAGIC_LINK_RESEND_SUBJECT;
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
