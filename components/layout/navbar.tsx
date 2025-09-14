@@ -3,13 +3,15 @@
 import { NavbarSearchClient } from "@/components/search/search";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Github, Menu, X } from "lucide-react";
+import { LogIn, Menu, X } from "lucide-react";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { UserAvatar } from "./user-avatar";
 
 /**
  * Navigation link configuration
@@ -41,6 +43,7 @@ const NAV_LINKS: NavLink[] = [
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -119,7 +122,19 @@ export const Navbar = () => {
 
           {/* Right side controls */}
           <div className="flex items-center space-x-2">
-            <Link
+            {/* Authentication */}
+            {session ? (
+              <UserAvatar session={session} />
+            ) : (
+              <Link href="/login">
+                <Button variant="ghost" size="sm" className="hidden md:flex">
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Sign In
+                </Button>
+              </Link>
+            )}
+
+            {/* <Link
               href="https://github.com/nyumat/nyumatflix"
               target="_blank"
               rel="noopener noreferrer"
@@ -127,7 +142,7 @@ export const Navbar = () => {
             >
               <Github className="stroke-fuchsia-600" />
               <span className="absolute -inset-1 rounded-md border-2 border-fuchsia-600 scale-0 opacity-0 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 origin-center" />
-            </Link>
+            </Link> */}
 
             {/* Mobile menu button */}
             <div className="md:hidden">
@@ -169,6 +184,22 @@ export const Navbar = () => {
                     {link.label}
                   </Link>
                 ))}
+
+                {/* Mobile Authentication */}
+                {session ? (
+                  <div className="px-3 py-3">
+                    <UserAvatar session={session} />
+                  </div>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="block px-3 py-3 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <LogIn className="inline mr-2 h-4 w-4" />
+                    Sign In
+                  </Link>
+                )}
               </div>
             </div>
           </div>
