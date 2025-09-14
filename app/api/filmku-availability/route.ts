@@ -39,9 +39,7 @@ export async function GET(request: NextRequest) {
         ? `https://api.themoviedb.org/3/movie/${tmdbIdNum}/external_ids?api_key=${process.env.TMDB_API_KEY}`
         : `https://api.themoviedb.org/3/tv/${tmdbIdNum}/external_ids?api_key=${process.env.TMDB_API_KEY}`;
 
-    const externalIdsResponse = await fetch(externalIdsUrl, {
-      cache: "no-store",
-    });
+    const externalIdsResponse = await fetch(externalIdsUrl);
 
     if (!externalIdsResponse.ok) {
       console.warn(

@@ -85,7 +85,7 @@ const StableBackground = memo(function StableBackground() {
       <div
         className="w-full min-h-full bg-repeat bg-center"
         style={{
-          backgroundImage: "url('/movie-banner.jpg')",
+          backgroundImage: "url('/movie-banner.webp')",
           filter: "blur(8px)",
           opacity: 0.3,
         }}

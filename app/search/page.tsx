@@ -16,7 +16,7 @@ export default function SearchPage() {
   return (
     <div className="w-full flex flex-col">
       {/* Background - using static position instead of absolute */}
-      <StaticHero imageUrl="/movie-banner.jpg" title="" route="" />
+      <StaticHero imageUrl="/movie-banner.webp" title="" route="" />
 
       {/* Content area - using flex instead of absolute positioning */}
       <ContentContainer className="w-full flex flex-col items-center z-10">

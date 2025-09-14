@@ -319,7 +319,7 @@ export default async function TVShowsPage() {
           <div
             className="w-full h-full bg-repeat bg-center"
             style={{
-              backgroundImage: "url('/movie-banner.jpg')",
+              backgroundImage: "url('/movie-banner.webp')",
               filter: "blur(8px)",
               opacity: 0.3,
             }}

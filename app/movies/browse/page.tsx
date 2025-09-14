@@ -119,7 +119,7 @@ export default async function Page({ searchParams }: PageProps) {
       <BackButton fallbackUrl="/movies" />
 
       {/* Background - using static position instead of absolute */}
-      <StaticHero imageUrl="/movie-banner.jpg" title="" route="" hideTitle />
+      <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
       {/* Content area - using flex instead of absolute positioning */}
       <ContentContainer className="w-full flex flex-col items-center z-10">
