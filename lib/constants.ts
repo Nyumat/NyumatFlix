@@ -1,5 +1,6 @@
 import { MovieDb } from "moviedb-promise";
-import { isBrowser } from "./utils";
+
+export const isBrowser = typeof window !== "undefined";
 
 export const requiredEnvVars = [
   "TMDB_API_KEY",

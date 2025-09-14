@@ -31,5 +31,3 @@ export function validateEnv() {
 }
 
 export const logger = new Logger(LOGGER_TITLE);
-
-export const isBrowser = typeof window !== "undefined";
