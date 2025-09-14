@@ -18,7 +18,7 @@ export const metadata = {
       "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
     images: [
       {
-        url: "https://nyumatflix.com/nyumatflix-alt.webp",
+        url: "https://nyumatflix.com/og.webp",
         width: 1200,
         height: 630,
         alt: "Home | NyumatFlix",
@@ -31,7 +31,7 @@ export const metadata = {
     title: "Home |NyumatFlix",
     description:
       "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
-    images: ["https://nyumatflix.com/nyumatflix-alt.webp"],
+    images: ["https://nyumatflix.com/og.webp"],
   },
 };
 
