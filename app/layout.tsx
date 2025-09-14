@@ -7,12 +7,16 @@ import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, validateEnv } from "@/lib/utils";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
+
+if (process.env.NODE_ENV !== "production") {
+  validateEnv();
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nyumatflix.com/"),
