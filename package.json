@@ -20,6 +20,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.10.0",
     "@auth/neon-adapter": "^1.10.0",
     "@auth/pg-adapter": "^1.10.0",
     "@devnomic/marquee": "^1.0.2",
