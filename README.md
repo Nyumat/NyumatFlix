@@ -4,36 +4,54 @@
 
 The successor to NyumatFlix V2. Now including shadcn-ui, more servers, and a better design.
 
-## ⚡️ Tech Stack ⚡️
+## ⚡️ Tech Stack
 
+- [Bun](https://bun.sh/)
 - [Next.js](https://nextjs.org/)
+- [Resend](https://resend.com/)
 - [TypeScript](https://www.typescriptlang.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Jest](https://jestjs.io/)
-- [ESLint](https://eslint.org/)
-- [Prettier](https://prettier.io/)
-- [Husky](https://typicode.github.io/husky/#/)
+- [Postgres](https://www.postgresql.org/)
 - [Shadcn UI](https://ui.shadcn.com/)
-- [Framer Motion](https://www.framer.com/motion/)
-- [Tabler Icons](https://tablericons.com/)
+- [Husky](https://typicode.github.io/husky/#/)
+- [Drizzle ORM](https://orm.drizzle.team/)
+- [Jest](https://jestjs.io/)
+- [NextAuth.js](https://next-auth.js.org/)
+- [TMDb API](https://www.themoviedb.org/documentation/api)
 
-## 🏃🏾‍♂️ Run NyumatFlix Locally 🏃🏾‍♂️
+## 🏃🏾‍♂️ Run NyumatFlix Locally
 
-To install the project, follow these steps:
+> [!IMPORTANT]
+> Prerequisites:
+>
+> - [Bun](https://bun.sh/) installed on your machine.
+> - A [PostgreSQL](https://www.postgresql.org/) database.
+> - A [TMDb](https://www.themoviedb.org/) API key.
+> - A [Resend](https://resend.com/) API key.
+> - A [GitHub OAuth App](https://docs.github.com/en/developers/apps/building-oauth-apps/creating-an-oauth-app) created.
+
+To run the project on your machine, follow the steps below:
 
 1. Clone the repository
 
 ```bash
 git clone https://github.com/Nyumat/NyumatFlix.git
+cd NyumatFlix
 ```
 
-2. Create a `.env.local` file in the root directory of the project and add the following environment variables:
+2. Next, create a `.env.local` file in the root directory of the project and add the following environment variables:
 
 ```bash
 TMDB_API_KEY=
+AUTH_RESEND_KEY=
+AUTH_URL=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+PROD_DATABASE_URL=
+DATABASE_URL=
 ```
 
-I purposely left the API key blank so that you can get your own. You can get one by creating an account on [TMDb](https://www.themoviedb.org/).
+> [!WARNING]
+> NyumatFlix won't work without these environment variables. You can remove them, but please note, you will **lose anything related to database access**.
 
 3. Install dependencies
 
@@ -41,15 +59,31 @@ I purposely left the API key blank so that you can get your own. You can get one
 bun install
 ```
 
-4. Run the development server
+4. Configure magic strings
+
+There's a few places in the codebase where I'm hardcoding some strings that you might want to change. You can find some of them in `lib/constants.ts`. Additionally, you might want to modify the email templates in `emails/` and `metadata` objects in `app/` and `layout/`.
+
+If you end up not changing the magic strings, that's fine too, but I'd appreciate credit if you use NyumatFlix without modifications. [License](LICENSE)
+
+5. Set up the database
+
+```bash
+bun run db:generate
+bun run db:push
+bun run db:studio # optional
+```
+
+This will generate the necessary migration files and push the schema to your PostgreSQL database. You can also use `bun run db:studio` to open Drizzle's database studio to visualize the DB internals.
+
+6. Run the development server
 
 ```bash
 bun run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+7. Finally, open [http://localhost:3000](http://localhost:3000) in your browser to see NyumatFlix in action!
 
-## 📝 Scripts 📝
+## 📝 Scripts
 
 | Script         | Description                                                          |
 | -------------- | -------------------------------------------------------------------- |
@@ -64,11 +98,15 @@ bun run dev
 | `lint:fix`     | Fix linting issues using ESLint for TypeScript and TypeScript React. |
 | `test-all`     | Run type-checking, linting, and code formatting checks.              |
 | `prepare`      | Install Husky Git hooks.                                             |
+| `db:generate`  | Generate a new migration file based on schema changes.               |
+| `db:push`      | Push the current schema to the database without a migration file.    |
+| `db:studio`    | Open Drizzle's database studio for managing the database.            |
+| `db:migrate`   | Apply pending migrations to the database.                            |
 
-## 🤝 Contributing 🤝
+## 🤝🏿 Contributing
 
-Contributions are welcome. I'm currently working on a test suite so that contributions can be made easier without breaking NyumatFlix. If you have any questions, feel free to open an issue.
+Contributions, feedback, and suggestions are always welcome. If you have any questions, feel free to open an issue. I can't guarantee I'll be able to address everything as a solo dev (on top of juggling other commitments), but I'll do my best!
 
-## 📄 License 📄
+## 🙏🏿 Support the project
 
-[MIT](LICENSE)
+If you find NyumatFlix useful, consider [buying me a coffee](https://buymeacoffee.com/nyumat) or starring the repo. Lastly, since I know there's a ton of people skidding this repo, please at least mention me as the original pioneer. Thanks!
