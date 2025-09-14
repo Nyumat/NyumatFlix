@@ -1,4 +1,4 @@
-import { isBrowser } from "@/lib/utils";
+import { isBrowser } from "@/lib/constants";
 import { useEffect, useState } from "react";
 
 const getInitialState = (query: string, defaultState?: boolean) => {
