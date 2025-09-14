@@ -1,16 +1,8 @@
-<img src="preview.webp" alt="NyumatFlix" width="100%"/>
+![NyumatFlix](/public/preview.webp)
 
 # [NyumatFlix](https://nyumatflix.com)
 
-The successor to NyumatFlix V1. Now including Next.js, a design system, and server-side rendering.
-
-## 🚀 Features 🚀
-
-- 🎞️ **Multi-modal Streaming:** Anime, TV shows, Movies, we got you covered.
-- 🎬 **Latest Releases:** Stay up to date with the latest movie and TV show releases.
-- 🔍 **Search:** Find your favorite movies and TV shows with the search feature.
-- 🎭 **Filter by Genre:** Filter movies and TV shows by genre.
-- 📱 **Responsive Design:** The app is designed to work well on both desktop and mobile devices.
+The successor to NyumatFlix V2. Now including shadcn-ui, more servers, and a better design.
 
 ## ⚡️ Tech Stack ⚡️
 
@@ -21,7 +13,7 @@ The successor to NyumatFlix V1. Now including Next.js, a design system, and serv
 - [ESLint](https://eslint.org/)
 - [Prettier](https://prettier.io/)
 - [Husky](https://typicode.github.io/husky/#/)
-- [Mantine](https://mantine.dev/)
+- [Shadcn UI](https://ui.shadcn.com/)
 - [Framer Motion](https://www.framer.com/motion/)
 - [Tabler Icons](https://tablericons.com/)
 
@@ -38,25 +30,21 @@ git clone https://github.com/Nyumat/NyumatFlix.git
 2. Create a `.env.local` file in the root directory of the project and add the following environment variables:
 
 ```bash
-# The API key for The Movie Database (TMDb)
-API_KEY=
-# First is for movies, second one is for TV shows. Both are required.
-NYUMATFLIX_VPS=
-NYUMATFLIX_VPS2=
+TMDB_API_KEY=
 ```
 
-I purposely left the API key blank so that you can get your own. You can get one by creating an account on [TMDb](https://www.themoviedb.org/). For the other two variables, you can get them by checking out [FMHY](https://fmhy.net/).
+I purposely left the API key blank so that you can get your own. You can get one by creating an account on [TMDb](https://www.themoviedb.org/).
 
 3. Install dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 4. Run the development server
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
