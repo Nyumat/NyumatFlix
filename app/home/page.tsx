@@ -1,7 +1,6 @@
-import { SuspenseContentRow } from "@/components/content/suspense-content-row";
-import { MediaCarousel } from "@/components/hero";
-import { fetchMultipleContentRows } from "@/lib/content-row-fetcher";
+// rows will be lazy-loaded client-side
 import { MediaItem } from "@/utils/typings";
+import NextDynamic from "next/dynamic";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
 
 // Opt-out of static generation – this page fetches dynamic data and is heavy at build time.
@@ -227,36 +226,13 @@ export default async function Home() {
     },
   ];
 
-  // Extract hero carousel IDs to avoid duplicates in content rows
-  const heroIds = new Set(
-    fanFavoriteContentProcessedForHero.map((item) => item.id),
-  );
-
-  // Fetch all content row data using centralized system
-  const contentRowResults = await fetchMultipleContentRows(
-    contentRowsConfig.map((config) => ({
-      rowId: config.rowId,
-      minCount: 20,
-    })),
-  );
-
-  // Filter out hero content from results and combine with display metadata
-  const contentRowsData = contentRowsConfig.map((config) => {
-    const result = contentRowResults.find((r) => r.rowId === config.rowId);
-    const filteredItems =
-      result?.items.filter((item) => !heroIds.has(item.id)) || [];
-
-    return {
-      ...config,
-      items: filteredItems,
-    };
-  });
+  // rows are loaded progressively on scroll; no server prefetch
 
   return (
     <div>
       <main>
         {/* Hero carousel - remains fully visible */}
-        <MediaCarousel items={fanFavoriteContentProcessedForHero} />
+        <DynamicMediaCarousel items={fanFavoriteContentProcessedForHero} />
         <div className="relative">
           {/* only cover content area, not hero */}
           <div className="absolute inset-0 w-full h-full z-0">
@@ -270,20 +246,32 @@ export default async function Home() {
             />
           </div>
           <div className="relative z-10 min-h-[200vh]">
-            {contentRowsData.map((rowData) => (
-              <SuspenseContentRow
-                key={rowData.rowId}
-                rowId={rowData.rowId}
-                title={rowData.title}
-                href={rowData.href}
-                variant={rowData.variant}
-                enrich={rowData.enrich}
-                preloadedItems={rowData.items}
-              />
-            ))}
+            <LazyContentRowsDynamic
+              rows={contentRowsConfig}
+              initialCount={1}
+              batchSize={1}
+            />
           </div>
         </div>
       </main>
     </div>
   );
 }
+
+const DynamicMediaCarousel = NextDynamic(
+  () => import("@/components/hero").then((m) => m.MediaCarousel),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="relative h-[80vh] md:h-[92vh] overflow-hidden bg-black" />
+    ),
+  },
+);
+
+const LazyContentRowsDynamic = NextDynamic(
+  () =>
+    import("@/components/content/lazy-content-rows").then(
+      (m) => m.LazyContentRows,
+    ),
+  { ssr: false },
+);

@@ -1,3 +1,4 @@
+import CopycatWarning from "@/components/landing/copycat-warning";
 import { Navbar } from "@/components/layout/navbar";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { ThemeProvider } from "@/components/layout/theme-provider";
@@ -70,6 +71,7 @@ export default function RootLayout({
         >
           <TooltipProvider>
             <GlobalDockProvider>
+              <CopycatWarning />
               <Navbar />
               <main className="flex-1">{children}</main>
               <FooterSection />
