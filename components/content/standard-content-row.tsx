@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/carousel";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
-import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
+import { isMovie, isTVShow, MediaItem } from "@/utils/typings";
 import { useEffect, useRef, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
@@ -106,16 +106,12 @@ export function StandardContentRow({
   );
 
   const getItemLink = (item: MediaItem): string => {
-    const movieItem = isMovie(item) ? (item as unknown as Movie) : null;
-    const tvShowItem = !isMovie(item) ? (item as unknown as TvShow) : null;
-
-    if (movieItem) {
-      return `/movies/${item.id}`;
-    } else if (tvShowItem) {
-      return `/tvshows/${item.id}`;
-    } else {
-      return `#invalid-item-${item.id}`;
+    if (isMovie(item)) {
+      return `/movies/${(item as MediaItem).id}`;
+    } else if (isTVShow(item)) {
+      return `/tvshows/${(item as MediaItem).id}`;
     }
+    return `/movies/${(item as MediaItem).id}`;
   };
 
   return (
