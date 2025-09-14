@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader } from "@/components/ui/loader";
 import { ArrowRight, Mail } from "lucide-react";
 import { Metadata } from "next";
 import dynamic from "next/dynamic";
@@ -61,7 +62,7 @@ export const metadata: Metadata = {
 
 const NeuralNetworkBackground = dynamic(
   () => import("@/components/ui/neural-network-hero"),
-  { ssr: false, loading: () => <div className="w-full h-full bg-black" /> },
+  { ssr: false, loading: () => <Loader /> },
 );
 
 export default function LoginPage() {
