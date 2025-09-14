@@ -1,5 +1,5 @@
-import { isBrowser } from "framer-motion";
 import { MovieDb } from "moviedb-promise";
+import { isBrowser } from "./utils";
 
 export const requiredEnvVars = [
   "TMDB_API_KEY",
@@ -33,4 +33,6 @@ if (!isBrowser) {
 }
 export { TMDB_API_KEY };
 export const movieDb =
-  !isBrowser && TMDB_API_KEY ? new MovieDb(TMDB_API_KEY) : undefined;
+  !isBrowser && TMDB_API_KEY
+    ? new MovieDb(TMDB_API_KEY)
+    : (null as unknown as MovieDb);
