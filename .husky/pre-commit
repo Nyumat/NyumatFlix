@@ -1,13 +1,23 @@
 #!/bin/sh
 echo "🚀 Running pre-commit checks..."
 
-npm run lint &
-npm run test-ci &
-npm run check-format &
-npm run type-check &
+pids=""
 
-wait
-if [ $? -ne 0 ]; then
+npm run lint & pids="$pids $!"
+npm run test-ci & pids="$pids $!"
+npm run check-format & pids="$pids $!"
+npm run type-check & pids="$pids $!"
+
+fail=0
+for pid in $pids; do
+  if ! wait "$pid"; then
+    fail=1
+  fi
+done
+
+if [ $fail -ne 0 ]; then
   echo "🚨 Pre-commit checks failed. Please fix the above issues before committing."
   exit 1
 fi
+
+echo "✅ All pre-commit checks passed."
