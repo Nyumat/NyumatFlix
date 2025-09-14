@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { LOGGER_TITLE, requiredEnvVars } from "./constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,6 +22,14 @@ export class Logger {
   }
 }
 
-export const logger = new Logger("Nyumatflix 3.0");
+export function validateEnv() {
+  for (const varName of requiredEnvVars) {
+    if (!process.env[varName]) {
+      throw new Error(`Missing required environment variable: ${varName}`);
+    }
+  }
+}
+
+export const logger = new Logger(LOGGER_TITLE);
 
 export const isBrowser = typeof window !== "undefined";
