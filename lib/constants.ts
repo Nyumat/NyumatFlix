@@ -1,16 +1,23 @@
+import { isBrowser } from "framer-motion";
 import { MovieDb } from "moviedb-promise";
 
+export const requiredEnvVars = [
+  "TMDB_API_KEY",
+  "AUTH_RESEND_KEY",
+  "AUTH_URL",
+  "DATABASE_URL",
+  "PROD_DATABASE_URL",
+  "GITHUB_CLIENT_ID",
+  "GITHUB_CLIENT_SECRET",
+];
+export const LOGGER_TITLE = "Nyumatflix 3.0";
+export const MAGIC_LINK_RESEND_FROM = "Nyumatflix <login@auth.nyumatflix.com>";
+export const MAGIC_LINK_RESEND_SUBJECT =
+  "nyumatflix.com - Here's your magic link to sign in";
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-
-// Only check for API key on the server
 let TMDB_API_KEY: string | undefined;
-
-// Check for browser environment to avoid throwing in client components
-if (typeof window === "undefined") {
-  // Running on server
+if (!isBrowser) {
   TMDB_API_KEY = process.env.TMDB_API_KEY;
-
-  // Only throw on server if key is missing
   if (!TMDB_API_KEY) {
     console.error(
       "❌ Server Error: TMDB_API_KEY is missing in environment variables",
@@ -22,15 +29,8 @@ if (typeof window === "undefined") {
     }
   }
 } else {
-  // Running in browser - API calls should go through Next.js API routes
   TMDB_API_KEY = undefined;
 }
-
-// Re-export for server-side use
 export { TMDB_API_KEY };
-
-// Only create MovieDb instance on server
 export const movieDb =
-  typeof window === "undefined" && TMDB_API_KEY
-    ? new MovieDb(TMDB_API_KEY)
-    : (null as unknown as MovieDb); // Type assertion for client-side
+  !isBrowser && TMDB_API_KEY ? new MovieDb(TMDB_API_KEY) : undefined;
