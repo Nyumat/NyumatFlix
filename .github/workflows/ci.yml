@@ -31,7 +31,6 @@ jobs:
       - name: Create .env file
         run: |
           echo "TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env.local
-          echo "NEXT_PUBLIC_TMDB_API_KEY=${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}" >> .env.local
 
       - name: Build the app
         env:
