@@ -289,21 +289,29 @@ function loadFilters(): Record<string, ContentFilter> {
   }
 }
 
-// Load and export the content filters
-export const CONTENT_FILTERS = loadFilters();
+// Cache for loaded filters to avoid repeated parsing
+let cachedFilters: Record<string, ContentFilter> | null = null;
+
+// Lazy load and export the content filters
+function getContentFilters(): Record<string, ContentFilter> {
+  if (cachedFilters === null) {
+    cachedFilters = loadFilters();
+  }
+  return cachedFilters;
+}
 
 /**
  * Gets a filter configuration by ID
  */
 export function getFilterConfig(filterId: string): ContentFilter | undefined {
-  return CONTENT_FILTERS[filterId];
+  return getContentFilters()[filterId];
 }
 
 /**
  * Gets all filter IDs
  */
 export function getFilterIds(): string[] {
-  return Object.keys(CONTENT_FILTERS);
+  return Object.keys(getContentFilters());
 }
 
 /**
@@ -312,7 +320,7 @@ export function getFilterIds(): string[] {
 export function getFiltersByType(
   type: "category" | "genre" | "year" | "studio" | "director" | "special",
 ): ContentFilter[] {
-  return Object.values(CONTENT_FILTERS).filter(
+  return Object.values(getContentFilters()).filter(
     (filter) => filter.type === type,
   );
 }
@@ -363,7 +371,7 @@ export function getFiltersByMediaType(
     }
   }
 
-  return Object.values(CONTENT_FILTERS).filter((filter) =>
+  return Object.values(getContentFilters()).filter((filter) =>
     matchingIds.has(filter.id),
   );
 }
