@@ -5,11 +5,10 @@ export const isBrowser = typeof window !== "undefined";
 export const requiredEnvVars = [
   "TMDB_API_KEY",
   "AUTH_RESEND_KEY",
+  "AUTH_SECRET",
   "AUTH_URL",
   "DATABASE_URL",
   "PROD_DATABASE_URL",
-  "GITHUB_CLIENT_ID",
-  "GITHUB_CLIENT_SECRET",
 ];
 export const LOGGER_TITLE = "Nyumatflix 3.0";
 export const MAGIC_LINK_RESEND_FROM = "Nyumatflix <login@auth.nyumatflix.com>";
