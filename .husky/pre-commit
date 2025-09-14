@@ -1,27 +1,12 @@
-clear
-echo "🧹 Linting Code..."
+#!/bin/sh
+echo "🚀 Running pre-commit checks..."
 
-# Run linting
-npm run lint
+npm run lint &
+npm run test-ci &
+npm run check-format &
+npm run type-check &
 
-# Run tests
-clear
-echo "🧪 Running Tests..."
-
-npm run test-ci
-
-# Check formatting
-clear
-echo "📝 Checking Code Formatting..."
-
-npm run check-format
-
-# Checking types
-clear
-echo "🔍 Checking Types..."
-
-npm run type-check
-
+wait
 if [ $? -ne 0 ]; then
   echo "🚨 Pre-commit checks failed. Please fix the above issues before committing."
   exit 1
