@@ -13,32 +13,32 @@ import dynamic from "next/dynamic";
 import Image from "next/legacy/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import StreamingServices from "./steaming-services";
 
 const NeuralNetworkBackground = dynamic(
   () => import("@/components/ui/neural-network-hero"),
-  { ssr: false },
+  { ssr: false, loading: () => <div className="w-full h-full bg-black" /> },
 );
 
 export const HeroSection = () => {
   const router = useRouter();
-  const [adblockAlertTrigger, setAdblockAlertTrigger] = useState<number>(0);
+  const [adblockAlertTrigger, setAdblockAlertTrigger] =
+    useState<boolean>(false);
 
   const adBlockDetected = useDetectAdBlock();
 
-  useEffect(() => {
+  const handleStartWatchingClick = useCallback(() => {
     router.prefetch("/home");
     router.prefetch("/movies");
     router.prefetch("/tvshows");
-  }, [router]);
 
-  const handleStartWatchingClick = useCallback(() => {
     if (adBlockDetected) {
       router.push("/home");
       return;
     }
-    setAdblockAlertTrigger((n) => n + 1);
+
+    setAdblockAlertTrigger(true);
   }, [adBlockDetected, router]);
 
   return (
@@ -89,7 +89,6 @@ export const HeroSection = () => {
               </Button>
             </div>
           </div>
-          {/* alert dialog prompting adblock recommendation */}
           <AdblockerAlert openSignal={adblockAlertTrigger} />
           <div className="flex flex-col items-center gap-4 sm:gap-6 pointer-events-auto select-auto max-w-4xl">
             <p className="text-sm font-extralight text-white/80 text-center px-4 drop-shadow-md">
@@ -107,7 +106,7 @@ export const HeroSection = () => {
                     width={768}
                     height={1680}
                     className="pointer-events-none select-none object-cover w-full h-auto"
-                    src="/mobile.png"
+                    src="/mobile.webp"
                     priority
                     alt="NyumatFlix on Mobile"
                   />

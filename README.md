@@ -1,4 +1,4 @@
-<img src="preview.png" alt="NyumatFlix" width="100%"/>
+<img src="preview.webp" alt="NyumatFlix" width="100%"/>
 
 # [NyumatFlix](https://nyumatflix.com)
 

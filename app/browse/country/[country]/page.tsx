@@ -29,7 +29,6 @@ export default async function BrowseCountryPage({
   // Fetch initial content from the new API endpoint with enriched data
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/country/${countryCode}?type=${mediaType}&page=1&sortBy=vote_average.desc`,
-    { cache: "no-store" },
   );
 
   if (!response.ok) {
@@ -43,7 +42,7 @@ export default async function BrowseCountryPage({
   const backdropImage =
     initialItems.length > 0 && initialItems[0].backdrop_path
       ? `https://image.tmdb.org/t/p/original${initialItems[0].backdrop_path}`
-      : "/movie-banner.jpg";
+      : "/movie-banner.webp";
 
   const pageTitle = `${countryEmoji} ${countryName} ${mediaType === "movie" ? "Movies" : "TV Shows"}`;
 

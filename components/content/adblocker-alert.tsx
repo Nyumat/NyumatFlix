@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export type AdblockerAlertProps = {
-  openSignal: number;
+  openSignal: boolean;
 };
 
 export const AdblockerAlert = ({ openSignal }: AdblockerAlertProps) => {
@@ -23,11 +23,11 @@ export const AdblockerAlert = ({ openSignal }: AdblockerAlertProps) => {
   const router = useRouter();
 
   useEffect(() => {
-    if (openSignal > 0) {
+    if (openSignal) {
       setShowOptions(false);
       setOpen(true);
     }
-  }, [openSignal]);
+  }, [openSignal, setOpen, setShowOptions]);
 
   const handleShowOptions = () => {
     setShowOptions(true);

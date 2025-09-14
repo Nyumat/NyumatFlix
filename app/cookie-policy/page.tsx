@@ -11,7 +11,7 @@ export default function CookiePolicyPage() {
   return (
     <div className="w-full flex flex-col">
       {/* Full viewport height background - fixed positioned */}
-      <StaticHero imageUrl="/movie-banner.jpg" title="" route="" />
+      <StaticHero imageUrl="/movie-banner.webp" title="" route="" />
 
       {/* Content area - positioned to scroll over the fixed background */}
       <div className="relative z-10 min-h-[100dvh] w-full">

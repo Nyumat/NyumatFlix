@@ -1,10 +1,10 @@
 import { SuspenseContentRow } from "@/components/content/suspense-content-row";
 import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
+import { fetchMultipleContentRows } from "@/lib/content-row-fetcher";
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
-import { fetchMultipleContentRows } from "@/lib/content-row-fetcher";
 
 export const metadata: Metadata = {
   title: "Movies | NyumatFlix",
@@ -210,7 +210,7 @@ export default async function MoviesPage() {
           <div
             className="w-full h-full bg-repeat bg-center"
             style={{
-              backgroundImage: "url('/movie-banner.jpg')",
+              backgroundImage: "url('/movie-banner.webp')",
               filter: "blur(8px)",
               opacity: 0.3,
             }}

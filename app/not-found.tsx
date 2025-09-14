@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <div
       className="relative min-h-[80vh] w-full flex items-center justify-center bg-cover bg-center"
-      style={{ backgroundImage: "url('/movie-banner.jpg')" }}
+      style={{ backgroundImage: "url('/movie-banner.webp')" }}
     >
       <div className="absolute inset-0 bg-black/85"></div>
       <div className="relative z-10 max-w-2xl mx-4 p-8 rounded-2xl bg-white/10 backdrop-blur-lg border border-white/20">

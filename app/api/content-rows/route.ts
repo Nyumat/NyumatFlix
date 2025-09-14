@@ -266,11 +266,11 @@ export async function GET(request: Request) {
 
     // Cache headers <3
     return NextResponse.json(response, {
-      // headers: {
-      //   "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-      //   "CDN-Cache-Control": "public, s-maxage=300",
-      //   "Vercel-CDN-Cache-Control": "public, s-maxage=300",
-      // },
+      headers: {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "CDN-Cache-Control": "public, s-maxage=300",
+        "Vercel-CDN-Cache-Control": "public, s-maxage=300",
+      },
     });
   } catch (error) {
     console.error(`Error fetching row ${rowId}:`, error);

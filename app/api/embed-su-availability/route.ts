@@ -23,9 +23,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const response = await fetch(`https://embed.su/list/${type}.json`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`https://embed.su/list/${type}.json`);
 
       if (!response.ok) {
         console.warn(`Embed.su API returned ${response.status} for ${type}`);
@@ -47,9 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     // If no tmdbId provided, return all available TMDB IDs (for bulk checking)
-    const response = await fetch(`https://embed.su/list/${type}.json`, {
-      cache: "no-store",
-    });
+    const response = await fetch(`https://embed.su/list/${type}.json`);
 
     if (!response.ok) {
       console.warn(`Embed.su API returned ${response.status} for ${type}`);
