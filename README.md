@@ -42,16 +42,14 @@ cd NyumatFlix
 
 ```bash
 TMDB_API_KEY=
+AUTH_SECRET=
 AUTH_RESEND_KEY=
 AUTH_URL=
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
 PROD_DATABASE_URL=
 DATABASE_URL=
 ```
 
-> [!WARNING]
-> NyumatFlix won't work without these environment variables. You can remove them, but please note, you will **lose anything related to database access**.
+I purposely left the API key blank so that you can get your own. You can get one by creating an account on [TMDb](https://www.themoviedb.org/).
 
 3. Install dependencies
 
