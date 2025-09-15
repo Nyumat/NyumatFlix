@@ -1,14 +1,16 @@
 "use client";
-import { GithubIcon } from "@/components/icons/github-icon";
-import {} from "@/components/ui/alert-dialog";
 
 import AdblockerAlert from "@/components/content/adblocker-alert";
 import AdblockerIcons from "@/components/content/adblocker-icons";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
-import {} from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useDetectAdBlock } from "adblock-detect-react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, User } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/legacy/image";
 import Link from "next/link";
@@ -67,26 +69,37 @@ export const HeroSection = () => {
             </div>
             <div className="flex flex-col md:!flex-row text-xl items-center justify-center gap-3 md:gap-4 w-full max-w-xs md:max-w-md -translate-y-2">
               <Button
-                className="w-full sm:w-auto sm:min-w-[160px] font-light group/arrow pointer-events-auto select-auto"
+                className="w-full sm:w-auto sm:min-w-[160px] font-light group/arrow pointer-events-auto select-auto "
                 aria-label="Get Started"
+                variant="stylish"
                 onClick={handleStartWatchingClick}
+                onMouseEnter={() => {
+                  router.prefetch("/home");
+                }}
               >
                 Start Watching
                 <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
               </Button>
-              <Button
-                asChild
-                variant="secondary"
-                className="w-full sm:w-auto sm:min-w-[160px] font-light pointer-events-auto select-auto"
-              >
-                <Link
-                  href="https://github.com/nyumat/nyumatflix"
-                  target="_blank"
-                >
-                  GitHub
-                  <GithubIcon className="size-5 ml-2" />
-                </Link>
-              </Button>
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="chrome"
+                    className="w-full sm:w-auto sm:min-w-[160px] font-light pointer-events-auto select-auto"
+                  >
+                    <Link
+                      href="/login"
+                      className="flex items-center justify-center group/user"
+                    >
+                      Login / Signup
+                      <User className="size-5 ml-2 group-hover/user:scale-110 transition-transform" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Login to save watchlists, bookmark favorites, and more</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
           <AdblockerAlert openSignal={adblockAlertTrigger} />

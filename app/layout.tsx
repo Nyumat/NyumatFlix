@@ -1,5 +1,5 @@
 import CopycatWarning from "@/components/landing/copycat-warning";
-import { Navbar } from "@/components/layout/navbar";
+import { NavbarServer } from "@/components/layout/nav/navbar-server";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { OnboardingProvider } from "@/components/providers/onboarding-provider";
@@ -80,7 +80,7 @@ export default function RootLayout({
               <TooltipProvider>
                 <GlobalDockProvider>
                   <CopycatWarning />
-                  <Navbar />
+                  <NavbarServer />
                   <main className="flex-1">{children}</main>
                   <FooterSection />
                   <Toaster richColors closeButton />
