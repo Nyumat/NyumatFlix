@@ -11,14 +11,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import type {
-  Genre as GenreType,
-  MediaItem,
-  Movie,
-  TmdbResponse,
-  TvShow,
-} from "@/utils/typings";
-import { useEffect, useState } from "react";
+import { useSearchResults } from "@/hooks/useSearchResults";
+import type { MediaItem, Movie, TvShow } from "@/utils/typings";
+import { useMemo } from "react";
 
 const isValidMediaItem = (item: Movie | TvShow): boolean => {
   return Boolean(item.poster_path || item.backdrop_path);
@@ -146,129 +141,26 @@ function EnhancedPagination({
 }
 
 export default function SearchResults({ query }: { query: string }) {
-  const [items, setItems] = useState<Array<Movie | TvShow>>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
-
-  const [allGenres, setAllGenres] = useState<{ [key: number]: string }>({});
-  const [genresLoading, setGenresLoading] = useState(true);
-
-  // Filter items by selected genres
-  const filteredItems =
-    selectedGenreIds.length > 0
-      ? items.filter((item) =>
-          item.genre_ids?.some((genreId) =>
-            selectedGenreIds.includes(genreId.toString()),
-          ),
-        )
-      : items;
+  const {
+    items,
+    currentPage,
+    totalPages,
+    isLoading,
+    error,
+    selectedGenreIds,
+    allGenres,
+    genresLoading,
+    filteredItems,
+    genreOptions,
+    setCurrentPage,
+    setSelectedGenreIds,
+  } = useSearchResults(query);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
-
-  useEffect(() => {
-    const fetchAllGenres = async () => {
-      setGenresLoading(true);
-      try {
-        const movieGenresRes = await fetch("/api/genres?type=movie");
-        const tvGenresRes = await fetch("/api/genres?type=tv");
-
-        if (!movieGenresRes.ok || !tvGenresRes.ok) {
-          throw new Error("Failed to fetch genres");
-        }
-
-        const movieGenresData = await movieGenresRes.json();
-        const tvGenresData = await tvGenresRes.json();
-
-        const combinedGenres: { [key: number]: string } = {};
-
-        // Add null checks to handle potential undefined genres
-        if (
-          movieGenresData &&
-          movieGenresData.genres &&
-          Array.isArray(movieGenresData.genres)
-        ) {
-          movieGenresData.genres.forEach((genre: GenreType) => {
-            if (genre && genre.id) {
-              combinedGenres[genre.id] = genre.name;
-            }
-          });
-        }
-
-        if (
-          tvGenresData &&
-          tvGenresData.genres &&
-          Array.isArray(tvGenresData.genres)
-        ) {
-          tvGenresData.genres.forEach((genre: GenreType) => {
-            if (genre && genre.id && !combinedGenres[genre.id]) {
-              combinedGenres[genre.id] = genre.name;
-            }
-          });
-        }
-
-        setAllGenres(combinedGenres);
-      } catch (err: unknown) {
-        console.error("Error fetching genres:", err);
-        // Set empty object as fallback
-        setAllGenres({});
-      } finally {
-        setGenresLoading(false);
-      }
-    };
-    fetchAllGenres();
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!query || !query.trim()) {
-        setItems([]);
-        setTotalPages(1);
-        setCurrentPage(1);
-        return;
-      }
-      setIsLoading(true);
-      setError(null);
-      try {
-        const url = new URL("/api/search", window.location.origin);
-        url.searchParams.append("query", query.trim());
-        url.searchParams.append("page", currentPage.toString());
-
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.error ||
-              `Failed to fetch search results: ${response.statusText}`,
-          );
-        }
-        const searchResults: TmdbResponse<Movie | TvShow> =
-          await response.json();
-
-        setItems(searchResults.results || []);
-        setTotalPages(searchResults.total_pages || 1);
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          setError(
-            err.message || "An unknown error occurred while fetching results.",
-          );
-        } else {
-          setError("An unknown error occurred while fetching results.");
-        }
-        setItems([]);
-        setTotalPages(1);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [query, currentPage]);
 
   if (isLoading && items.length === 0 && query && query.trim()) {
     return (
@@ -298,10 +190,7 @@ export default function SearchResults({ query }: { query: string }) {
     );
   }
 
-  const parsedGenresForFilter = Object.entries(allGenres).map(([id, name]) => ({
-    label: name,
-    value: id,
-  }));
+  const parsedGenresForFilter = useMemo(() => genreOptions, [genreOptions]);
 
   return (
     <div className="container mx-auto px-2 sm:px-4 pb-12">

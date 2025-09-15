@@ -9,10 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useOnboardingForm } from "@/hooks/useOnboardingForm";
 import { Loader2, User } from "lucide-react";
-import { useSession } from "next-auth/react";
 import Image from "next/image";
-import { useState } from "react";
 import { toast } from "sonner";
 
 interface OnboardingDialogProps {
@@ -24,53 +23,8 @@ export const OnboardingDialog = ({
   open,
   onComplete,
 }: OnboardingDialogProps) => {
-  const { update } = useSession();
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!name.trim()) {
-      toast.error("Please enter your name");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/user/update-name", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update name");
-      }
-
-      await update({ name: name.trim() });
-
-      toast.success("Welcome to NyumatFlix! 🎉");
-      onComplete();
-    } catch (error) {
-      console.error("Error updating name:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update name",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSkip = () => {
-    localStorage.setItem("onboardingSkipped", "true");
-    toast.info("The next time you open NyumatFlix, we'll ask you again.");
-    onComplete();
-  };
+  const { name, isLoading, setName, handleSubmit, handleSkip } =
+    useOnboardingForm();
 
   return (
     <Dialog open={open}>
@@ -100,7 +54,28 @@ export const OnboardingDialog = ({
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form
+          onSubmit={async (e) => {
+            if (!name.trim()) {
+              toast.error("Please enter your name");
+              return;
+            }
+            try {
+              await handleSubmit(e, () => {
+                toast.success("Welcome to NyumatFlix! 🎉");
+                onComplete();
+              });
+            } catch (error) {
+              console.error("Error updating name:", error);
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : "Failed to update name",
+              );
+            }
+          }}
+          className="space-y-6"
+        >
           <div className="space-y-2">
             <Label
               htmlFor="name"
@@ -127,7 +102,14 @@ export const OnboardingDialog = ({
           <DialogFooter className="flex-col sm:flex-row gap-4 pt-6">
             <Button
               type="button"
-              onClick={handleSkip}
+              onClick={() => {
+                handleSkip(() => {
+                  toast.info(
+                    "The next time you open NyumatFlix, we'll ask you again.",
+                  );
+                  onComplete();
+                });
+              }}
               disabled={isLoading}
               className="w-full sm:w-auto backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition-all duration-200 shadow-lg font-medium"
             >
