@@ -1,22 +1,16 @@
-import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   CheckIcon,
-  XCircle,
   ChevronDown,
-  XIcon,
   WandSparkles,
+  XCircle,
+  XIcon,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
+import { forwardRef, useEffect } from "react";
+
 import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -26,6 +20,14 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { useMultiSelect } from "@/hooks/useMultiSelect";
+import { cn } from "@/lib/utils";
 
 /**
  * Variants for the multi-select component to handle different styles.
@@ -114,10 +116,7 @@ interface MultiSelectProps
   className?: string;
 }
 
-export const MultiSelect = React.forwardRef<
-  HTMLButtonElement,
-  MultiSelectProps
->(
+export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
   (
     {
       options,
@@ -128,20 +127,24 @@ export const MultiSelect = React.forwardRef<
       animation = 0,
       maxCount = 3,
       modalPopover = false,
-      asChild = false,
       className,
       ...props
     },
     ref,
   ) => {
-    const [selectedValues, setSelectedValues] =
-      React.useState<string[]>(defaultValue);
-    const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
-    const [isAnimating, setIsAnimating] = React.useState(false);
-
-    React.useEffect(() => {
-      setSelectedValues(defaultValue);
-    }, [defaultValue]);
+    const {
+      selectedValues,
+      isPopoverOpen,
+      isAnimating,
+      setSelectedValues,
+      toggleOption,
+      handleClear,
+      handleTogglePopover,
+      clearExtraOptions,
+      toggleAll,
+      setIsAnimating,
+      setIsPopoverOpen,
+    } = useMultiSelect(defaultValue);
 
     const handleInputKeyDown = (
       event: React.KeyboardEvent<HTMLInputElement>,
@@ -156,38 +159,9 @@ export const MultiSelect = React.forwardRef<
       }
     };
 
-    const toggleOption = (value: string) => {
-      const newSelectedValues = selectedValues.includes(value)
-        ? selectedValues.filter((v) => v !== value)
-        : [...selectedValues, value];
-      setSelectedValues(newSelectedValues);
-      onValueChange(newSelectedValues);
-    };
-
-    const handleClear = () => {
-      setSelectedValues([]);
-      onValueChange([]);
-    };
-
-    const handleTogglePopover = () => {
-      setIsPopoverOpen((prev) => !prev);
-    };
-
-    const clearExtraOptions = () => {
-      const newSelectedValues = selectedValues.slice(0, maxCount);
-      setSelectedValues(newSelectedValues);
-      onValueChange(newSelectedValues);
-    };
-
-    const toggleAll = () => {
-      if (selectedValues.length === options.length) {
-        handleClear();
-      } else {
-        const allValues = options.map((option) => option.value);
-        setSelectedValues(allValues);
-        onValueChange(allValues);
-      }
-    };
+    useEffect(() => {
+      onValueChange(selectedValues);
+    }, [selectedValues]);
 
     return (
       <Popover
@@ -207,7 +181,6 @@ export const MultiSelect = React.forwardRef<
           >
             {selectedValues.length > 0 ? (
               <div className="flex justify-between items-center w-full">
-                {/* Modified From OG */}
                 <div
                   className="flex items-center overflow-x-scroll px-2 py-1 gap-1"
                   id="scrollbar_hide"
@@ -253,7 +226,7 @@ export const MultiSelect = React.forwardRef<
                         className="ml-2 h-4 w-4 cursor-pointer"
                         onClick={(event) => {
                           event.stopPropagation();
-                          clearExtraOptions();
+                          clearExtraOptions(maxCount);
                         }}
                       />
                     </Badge>
@@ -299,7 +272,7 @@ export const MultiSelect = React.forwardRef<
               <CommandGroup>
                 <CommandItem
                   key="all"
-                  onSelect={toggleAll}
+                  onSelect={() => toggleAll(options.map((o) => o.value))}
                   className="cursor-pointer"
                 >
                   <div

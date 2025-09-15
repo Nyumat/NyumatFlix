@@ -1,8 +1,8 @@
 "use client";
 
+import { useServerManagement } from "@/hooks/useServerManagement";
 import { useServerStore, videoServers } from "@/lib/stores/server-store";
 import { RotateCcw, Settings, Wifi, WifiOff } from "lucide-react";
-import { useState } from "react";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import {
@@ -21,43 +21,21 @@ interface ServerManagementProps {
 export function ServerManagement({ className }: ServerManagementProps) {
   const {
     serverOverrides,
-    setServerOverride,
     removeServerOverride,
     resetServerOverrides,
     getServerOverride,
     isServerOverridden,
   } = useServerStore();
 
-  const [customReason, setCustomReason] = useState("");
-  const [editingServerId, setEditingServerId] = useState<string | null>(null);
-
-  const handleToggleServer = (
-    serverId: string,
-    isAvailable: boolean,
-    reason?: string,
-  ) => {
-    if (isAvailable) {
-      // If marking as available, remove any override
-      removeServerOverride(serverId);
-    } else {
-      // If marking as unavailable, set override
-      setServerOverride(serverId, false, reason || "Manually disabled");
-    }
-  };
-
-  const handleCustomReason = (serverId: string) => {
-    if (customReason.trim()) {
-      setServerOverride(serverId, false, customReason.trim());
-      setCustomReason("");
-      setEditingServerId(null);
-    }
-  };
-
-  const getServerStatus = (serverId: string) => {
-    const override = getServerOverride(serverId);
-    if (!override) return "available";
-    return override.isAvailable ? "available" : "unavailable";
-  };
+  const {
+    customReason,
+    editingServerId,
+    setCustomReason,
+    setEditingServerId,
+    handleToggleServer,
+    handleCustomReason,
+    getServerStatus,
+  } = useServerManagement();
 
   const getServerStatusIcon = (serverId: string) => {
     const status = getServerStatus(serverId);
