@@ -21,7 +21,6 @@ import { useEffect, useRef, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 
-// Props for the RankedContentRow, similar to StandardContentRowProps
 export interface RankedContentRowProps {
   title: string;
   items: MediaItem[];
@@ -31,7 +30,6 @@ export interface RankedContentRowProps {
   hasMoreItems?: boolean;
 }
 
-// Interface to ensure item has an id property
 interface ItemWithId {
   id: number;
 }
@@ -84,7 +82,6 @@ export function RankedContentRow({
   }, [api, hasMoreItems, loading, isMobile]);
 
   const getContentRating = (item: MediaItem & ItemWithId) => {
-    // use embedded content_rating first, then fallback to contentRating if not found
     return item.content_rating || contentRating[item.id] || undefined;
   };
 
@@ -131,7 +128,11 @@ export function RankedContentRow({
     router.push(itemHref);
   };
 
-  // Mobile: Standard carousel of ranked cards
+  const handleItemMouseEnter = (item: MediaItem) => {
+    const itemHref = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
+    router.prefetch(itemHref);
+  };
+
   if (isMobile) {
     return (
       <div className="mx-4 md:mx-8 mb-8">
@@ -144,7 +145,7 @@ export function RankedContentRow({
               dragFree: true,
               skipSnaps: true,
             }}
-            setApi={setApi} // setApi for mobile infinite scroll
+            setApi={setApi}
             className="w-full"
           >
             <CarouselContent className="-ml-3">
@@ -177,7 +178,6 @@ export function RankedContentRow({
     );
   }
 
-  // Desktop: Minimal, impactful, information-dense grid layout
   return (
     <div className="mx-4 md:mx-8 mb-12">
       <ContentRowHeader title={title} href={href} />
@@ -190,6 +190,7 @@ export function RankedContentRow({
             <div
               key={`${item.id}-${index}`}
               onClick={() => handleItemClick(item)}
+              onMouseEnter={() => handleItemMouseEnter(item)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -201,7 +202,6 @@ export function RankedContentRow({
               className="flex group relative overflow-hidden rounded-md hover:bg-accent/60 transition-colors duration-200 p-2 items-center cursor-pointer"
               aria-label={`View details for ${displayTitle}`}
             >
-              {/* Rank number */}
               <div className="flex items-center justify-center w-12 shrink-0">
                 <span
                   className={cn(
@@ -215,7 +215,6 @@ export function RankedContentRow({
                 </span>
               </div>
 
-              {/* Poster */}
               <div className="relative overflow-hidden rounded h-20 w-14 sm:h-24 sm:w-16 shrink-0 mx-2 group-hover:scale-105 transition-transform duration-300">
                 <Image
                   src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
@@ -226,7 +225,6 @@ export function RankedContentRow({
                 />
               </div>
 
-              {/* Text details */}
               <div className="flex flex-col justify-center flex-1 min-w-0">
                 <h3 className="font-semibold text-sm sm:text-base text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
                   {displayTitle}

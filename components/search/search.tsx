@@ -11,20 +11,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import SearchResults from "./search-results";
 
-/**
- * Props for the SearchComponent
- */
 interface SearchComponentProps {
-  /** Optional callback function when search is performed */
   onSearch?: (query: string) => void;
 }
 
-/**
- * SearchComponent provides a search input with keyboard shortcuts and preview functionality
- * Features: keyboard shortcuts (/ to focus, ESC to blur), auto-focus on typing, search suggestions
- * @param props - The component props
- * @returns A search input component with enhanced UX features
- */
 export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -99,13 +89,11 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
             onFocus={() => setIsFocused(true)}
             onBlur={() => {
               setIsFocused(false);
-              // Don't hide preview on blur - let user interactions handle it
             }}
             onKeyDown={handleKeyDown}
             className="pl-10 pr-20 py-2.5 w-full rounded-xl bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
           />
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-            {/* Only show / shortcut when input is empty and not focused */}
             {!query && !isFocused && (
               <kbd className="hidden sm:inline-block px-2 py-1 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
                 /
@@ -127,21 +115,15 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   );
 }
 
-/**
- * SearchPageClient provides a Google-style search interface with results shown below
- * Features: direct typing, search results display, keyboard navigation
- * @returns A search interface component with integrated results
- */
 export function SearchPageClient() {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") || "";
 
   const [query, setQuery] = useState(urlQuery);
-  const [searchQuery, setSearchQuery] = useState(urlQuery); // Initialize with URL query
+  const [searchQuery, setSearchQuery] = useState(urlQuery);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  // Update query when URL changes
   useEffect(() => {
     const newQuery = searchParams.get("q") || "";
     setQuery(newQuery);
@@ -152,12 +134,10 @@ export function SearchPageClient() {
     if (query.trim()) {
       const trimmedQuery = query.trim();
       setSearchQuery(trimmedQuery);
-      // Update URL with new query
       router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
     }
   }, [query, router]);
 
-  // Global keyboard shortcut (⌘K)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -172,7 +152,6 @@ export function SearchPageClient() {
 
   return (
     <div className="w-full flex flex-col gap-8">
-      {/* Search Input */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -209,25 +188,15 @@ export function SearchPageClient() {
         </div>
       </form>
 
-      {/* Search Results */}
       {searchQuery && <SearchResults query={searchQuery} />}
     </div>
   );
 }
 
-/**
- * Props for NavbarSearchClient component
- */
 interface NavbarSearchClientProps {
-  /** Optional className for styling */
   className?: string;
 }
 
-/**
- * NavbarSearchClient provides a more compact search interface optimized for navbar use
- * Features: responsive sizing, compact design, same functionality as SearchPageClient
- * @returns A navbar-optimized search component
- */
 export const NavbarSearchClient = forwardRef<
   HTMLInputElement,
   NavbarSearchClientProps
@@ -241,25 +210,21 @@ export const NavbarSearchClient = forwardRef<
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Use the forwarded ref if available, otherwise use innerRef
   const inputRef = (ref as React.RefObject<HTMLInputElement>) || innerRef;
 
   const { results, isLoading } = useSearchPreview(query);
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
-      // Navigate to search page with query parameters
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
       setShowPreview(false);
     }
   }, [query, router]);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!showPreview || !results.length) return;
 
-      // Total navigable items: results + "View all results" option
       const totalItems = results.length + 1;
 
       switch (e.key) {
@@ -273,7 +238,6 @@ export const NavbarSearchClient = forwardRef<
           break;
         case "Enter":
           e.preventDefault();
-          // If selected index is within results, go to that result
           if (selectedIndex < results.length) {
             const selectedResult = results[selectedIndex];
             if (selectedResult) {
@@ -283,7 +247,6 @@ export const NavbarSearchClient = forwardRef<
               setShowPreview(false);
             }
           } else {
-            // If selected index is the "View all results" option
             handleSearch();
           }
           break;
@@ -302,19 +265,16 @@ export const NavbarSearchClient = forwardRef<
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showPreview, results, selectedIndex, handleSearch, router, inputRef]);
 
-  // Reset selection when results change
   useEffect(() => {
     setSelectedIndex(0);
   }, [results]);
 
-  // Show/hide preview based on query and focus
   useEffect(() => {
     setShowPreview(
       query.trim().length > 0 && isFocused && (results.length > 0 || isLoading),
     );
   }, [query, results, isLoading, isFocused]);
 
-  // Global keyboard shortcut (⌘K)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -329,7 +289,6 @@ export const NavbarSearchClient = forwardRef<
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
   }, [inputRef]);
 
-  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -350,7 +309,6 @@ export const NavbarSearchClient = forwardRef<
 
   return (
     <div className={cn("w-full", className)}>
-      {/* Search Input - More compact for navbar */}
       <div className="relative">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
@@ -368,7 +326,6 @@ export const NavbarSearchClient = forwardRef<
             }}
             onBlur={() => {
               setIsFocused(false);
-              // Hide preview after a delay if mouse is not over results
               setTimeout(() => {
                 if (!isMouseOverResults) {
                   setShowPreview(false);
@@ -428,6 +385,9 @@ export const NavbarSearchClient = forwardRef<
                             router.push(href);
                             setShowPreview(false);
                           }}
+                          onMouseEnter={() => {
+                            router.prefetch(href);
+                          }}
                           className={`flex items-center gap-2 p-2 cursor-pointer transition-all duration-150 hover:bg-accent/50 ${
                             index === selectedIndex ? "bg-accent/80" : ""
                           }`}
@@ -459,7 +419,6 @@ export const NavbarSearchClient = forwardRef<
                       );
                     })}
                   </div>
-                  {/* View all results option for navbar */}
                   <div className="border-t border-border">
                     <button
                       onMouseDown={(e) => {

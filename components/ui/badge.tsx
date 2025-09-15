@@ -35,6 +35,13 @@ export interface BadgeProps
 const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
   ({ className, variant, href, ...props }, ref) => {
     const router = useRouter();
+
+    const handleMouseEnter = () => {
+      if (href) {
+        router.prefetch(href);
+      }
+    };
+
     return (
       <div
         ref={ref}
@@ -46,6 +53,7 @@ const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
             router.push(href);
           }
         }}
+        onMouseEnter={handleMouseEnter}
       />
     );
   },

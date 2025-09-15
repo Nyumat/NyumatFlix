@@ -57,6 +57,10 @@ export function ContentCard({
     }
   };
 
+  const handleMouseEnter = () => {
+    router.prefetch(cardHref);
+  };
+
   if (isRanked && !isMobile && rank !== undefined) {
     return (
       <div
@@ -87,6 +91,7 @@ export function ContentCard({
             className="relative overflow-hidden rounded-lg aspect-[3/4] w-20 lg:w-24 cursor-pointer"
             onClick={handleClick}
             onKeyDown={handleKeyDown}
+            onMouseEnter={handleMouseEnter}
             role="button"
             tabIndex={0}
             aria-label={`View ${displayTitle}`}
@@ -163,6 +168,7 @@ export function ContentCard({
         className="relative overflow-hidden rounded-lg aspect-[2/3] group cursor-pointer"
         onClick={handleClick}
         onKeyDown={handleKeyDown}
+        onMouseEnter={handleMouseEnter}
         role="button"
         tabIndex={0}
         aria-label={`View ${displayTitle}`}
