@@ -9,9 +9,6 @@ import { match, P } from "ts-pattern";
 import { Info } from "./media-info";
 import { Poster } from "./media-poster";
 
-/**
- * Movie details interface for enriched data
- */
 interface MovieDetails {
   id?: number;
   runtime?: number;
@@ -19,18 +16,12 @@ interface MovieDetails {
   production_countries?: Array<{ iso_3166_1: string; name: string }>;
 }
 
-/**
- * TV show details interface for enriched data
- */
 interface TvDetails {
   id?: number;
   origin_country?: string[];
   genres?: Genre[];
 }
 
-/**
- * Props for the MediaCard component
- */
 interface MediaCardProps {
   /** The media item to display (should be pre-enriched with details) */
   item: MediaItem;
@@ -55,6 +46,10 @@ export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
   })();
   const title = getTitle(item);
   const posterPath = item.poster_path ?? undefined;
+
+  const handleMouseEnter = () => {
+    router.prefetch(href);
+  };
   return (
     <>
       <Card className="overflow-hidden relative border-none h-full flex flex-col bg-black/30 backdrop-blur-md border border-white/20 shadow-lg hover:border-primary/60 transition-colors duration-200">
@@ -63,6 +58,7 @@ export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
           onClick={() => {
             router.push(href);
           }}
+          onMouseEnter={handleMouseEnter}
         >
           <div className="relative group">
             <Poster posterPath={posterPath} title={title} altText={title} />
@@ -80,24 +76,13 @@ export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
   );
 };
 
-/**
- * MediaCard component displays a single media item with poster, info, and play overlay
- * Now uses pre-enriched data instead of making individual API calls
- * @param props - The component props
- * @returns A card component displaying media information with hover interactions
- */
 export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
   const router = useRouter();
-  if (item.id === undefined) {
-    return <div>No content ID found</div>;
-  }
-
+  if (item.id === undefined) return <div>No content ID found</div>;
   const title = getTitle(item);
   const posterPath = item.poster_path ?? undefined;
   const releaseDate = getAirDate(item);
   const voteAverage = item.vote_average;
-
-  // Use enriched data directly instead of making API calls
   const runtime = match([type, item])
     .with(
       ["movie", P.not(P.nullish)],
@@ -107,32 +92,23 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
 
   const country = match(type)
     .with("tv", () => {
-      if ("origin_country" in item && item.origin_country?.length) {
+      if ("origin_country" in item && item.origin_country?.length)
         return item.origin_country;
-      }
       return (item as TvDetails)?.origin_country;
     })
     .with("movie", () => {
-      // For movies, check production_countries first
-      if ("production_countries" in item && item.production_countries?.length) {
+      if ("production_countries" in item && item.production_countries?.length)
         return item.production_countries.map(
           (pc: { iso_3166_1: string; name: string }) => pc.iso_3166_1,
         );
-      }
-      // Fallback to origin_country if available
-      if ("origin_country" in item && item.origin_country?.length) {
+      if ("origin_country" in item && item.origin_country?.length)
         return item.origin_country;
-      }
       return undefined;
     })
     .otherwise(() => undefined);
 
   const itemGenres = (() => {
-    // Check if enriched genres are available
-    if ("genres" in item && Array.isArray(item.genres)) {
-      return item.genres;
-    }
-    // Fallback: no genres available
+    if ("genres" in item && Array.isArray(item.genres)) return item.genres;
     return undefined;
   })();
 
@@ -143,6 +119,10 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
     }
     return `/tvshows/${itemId}`;
   })();
+
+  const handleMouseEnter = () => {
+    router.prefetch(href);
+  };
 
   if (minimal) {
     return <MinimalMediaCard item={item} />;
@@ -155,6 +135,7 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
         onClick={() => {
           router.push(href);
         }}
+        onMouseEnter={handleMouseEnter}
       >
         <div className="relative group">
           <Poster posterPath={posterPath} title={title} />

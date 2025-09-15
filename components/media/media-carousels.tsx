@@ -50,6 +50,10 @@ export function CastCarousel({ cast }: CastCarouselProps) {
   const router = useRouter();
   if (!cast.length) return null;
 
+  const handlePersonMouseEnter = (person: Actor) => {
+    router.prefetch(`/person/${person.id}`);
+  };
+
   return (
     <section className="py-2">
       <h2 className="text-2xl font-semibold text-foreground mb-4">Cast</h2>
@@ -70,6 +74,7 @@ export function CastCarousel({ cast }: CastCarouselProps) {
                 <div
                   className="w-full flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => router.push(`/person/${person.id}`)}
+                  onMouseEnter={() => handlePersonMouseEnter(person)}
                 >
                   <div className="rounded-lg overflow-hidden mb-3 aspect-[2/3] bg-muted">
                     {person.profile_path ? (
@@ -192,6 +197,11 @@ export function RecommendationsCarousel({
     return `/${type}/${item.id}`;
   };
 
+  const handleItemMouseEnter = (item: Movie | TvShow) => {
+    const href = getHref(item);
+    router.prefetch(href);
+  };
+
   const sectionTitle = mediaType === "movie" ? "Similar Movies" : "Recommended";
 
   return (
@@ -215,6 +225,7 @@ export function RecommendationsCarousel({
                 onClick={() => {
                   router.push(getHref(item));
                 }}
+                onMouseEnter={() => handleItemMouseEnter(item)}
               >
                 <MediaCard
                   item={item}

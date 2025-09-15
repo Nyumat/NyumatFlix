@@ -42,6 +42,24 @@ export const NavbarLinks = ({
     ? "text-muted-foreground hover:text-foreground hover:bg-accent"
     : "text-muted-foreground hover:text-foreground hover:bg-accent hover:border-primary";
 
+  const handleLinkInteraction = (link: NavLink) => {
+    router.prefetch(link.href);
+
+    if (link.href === "/movies") {
+      router.prefetch("/movies/browse");
+      router.prefetch("/home");
+    } else if (link.href === "/tvshows") {
+      router.prefetch("/tvshows/browse");
+      router.prefetch("/home");
+    } else if (link.href === "/home") {
+      router.prefetch("/movies");
+      router.prefetch("/tvshows");
+    } else if (link.href === "/search") {
+      router.prefetch("/movies");
+      router.prefetch("/tvshows");
+    }
+  };
+
   return (
     <>
       {links.map((link) => (
@@ -52,9 +70,8 @@ export const NavbarLinks = ({
             linkClasses,
             isActiveLink(link.href) ? activeClasses : inactiveClasses,
           )}
-          onMouseEnter={() => {
-            router.prefetch(link.href);
-          }}
+          onMouseEnter={() => handleLinkInteraction(link)}
+          onFocus={() => handleLinkInteraction(link)}
           onClick={isMobile ? onMobileLinkClick : undefined}
         >
           {link.label}

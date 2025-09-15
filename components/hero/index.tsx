@@ -227,6 +227,10 @@ export function MediaDetailHero({
             if (isTvShowsPath) router.push("/tvshows");
             if (historyLength > 2) window.history.back();
           }}
+          onMouseEnter={() => {
+            if (isMoviesPath) router.prefetch("/movies");
+            if (isTvShowsPath) router.prefetch("/tvshows");
+          }}
           className="absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Go back"
         >

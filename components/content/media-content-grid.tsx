@@ -19,9 +19,6 @@ import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/**
- * Custom ListViewCard component for YouTube-like list view
- */
 function ListViewCard(props: {
   item: MediaItem;
   type: MediaItem["media_type"];
@@ -63,7 +60,6 @@ function ListViewCard(props: {
       ? (item as MediaItem & { runtime?: number }).runtime
       : undefined;
 
-  // Get country data
   const country = (() => {
     if (
       type === "tv" &&
@@ -87,7 +83,6 @@ function ListViewCard(props: {
     return undefined;
   })();
 
-  // Get genres
   const itemGenres =
     "genres" in item && Array.isArray(item.genres)
       ? (item.genres as Genre[])
@@ -105,10 +100,15 @@ function ListViewCard(props: {
     ? `https://image.tmdb.org/t/p/w1280${backdropPath}`
     : undefined;
 
+  const handleMouseEnter = () => {
+    router.prefetch(href);
+  };
+
   return (
     <Card
       className="group relative overflow-hidden bg-card/50 backdrop-blur-md border border-border/20 hover:border-primary/40 transition-all duration-300 cursor-pointer"
       onClick={() => router.push(href)}
+      onMouseEnter={handleMouseEnter}
     >
       {backdropUrl && (
         <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-300">
@@ -201,7 +201,6 @@ function ListViewCard(props: {
             )}
           </div>
 
-          {/* Overview - Hidden on mobile */}
           {overview && (
             <p className="hidden sm:block text-sm text-muted-foreground line-clamp-2 leading-relaxed">
               {overview}
@@ -213,9 +212,6 @@ function ListViewCard(props: {
   );
 }
 
-/**
- * Props for the MediaContentGrid component
- */
 interface MediaContentGridProps {
   /** Optional title to display above the grid */
   title?: string;
@@ -241,12 +237,6 @@ interface MediaContentGridProps {
   "data-testid"?: string;
 }
 
-/**
- * MediaContentGrid component displays media items using the flexible ContentGrid
- * Used for showcasing collections of movies or TV shows with view mode switching
- * @param props - The component props
- * @returns A responsive grid of media cards with optional title and view mode controls
- */
 export function MediaContentGrid({
   title,
   items,
@@ -284,7 +274,6 @@ export function MediaContentGrid({
     onViewModeChange?.(mode);
   };
 
-  // Enable/disable global dock based on showDock prop
   useEffect(() => {
     setShowDock(showDock);
   }, [showDock, setShowDock]);

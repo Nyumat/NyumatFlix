@@ -24,11 +24,16 @@ export function BackButton({
     }
   };
 
+  const handleMouseEnter = () => {
+    router.prefetch(fallbackUrl);
+  };
+
   return (
     <Button
       variant="ghost"
       size="sm"
       onClick={handleBack}
+      onMouseEnter={handleMouseEnter}
       className={cn(
         "fixed top-20 left-6 z-50 bg-background/80 backdrop-blur-md border border-border/50 hover:bg-background/90 transition-all duration-200",
         className,
