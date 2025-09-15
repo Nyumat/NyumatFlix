@@ -14,16 +14,13 @@ export const OnboardingProvider = ({ children }: OnboardingProviderProps) => {
   const [hasChecked, setHasChecked] = useState<boolean>(false);
 
   useEffect(() => {
-    const onboardingSkipped = localStorage.getItem("onboardingSkipped");
-
     if (status === "loading" || !session || hasChecked) {
       return;
     }
 
     // authenticated but has no name -> show onboarding
-    // skipped onboarding previously -> show onboarding
     // TODO: figure out what UX we want here.
-    if ((session?.user && !session.user.name) || onboardingSkipped) {
+    if (session?.user && !session.user.name) {
       setShowOnboarding(true);
     }
 
