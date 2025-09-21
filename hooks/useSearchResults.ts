@@ -1,12 +1,20 @@
 "use client";
 
-import type {
-  Genre as GenreType,
-  Movie,
-  TmdbResponse,
-  TvShow,
-} from "@/utils/typings";
+import type { Genre as GenreType, Movie, TvShow } from "@/utils/typings";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
+
+interface SearchResult {
+  media: Array<Movie | TvShow>;
+  people: Array<{
+    id: number;
+    name: string;
+    profile_path?: string | null;
+    popularity?: number;
+  }>;
+  page: number;
+  totalPages: number;
+  totalResults: number;
+}
 
 export interface UseSearchResultsState {
   items: Array<Movie | TvShow>;
@@ -17,6 +25,7 @@ export interface UseSearchResultsState {
   selectedGenreIds: string[];
   allGenres: { [key: number]: string };
   genresLoading: boolean;
+  currentQuery: string;
 }
 
 export interface UseSearchResultsComputed {
@@ -39,10 +48,15 @@ type SearchAction =
   | { type: "SET_PAGE"; page: number }
   | { type: "SET_SELECTED_GENRES"; ids: string[] }
   | { type: "FETCH_START" }
-  | { type: "FETCH_SUCCESS"; items: Array<Movie | TvShow>; totalPages: number }
+  | {
+      type: "FETCH_SUCCESS";
+      items: Array<Movie | TvShow>;
+      totalPages: number;
+    }
   | { type: "FETCH_ERROR"; error: string }
   | { type: "GENRES_FETCH_START" }
-  | { type: "SET_GENRES"; map: { [key: number]: string } };
+  | { type: "SET_GENRES"; map: { [key: number]: string } }
+  | { type: "RESET_FOR_NEW_QUERY"; query: string };
 
 const initialState: UseSearchResultsState = {
   items: [],
@@ -53,6 +67,7 @@ const initialState: UseSearchResultsState = {
   selectedGenreIds: [],
   allGenres: {},
   genresLoading: true,
+  currentQuery: "",
 };
 
 function reducer(
@@ -81,6 +96,15 @@ function reducer(
         items: [],
         totalPages: 1,
       };
+    case "RESET_FOR_NEW_QUERY":
+      return {
+        ...state,
+        currentQuery: action.query,
+        currentPage: 1,
+        items: [],
+        totalPages: 1,
+        error: null,
+      };
     case "GENRES_FETCH_START":
       return { ...state, genresLoading: true };
     case "SET_GENRES":
@@ -101,9 +125,9 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
     selectedGenreIds,
     allGenres,
     genresLoading,
+    currentQuery,
   } = state;
 
-  // Derived data
   const filteredItems = useMemo(() => {
     if (selectedGenreIds.length === 0) return items;
     return items.filter((item) =>
@@ -115,65 +139,59 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
 
   const genreOptions = useMemo(
     () =>
-      Object.entries(allGenres).map(([id, name]) => ({
-        label: name,
-        value: id,
-      })),
+      Object.entries(allGenres)
+        .map(([id, name]) => ({
+          label: name,
+          value: id,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
     [allGenres],
   );
 
-  // Genres fetch
+  // fetch genres on mount
   useEffect(() => {
     let isActive = true;
     const fetchAllGenres = async () => {
       dispatch({ type: "GENRES_FETCH_START" });
       try {
-        const movieGenresRes = await fetch("/api/genres?type=movie");
-        const tvGenresRes = await fetch("/api/genres?type=tv");
+        const [movieGenresRes, tvGenresRes] = await Promise.all([
+          fetch("/api/genres?type=movie"),
+          fetch("/api/genres?type=tv"),
+        ]);
 
         if (!movieGenresRes.ok || !tvGenresRes.ok) {
           throw new Error("Failed to fetch genres");
         }
 
-        const movieGenresData = (await movieGenresRes.json()) as {
-          genres?: GenreType[];
-        };
-        const tvGenresData = (await tvGenresRes.json()) as {
-          genres?: GenreType[];
-        };
+        const [movieGenresData, tvGenresData] = await Promise.all([
+          movieGenresRes.json() as Promise<{ genres?: GenreType[] }>,
+          tvGenresRes.json() as Promise<{ genres?: GenreType[] }>,
+        ]);
 
         if (!isActive) return;
 
         const combinedGenres: { [key: number]: string } = {};
 
-        if (Array.isArray(movieGenresData.genres)) {
-          movieGenresData.genres.forEach((genre) => {
-            if (genre && typeof genre.id === "number") {
-              combinedGenres[genre.id] = genre.name;
-            }
-          });
-        }
-
-        if (Array.isArray(tvGenresData.genres)) {
-          tvGenresData.genres.forEach((genre) => {
-            if (
-              genre &&
-              typeof genre.id === "number" &&
-              !combinedGenres[genre.id]
-            ) {
-              combinedGenres[genre.id] = genre.name;
-            }
-          });
-        }
+        // combine movie and tv genres
+        [movieGenresData.genres, tvGenresData.genres].forEach((genres) => {
+          if (Array.isArray(genres)) {
+            genres.forEach((genre) => {
+              if (genre?.id && genre?.name) {
+                combinedGenres[genre.id] = genre.name;
+              }
+            });
+          }
+        });
 
         if (!isActive) return;
         dispatch({ type: "SET_GENRES", map: combinedGenres });
-      } catch {
+      } catch (error) {
+        console.error("Error fetching genres:", error);
         if (!isActive) return;
         dispatch({ type: "SET_GENRES", map: {} });
       }
     };
-    fetchAllGenres();
+    void fetchAllGenres();
     return () => {
       isActive = false;
     };
@@ -182,7 +200,6 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
   const performFetch = useCallback(async () => {
     if (!query || !query.trim()) {
       dispatch({ type: "FETCH_SUCCESS", items: [], totalPages: 1 });
-      dispatch({ type: "SET_PAGE", page: 1 });
       return;
     }
 
@@ -200,14 +217,14 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
             `Failed to fetch search results: ${response.statusText}`,
         );
       }
-      const searchResults = (await response.json()) as TmdbResponse<
-        Movie | TvShow
-      >;
 
+      const searchResults = (await response.json()) as SearchResult;
+
+      // the API now returns separated media and people
       dispatch({
         type: "FETCH_SUCCESS",
-        items: searchResults.results || [],
-        totalPages: searchResults.total_pages || 1,
+        items: searchResults.media || [],
+        totalPages: searchResults.totalPages || 1,
       });
     } catch (err) {
       const message =
@@ -218,7 +235,14 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
     }
   }, [query, currentPage]);
 
-  // Fetch search results on query/page change
+  // reset when query changes
+  useEffect(() => {
+    if (query.trim() !== currentQuery) {
+      dispatch({ type: "RESET_FOR_NEW_QUERY", query: query.trim() });
+    }
+  }, [query, currentQuery]);
+
+  // fetch when query or page changes
   useEffect(() => {
     void performFetch();
   }, [performFetch]);
@@ -228,7 +252,6 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
   }, [performFetch]);
 
   return {
-    // state
     items,
     currentPage,
     totalPages,
@@ -237,10 +260,9 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
     selectedGenreIds,
     allGenres,
     genresLoading,
-    // computed
+    currentQuery,
     filteredItems,
     genreOptions,
-    // actions
     setCurrentPage: (page: number) => dispatch({ type: "SET_PAGE", page }),
     setSelectedGenreIds: (ids: string[]) =>
       dispatch({ type: "SET_SELECTED_GENRES", ids }),

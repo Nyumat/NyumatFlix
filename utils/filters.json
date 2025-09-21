@@ -1,4 +1,496 @@
 {
+  "rowConfigurations": {
+    "popular-movies": {
+      "category": "popular",
+      "mediaType": "movie"
+    },
+    "top-rated-movies": {
+      "category": "top-rated",
+      "mediaType": "movie"
+    },
+    "upcoming-movies": {
+      "category": "upcoming",
+      "mediaType": "movie"
+    },
+    "now-playing-movies": {
+      "category": "now-playing",
+      "mediaType": "movie"
+    },
+    "recent-releases": {
+      "category": "recent-releases",
+      "mediaType": "movie"
+    },
+    "action-movies": {
+      "category": "genre-action",
+      "mediaType": "movie"
+    },
+    "comedy-movies": {
+      "category": "genre-comedy",
+      "mediaType": "movie"
+    },
+    "drama-movies": {
+      "category": "genre-drama",
+      "mediaType": "movie"
+    },
+    "thriller-movies": {
+      "category": "genre-thriller",
+      "mediaType": "movie"
+    },
+    "horror-movies": {
+      "category": "genre-horror",
+      "mediaType": "movie"
+    },
+    "scifi-fantasy-movies": {
+      "category": "genre-scifi-fantasy",
+      "mediaType": "movie"
+    },
+    "romcom-movies": {
+      "category": "genre-romcom",
+      "mediaType": "movie"
+    },
+    "romance-movies": {
+      "category": "genre-romance",
+      "mediaType": "movie"
+    },
+    "crime-movies": {
+      "category": "genre-crime",
+      "mediaType": "movie"
+    },
+    "mystery-movies": {
+      "category": "genre-mystery",
+      "mediaType": "movie"
+    },
+    "a24-films": {
+      "category": "studio-a24",
+      "mediaType": "movie"
+    },
+    "disney-magic": {
+      "category": "studio-disney",
+      "mediaType": "movie"
+    },
+    "pixar-animation": {
+      "category": "studio-pixar",
+      "mediaType": "movie"
+    },
+    "warner-bros": {
+      "category": "studio-warner-bros",
+      "mediaType": "movie"
+    },
+    "universal-films": {
+      "category": "studio-universal",
+      "mediaType": "movie"
+    },
+    "dreamworks-films": {
+      "category": "studio-dreamworks",
+      "mediaType": "movie"
+    },
+    "nolan-films": {
+      "category": "director-nolan",
+      "mediaType": "movie"
+    },
+    "tarantino-films": {
+      "category": "director-tarantino",
+      "mediaType": "movie"
+    },
+    "spielberg-films": {
+      "category": "director-spielberg",
+      "mediaType": "movie"
+    },
+    "scorsese-films": {
+      "category": "director-scorsese",
+      "mediaType": "movie"
+    },
+    "fincher-films": {
+      "category": "director-fincher",
+      "mediaType": "movie"
+    },
+    "villeneuve-films": {
+      "category": "director-villeneuve",
+      "mediaType": "movie"
+    },
+    "wes-anderson-films": {
+      "category": "director-wes-anderson",
+      "mediaType": "movie"
+    },
+    "ridley-scott-films": {
+      "category": "director-ridley-scott",
+      "mediaType": "movie"
+    },
+    "cameron-films": {
+      "category": "director-cameron",
+      "mediaType": "movie"
+    },
+    "hidden-gems": {
+      "category": "hidden-gems",
+      "mediaType": "movie"
+    },
+    "critically-acclaimed": {
+      "category": "critically-acclaimed",
+      "mediaType": "movie"
+    },
+    "blockbuster-hits": {
+      "category": "blockbuster-hits",
+      "mediaType": "movie"
+    },
+    "award-winners": {
+      "category": "award-winners",
+      "mediaType": "movie"
+    },
+    "cult-classics": {
+      "category": "cult-classics",
+      "mediaType": "movie"
+    },
+    "indie-films": {
+      "category": "indie-films",
+      "mediaType": "movie"
+    },
+    "marvel-mcu": {
+      "category": "marvel-mcu",
+      "mediaType": "movie"
+    },
+    "star-wars": {
+      "category": "star-wars",
+      "mediaType": "movie"
+    },
+    "fast-furious": {
+      "category": "fast-furious",
+      "mediaType": "movie"
+    },
+    "harry-potter": {
+      "category": "harry-potter",
+      "mediaType": "movie"
+    },
+    "lord-of-rings": {
+      "category": "lord-of-rings",
+      "mediaType": "movie"
+    },
+    "eighties-movies": {
+      "category": "year-80s",
+      "mediaType": "movie"
+    },
+    "nineties-movies": {
+      "category": "year-90s",
+      "mediaType": "movie"
+    },
+    "early-2000s-movies": {
+      "category": "year-2000s",
+      "mediaType": "movie"
+    },
+    "2010s-movies": {
+      "category": "year-2010s",
+      "mediaType": "movie"
+    },
+    "2020-movies": {
+      "category": "year-2020",
+      "mediaType": "movie"
+    },
+    "2021-movies": {
+      "category": "year-2021",
+      "mediaType": "movie"
+    },
+    "2022-movies": {
+      "category": "year-2022",
+      "mediaType": "movie"
+    },
+    "2023-movies": {
+      "category": "year-2023",
+      "mediaType": "movie"
+    },
+    "2024-movies": {
+      "category": "year-2024",
+      "mediaType": "movie"
+    },
+    "2025-movies": {
+      "category": "year-2025",
+      "mediaType": "movie"
+    },
+    "popular-tvshows": {
+      "category": "tv-popular",
+      "mediaType": "tv"
+    },
+    "top-rated-tvshows": {
+      "category": "tv-top-rated",
+      "mediaType": "tv"
+    },
+    "tv-diverse": {
+      "category": "tv-diverse",
+      "mediaType": "tv"
+    },
+    "binge-worthy-series": {
+      "category": "tv-diverse",
+      "mediaType": "tv"
+    },
+    "limited-series": {
+      "category": "tv-limited-series",
+      "mediaType": "tv"
+    },
+    "tv-sitcoms": {
+      "category": "tv-sitcoms",
+      "mediaType": "tv"
+    },
+    "sitcoms": {
+      "category": "tv-sitcoms",
+      "mediaType": "tv"
+    },
+    "reality-tv": {
+      "category": "tv-reality",
+      "mediaType": "tv"
+    },
+    "docuseries": {
+      "category": "tv-docuseries",
+      "mediaType": "tv"
+    },
+    "family": {
+      "category": "tv-family",
+      "mediaType": "tv"
+    },
+    "tv-on-the-air": {
+      "category": "tv-on-the-air",
+      "mediaType": "tv"
+    },
+    "tv-airing-today": {
+      "category": "tv-airing-today",
+      "mediaType": "tv"
+    },
+    "tv-comedy": {
+      "category": "tv-genre-comedy",
+      "mediaType": "tv"
+    },
+    "comedy-tvshows": {
+      "category": "tv-genre-comedy",
+      "mediaType": "tv"
+    },
+    "tv-drama": {
+      "category": "tv-genre-drama",
+      "mediaType": "tv"
+    },
+    "drama-tvshows": {
+      "category": "tv-genre-drama",
+      "mediaType": "tv"
+    },
+    "tv-crime": {
+      "category": "tv-genre-crime",
+      "mediaType": "tv"
+    },
+    "crime-tvshows": {
+      "category": "tv-genre-crime",
+      "mediaType": "tv"
+    },
+    "tv-scifi-fantasy": {
+      "category": "tv-genre-scifi-fantasy",
+      "mediaType": "tv"
+    },
+    "scifi-tvshows": {
+      "category": "tv-genre-scifi-fantasy",
+      "mediaType": "tv"
+    },
+    "tv-animation": {
+      "category": "tv-genre-animation",
+      "mediaType": "tv"
+    },
+    "animation-tvshows": {
+      "category": "tv-genre-animation",
+      "mediaType": "tv"
+    },
+    "tv-kids": {
+      "category": "tv-genre-kids",
+      "mediaType": "tv"
+    },
+    "tv-action": {
+      "category": "tv-genre-action",
+      "mediaType": "tv"
+    },
+    "action-tvshows": {
+      "category": "tv-genre-action",
+      "mediaType": "tv"
+    },
+    "hbo-originals": {
+      "category": "tv-network-hbo",
+      "mediaType": "tv"
+    },
+    "netflix-originals": {
+      "category": "tv-network-netflix",
+      "mediaType": "tv"
+    },
+    "disney-channel": {
+      "category": "tv-network-disney-channel",
+      "mediaType": "tv"
+    },
+    "cartoon-network": {
+      "category": "tv-network-cartoon-network",
+      "mediaType": "tv"
+    },
+    "nickelodeon": {
+      "category": "tv-network-nickelodeon",
+      "mediaType": "tv"
+    },
+    "disneyxd": {
+      "category": "tv-network-disney-xd",
+      "mediaType": "tv"
+    },
+    "90s-cartoons": {
+      "category": "tv-90s-cartoons",
+      "mediaType": "tv"
+    },
+    "tv-anime": {
+      "category": "tv-anime",
+      "mediaType": "tv",
+      "international": true
+    },
+    "tv-cooking-shows": {
+      "category": "tv-cooking-shows",
+      "mediaType": "tv"
+    },
+    "cooking-food": {
+      "category": "tv-cooking-shows",
+      "mediaType": "tv"
+    },
+    "tv-kdrama-romance": {
+      "category": "tv-kdrama-romance",
+      "mediaType": "tv",
+      "international": true
+    },
+    "kdrama-romance": {
+      "category": "tv-kdrama-romance",
+      "mediaType": "tv",
+      "international": true
+    },
+    "tv-mystery": {
+      "category": "tv-mystery",
+      "mediaType": "tv"
+    },
+    "2010s-mystery": {
+      "category": "tv-mystery",
+      "mediaType": "tv"
+    },
+    "tv-teen-supernatural": {
+      "category": "tv-teen-supernatural",
+      "mediaType": "tv"
+    },
+    "kdrama": {
+      "category": "tv-kdrama",
+      "mediaType": "tv",
+      "international": true
+    },
+    "miniseries": {
+      "category": "tv-limited-series",
+      "mediaType": "tv"
+    },
+    "network-hits": {
+      "category": "tv-network-hits",
+      "mediaType": "tv"
+    },
+    "tv-british-comedy": {
+      "category": "tv-british-comedy",
+      "mediaType": "tv",
+      "international": true
+    }
+  },
+  "internationalRowFilters": {
+    "kdrama": "KR",
+    "kdrama-romance": "KR",
+    "tv-kdrama-romance": "KR",
+    "tv-anime": "JP",
+    "tv-british-comedy": "GB"
+  },
+  "pageRowRecommendations": {
+    "home": [
+      "top-rated-movies",
+      "early-2000s-movies",
+      "popular-movies",
+      "popular-tvshows",
+      "nolan-films",
+      "scifi-fantasy-movies",
+      "binge-worthy-series",
+      "comedy-movies",
+      "a24-films",
+      "thriller-movies",
+      "limited-series",
+      "drama-movies",
+      "critically-acclaimed",
+      "eighties-movies",
+      "reality-tv",
+      "nineties-movies",
+      "romcom-movies",
+      "docuseries",
+      "hidden-gems",
+      "marvel-mcu",
+      "horror-movies",
+      "crime-movies",
+      "mystery-movies",
+      "warner-bros",
+      "universal-films",
+      "spielberg-films",
+      "scorsese-films",
+      "fincher-films",
+      "villeneuve-films",
+      "blockbuster-hits"
+    ],
+    "movies": [
+      "top-rated-movies",
+      "drama-movies",
+      "disney-magic",
+      "nineties-movies",
+      "scifi-fantasy-movies",
+      "recent-releases",
+      "spielberg-films",
+      "hidden-gems",
+      "comedy-movies",
+      "early-2000s-movies",
+      "nolan-films",
+      "pixar-animation",
+      "upcoming-movies",
+      "scorsese-films",
+      "a24-films",
+      "eighties-movies",
+      "popular-movies",
+      "critically-acclaimed",
+      "action-movies",
+      "tarantino-films",
+      "thriller-movies",
+      "romcom-movies",
+      "horror-movies",
+      "crime-movies",
+      "mystery-movies",
+      "romance-movies",
+      "warner-bros",
+      "universal-films",
+      "dreamworks-films",
+      "fincher-films",
+      "villeneuve-films",
+      "wes-anderson-films"
+    ],
+    "tv": [
+      "popular-tvshows",
+      "top-rated-tvshows",
+      "binge-worthy-series",
+      "sitcoms",
+      "drama-tvshows",
+      "limited-series",
+      "comedy-tvshows",
+      "network-hits",
+      "crime-tvshows",
+      "scifi-tvshows",
+      "reality-tv",
+      "docuseries",
+      "action-tvshows",
+      "animation-tvshows",
+      "kdrama",
+      "tv-anime",
+      "tv-british-comedy",
+      "tv-on-the-air",
+      "tv-airing-today",
+      "tv-family",
+      "tv-kids",
+      "hbo-originals",
+      "netflix-originals",
+      "disney-channel",
+      "cartoon-network",
+      "nickelodeon",
+      "90s-cartoons",
+      "tv-cooking-shows"
+    ]
+  },
   "movie": {
     "category": [
       {
@@ -413,6 +905,33 @@
         "customParams": {
           "directorKey": "villeneuve"
         }
+      },
+      {
+        "id": "director-cameron",
+        "title": "James Cameron Movies",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "cameron"
+        }
+      },
+      {
+        "id": "director-ridley-scott",
+        "title": "Ridley Scott Movies",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "ridley-scott"
+        }
+      },
+      {
+        "id": "director-wes-anderson",
+        "title": "Wes Anderson Movies",
+        "mediaType": "movie",
+        "customFetcher": "fetchByDirector",
+        "customParams": {
+          "directorKey": "anderson-wes"
+        }
       }
     ],
     "special": [
@@ -761,6 +1280,174 @@
         "title": "Network TV Hits",
         "mediaType": "tv",
         "customFetcher": "fetchNetworkHits"
+      },
+      {
+        "id": "tv-kids-networks",
+        "title": "Kids & Animation Networks",
+        "mediaType": "tv",
+        "customFetcher": "fetchKidsNetworks"
+      },
+      {
+        "id": "tv-90s-cartoons",
+        "title": "90s Cartoons",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "16",
+          "first_air_date.gte": "1990-01-01",
+          "first_air_date.lte": "1999-12-31",
+          "vote_count.gte": "20",
+          "vote_average.gte": "5.5",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-network-cartoon-network",
+        "title": "Cartoon Network Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_networks": "56",
+          "vote_count.gte": "20",
+          "vote_average.gte": "5.5",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-network-nickelodeon",
+        "title": "Nickelodeon Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_networks": "13",
+          "vote_count.gte": "20",
+          "vote_average.gte": "5.5",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-network-disney-channel",
+        "title": "Disney Channel Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_networks": "54",
+          "vote_count.gte": "20",
+          "vote_average.gte": "5.5",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-network-disney-xd",
+        "title": "Disney XD Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_networks": "44",
+          "vote_count.gte": "20",
+          "vote_average.gte": "5.5",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-network-hbo",
+        "title": "HBO Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_networks": "49",
+          "vote_count.gte": "100",
+          "vote_average.gte": "7.0",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-network-netflix",
+        "title": "Netflix Originals",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_networks": "213",
+          "vote_count.gte": "100",
+          "vote_average.gte": "6.5",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-anime",
+        "title": "Anime Series",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "16",
+          "with_origin_country": "JP",
+          "vote_count.gte": "50",
+          "vote_average.gte": "6.0",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-cooking-shows",
+        "title": "Cooking & Food Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_keywords": "cooking,chef,food,restaurant,kitchen",
+          "vote_count.gte": "30",
+          "vote_average.gte": "6.0",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-kdrama-romance",
+        "title": "K-Drama Romance",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_origin_country": "KR",
+          "with_genres": "18,10749",
+          "vote_count.gte": "10",
+          "vote_average.gte": "6.5",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-mystery",
+        "title": "Mystery Shows",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "9648",
+          "vote_count.gte": "50",
+          "vote_average.gte": "6.5",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "tv-teen-supernatural",
+        "title": "Teen Supernatural",
+        "mediaType": "tv",
+        "params": {
+          "endpoint": "/discover/tv",
+          "with_genres": "10765,18",
+          "with_keywords": "teenager,high-school,supernatural",
+          "vote_count.gte": "30",
+          "vote_average.gte": "6.0",
+          "sort_by": "popularity.desc"
+        }
+      },
+      {
+        "id": "recent-releases",
+        "title": "Recent Releases",
+        "mediaType": "movie",
+        "params": {
+          "endpoint": "/discover/movie",
+          "primary_release_date.gte": "2024-01-01",
+          "primary_release_date.lte": "2025-12-31",
+          "vote_count.gte": "50",
+          "vote_average.gte": "6.0",
+          "sort_by": "popularity.desc"
+        }
       }
     ]
   }

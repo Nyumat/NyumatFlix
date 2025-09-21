@@ -304,18 +304,16 @@ async function fetchSitcoms(
 }
 
 /**
- * Fetches network TV hits from multiple networks
+ * Fetches kids and animated network shows
  */
-async function fetchNetworkHits(
+async function fetchKidsNetworks(
   page: number,
 ): Promise<{ results: MediaItem[]; total_pages?: number }> {
   const networks = [
-    { id: "213", name: "Netflix" },
-    { id: "49", name: "HBO" },
-    { id: "1024", name: "Amazon Prime Video" },
-    { id: "2739", name: "Disney+" },
-    { id: "453", name: "Hulu" },
-    { id: "2552", name: "Apple TV+" },
+    { id: "13", name: "Nickelodeon" },
+    { id: "44", name: "Disney XD" },
+    { id: "54", name: "Disney Channel" },
+    { id: "56", name: "Cartoon Network" },
   ];
 
   const allResults: MediaItem[] = [];
@@ -325,17 +323,71 @@ async function fetchNetworkHits(
   for (const network of networks) {
     try {
       const response = await fetch(
-        `https://api.themoviedb.org/3/discover/tv?api_key=${process.env.TMDB_API_KEY}&with_networks=${network.id}&language=en-US&include_adult=false&sort_by=popularity.desc&page=${page}&vote_count.gte=100&vote_average.gte=7.0`,
+        `https://api.themoviedb.org/3/discover/tv?api_key=${process.env.TMDB_API_KEY}&with_networks=${network.id}&language=en-US&include_adult=false&sort_by=popularity.desc&page=${page}&vote_count.gte=20&vote_average.gte=5.5`,
       );
 
       if (response.ok) {
         const data = await response.json();
         if (data.results) {
-          // Filter out duplicates and items without posters, prioritize highly rated content
+          // Filter for kids networks - lower quality thresholds, include animated content
           const validResults = data.results.filter((item: MediaItem) => {
             if (!item.poster_path || seenIds.has(item.id)) return false;
-            // Additional quality filter for mainstream content
-            if ((item.vote_count || 0) < 100 || (item.vote_average || 0) < 7.0)
+            // Much lower quality filter for kids/animated content
+            if ((item.vote_count || 0) < 20 || (item.vote_average || 0) < 5.5)
+              return false;
+            seenIds.add(item.id);
+            return true;
+          });
+          allResults.push(...validResults);
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching from network ${network.name}:`, error);
+    }
+  }
+
+  // Sort by popularity and return
+  allResults.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+
+  return {
+    results: allResults.slice(0, 20), // Return top 20
+    total_pages: 1, // Since we're combining multiple sources
+  };
+}
+
+/**
+ * Fetches network TV hits from multiple traditional broadcast networks
+ */
+async function fetchNetworkHits(
+  page: number,
+): Promise<{ results: MediaItem[]; total_pages?: number }> {
+  const networks = [
+    { id: "6", name: "NBC" },
+    { id: "2", name: "ABC" },
+    { id: "4", name: "FOX" },
+    { id: "16", name: "CBS" },
+    { id: "5", name: "The CW" },
+    { id: "49", name: "HBO" },
+  ];
+
+  const allResults: MediaItem[] = [];
+  const seenIds = new Set<number>();
+
+  // Fetch from each network separately
+  for (const network of networks) {
+    try {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/discover/tv?api_key=${process.env.TMDB_API_KEY}&with_networks=${network.id}&language=en-US&include_adult=false&sort_by=popularity.desc&page=${page}&vote_count.gte=50&vote_average.gte=6.0`,
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results) {
+          // Filter out duplicates and items without posters, adjust quality filters for TV networks
+          const validResults = data.results.filter((item: MediaItem) => {
+            if (!item.poster_path || seenIds.has(item.id)) return false;
+            // Adjusted quality filter for traditional TV networks (lower thresholds)
+            if ((item.vote_count || 0) < 50 || (item.vote_average || 0) < 6.0)
               return false;
             seenIds.add(item.id);
             return true;
@@ -365,6 +417,7 @@ export const customFetchers = {
   fetchDiverseTV,
   fetchSitcoms,
   fetchNetworkHits,
+  fetchKidsNetworks,
 };
 
 export type CustomFetcherName = keyof typeof customFetchers;

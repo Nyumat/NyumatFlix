@@ -1,12 +1,7 @@
 import { z } from "zod";
 
-// Schema for filter parameters
 const FilterParamsSchema = z.record(z.string()).optional();
-
-// Schema for custom fetcher parameters
 const CustomParamsSchema = z.record(z.unknown()).optional();
-
-// Schema for individual filter definition
 const FilterDefinitionSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -16,11 +11,22 @@ const FilterDefinitionSchema = z.object({
   customParams: CustomParamsSchema,
 });
 
-// Schema for filter categories
-const FilterCategorySchema = z.record(z.array(FilterDefinitionSchema));
+const RowConfigurationSchema = z.object({
+  category: z.string(),
+  mediaType: z.enum(["movie", "tv"]),
+  international: z.boolean().optional(),
+});
 
-// Main schema for the entire filters.json structure
+const PageRowRecommendationsSchema = z.object({
+  home: z.array(z.string()),
+  movies: z.array(z.string()),
+  tv: z.array(z.string()),
+});
+
 export const FiltersSchema = z.object({
+  rowConfigurations: z.record(RowConfigurationSchema),
+  internationalRowFilters: z.record(z.string()),
+  pageRowRecommendations: PageRowRecommendationsSchema,
   movie: z.object({
     category: z.array(FilterDefinitionSchema).optional(),
     genre: z.array(FilterDefinitionSchema).optional(),
@@ -41,3 +47,7 @@ export const FiltersSchema = z.object({
 
 export type FiltersConfig = z.infer<typeof FiltersSchema>;
 export type FilterDefinition = z.infer<typeof FilterDefinitionSchema>;
+export type RowConfiguration = z.infer<typeof RowConfigurationSchema>;
+export type PageRowRecommendations = z.infer<
+  typeof PageRowRecommendationsSchema
+>;

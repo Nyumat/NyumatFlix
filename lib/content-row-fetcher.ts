@@ -2,13 +2,15 @@ import {
   buildMaybeItemsWithCategories,
   fetchPaginatedCategory,
 } from "@/app/actions";
-import { customFetchers } from "@/utils/customFetchers";
-import { MediaItem } from "@/utils/typings";
 import {
-  ContentRowConfig,
-  getContentRowConfig,
-  hasCustomFetcher,
-} from "./content-row-config";
+  getFilterConfig,
+  getRowConfig,
+  handleInternationalRowFiltering,
+  isInternationalRow,
+  rowUsesCustomFetcher,
+} from "@/utils/content-filters";
+import { RowConfiguration } from "@/utils/filterSchema";
+import { MediaItem } from "@/utils/typings";
 
 interface FetchContentRowOptions {
   rowId: string;
@@ -36,7 +38,7 @@ export async function fetchContentRowData(
     filterUsTvOnly = true,
   } = options;
 
-  const config = getContentRowConfig(rowId);
+  const config = getRowConfig(rowId);
   if (!config) {
     console.error(`[ContentRowFetcher] Invalid row ID: ${rowId}`);
     return { items: [], totalAvailable: 0 };
@@ -74,8 +76,9 @@ export async function fetchContentRowData(
 
   try {
     // Check if this row uses a custom fetcher
-    if (hasCustomFetcher(rowId) && config.customFetcher) {
-      const result = await handleCustomFetcher(config, minCount);
+    if (rowUsesCustomFetcher(rowId)) {
+      // For custom fetchers, start from page 1 (not minCount)
+      const result = await handleCustomFetcher(config, 1);
       if (result) {
         const filteredItems = result.results
           .filter(filterAndDeduplicate)
@@ -122,96 +125,22 @@ export async function fetchContentRowData(
  * Handle custom fetcher execution
  */
 async function handleCustomFetcher(
-  config: ContentRowConfig,
+  config: RowConfiguration,
   page: number = 1,
 ): Promise<{ results: MediaItem[]; total_pages?: number } | null> {
-  if (!config.customFetcher) return null;
-
-  const { name, params = {} } = config.customFetcher;
+  // Get the filter config to check for custom fetchers
+  const filterConfig = getFilterConfig(config.category);
+  if (!filterConfig?.fetchConfig.customFetch) return null;
 
   try {
-    switch (name) {
-      case "fetchByDirector":
-        if (params.directorKey) {
-          return await customFetchers.fetchByDirector(
-            params.directorKey as "nolan",
-            page,
-          );
-        }
-        break;
-
-      case "fetchByStudio":
-        if (params.studioKey) {
-          return await customFetchers.fetchByStudio(
-            params.studioKey as "a24",
-            page,
-          );
-        }
-        break;
-
-      case "fetchByCollection":
-        if (params.collectionKey) {
-          return await customFetchers.fetchByCollection(
-            params.collectionKey as "marvel-mcu",
-            page,
-          );
-        }
-        break;
-
-      case "fetchDiverseTV":
-        return await customFetchers.fetchDiverseTV(page);
-
-      case "fetchSitcoms":
-        return await customFetchers.fetchSitcoms(page);
-
-      case "fetchNetworkHits":
-        return await customFetchers.fetchNetworkHits(page);
-
-      default:
-        console.warn(`[ContentRowFetcher] Unknown custom fetcher: ${name}`);
-        return null;
-    }
+    // Call the custom fetcher function directly
+    return await filterConfig.fetchConfig.customFetch(page);
   } catch (error) {
     console.error(
-      `[ContentRowFetcher] Error with custom fetcher ${name}:`,
+      `[ContentRowFetcher] Error with custom fetcher for ${config.category}:`,
       error,
     );
     return null;
-  }
-
-  return null;
-}
-
-/**
- * Check if a row is for international content
- */
-function isInternationalRow(rowId: string): boolean {
-  const internationalRows = [
-    "kdrama",
-    "kdrama-romance",
-    "tv-anime",
-    "tv-british-comedy",
-  ];
-  return internationalRows.includes(rowId);
-}
-
-/**
- * Handle filtering for international content rows
- */
-function handleInternationalRowFiltering(
-  rowId: string,
-  item: MediaItem,
-): boolean {
-  switch (rowId) {
-    case "kdrama":
-    case "kdrama-romance":
-      return item.origin_country?.includes("KR") || false;
-    case "tv-anime":
-      return item.origin_country?.includes("JP") || false;
-    case "tv-british-comedy":
-      return item.origin_country?.includes("GB") || false;
-    default:
-      return true;
   }
 }
 
@@ -258,86 +187,4 @@ export async function fetchMultipleContentRows(
   }
 
   return results;
-}
-
-/**
- * Get recommended content rows for a specific page type
- */
-export function getRecommendedRowsForPage(
-  pageType: "home" | "movies" | "tv",
-): string[] {
-  switch (pageType) {
-    case "home":
-      return [
-        "top-rated-movies",
-        "early-2000s-movies",
-        "popular-movies",
-        "popular-tvshows",
-        "nolan-films",
-        "scifi-fantasy-movies",
-        "binge-worthy-series",
-        "comedy-movies",
-        "a24-films",
-        "thriller-movies",
-        "limited-series",
-        "drama-movies",
-        "critically-acclaimed",
-        "eighties-movies",
-        "reality-tv",
-        "nineties-movies",
-        "romcom-movies",
-        "docuseries",
-        "hidden-gems",
-      ];
-
-    case "movies":
-      return [
-        "top-rated-movies",
-        "drama-movies",
-        "disney-magic",
-        "nineties-movies",
-        "scifi-fantasy-movies",
-        "recent-releases",
-        "spielberg-films",
-        "hidden-gems",
-        "comedy-movies",
-        "early-2000s-movies",
-        "nolan-films",
-        "pixar-animation",
-        "upcoming-movies",
-        "scorsese-films",
-        "a24-films",
-        "eighties-movies",
-        "popular-movies",
-        "critically-acclaimed",
-        "action-movies",
-        "tarantino-films",
-        "thriller-movies",
-        "romcom-movies",
-      ];
-
-    case "tv":
-      return [
-        "popular-tvshows",
-        "top-rated-tvshows",
-        "binge-worthy-series",
-        "sitcoms",
-        "drama-tvshows",
-        "limited-series",
-        "comedy-tvshows",
-        "network-hits",
-        "crime-tvshows",
-        "scifi-tvshows",
-        "reality-tv",
-        "docuseries",
-        "action-tvshows",
-        "animation-tvshows",
-        "kdrama",
-        "tv-anime",
-        "tv-british-comedy",
-      ];
-
-    default:
-      return [];
-  }
 }

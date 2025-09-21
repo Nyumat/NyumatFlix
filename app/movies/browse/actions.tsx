@@ -30,13 +30,18 @@ export async function getMoreMovies(
     return null;
   }
 
-  const validResults = response.results.filter((item: MediaItem) => Boolean(item.poster_path));
+  const validResults = response.results.filter((item: MediaItem) =>
+    Boolean(item.poster_path),
+  );
 
   if (validResults.length === 0) {
     return null;
   }
 
-  const processedMovies = await buildItemsWithCategories<MediaItem>(validResults, "movie");
+  const processedMovies = await buildItemsWithCategories<MediaItem>(
+    validResults,
+    "movie",
+  );
 
   const nextOffset =
     typeof response.total_pages === "number"

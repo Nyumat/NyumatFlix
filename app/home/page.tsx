@@ -1,9 +1,11 @@
-// rows will be lazy-loaded client-side
+import {
+  getRecommendedRowsForPage,
+  getRowConfig,
+} from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import NextDynamic from "next/dynamic";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
 
-// Opt-out of static generation – this page fetches dynamic data and is heavy at build time.
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -19,8 +21,6 @@ export const metadata = {
     images: [
       {
         url: "https://nyumatflix.com/og.webp",
-        width: 1200,
-        height: 630,
         alt: "Home | NyumatFlix",
       },
     ],
@@ -35,14 +35,11 @@ export const metadata = {
   },
 };
 
-// Use centralized content row configuration
-
 export default async function Home() {
-  // Fetch both movies and TV shows for the hero carousel
   const [fanFavoriteMoviesResponse, fanFavoriteTVShowsResponse] =
     await Promise.all([
       fetchTMDBData("/discover/movie", {
-        with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
+        with_genres: "16|10751|12|878|35|28|10765",
         sort_by: "popularity.desc",
         "vote_average.gte": "7.0",
         "release_date.gte": "2005-01-01",
@@ -53,7 +50,7 @@ export default async function Home() {
         region: "US",
       }),
       fetchTMDBData("/discover/tv", {
-        with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
+        with_genres: "16|10751|12|878|35|28|10765",
         sort_by: "popularity.desc",
         "vote_average.gte": "7.0",
         "first_air_date.gte": "2005-01-01",
@@ -67,7 +64,6 @@ export default async function Home() {
   const fanFavoriteMovies = fanFavoriteMoviesResponse?.results ?? [];
   const fanFavoriteTVShows = fanFavoriteTVShowsResponse?.results ?? [];
 
-  // Add media_type to each item before combining
   const moviesWithType = fanFavoriteMovies.map((item: MediaItem) => ({
     ...item,
     media_type: "movie" as const,
@@ -78,30 +74,26 @@ export default async function Home() {
     media_type: "tv" as const,
   }));
 
-  // Combine movies and TV shows
   const combinedFanFavorites = [...moviesWithType, ...tvShowsWithType];
 
-  // Exit if no fan favorite content is available for the hero
   if (combinedFanFavorites.length === 0) {
     return null;
   }
 
-  // Process hero content (both movies and TV shows)
   const seenIds = new Set<number>();
   const filteredFanFavoriteContent = combinedFanFavorites
     .filter((item: MediaItem) => {
-      if (!item.poster_path) return false; // Ensure content has a poster
-      if (seenIds.has(item.id)) return false; // Avoid duplicates
+      if (!item.poster_path) return false;
+      if (seenIds.has(item.id)) return false;
       if (item.title === "28 Days Later" || item.name === "28 Days Later")
         return false;
       if (item.id === 986056) return false;
       seenIds.add(item.id);
       return true;
     })
-    .sort((a, b) => b.vote_average - a.vote_average) // Sort by rating for better quality
-    .slice(1, 10); // Take the top 10 for enrichment
+    .sort((a, b) => b.vote_average - a.vote_average)
+    .slice(1, 10);
 
-  // Separate movies and TV shows for enrichment
   const moviesToEnrich = filteredFanFavoriteContent.filter(
     (item) => item.media_type === "movie",
   );
@@ -109,7 +101,6 @@ export default async function Home() {
     (item) => item.media_type === "tv",
   );
 
-  // Enrich movies and TV shows separately with proper media type
   const [enrichedMovies, enrichedTVShows] = await Promise.all([
     moviesToEnrich.length > 0
       ? fetchAndEnrichMediaItems(moviesToEnrich, "movie")
@@ -119,122 +110,98 @@ export default async function Home() {
       : Promise.resolve([]),
   ]);
 
-  // Combine enriched items and sort by vote average again
   const fanFavoriteContentProcessedForHero = [
     ...enrichedMovies,
     ...enrichedTVShows,
   ].sort((a, b) => b.vote_average - a.vote_average);
 
-  // Define content rows configuration with display metadata
-  const contentRowsConfig = [
-    {
-      rowId: "top-rated-movies",
-      title: "Top Rated Movies",
-      href: "/movies/browse?type=top-rated",
-      variant: "ranked" as const,
-      enrich: true,
-    },
-    {
-      rowId: "early-2000s-movies",
-      title: "Early 2000s Nostalgia",
-      href: "/movies/browse?year=2000-2009",
-    },
-    {
-      rowId: "popular-movies",
-      title: "Popular Movies",
-      href: "/movies/browse",
-    },
-    {
-      rowId: "popular-tvshows",
-      title: "Popular TV Shows",
-      href: "/tvshows/browse?filter=tv-popular",
-    },
-    {
-      rowId: "nolan-films",
-      title: "Christopher Nolan Films",
-      href: "/movies/browse?type=director-nolan",
-    },
-    {
-      rowId: "scifi-fantasy-movies",
-      title: "Sci-Fi & Fantasy Worlds",
-      href: "/movies/browse?genre=878,14",
-    },
-    {
-      rowId: "binge-worthy-series",
-      title: "Binge-Worthy Series",
-      href: "/tvshows/browse?filter=tv-diverse",
-    },
-    {
-      rowId: "comedy-movies",
-      title: "Laugh Out Loud (Comedies)",
-      href: "/movies/browse?genre=35",
-    },
-    {
-      rowId: "a24-films",
-      title: "A24 Films",
-      href: "/movies/browse?type=studio-a24",
-    },
-    {
-      rowId: "thriller-movies",
-      title: "Edge-of-Your-Seat Thrillers",
-      href: "/movies/browse?genre=53",
-    },
-    {
-      rowId: "limited-series",
-      title: "Limited Series That Hit Hard",
-      href: "/tvshows/browse?filter=tv-limited-series",
-    },
-    {
-      rowId: "drama-movies",
-      title: "Heartfelt Dramas",
-      href: "/movies/browse?genre=18",
-    },
-    {
-      rowId: "critically-acclaimed",
-      title: "Critically Acclaimed",
-      href: "/movies/browse?filter=critically_acclaimed",
-    },
-    {
-      rowId: "eighties-movies",
-      title: "80s Throwbacks",
-      href: "/movies/browse?year=1980-1989",
-    },
-    {
-      rowId: "reality-tv",
-      title: "Reality TV Picks",
-      href: "/tvshows/browse?filter=tv-reality",
-    },
-    {
-      rowId: "nineties-movies",
-      title: "90s Favorites",
-      href: "/movies/browse?year=1990-1999",
-    },
-    {
-      rowId: "romcom-movies",
-      title: "Chill with Rom-Coms",
-      href: "/movies/browse?genre=10749,35",
-    },
-    {
-      rowId: "docuseries",
-      title: "Docuseries You Can't Miss",
-      href: "/tvshows/browse?filter=tv-docuseries",
-    },
-    {
-      rowId: "hidden-gems",
-      title: "Hidden Gems",
-      href: "/movies/browse?filter=hidden_gems",
-    },
-  ];
+  const recommendedRows = getRecommendedRowsForPage("home");
 
-  // rows are loaded progressively on scroll; no server prefetch
+  const contentRowsConfig = recommendedRows
+    .map((rowId) => {
+      const config = getRowConfig(rowId);
+      if (!config) return null;
+
+      const customTitles: Record<string, string> = {
+        "top-rated-movies": "Top Rated Movies",
+        "early-2000s-movies": "Early 2000s Nostalgia",
+        "popular-movies": "Popular Movies",
+        "popular-tvshows": "Popular TV Shows",
+        "nolan-films": "Christopher Nolan Films",
+        "scifi-fantasy-movies": "Sci-Fi & Fantasy Worlds",
+        "binge-worthy-series": "Binge-Worthy Series",
+        "comedy-movies": "Laugh Out Loud (Comedies)",
+        "a24-films": "A24 Films",
+        "thriller-movies": "Edge-of-Your-Seat Thrillers",
+        "limited-series": "Limited Series That Hit Hard",
+        "drama-movies": "Heartfelt Dramas",
+        "critically-acclaimed": "Critically Acclaimed",
+        "eighties-movies": "80s Throwbacks",
+        "reality-tv": "Reality TV Picks",
+        "nineties-movies": "90s Favorites",
+        "romcom-movies": "Chill with Rom-Coms",
+        docuseries: "Docuseries You Can't Miss",
+        "hidden-gems": "Hidden Gems",
+        "marvel-mcu": "Marvel Cinematic Universe",
+        "horror-movies": "Spine-Chilling Horror",
+        "crime-movies": "Crime & Justice",
+        "mystery-movies": "Mind-Bending Mysteries",
+        "warner-bros": "Warner Bros. Classics",
+        "universal-films": "Universal Pictures",
+        "spielberg-films": "Steven Spielberg Masterpieces",
+        "scorsese-films": "Martin Scorsese Classics",
+        "fincher-films": "David Fincher Thrillers",
+        "villeneuve-films": "Denis Villeneuve Epics",
+        "blockbuster-hits": "Blockbuster Hits",
+      };
+
+      const generateHref = (config: {
+        category: string;
+        mediaType: string;
+      }) => {
+        const { category, mediaType } = config;
+        const baseUrl = mediaType === "tv" ? "/tvshows" : "/movies";
+        if (category.startsWith("genre-")) {
+          return `${baseUrl}/browse?genre=${category.replace("genre-", "")}`;
+        } else if (category.startsWith("director-")) {
+          return `${baseUrl}/browse?type=${category}`;
+        } else if (category.startsWith("studio-")) {
+          return `${baseUrl}/browse?type=${category}`;
+        } else if (category.startsWith("year-")) {
+          return `${baseUrl}/browse?year=${category.replace("year-", "")}`;
+        } else if (category.startsWith("tv-")) {
+          return `${baseUrl}/browse?filter=${category}`;
+        } else {
+          return `${baseUrl}/browse?filter=${category}`;
+        }
+      };
+
+      return {
+        rowId,
+        title:
+          customTitles[rowId] ||
+          rowId
+            .split("-")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" "),
+        href: generateHref(config),
+        variant: rowId === "top-rated-movies" ? ("ranked" as const) : undefined,
+        enrich: rowId === "top-rated-movies",
+      };
+    })
+    .filter(Boolean) as Array<{
+    rowId: string;
+    title: string;
+    href: string;
+    variant?: "ranked";
+    enrich?: boolean;
+  }>;
 
   return (
     <div>
       <main>
-        {/* Hero carousel - remains fully visible */}
         <DynamicMediaCarousel items={fanFavoriteContentProcessedForHero} />
         <div className="relative">
-          {/* only cover content area, not hero */}
           <div className="absolute inset-0 w-full h-full z-0">
             <div
               className="w-full h-full bg-repeat bg-center"
