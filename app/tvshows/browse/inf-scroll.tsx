@@ -1,8 +1,13 @@
-import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
+import {
+  buildItemsWithCategories,
+  fetchPaginatedCategory,
+  fetchTMDBData,
+} from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
 import {
   buildFilterParams,
   createYearFilterParams,
+  getFilterConfig,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { LoadMore } from "./load-more";
@@ -20,7 +25,8 @@ export async function InfiniteContent({
 }: ICProps): Promise<JSX.Element> {
   // Determine the endpoint and params based on the parameters
   let endpoint = "";
-  let params: Record<string, string> = {};
+  let params: Record<string, string> | { useCustomFetch: true } = {};
+  let useCategoryFetching = false;
 
   // Handle year filtering first
   if (year) {
@@ -37,24 +43,37 @@ export async function InfiniteContent({
       sort_by: "popularity.desc",
     };
   } else if (filterId) {
-    // Use the filter configuration if filterId is provided
-    const filterConfig = buildFilterParams(filterId);
-    endpoint = filterConfig.endpoint;
-    params = filterConfig.params;
+    // Use centralized filter configuration when filterId is provided
+    const filter = getFilterConfig(filterId);
+    if (filter?.fetchConfig.customFetch) {
+      useCategoryFetching = true;
+      endpoint = filterId; // pass category ID through for pagination
+      params = { useCustomFetch: true };
+    } else {
+      const filterConfig = buildFilterParams(filterId);
+      endpoint = filterConfig.endpoint;
+      params = filterConfig.params;
+    }
   } else {
-    // Default to popular TV shows if no parameters
-    const filterConfig = buildFilterParams("tv-popular");
-    endpoint = filterConfig.endpoint;
-    params = filterConfig.params;
+    // Default to popular TV shows if no parameters using filter system
+    useCategoryFetching = true;
+    endpoint = "tv-popular";
+    params = { useCustomFetch: true };
   }
 
   // Fetch initial TV shows
-  const initialResponse = await fetchTMDBData(endpoint, {
-    ...params,
-    page: "1",
-  });
+  let initialResults: MediaItem[] = [];
+  if (useCategoryFetching) {
+    initialResults = await fetchPaginatedCategory(endpoint, "tv", 1);
+  } else {
+    const initialResponse = await fetchTMDBData(endpoint, {
+      ...(params as Record<string, string>),
+      page: "1",
+    });
+    initialResults = (initialResponse?.results as MediaItem[]) || [];
+  }
 
-  if (!initialResponse?.results || initialResponse.results.length === 0) {
+  if (!initialResults || initialResults.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         No TV shows found matching your criteria.
@@ -63,8 +82,8 @@ export async function InfiniteContent({
   }
 
   // Filter out items without poster_path for consistency
-  const validInitialResults = initialResponse.results.filter(
-    (item: MediaItem) => Boolean(item.poster_path),
+  const validInitialResults = initialResults.filter((item: MediaItem) =>
+    Boolean(item.poster_path),
   );
 
   if (validInitialResults.length === 0) {
@@ -89,31 +108,38 @@ export async function InfiniteContent({
   const getTVShowListNodes = async (offset: number) => {
     "use server";
     try {
-      const response = await fetchTMDBData(endpoint, {
-        ...params,
-        page: offset.toString(),
-      });
+      let pageResults: MediaItem[] = [];
 
-      if (!response?.results || response.results.length === 0) {
-        return null;
+      if (useCategoryFetching) {
+        pageResults = await fetchPaginatedCategory(endpoint, "tv", offset);
+      } else {
+        const response = await fetchTMDBData(endpoint, {
+          ...(params as Record<string, string>),
+          page: offset.toString(),
+        });
+        pageResults = (response?.results as MediaItem[]) || [];
+        if (!response?.results || response.results.length === 0) return null;
       }
 
       // Filter out items without poster_path to match initial load behavior
-      const validResults = response.results.filter((item: MediaItem) =>
+      const validResults = pageResults.filter((item: MediaItem) =>
         Boolean(item.poster_path),
       );
-
-      if (validResults.length === 0) {
-        return null;
-      }
+      if (validResults.length === 0) return null;
 
       const processedShows = await buildItemsWithCategories<MediaItem>(
         validResults,
         "tv",
       );
 
-      const nextOffset =
-        offset < (response.total_pages || 0) ? offset + 1 : null;
+      // For category fetching, we don't know total pages; keep going while results appear
+      const nextOffset = useCategoryFetching
+        ? validResults.length > 0
+          ? offset + 1
+          : null
+        : offset < 1000 // fallback safety if API omits total_pages
+          ? offset + 1
+          : null;
 
       return [
         <ContentGrid
