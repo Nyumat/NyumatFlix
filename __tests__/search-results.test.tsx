@@ -78,9 +78,11 @@ beforeEach(() => {
     if (urlString.includes("/api/search")) {
       return Promise.resolve(
         mockFetchResponse({
-          results: [mockMovie, mockTvShow],
-          total_results: 2,
-          total_pages: 1,
+          media: [mockMovie, mockTvShow],
+          people: [],
+          page: 1,
+          totalResults: 2,
+          totalPages: 1,
         }),
       );
     }
@@ -122,7 +124,7 @@ describe("SearchResults Component", () => {
       expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Search Results for "test"/)).toBeInTheDocument();
+    expect(screen.getByText(/Results for "test"/)).toBeInTheDocument();
   });
 
   test("shows empty state message for empty query", async () => {
@@ -139,9 +141,11 @@ describe("SearchResults Component", () => {
     global.fetch = vi.fn(() =>
       Promise.resolve(
         mockFetchResponse({
-          results: [],
-          total_results: 0,
-          total_pages: 0,
+          media: [],
+          people: [],
+          page: 1,
+          totalResults: 0,
+          totalPages: 0,
         }),
       ),
     ) as unknown as typeof global.fetch;
@@ -175,9 +179,11 @@ describe("SearchResults Component", () => {
     await act(async () => {
       resolveSearch!(
         mockFetchResponse({
-          results: [mockMovie],
-          total_results: 1,
-          total_pages: 1,
+          media: [mockMovie],
+          people: [],
+          page: 1,
+          totalResults: 1,
+          totalPages: 1,
         }),
       );
     });
@@ -223,9 +229,11 @@ describe("SearchResults Component", () => {
       if (url.toString().includes("/api/search")) {
         return Promise.resolve(
           mockFetchResponse({
-            results: [mockMovie, mockTvShow],
-            total_results: 60,
-            total_pages: 3,
+            media: [mockMovie, mockTvShow],
+            people: [],
+            page: 1,
+            totalResults: 60,
+            totalPages: 3,
           }),
         );
       }
@@ -253,10 +261,11 @@ describe("SearchResults Component", () => {
         const page = urlString.includes("page=2") ? 2 : 1;
         return Promise.resolve(
           mockFetchResponse({
-            results: page === 1 ? [mockMovie] : [mockTvShow],
-            total_results: 40,
-            total_pages: 2,
+            media: page === 1 ? [mockMovie] : [mockTvShow],
+            people: [],
             page,
+            totalResults: 40,
+            totalPages: 2,
           }),
         );
       }
