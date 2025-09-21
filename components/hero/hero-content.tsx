@@ -22,6 +22,7 @@ interface HeroContentProps {
   isPlayingTrailer: boolean;
   handleWatch(): void;
   handlePlayTrailer(): void;
+  isUpcoming?: boolean;
 }
 
 export function HeroContent({
@@ -32,6 +33,7 @@ export function HeroContent({
   isPlayingTrailer,
   handleWatch,
   handlePlayTrailer,
+  isUpcoming = false,
 }: HeroContentProps) {
   const {
     selectedEpisode,
@@ -143,7 +145,9 @@ export function HeroContent({
                         {media.tagline}
                       </p>
                     )}
-                    <HeroGenres genres={media.genres} mediaType={mediaType} />
+                    {!isUpcoming && (
+                      <HeroGenres genres={media.genres} mediaType={mediaType} />
+                    )}
                   </>
                 )}
                 <HeroDetails
@@ -154,6 +158,7 @@ export function HeroContent({
                   isWatch={isWatch}
                   seasons={media.number_of_seasons}
                   episodes={media.number_of_episodes}
+                  isUpcoming={isUpcoming}
                 />
                 {media.overview && !isWatch && (
                   <p className="text-foreground/80 mb-6">{media.overview}</p>
@@ -165,6 +170,7 @@ export function HeroContent({
                     handleWatch={handleWatch}
                     handlePlayTrailer={handlePlayTrailer}
                     mediaType={mediaType}
+                    isUpcoming={isUpcoming}
                   />
                   <ServerSelector
                     media={media}
