@@ -14,7 +14,13 @@ interface GenreBadgeProps {
   genreId: number;
   genreName: string;
   mediaType?: "movie" | "tv";
-  variant?: "default" | "secondary" | "destructive" | "outline";
+  variant?:
+    | "default"
+    | "secondary"
+    | "destructive"
+    | "outline"
+    | "chrome"
+    | "stylish";
   className?: string;
   clickable?: boolean;
 }
@@ -23,7 +29,7 @@ export function GenreBadge({
   genreId,
   genreName,
   mediaType,
-  variant = "secondary",
+  variant = "chrome",
   className,
   clickable = true,
 }: GenreBadgeProps) {
@@ -67,8 +73,9 @@ export function PrimaryGenreBadge(props: GenreBadgeProps) {
   return (
     <GenreBadge
       {...props}
+      variant="chrome"
       className={cn(
-        "bg-primary/20 text-primary border-primary focus:ring-0 focus:ring-offset-0 active:ring-0 active:ring-offset-0",
+        "focus:ring-0 focus:ring-offset-0 active:ring-0 active:ring-offset-0",
         props.className,
       )}
     />
@@ -81,7 +88,13 @@ interface SmartGenreBadgeGroupProps {
   maxVisible?: number;
   className?: string;
   badgeClassName?: string;
-  variant?: "default" | "secondary" | "destructive" | "outline";
+  variant?:
+    | "default"
+    | "secondary"
+    | "destructive"
+    | "outline"
+    | "chrome"
+    | "stylish";
 }
 
 export function SmartGenreBadgeGroup({
@@ -90,7 +103,7 @@ export function SmartGenreBadgeGroup({
   maxVisible = 2,
   className,
   badgeClassName,
-  variant = "secondary",
+  variant = "chrome",
 }: SmartGenreBadgeGroupProps) {
   if (!genreIds || genreIds.length === 0) {
     return null;

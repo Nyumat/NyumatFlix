@@ -2,6 +2,10 @@ import { SuspenseContentRow } from "@/components/content/suspense-content-row";
 import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { fetchMultipleContentRows } from "@/lib/content-row-fetcher";
+import {
+  getRecommendedRowsForPage,
+  getRowConfig,
+} from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
@@ -39,8 +43,6 @@ export interface Movie {
   categories?: string[];
 }
 
-// Use centralized content row configuration
-
 export default async function MoviesPage() {
   const trendingMoviesResponse = await fetchTMDBData("/discover/movie", {
     sort_by: "popularity.desc",
@@ -63,126 +65,108 @@ export default async function MoviesPage() {
     "movie",
   );
 
-  // Define content rows configuration with display metadata
-  const contentRowsConfig = [
-    {
-      rowId: "top-rated-movies",
-      title: "Top Rated Movies",
-      href: "/movies/browse?type=top-rated",
-      variant: "ranked" as const,
-    },
-    {
-      rowId: "drama-movies",
-      title: "Drama Movies",
-      href: "/movies/browse?genre=18",
-    },
-    {
-      rowId: "disney-magic",
-      title: "Disney Movies",
-      href: "/movies/browse?type=studio-disney",
-    },
-    {
-      rowId: "nineties-movies",
-      title: "90s Movies",
-      href: "/movies/browse?year=1990-1999",
-    },
-    {
-      rowId: "scifi-fantasy-movies",
-      title: "Sci-Fi & Fantasy Movies",
-      href: "/movies/browse?genre=878,14",
-    },
-    {
-      rowId: "recent-releases",
-      title: "Just Dropped",
-      href: "/movies/browse?year=2025",
-    },
-    {
-      rowId: "spielberg-films",
-      title: "Steven Spielberg Movies",
-      href: "/movies/browse?type=director-spielberg",
-    },
-    {
-      rowId: "hidden-gems",
-      title: "Hidden Gems",
-      href: "/movies/browse?filter=hidden_gems",
-    },
-    {
-      rowId: "comedy-movies",
-      title: "Comedy Movies",
-      href: "/movies/browse?genre=35",
-    },
-    {
-      rowId: "early-2000s-movies",
-      title: "2000s Movies",
-      href: "/movies/browse?year=2000-2009",
-    },
-    {
-      rowId: "nolan-films",
-      title: "Christopher Nolan Movies",
-      href: "/movies/browse?type=director-nolan",
-    },
-    {
-      rowId: "pixar-animation",
-      title: "Pixar Movies",
-      href: "/movies/browse?type=studio-pixar",
-    },
-    {
-      rowId: "upcoming-movies",
-      title: "Upcoming Movies",
-      href: "/movies/browse?type=upcoming",
-    },
-    {
-      rowId: "scorsese-films",
-      title: "Martin Scorsese Movies",
-      href: "/movies/browse?type=director-scorsese",
-    },
-    {
-      rowId: "a24-films",
-      title: "A24 Movies",
-      href: "/movies/browse?type=studio-a24",
-    },
-    {
-      rowId: "eighties-movies",
-      title: "80s Movies",
-      href: "/movies/browse?year=1980-1989",
-    },
-    {
-      rowId: "popular-movies",
-      title: "Popular Movies",
-      href: "/movies/browse?type=popular",
-      variant: "standard" as const,
-    },
-    {
-      rowId: "critically-acclaimed",
-      title: "Critically Acclaimed Movies",
-      href: "/movies/browse?filter=critically_acclaimed",
-    },
-    {
-      rowId: "action-movies",
-      title: "Action Movies",
-      href: "/movies/browse?genre=28",
-    },
-    {
-      rowId: "tarantino-films",
-      title: "Quentin Tarantino Movies",
-      href: "/movies/browse?type=director-tarantino",
-    },
-    {
-      rowId: "thriller-movies",
-      title: "Thriller Movies",
-      href: "/movies/browse?genre=53",
-    },
-    {
-      rowId: "romcom-movies",
-      title: "Romantic Comedies",
-      href: "/movies/browse?genre=10749,35",
-    },
-  ];
+  const recommendedRows = getRecommendedRowsForPage("movies");
 
-  // Extract hero carousel IDs to avoid duplicates in content rows
+  const contentRowsConfig = recommendedRows
+    .map((rowId) => {
+      const config = getRowConfig(rowId);
+      if (!config) return null;
+
+      const customTitles: Record<string, string> = {
+        "top-rated-movies": "Top Rated Movies",
+        "drama-movies": "Drama Movies",
+        "disney-magic": "Disney Movies",
+        "nineties-movies": "90s Movies",
+        "scifi-fantasy-movies": "Sci-Fi & Fantasy Movies",
+        "recent-releases": "Just Dropped",
+        "spielberg-films": "Steven Spielberg Movies",
+        "hidden-gems": "Hidden Gems",
+        "comedy-movies": "Comedy Movies",
+        "early-2000s-movies": "2000s Movies",
+        "nolan-films": "Christopher Nolan Movies",
+        "pixar-animation": "Pixar Movies",
+        "upcoming-movies": "Upcoming Movies",
+        "scorsese-films": "Martin Scorsese Movies",
+        "a24-films": "A24 Movies",
+        "eighties-movies": "80s Movies",
+        "popular-movies": "Popular Movies",
+        "critically-acclaimed": "Critically Acclaimed Movies",
+        "action-movies": "Action Movies",
+        "tarantino-films": "Quentin Tarantino Movies",
+        "thriller-movies": "Thriller Movies",
+        "romcom-movies": "Romantic Comedies",
+        "horror-movies": "Horror Movies",
+        "crime-movies": "Crime Movies",
+        "mystery-movies": "Mystery Movies",
+        "romance-movies": "Romance Movies",
+        "warner-bros": "Warner Bros. Pictures",
+        "universal-films": "Universal Pictures",
+        "dreamworks-films": "DreamWorks Pictures",
+        "fincher-films": "David Fincher Movies",
+        "villeneuve-films": "Denis Villeneuve Movies",
+        "wes-anderson-films": "Wes Anderson Movies",
+      };
+
+      const generateHref = (config: { category: string }) => {
+        const { category } = config;
+        if (category.startsWith("genre-")) {
+          const genreMap: Record<string, string> = {
+            "genre-action": "28",
+            "genre-comedy": "35",
+            "genre-drama": "18",
+            "genre-thriller": "53",
+            "genre-scifi-fantasy": "878,14",
+            "genre-romcom": "10749,35",
+            "genre-horror": "27",
+            "genre-crime": "80",
+            "genre-mystery": "9648",
+            "genre-romance": "10749",
+          };
+          return `/movies/browse?genre=${genreMap[category] || category.replace("genre-", "")}`;
+        } else if (category.startsWith("director-")) {
+          return `/movies/browse?type=${category}`;
+        } else if (category.startsWith("studio-")) {
+          return `/movies/browse?type=${category}`;
+        } else if (category.startsWith("year-")) {
+          const yearMap: Record<string, string> = {
+            "year-80s": "1980-1989",
+            "year-90s": "1990-1999",
+            "year-2000s": "2000-2009",
+            "year-2010s": "2010-2019",
+          };
+          return `/movies/browse?year=${yearMap[category] || category.replace("year-", "")}`;
+        } else if (
+          ["upcoming", "popular", "top-rated", "now-playing"].includes(category)
+        ) {
+          return category === "popular"
+            ? "/movies/browse"
+            : `/movies/browse?type=${category}`;
+        } else {
+          return `/movies/browse?filter=${category.replace(/^(critically-|hidden-|blockbuster-|award-|cult-|indie-)/, "")}`;
+        }
+      };
+
+      return {
+        rowId,
+        title:
+          customTitles[rowId] ||
+          rowId
+            .split("-")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" "),
+        href: generateHref(config),
+        variant: rowId === "top-rated-movies" ? ("ranked" as const) : undefined,
+      };
+    })
+    .filter(Boolean) as Array<{
+    rowId: string;
+    title: string;
+    href: string;
+    variant?: "ranked";
+  }>;
+
   const heroIds = new Set(enrichedTrendingItems.map((item) => item.id));
 
-  // Fetch all content row data using centralized system
   const contentRowResults = await fetchMultipleContentRows(
     contentRowsConfig.map((config) => ({
       rowId: config.rowId,
@@ -190,7 +174,6 @@ export default async function MoviesPage() {
     })),
   );
 
-  // Filter out hero content from results and combine with display metadata
   const contentRowsData = contentRowsConfig.map((config) => {
     const result = contentRowResults.find((r) => r.rowId === config.rowId);
     const filteredItems =

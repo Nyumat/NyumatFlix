@@ -129,14 +129,14 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
   }
 
   return (
-    <Card className="overflow-hidden relative border-none h-full flex flex-col bg-black/30 backdrop-blur-md border border-white/20 shadow-lg hover:border-primary/60 transition-colors duration-200">
-      <div
-        className="block relative flex-shrink-0 cursor-pointer"
-        onClick={() => {
-          router.push(href);
-        }}
-        onMouseEnter={handleMouseEnter}
-      >
+    <Card
+      className="overflow-hidden relative border-none h-full flex flex-col bg-black/30 backdrop-blur-md border border-white/20 shadow-lg hover:border-primary/60 transition-colors duration-200"
+      onMouseEnter={handleMouseEnter}
+      onClick={() => {
+        router.push(href);
+      }}
+    >
+      <div className="block relative flex-shrink-0 cursor-pointer">
         <div className="relative group">
           <Poster posterPath={posterPath} title={title} />
           <div className="hidden md:block absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 pointer-events-none p-2">

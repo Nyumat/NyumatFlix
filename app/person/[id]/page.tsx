@@ -87,9 +87,7 @@ export default async function PersonPage({ params }: PersonPageProps) {
             className="container mx-auto px-4 mt-6 relative z-10"
             topSpacing={false}
           >
-            {/* Person Header Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              {/* Profile Image */}
               <div className="lg:col-span-1">
                 <div className="rounded-lg overflow-hidden shadow-xl mt-4 mb-4">
                   {person.profile_path ? (
@@ -108,7 +106,6 @@ export default async function PersonPage({ params }: PersonPageProps) {
                 </div>
               </div>
 
-              {/* Person Details */}
               <div className="lg:col-span-2">
                 <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-lg p-6 space-y-6 shadow-xl">
                   <h1 className="text-3xl md:text-4xl font-bold text-white">
@@ -158,7 +155,6 @@ export default async function PersonPage({ params }: PersonPageProps) {
               </div>
             </div>
 
-            {/* Filmography Section */}
             <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-lg p-6 shadow-xl">
               <div className="space-y-4 mb-6">
                 <h2 className="text-2xl font-bold text-white">Filmography</h2>

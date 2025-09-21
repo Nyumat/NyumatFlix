@@ -174,11 +174,19 @@ export const useMediaHero = ({
         }
       }
     }
-    const trailerKey = currentItemVideos.find((v) => v.type === "Trailer")?.key;
-    if (!trailerKey) {
-      // we could do a toast here at some point
+    const acceptableVideoTypes = ["Trailer", "Teaser", "Clip", "Featurette"];
+    const trailerVideo = currentItemVideos.find((v) =>
+      acceptableVideoTypes.includes(v.type),
+    );
+
+    if (!trailerVideo?.key) {
+      console.log(
+        "No trailer/teaser found. Available videos:",
+        currentItemVideos,
+      );
       return;
     }
+
     setIsPlayingTrailer(true);
   }, [currentItem]);
 

@@ -4,6 +4,8 @@ import { PageContainer } from "@/components/layout/page-container";
 import { MediaCarousels } from "@/components/media/media-carousels";
 import { CountryBadge } from "@/components/ui/country-badge";
 import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { isUpcomingMovie } from "@/utils/movie-helpers";
 import { Genre, ProductionCountry } from "@/utils/typings";
 import { Calendar, Clock, Star } from "lucide-react";
 import { Metadata } from "next";
@@ -68,7 +70,6 @@ async function fetchDetails(id: string) {
     }
     const data = await response.json();
 
-    // Enrich movie data with logos
     const { fetchAndEnrichMediaItems } = await import("@/app/actions");
     const enrichedData = await fetchAndEnrichMediaItems([data], "movie");
 
@@ -114,23 +115,34 @@ export default async function MoviePage({ params }: Props) {
       );
     }
 
-    // Format runtime
-    const hours = Math.floor(details.runtime / 60);
-    const minutes = details.runtime % 60;
-    const formattedRuntime = `${hours}h ${minutes}m`;
+    const isUpcoming = isUpcomingMovie(details);
 
-    // Format release date
+    const hasRuntime = details.runtime && details.runtime > 0;
+    const hours = Math.floor((details.runtime || 0) / 60);
+    const minutes = (details.runtime || 0) % 60;
+    const formattedRuntime = hasRuntime
+      ? `${hours}h ${minutes}m`
+      : "Runtime TBA";
+
     const releaseDate = details.release_date
       ? new Date(details.release_date).toLocaleDateString("en-US", {
           year: "numeric",
           month: "long",
           day: "numeric",
         })
-      : "Unknown";
+      : "Release Date TBA";
+
+    console.log(details);
 
     return (
       <PageContainer className="pb-16">
-        <HeroSection media={[details]} noSlide isWatch mediaType="movie" />
+        <HeroSection
+          media={[details]}
+          noSlide
+          isWatch
+          mediaType="movie"
+          isUpcoming={isUpcoming}
+        />
         <div className="relative min-h-screen">
           <StableBackground />
           <div className="relative z-10">
@@ -151,43 +163,78 @@ export default async function MoviePage({ params }: Props) {
                   </div>
 
                   <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-lg p-6 space-y-4 shadow-xl">
-                    <div className="flex items-center space-x-3">
-                      <Clock size={18} className="text-gray-400" />
-                      <span className="text-white">{formattedRuntime}</span>
-                    </div>
-
-                    <div className="flex items-center space-x-3">
-                      <Calendar size={18} className="text-gray-400" />
-                      <span className="text-white">{releaseDate}</span>
-                    </div>
-
-                    <div className="flex items-center space-x-3">
-                      <Star size={18} className="text-yellow-500" />
-                      <span className="text-white">
-                        {details.vote_average?.toFixed(1)}/10
-                      </span>
-                      <span className="text-gray-400">
-                        ({details.vote_count?.toLocaleString()} votes)
-                      </span>
-                    </div>
-
-                    {details.budget > 0 && (
-                      <div className="border-t border-gray-700 pt-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Budget:</span>
-                          <span className="text-white">
-                            ${details.budget?.toLocaleString()}
-                          </span>
-                        </div>
+                    {isUpcoming && details.status && (
+                      <div className="flex justify-center mb-4">
+                        <StatusBadge status={details.status} />
                       </div>
                     )}
 
-                    {details.revenue > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Revenue:</span>
-                        <span className="text-white">
-                          ${details.revenue?.toLocaleString()}
+                    {(hasRuntime || !isUpcoming) && (
+                      <div className="flex items-center space-x-3">
+                        <Clock size={18} className="text-gray-400" />
+                        <span
+                          className={`text-white ${!hasRuntime && isUpcoming ? "text-gray-400" : ""}`}
+                        >
+                          {formattedRuntime}
                         </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center space-x-3">
+                      <Calendar size={18} className="text-gray-400" />
+                      <span
+                        className={`text-white ${!details.release_date && isUpcoming ? "text-gray-400" : ""}`}
+                      >
+                        {releaseDate}
+                      </span>
+                    </div>
+
+                    {((details.vote_count && details.vote_count > 0) ||
+                      !isUpcoming) && (
+                      <div className="flex items-center space-x-3">
+                        <Star size={18} className="text-yellow-500" />
+                        <span className="text-white">
+                          {details.vote_average && details.vote_average > 0
+                            ? `${details.vote_average.toFixed(1)}/10`
+                            : "Not yet rated"}
+                        </span>
+                        {details.vote_count && details.vote_count > 0 && (
+                          <span className="text-gray-400">
+                            ({details.vote_count.toLocaleString()} votes)
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {(details.budget > 0 || details.revenue > 0) &&
+                      !isUpcoming && (
+                        <div className="border-t border-gray-700 pt-4 space-y-2">
+                          {details.budget > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Budget:</span>
+                              <span className="text-white">
+                                ${details.budget.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                          {details.revenue > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Revenue:</span>
+                              <span className="text-white">
+                                ${details.revenue.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                    {isUpcoming && (
+                      <div className="border-t border-gray-700 pt-4">
+                        <div className="text-center">
+                          <p className="text-gray-400 text-sm">
+                            More details will be available closer to release
+                          </p>
+                        </div>
                       </div>
                     )}
 
