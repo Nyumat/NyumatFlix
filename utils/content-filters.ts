@@ -1,5 +1,9 @@
 import { CustomFetcherName, customFetchers } from "./customFetchers";
-import { FilterDefinition, FiltersSchema } from "./filterSchema";
+import {
+  FilterDefinition,
+  FiltersSchema,
+  RowConfiguration,
+} from "./filterSchema";
 import filtersData from "./filters.json";
 import { MediaItem } from "./typings";
 
@@ -76,6 +80,57 @@ export function filterRomanceContent<
   },
 >(items: T[]): T[] {
   return items.filter(shouldAllowRomanceContent);
+}
+
+/**
+ * Determines if a movie should be filtered out due to zero revenue
+ * @param item Media item to check
+ * @returns true if the item should be kept (not filtered out)
+ */
+export function shouldKeepZeroRevenueMovie(item: {
+  media_type?: string;
+  status?: string;
+  revenue?: number;
+  release_date?: string;
+}): boolean {
+  // Only filter movies, not TV shows
+  if (item.media_type === "tv" || (!item.media_type && !item.status)) {
+    return true;
+  }
+
+  // If it's an upcoming movie (any non-released status), keep it
+  if (item.status && item.status !== "Released") {
+    return true;
+  }
+
+  // If revenue data is missing or undefined, keep it (different from explicitly 0)
+  if (item.revenue === undefined || item.revenue === null) {
+    return true;
+  }
+
+  // If revenue is 0 and it's a released movie, filter it out
+  if (item.revenue === 0 && item.status === "Released") {
+    return false;
+  }
+
+  // Keep everything else
+  return true;
+}
+
+/**
+ * Filters an array of media items to exclude released movies with zero revenue
+ * @param items Array of media items to filter
+ * @returns Filtered array without released movies that have zero revenue
+ */
+export function filterZeroRevenueMovies<
+  T extends {
+    media_type?: string;
+    status?: string;
+    revenue?: number;
+    release_date?: string;
+  },
+>(items: T[]): T[] {
+  return items.filter(shouldKeepZeroRevenueMovie);
 }
 
 export interface ContentFilter {
@@ -521,4 +576,117 @@ export function generateYearFilterId(
   _mediaType: "movie" | "tv",
 ): string {
   return `year-${year}`;
+}
+
+// Row configuration functions using JSON data
+
+/**
+ * Gets row configuration by ID from JSON
+ */
+export function getRowConfig(rowId: string): RowConfiguration | null {
+  try {
+    const validatedFilters = FiltersSchema.parse(filtersData);
+    return validatedFilters.rowConfigurations[rowId] || null;
+  } catch (error) {
+    console.error("Error parsing filters JSON:", error);
+    return null;
+  }
+}
+
+/**
+ * Gets all available row IDs from JSON
+ */
+export function getAllRowIds(): string[] {
+  try {
+    const validatedFilters = FiltersSchema.parse(filtersData);
+    return Object.keys(validatedFilters.rowConfigurations);
+  } catch (error) {
+    console.error("Error parsing filters JSON:", error);
+    return [];
+  }
+}
+
+/**
+ * Gets row IDs filtered by media type
+ */
+export function getRowIdsByMediaType(mediaType: "movie" | "tv"): string[] {
+  try {
+    const validatedFilters = FiltersSchema.parse(filtersData);
+    return Object.entries(validatedFilters.rowConfigurations)
+      .filter(([_, config]) => config.mediaType === mediaType)
+      .map(([rowId]) => rowId);
+  } catch (error) {
+    console.error("Error parsing filters JSON:", error);
+    return [];
+  }
+}
+
+/**
+ * Checks if a row is for international content
+ */
+export function isInternationalRow(rowId: string): boolean {
+  try {
+    const validatedFilters = FiltersSchema.parse(filtersData);
+    const rowConfig = validatedFilters.rowConfigurations[rowId];
+    return (
+      rowConfig?.international === true ||
+      Object.keys(validatedFilters.internationalRowFilters).includes(rowId)
+    );
+  } catch (error) {
+    console.error("Error parsing filters JSON:", error);
+    return false;
+  }
+}
+
+/**
+ * Gets the origin country for international content filtering
+ */
+export function getInternationalOriginCountry(rowId: string): string | null {
+  try {
+    const validatedFilters = FiltersSchema.parse(filtersData);
+    return validatedFilters.internationalRowFilters[rowId] || null;
+  } catch (error) {
+    console.error("Error parsing filters JSON:", error);
+    return null;
+  }
+}
+
+/**
+ * Gets recommended rows for a specific page type
+ */
+export function getRecommendedRowsForPage(
+  pageType: "home" | "movies" | "tv",
+): string[] {
+  try {
+    const validatedFilters = FiltersSchema.parse(filtersData);
+    return validatedFilters.pageRowRecommendations[pageType] || [];
+  } catch (error) {
+    console.error("Error parsing filters JSON:", error);
+    return [];
+  }
+}
+
+/**
+ * Checks if a row uses a custom fetcher (based on the category)
+ */
+export function rowUsesCustomFetcher(rowId: string): boolean {
+  const rowConfig = getRowConfig(rowId);
+  if (!rowConfig) return false;
+
+  // Check if the category corresponds to a filter that uses custom fetchers
+  const filterConfig = getFilterConfig(rowConfig.category);
+  return Boolean(filterConfig?.fetchConfig.customFetch);
+}
+
+/**
+ * Handle filtering for international content rows
+ */
+export function handleInternationalRowFiltering(
+  rowId: string,
+  item: MediaItem,
+): boolean {
+  const originCountry = getInternationalOriginCountry(rowId);
+  if (!originCountry) return true;
+
+  return item.origin_country?.includes(originCountry) || false;
 }
