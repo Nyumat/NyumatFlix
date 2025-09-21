@@ -38,8 +38,6 @@ export const metadata: Metadata = {
     images: [
       {
         url: "https://nyumatflix.com/og.webp",
-        width: 2192,
-        height: 1516,
         alt: "Login | NyumatFlix",
       },
     ],
@@ -52,8 +50,6 @@ export const metadata: Metadata = {
     images: [
       {
         url: "https://nyumatflix.com/og.webp",
-        width: 2192,
-        height: 1516,
         alt: "Login | NyumatFlix",
       },
     ],

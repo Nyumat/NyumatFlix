@@ -27,8 +27,6 @@ export const metadata = {
     images: [
       {
         url: "https://nyumatflix.com/og.webp",
-        width: 1200,
-        height: 630,
         alt: "NyumatFlix | Watch Movies and TV Shows",
       },
     ],
