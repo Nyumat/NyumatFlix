@@ -5,6 +5,7 @@ import {
   buildFilterParams,
   buildFilterParamsAsync,
   filterRomanceContent,
+  filterZeroRevenueMovies,
   getFilterConfig,
 } from "@/utils/content-filters";
 import {
@@ -82,8 +83,8 @@ export async function buildItemsWithCategories<
     }
   });
 
-  // Apply romance content filtering as a final step
-  return filterRomanceContent(processedItems);
+  // Apply content filtering as a final step
+  return filterRomanceContent(filterZeroRevenueMovies(processedItems));
 }
 
 export async function buildMaybeItemsWithCategories<
