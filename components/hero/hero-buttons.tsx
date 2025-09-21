@@ -15,12 +15,14 @@ interface HeroButtonsProps {
   handleWatch(): void;
   handlePlayTrailer(): void;
   mediaType?: "tv" | "movie";
+  isUpcoming?: boolean;
 }
 
 export function HeroButtons({
   handleWatch,
   handlePlayTrailer,
   mediaType,
+  isUpcoming = false,
 }: HeroButtonsProps) {
   const { selectedEpisode } = useEpisodeStore();
 
@@ -62,6 +64,9 @@ export function HeroButtons({
   };
 
   const getWatchButtonText = () => {
+    if (isUpcoming) {
+      return "Coming Soon";
+    }
     if (mediaType === "tv") {
       if (selectedEpisode) {
         return `Watch S${useEpisodeStore.getState().seasonNumber}E${selectedEpisode.episode_number}`;
@@ -71,8 +76,17 @@ export function HeroButtons({
     return "Watch Now";
   };
 
-  const isWatchDisabled = mediaType === "tv" && !selectedEpisode;
-  const disabledTooltip = "Please select an episode from the seasons below";
+  const isWatchDisabled =
+    isUpcoming || (mediaType === "tv" && !selectedEpisode);
+
+  const getDisabledTooltip = () => {
+    if (isUpcoming) {
+      return "This content is not yet available for streaming";
+    }
+    return "Please select an episode from the seasons below";
+  };
+
+  const disabledTooltip = getDisabledTooltip();
 
   const WatchButton = (
     <button

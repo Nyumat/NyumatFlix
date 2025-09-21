@@ -70,9 +70,12 @@ export function HeroBackground({
     }
   }
 
-  const trailerKey = currentItemVideos.find(
-    (video: { type: string }) => video.type === "Trailer",
-  )?.key;
+  // Look for trailers, teasers, or other promotional videos in order of preference
+  const acceptableVideoTypes = ["Trailer", "Teaser", "Clip", "Featurette"];
+  const trailerVideo = currentItemVideos.find((video: { type: string }) =>
+    acceptableVideoTypes.includes(video.type),
+  );
+  const trailerKey = trailerVideo?.key;
 
   const getMediaType = (): "movie" | "tv" => {
     if (mediaType) {

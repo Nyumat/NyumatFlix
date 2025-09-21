@@ -15,6 +15,7 @@ interface MediaDetailHeroProps {
   noSlide?: boolean;
   isWatch?: boolean;
   mediaType?: "tv" | "movie";
+  isUpcoming?: boolean;
 }
 
 export function MediaDetailHero({
@@ -22,6 +23,7 @@ export function MediaDetailHero({
   noSlide,
   isWatch = false,
   mediaType: passedMediaType,
+  isUpcoming = false,
 }: MediaDetailHeroProps) {
   const {
     currentItemIndex,
@@ -92,6 +94,7 @@ export function MediaDetailHero({
             showToast.info("Press X key or pause to stop trailer");
           }
         }}
+        isUpcoming={isUpcoming}
       />
 
       {!noSlide && !isPlayingVideo && !isWatch && media.length > 1 && (
