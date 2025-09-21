@@ -56,7 +56,6 @@ export async function PersonInfiniteContent({
         return null;
       }
 
-      // Filter out items without poster_path and validate required fields
       const validResults = response.results.filter(
         (
           item,
@@ -73,7 +72,6 @@ export async function PersonInfiniteContent({
         return null;
       }
 
-      // Transform the raw results into MediaItem[]
       const processedFilmography = await buildItemsWithCategories(
         validResults,
         "multi",

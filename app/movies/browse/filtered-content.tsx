@@ -1,8 +1,13 @@
-import { buildItemsWithCategories, fetchTMDBData } from "@/app/actions";
+import {
+  buildItemsWithCategories,
+  fetchPaginatedCategory,
+  fetchTMDBData,
+} from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
 import {
   buildFilterParams,
   createYearFilterParams,
+  getFilterConfig,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { getMoreMovies } from "./actions";
@@ -22,7 +27,8 @@ export async function FilteredMovieContent({
   // Determine the filter ID based on the parameters
   const resolvedFilterId = filterId || "";
   let endpoint = "";
-  let params: Record<string, string> = {};
+  let params: Record<string, string> | { useCustomFetch: true } = {};
+  let useCategoryFetching = false;
 
   // Handle year filtering first
   if (year) {
@@ -40,15 +46,25 @@ export async function FilteredMovieContent({
       with_original_language: "en",
     };
   } else if (resolvedFilterId) {
-    // Use the filter configuration if filterId is provided
-    const filterConfig = buildFilterParams(resolvedFilterId);
-    endpoint = filterConfig.endpoint;
-    params = filterConfig.params;
+    // Use centralized filter configuration when filterId is provided.
+    // If the filter uses a custom fetcher (studios, directors, collections, etc),
+    // switch to category-based fetching for both initial load and pagination.
+    const filter = getFilterConfig(resolvedFilterId);
+    if (filter?.fetchConfig.customFetch) {
+      useCategoryFetching = true;
+      endpoint = resolvedFilterId; // pass category ID through to load-more
+      params = { useCustomFetch: true };
+    } else {
+      const filterConfig = buildFilterParams(resolvedFilterId);
+      endpoint = filterConfig.endpoint;
+      params = filterConfig.params;
+    }
   } else {
     // Fallback to popular movies if no parameters
-    const filterConfig = buildFilterParams("popular");
-    endpoint = filterConfig.endpoint;
-    params = filterConfig.params;
+    // Use the filter system for consistency
+    useCategoryFetching = true;
+    endpoint = "popular";
+    params = { useCustomFetch: true };
   }
 
   // Fetch content
@@ -61,17 +77,31 @@ export async function FilteredMovieContent({
   const seenIds = new Set<number>();
 
   while (allMovies.length < MINIMUM_MOVIES && currentPage <= MAX_PAGES) {
-    const pageContent = await fetchTMDBData(endpoint, {
-      ...params,
-      page: currentPage.toString(),
-    });
+    let pageResults: MediaItem[] = [];
 
-    if (!pageContent.results || pageContent.results.length === 0) {
-      break;
+    if (useCategoryFetching) {
+      pageResults = await fetchPaginatedCategory(
+        endpoint,
+        "movie",
+        currentPage,
+      );
+    } else {
+      const pageContent = await fetchTMDBData(endpoint, {
+        ...(params as Record<string, string>),
+        page: currentPage.toString(),
+      });
+      pageResults = (pageContent.results as MediaItem[]) || [];
+
+      if (currentPage > (pageContent.total_pages || 1)) {
+        // Avoid pointless extra iteration when we know there are no more pages
+        if (pageResults.length === 0) break;
+      }
     }
 
+    if (!pageResults || pageResults.length === 0) break;
+
     // Filter valid movies (with poster path) and remove duplicates
-    const validMovies = pageContent.results.filter((movie: MediaItem) => {
+    const validMovies = pageResults.filter((movie: MediaItem) => {
       if (!movie.poster_path) return false;
       if (seenIds.has(movie.id)) return false;
       seenIds.add(movie.id);
@@ -80,10 +110,6 @@ export async function FilteredMovieContent({
 
     allMovies.push(...validMovies);
     currentPage++;
-
-    if (currentPage > (pageContent.total_pages || 1)) {
-      break;
-    }
   }
 
   if (allMovies.length === 0) {

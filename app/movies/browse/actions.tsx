@@ -14,53 +14,46 @@ export async function getMoreMovies(
   params: Record<string, string> | { useCustomFetch: boolean },
   offset: number,
 ): Promise<readonly [React.JSX.Element, number | null] | null> {
-  try {
-    let response;
+  let response: { results?: MediaItem[]; total_pages?: number } | null = null;
 
-    // Check if this is a custom fetch filter (like director filters)
-    if (typeof params === "object" && "useCustomFetch" in params) {
-      // This is a custom fetch filter, use fetchPaginatedCategory
-      const results = await fetchPaginatedCategory(endpoint, "movie", offset);
-      response = { results, total_pages: 10 }; // Default total_pages for custom fetch
-    } else {
-      // This is a regular filter, use fetchTMDBData
-      response = await fetchTMDBData(endpoint, {
-        ...params,
-        page: offset.toString(),
-      });
-    }
+  if (typeof params === "object" && "useCustomFetch" in params) {
+    const results = await fetchPaginatedCategory(endpoint, "movie", offset);
+    response = { results, total_pages: undefined };
+  } else {
+    response = await fetchTMDBData(endpoint, {
+      ...params,
+      page: offset.toString(),
+    });
+  }
 
-    if (!response?.results || response.results.length === 0) {
-      return null;
-    }
-
-    // Filter out items without poster_path to match initial load behavior
-    const validResults = response.results.filter((item: MediaItem) =>
-      Boolean(item.poster_path),
-    );
-
-    if (validResults.length === 0) {
-      return null;
-    }
-
-    const processedMovies = await buildItemsWithCategories<MediaItem>(
-      validResults,
-      "movie",
-    );
-
-    const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
-
-    return [
-      <ContentGrid
-        items={processedMovies}
-        key={offset}
-        type="movie"
-        showViewModeControls={false}
-      />,
-      nextOffset,
-    ] as const;
-  } catch (error) {
-    console.error("Error loading more movies:", error);
+  if (!response?.results || response.results.length === 0) {
     return null;
   }
+
+  const validResults = response.results.filter((item: MediaItem) => Boolean(item.poster_path));
+
+  if (validResults.length === 0) {
+    return null;
+  }
+
+  const processedMovies = await buildItemsWithCategories<MediaItem>(validResults, "movie");
+
+  const nextOffset =
+    typeof response.total_pages === "number"
+      ? offset < response.total_pages
+        ? offset + 1
+        : null
+      : response.results.length > 0
+        ? offset + 1
+        : null;
+
+  return [
+    <ContentGrid
+      items={processedMovies}
+      key={offset}
+      type="movie"
+      showViewModeControls={false}
+    />,
+    nextOffset,
+  ] as const;
 }
