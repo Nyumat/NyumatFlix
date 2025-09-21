@@ -52,15 +52,10 @@ export async function GET(request: Request) {
     }
 
     const rawData = await response.json();
-
-    // Validate with Zod
     const result = TmdbResponseSchema.safeParse(rawData);
-
-    // Use validated data if successful, otherwise fall back to raw data
     const data: TmdbResponse<Movie | TvShow> = result.success
       ? result.data
       : rawData;
-
     const filteredResults: PreviewResult[] =
       data.results
         ?.filter(
