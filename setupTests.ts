@@ -28,6 +28,10 @@ vi.mock("next/navigation", () => ({
   notFound: vi.fn(),
 }));
 
+vi.mock("adblock-detect-react", () => ({
+  useDetectAdBlock: vi.fn(() => false),
+}));
+
 if (!global.fetch) {
   global.fetch = vi.fn() as Mock<() => Promise<Response>>;
 }
@@ -45,7 +49,7 @@ global.ResizeObserver = ResizeObserver;
 
 Object.defineProperty(global, "matchMedia", {
   writable: true,
-  value: vi.fn().mockImplementation((query) => ({
+  value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -56,6 +60,15 @@ Object.defineProperty(global, "matchMedia", {
     dispatchEvent: vi.fn(),
   })),
 });
+
+Object.defineProperty(global, "scrollTo", {
+  writable: true,
+  value: vi.fn(),
+});
+
+if (typeof window !== "undefined") {
+  window.scrollTo = vi.fn();
+}
 
 afterEach(() => {
   vi.clearAllMocks();
