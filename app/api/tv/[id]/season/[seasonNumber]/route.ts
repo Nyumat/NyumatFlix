@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string; seasonNumber: string } },
+  props: { params: Promise<{ id: string; seasonNumber: string }> },
 ) {
+  const params = await props.params;
   try {
     const { id, seasonNumber } = params;
 
