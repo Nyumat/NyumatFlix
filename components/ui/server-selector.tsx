@@ -1,9 +1,9 @@
 "use client";
 
-import { useServerStore, videoServers } from "@/lib/stores/server-store";
-import { MediaItem, isMovie, isTVShow } from "@/utils/typings";
 import { Check, Server, Wifi, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useServerStore, videoServers } from "@/lib/stores/server-store";
+import { isMovie, isTVShow, MediaItem } from "@/utils/typings";
 import {
   DropdownMenu,
   DropdownMenuContent,

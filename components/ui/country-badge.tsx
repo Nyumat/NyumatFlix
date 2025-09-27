@@ -1,4 +1,5 @@
 "use client";
+import { countries } from "country-data-list";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -7,7 +8,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getFriendlyCountryName } from "@/utils/country-helpers";
-import { countries } from "country-data-list";
 
 const sizeClasses = {
   sm: "text-xs px-2 py-1 gap-1",

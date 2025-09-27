@@ -1,8 +1,8 @@
 "use client";
 
+import { RotateCcw, Settings, Wifi, WifiOff } from "lucide-react";
 import { useServerManagement } from "@/hooks/useServerManagement";
 import { useServerStore, videoServers } from "@/lib/stores/server-store";
-import { RotateCcw, Settings, Wifi, WifiOff } from "lucide-react";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import {

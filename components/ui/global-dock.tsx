@@ -1,8 +1,8 @@
 "use client";
 
+import { createContext, useContext, useState } from "react";
 import type { ViewMode } from "@/components/content-grid";
 import { ViewModeCompactDock } from "@/components/ui/compact-dock";
-import { createContext, useContext, useState } from "react";
 
 interface GlobalDockContextType {
   viewMode: ViewMode;
