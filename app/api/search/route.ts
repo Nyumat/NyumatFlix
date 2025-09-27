@@ -69,14 +69,14 @@ export async function GET(request: Request) {
     ]);
 
     // combine and sort results by popularity
-    const movies: Movie[] = (movieData.results || []).map((movie) => ({
+    const movies: Movie[] = (movieData.results || []).map((movie: Movie) => ({
       ...movie,
       media_type: "movie" as const,
     }));
 
     const tvShows: TvShow[] = (tvData.results || [])
-      .filter((show) => !show.genre_ids?.includes(10767)) // filter out talk shows
-      .map((show) => ({
+      .filter((show: TvShow) => !show.genre_ids?.includes(10767)) // filter out talk shows
+      .map((show: TvShow) => ({
         ...show,
         media_type: "tv" as const,
       }));

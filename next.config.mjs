@@ -37,7 +37,6 @@ const nextConfig = {
   experimental: {
     scrollRestoration: true,
     taint: true,
-    esmExternals: false,
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",

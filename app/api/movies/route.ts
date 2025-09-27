@@ -1,6 +1,6 @@
+import { NextRequest } from "next/server";
 import { getMovies } from "@/app/actions";
 import { MovieCategory } from "@/utils/typings";
-import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
