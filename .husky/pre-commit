@@ -3,10 +3,10 @@ echo "🚀 Running pre-commit checks..."
 
 pids=""
 
-npm run lint & pids="$pids $!"
-npm run test-ci & pids="$pids $!"
-npm run check-format & pids="$pids $!"
-npm run type-check & pids="$pids $!"
+bun run lint & pids="$pids $!"
+bun run test-ci & pids="$pids $!"
+bun run check-format & pids="$pids $!"
+bun run type-check & pids="$pids $!"
 
 fail=0
 for pid in $pids; do
