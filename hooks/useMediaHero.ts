@@ -179,10 +179,6 @@ export const useMediaHero = ({
     );
 
     if (!trailerVideo?.key) {
-      console.log(
-        "No trailer/teaser found. Available videos:",
-        currentItemVideos,
-      );
       return;
     }
 
