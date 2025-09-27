@@ -1,7 +1,7 @@
 "use client";
 
-import { useServerStore } from "@/lib/stores/server-store";
 import { useCallback, useState } from "react";
+import { useServerStore } from "@/lib/stores/server-store";
 
 export interface UseServerManagementState {
   customReason: string;
@@ -25,12 +25,8 @@ export interface UseServerManagementReturn
     UseServerManagementActions {}
 
 export const useServerManagement = (): UseServerManagementReturn => {
-  const {
-    setServerOverride,
-    removeServerOverride,
-    getServerOverride,
-    isServerOverridden,
-  } = useServerStore();
+  const { setServerOverride, removeServerOverride, getServerOverride } =
+    useServerStore();
 
   const [customReason, setCustomReason] = useState<string>("");
   const [editingServerId, setEditingServerId] = useState<string | null>(null);

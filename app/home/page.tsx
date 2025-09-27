@@ -3,8 +3,11 @@ import {
   getRowConfig,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
-import NextDynamic from "next/dynamic";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
+import {
+  DynamicMediaCarousel,
+  LazyContentRowsDynamic,
+} from "./client-components";
 
 export const dynamic = "force-dynamic";
 
@@ -224,21 +227,3 @@ export default async function Home() {
     </div>
   );
 }
-
-const DynamicMediaCarousel = NextDynamic(
-  () => import("@/components/hero").then((m) => m.MediaCarousel),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="relative h-[80vh] md:h-[92vh] overflow-hidden bg-black" />
-    ),
-  },
-);
-
-const LazyContentRowsDynamic = NextDynamic(
-  () =>
-    import("@/components/content/lazy-content-rows").then(
-      (m) => m.LazyContentRows,
-    ),
-  { ssr: false },
-);

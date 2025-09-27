@@ -22,7 +22,7 @@ export async function InfiniteContent({
   filterId,
   genre,
   year,
-}: ICProps): Promise<JSX.Element> {
+}: ICProps): Promise<React.JSX.Element> {
   // Determine the endpoint and params based on the parameters
   let endpoint = "";
   let params: Record<string, string> | { useCustomFetch: true } = {};

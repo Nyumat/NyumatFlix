@@ -1,3 +1,5 @@
+import { isMatching, P } from "ts-pattern";
+
 // Movie status constants
 export const MOVIE_STATUSES = {
   RUMORED: "Rumored",
@@ -19,25 +21,30 @@ interface MovieDetails {
   vote_count?: number;
 }
 
-// Check if a movie is upcoming based on status and missing data
+// Define patterns for upcoming movie statuses using ts-pattern
+const upcomingStatusPattern = P.union(
+  MOVIE_STATUSES.RUMORED,
+  MOVIE_STATUSES.PLANNED,
+  MOVIE_STATUSES.IN_PRODUCTION,
+  MOVIE_STATUSES.POST_PRODUCTION,
+);
+
+const releasedStatusPattern = MOVIE_STATUSES.RELEASED;
+
+// Check if a movie is upcoming based on status and missing data using ts-pattern
 export const isUpcomingMovie = (
   movie: MovieDetails & { release_date?: string },
 ): boolean => {
   if (!movie) return false;
 
-  // Check if movie has upcoming status
-  const upcomingStatuses = [
-    MOVIE_STATUSES.RUMORED,
-    MOVIE_STATUSES.PLANNED,
-    MOVIE_STATUSES.IN_PRODUCTION,
-    MOVIE_STATUSES.POST_PRODUCTION,
-  ];
-
-  const hasUpcomingStatus =
-    movie.status && upcomingStatuses.some((status) => status === movie.status);
+  // Check if movie has upcoming status using pattern matching
+  const hasUpcomingStatus = isMatching(
+    { status: upcomingStatusPattern },
+    movie,
+  );
 
   // If explicitly marked as "Released", don't treat as upcoming regardless of missing data
-  if (movie.status === MOVIE_STATUSES.RELEASED) {
+  if (isMatching({ status: releasedStatusPattern }, movie)) {
     return false;
   }
 

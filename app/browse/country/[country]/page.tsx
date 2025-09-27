@@ -1,20 +1,19 @@
+import { countries } from "country-data-list";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { BackButton } from "@/components/ui/back-button";
 import { getFriendlyCountryName } from "@/utils/country-helpers";
-import { countries } from "country-data-list";
 import BrowseCountryClient from "./browse-client";
 
 interface PageProps {
-  params: { country: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ country: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function BrowseCountryPage({
-  params,
-  searchParams,
-}: PageProps) {
+export default async function BrowseCountryPage(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const countryCode = params.country.toUpperCase();
   const typeParam = Array.isArray(searchParams?.type)
     ? searchParams.type[0]

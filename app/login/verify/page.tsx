@@ -1,19 +1,10 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader } from "@/components/ui/loader";
 import { ArrowLeft, MailCheck } from "lucide-react";
 import { Metadata } from "next";
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-
-const NeuralNetworkBackground = dynamic(
-  () => import("@/components/ui/neural-network-hero"),
-  {
-    ssr: false,
-    loading: () => <Loader />,
-  },
-);
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NeuralNetworkBackground } from "../neural-network-client";
 
 export const metadata: Metadata = {
   title: "Verify Email | NyumatFlix",

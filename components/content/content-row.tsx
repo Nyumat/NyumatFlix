@@ -1,8 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import useMedia from "@/hooks/useMedia";
 import { MediaItem } from "@/utils/typings";
-import dynamic from "next/dynamic";
 import type { RankedContentRowProps } from "./ranked-content-row";
 import type { StandardContentRowProps } from "./standard-content-row";
 import type { VirtualizedContentRowProps } from "./virtualized-content-row";

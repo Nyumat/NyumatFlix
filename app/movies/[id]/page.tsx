@@ -1,3 +1,7 @@
+import { Calendar, Clock, Star } from "lucide-react";
+import { Metadata } from "next";
+import Image from "next/legacy/image";
+import { memo } from "react";
 import { HeroSection } from "@/components/hero/exports";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
@@ -7,16 +11,13 @@ import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { isUpcomingMovie } from "@/utils/movie-helpers";
 import { Genre, ProductionCountry } from "@/utils/typings";
-import { Calendar, Clock, Star } from "lucide-react";
-import { Metadata } from "next";
-import Image from "next/legacy/image";
-import { memo } from "react";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   const movie = await fetchDetails(params.id);
 
   if (!movie) {
@@ -96,7 +97,8 @@ const StableBackground = memo(function StableBackground() {
   );
 });
 
-export default async function MoviePage({ params }: Props) {
+export default async function MoviePage(props: Props) {
+  const params = await props.params;
   const { id } = params;
   try {
     const details = await fetchDetails(id);

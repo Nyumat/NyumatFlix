@@ -1,10 +1,10 @@
 "use client";
 
-import { NavbarSearchClient } from "@/components/search/search";
-import { cn } from "@/lib/utils";
-import { Session } from "next-auth";
 import Image from "next/image";
 import Link from "next/link";
+import { Session } from "next-auth";
+import { NavbarSearchClient } from "@/components/search/search";
+import { cn } from "@/lib/utils";
 import { Badge } from "../../ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 import { NavbarAuth } from "./navbar-auth";

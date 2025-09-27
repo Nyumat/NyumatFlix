@@ -1,5 +1,8 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import AdblockerIcons from "@/components/content/adblocker-icons";
 import {
   AlertDialog,
@@ -9,9 +12,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 
 export type AdblockerAlertProps = {
   openSignal: boolean;

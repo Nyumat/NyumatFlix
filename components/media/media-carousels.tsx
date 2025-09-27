@@ -1,5 +1,10 @@
 "use client";
 
+import { User } from "lucide-react";
+import Image from "next/legacy/image";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 import {
   Carousel,
   CarouselContent,
@@ -8,11 +13,6 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Actor, Movie, TvShow, Video } from "@/utils/typings";
-import { User } from "lucide-react";
-import Image from "next/legacy/image";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
 import MediaCard from "./media-card";
 
 type MediaCarouselsProps = {

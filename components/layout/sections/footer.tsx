@@ -1,8 +1,8 @@
-import { GithubIcon } from "@/components/icons/github-icon";
-import { Separator } from "@/components/ui/separator";
 import { Cannabis, Globe, Heart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { GithubIcon } from "@/components/icons/github-icon";
+import { Separator } from "@/components/ui/separator";
 
 export const FooterSection = () => {
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import type { Genre, MediaItem } from "@/utils/typings";
+import type { Genre, MediaItem, ProductionCountry } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
 import { Play } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,7 +13,7 @@ interface MovieDetails {
   id?: number;
   runtime?: number;
   genres?: Genre[];
-  production_countries?: Array<{ iso_3166_1: string; name: string }>;
+  production_countries?: ProductionCountry[];
 }
 
 interface TvDetails {
@@ -97,10 +97,15 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
       return (item as TvDetails)?.origin_country;
     })
     .with("movie", () => {
-      if ("production_countries" in item && item.production_countries?.length)
-        return item.production_countries.map(
-          (pc: { iso_3166_1: string; name: string }) => pc.iso_3166_1,
+      if (
+        "production_countries" in item &&
+        (item as MovieDetails).production_countries?.length
+      ) {
+        const productionCountries = (item as MovieDetails).production_countries;
+        return productionCountries?.map(
+          (pc: ProductionCountry) => pc.iso_3166_1,
         );
+      }
       if ("origin_country" in item && item.origin_country?.length)
         return item.origin_country;
       return undefined;

@@ -20,7 +20,7 @@ export const getTvShowListNodes = async (
     }
 
     const validResults = response.results.filter(
-      (item): item is typeof item & { id: number } =>
+      (item): item is typeof item & { id: number; genre_ids?: number[] } =>
         typeof item.id === "number",
     );
 
@@ -59,7 +59,7 @@ export const getMovieListNodes = async (
     }
 
     const validResults = response.results.filter(
-      (item): item is typeof item & { id: number } =>
+      (item): item is typeof item & { id: number; genre_ids?: number[] } =>
         typeof item.id === "number",
     );
 
