@@ -4,23 +4,31 @@ import { LoadMoreSpinner } from "@/components/ui/loading-spinner";
 import React, { useRef, useState, useTransition } from "react";
 import { InView } from "react-intersection-observer";
 
-interface LoadMoreProps extends React.PropsWithChildren {
+interface InfiniteScrollProps<T> {
+  children?: React.ReactNode;
   getListNodes: (
     offset: number,
   ) => Promise<readonly [React.JSX.Element, number | null] | null>;
-  initialOffset: number | null;
+  initialOffset?: number | null;
+  itemsPerRow?: number;
+  className?: string;
+  renderContent?: (items: T[], isLoading: boolean) => React.ReactNode;
+  initialItems?: T[];
 }
 
-export function LoadMore({
+export function InfiniteScroll<T>({
   children,
   getListNodes,
-  initialOffset,
-}: LoadMoreProps) {
+  initialOffset = 1,
+  itemsPerRow = 4,
+  className = "",
+  renderContent,
+  initialItems = [],
+}: InfiniteScrollProps<T>) {
   const [isPending, startTransition] = useTransition();
   const offsetRef = useRef<number | null>(initialOffset);
   const [listNodes, setListNodes] = useState<React.JSX.Element[]>([]);
 
-  // invoke server action when our target node is in view
   const updateListNodes = () => {
     if (!offsetRef.current) {
       return;
@@ -35,12 +43,21 @@ export function LoadMore({
     });
   };
 
+  const content = renderContent ? (
+    <>
+      {renderContent(initialItems, isPending)}
+      {listNodes}
+    </>
+  ) : (
+    <>
+      {children}
+      {listNodes}
+    </>
+  );
+
   return (
     <>
-      <div className="container mx-auto">
-        {children}
-        {listNodes}
-      </div>
+      <div className={className}>{content}</div>
       <InView as="div" onChange={(inView) => inView && updateListNodes()}>
         <div className="h-20" />
       </InView>
