@@ -1,11 +1,11 @@
 export const dynamic = "force-dynamic";
 
+import { NextRequest, NextResponse } from "next/server";
 import {
   buildMaybeItemsWithCategories,
   fetchPaginatedCategory,
 } from "@/app/actions";
 import { MediaItem } from "@/utils/typings";
-import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {

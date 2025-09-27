@@ -1,15 +1,16 @@
+import { NextRequest, NextResponse } from "next/server";
 import {
   buildItemsWithCategories,
   fetchAndEnrichMediaItems,
   fetchTMDBData,
 } from "@/app/actions";
 import { MediaItem } from "@/utils/typings";
-import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { country: string } },
+  props: { params: Promise<{ country: string }> },
 ) {
+  const params = await props.params;
   try {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -59,13 +60,13 @@ export async function GET(
     );
 
     // Filter results to only include items with posters
-    const resultsWithPoster = (data.results || []).filter((item) =>
+    const resultsWithPoster = (data.results || []).filter((item: MediaItem) =>
       Boolean(item.poster_path),
     );
 
     // Process with categories for consistent data structure
     const processedResults = await buildItemsWithCategories<MediaItem>(
-      resultsWithPoster,
+      resultsWithPoster as MediaItem[],
       mediaType as "movie" | "tv",
     );
 

@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { getGenreNames } from "@/components/content/genre-helpers";
 import {
   Movie,
@@ -5,7 +6,6 @@ import {
   TmdbResponseSchema,
   TvShow,
 } from "@/utils/typings";
-import { NextResponse } from "next/server";
 
 type PreviewResult = {
   id: number;
@@ -59,12 +59,12 @@ export async function GET(request: Request) {
     const filteredResults: PreviewResult[] =
       data.results
         ?.filter(
-          (item) =>
+          (item: Movie | TvShow) =>
             item.poster_path &&
             (item.media_type === "movie" || item.media_type === "tv"),
         )
         .slice(0, 8)
-        .map((item) => ({
+        .map((item: Movie | TvShow) => ({
           id: item.id,
           title: "title" in item ? item.title : undefined,
           name: "name" in item ? item.name : undefined,

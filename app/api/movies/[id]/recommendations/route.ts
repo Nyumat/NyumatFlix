@@ -3,8 +3,9 @@ import { movieDb } from "@/lib/constants";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } },
+  props: { params: Promise<{ id: string }> },
 ) {
+  const params = await props.params;
   const id = params.id;
 
   if (!id) {

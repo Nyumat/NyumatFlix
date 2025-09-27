@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import {
   buildMaybeItemsWithCategories,
   fetchAndEnrichMediaItems,
@@ -9,7 +10,6 @@ import {
   isInternationalRow,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
-import { NextResponse } from "next/server";
 
 async function fetchStandardizedRow(
   rowId: string,

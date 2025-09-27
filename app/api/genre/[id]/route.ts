@@ -1,15 +1,16 @@
+import { NextRequest, NextResponse } from "next/server";
 import {
   buildItemsWithCategories,
   fetchAndEnrichMediaItems,
   fetchTMDBData,
 } from "@/app/actions";
 import { MediaItem } from "@/utils/typings";
-import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  props: { params: Promise<{ id: string }> },
 ) {
+  const params = await props.params;
   const genreId = params.id;
   const url = new URL(req.url);
   const typeParam = url.searchParams.get("type");
@@ -31,13 +32,13 @@ export async function GET(
       page,
     );
 
-    const resultsWithPoster = (data.results || []).filter((item) =>
+    const resultsWithPoster = (data.results || []).filter((item: MediaItem) =>
       Boolean(item.poster_path),
     );
 
     // Process with categories for consistent data structure
     const processedResults = await buildItemsWithCategories<MediaItem>(
-      resultsWithPoster,
+      resultsWithPoster as MediaItem[],
       mediaType as "movie" | "tv",
     );
 

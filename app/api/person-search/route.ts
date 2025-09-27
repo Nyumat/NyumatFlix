@@ -7,7 +7,44 @@ interface PersonResult {
   name: string;
   profile_path?: string | null;
   popularity?: number;
+  known_for_department?: string | null;
+}
+
+interface TmdbPersonSearchResult {
+  id: number;
+  name: string;
+  profile_path?: string | null;
+  popularity?: number;
   known_for_department?: string;
+  adult?: boolean;
+  gender?: number;
+  known_for?: Array<{
+    id: number;
+    title?: string;
+    name?: string;
+    original_title?: string;
+    original_name?: string;
+    poster_path?: string | null;
+    backdrop_path?: string | null;
+    media_type: string;
+    genre_ids: number[];
+    popularity: number;
+    vote_average: number;
+    vote_count: number;
+    first_air_date?: string;
+    release_date?: string;
+    adult?: boolean;
+    video?: boolean;
+    original_language: string;
+    overview: string;
+  }>;
+}
+
+interface TmdbPersonSearchResponse {
+  page: number;
+  results: TmdbPersonSearchResult[];
+  total_pages: number;
+  total_results: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -51,12 +88,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = await response.json();
+    const data: TmdbPersonSearchResponse = await response.json();
 
     // ensure proper typing and sorting by popularity
     const results: PersonResult[] = (data.results || [])
-      .filter((person: any) => person.id && person.name)
-      .map((person: any) => ({
+      .filter((person: TmdbPersonSearchResult) => person.id && person.name)
+      .map((person: TmdbPersonSearchResult) => ({
         id: person.id,
         name: person.name,
         profile_path: person.profile_path || null,
