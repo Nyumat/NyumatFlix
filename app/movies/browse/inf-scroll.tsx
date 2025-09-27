@@ -1,7 +1,7 @@
 import { buildItemsWithCategories, getMovies } from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
+import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import { MediaItem, MovieCategory } from "@/utils/typings";
-import { LoadMore } from "./load-more";
 
 interface ICProps {
   type: MovieCategory;
@@ -70,12 +70,12 @@ export async function InfiniteContent({
   };
 
   return (
-    <LoadMore
-      key={type}
+    <InfiniteScroll
       getListNodes={getMovieListNodes}
       initialOffset={initialOffset}
+      className="space-y-8"
     >
-      <ContentGrid items={initialMovies} type="movie" />
-    </LoadMore>
+      <ContentGrid items={initialMovies} type="movie" itemsPerRow={4} />
+    </InfiniteScroll>
   );
 }

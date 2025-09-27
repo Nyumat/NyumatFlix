@@ -4,13 +4,13 @@ import {
   fetchTMDBData,
 } from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
+import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import {
   buildFilterParams,
   createYearFilterParams,
   getFilterConfig,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
-import { LoadMore } from "./load-more";
 
 interface ICProps {
   filterId: string;
@@ -157,14 +157,12 @@ export async function InfiniteContent({
   };
 
   return (
-    <>
-      <LoadMore
-        key={`${filterId}-${genre}-${year}`}
-        getListNodes={getTVShowListNodes}
-        initialOffset={initialOffset}
-      >
-        <ContentGrid items={processedShows} type="tv" />
-      </LoadMore>
-    </>
+    <InfiniteScroll
+      getListNodes={getTVShowListNodes}
+      initialOffset={initialOffset}
+      className="space-y-8"
+    >
+      <ContentGrid items={processedShows} type="tv" itemsPerRow={4} />
+    </InfiniteScroll>
   );
 }
