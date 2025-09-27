@@ -12,8 +12,17 @@ import postgres from "postgres";
 
 const connectionString =
   process.env.NODE_ENV === "production"
-    ? process.env.PROD_DATABASE_URL!
-    : process.env.DATABASE_URL!;
+    ? process.env.PROD_DATABASE_URL
+    : process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not set");
+} else {
+  console.log("========================");
+  console.log(connectionString);
+  console.log("========================");
+}
+
 const pool = postgres(connectionString, { max: 1 });
 
 export const db = drizzle(pool);
