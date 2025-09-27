@@ -18,9 +18,11 @@ const connectionString =
 if (!connectionString) {
   throw new Error("DATABASE_URL is not set");
 } else {
-  console.log("========================");
-  console.log(connectionString);
-  console.log("========================");
+  if (process.env.NODE_ENV !== "production") {
+    console.log("========================");
+    console.log(connectionString);
+    console.log("========================");
+  }
 }
 
 const pool = postgres(connectionString, { max: 1 });
