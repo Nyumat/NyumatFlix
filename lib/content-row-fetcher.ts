@@ -24,10 +24,6 @@ interface ContentRowResult {
   totalAvailable: number;
 }
 
-/**
- * Centralized function to fetch content for any row type.
- * Handles both standard categories and custom fetchers with consistent filtering.
- */
 export async function fetchContentRowData(
   options: FetchContentRowOptions,
 ): Promise<ContentRowResult> {
@@ -48,17 +44,14 @@ export async function fetchContentRowData(
   let items: MediaItem[] = [];
   let totalAvailable = 0;
 
-  // Common filter functions
   const hasValidPoster = (item: MediaItem): boolean =>
     Boolean(item.poster_path);
 
   const isUsTvContent = (item: MediaItem): boolean => {
-    // For international rows, allow their specific origin countries
     if (isInternationalRow(rowId)) {
       return handleInternationalRowFiltering(rowId, item);
     }
 
-    // For other rows, keep the original logic
     return (
       mediaType !== "tv" ||
       !filterUsTvOnly ||
@@ -75,9 +68,7 @@ export async function fetchContentRowData(
   };
 
   try {
-    // Check if this row uses a custom fetcher
     if (rowUsesCustomFetcher(rowId)) {
-      // For custom fetchers, start from page 1 (not minCount)
       const result = await handleCustomFetcher(config, 1);
       if (result) {
         const filteredItems = result.results
@@ -93,7 +84,6 @@ export async function fetchContentRowData(
       }
     }
 
-    // Fall back to standard category fetching
     let page = 1;
     while (items.length < minCount && page <= 10) {
       const newItems = await fetchPaginatedCategory(category, mediaType, page);
@@ -121,19 +111,14 @@ export async function fetchContentRowData(
   }
 }
 
-/**
- * Handle custom fetcher execution
- */
 async function handleCustomFetcher(
   config: RowConfiguration,
   page: number = 1,
 ): Promise<{ results: MediaItem[]; total_pages?: number } | null> {
-  // Get the filter config to check for custom fetchers
   const filterConfig = getFilterConfig(config.category);
   if (!filterConfig?.fetchConfig.customFetch) return null;
 
   try {
-    // Call the custom fetcher function directly
     return await filterConfig.fetchConfig.customFetch(page);
   } catch (error) {
     console.error(
@@ -144,9 +129,6 @@ async function handleCustomFetcher(
   }
 }
 
-/**
- * Fetch multiple content rows in parallel with global deduplication
- */
 export async function fetchMultipleContentRows(
   rowConfigs: Array<{
     rowId: string;
@@ -164,7 +146,6 @@ export async function fetchMultipleContentRows(
 > {
   const globalSeenIds = new Set<number>();
 
-  // Process rows sequentially to maintain global deduplication
   const results: Array<{
     rowId: string;
     items: MediaItem[];
