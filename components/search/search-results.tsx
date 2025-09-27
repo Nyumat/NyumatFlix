@@ -1,5 +1,9 @@
 "use client";
 
+import { Clock, Play, Star } from "lucide-react";
+import Image from "next/legacy/image";
+import { useRouter } from "next/navigation";
+import { useMemo } from "react";
 import { MultiSelect } from "@/components/multi-select";
 import { PeopleInfiniteScroll } from "@/components/search/people-inf-scroll";
 import { Badge } from "@/components/ui/badge";
@@ -17,12 +21,14 @@ import {
 } from "@/components/ui/pagination";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { useSearchResults } from "@/hooks/useSearchResults";
-import type { Genre, MediaItem, Movie, TvShow } from "@/utils/typings";
+import type {
+  Genre,
+  MediaItem,
+  Movie,
+  ProductionCountry,
+  TvShow,
+} from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
-import { Clock, Play, Star } from "lucide-react";
-import Image from "next/legacy/image";
-import { useRouter } from "next/navigation";
-import { useMemo } from "react";
 
 const isValidMediaItem = (item: Movie | TvShow): boolean => {
   return Boolean(item.poster_path || item.backdrop_path);
@@ -77,10 +83,12 @@ function SearchResultCard({ item }: { item: MediaItem }) {
     if (
       type === "movie" &&
       "production_countries" in item &&
-      item.production_countries?.length
+      (item as Movie & { production_countries?: ProductionCountry[] })
+        .production_countries?.length
     ) {
       return (
-        item.production_countries as Array<{ iso_3166_1: string; name: string }>
+        (item as Movie & { production_countries?: ProductionCountry[] })
+          .production_countries as ProductionCountry[]
       ).map((pc) => pc.iso_3166_1);
     }
     if ("origin_country" in item && item.origin_country?.length) {

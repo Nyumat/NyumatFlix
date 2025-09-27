@@ -7,13 +7,15 @@ interface ICProps {
   type: MovieCategory;
 }
 
-export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
+export async function InfiniteContent({
+  type,
+}: ICProps): Promise<React.JSX.Element> {
   const initialMoviesResponse = await getMovies(type, 1);
   if (!initialMoviesResponse?.results) return <div>No movies found</div>;
 
   // Filter out items without poster_path for consistency
   const validInitialResults = initialMoviesResponse.results.filter(
-    (item: MediaItem) => Boolean(item.poster_path),
+    (item): item is MediaItem => Boolean(item.poster_path),
   );
 
   if (validInitialResults.length === 0) return <div>No movies found</div>;
@@ -35,7 +37,7 @@ export async function InfiniteContent({ type }: ICProps): Promise<JSX.Element> {
       }
 
       // Filter out items without poster_path to match initial load behavior
-      const validResults = response.results.filter((item: MediaItem) =>
+      const validResults = response.results.filter((item): item is MediaItem =>
         Boolean(item.poster_path),
       );
 

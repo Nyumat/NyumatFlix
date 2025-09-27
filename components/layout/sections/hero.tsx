@@ -1,5 +1,12 @@
 "use client";
 
+import { useDetectAdBlock } from "adblock-detect-react";
+import { ArrowRight, User } from "lucide-react";
+import dynamic from "next/dynamic";
+import Image from "next/legacy/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 import AdblockerAlert from "@/components/content/adblocker-alert";
 import AdblockerIcons from "@/components/content/adblocker-icons";
 import { BorderBeam } from "@/components/ui/border-beam";
@@ -9,13 +16,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useDetectAdBlock } from "adblock-detect-react";
-import { ArrowRight, User } from "lucide-react";
-import dynamic from "next/dynamic";
-import Image from "next/legacy/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
 import StreamingServices from "./steaming-services";
 
 const NeuralNetworkBackground = dynamic(

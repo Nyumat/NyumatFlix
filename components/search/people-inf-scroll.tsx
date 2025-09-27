@@ -1,11 +1,11 @@
 "use client";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { User } from "lucide-react";
 import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Person {
   id: number;

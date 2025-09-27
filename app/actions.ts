@@ -9,6 +9,8 @@ import {
   getFilterConfig,
 } from "@/utils/content-filters";
 import {
+  Genre,
+  GenreSchema,
   Logo,
   LogoSchema,
   MediaItem,
@@ -16,8 +18,10 @@ import {
   MovieCategory,
   MovieSchema,
   ReleaseDatesResponseSchema,
+  TmdbMovieListResponse,
   TmdbResponse,
   TmdbResponseSchema,
+  TmdbTvListResponse,
   TVShowCategory,
   TvShowSchema,
 } from "@/utils/typings";
@@ -26,9 +30,32 @@ interface Params {
   [key: string]: string;
 }
 
-interface Genre {
-  id: number;
-  name: string;
+interface TmdbGenreResponse {
+  genres: Genre[];
+}
+
+interface TmdbTvShowDetails {
+  number_of_episodes?: number;
+  number_of_seasons?: number;
+  images?: {
+    logos?: Logo[];
+  };
+}
+
+interface TmdbContentRating {
+  iso_3166_1: string;
+  rating: string;
+}
+
+interface TmdbContentRatingsResponse {
+  results: TmdbContentRating[];
+}
+
+interface TmdbCreditsResponse {
+  crew: Array<{
+    job: string;
+    [key: string]: unknown;
+  }>;
 }
 
 export interface Movie {
@@ -107,10 +134,15 @@ export async function getCategories(
     ]);
 
     // Combine and deduplicate genres by ID
-    const allGenres = [
-      ...(movieGenres.genres || []),
-      ...(tvGenres.genres || []),
-    ];
+    const movieGenresResponse = movieGenres as unknown as TmdbGenreResponse;
+    const tvGenresResponse = tvGenres as unknown as TmdbGenreResponse;
+    const movieGenresData = GenreSchema.array().parse(
+      movieGenresResponse.genres || [],
+    );
+    const tvGenresData = GenreSchema.array().parse(
+      tvGenresResponse.genres || [],
+    );
+    const allGenres = [...movieGenresData, ...tvGenresData];
     const uniqueGenres = allGenres.filter(
       (genre, index, self) =>
         index === self.findIndex((g) => g.id === genre.id),
@@ -120,7 +152,8 @@ export async function getCategories(
   }
 
   const genres = await fetchTMDBData(`/genre/${type}/list`);
-  return genres.genres;
+  const genresResponse = genres as unknown as TmdbGenreResponse;
+  return GenreSchema.array().parse(genresResponse.genres || []);
 }
 
 export const fetchAllData = async () => {
@@ -421,14 +454,16 @@ export async function getNumberOfEpisodes(
   tvShowId: number,
 ): Promise<number | null> {
   const data = await fetchTMDBData(`/tv/${tvShowId}`, {}, 1);
-  return data.number_of_episodes;
+  const tvShowData = data as TmdbTvShowDetails;
+  return tvShowData.number_of_episodes || null;
 }
 
 export async function getNumberOfSeasons(
   tvShowId: number,
 ): Promise<number | null> {
   const data = await fetchTMDBData(`/tv/${tvShowId}`, {}, 1);
-  return data.number_of_seasons;
+  const tvShowData = data as TmdbTvShowDetails;
+  return tvShowData.number_of_seasons || null;
 }
 
 /**
@@ -702,7 +737,10 @@ export async function getPersonDetails(personId: number) {
   }
 }
 
-export async function getMovies(type: MovieCategory, page: number) {
+export async function getMovies(
+  type: MovieCategory,
+  page: number,
+): Promise<TmdbMovieListResponse | null> {
   switch (type) {
     case "popular":
       return await movieDb.moviePopular({ language: "en-US", page });
@@ -743,7 +781,10 @@ export async function getMovies(type: MovieCategory, page: number) {
   }
 }
 
-export async function getTVShows(type: TVShowCategory, page: number) {
+export async function getTVShows(
+  type: TVShowCategory,
+  page: number,
+): Promise<TmdbTvListResponse | null> {
   switch (type) {
     case "popular":
       return await movieDb.tvPopular({ language: "en-US", page });
@@ -829,10 +870,11 @@ export async function fetchTVShowCertification(
       return null;
     }
 
+    const ratingsResponse = response as TmdbContentRatingsResponse;
+
     // Look for US content rating first
-    const usRating = response.results.find(
-      (rating: { iso_3166_1: string; rating: string }) =>
-        rating.iso_3166_1 === "US",
+    const usRating = ratingsResponse.results?.find(
+      (rating) => rating.iso_3166_1 === "US",
     );
 
     if (usRating && usRating.rating) {
@@ -840,7 +882,7 @@ export async function fetchTVShowCertification(
     }
 
     // If no US rating, look for any available rating
-    for (const rating of response.results) {
+    for (const rating of ratingsResponse.results || []) {
       if (rating.rating) {
         return rating.rating;
       }
@@ -978,9 +1020,10 @@ export async function fetchAndEnrichMediaItems<
         const detailedData = await fetchTMDBData(`/${type}/${item.id}`);
 
         let englishLogo: Logo | undefined = undefined;
-        if (detailedData.images && detailedData.images.logos) {
+        const detailedTvShowData = detailedData as TmdbTvShowDetails;
+        if (detailedTvShowData.images && detailedTvShowData.images.logos) {
           // Find English logo if available
-          const logos = detailedData.images.logos;
+          const logos = detailedTvShowData.images.logos;
           const englishLogoData: Logo | undefined = logos.find(
             (logo: Logo) => logo.iso_639_1 === "en",
           );
@@ -1090,7 +1133,8 @@ export async function fetchMoviesByPerson(
     const creditsData = await fetchTMDBData(
       `/person/${personId}/movie_credits`,
     );
-    let creditsList = creditsData.crew || [];
+    const creditsResponse = creditsData as unknown as TmdbCreditsResponse;
+    let creditsList = creditsResponse.crew || [];
 
     // Filter for movies where the person has the specified job (if provided)
     if (job) {
@@ -1101,11 +1145,11 @@ export async function fetchMoviesByPerson(
 
     // Filter out items without posters and sort by popularity (most popular first)
     const results = creditsList
-      .filter((item: MediaItem) => item.poster_path)
-      .sort((a: MediaItem, b: MediaItem) => {
+      .filter((item) => (item as unknown as MediaItem).poster_path)
+      .sort((a, b) => {
         // Sort by popularity (higher popularity first)
-        const popularityA = a.popularity || 0;
-        const popularityB = b.popularity || 0;
+        const popularityA = (a as unknown as MediaItem).popularity || 0;
+        const popularityB = (b as unknown as MediaItem).popularity || 0;
         return popularityB - popularityA;
       });
 

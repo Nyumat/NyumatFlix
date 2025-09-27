@@ -1,11 +1,12 @@
 "use client";
 
-import type { YouTubePlayer } from "@/components/hero/youtube-types";
-import { useEpisodeStore } from "@/lib/stores/episode-store";
-import type { MediaItem } from "@/utils/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { YouTubePlayer } from "@/components/hero/youtube-types";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
+import type { MediaItem } from "@/utils/typings";
+import { getFirstRegularSeason, isTVShow } from "@/utils/typings";
 
 export interface UseMediaHeroState {
   currentItemIndex: number;
@@ -100,9 +101,7 @@ export const useMediaHero = ({
     let timer: ReturnType<typeof setTimeout> | null = null;
     const maybeAutoplay = async () => {
       if (passedMediaType === "tv" && currentItem) {
-        const firstSeason = currentItem.seasons?.find(
-          (s) => s.season_number > 0,
-        );
+        const firstSeason = getFirstRegularSeason(currentItem);
         if (firstSeason) {
           try {
             const res = await fetch(
@@ -203,13 +202,7 @@ export const useMediaHero = ({
     if (pathname.includes("/watch/")) {
       const currentMedia = media[currentItemIndex];
       if (currentMedia) {
-        const isTvShow =
-          currentMedia.media_type === "tv" ||
-          currentMedia.name !== undefined ||
-          currentMedia.first_air_date !== undefined ||
-          currentMedia.number_of_seasons !== undefined ||
-          currentMedia.number_of_episodes !== undefined;
-        return isTvShow ? "tv" : "movie";
+        return isTVShow(currentMedia) ? "tv" : "movie";
       }
     }
     return undefined;

@@ -1,5 +1,5 @@
-import { toast } from "sonner";
 import { Info } from "lucide-react";
+import { toast } from "sonner";
 
 export const showToast = {
   info: (message: string) => {

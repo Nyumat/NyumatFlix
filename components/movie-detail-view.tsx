@@ -1,15 +1,15 @@
 "use client";
 
+import { Calendar, Clock, DollarSign, PlayCircle, Star } from "lucide-react";
+import Image from "next/legacy/image";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, DollarSign, PlayCircle, Star } from "lucide-react";
-import Image from "next/legacy/image";
-import { useState } from "react";
-import { toast } from "sonner";
 
 export function MovieDetailView({ details }) {
   const [showTrailer, setShowTrailer] = useState(false);

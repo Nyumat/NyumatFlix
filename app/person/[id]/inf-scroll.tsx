@@ -22,7 +22,7 @@ interface PersonInfiniteContentProps {
 
 export async function PersonInfiniteContent({
   personId,
-}: PersonInfiniteContentProps): Promise<JSX.Element> {
+}: PersonInfiniteContentProps): Promise<React.JSX.Element> {
   const initialFilmographyResponse = await fetchPersonFilmography(personId, 1);
   if (!initialFilmographyResponse?.results)
     return <div>No filmography found</div>;

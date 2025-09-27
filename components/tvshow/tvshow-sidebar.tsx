@@ -1,8 +1,8 @@
+import { Calendar, Star, Tv } from "lucide-react";
+import Image from "next/legacy/image";
 import { Badge } from "@/components/ui/badge";
 import { CountryBadge } from "@/components/ui/country-badge";
 import { Network, ProductionCountry, TvShowDetails } from "@/utils/typings";
-import { Calendar, Star, Tv } from "lucide-react";
-import Image from "next/legacy/image";
 
 type TVShowSidebarProps = {
   details: TvShowDetails;

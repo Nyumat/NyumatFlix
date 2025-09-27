@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Grid } from "react-window";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import {
@@ -8,8 +10,6 @@ import {
   type Movie,
   type TvShow,
 } from "@/utils/typings";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Grid } from "react-window";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 

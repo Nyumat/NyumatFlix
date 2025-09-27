@@ -22,7 +22,9 @@ const copycatSites: string[] = [
 
 export const CopycatWarning = () => {
   const handleCopyClick = (site: string) => {
-    navigator.clipboard.writeText(site).catch(() => {});
+    navigator.clipboard.writeText(site).catch(() => {
+      // silently handle clipboard errors
+    });
   };
 
   return (

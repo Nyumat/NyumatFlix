@@ -7,7 +7,7 @@ import {
   handleInternationalRowFiltering,
   isInternationalRow,
 } from "@/utils/content-filters";
-import { MediaItem } from "@/utils/typings";
+import { Genre, MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
 import {
   buildMaybeItemsWithCategories,
@@ -34,11 +34,11 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 const isTalkShow = (item: MediaItem): boolean => {
-  if (!item.genre_ids) return false;
-  return (
-    item.genre_ids.includes(10767) ||
-    (item.genres && item.genres.some((g) => g.id === 10767))
-  );
+  if (Array.isArray(item.genre_ids) && item.genre_ids.includes(10767))
+    return true;
+  if ("genres" in item && Array.isArray(item.genres))
+    return item.genres.some((g: Genre) => g.id === 10767);
+  return false;
 };
 
 async function fetchContentRowData(
@@ -124,7 +124,7 @@ export default async function TVShowsPage() {
         href: `/tvshows/browse?filter=${config.category}`,
         variant:
           rowId === "top-rated-tvshows" ? ("ranked" as const) : undefined,
-        enrich: ["reality-tv", "mind-bending-scifi"].includes(rowId),
+        enrich: ["reality-tv", "mind-bending-scifi"].includes(rowId) || false,
       };
     })
     .filter(Boolean) as Array<{
