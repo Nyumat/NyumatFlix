@@ -98,7 +98,7 @@ export async function PersonInfiniteContent({
   return (
     <LoadMore
       key={personId}
-      getMovieListNodes={getFilmographyListNodes}
+      getListNodes={getFilmographyListNodes}
       initialOffset={initialOffset}
     >
       <ContentGrid items={initialFilmography} type="multi" />

@@ -1,47 +1,36 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { useInView } from "react-intersection-observer";
-import { LoadingSpinnerFullHeight } from "@/components/ui/loading-spinner";
+import { LoadMoreSpinner } from "@/components/ui/loading-spinner";
+import React, { useRef, useState, useTransition } from "react";
+import { InView } from "react-intersection-observer";
 
 interface LoadMoreProps extends React.PropsWithChildren {
-  getMovieListNodes(
+  getListNodes(
     offset: number,
   ): Promise<readonly [React.JSX.Element, number | null] | null>;
-  initialOffset: number;
+  initialOffset: number | null;
 }
 
 export function LoadMore({
   children,
-  getMovieListNodes,
+  getListNodes,
   initialOffset,
 }: LoadMoreProps) {
   const [isPending, startTransition] = useTransition();
   const offsetRef = useRef<number | null>(initialOffset);
-  const [movieListNodes, setMovieListNodes] = useState<React.JSX.Element[]>([]);
+  const [listNodes, setListNodes] = useState<React.JSX.Element[]>([]);
 
-  const { ref } = useInView({
-    onChange: (inView) => {
-      if (inView) {
-        updateMovieListNodes();
-      }
-    },
-    threshold: 0.1,
-    rootMargin: "200px",
-  });
-
-  const updateMovieListNodes = () => {
+  // invoke server action when our target node is in view
+  const updateListNodes = () => {
     if (!offsetRef.current) {
       return;
     }
-
     startTransition(async () => {
-      const response = await getMovieListNodes(offsetRef.current as number);
-
+      const response = await getListNodes(offsetRef.current as number);
       if (response) {
         const [listNode, nextOffset] = response;
         offsetRef.current = nextOffset;
-        setMovieListNodes((prev) => [...prev, listNode]);
+        setListNodes((previousNodeList) => [...previousNodeList, listNode]);
       }
     });
   };
@@ -50,12 +39,14 @@ export function LoadMore({
     <>
       <div className="container mx-auto">
         {children}
-        {movieListNodes}
+        {listNodes}
       </div>
-      <div ref={ref} className="h-20" />
+      <InView as="div" onChange={(inView) => inView && updateListNodes()}>
+        <div className="h-20" />
+      </InView>
       {isPending && (
         <div className="relative mb-20">
-          <LoadingSpinnerFullHeight />
+          <LoadMoreSpinner />
         </div>
       )}
     </>

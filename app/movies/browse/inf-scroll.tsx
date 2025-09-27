@@ -72,7 +72,7 @@ export async function InfiniteContent({
   return (
     <LoadMore
       key={type}
-      getMovieListNodes={getMovieListNodes}
+      getListNodes={getMovieListNodes}
       initialOffset={initialOffset}
     >
       <ContentGrid items={initialMovies} type="movie" />

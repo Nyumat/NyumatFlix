@@ -1,6 +1,6 @@
-import { SuspenseContentRow } from "@/components/content/suspense-content-row";
 import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
+import { ProgressiveContentLoader } from "@/components/layout/progressive-content-loader";
 import {
   getRecommendedRowsForPage,
   getRowConfig,
@@ -134,8 +134,14 @@ export default async function TVShowsPage() {
     variant?: "ranked";
     enrich?: boolean;
   }>;
-  const contentRowsData = await Promise.all(
-    contentRowsConfig.map(async (config) => {
+  // Load only the first row initially for progressive loading
+  const initialRowCount = 1;
+  const initialRowsConfig = contentRowsConfig.slice(0, initialRowCount);
+  const remainingRowsConfig = contentRowsConfig.slice(initialRowCount);
+
+  // Load initial row data
+  const initialContentRowsData = await Promise.all(
+    initialRowsConfig.map(async (config) => {
       const items = await fetchContentRowData(config.rowId, 20, globalSeenIds);
       return {
         ...config,
@@ -143,6 +149,38 @@ export default async function TVShowsPage() {
       };
     }),
   );
+
+  // Create server action to load next batch of rows
+  const getNextRows = async (
+    remainingRows: typeof contentRowsConfig,
+    batchSize: number = 2,
+  ): Promise<typeof contentRowsConfig> => {
+    "use server";
+    if (remainingRows.length === 0) return [];
+
+    // Load next batch of rows
+    const nextBatch = remainingRows.slice(
+      0,
+      Math.min(batchSize, remainingRows.length),
+    );
+
+    const nextRowResults = await Promise.all(
+      nextBatch.map(async (config) => {
+        const items = await fetchContentRowData(
+          config.rowId,
+          20,
+          globalSeenIds,
+        );
+        return {
+          ...config,
+          items,
+        };
+      }),
+    );
+
+    return nextRowResults;
+  };
+
   return (
     <>
       <main>
@@ -161,17 +199,11 @@ export default async function TVShowsPage() {
         </div>
         <div className="relative z-10 min-h-[200vh]">
           <ContentContainer>
-            {contentRowsData.map((rowData) => (
-              <SuspenseContentRow
-                key={rowData.rowId}
-                rowId={rowData.rowId}
-                title={rowData.title}
-                href={rowData.href}
-                variant={rowData.variant}
-                enrich={rowData.enrich}
-                preloadedItems={rowData.items}
-              />
-            ))}
+            <ProgressiveContentLoader
+              initialRows={initialContentRowsData}
+              remainingRowsConfig={remainingRowsConfig}
+              getNextRows={getNextRows}
+            />
           </ContentContainer>
         </div>
       </div>

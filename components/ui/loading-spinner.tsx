@@ -41,3 +41,14 @@ export function LoadingSpinnerFullHeight({ text }: { text?: string }) {
     </div>
   );
 }
+
+export function LoadMoreSpinner() {
+  return (
+    <div className="flex items-center justify-center py-8">
+      <div className="flex items-center gap-3 text-muted-foreground">
+        <div className="border-2 border-primary border-t-transparent rounded-full animate-spin h-5 w-5" />
+        <span className="text-sm">Loading more...</span>
+      </div>
+    </div>
+  );
+}
