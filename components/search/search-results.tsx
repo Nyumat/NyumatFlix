@@ -1,9 +1,5 @@
 "use client";
 
-import { Clock, Play, Star } from "lucide-react";
-import Image from "next/legacy/image";
-import { useRouter } from "next/navigation";
-import { useMemo } from "react";
 import { MultiSelect } from "@/components/multi-select";
 import { PeopleInfiniteScroll } from "@/components/search/people-inf-scroll";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +25,10 @@ import type {
   TvShow,
 } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
+import { Clock, Play, Star } from "lucide-react";
+import Image from "next/legacy/image";
+import { useRouter } from "next/navigation";
+import { useMemo } from "react";
 
 const isValidMediaItem = (item: Movie | TvShow): boolean => {
   return Boolean(item.poster_path || item.backdrop_path);
@@ -301,7 +301,13 @@ function EnhancedPagination({
         </PaginationItem>
 
         {pageNumbers.map((page, index) => (
-          <PaginationItem key={index}>
+          <PaginationItem
+            key={
+              page === "ellipsis"
+                ? crypto.randomUUID()
+                : `page-${page}-${crypto.randomUUID()}`
+            }
+          >
             {page === "ellipsis" ? (
               <PaginationEllipsis className="h-8 w-8" />
             ) : (
@@ -467,7 +473,7 @@ export default function SearchResults({ query }: { query: string }) {
                   };
                   return (
                     <SearchResultCard
-                      key={`${enhancedItem.id}-${mediaType}`}
+                      key={`${enhancedItem.id}-${mediaType}-${crypto.randomUUID()}`}
                       item={enhancedItem}
                     />
                   );
