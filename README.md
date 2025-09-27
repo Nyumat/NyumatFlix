@@ -17,6 +17,7 @@ The successor to NyumatFlix V2. Now including shadcn-ui, more servers, and a bet
 - [Jest](https://jestjs.io/)
 - [NextAuth.js](https://next-auth.js.org/)
 - [TMDb API](https://www.themoviedb.org/documentation/api)
+- [Biome](https://biomejs.dev/)
 
 ## 🏃🏾‍♂️ Run NyumatFlix Locally
 
@@ -24,6 +25,7 @@ The successor to NyumatFlix V2. Now including shadcn-ui, more servers, and a bet
 > Prerequisites:
 >
 > - [Bun](https://bun.sh/) installed on your machine.
+> - [Biome](https://biomejs.dev/) binary installed on your machine.
 > - A [PostgreSQL](https://www.postgresql.org/) database.
 > - A [TMDb](https://www.themoviedb.org/) API key.
 > - A [Resend](https://resend.com/) API key.
