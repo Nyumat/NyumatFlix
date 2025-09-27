@@ -1,1 +1,9 @@
-npx --yes @humankode/git-commit-emojify@latest
+bun -e "
+  const fs = require('fs');
+  const emojiRegex = require('emojibase-regex');
+  const msgFile = process.argv[1];
+  const msg = fs.readFileSync(msgFile, 'utf8');
+  if (!msg.match(new RegExp('^\\s*(' + emojiRegex().source + ')'))) {
+    process.exit(1); // run emojify
+  }
+" "$1" || npx --yes @humankode/git-commit-emojify@latest "$1"
