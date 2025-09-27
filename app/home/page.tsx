@@ -192,12 +192,12 @@ export default async function Home() {
       };
     })
     .filter(Boolean) as Array<{
-    rowId: string;
-    title: string;
-    href: string;
-    variant?: "ranked";
-    enrich?: boolean;
-  }>;
+      rowId: string;
+      title: string;
+      href: string;
+      variant?: "ranked";
+      enrich?: boolean;
+    }>;
 
   // Load only the first row initially for progressive loading
   const initialRowCount = 1;

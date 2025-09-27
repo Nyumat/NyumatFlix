@@ -82,9 +82,9 @@
     "next-auth": "^5.0.0-beta.29",
     "next-themes": "^0.3.0",
     "postgres": "^3.4.7",
-    "react": "19.1.1",
+    "react": "^19.2.0",
     "react-day-picker": "^8.10.1",
-    "react-dom": "19.1.1",
+    "react-dom": "^19.2.0",
     "react-hook-form": "^7.53.0",
     "react-intersection-observer": "^9.13.1",
     "react-loading-skeleton": "^3.5.0",
@@ -109,8 +109,8 @@
     "@testing-library/react": "^16.0.1",
     "@types/lodash": "^4.17.16",
     "@types/node": "^20",
-    "@types/react": "19.1.14",
-    "@types/react-dom": "19.1.9",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/ui": "^2.0.5",
     "drizzle-kit": "^0.31.4",
@@ -124,7 +124,7 @@
     "vitest": "^2.0.5"
   },
   "overrides": {
-    "@types/react": "19.1.14",
-    "@types/react-dom": "19.1.9"
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0"
   }
 }
