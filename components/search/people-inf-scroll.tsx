@@ -64,10 +64,8 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
         setPeople((prev) => [...prev, ...results]);
         setCurrentPage(page);
         setTotalPages(total_pages);
-
-        // Return a dummy element since we're managing state internally
         return [
-          React.createElement("div"),
+          React.createElement("div", { key: crypto.randomUUID() }),
           total_pages > offset ? offset + 1 : null,
         ] as const;
       } catch (e) {
@@ -137,8 +135,6 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
               </button>
             ))}
           </div>
-
-          {/* end of results indicator */}
           {peopleList.length > 0 && (
             <div className="text-center py-2 mt-3">
               <span className="text-xs text-muted-foreground">

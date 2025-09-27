@@ -23,9 +23,11 @@ export const Rating = ({
       aria-details={`Rating: ${rating} out of ${maxRating}`}
     >
       {Array.from({ length: maxRating }).map((_, index) => {
+        const starKey = `star-${index}-${crypto.randomUUID()}`;
+        const halfStarKey = `half-star-${index}-${crypto.randomUUID()}`;
         return (
           <div
-            key={index}
+            key={starKey}
             className={clsx(
               size === "small" ? "h-3 w-3" : "",
               size === "medium" ? "h-4 w-4" : "",
@@ -37,7 +39,7 @@ export const Rating = ({
               rating % 1 !== 0 &&
               index === Math.floor(rating) &&
               index + 1 === Math.ceil(rating) ? (
-                <div className="relative" key={index}>
+                <div className="relative" key={halfStarKey}>
                   <StarIcon
                     className="absolute top-0 left-0 w-full h-full text-gray-300 fill-gray-300"
                     aria-hidden="true"
@@ -50,7 +52,7 @@ export const Rating = ({
                 </div>
               ) : (
                 <StarIcon
-                  key={index}
+                  key={`${starKey}-icon`}
                   className={clsx("w-full h-full", {
                     "text-yellow-400 fill-yellow-400": index < rating,
                     "text-gray-300 fill-gray-300": index >= rating,
