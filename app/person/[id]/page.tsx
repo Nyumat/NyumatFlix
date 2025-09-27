@@ -1,13 +1,18 @@
+import {
+  buildItemsWithCategories,
+  fetchPersonFilmography,
+  getPersonDetails,
+} from "@/app/actions";
+import { ContentContainer } from "@/components/layout/content-container";
+import { PageContainer } from "@/components/layout/page-container";
+import { BackButton } from "@/components/ui/back-button";
+import { MediaItem } from "@/utils/typings";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { memo } from "react";
-import { getPersonDetails } from "@/app/actions";
-import { ContentContainer } from "@/components/layout/content-container";
-import { PageContainer } from "@/components/layout/page-container";
-import { BackButton } from "@/components/ui/back-button";
-import { PersonInfiniteContent } from "./inf-scroll";
+import { PersonFilmography } from "./client-filmography";
 
 interface PersonPageProps {
   params: Promise<{
@@ -79,6 +84,34 @@ export default async function PersonPage(props: PersonPageProps) {
     notFound();
   }
 
+  // Fetch initial filmography for the client component
+  const initialFilmographyResponse = await fetchPersonFilmography(personId, 1);
+  let initialFilmography: MediaItem[] = [];
+
+  if (initialFilmographyResponse?.results) {
+    const validResults = initialFilmographyResponse.results.filter(
+      (
+        item,
+      ): item is {
+        id: number;
+        genre_ids?: number[];
+        poster_path?: string | null;
+      } =>
+        typeof item === "object" &&
+        item !== null &&
+        "id" in item &&
+        typeof (item as { id: unknown }).id === "number" &&
+        Boolean((item as { poster_path?: string | null }).poster_path),
+    );
+
+    if (validResults.length > 0) {
+      initialFilmography = await buildItemsWithCategories(
+        validResults,
+        "multi",
+      );
+    }
+  }
+
   return (
     <PageContainer className="pb-4 mb-4">
       <BackButton />
@@ -86,7 +119,7 @@ export default async function PersonPage(props: PersonPageProps) {
         <StableBackground />
         <div className="relative z-10">
           <ContentContainer
-            className="container mx-auto px-4 mt-6 relative z-10"
+            className="mx-auto px-4 mt-6 relative z-10 max-w-7xl"
             topSpacing={false}
           >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -166,7 +199,10 @@ export default async function PersonPage(props: PersonPageProps) {
                 </p>
               </div>
 
-              <PersonInfiniteContent personId={personId} />
+              <PersonFilmography
+                personId={personId}
+                initialFilmography={initialFilmography}
+              />
             </div>
           </ContentContainer>
         </div>

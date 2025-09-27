@@ -1,9 +1,5 @@
 "use client";
 
-import { Star } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Carousel,
@@ -18,6 +14,10 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
+import { Star } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 
@@ -135,7 +135,7 @@ export function RankedContentRow({
 
   if (isMobile) {
     return (
-      <div className="mx-4 md:mx-8 mb-8">
+      <div className="mx-4 md:mx-8">
         <ContentRowHeader title={title} href={href} />
         <div className="relative">
           <Carousel
@@ -179,7 +179,7 @@ export function RankedContentRow({
   }
 
   return (
-    <div className="mx-4 md:mx-8 mb-12">
+    <div className="mx-4 md:mx-8">
       <ContentRowHeader title={title} href={href} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-4">

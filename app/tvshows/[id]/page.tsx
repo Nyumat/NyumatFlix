@@ -1,6 +1,3 @@
-import { Metadata } from "next";
-import Link from "next/link";
-import { memo, Suspense } from "react";
 import { HeroSection } from "@/components/hero/exports";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
@@ -10,6 +7,9 @@ import { fetchTVShowDetails } from "@/components/tvshow/tvshow-api";
 import { TVShowOverview } from "@/components/tvshow/tvshow-overview";
 import { TVShowSidebar } from "@/components/tvshow/tvshow-sidebar";
 import { Season } from "@/utils/typings";
+import { Metadata } from "next";
+import Link from "next/link";
+import { memo, Suspense } from "react";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -201,7 +201,7 @@ export default async function TVShowPage(props: Props) {
         <div className="relative">
           <StableBackground />
           <div className="relative">
-            <ContentContainer className="container mx-auto px-4">
+            <ContentContainer className="mx-auto px-4 max-w-7xl">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <TVShowSidebar
                   details={details}

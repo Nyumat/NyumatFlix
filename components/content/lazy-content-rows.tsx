@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import { ContentRowSkeleton } from "@/components/content/content-row-skeleton";
 import { SuspenseContentRow } from "@/components/content/suspense-content-row";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface LazyRowConfig {
   rowId: string;
@@ -89,7 +89,7 @@ function LazyRow({ row }: { row: LazyRowConfig }) {
   }, []);
 
   return (
-    <section id={row.rowId} className="my-4" ref={containerRef}>
+    <section id={row.rowId} ref={containerRef}>
       {shouldRender ? (
         <SuspenseContentRow
           rowId={row.rowId}

@@ -23,7 +23,7 @@ export function ContentRowSkeleton({
   count = 10,
 }: ContentRowSkeletonProps) {
   return (
-    <div className="mx-4 md:mx-8 mb-8">
+    <div className="mx-4 md:mx-8">
       <ContentRowHeader title={title} href={href} />
 
       <div className="relative">
