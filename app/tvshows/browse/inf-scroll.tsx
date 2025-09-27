@@ -160,7 +160,7 @@ export async function InfiniteContent({
     <>
       <LoadMore
         key={`${filterId}-${genre}-${year}`}
-        getTVShowListNodes={getTVShowListNodes}
+        getListNodes={getTVShowListNodes}
         initialOffset={initialOffset}
       >
         <ContentGrid items={processedShows} type="tv" />

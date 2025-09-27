@@ -29,7 +29,7 @@ export function Button({
   [key: string]: unknown;
 }) {
   return (
-    <Component
+    <div
       className={cn(
         "bg-transparent relative text-xl  h-16 w-40 p-[1px] overflow-hidden ",
         containerClassName,
@@ -64,7 +64,7 @@ export function Button({
       >
         {children}
       </div>
-    </Component>
+    </div>
   );
 }
 

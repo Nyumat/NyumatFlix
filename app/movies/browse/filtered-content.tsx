@@ -67,52 +67,33 @@ export async function FilteredMovieContent({
     params = { useCustomFetch: true };
   }
 
-  // Fetch content
-  const allMovies: MediaItem[] = [];
-  let currentPage = 1;
-  const MAX_PAGES = 5;
-  const MINIMUM_MOVIES = 20;
+  // Fetch initial page of content
+  let initialResults: MediaItem[] = [];
 
-  // Track used IDs to avoid duplicates
-  const seenIds = new Set<number>();
-
-  while (allMovies.length < MINIMUM_MOVIES && currentPage <= MAX_PAGES) {
-    let pageResults: MediaItem[] = [];
-
-    if (useCategoryFetching) {
-      pageResults = await fetchPaginatedCategory(
-        endpoint,
-        "movie",
-        currentPage,
-      );
-    } else {
-      const pageContent = await fetchTMDBData(endpoint, {
-        ...(params as Record<string, string>),
-        page: currentPage.toString(),
-      });
-      pageResults = (pageContent.results as MediaItem[]) || [];
-
-      if (currentPage > (pageContent.total_pages || 1)) {
-        // Avoid pointless extra iteration when we know there are no more pages
-        if (pageResults.length === 0) break;
-      }
-    }
-
-    if (!pageResults || pageResults.length === 0) break;
-
-    // Filter valid movies (with poster path) and remove duplicates
-    const validMovies = pageResults.filter((movie: MediaItem) => {
-      if (!movie.poster_path) return false;
-      if (seenIds.has(movie.id)) return false;
-      seenIds.add(movie.id);
-      return true;
+  if (useCategoryFetching) {
+    initialResults = await fetchPaginatedCategory(endpoint, "movie", 1);
+  } else {
+    const initialResponse = await fetchTMDBData(endpoint, {
+      ...(params as Record<string, string>),
+      page: "1",
     });
-
-    allMovies.push(...validMovies);
-    currentPage++;
+    initialResults = (initialResponse?.results as MediaItem[]) || [];
   }
 
-  if (allMovies.length === 0) {
+  if (!initialResults || initialResults.length === 0) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        No movies found matching your criteria.
+      </div>
+    );
+  }
+
+  // Filter valid movies (with poster path) for initial load
+  const validInitialResults = initialResults.filter((movie: MediaItem) =>
+    Boolean(movie.poster_path),
+  );
+
+  if (validInitialResults.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         No movies found matching your criteria.
@@ -122,12 +103,12 @@ export async function FilteredMovieContent({
 
   // Process the results with categories
   const processedContent = await buildItemsWithCategories<MediaItem>(
-    allMovies,
+    validInitialResults,
     "movie",
   );
 
-  // Initial offset for pagination
-  const initialOffset = currentPage;
+  // Initial offset for pagination (start with page 2)
+  const initialOffset = 2;
 
   // Create a bound server action with the current endpoint and params
   const boundGetMoreMovies = getMoreMovies.bind(null, endpoint, params);
@@ -136,7 +117,7 @@ export async function FilteredMovieContent({
     <>
       <LoadMore
         key={`${resolvedFilterId}-${genre}-${year}`}
-        getMovieListNodes={boundGetMoreMovies}
+        getListNodes={boundGetMoreMovies}
         initialOffset={initialOffset}
       >
         <ContentGrid items={processedContent} type="movie" />
