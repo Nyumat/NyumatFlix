@@ -31,11 +31,15 @@ jobs:
       - name: Create .env file
         run: |
           echo "TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env.local
+          echo "PROD_DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" >> .env.local
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env.local
 
       - name: Build the app
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: bun run build
 
       - name: Check formatting
