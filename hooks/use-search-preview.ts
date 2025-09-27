@@ -1,8 +1,8 @@
 "use client";
 
-import { logger } from "@/lib/utils";
 import { debounce } from "lodash";
 import { useCallback, useEffect, useState } from "react";
+import { logger } from "@/lib/utils";
 
 /**
  * Preview result type for search suggestions

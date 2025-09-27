@@ -1,5 +1,8 @@
 "use client";
 
+import { LogOut } from "lucide-react";
+import { Session } from "next-auth";
+import { signOut } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,9 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut } from "lucide-react";
-import { Session } from "next-auth";
-import { signOut } from "next-auth/react";
 
 interface UserAvatarProps {
   session: Session;

@@ -6,14 +6,13 @@ import { BackButton } from "@/components/ui/back-button";
 import BrowseGenreClient from "./browse-client";
 
 interface PageProps {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function BrowseGenrePage({
-  params,
-  searchParams,
-}: PageProps) {
+export default async function BrowseGenrePage(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const genreId = params.id;
   const typeParam = Array.isArray(searchParams?.type)
     ? searchParams.type[0]

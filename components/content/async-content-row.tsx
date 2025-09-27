@@ -1,7 +1,7 @@
 "use client";
 
-import { MediaItem } from "@/utils/typings";
 import { useEffect, useState } from "react";
+import { MediaItem } from "@/utils/typings";
 import { ContentRow, ContentRowVariant } from "./content-row";
 import { ContentRowSkeleton } from "./content-row-skeleton";
 

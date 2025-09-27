@@ -1,17 +1,17 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
   Carousel,
+  type CarouselApi,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-  type CarouselApi,
 } from "@/components/ui/carousel";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import { isMovie, isTVShow, MediaItem } from "@/utils/typings";
-import { useEffect, useRef, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 

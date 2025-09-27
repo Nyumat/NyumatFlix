@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { motion } from "framer-motion";
+import * as React from "react";
 
 function SparklesIcon(_props: React.SVGProps<SVGSVGElement> | undefined) {
   return (

@@ -1,23 +1,24 @@
-import { getPersonDetails } from "@/app/actions";
-import { ContentContainer } from "@/components/layout/content-container";
-import { PageContainer } from "@/components/layout/page-container";
-import { BackButton } from "@/components/ui/back-button";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { memo } from "react";
+import { getPersonDetails } from "@/app/actions";
+import { ContentContainer } from "@/components/layout/content-container";
+import { PageContainer } from "@/components/layout/page-container";
+import { BackButton } from "@/components/ui/back-button";
 import { PersonInfiniteContent } from "./inf-scroll";
 
 interface PersonPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export async function generateMetadata({
-  params,
-}: PersonPageProps): Promise<Metadata> {
+export async function generateMetadata(
+  props: PersonPageProps,
+): Promise<Metadata> {
+  const params = await props.params;
   const personId = parseInt(params.id);
 
   if (isNaN(personId)) {
@@ -64,7 +65,8 @@ const StableBackground = memo(function StableBackground() {
   );
 });
 
-export default async function PersonPage({ params }: PersonPageProps) {
+export default async function PersonPage(props: PersonPageProps) {
+  const params = await props.params;
   const personId = parseInt(params.id);
 
   if (isNaN(personId)) {

@@ -1,14 +1,14 @@
+import type { AdapterAccountType } from "@auth/core/adapters";
 import {
   boolean,
-  timestamp,
-  pgTable,
-  text,
-  primaryKey,
   integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
 } from "drizzle-orm/pg-core";
-import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import type { AdapterAccountType } from "@auth/core/adapters";
+import postgres from "postgres";
 
 const connectionString =
   process.env.NODE_ENV === "production"

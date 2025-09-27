@@ -1,13 +1,14 @@
 "use client";
 
-import { useMediaHero } from "@/hooks/useMediaHero";
-import { MediaItem } from "@/utils/typings";
 import { ChevronLeft } from "lucide-react";
 import Script from "next/script";
+import { useMediaHero } from "@/hooks/useMediaHero";
+import { MediaItem } from "@/utils/typings";
 import { HeroBackground } from "./hero-background";
 import { HeroContent } from "./hero-content";
 import { HeroPagination } from "./hero-pagination";
 import { showToast } from "./toast-utils";
+
 // YouTubePlayer type used internally within the hook
 
 interface MediaDetailHeroProps {
@@ -46,7 +47,9 @@ export function MediaDetailHero({
         src="https://www.youtube.com/iframe_api"
         strategy="lazyOnload"
         onLoad={() => {
-          window.onYouTubeIframeAPIReady = () => {};
+          window.onYouTubeIframeAPIReady = () => {
+            // youtube api ready callback
+          };
         }}
       />
 

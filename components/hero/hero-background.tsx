@@ -1,9 +1,5 @@
 "use client";
 
-import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { useServerStore } from "@/lib/stores/server-store";
-import { logger } from "@/lib/utils";
-import { MediaItem } from "@/utils/typings";
 import {
   AnimatePresence,
   LegacyAnimationControls,
@@ -11,6 +7,10 @@ import {
 } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useServerStore } from "@/lib/stores/server-store";
+import { logger } from "@/lib/utils";
+import { getTitle, MediaItem } from "@/utils/typings";
 import { YouTubePlayer } from "./youtube-types";
 
 /**
@@ -294,7 +294,7 @@ export function HeroBackground({
                 media.backdrop_path ?? media.poster_path
               }`}
               fetchPriority="high"
-              alt={media.title || media.name}
+              alt={getTitle(media) || "Media"}
               className="w-full h-full object-cover absolute inset-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

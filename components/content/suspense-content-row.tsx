@@ -1,7 +1,7 @@
+import { Suspense } from "react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { MediaItem } from "@/utils/typings";
-import dynamic from "next/dynamic";
-import { Suspense } from "react";
+import { DynamicAsyncContentRow } from "./async-content-row-client";
 import { ContentRow, ContentRowVariant } from "./content-row";
 import { ContentRowSkeleton } from "./content-row-skeleton";
 
@@ -101,8 +101,3 @@ export function SuspenseContentRow({
     </ErrorBoundary>
   );
 }
-
-const DynamicAsyncContentRow = dynamic(
-  () => import("./async-content-row").then((m) => m.AsyncContentRow),
-  { ssr: false },
-);

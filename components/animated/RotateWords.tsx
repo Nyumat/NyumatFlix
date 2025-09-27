@@ -1,7 +1,7 @@
 "use client";
-import { cn } from "@/lib/utils";
 import { motion, useInView } from "framer-motion";
 import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export function WordsPullUp({
   text,

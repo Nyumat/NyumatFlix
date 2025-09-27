@@ -57,7 +57,14 @@ export default async function MoviesPage() {
 
   const basicTrendingItems =
     trendingMoviesResponse.results
-      ?.filter((movie) => movie.id !== 1011477)
+      ?.filter(
+        (movie): movie is Movie =>
+          typeof movie === "object" &&
+          movie !== null &&
+          "id" in movie &&
+          typeof movie.id === "number" &&
+          movie.id !== 1011477,
+      )
       .slice(0, 10) || [];
 
   const enrichedTrendingItems = await fetchAndEnrichMediaItems(

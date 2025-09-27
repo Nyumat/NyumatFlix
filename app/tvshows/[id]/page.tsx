@@ -1,3 +1,6 @@
+import { Metadata } from "next";
+import Link from "next/link";
+import { memo, Suspense } from "react";
 import { HeroSection } from "@/components/hero/exports";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
@@ -7,15 +10,13 @@ import { fetchTVShowDetails } from "@/components/tvshow/tvshow-api";
 import { TVShowOverview } from "@/components/tvshow/tvshow-overview";
 import { TVShowSidebar } from "@/components/tvshow/tvshow-sidebar";
 import { Season } from "@/utils/typings";
-import { Metadata } from "next";
-import Link from "next/link";
-import { memo, Suspense } from "react";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   const tvShow = await fetchTVShowDetails(params.id);
 
   if (!tvShow) {
@@ -142,7 +143,8 @@ function SeasonsSkeleton() {
   );
 }
 
-export default async function TVShowPage({ params }: Props) {
+export default async function TVShowPage(props: Props) {
+  const params = await props.params;
   const { id } = params;
 
   try {

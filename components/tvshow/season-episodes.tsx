@@ -1,10 +1,10 @@
 "use client";
 
-import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { Episode, SeasonDetails } from "@/utils/typings";
 import { Tv } from "lucide-react";
 import Image from "next/legacy/image";
 import { useCallback, useEffect, useState } from "react";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { Episode, SeasonDetails } from "@/utils/typings";
 import { fetchSeasonDetails } from "./tvshow-api";
 
 type SeasonEpisodesProps = {

@@ -1,5 +1,5 @@
-import { MediaItem } from "@/utils/typings";
 import { useEffect, useState } from "react";
+import { MediaItem } from "@/utils/typings";
 
 interface UseContentRowOptions {
   rowId: string;

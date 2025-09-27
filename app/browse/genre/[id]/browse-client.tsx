@@ -1,9 +1,9 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { MediaItem } from "@/utils/typings";
-import { useCallback, useEffect, useRef, useState } from "react";
 
 interface BrowseClientProps {
   genreId: string;

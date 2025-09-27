@@ -1,10 +1,10 @@
 "use client";
 
+import { Clock, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CountryBadge } from "@/components/ui/country-badge";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import type { Genre } from "@/utils/typings";
-import { Clock, Star } from "lucide-react";
 
 /**
  * Props for the Info component

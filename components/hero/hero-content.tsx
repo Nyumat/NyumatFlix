@@ -1,13 +1,12 @@
 "use client";
 
-import { MediaItem } from "@/utils/typings";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import Image from "next/legacy/image";
 import { useEffect, useMemo } from "react";
-
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { MediaItem, Movie, TvShow } from "@/utils/typings";
 import { ServerSelector } from "../ui/server-selector";
 import { HeroButtons } from "./hero-buttons";
 import { HeroDetails } from "./hero-details";
@@ -99,7 +98,7 @@ export function HeroContent({
                   <div className="mb-4 max-w-[200px] md:max-w-[300px] w-auto">
                     <Image
                       src={`https://image.tmdb.org/t/p/w342${media.logo.file_path}`}
-                      alt={title}
+                      alt={(title as string) || "Logo"}
                       width={media.logo.width || 200}
                       height={media.logo.height || 100}
                       layout="responsive"
@@ -108,7 +107,7 @@ export function HeroContent({
                   </div>
                 ) : (
                   <h1 className="text-4xl font-bold text-foreground mb-4">
-                    {title}
+                    {title as string}
                   </h1>
                 )}
 
@@ -142,22 +141,25 @@ export function HeroContent({
                   <>
                     {media.tagline && (
                       <p className="text-xl text-muted-foreground mb-4">
-                        {media.tagline}
+                        {(media as Movie).tagline}
                       </p>
                     )}
                     {!isUpcoming && (
-                      <HeroGenres genres={media.genres} mediaType={mediaType} />
+                      <HeroGenres
+                        genres={(media as Movie).genres}
+                        mediaType={mediaType}
+                      />
                     )}
                   </>
                 )}
                 <HeroDetails
                   formattedDate={formattedDate}
-                  runtime={media.runtime}
-                  budget={media.budget}
+                  runtime={(media as Movie).runtime}
+                  budget={(media as Movie).budget}
                   voteAverage={media.vote_average}
                   isWatch={isWatch}
-                  seasons={media.number_of_seasons}
-                  episodes={media.number_of_episodes}
+                  seasons={(media as TvShow).number_of_seasons}
+                  episodes={(media as TvShow).number_of_episodes}
                   isUpcoming={isUpcoming}
                 />
                 {media.overview && !isWatch && (

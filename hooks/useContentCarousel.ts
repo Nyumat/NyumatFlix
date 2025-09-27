@@ -1,9 +1,9 @@
 "use client";
 
-import { logger } from "@/lib/utils";
-import { MediaItem } from "@/utils/typings";
 import useEmblaCarousel from "embla-carousel-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { logger } from "@/lib/utils";
+import { MediaItem } from "@/utils/typings";
 
 interface UseContentCarouselOptions {
   initialItems: MediaItem[];

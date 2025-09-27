@@ -1,23 +1,23 @@
 "use client";
 
+import { Star } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Carousel,
+  type CarouselApi,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-  type CarouselApi,
 } from "@/components/ui/carousel";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
-import { Star } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 

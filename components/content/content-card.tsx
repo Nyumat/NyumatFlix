@@ -1,14 +1,14 @@
 "use client";
 
+import { Star } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import {
   PrimaryGenreBadge,
   SmartGenreBadgeGroup,
 } from "@/components/ui/genre-badge";
 import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
-import { Star } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { getGenreName } from "./genre-helpers";
 
 interface ContentCardProps {
@@ -111,20 +111,18 @@ export function ContentCard({
               {displayTitle}
             </h3>
             <div className="flex flex-wrap items-center gap-0.5 text-[10px] mb-0.5">
-              {item.genre_ids
-                ?.slice(0, 2)
-                .map((genreId) => (
-                  <PrimaryGenreBadge
-                    key={genreId}
-                    genreId={genreId}
-                    genreName={getGenreName(
-                      genreId,
-                      isMovieItem ? "movie" : "tv",
-                    )}
-                    mediaType={isMovieItem ? "movie" : "tv"}
-                    className="text-[10px] h-auto"
-                  />
-                ))}
+              {item.genre_ids?.slice(0, 2).map((genreId) => (
+                <PrimaryGenreBadge
+                  key={genreId}
+                  genreId={genreId}
+                  genreName={getGenreName(
+                    genreId,
+                    isMovieItem ? "movie" : "tv",
+                  )}
+                  mediaType={isMovieItem ? "movie" : "tv"}
+                  className="text-[10px] h-auto"
+                />
+              ))}
             </div>
             <div className="flex items-center gap-1 text-[10px]">
               {item.vote_average !== undefined && item.vote_average > 0 ? (

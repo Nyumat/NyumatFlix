@@ -1,5 +1,5 @@
-import { Episode } from "@/utils/typings";
 import { create } from "zustand";
+import { Episode } from "@/utils/typings";
 import { useServerStore } from "./server-store";
 
 interface EpisodeState {

@@ -1,7 +1,7 @@
 "use client";
 
-import type { Genre as GenreType, Movie, TvShow } from "@/utils/typings";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
+import type { Genre as GenreType, Movie, TvShow } from "@/utils/typings";
 
 interface SearchResult {
   media: Array<Movie | TvShow>;

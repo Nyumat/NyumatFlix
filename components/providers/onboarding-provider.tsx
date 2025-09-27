@@ -1,8 +1,8 @@
 "use client";
 
-import { OnboardingDialog } from "@/components/onboarding/onboarding-dialog";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { OnboardingDialog } from "@/components/onboarding/onboarding-dialog";
 
 interface OnboardingProviderProps {
   children: React.ReactNode;

@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
+import { isMatching, match, P } from "ts-pattern";
 import { z } from "zod";
 
-// Define Zod schemas for all types
 export const LogoSchema = z.object({
   file_path: z.string(),
   iso_639_1: z.string(),
@@ -31,7 +29,7 @@ export const ActorSchema = z
     character: z.string(),
     popularity: z.number(),
   })
-  .catchall(z.any());
+  .catchall(z.unknown());
 
 export const EpisodeSchema = z.object({
   id: z.number(),
@@ -87,7 +85,6 @@ export const VideoSchema = z.object({
   official: z.boolean(),
 });
 
-// Movie schema with optional media_type field
 export const MovieSchema = z
   .object({
     title: z.string(),
@@ -111,12 +108,46 @@ export const MovieSchema = z
     original_title: z.string(),
     content_rating: z.string().optional().nullable(),
     logo: LogoSchema.optional(),
-    videos: z.array(z.any()).optional(),
+    videos: z.array(z.unknown()).optional(),
     results: z.array(z.lazy(() => MovieSchema)).optional(),
+    runtime: z.number().optional(),
+    budget: z.number().optional(),
+    revenue: z.number().optional(),
+    status: z.string().optional(),
+    tagline: z.string().optional(),
+    production_companies: z
+      .array(
+        z.object({
+          id: z.number(),
+          name: z.string(),
+          logo_path: z.string().nullable(),
+          origin_country: z.string(),
+        }),
+      )
+      .optional(),
+    production_countries: z.array(ProductionCountrySchema).optional(),
+    spoken_languages: z
+      .array(
+        z.object({
+          iso_639_1: z.string(),
+          name: z.string(),
+        }),
+      )
+      .optional(),
+    credits: z
+      .object({
+        cast: z.array(ActorSchema),
+        crew: z.array(ActorSchema),
+      })
+      .optional(),
+    recommendations: z
+      .object({
+        results: z.array(z.lazy(() => MovieSchema)),
+      })
+      .optional(),
   })
-  .catchall(z.any());
+  .catchall(z.unknown());
 
-// TV Show schema with optional media_type field
 export const TvShowSchema = z
   .object({
     backdrop_path: z.string().optional().nullable(),
@@ -136,9 +167,32 @@ export const TvShowSchema = z
     media_type: z.string().optional(),
     content_rating: z.string().optional().nullable(),
     logo: LogoSchema.optional(),
-    videos: z.array(z.any()).optional(),
+    videos: z.array(z.unknown()).optional(),
+    seasons: z.array(SeasonSchema).optional(),
+    number_of_seasons: z.number().optional(),
+    number_of_episodes: z.number().optional(),
+    status: z.string().optional(),
+    networks: z.array(NetworkSchema).optional(),
+    production_countries: z.array(ProductionCountrySchema).optional(),
+    created_by: z.array(CreatorSchema).optional(),
+    content_ratings: z
+      .object({
+        results: z.array(ContentRatingSchema),
+      })
+      .optional(),
+    credits: z
+      .object({
+        cast: z.array(ActorSchema),
+        crew: z.array(ActorSchema),
+      })
+      .optional(),
+    recommendations: z
+      .object({
+        results: z.array(z.lazy(() => TvShowSchema)),
+      })
+      .optional(),
   })
-  .catchall(z.any());
+  .catchall(z.unknown());
 
 export const MediaItemSchema = z.union([MovieSchema, TvShowSchema]);
 
@@ -174,18 +228,32 @@ export const TvShowDetailsSchema = TvShowSchema.extend({
 });
 
 export const LayoutPropsSchema = z.object({
-  children: z.any(),
+  children: z.unknown(),
   isPathRoot: z.boolean(),
 });
 
 export const TmdbResponseSchema = z
   .object({
     page: z.number().optional(),
-    results: z.array(z.any()).optional(),
+    results: z.array(z.unknown()).optional(),
     total_pages: z.number().optional(),
     total_results: z.number().optional(),
   })
-  .catchall(z.any());
+  .catchall(z.unknown());
+
+export interface TmdbMovieListResponse {
+  page?: number;
+  results?: Movie[];
+  total_pages?: number;
+  total_results?: number;
+}
+
+export interface TmdbTvListResponse {
+  page?: number;
+  results?: TvShow[];
+  total_pages?: number;
+  total_results?: number;
+}
 
 export const CreditsResponseSchema = z.object({
   id: z.number(),
@@ -193,7 +261,6 @@ export const CreditsResponseSchema = z.object({
   crew: z.array(ActorSchema),
 });
 
-// These schemas were already defined in the original
 export const TVShowCategoryEnum = z.enum([
   "popular",
   "top-rated",
@@ -259,7 +326,6 @@ export const ReleaseDatesResponseSchema = z.object({
   results: z.array(ReleaseInfoSchema),
 });
 
-// Define Schema for TvResult
 export const TvResultSchema = z.object({
   id: z.number(),
   name: z.string(),
@@ -289,7 +355,7 @@ export type Creator = z.infer<typeof CreatorSchema>;
 export type Video = z.infer<typeof VideoSchema>;
 export type SeasonDetails = z.infer<typeof SeasonDetailsSchema>;
 export type TvShowDetails = z.infer<typeof TvShowDetailsSchema>;
-export type TmdbResponse<T = any> = z.infer<typeof TmdbResponseSchema> & {
+export type TmdbResponse<T = unknown> = z.infer<typeof TmdbResponseSchema> & {
   results?: T[];
 };
 export type CreditsReponse = z.infer<typeof CreditsResponseSchema>;
@@ -305,33 +371,59 @@ export type ReleaseDate = z.infer<typeof ReleaseDateSchema>;
 export type ReleaseInfo = z.infer<typeof ReleaseInfoSchema>;
 export type ReleaseDatesResponse = z.infer<typeof ReleaseDatesResponseSchema>;
 
-// Enhanced helper functions for ts-pattern compatibility
-export function isMovie(item: MediaItem): item is Movie {
-  return "title" in item;
-}
+const moviePattern = {
+  title: P.string,
+} as const;
 
-export function isTVShow(item: MediaItem): item is TvShow {
-  return "name" in item && !("title" in item);
-}
+const tvShowPattern = {
+  name: P.string,
+} as const;
 
-// Helper function to safely get title from different media item types
+export const isMovie = isMatching(moviePattern);
+
+export const isTVShow = isMatching(tvShowPattern);
+
 export function getTitle(item: MediaItem): string {
-  if ("title" in item && item.title) {
-    return item.title;
-  }
-  if ("name" in item && item.name) {
-    return item.name;
-  }
-  return ""; // Fallback to empty string
+  return match(item)
+    .with(moviePattern, (movie) => movie.title)
+    .with(tvShowPattern, (tvShow) => tvShow.name)
+    .otherwise(() => "");
 }
 
-// Helper function to safely get air date from different media item types
 export function getAirDate(item: MediaItem): string | undefined {
-  if ("first_air_date" in item && item.first_air_date) {
-    return item.first_air_date;
-  }
-  if ("release_date" in item && item.release_date) {
-    return item.release_date;
-  }
-  return undefined;
+  return match(item)
+    .with(
+      { ...moviePattern, release_date: P.string },
+      (movie) => movie.release_date,
+    )
+    .with(
+      { ...tvShowPattern, first_air_date: P.string },
+      (tvShow) => tvShow.first_air_date,
+    )
+    .otherwise(() => undefined);
+}
+
+const seasonPattern = {
+  id: P.number,
+  name: P.string,
+  season_number: P.number,
+  episode_count: P.number,
+  air_date: P.union(P.string, null),
+  overview: P.string,
+  poster_path: P.union(P.string, null),
+} as const;
+
+const tvShowWithSeasonsPattern = {
+  ...tvShowPattern,
+  seasons: P.array(seasonPattern),
+} as const;
+
+export const hasSeasons = isMatching(tvShowWithSeasonsPattern);
+
+export function getFirstRegularSeason(item: MediaItem): Season | undefined {
+  return match(item)
+    .with(tvShowWithSeasonsPattern, (tvShow) =>
+      tvShow.seasons.find((s) => s.season_number > 0),
+    )
+    .otherwise(() => undefined);
 }

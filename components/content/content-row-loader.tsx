@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Carousel,
   CarouselContent,
@@ -8,7 +9,6 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { useContentRow } from "@/hooks/useContentRow";
-import { AnimatePresence, motion } from "framer-motion";
 import { ContentRow, ContentRowVariant } from "./content-row";
 import { ContentRowHeader } from "./content-row-header";
 

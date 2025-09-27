@@ -1,5 +1,9 @@
 "use client";
 
+import { Clock, Play, Star } from "lucide-react";
+import Image from "next/legacy/image";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import {
   ContentGrid,
   type ContentItem,
@@ -12,12 +16,13 @@ import { CountryBadge } from "@/components/ui/country-badge";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import { useGlobalDock } from "@/components/ui/global-dock";
 import { useViewModeStore } from "@/lib/stores/view-mode-store";
-import type { Genre, MediaItem } from "@/utils/typings";
+import type {
+  Genre,
+  MediaItem,
+  Movie,
+  ProductionCountry,
+} from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
-import { Clock, Play, Star } from "lucide-react";
-import Image from "next/legacy/image";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 function ListViewCard(props: {
   item: MediaItem;
@@ -71,10 +76,12 @@ function ListViewCard(props: {
     if (
       type === "movie" &&
       "production_countries" in item &&
-      item.production_countries?.length
+      (item as Movie & { production_countries?: ProductionCountry[] })
+        .production_countries?.length
     ) {
       return (
-        item.production_countries as Array<{ iso_3166_1: string; name: string }>
+        (item as Movie & { production_countries?: ProductionCountry[] })
+          .production_countries as ProductionCountry[]
       ).map((pc) => pc.iso_3166_1);
     }
     if ("origin_country" in item && item.origin_country?.length) {

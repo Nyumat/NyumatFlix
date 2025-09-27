@@ -13,9 +13,9 @@ export function TVShowOverview({ details }: TVShowOverviewProps) {
         {details.overview}
       </p>
 
-      {details.genres?.length > 0 && (
+      {(details.genres as Genre[])?.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {details.genres.map((genre: Genre) => (
+          {(details.genres as Genre[]).map((genre: Genre) => (
             <PrimaryGenreBadge
               key={genre.id}
               genreId={genre.id}

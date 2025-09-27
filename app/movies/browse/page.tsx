@@ -1,3 +1,5 @@
+import { Metadata } from "next";
+import { Suspense } from "react";
 import { ContentLoader } from "@/components/animated/load-more";
 import { getGenreName } from "@/components/content/genre-helpers";
 import { StaticHero } from "@/components/hero";
@@ -5,24 +7,21 @@ import { ContentContainer } from "@/components/layout/content-container";
 import { BackButton } from "@/components/ui/back-button";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { getFilterTitle } from "@/utils/content-filters";
-import { Metadata } from "next";
-import { Suspense } from "react";
 import { FilteredMovieContent } from "./filtered-content";
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     filter?: string;
     type?: string;
     genre?: string;
     year?: string;
     director?: string;
     studio?: string;
-  };
+  }>;
 }
 
-export async function generateMetadata({
-  searchParams,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+  const searchParams = await props.searchParams;
   const genre = searchParams.genre || "";
   const year = searchParams.year || "";
   const filterId = searchParams.filter || searchParams.type || "";
@@ -75,7 +74,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function Page({ searchParams }: PageProps) {
+export default async function Page(props: PageProps) {
+  const searchParams = await props.searchParams;
   // Use filter parameter if provided, otherwise fall back to type for backward compatibility
   const filterId = searchParams.filter || searchParams.type || "";
 

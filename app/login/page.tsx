@@ -1,3 +1,7 @@
+import { ArrowRight, Mail } from "lucide-react";
+import { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
 import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,12 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader } from "@/components/ui/loader";
-import { ArrowRight, Mail } from "lucide-react";
-import { Metadata } from "next";
-import dynamic from "next/dynamic";
-import Image from "next/image";
-import Link from "next/link";
+import { NeuralNetworkBackground } from "./neural-network-client";
 
 export const metadata: Metadata = {
   title: "Login | NyumatFlix",
@@ -55,11 +54,6 @@ export const metadata: Metadata = {
     ],
   },
 };
-
-const NeuralNetworkBackground = dynamic(
-  () => import("@/components/ui/neural-network-hero"),
-  { ssr: false, loading: () => <Loader /> },
-);
 
 export default function LoginPage() {
   const handleLogin = async (formData: FormData) => {

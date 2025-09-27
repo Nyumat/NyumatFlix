@@ -23,7 +23,7 @@ export async function FilteredMovieContent({
   filterId,
   genre,
   year,
-}: FilteredMovieContentProps): Promise<JSX.Element> {
+}: FilteredMovieContentProps): Promise<React.JSX.Element> {
   // Determine the filter ID based on the parameters
   const resolvedFilterId = filterId || "";
   let endpoint = "";

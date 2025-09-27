@@ -1,3 +1,6 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import Script from "next/script";
 import CopycatWarning from "@/components/landing/copycat-warning";
 import { NavbarServer } from "@/components/layout/nav/navbar-server";
 import { FooterSection } from "@/components/layout/sections/footer";
@@ -8,9 +11,6 @@ import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn, validateEnv } from "@/lib/utils";
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 

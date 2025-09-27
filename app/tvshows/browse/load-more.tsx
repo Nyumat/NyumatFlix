@@ -1,8 +1,8 @@
 "use client";
 
-import { LoadingSpinnerFullHeight } from "@/components/ui/loading-spinner";
 import { useRef, useState, useTransition } from "react";
 import { useInView } from "react-intersection-observer";
+import { LoadingSpinnerFullHeight } from "@/components/ui/loading-spinner";
 
 interface LoadMoreProps extends React.PropsWithChildren {
   getTVShowListNodes: (
