@@ -39,7 +39,7 @@ jobs:
         run: bun run build
 
       - name: Check formatting
-        run: bunx prettier --check . --ignore-path .gitignore
+        run: bun run check-format
 
       - name: Run lint
         run: bun run lint
