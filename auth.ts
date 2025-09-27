@@ -1,8 +1,8 @@
-import { accounts, db, sessions, users, verificationTokens } from "@/db/schema";
-import { html, text } from "@/emails/email-helpers";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
+import { accounts, db, sessions, users, verificationTokens } from "@/db/schema";
+import { html, text } from "@/emails/email-helpers";
 import {
   MAGIC_LINK_RESEND_FROM,
   MAGIC_LINK_RESEND_SUBJECT,
