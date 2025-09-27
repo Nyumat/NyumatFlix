@@ -134,8 +134,6 @@ export default async function MoviePage(props: Props) {
         })
       : "Release Date TBA";
 
-    console.log(details);
-
     return (
       <PageContainer className="pb-16">
         <HeroSection
