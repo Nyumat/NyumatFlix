@@ -1,5 +1,6 @@
 "use client";
 
+import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -12,7 +13,6 @@ import {
   MediaItem,
   ProductionCountry,
 } from "@/utils/typings";
-import { Star } from "lucide-react";
 
 interface MediaMetadataProps {
   /** The media item containing all the metadata */

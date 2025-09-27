@@ -1,9 +1,9 @@
 "use client";
 
-import type { ViewMode } from "@/components/content-grid";
-import { cn } from "@/lib/utils";
 import { ChevronUp, Grid2X2, List } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { ViewMode } from "@/components/content-grid";
+import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
 interface DockItem {

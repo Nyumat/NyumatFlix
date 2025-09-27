@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { getGenreName } from "@/components/content/genre-helpers";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,7 +9,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 interface GenreBadgeProps {
   genreId: number;
