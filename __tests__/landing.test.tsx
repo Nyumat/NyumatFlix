@@ -1,8 +1,8 @@
+import { render, screen } from "@testing-library/react";
+import { describe, expect, test } from "vitest";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
 import Page from "../app/page";
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (

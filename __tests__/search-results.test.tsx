@@ -17,9 +17,15 @@ import {
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
+    observe() {
+      return vi.fn();
+    }
+    unobserve() {
+      return vi.fn();
+    }
+    disconnect() {
+      return vi.fn();
+    }
   };
 
   global.matchMedia = vi.fn().mockImplementation(() => ({
