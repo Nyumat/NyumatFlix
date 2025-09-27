@@ -21,7 +21,7 @@ export const html = async ({
 export const text = ({ url, host: _host }: EmailParams): string => {
   return `Sign in to Nyumatflix
 
-Click the button below to sign in to your account:
+Click the button below to sign in to your account.
 
 ${url}
 
