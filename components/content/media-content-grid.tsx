@@ -1,9 +1,5 @@
 "use client";
 
-import { Clock, Play, Star } from "lucide-react";
-import Image from "next/legacy/image";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import {
   ContentGrid,
   type ContentItem,
@@ -23,6 +19,10 @@ import type {
   ProductionCountry,
 } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
+import { Clock, Play, Star } from "lucide-react";
+import Image from "next/legacy/image";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 function ListViewCard(props: {
   item: MediaItem;
@@ -242,19 +242,22 @@ interface MediaContentGridProps {
   dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   /** Test ID for testing */
   "data-testid"?: string;
+  /** Items per row for grid layout */
+  itemsPerRow?: number;
 }
 
 export function MediaContentGrid({
   title,
   items,
   defaultViewMode,
-  gridColumns = 6,
+  gridColumns = 4,
   className,
   onViewModeChange,
   showViewModeControls = true,
   showDock = true,
   dockPosition = "bottom-right",
   "data-testid": testId,
+  itemsPerRow = 4,
 }: MediaContentGridProps) {
   const {
     viewMode: storedViewMode,
@@ -328,6 +331,7 @@ export function MediaContentGrid({
         showDock={false}
         dockPosition={dockPosition}
         data-testid={testId}
+        itemsPerRow={itemsPerRow}
       />
     </div>
   );

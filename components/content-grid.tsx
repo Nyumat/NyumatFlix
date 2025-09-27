@@ -1,9 +1,9 @@
 "use client";
 
-import { Grid2X2, List } from "lucide-react";
-import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Grid2X2, List } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 export interface ContentItem {
   id: string | number;
@@ -23,6 +23,7 @@ export interface ContentGridProps {
   showViewModeControls?: boolean;
   showDock?: boolean;
   dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  itemsPerRow?: number;
 }
 
 export function ContentGrid({
@@ -35,12 +36,23 @@ export function ContentGrid({
   showItemsCount = false,
   showViewModeControls = true,
   showDock = false,
+  itemsPerRow = 4,
 }: ContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
 
   useEffect(() => {
     setViewMode(defaultViewMode);
   }, [defaultViewMode]);
+
+  const _completeRows = Math.floor(items.length / itemsPerRow);
+  const _itemsInLastRow = items.length % itemsPerRow;
+  const _hasPartialRow = _itemsInLastRow > 0 && _itemsInLastRow < itemsPerRow;
+
+  const shouldHidePartialRow = false;
+
+  const itemsToDisplay = shouldHidePartialRow
+    ? items.slice(0, _completeRows * itemsPerRow)
+    : items;
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
@@ -53,7 +65,7 @@ export function ContentGrid({
     const baseClasses = "grid gap-4 transition-all duration-200";
 
     if (gridColumns === "auto") {
-      return `${baseClasses} grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`;
+      return `${baseClasses} grid-cols-4`;
     }
 
     const colClasses = {
@@ -79,7 +91,8 @@ export function ContentGrid({
         <div className="flex items-center justify-between">
           {showItemsCount && (
             <h2 className="text-2xl font-bold">
-              {items.length} {items.length === 1 ? "item" : "items"}
+              {itemsToDisplay.length}{" "}
+              {itemsToDisplay.length === 1 ? "item" : "items"}
             </h2>
           )}
 
@@ -111,10 +124,10 @@ export function ContentGrid({
           viewMode === "grid" ? getGridClasses() : getListClasses(),
         )}
       >
-        {items.map((item) => renderCard(item, viewMode))}
+        {itemsToDisplay.map((item) => renderCard(item, viewMode))}
       </div>
 
-      {items.length === 0 && (
+      {itemsToDisplay.length === 0 && (
         <div className="text-center py-12">
           <div className="text-muted-foreground">No items to display.</div>
         </div>

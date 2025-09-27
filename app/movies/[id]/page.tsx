@@ -1,7 +1,3 @@
-import { Calendar, Clock, Star } from "lucide-react";
-import { Metadata } from "next";
-import Image from "next/legacy/image";
-import { memo } from "react";
 import { HeroSection } from "@/components/hero/exports";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
@@ -11,6 +7,10 @@ import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { isUpcomingMovie } from "@/utils/movie-helpers";
 import { Genre, ProductionCountry } from "@/utils/typings";
+import { Calendar, Clock, Star } from "lucide-react";
+import { Metadata } from "next";
+import Image from "next/legacy/image";
+import { memo } from "react";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -149,7 +149,7 @@ export default async function MoviePage(props: Props) {
           <StableBackground />
           <div className="relative z-10">
             <ContentContainer
-              className="container mx-auto px-4 relative z-10"
+              className="mx-auto px-4 relative z-10 max-w-7xl"
               topSpacing={false}
             >
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

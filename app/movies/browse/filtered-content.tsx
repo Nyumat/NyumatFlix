@@ -4,6 +4,7 @@ import {
   fetchTMDBData,
 } from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
+import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import {
   buildFilterParams,
   createYearFilterParams,
@@ -11,7 +12,6 @@ import {
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { getMoreMovies } from "./actions";
-import { LoadMore } from "./load-more";
 
 interface FilteredMovieContentProps {
   filterId?: string;
@@ -114,14 +114,12 @@ export async function FilteredMovieContent({
   const boundGetMoreMovies = getMoreMovies.bind(null, endpoint, params);
 
   return (
-    <>
-      <LoadMore
-        key={`${resolvedFilterId}-${genre}-${year}`}
-        getListNodes={boundGetMoreMovies}
-        initialOffset={initialOffset}
-      >
-        <ContentGrid items={processedContent} type="movie" />
-      </LoadMore>
-    </>
+    <InfiniteScroll
+      getListNodes={boundGetMoreMovies}
+      initialOffset={initialOffset}
+      className="space-y-8"
+    >
+      <ContentGrid items={processedContent} type="movie" itemsPerRow={4} />
+    </InfiniteScroll>
   );
 }

@@ -25,7 +25,7 @@ function AsyncContentRow({
   const items: MediaItem[] = [];
 
   return (
-    <section id={rowId} className="my-4">
+    <section id={rowId}>
       <ContentRow title={title} items={items} href={href} variant={variant} />
     </section>
   );
@@ -72,8 +72,8 @@ export function SuspenseContentRow({
     return (
       <ErrorBoundary
         fallback={
-          <section id={rowId} className="my-4">
-            <div className="mx-4 md:mx-8 mb-8">
+          <section id={rowId}>
+            <div className="mx-4 md:mx-8">
               <div className="text-red-500 text-sm">
                 Failed to load {title}. Please try refreshing the page.
               </div>
@@ -81,7 +81,7 @@ export function SuspenseContentRow({
           </section>
         }
       >
-        <section id={rowId} className="my-4">
+        <section id={rowId}>
           <ContentRow
             title={title}
             items={preloadedItems}
@@ -97,8 +97,8 @@ export function SuspenseContentRow({
   return (
     <ErrorBoundary
       fallback={
-        <section id={rowId} className="my-4">
-          <div className="mx-4 md:mx-8 mb-8">
+        <section id={rowId}>
+          <div className="mx-4 md:mx-8">
             <div className="text-red-500 text-sm">
               Failed to load {title}. Please try refreshing the page.
             </div>
