@@ -1,6 +1,6 @@
+import { Clock, Film } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getStatusDisplayText } from "@/utils/movie-helpers";
-import { Clock, Film } from "lucide-react";
 
 interface StatusBadgeProps {
   status: string;

@@ -1,12 +1,11 @@
 "use client";
 
+import { useGSAP } from "@gsap/react";
 import { shaderMaterial } from "@react-three/drei";
 import { Canvas, extend, useFrame } from "@react-three/fiber";
+import gsap from "gsap";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
 
 gsap.registerPlugin(useGSAP);
 const vertexShader = `
@@ -158,6 +157,16 @@ const CPPNShaderMaterial = shaderMaterial(
 );
 
 extend({ CPPNShaderMaterial });
+declare module "react" {
+  // biome-ignore lint/style/noNamespace: Required for JSX type extensions in React 19
+  namespace JSX {
+    interface IntrinsicElements {
+      mesh: object;
+      planeGeometry: object;
+      cPPNShaderMaterial: object;
+    }
+  }
+}
 
 function ShaderPlane() {
   const meshRef = useRef<THREE.Mesh>(null!);
