@@ -6,7 +6,6 @@ const nextConfig = {
     "@react-three/drei",
     "three",
   ],
-  optimizeFonts: true,
   images: {
     unoptimized: true,
     // minimumCacheTTL: 2678400,
@@ -37,6 +36,7 @@ const nextConfig = {
   experimental: {
     scrollRestoration: true,
     taint: true,
+    browserDebugInfoInTerminal: true,
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
