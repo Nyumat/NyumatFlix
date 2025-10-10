@@ -604,7 +604,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
   };
 
   return (
-    <div className="relative h-[80vh] md:h-[92vh] overflow-hidden bg-black">
+    <div className="relative">
       <Carousel
         className="w-full h-full"
         setApi={setMainCarouselApi}
@@ -615,28 +615,24 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
           {items.map((item, index) => (
             <CarouselItem key={item.id} className="pl-0 h-full">
               <div className="relative w-full h-full z-50">
-                {item.backdrop_path ? (
-                  <Image
-                    src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
-                    alt={match(item)
-                      .with({ title: P.string }, (movie) => movie.title)
-                      .with({ name: P.string }, (tvShow) => tvShow.name)
-                      .otherwise(() => "Media Item")}
-                    width={1920}
-                    height={1080}
-                    priority={index <= 2}
-                    className="object-cover brightness-75 z-50"
-                    onError={(e) => {
-                      console.error(
-                        "Failed to load backdrop image:",
-                        item.backdrop_path,
-                      );
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
-                )}
+                <Image
+                  src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
+                  alt={match(item)
+                    .with({ title: P.string }, (movie) => movie.title)
+                    .with({ name: P.string }, (tvShow) => tvShow.name)
+                    .otherwise(() => "Media Item")}
+                  width={1920}
+                  height={1080}
+                  priority={index <= 2}
+                  className="object-cover brightness-[0.7] z-50"
+                  onError={(e) => {
+                    console.error(
+                      "Failed to load backdrop image:",
+                      item.backdrop_path,
+                    );
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
               </div>
@@ -645,16 +641,11 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
         </CarouselContent>
       </Carousel>
 
-      {(() => {
-        const currentItem = items[currentIndex];
-        return currentItem ? (
-          <CarouselDetails
-            current={currentItem}
-            items={items}
-            onPosterClick={handlePosterClick}
-          />
-        ) : null;
-      })()}
+      <CarouselDetails
+        current={items[currentIndex]}
+        items={items}
+        onPosterClick={handlePosterClick}
+      />
 
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-10">
         {items.map((_, index) => (
