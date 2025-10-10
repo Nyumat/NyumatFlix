@@ -1,8 +1,15 @@
 "use client";
 
-import { ContentRowSkeleton } from "@/components/content/content-row-skeleton";
 import { SuspenseContentRow } from "@/components/content/suspense-content-row";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { LoadingSpinnerFullHeight } from "@/components/ui/loading-spinner";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+import { useInView } from "react-intersection-observer";
 
 export interface LazyRowConfig {
   rowId: string;
@@ -31,28 +38,34 @@ export function LazyContentRows({
   const [visibleCount, setVisibleCount] = useState<number>(
     Math.min(initialCount, rows.length),
   );
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  // observer to progressively reveal more rows
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
+  const { ref: sentinelRef, inView } = useInView({
+    threshold: 0.1,
+    rootMargin,
+    triggerOnce: false,
+  });
+
+  const loadMoreRows = useCallback(() => {
+    if (visibleCount < rows.length && !isPending) {
+      startTransition(() => {
         setVisibleCount((count) => Math.min(count + batchSize, rows.length));
-      },
-      { root: null, rootMargin, threshold: 0 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [batchSize, rootMargin, rows.length]);
+      });
+    }
+  }, [visibleCount, rows.length, isPending, batchSize, startTransition]);
+
+  useEffect(() => {
+    if (inView) {
+      loadMoreRows();
+    }
+  }, [inView, loadMoreRows]);
 
   const visibleRows = useMemo(
     () => rows.slice(0, visibleCount),
     [rows, visibleCount],
   );
+
+  const hasMore = visibleCount < rows.length;
 
   return (
     <div>
@@ -60,34 +73,25 @@ export function LazyContentRows({
         <LazyRow key={row.rowId} row={row} />
       ))}
 
-      {/* sentinel to reveal next batch */}
-      {visibleCount < rows.length && (
-        <div ref={sentinelRef} className="h-10" aria-hidden />
+      {hasMore && <div ref={sentinelRef} className="h-20" aria-hidden />}
+
+      {isPending && (
+        <div className="relative mb-20">
+          <LoadingSpinnerFullHeight />
+        </div>
+      )}
+
+      {!hasMore && rows.length > initialCount && (
+        <div className="text-center py-8 text-muted-foreground">
+          <p>You've reached the end</p>
+        </div>
       )}
     </div>
   );
 }
 
 function LazyRow({ row }: { row: LazyRowConfig }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [shouldRender, setShouldRender] = useState(false);
-
-  // render the row only when it comes into (near) viewport
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setShouldRender(true);
-        }
-      },
-      { root: null, rootMargin: "600px", threshold: 0 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
+  // directly render the content row since visibility is controlled by parent
   return (
     <section id={row.rowId} ref={containerRef}>
       {shouldRender ? (
