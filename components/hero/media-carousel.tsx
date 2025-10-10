@@ -94,7 +94,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                     width={1920}
                     height={1080}
                     priority={index <= 2}
-                    className="object-cover brightness-[0.7] z-50"
+                    className="object-cover brightness-[0.5] z-50"
                     onError={(e) => {
                       console.error(
                         "Failed to load backdrop image:",
@@ -166,7 +166,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                         .otherwise(() => "Media Item")}
                       fill
                       priority={true}
-                      className="object-cover brightness-50"
+                      className="object-cover brightness-[0.5]"
                       onError={(e) => {
                         console.error(
                           "Failed to load backdrop image:",
@@ -273,8 +273,14 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
             onClick={() => {
               const current = items[currentIndex];
               const href = match(current)
-                .with({ title: P.string }, (movie) => `/movies/${movie.id}`)
-                .with({ name: P.string }, (tvShow) => `/tvshows/${tvShow.id}`)
+                .with(
+                  { title: P.string, id: P.number },
+                  (movie) => `/movies/${movie.id}`,
+                )
+                .with(
+                  { name: P.string, id: P.number },
+                  (tvShow) => `/tvshows/${tvShow.id}`,
+                )
                 .otherwise(() => "#");
               router.push(`${href}?autoplay=true`);
             }}
@@ -289,8 +295,14 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
             onClick={() => {
               const current = items[currentIndex];
               const href = match(current)
-                .with({ title: P.string }, (movie) => `/movies/${movie.id}`)
-                .with({ name: P.string }, (tvShow) => `/tvshows/${tvShow.id}`)
+                .with(
+                  { title: P.string, id: P.number },
+                  (movie) => `/movies/${movie.id}`,
+                )
+                .with(
+                  { name: P.string, id: P.number },
+                  (tvShow) => `/tvshows/${tvShow.id}`,
+                )
                 .otherwise(() => "#");
               router.push(href);
             }}
