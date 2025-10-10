@@ -71,7 +71,7 @@ export default async function TVShowsPage() {
         href: `/tvshows/browse?filter=${config.category}`,
         variant:
           rowId === "top-rated-tvshows" ? ("ranked" as const) : undefined,
-        enrich: ["reality-tv", "mind-bending-scifi"].includes(rowId) || false,
+        enrich: true, // Enable content rating enrichment for all rows
       };
     })
     .filter(Boolean) as Array<{

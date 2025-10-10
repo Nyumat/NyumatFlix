@@ -188,7 +188,7 @@ export default async function Home() {
             .join(" "),
         href: generateHref(config),
         variant: rowId === "top-rated-movies" ? ("ranked" as const) : undefined,
-        enrich: rowId === "top-rated-movies",
+        enrich: true, // Enable content rating enrichment for all rows
       };
     })
     .filter(Boolean) as Array<{
