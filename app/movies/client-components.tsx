@@ -3,7 +3,7 @@
 import NextDynamic from "next/dynamic";
 
 export const DynamicMediaCarousel = NextDynamic(
-  () => import("@/components/hero/media-carousel").then((m) => m.MediaCarousel),
+  () => import("@/components/hero").then((m) => m.MediaCarousel),
   {
     ssr: false,
     loading: () => (
