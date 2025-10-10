@@ -7,7 +7,7 @@ export const DynamicMediaCarousel = NextDynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="relative h-[80vh] md:h-[92vh] overflow-hidden bg-black" />
+      <div className="relative h-[75vh] md:h-[85vh] lg:h-[92vh] overflow-hidden bg-black" />
     ),
   },
 );

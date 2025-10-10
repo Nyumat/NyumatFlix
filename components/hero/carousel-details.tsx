@@ -145,7 +145,7 @@ export const CarouselDetails = React.memo(function CarouselDetails({
             </Button>
           </div>
 
-          <div className="relative">
+          <div className="relative hidden lg:block">
             <Carousel
               setApi={setCarouselApi}
               opts={{
