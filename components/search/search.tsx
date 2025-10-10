@@ -1,14 +1,14 @@
 "use client";
 
-import { ArrowRight, Search } from "lucide-react";
-import Image from "next/legacy/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchPreview } from "@/hooks/use-search-preview";
 import { cn } from "@/lib/utils";
+import { ArrowRight, Search } from "lucide-react";
+import Image from "next/legacy/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import SearchResults from "./search-results";
 
 interface SearchComponentProps {
@@ -234,11 +234,11 @@ export const NavbarSearchClient = forwardRef<
           break;
         case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+          setSelectedIndex((prev) => (prev > -1 ? prev - 1 : -1));
           break;
         case "Enter":
           e.preventDefault();
-          if (selectedIndex < results.length) {
+          if (selectedIndex >= 0 && selectedIndex < results.length) {
             const selectedResult = results[selectedIndex];
             if (selectedResult) {
               const mediaType =
@@ -247,13 +247,14 @@ export const NavbarSearchClient = forwardRef<
               setShowPreview(false);
             }
           } else {
+            // no result selected or "go to search page" selected, go to search page
             handleSearch();
           }
           break;
         case "Escape":
           e.preventDefault();
           setShowPreview(false);
-          setSelectedIndex(0);
+          setSelectedIndex(-1);
           if (inputRef.current) {
             inputRef.current.blur();
           }
@@ -266,7 +267,8 @@ export const NavbarSearchClient = forwardRef<
   }, [showPreview, results, selectedIndex, handleSearch, router, inputRef]);
 
   useEffect(() => {
-    setSelectedIndex(0);
+    // don't auto-select first result, keep selectedIndex at -1 (no selection)
+    setSelectedIndex(-1);
   }, [results]);
 
   useEffect(() => {
@@ -333,19 +335,32 @@ export const NavbarSearchClient = forwardRef<
               }, 100);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (!showPreview || !results.length)) {
-                handleSearch();
+              if (e.key === "Enter") {
+                // always go to search page when pressing enter, unless a specific result is selected
+                if (!showPreview || selectedIndex === -1) {
+                  handleSearch();
+                }
               }
             }}
-            className="pl-10 pr-12 py-2 text-sm w-full rounded-lg bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
+            className="pl-10 pr-20 py-2 text-sm w-full rounded-lg bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
           />
-          {!query && !isFocused && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+            {!query && !isFocused && (
               <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
                 ⌘ K
               </kbd>
-            </div>
-          )}
+            )}
+            {query && (
+              <button
+                type="button"
+                onClick={handleSearch}
+                className="p-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                disabled={!query.trim()}
+              >
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         </div>
         {showPreview && (
           <div
