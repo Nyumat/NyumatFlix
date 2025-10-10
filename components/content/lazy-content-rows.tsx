@@ -91,7 +91,6 @@ export function LazyContentRows({
 }
 
 function LazyRow({ row }: { row: LazyRowConfig }) {
-  // directly render the content row since visibility is controlled by parent
   return (
     <section id={row.rowId} ref={containerRef}>
       {shouldRender ? (
