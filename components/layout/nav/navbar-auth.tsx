@@ -1,7 +1,7 @@
-import { LogIn } from "lucide-react";
-import Link from "next/link";
-import { Session } from "next-auth";
 import { Button } from "@/components/ui/button";
+import { LogIn } from "lucide-react";
+import { Session } from "next-auth";
+import Link from "next/link";
 import { UserAvatar } from "./user-avatar";
 
 interface NavbarAuthProps {
@@ -19,9 +19,7 @@ export const NavbarAuth = ({
     return (
       <>
         {session ? (
-          <div className="px-3 py-3">
-            <UserAvatar session={session} />
-          </div>
+          <UserAvatar session={session} />
         ) : (
           <Link
             href="/login"
