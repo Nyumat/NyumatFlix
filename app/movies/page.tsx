@@ -23,6 +23,9 @@ export const metadata: Metadata = {
     title: "Movies | NyumatFlix",
     description: "Discover popular and top-rated movies on NyumatFlix.",
   },
+  alternates: {
+    canonical: "https://nyumatflix.com/movies",
+  },
 };
 
 export interface Movie {

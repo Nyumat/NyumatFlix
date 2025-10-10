@@ -39,6 +39,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
   return {
     title: titleWithYear,
+    alternates: {
+      canonical: `https://nyumatflix.com/movies/${params.id}`,
+      languages: {
+        "en-US": `https://nyumatflix.com/movies/${params.id}`,
+      },
+    },
     description,
     openGraph: {
       title: titleWithYear,
