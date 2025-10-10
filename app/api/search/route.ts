@@ -69,13 +69,16 @@ export async function GET(request: Request) {
     ]);
 
     // combine and sort results by popularity
-    const movies: Movie[] = (movieData.results || []).map((movie: Movie) => ({
-      ...movie,
-      media_type: "movie" as const,
-    }));
+    const movies: Movie[] = (movieData.results || [])
+      .filter((movie: Movie) => movie.poster_path) // filter out movies without poster
+      .map((movie: Movie) => ({
+        ...movie,
+        media_type: "movie" as const,
+      }));
 
     const tvShows: TvShow[] = (tvData.results || [])
       .filter((show: TvShow) => !show.genre_ids?.includes(10767)) // filter out talk shows
+      .filter((show: TvShow) => show.poster_path) // filter out tv shows without poster
       .map((show: TvShow) => ({
         ...show,
         media_type: "tv" as const,
