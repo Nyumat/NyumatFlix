@@ -1,5 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  redirects: async () => {
+    return [
+      {
+        source: "/movies/top_rated",
+        destination: "/movies/browse?filter=top-rated",
+        permanent: true,
+      },
+    ];
+  },
   transpilePackages: [
     "gsap",
     "react-three-fiber",
