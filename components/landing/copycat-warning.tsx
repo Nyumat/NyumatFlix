@@ -28,14 +28,14 @@ export const CopycatWarning = () => {
   };
 
   return (
-    <div className="bg-black-600/10 text-white text-center py-2">
-      <p className="text-sm font-semibold">
+    <div className="bg-gradient-to-r from-red-900/20 via-red-800/15 to-red-900/20 backdrop-blur-sm border-b border-red-500/20 text-white text-center py-2">
+      <p className="text-sm font-semibold drop-shadow-md">
         Warning: <span className="text-red-600">Beware</span> of{" "}
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="link"
-              className="text-white underline hover:text-purple-300 p-0 h-auto font-semibold text-sm"
+              className="text-white underline hover:text-yellow-300 p-0 h-auto font-semibold text-sm drop-shadow-md transition-colors duration-200"
               aria-label="View list of copycat sites"
             >
               fake sites & copycats!
@@ -64,7 +64,7 @@ export const CopycatWarning = () => {
           href="https://nyumatflix.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-purple-300"
+          className="underline hover:text-yellow-300 transition-colors duration-200 drop-shadow-md"
           aria-label="Visit the official NyumatFlix website"
         >
           nyumatflix.com

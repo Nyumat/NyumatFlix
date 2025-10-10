@@ -77,7 +77,6 @@ export default function RootLayout({
             >
               <TooltipProvider>
                 <GlobalDockProvider>
-                  <CopycatWarning />
                   <NavbarServer />
                   <main className="flex-1">{children}</main>
                   <FooterSection />

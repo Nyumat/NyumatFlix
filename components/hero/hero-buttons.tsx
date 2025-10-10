@@ -1,15 +1,10 @@
 "use client";
 
-import { Play, Youtube } from "lucide-react";
-import { toast } from "sonner";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import { Play, Youtube } from "lucide-react";
+import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 interface HeroButtonsProps {
   handleWatch(): void;
@@ -106,18 +101,16 @@ export function HeroButtons({
 
   return (
     <div className="flex items-center space-x-4">
-      <TooltipProvider>
-        {isWatchDisabled ? (
-          <Tooltip>
-            <TooltipTrigger asChild>{WatchButton}</TooltipTrigger>
-            <TooltipContent>
-              <p>{disabledTooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          WatchButton
-        )}
-      </TooltipProvider>
+      {isWatchDisabled ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{WatchButton}</TooltipTrigger>
+          <TooltipContent>
+            <p>{disabledTooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        WatchButton
+      )}
 
       <button
         className="backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg"
