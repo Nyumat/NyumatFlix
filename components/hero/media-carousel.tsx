@@ -1,5 +1,6 @@
 "use client";
 
+import { getGenreNames } from "@/components/content/genre-helpers";
 import { Button } from "@/components/ui/button";
 import {
   Carousel,
@@ -8,7 +9,7 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import Fade from "embla-carousel-fade";
-import { Info, Play } from "lucide-react";
+import { Info, Play, Star } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,7 +20,24 @@ import { MediaCarouselProps } from "./types";
 export function MediaCarousel({ items }: MediaCarouselProps) {
   const [mainCarouselApi, setMainCarouselApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [expandedOverview, setExpandedOverview] = useState<
+    Record<number, boolean>
+  >({});
   const router = useRouter();
+
+  const getMediaType = (item: (typeof items)[0]) => {
+    return match(item)
+      .with({ title: P.string }, () => "movie" as const)
+      .with({ name: P.string }, () => "tv" as const)
+      .otherwise(() => "movie" as const);
+  };
+
+  const toggleOverview = (itemId: number) => {
+    setExpandedOverview((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
 
   useEffect(() => {
     if (!mainCarouselApi) return;
@@ -118,42 +136,117 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
           opts={{ loop: true, duration: 50, containScroll: "trimSnaps" }}
         >
           <CarouselContent className="!ml-0">
-            {items.map((item, index) => (
-              <CarouselItem key={item.id} className="pl-0">
-                <div className="relative w-full h-56 sm:h-64 overflow-hidden shadow-2xl">
-                  <Image
-                    src={`https://image.tmdb.org/t/p/w780${item.backdrop_path}`}
-                    alt={match(item)
-                      .with({ title: P.string }, (movie) => movie.title)
-                      .with({ name: P.string }, (tvShow) => tvShow.name)
-                      .otherwise(() => "Media Item")}
-                    fill
-                    priority={index <= 2}
-                    className="object-cover"
-                    onError={(e) => {
-                      console.error(
-                        "Failed to load backdrop image:",
-                        item.backdrop_path,
-                      );
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            {items.map((item, index) => {
+              const mediaType = getMediaType(item);
+              const genres = getGenreNames(item.genre_ids, mediaType);
+              const year = match(item)
+                .with({ title: P.string, release_date: P.string }, (movie) =>
+                  new Date(movie.release_date).getFullYear().toString(),
+                )
+                .with({ name: P.string, first_air_date: P.string }, (tvShow) =>
+                  new Date(tvShow.first_air_date).getFullYear().toString(),
+                )
+                .otherwise(() => "");
 
-                  <div className="absolute bottom-6 left-6 right-6">
-                    <h3 className="text-white text-xl sm:text-2xl font-bold mb-2 line-clamp-2 drop-shadow-lg">
-                      {match(item)
+              const isExpanded = expandedOverview[item.id] || false;
+              const shouldShowReadMore =
+                item.overview && item.overview.length > 120;
+
+              return (
+                <CarouselItem key={item.id} className="pl-0">
+                  <div className="relative w-full h-80 sm:h-96 overflow-hidden shadow-2xl">
+                    <Image
+                      src={`https://image.tmdb.org/t/p/w780${item.backdrop_path}`}
+                      alt={match(item)
                         .with({ title: P.string }, (movie) => movie.title)
                         .with({ name: P.string }, (tvShow) => tvShow.name)
                         .otherwise(() => "Media Item")}
-                    </h3>
-                    <p className="text-white/90 text-sm sm:text-base line-clamp-2 drop-shadow-md">
-                      {item.overview}
-                    </p>
+                      fill
+                      priority={index <= 2}
+                      className="object-cover brightness-50"
+                      onError={(e) => {
+                        console.error(
+                          "Failed to load backdrop image:",
+                          item.backdrop_path,
+                        );
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+
+                    {/* Content overlay */}
+                    <div className="absolute inset-0 flex flex-col justify-end p-6">
+                      {/* Title */}
+                      <h3 className="text-white text-2xl sm:text-3xl font-bold mb-3 drop-shadow-lg">
+                        {match(item)
+                          .with({ title: P.string }, (movie) => movie.title)
+                          .with({ name: P.string }, (tvShow) => tvShow.name)
+                          .otherwise(() => "Media Item")}
+                      </h3>
+
+                      {/* Metadata row */}
+                      <div className="flex items-center gap-3 mb-3 text-white/90 text-sm">
+                        {/* Content rating */}
+                        {item.content_rating && (
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-1 bg-white/20 rounded text-xs font-medium border border-white/30">
+                              {item.content_rating}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Rating */}
+                        <div className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">
+                            {item.vote_average.toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Year and genres */}
+                      <div className="flex items-center gap-2 mb-4 text-white/80 text-sm">
+                        {year && <span>{year}</span>}
+                        {year && genres.length > 0 && <span>•</span>}
+                        {genres.length > 0 && (
+                          <span>{genres.slice(0, 2).join(" / ")}</span>
+                        )}
+                        {mediaType === "tv" &&
+                          typeof item.number_of_seasons === "number" &&
+                          item.number_of_seasons > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>
+                                {item.number_of_seasons} Season
+                                {item.number_of_seasons !== 1 ? "s" : ""}
+                              </span>
+                            </>
+                          )}
+                      </div>
+
+                      {/* Overview */}
+                      {item.overview && (
+                        <div className="mb-4">
+                          <p className="text-white/90 text-sm leading-relaxed">
+                            {isExpanded || !shouldShowReadMore
+                              ? item.overview
+                              : `${item.overview.substring(0, 120)}...`}
+                          </p>
+                          {shouldShowReadMore && (
+                            <button
+                              onClick={() => toggleOverview(item.id)}
+                              className="text-white text-sm font-medium mt-1 hover:text-orange-400 transition-colors"
+                            >
+                              {isExpanded ? "Read less" : "Read more"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CarouselItem>
-            ))}
+                </CarouselItem>
+              );
+            })}
           </CarouselContent>
         </Carousel>
 
