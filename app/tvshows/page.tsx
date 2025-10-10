@@ -4,17 +4,11 @@ import { ProgressiveContentLoader } from "@/components/layout/progressive-conten
 import {
   getRecommendedRowsForPage,
   getRowConfig,
-  handleInternationalRowFiltering,
-  isInternationalRow,
 } from "@/utils/content-filters";
-import { Genre, MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
-import {
-  buildMaybeItemsWithCategories,
-  fetchAndEnrichMediaItems,
-  fetchPaginatedCategory,
-  fetchTMDBData,
-} from "../actions";
+import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
+import { LazyContentRowsDynamic } from "./client-components";
 
 export const metadata: Metadata = {
   title: "TV Shows | NyumatFlix",
@@ -37,54 +31,9 @@ const isTalkShow = (item: MediaItem): boolean => {
   if (Array.isArray(item.genre_ids) && item.genre_ids.includes(10767))
     return true;
   if ("genres" in item && Array.isArray(item.genres))
-    return item.genres.some((g: Genre) => g.id === 10767);
+    return item.genres.some((g) => g.id === 10767);
   return false;
 };
-
-async function fetchContentRowData(
-  rowId: string,
-  minCount: number,
-  globalSeenIds: Set<number>,
-): Promise<MediaItem[]> {
-  const config = getRowConfig(rowId);
-  if (!config) {
-    return [];
-  }
-  const { category, mediaType } = config;
-  let items: MediaItem[] = [];
-  let page = 1;
-  const hasValidPoster = (item: MediaItem): boolean =>
-    Boolean(item.poster_path);
-  const isUsTvContent = (item: MediaItem): boolean => {
-    if (isInternationalRow(rowId)) {
-      return handleInternationalRowFiltering(rowId, item);
-    }
-    return (
-      mediaType !== "tv" ||
-      item.origin_country?.includes("US") ||
-      item.original_language === "en"
-    );
-  };
-  const filterAndDeduplicate = (item: MediaItem): boolean => {
-    if (!hasValidPoster(item) || !isUsTvContent(item)) return false;
-    if (isTalkShow(item)) return false;
-    if (globalSeenIds.has(item.id)) return false;
-    globalSeenIds.add(item.id);
-    return true;
-  };
-  while (items.length < minCount && page <= 10) {
-    const newItems = await fetchPaginatedCategory(category, mediaType, page);
-    if (!newItems || newItems.length === 0) break;
-    const processedItems = await buildMaybeItemsWithCategories<MediaItem>(
-      newItems,
-      mediaType,
-    );
-    const filteredItems = processedItems.filter(filterAndDeduplicate);
-    items = [...items, ...filteredItems];
-    page++;
-  }
-  return items.slice(0, minCount);
-}
 
 export default async function TVShowsPage() {
   const trendingTVResponse = await fetchTMDBData("/discover/tv", {
@@ -105,8 +54,6 @@ export default async function TVShowsPage() {
     basicTrendingItems as MediaItem[],
     "tv",
   );
-  const globalSeenIds = new Set<number>();
-  enrichedTrendingItems.forEach((item) => globalSeenIds.add(item.id));
   const recommendedRows = getRecommendedRowsForPage("tv");
   const contentRowsConfig = recommendedRows
     .map((rowId) => {
@@ -183,6 +130,7 @@ export default async function TVShowsPage() {
 
   return (
     <>
+      <PageBackground imageUrl="/movie-banner.webp" title="TV Shows" />
       <main>
         <MediaCarousel items={enrichedTrendingItems} />
       </main>

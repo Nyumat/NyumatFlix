@@ -1,7 +1,7 @@
 "use client";
 
-import { UseEmblaCarouselType } from "embla-carousel-react";
 import useMedia from "@/hooks/useMedia";
+import { UseEmblaCarouselType } from "embla-carousel-react";
 
 interface CarouselNavigationProps {
   emblaApi: UseEmblaCarouselType[1] | undefined;
