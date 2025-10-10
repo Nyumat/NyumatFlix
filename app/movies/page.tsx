@@ -9,6 +9,7 @@ import {
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
+import { LazyContentRowsDynamic } from "./client-components";
 
 export const metadata: Metadata = {
   title: "Movies | NyumatFlix",
@@ -238,6 +239,7 @@ export default async function MoviesPage() {
 
   return (
     <>
+      <PageBackground imageUrl="/movie-banner.webp" title="Movies" />
       <MediaCarousel items={enrichedTrendingItems} />
       <div className="relative">
         <div className="absolute inset-0 w-full h-full z-0">

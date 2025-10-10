@@ -260,6 +260,7 @@ export default async function Home() {
 
   return (
     <div>
+      <PageBackground imageUrl="/movie-banner.webp" title="Home" />
       <main>
         <DynamicMediaCarousel items={fanFavoriteContentProcessedForHero} />
         <div className="relative">
