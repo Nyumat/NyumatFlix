@@ -1,4 +1,3 @@
-import { CopycatWarning } from "@/components/landing/copycat-warning";
 import { FAQSection } from "@/components/layout/sections/faq";
 import { HeroSection } from "@/components/layout/sections/hero";
 
@@ -45,9 +44,6 @@ export const metadata = {
 export default function Home() {
   return (
     <>
-      <div className="hidden md:block">
-        <CopycatWarning />
-      </div>
       <HeroSection />
       <FAQSection />
     </>

@@ -28,7 +28,7 @@ export const CopycatWarning = () => {
   };
 
   return (
-    <div className="bg-gradient-to-r from-red-900/20 via-red-800/15 to-red-900/20 backdrop-blur-sm border-b border-red-500/20 text-white text-center py-2">
+    <div className="w-full bg-gradient-to-r from-red-900/20 via-red-800/15 to-red-900/20 border-b border-red-500/20 text-white text-center py-2">
       <p className="text-sm font-semibold drop-shadow-md">
         Warning: <span className="text-red-600">Beware</span> of{" "}
         <Popover>
