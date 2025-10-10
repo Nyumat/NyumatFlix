@@ -1,5 +1,5 @@
 import { getCategories } from "@/app/actions";
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/carousel-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { BackButton } from "@/components/ui/back-button";
