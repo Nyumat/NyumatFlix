@@ -101,7 +101,7 @@ export const CarouselDetails = React.memo(function CarouselDetails({
             </h1>
           )}
 
-          <div className="flex items-center mb-4 space-x-4">
+          <div className="flex items-center mb-4 space-x-4 flex-wrap">
             <div className="flex items-center space-x-1">
               <Star className="text-yellow-400 w-5 h-5" />
               <span className="text-white font-semibold">
@@ -109,6 +109,52 @@ export const CarouselDetails = React.memo(function CarouselDetails({
               </span>
             </div>
             {year && <span className="text-gray-300">{year}</span>}
+
+            {/* Content rating/certification */}
+            {current.content_rating && (
+              <span className="px-2 py-1 bg-white/20 rounded text-xs font-medium border border-white/30 text-white">
+                {current.content_rating}
+              </span>
+            )}
+
+            {/* Runtime for movies */}
+            {match(current)
+              .with({ title: P.string, runtime: P.number }, (movie) => (
+                <span className="text-gray-300">
+                  {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m
+                </span>
+              ))
+              .otherwise(() => null)}
+
+            {/* Seasons and episodes for TV shows */}
+            {match(current)
+              .with(
+                {
+                  name: P.string,
+                  number_of_seasons: P.number.optional(),
+                  number_of_episodes: P.number.optional(),
+                },
+                (tvShow) => {
+                  const seasons = tvShow.number_of_seasons;
+                  const episodes = tvShow.number_of_episodes;
+                  return (
+                    <span className="text-gray-300">
+                      {seasons && seasons > 0 && (
+                        <>
+                          {seasons} Season{seasons !== 1 ? "s" : ""}
+                          {episodes && episodes > 0 && (
+                            <>
+                              {" "}
+                              • {episodes} Episode{episodes !== 1 ? "s" : ""}
+                            </>
+                          )}
+                        </>
+                      )}
+                    </span>
+                  );
+                },
+              )
+              .otherwise(() => null)}
           </div>
 
           <p className="text-white/90 text-sm md:text-base max-w-xl mb-6 line-clamp-2 md:line-clamp-3">

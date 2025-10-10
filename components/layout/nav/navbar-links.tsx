@@ -60,6 +60,10 @@ export const NavbarLinks = ({
     }
   };
 
+  const handleMouseEnter = (link: NavLink) => {
+    router.prefetch(link.href);
+  };
+
   return (
     <div className={!isMobile ? "group" : ""}>
       {links.map((link) => {
@@ -78,7 +82,7 @@ export const NavbarLinks = ({
                   ? "after:scale-x-100 group-hover:after:scale-x-0"
                   : "after:scale-x-0 hover:after:scale-x-100"),
             )}
-            onMouseEnter={() => handleLinkInteraction(link)}
+            onMouseEnter={() => handleMouseEnter(link)}
             onFocus={() => handleLinkInteraction(link)}
             onClick={isMobile ? onMobileLinkClick : undefined}
           >

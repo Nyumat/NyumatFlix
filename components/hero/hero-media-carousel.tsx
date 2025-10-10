@@ -68,7 +68,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                   width={1920}
                   height={1080}
                   priority={index <= 2}
-                  className="object-cover brightness-[0.7] z-50"
+                  className="object-cover brightness-[0.5] z-50"
                   onError={(e) => {
                     console.error(
                       "Failed to load backdrop image:",

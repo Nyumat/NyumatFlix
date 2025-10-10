@@ -77,7 +77,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden pt-12">
       <div className="absolute inset-0 z-0">
         <div
           className="w-screen h-screen flex flex-col relative opacity-30"
