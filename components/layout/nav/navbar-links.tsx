@@ -1,8 +1,8 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
 
 interface NavLink {
   label: string;
@@ -31,16 +31,16 @@ export const NavbarLinks = ({
   };
 
   const linkClasses = isMobile
-    ? "block px-3 py-3 rounded-md text-base font-medium transition-colors duration-200"
-    : "px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 whitespace-nowrap";
+    ? "block px-3 py-3 rounded-md text-base font-medium transition-all duration-200"
+    : "relative px-4 py-2 text-sm font-medium transition-all duration-200 whitespace-nowrap";
 
   const activeClasses = isMobile
     ? "bg-primary text-primary-foreground"
-    : "bg-primary/20 text-primary focus-visible:ring-0 active:bg-primary/20 focus:ring-0 hover:bg-primary/20";
+    : "text-white font-semibold drop-shadow-lg";
 
   const inactiveClasses = isMobile
     ? "text-muted-foreground hover:text-foreground hover:bg-accent"
-    : "text-muted-foreground hover:text-foreground hover:bg-accent hover:border-primary";
+    : "text-white/80 hover:text-white font-medium drop-shadow-md hover:drop-shadow-lg";
 
   const handleLinkInteraction = (link: NavLink) => {
     router.prefetch(link.href);
@@ -61,22 +61,31 @@ export const NavbarLinks = ({
   };
 
   return (
-    <>
-      {links.map((link) => (
-        <Link
-          key={link.href}
-          href={link.href}
-          className={cn(
-            linkClasses,
-            isActiveLink(link.href) ? activeClasses : inactiveClasses,
-          )}
-          onMouseEnter={() => handleLinkInteraction(link)}
-          onFocus={() => handleLinkInteraction(link)}
-          onClick={isMobile ? onMobileLinkClick : undefined}
-        >
-          {link.label}
-        </Link>
-      ))}
-    </>
+    <div className={!isMobile ? "group" : ""}>
+      {links.map((link) => {
+        const isActive = isActiveLink(link.href);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              linkClasses,
+              isActive ? activeClasses : inactiveClasses,
+              !isMobile &&
+                "after:absolute after:bottom-0 after:left-1/2 after:w-3/4 after:h-px after:bg-pink-500 after:origin-center after:-translate-x-1/2 after:transition-transform after:duration-300 after:ease-in-out",
+              !isMobile &&
+                (isActive
+                  ? "after:scale-x-100 group-hover:after:scale-x-0"
+                  : "after:scale-x-0 hover:after:scale-x-100"),
+            )}
+            onMouseEnter={() => handleLinkInteraction(link)}
+            onFocus={() => handleLinkInteraction(link)}
+            onClick={isMobile ? onMobileLinkClick : undefined}
+          >
+            {link.label}
+          </Link>
+        );
+      })}
+    </div>
   );
 };

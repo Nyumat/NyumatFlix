@@ -1,8 +1,5 @@
 "use client";
 
-import { LogOut } from "lucide-react";
-import { Session } from "next-auth";
-import { signOut } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LogOut } from "lucide-react";
+import { Session } from "next-auth";
+import { signOut } from "next-auth/react";
 
 interface UserAvatarProps {
   session: Session;
@@ -44,9 +44,9 @@ export const UserAvatar = ({ session }: UserAvatarProps) => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-8 w-8 ring-2 ring-white/20 shadow-lg shadow-black/30">
             <AvatarImage src={userImage || ""} alt={userName || userEmail} />
-            <AvatarFallback className="bg-primary/10 text-primary">
+            <AvatarFallback className="bg-white/10 text-white font-semibold border border-white/20">
               {getInitials(userEmail, userName)}
             </AvatarFallback>
           </Avatar>
