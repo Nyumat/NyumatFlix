@@ -1,12 +1,5 @@
 "use client";
 
-import Fade from "embla-carousel-fade";
-import { Calendar, Clock, Globe, Info, Play, Star } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useMemo, useState } from "react";
-import { match, P } from "ts-pattern";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +17,14 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Logo, MediaItem, isMovie } from "@/utils/typings";
+import { isMovie, Logo, MediaItem } from "@/utils/typings";
+import Fade from "embla-carousel-fade";
+import { Calendar, Clock, Globe, Info, Play, Star } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
+import { match, P } from "ts-pattern";
 import { GenreBadge } from "./ui/genre-badge";
 
 interface HeroProps {
