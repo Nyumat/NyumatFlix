@@ -9,7 +9,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
@@ -199,7 +198,7 @@ export function RankedContentRow({
               }}
               role="button"
               tabIndex={0}
-              className="flex group relative overflow-hidden rounded-md hover:bg-accent/60 transition-colors duration-200 p-2 items-center cursor-pointer"
+              className="flex group relative overflow-hidden rounded-md bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 p-2 items-center cursor-pointer"
               aria-label={`View details for ${displayTitle}`}
             >
               <div className="flex items-center justify-center w-12 shrink-0">
@@ -239,19 +238,6 @@ export function RankedContentRow({
                     <span>{item.vote_average?.toFixed(1)}</span>
                   </div>
                   {year && <span className="mr-1.5">• {year}</span>}
-                  {item.genre_ids && item.genre_ids.length > 0 && (
-                    <div className="flex items-center">
-                      <span className="mr-1.5">•</span>
-                      <SmartGenreBadgeGroup
-                        genreIds={item.genre_ids}
-                        mediaType={isMovie(item) ? "movie" : "tv"}
-                        maxVisible={1}
-                        className="hidden sm:flex"
-                        badgeClassName="text-[10px] h-auto px-1 py-0.5 bg-muted/20 text-muted-foreground border border-border"
-                        variant="outline"
-                      />
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-1 mt-1">

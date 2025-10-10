@@ -167,6 +167,7 @@ export default async function MoviesPage() {
             .join(" "),
         href: generateHref(config),
         variant: rowId === "top-rated-movies" ? ("ranked" as const) : undefined,
+        enrich: true, // Enable content rating enrichment for all rows
       };
     })
     .filter(Boolean) as Array<{
@@ -174,6 +175,7 @@ export default async function MoviesPage() {
     title: string;
     href: string;
     variant?: "ranked";
+    enrich?: boolean;
   }>;
 
   const heroIds = new Set(enrichedTrendingItems.map((item) => item.id));
