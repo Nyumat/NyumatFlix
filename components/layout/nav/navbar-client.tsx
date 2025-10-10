@@ -1,6 +1,5 @@
 "use client";
 
-import { CopycatWarning } from "@/components/landing/copycat-warning";
 import { NavbarSearchClient } from "@/components/search/search";
 import { cn } from "@/lib/utils";
 import { Session } from "next-auth";
@@ -37,9 +36,6 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
         "bg-black/90 backdrop-blur-sm md:bg-transparent",
       )}
     >
-      <div className="hidden md:block">
-        <CopycatWarning />
-      </div>
       <div className="flex justify-between items-center md:max-w-8xl lg:max-w-9xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
         <div className="flex flex-row items-center gap-2">
           <Link href="/">

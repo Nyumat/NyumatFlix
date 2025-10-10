@@ -18,7 +18,8 @@ import { CarouselDetails } from "./carousel-details";
 import { MediaCarouselProps } from "./types";
 
 export function MediaCarousel({ items }: MediaCarouselProps) {
-  const [mainCarouselApi, setMainCarouselApi] = useState<CarouselApi>();
+  const [desktopCarouselApi, setDesktopCarouselApi] = useState<CarouselApi>();
+  const [mobileCarouselApi, setMobileCarouselApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [expandedOverview, setExpandedOverview] = useState<
     Record<number, boolean>
@@ -40,32 +41,33 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
   };
 
   useEffect(() => {
-    if (!mainCarouselApi) return;
+    const activeApi = desktopCarouselApi || mobileCarouselApi;
+    if (!activeApi) return;
 
     const onSelect = () => {
-      if (mainCarouselApi.selectedScrollSnap() !== currentIndex) {
-        setCurrentIndex(mainCarouselApi.selectedScrollSnap());
-      }
+      const newIndex = activeApi.selectedScrollSnap();
+      setCurrentIndex(newIndex);
     };
 
-    mainCarouselApi.on("select", onSelect);
+    activeApi.on("select", onSelect);
 
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        mainCarouselApi.scrollNext();
+        activeApi.scrollNext();
       }
     }, 7000);
 
     return () => {
-      mainCarouselApi.off("select", onSelect);
+      activeApi.off("select", onSelect);
       clearInterval(interval);
     };
-  }, [mainCarouselApi, currentIndex]);
+  }, [desktopCarouselApi, mobileCarouselApi]);
 
   const handlePosterClick = (index: number) => {
-    if (mainCarouselApi && index !== currentIndex) {
+    const activeApi = desktopCarouselApi || mobileCarouselApi;
+    if (activeApi && index !== currentIndex) {
       setCurrentIndex(index);
-      mainCarouselApi.scrollTo(index);
+      activeApi.scrollTo(index);
     }
   };
 
@@ -74,7 +76,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
       <div className="relative hidden md:block">
         <Carousel
           className="w-full h-full"
-          setApi={setMainCarouselApi}
+          setApi={setDesktopCarouselApi}
           plugins={[Fade()]}
           opts={{ loop: true, duration: 50, containScroll: "trimSnaps" }}
         >
@@ -83,6 +85,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
               <CarouselItem key={item.id} className="pl-0 h-full">
                 <div className="relative w-full h-full z-50">
                   <Image
+                    key={`backdrop-${item.id}-${index}`}
                     src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
                     alt={match(item)
                       .with({ title: P.string }, (movie) => movie.title)
@@ -131,12 +134,12 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
       <div className="relative md:hidden pt-20 pb-4">
         <Carousel
           className="w-full"
-          setApi={setMainCarouselApi}
+          setApi={setMobileCarouselApi}
           plugins={[Fade()]}
           opts={{ loop: true, duration: 50, containScroll: "trimSnaps" }}
         >
           <CarouselContent className="!ml-0">
-            {items.map((item, index) => {
+            {items.map((item) => {
               const mediaType = getMediaType(item);
               const genres = getGenreNames(item.genre_ids, mediaType);
               const year = match(item)
@@ -162,7 +165,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                         .with({ name: P.string }, (tvShow) => tvShow.name)
                         .otherwise(() => "Media Item")}
                       fill
-                      priority={index <= 2}
+                      priority={true}
                       className="object-cover brightness-50"
                       onError={(e) => {
                         console.error(
