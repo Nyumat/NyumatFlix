@@ -31,10 +31,17 @@ interface NavbarClientProps {
 
 export const NavbarClient = ({ session }: NavbarClientProps) => {
   return (
-    <nav className="absolute top-0 z-50 w-full">
-      <CopycatWarning />
-      <div className="flex md:max-w-8xl lg:max-w-9xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-8">
-        <div className="flex flex-row justify-center items-center gap-2">
+    <nav
+      className={cn(
+        "absolute top-0 z-50 w-full",
+        "bg-black/90 backdrop-blur-sm md:bg-transparent",
+      )}
+    >
+      <div className="hidden md:block">
+        <CopycatWarning />
+      </div>
+      <div className="flex justify-between items-center md:max-w-8xl lg:max-w-9xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
+        <div className="flex flex-row items-center gap-2">
           <Link href="/">
             <Image
               src="/logo.svg"
@@ -68,11 +75,13 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
             </TooltipContent>
           </Tooltip>
         </div>
-        <div className="hidden md:flex flex-1"></div>
-        <div className="flex items-center space-x-1 lg:space-x-2">
-          <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
-            <NavbarLinks links={NAV_LINKS} />
-          </div>
+
+        <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
+          <NavbarLinks links={NAV_LINKS} />
+          <NavbarAuth session={session} />
+        </div>
+
+        <div className="flex md:hidden items-center space-x-2">
           <NavbarAuth session={session} />
           <NavbarMobileNavigation links={NAV_LINKS}>
             <div className="px-2">

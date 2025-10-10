@@ -83,7 +83,7 @@ export const CarouselDetails = React.memo(function CarouselDetails({
 
   return (
     <>
-      <div className="absolute bottom-0 left-0 p-4 md:p-8 lg:p-12 w-full md:w-3/4 lg:w-1/2">
+      <div className="absolute bottom-0 left-0 p-4 md:p-8 lg:p-12 w-full md:w-3/4 lg:w-1/2 hidden md:block">
         <div className={cn("p-4 rounded-lg")}>
           {current.logo ? (
             <div className={`mb-4 max-w-[250px] md:max-w-[350px] w-full`}>
