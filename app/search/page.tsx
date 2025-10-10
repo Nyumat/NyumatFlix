@@ -1,7 +1,7 @@
-import { Suspense } from "react";
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/carousel-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { SearchPageClient } from "@/components/search/search";
+import { Suspense } from "react";
 
 export default function SearchPage() {
   const apiKey = process.env.TMDB_API_KEY;
