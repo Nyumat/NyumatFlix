@@ -171,12 +171,12 @@ export default async function MoviesPage() {
       };
     })
     .filter(Boolean) as Array<{
-      rowId: string;
-      title: string;
-      href: string;
-      variant?: "ranked";
-      enrich?: boolean;
-    }>;
+    rowId: string;
+    title: string;
+    href: string;
+    variant?: "ranked";
+    enrich?: boolean;
+  }>;
 
   const heroIds = new Set(enrichedTrendingItems.map((item) => item.id));
 
