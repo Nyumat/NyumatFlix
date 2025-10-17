@@ -32,11 +32,11 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
   return (
     <nav
       className={cn(
-        "absolute top-0 z-50 w-full",
+        "absolute top-3 z-30 w-full",
         "bg-black/90 md:bg-transparent",
       )}
     >
-      <div className="flex justify-between items-center md:max-w-8xl lg:max-w-9xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
+      <div className="flex justify-between items-center md:max-w-7xl lg:max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
         <div className="flex flex-row items-center gap-2">
           <Link href="/">
             <Image
