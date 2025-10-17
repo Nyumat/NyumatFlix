@@ -1,7 +1,7 @@
 "use client";
 
 import { SuspenseContentRow } from "@/components/content/suspense-content-row";
-import { LoadMoreSpinner } from "@/components/ui/loading-spinner";
+import { LoadingSpinnerFullHeight as LoadMoreSpinner } from "@/components/ui/loading-spinner";
 import { MediaItem } from "@/utils/typings";
 import React, { useRef, useState, useTransition } from "react";
 import { InView } from "react-intersection-observer";
