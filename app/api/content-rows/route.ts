@@ -1,15 +1,17 @@
-import { NextResponse } from "next/server";
 import {
   buildMaybeItemsWithCategories,
   fetchAndEnrichMediaItems,
   fetchPaginatedCategory,
 } from "@/app/actions";
 import {
+  getFilterConfig,
   getRowConfig,
   handleInternationalRowFiltering,
   isInternationalRow,
+  rowUsesCustomFetcher,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
+import { NextResponse } from "next/server";
 
 async function fetchStandardizedRow(
   rowId: string,
@@ -23,8 +25,6 @@ async function fetchStandardizedRow(
 
   const { category, mediaType } = config;
   const rowSeenIds = new Set<number>();
-  let items: MediaItem[] = [];
-  let page = 1;
 
   const hasValidPoster = (item: MediaItem): boolean =>
     Boolean(item.poster_path);
@@ -46,6 +46,32 @@ async function fetchStandardizedRow(
     rowSeenIds.add(item.id);
     return true;
   };
+
+  if (rowUsesCustomFetcher(rowId)) {
+    const rowConfig = getRowConfig(rowId);
+    const filterConfig = getFilterConfig(rowConfig?.category || "");
+
+    if (filterConfig?.fetchConfig?.customFetch) {
+      let items: MediaItem[] = [];
+      let page = 1;
+      let totalPages = 1;
+
+      while (items.length < minCount && page <= totalPages && page <= 10) {
+        const result = await filterConfig.fetchConfig.customFetch(page);
+        if (!result) break;
+
+        totalPages = result.total_pages ?? totalPages;
+        const filtered = (result.results || []).filter(filterAndDeduplicate);
+        items = [...items, ...filtered];
+        page++;
+      }
+
+      return items.slice(0, minCount);
+    }
+  }
+
+  let items: MediaItem[] = [];
+  let page = 1;
 
   while (items.length < minCount && page <= 10) {
     const newItems = await fetchPaginatedCategory(category, mediaType, page);
@@ -90,13 +116,7 @@ export async function GET(request: Request) {
         ? await fetchAndEnrichMediaItems(items, config.mediaType)
         : items;
 
-    return NextResponse.json(response, {
-      headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-        "CDN-Cache-Control": "public, s-maxage=300",
-        "Vercel-CDN-Cache-Control": "public, s-maxage=300",
-      },
-    });
+    return NextResponse.json(response);
   } catch (error) {
     console.error(`Error fetching row ${rowId}:`, error);
     return NextResponse.json(
