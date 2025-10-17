@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
-import { Session } from "next-auth";
 import Link from "next/link";
+import { Session } from "next-auth";
+import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./user-avatar";
 
 interface NavbarAuthProps {
