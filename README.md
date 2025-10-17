@@ -2,7 +2,7 @@
 
 # [NyumatFlix](https://nyumatflix.com)
 
-The successor to NyumatFlix V2. Now including shadcn-ui, more servers, and a better design.
+The successor to NyumatFlix V2. Now including collaboration, multiple servers, and an improved design for heavy usage.
 
 ## ⚡️ Tech Stack
 
