@@ -3,6 +3,8 @@ import { ContentContainer } from "@/components/layout/content-container";
 import { ProgressiveContentLoader } from "@/components/layout/progressive-content-loader";
 import { fetchMultipleContentRows } from "@/lib/content-row-fetcher";
 import {
+  generateRowHref,
+  generateRowTitle,
   getRecommendedRowsForPage,
   getRowConfig,
 } from "@/utils/content-filters";
@@ -69,6 +71,14 @@ export default async function MoviesPage() {
           typeof movie.id === "number" &&
           movie.id !== 1011477,
       )
+      ?.filter(
+        (movie): movie is Movie =>
+          typeof movie === "object" &&
+          movie !== null &&
+          "id" in movie &&
+          typeof movie.id === "number" &&
+          movie.id !== 1011477,
+      )
       .slice(0, 10) || [];
 
   const enrichedTrendingItems = await fetchAndEnrichMediaItems(
@@ -83,91 +93,12 @@ export default async function MoviesPage() {
       const config = getRowConfig(rowId);
       if (!config) return null;
 
-      const customTitles: Record<string, string> = {
-        "top-rated-movies": "Top Rated Movies",
-        "drama-movies": "Drama Movies",
-        "disney-magic": "Disney Movies",
-        "nineties-movies": "90s Movies",
-        "scifi-fantasy-movies": "Sci-Fi & Fantasy Movies",
-        "recent-releases": "Just Dropped",
-        "spielberg-films": "Steven Spielberg Movies",
-        "hidden-gems": "Hidden Gems",
-        "comedy-movies": "Comedy Movies",
-        "early-2000s-movies": "2000s Movies",
-        "nolan-films": "Christopher Nolan Movies",
-        "pixar-animation": "Pixar Movies",
-        "upcoming-movies": "Upcoming Movies",
-        "scorsese-films": "Martin Scorsese Movies",
-        "a24-films": "A24 Movies",
-        "eighties-movies": "80s Movies",
-        "popular-movies": "Popular Movies",
-        "critically-acclaimed": "Critically Acclaimed Movies",
-        "action-movies": "Action Movies",
-        "tarantino-films": "Quentin Tarantino Movies",
-        "thriller-movies": "Thriller Movies",
-        "romcom-movies": "Romantic Comedies",
-        "horror-movies": "Horror Movies",
-        "crime-movies": "Crime Movies",
-        "mystery-movies": "Mystery Movies",
-        "romance-movies": "Romance Movies",
-        "warner-bros": "Warner Bros. Pictures",
-        "universal-films": "Universal Pictures",
-        "dreamworks-films": "DreamWorks Pictures",
-        "fincher-films": "David Fincher Movies",
-        "villeneuve-films": "Denis Villeneuve Movies",
-        "wes-anderson-films": "Wes Anderson Movies",
-      };
-
-      const generateHref = (config: { category: string }) => {
-        const { category } = config;
-        if (category.startsWith("genre-")) {
-          const genreMap: Record<string, string> = {
-            "genre-action": "28",
-            "genre-comedy": "35",
-            "genre-drama": "18",
-            "genre-thriller": "53",
-            "genre-scifi-fantasy": "878,14",
-            "genre-romcom": "10749,35",
-            "genre-horror": "27",
-            "genre-crime": "80",
-            "genre-mystery": "9648",
-            "genre-romance": "10749",
-          };
-          return `/movies/browse?genre=${genreMap[category] || category.replace("genre-", "")}`;
-        } else if (category.startsWith("director-")) {
-          return `/movies/browse?type=${category}`;
-        } else if (category.startsWith("studio-")) {
-          return `/movies/browse?type=${category}`;
-        } else if (category.startsWith("year-")) {
-          const yearMap: Record<string, string> = {
-            "year-80s": "1980-1989",
-            "year-90s": "1990-1999",
-            "year-2000s": "2000-2009",
-            "year-2010s": "2010-2019",
-          };
-          return `/movies/browse?year=${yearMap[category] || category.replace("year-", "")}`;
-        } else if (
-          ["upcoming", "popular", "top-rated", "now-playing"].includes(category)
-        ) {
-          return category === "popular"
-            ? "/movies/browse"
-            : `/movies/browse?type=${category}`;
-        } else {
-          return `/movies/browse?filter=${category.replace(/^(critically-|hidden-|blockbuster-|award-|cult-|indie-)/, "")}`;
-        }
-      };
-
       return {
         rowId,
-        title:
-          customTitles[rowId] ||
-          rowId
-            .split("-")
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" "),
-        href: generateHref(config),
+        title: generateRowTitle(rowId),
+        href: generateRowHref(config, "movie"),
         variant: rowId === "top-rated-movies" ? ("ranked" as const) : undefined,
-        enrich: true, // Enable content rating enrichment for all rows
+        enrich: true,
       };
     })
     .filter(Boolean) as Array<{
