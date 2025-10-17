@@ -1,14 +1,14 @@
 "use client";
 
+import { ArrowRight, Search } from "lucide-react";
+import Image from "next/legacy/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchPreview } from "@/hooks/use-search-preview";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Search } from "lucide-react";
-import Image from "next/legacy/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import SearchResults from "./search-results";
 
 interface SearchComponentProps {

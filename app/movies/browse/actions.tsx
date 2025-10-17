@@ -1,6 +1,5 @@
 "use server";
 
-import React from "react";
 import {
   buildItemsWithCategories,
   fetchPaginatedCategory,
@@ -8,6 +7,7 @@ import {
 } from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
 import { MediaItem } from "@/utils/typings";
+import React from "react";
 
 export async function getMoreMovies(
   endpoint: string,

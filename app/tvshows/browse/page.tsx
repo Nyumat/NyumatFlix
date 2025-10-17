@@ -1,3 +1,5 @@
+import { Metadata } from "next";
+import { Suspense } from "react";
 import { ContentLoader } from "@/components/animated/load-more";
 import { getGenreName } from "@/components/content/genre-helpers";
 import { StaticHero } from "@/components/hero/carousel-static";
@@ -5,8 +7,6 @@ import { ContentContainer } from "@/components/layout/content-container";
 import { BackButton } from "@/components/ui/back-button";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { getFilterTitle } from "@/utils/content-filters";
-import { Metadata } from "next";
-import { Suspense } from "react";
 import { InfiniteContent } from "./inf-scroll";
 
 interface PageProps {
