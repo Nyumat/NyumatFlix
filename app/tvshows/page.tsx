@@ -2,6 +2,8 @@ import { MediaCarousel } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { ProgressiveContentLoader } from "@/components/layout/progressive-content-loader";
 import {
+  generateRowHref,
+  generateRowTitle,
   getRecommendedRowsForPage,
   getRowConfig,
 } from "@/utils/content-filters";
@@ -59,16 +61,11 @@ export default async function TVShowsPage() {
     .map((rowId) => {
       const config = getRowConfig(rowId);
       if (!config) return null;
-      const title = rowId
-        .split("-")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ")
-        .replace(/Tv /g, "TV ")
-        .replace(/Tvshows/g, "TV Shows");
+
       return {
         rowId,
-        title,
-        href: `/tvshows/browse?filter=${config.category}`,
+        title: generateRowTitle(rowId),
+        href: generateRowHref(config, "tv"),
         variant:
           rowId === "top-rated-tvshows" ? ("ranked" as const) : undefined,
         enrich: true, // Enable content rating enrichment for all rows
