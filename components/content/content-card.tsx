@@ -1,10 +1,10 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
 
 interface ContentCardProps {
   item: MediaItem;
@@ -83,7 +83,7 @@ export function ContentCard({
                 {title}
               </h3>
               {item.content_rating && (
-                <span className="px-1 py-0.5 text-[10px] font-medium border border-white/30 text-white rounded-sm backdrop-blur-sm">
+                <span className="w-fit whitespace-nowrap px-1 py-0.5 text-[10px] font-medium border border-white/30 text-white rounded-sm backdrop-blur-sm">
                   {item.content_rating}
                 </span>
               )}
@@ -132,7 +132,7 @@ export function ContentCard({
         <div className="flex justify-between items-center">
           <h3 className="text-sm font-semibold truncate">{title}</h3>
           {item.content_rating && (
-            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-white/30 text-white backdrop-blur-sm">
+            <span className="w-fit whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-white/30 text-white backdrop-blur-sm">
               {item.content_rating}
             </span>
           )}
