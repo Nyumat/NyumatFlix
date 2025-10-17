@@ -1,9 +1,42 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Grid2X2, List } from "lucide-react";
 import React, { useEffect, useState } from "react";
+
+const CONTENT_GRID_VIEW_MODE_KEY = "content-grid-view-mode";
+
+const GridSkeleton = ({ count = 8 }: { count?: number }) => (
+  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="space-y-2">
+        <Skeleton className="aspect-[2/3] w-full rounded-lg" />
+        <div className="space-y-1">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const ListSkeleton = ({ count = 8 }: { count?: number }) => (
+  <div className="space-y-4">
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="flex gap-4 p-4 border rounded-lg">
+        <Skeleton className="w-20 h-28 rounded-md flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export interface ContentItem {
   id: string | number;
@@ -39,9 +72,25 @@ export function ContentGrid({
   itemsPerRow = 4,
 }: ContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setViewMode(defaultViewMode);
+    const savedViewMode = localStorage.getItem(
+      CONTENT_GRID_VIEW_MODE_KEY,
+    ) as ViewMode;
+    if (
+      savedViewMode &&
+      (savedViewMode === "grid" || savedViewMode === "list")
+    ) {
+      setViewMode(savedViewMode);
+    } else {
+      setViewMode(defaultViewMode);
+    }
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [defaultViewMode]);
 
   const _completeRows = Math.floor(items.length / itemsPerRow);
@@ -56,6 +105,7 @@ export function ContentGrid({
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
+    localStorage.setItem(CONTENT_GRID_VIEW_MODE_KEY, mode);
     onViewModeChange?.(mode);
   };
 
@@ -84,6 +134,29 @@ export function ContentGrid({
     if (viewMode !== "list") return "";
     return "space-y-4 transition-all duration-200";
   };
+
+  if (isLoading) {
+    return (
+      <div className={cn("w-full space-y-4", className)}>
+        {(showItemsCount || (showViewModeControls && !showDock)) && (
+          <div className="flex items-center justify-between">
+            {showItemsCount && <Skeleton className="h-8 w-32" />}
+            {showViewModeControls && !showDock && (
+              <div className="flex border rounded-lg p-1 gap-1">
+                <Skeleton className="h-8 w-8" />
+                <Skeleton className="h-8 w-8" />
+              </div>
+            )}
+          </div>
+        )}
+        {viewMode === "grid" ? (
+          <GridSkeleton count={Math.min(itemsToDisplay.length || 8, 8)} />
+        ) : (
+          <ListSkeleton count={Math.min(itemsToDisplay.length || 8, 8)} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("w-full space-y-4", className)}>
