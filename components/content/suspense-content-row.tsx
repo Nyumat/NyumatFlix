@@ -1,35 +1,9 @@
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { MediaItem } from "@/utils/typings";
 import { Suspense } from "react";
+import { DynamicAsyncContentRow } from "./async-content-row-client";
 import { ContentRow, ContentRowVariant } from "./content-row";
 import { ContentRowSkeleton } from "./content-row-skeleton";
-
-// Simple async content row component that uses Suspense for data fetching
-function AsyncContentRow({
-  rowId,
-  title,
-  href,
-  minCount = 20,
-  variant = "standard",
-  enrich = false,
-}: {
-  rowId: string;
-  title: string;
-  href: string;
-  minCount?: number;
-  variant?: ContentRowVariant;
-  enrich?: boolean;
-}) {
-  // For now, we'll render an empty content row
-  // This component would typically fetch data asynchronously
-  const items: MediaItem[] = [];
-
-  return (
-    <section id={rowId}>
-      <ContentRow title={title} items={items} href={href} variant={variant} />
-    </section>
-  );
-}
 
 export interface SuspenseContentRowProps {
   rowId: string;
@@ -62,9 +36,7 @@ export function SuspenseContentRow({
     return null;
   }
 
-  // If we have preloaded items, render directly without suspense
   if (preloadedItems) {
-    // Don't render if no items
     if (preloadedItems.length === 0) {
       return null;
     }
@@ -72,8 +44,8 @@ export function SuspenseContentRow({
     return (
       <ErrorBoundary
         fallback={
-          <section id={rowId}>
-            <div className="mx-4 md:mx-8">
+          <section id={rowId} className="my-4">
+            <div className="mx-4 md:mx-8 mb-8">
               <div className="text-red-500 text-sm">
                 Failed to load {title}. Please try refreshing the page.
               </div>
@@ -81,7 +53,7 @@ export function SuspenseContentRow({
           </section>
         }
       >
-        <section id={rowId}>
+        <section id={rowId} className="my-4">
           <ContentRow
             title={title}
             items={preloadedItems}
@@ -93,12 +65,11 @@ export function SuspenseContentRow({
     );
   }
 
-  // Original async loading behavior
   return (
     <ErrorBoundary
       fallback={
-        <section id={rowId}>
-          <div className="mx-4 md:mx-8">
+        <section id={rowId} className="my-4">
+          <div className="mx-4 md:mx-8 mb-8">
             <div className="text-red-500 text-sm">
               Failed to load {title}. Please try refreshing the page.
             </div>
@@ -115,7 +86,7 @@ export function SuspenseContentRow({
           />
         }
       >
-        <AsyncContentRow
+        <DynamicAsyncContentRow
           rowId={rowId}
           title={title}
           href={href}
