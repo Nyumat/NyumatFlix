@@ -1,6 +1,5 @@
 import { MediaItem } from "./typings";
 
-// TMDB Person IDs for directors
 const DIRECTOR_IDS = {
   nolan: 525, // Christopher Nolan
   tarantino: 138, // Quentin Tarantino
@@ -18,7 +17,6 @@ const DIRECTOR_IDS = {
   ptanderson: 7026, // Paul Thomas Anderson
 } as const;
 
-// TMDB Company IDs for studios
 const STUDIO_IDS = {
   a24: 41077, // A24
   disney: 2, // Walt Disney Pictures
@@ -26,11 +24,10 @@ const STUDIO_IDS = {
   "warner-bros": 174, // Warner Bros. Pictures
   universal: 33, // Universal Pictures
   dreamworks: 521, // DreamWorks Pictures
+  "marvel-studios": 420, // Marvel Studios
 } as const;
 
-// TMDB Collection IDs for movie franchises
 const COLLECTION_IDS = {
-  "marvel-mcu": 86311, // Marvel Cinematic Universe
   "star-wars": 10, // Star Wars Collection
   "fast-furious": 9485, // The Fast and the Furious Collection
   "harry-potter": 1241, // Harry Potter Collection
@@ -43,7 +40,7 @@ const COLLECTION_IDS = {
 } as const;
 
 /**
- * Fetches movies/TV shows by director using person credits API
+ * Fetches movies by director using person credits API
  */
 async function fetchByDirector(
   directorKey: keyof typeof DIRECTOR_IDS,
@@ -66,22 +63,18 @@ async function fetchByDirector(
     const data = await response.json();
     let results = data.crew || [];
 
-    // Filter for movies where the person was a director
     results = results.filter((movie: MediaItem & { job?: string }) => {
       return movie.job === "Director";
     });
 
-    // Filter out items without posters and sort by popularity (most popular first)
     results = results
       .filter((item: MediaItem) => item.poster_path)
       .sort((a: MediaItem, b: MediaItem) => {
-        // Sort by popularity (higher popularity first)
         const popularityA = a.popularity || 0;
         const popularityB = b.popularity || 0;
         return popularityB - popularityA;
       });
 
-    // Paginate results (20 per page)
     const startIndex = (page - 1) * 20;
     const endIndex = startIndex + 20;
     const paginatedResults = results.slice(startIndex, endIndex);
@@ -97,7 +90,7 @@ async function fetchByDirector(
 }
 
 /**
- * Fetches movies by studio using company ID
+ * Fetches movies by studio
  */
 async function fetchByStudio(
   studioKey: keyof typeof STUDIO_IDS,
@@ -110,7 +103,7 @@ async function fetchByStudio(
 
   try {
     const response = await fetch(
-      `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY}&with_companies=${companyId}&sort_by=popularity.desc&page=${page}&language=en-US&include_adult=false&vote_count.gte=50&vote_average.gte=6.0`,
+      `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY}&with_companies=${companyId}&sort_by=popularity.desc&page=${page}&language=en-US&include_adult=false&vote_count.gte=20&vote_average.gte=5.5`,
     );
 
     if (!response.ok) {
@@ -119,12 +112,11 @@ async function fetchByStudio(
 
     const data = await response.json();
 
-    // Filter out items without posters and ensure higher quality for mainstream content
     const results = (data.results || []).filter(
       (item: MediaItem) =>
         item.poster_path &&
-        (item.vote_count || 0) >= 50 &&
-        (item.vote_average || 0) >= 6.0,
+        (item.vote_count || 0) >= 20 &&
+        (item.vote_average || 0) >= 5.5,
     );
 
     return {
@@ -138,7 +130,7 @@ async function fetchByStudio(
 }
 
 /**
- * Fetches movies by collection using collection ID
+ * Fetches movies by collection
  */
 async function fetchByCollection(
   collectionKey: keyof typeof COLLECTION_IDS,
@@ -161,17 +153,14 @@ async function fetchByCollection(
     const data = await response.json();
     let results = data.parts || [];
 
-    // Filter out items without posters and sort by popularity
     results = results
       .filter((item: MediaItem) => item.poster_path)
       .sort((a: MediaItem, b: MediaItem) => {
-        // Sort by popularity (higher popularity first)
         const popularityA = a.popularity || 0;
         const popularityB = b.popularity || 0;
         return popularityB - popularityA;
       });
 
-    // Paginate results (20 per page)
     const startIndex = (page - 1) * 20;
     const endIndex = startIndex + 20;
     const paginatedResults = results.slice(startIndex, endIndex);
@@ -195,7 +184,6 @@ async function fetchByCollection(
 async function fetchDiverseTV(
   page: number,
 ): Promise<{ results: MediaItem[]; total_pages?: number }> {
-  // Fetch from multiple genres to ensure diversity
   const genres = [
     { id: "18", name: "Drama" },
     { id: "35", name: "Comedy" },
@@ -207,7 +195,6 @@ async function fetchDiverseTV(
   const allResults: MediaItem[] = [];
   const seenIds = new Set<number>();
 
-  // Fetch from each genre separately
   for (const genre of genres) {
     try {
       const response = await fetch(
@@ -217,10 +204,8 @@ async function fetchDiverseTV(
       if (response.ok) {
         const data = await response.json();
         if (data.results) {
-          // Filter out duplicates and items without posters
           const validResults = data.results.filter((item: MediaItem) => {
             if (!item.poster_path || seenIds.has(item.id)) return false;
-            // Additional filter to exclude talk shows and reality TV
             const showName = item.name?.toLowerCase() || "";
             const showOverview = item.overview?.toLowerCase() || "";
             const excludeKeywords = [
@@ -239,7 +224,7 @@ async function fetchDiverseTV(
             seenIds.add(item.id);
             return true;
           });
-          allResults.push(...validResults.slice(0, 4)); // Take top 4 from each genre
+          allResults.push(...validResults.slice(0, 4));
         }
       }
     } catch (error) {
@@ -247,17 +232,16 @@ async function fetchDiverseTV(
     }
   }
 
-  // Sort by popularity and return
   allResults.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
   return {
-    results: allResults.slice(0, 20), // Return top 20
-    total_pages: 1, // Since we're combining multiple sources
+    results: allResults.slice(0, 20),
+    total_pages: 1,
   };
 }
 
 /**
- * Fetches classic sitcoms with filtering
+ * Fetches classic sitcoms
  */
 async function fetchSitcoms(
   page: number,
@@ -272,9 +256,7 @@ async function fetchSitcoms(
 
   const data = await response.json();
 
-  // Additional filtering to exclude shows that are primarily dramas
   const sitcoms = (data.results || []).filter((show: MediaItem) => {
-    // Exclude shows with these keywords that indicate they're not traditional sitcoms
     const excludeKeywords = [
       "police",
       "detective",
@@ -289,7 +271,6 @@ async function fetchSitcoms(
     const showName = show.name?.toLowerCase() || "";
     const showOverview = show.overview?.toLowerCase() || "";
 
-    // Check if the show contains any excluded keywords
     const hasExcludedKeywords = excludeKeywords.some(
       (keyword) => showName.includes(keyword) || showOverview.includes(keyword),
     );
@@ -304,7 +285,7 @@ async function fetchSitcoms(
 }
 
 /**
- * Fetches kids and animated network shows
+ * Fetches kids and animated network shows (kids shows)
  */
 async function fetchKidsNetworks(
   page: number,
@@ -319,7 +300,6 @@ async function fetchKidsNetworks(
   const allResults: MediaItem[] = [];
   const seenIds = new Set<number>();
 
-  // Fetch from each network separately
   for (const network of networks) {
     try {
       const response = await fetch(
@@ -329,10 +309,8 @@ async function fetchKidsNetworks(
       if (response.ok) {
         const data = await response.json();
         if (data.results) {
-          // Filter for kids networks - lower quality thresholds, include animated content
           const validResults = data.results.filter((item: MediaItem) => {
             if (!item.poster_path || seenIds.has(item.id)) return false;
-            // Much lower quality filter for kids/animated content
             if ((item.vote_count || 0) < 20 || (item.vote_average || 0) < 5.5)
               return false;
             seenIds.add(item.id);
@@ -346,17 +324,16 @@ async function fetchKidsNetworks(
     }
   }
 
-  // Sort by popularity and return
   allResults.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
   return {
-    results: allResults.slice(0, 20), // Return top 20
-    total_pages: 1, // Since we're combining multiple sources
+    results: allResults.slice(0, 20),
+    total_pages: 1,
   };
 }
 
 /**
- * Fetches network TV hits from multiple traditional broadcast networks
+ * Fetches network TV hits from multiple traditional broadcast networks (network TV hits)
  */
 async function fetchNetworkHits(
   page: number,
@@ -373,7 +350,6 @@ async function fetchNetworkHits(
   const allResults: MediaItem[] = [];
   const seenIds = new Set<number>();
 
-  // Fetch from each network separately
   for (const network of networks) {
     try {
       const response = await fetch(
@@ -383,10 +359,8 @@ async function fetchNetworkHits(
       if (response.ok) {
         const data = await response.json();
         if (data.results) {
-          // Filter out duplicates and items without posters, adjust quality filters for TV networks
           const validResults = data.results.filter((item: MediaItem) => {
             if (!item.poster_path || seenIds.has(item.id)) return false;
-            // Adjusted quality filter for traditional TV networks (lower thresholds)
             if ((item.vote_count || 0) < 50 || (item.vote_average || 0) < 6.0)
               return false;
             seenIds.add(item.id);
@@ -400,16 +374,114 @@ async function fetchNetworkHits(
     }
   }
 
-  // Sort by popularity and return
   allResults.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
   return {
-    results: allResults.slice(0, 20), // Return top 20
-    total_pages: 1, // Since we're combining multiple sources
+    results: allResults.slice(0, 20),
+    total_pages: 1,
   };
 }
 
-// Export all custom fetchers
+/**
+ * Fetches upcoming movies using the moviedb-promise API directly
+ * This bypasses all filtering to ensure we get all upcoming movies for the next 12 months
+ * and validates release dates to exclude already released movies
+ */
+async function fetchUpcomingMovies(
+  page: number,
+): Promise<{ results: MediaItem[]; total_pages?: number }> {
+  try {
+    const today = new Date();
+    const twelveMonthsFromNow = new Date();
+    twelveMonthsFromNow.setMonth(today.getMonth() + 12);
+
+    const todayString = today.toISOString().split("T")[0];
+    const twelveMonthsString = twelveMonthsFromNow.toISOString().split("T")[0];
+
+    const response = await fetch(
+      `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY}&primary_release_date.gte=${todayString}&primary_release_date.lte=${twelveMonthsString}&sort_by=popularity.desc&page=${page}&language=en-US&region=US&include_adult=false`,
+    );
+
+    if (!response.ok) {
+      return { results: [] };
+    }
+
+    const data = await response.json();
+
+    if (!data?.results) {
+      return { results: [] };
+    }
+
+    const moviesWithPosters = data.results.filter(
+      (item: { poster_path?: string | null }) => Boolean(item.poster_path),
+    ) as MediaItem[];
+
+    const upcomingMovies: MediaItem[] = [];
+
+    for (const movie of moviesWithPosters) {
+      const isUpcoming = await validateMovieReleaseDate(movie.id, today);
+      if (isUpcoming) {
+        upcomingMovies.push(movie);
+      }
+    }
+
+    return {
+      results: upcomingMovies,
+      total_pages: data.total_pages,
+    };
+  } catch (error) {
+    console.error("Error fetching upcoming movies:", error);
+    return { results: [] };
+  }
+}
+
+/**
+ * Validates that a movie has at least one future release date
+ */
+async function validateMovieReleaseDate(
+  movieId: number,
+  currentDate: Date,
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://api.themoviedb.org/3/movie/${movieId}/release_dates?api_key=${process.env.TMDB_API_KEY}`,
+    );
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch release dates for movie ${movieId}`);
+      return true;
+    }
+
+    const data = await response.json();
+
+    if (!data?.results || !Array.isArray(data.results)) {
+      return true;
+    }
+
+    for (const countryData of data.results) {
+      if (
+        countryData.release_dates &&
+        Array.isArray(countryData.release_dates)
+      ) {
+        for (const release of countryData.release_dates) {
+          if (release.release_date) {
+            const releaseDate = new Date(release.release_date);
+
+            if (releaseDate > currentDate) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error(`Error validating release date for movie ${movieId}:`, error);
+    return true;
+  }
+}
+
 export const customFetchers = {
   fetchByDirector,
   fetchByStudio,
@@ -418,6 +490,7 @@ export const customFetchers = {
   fetchSitcoms,
   fetchNetworkHits,
   fetchKidsNetworks,
+  fetchUpcomingMovies,
 };
 
 export type CustomFetcherName = keyof typeof customFetchers;
