@@ -248,20 +248,8 @@
       "category": "tv-on-the-air",
       "mediaType": "tv"
     },
-    "tv-airing-today": {
-      "category": "tv-airing-today",
-      "mediaType": "tv"
-    },
-    "tv-comedy": {
-      "category": "tv-genre-comedy",
-      "mediaType": "tv"
-    },
     "comedy-tvshows": {
       "category": "tv-genre-comedy",
-      "mediaType": "tv"
-    },
-    "tv-drama": {
-      "category": "tv-genre-drama",
       "mediaType": "tv"
     },
     "drama-tvshows": {
@@ -479,7 +467,6 @@
       "tv-anime",
       "tv-british-comedy",
       "tv-on-the-air",
-      "tv-airing-today",
       "tv-family",
       "tv-kids",
       "hbo-originals",
@@ -523,16 +510,7 @@
         "id": "upcoming",
         "title": "Upcoming Movies",
         "mediaType": "movie",
-        "params": {
-          "endpoint": "/discover/movie",
-          "primary_release_date.gte": "{{TODAY}}",
-          "primary_release_date.lte": "2026-12-31",
-          "sort_by": "primary_release_date.asc",
-          "without_genres": "99,10770,10749",
-          "vote_count.gte": "5",
-          "vote_average.gte": "4.5",
-          "region": "US"
-        }
+        "customFetcher": "fetchUpcomingMovies"
       }
     ],
     "genre": [
@@ -1019,9 +997,9 @@
         "id": "marvel-mcu",
         "title": "Marvel Cinematic Universe",
         "mediaType": "movie",
-        "customFetcher": "fetchByCollection",
+        "customFetcher": "fetchByStudio",
         "customParams": {
-          "collectionKey": "marvel-mcu"
+          "studioKey": "marvel-studios"
         }
       },
       {
@@ -1099,14 +1077,6 @@
         "mediaType": "tv",
         "params": {
           "endpoint": "/tv/on_the_air"
-        }
-      },
-      {
-        "id": "tv-airing-today",
-        "title": "Airing Today",
-        "mediaType": "tv",
-        "params": {
-          "endpoint": "/tv/airing_today"
         }
       }
     ],
