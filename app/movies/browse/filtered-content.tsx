@@ -119,7 +119,7 @@ export async function FilteredMovieContent({
       initialOffset={initialOffset}
       className="space-y-8"
     >
-      <ContentGrid items={processedContent} type="movie" itemsPerRow={4} />
+      <ContentGrid items={processedContent} type="movie" />
     </InfiniteScroll>
   );
 }

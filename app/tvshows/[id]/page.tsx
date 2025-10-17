@@ -201,7 +201,7 @@ export default async function TVShowPage(props: Props) {
         <div className="relative">
           <StableBackground />
           <div className="relative">
-            <ContentContainer className="mx-auto px-4 max-w-7xl">
+            <ContentContainer className="container mx-auto px-4">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <TVShowSidebar
                   details={details}

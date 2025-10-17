@@ -129,11 +129,11 @@ export function StandardContentRow({
           setApi={setApi}
           className="w-full"
         >
-          <CarouselContent className="-ml-3 md:-ml-4">
+          <CarouselContent className="-ml-2 md:-ml-3">
             {items.map((item, index) => (
               <CarouselItem
                 key={`${item.id}-${index}`}
-                className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
+                className="pl-2 md:pl-3 basis-[45%] sm:basis-[32%] md:basis-[24%] lg:basis-[19%] xl:basis-[14%]"
               >
                 <ContentCard
                   item={item}

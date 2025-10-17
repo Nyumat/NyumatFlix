@@ -75,7 +75,7 @@ export async function InfiniteContent({
       initialOffset={initialOffset}
       className="space-y-8"
     >
-      <ContentGrid items={initialMovies} type="movie" itemsPerRow={4} />
+      <ContentGrid items={initialMovies} type="movie" />
     </InfiniteScroll>
   );
 }
