@@ -2,6 +2,7 @@
 
 import { buildItemsWithCategories, getMovies, getTVShows } from "@/app/actions";
 import {
+  MediaItem,
   MovieCategory,
   TVShowCategory,
   UnifiedCategory,
@@ -67,7 +68,7 @@ export const getMovieListNodes = async (
       return null;
     }
 
-    const processedMovies = await buildItemsWithCategories(
+    const processedMovies = await buildItemsWithCategories<MediaItem>(
       validResults,
       "movie",
     );

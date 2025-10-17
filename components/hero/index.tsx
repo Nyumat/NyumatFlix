@@ -2,7 +2,6 @@
 
 import { ChevronLeft } from "lucide-react";
 import Script from "next/script";
-import React from "react";
 import { useMediaHero } from "../../hooks/useMediaHero";
 import { MediaItem } from "../../utils/typings";
 import { HeroBackground } from "./hero-background";
@@ -42,27 +41,18 @@ export function MediaDetailHero({
 
   return (
     <div className={`relative ${isWatch ? "h-[75vh]" : "h-[82vh]"}`}>
-      <Script
-        src="https://www.youtube.com/iframe_api"
-        strategy="lazyOnload"
-        onLoad={() => {
-          window.onYouTubeIframeAPIReady = () => {
-            // youtube api ready callback
-          };
-        }}
-      />
-
+      <Script src="https://www.youtube.com/iframe_api" strategy="lazyOnload" />
       {isWatch && (
         <button
           title="Go back"
           disabled={historyLength <= 2}
           aria-disabled={historyLength <= 2}
           onClick={() => {
-            // we could optionally route to listing pages based on context
+            // i mean we could optionally route to listing pages based on context
             if (historyLength > 2) window.history.back();
           }}
           onMouseEnter={() => {
-            // we could prefetch common destinations here if we choose to
+            // possible prefetching opportunity?
           }}
           className="absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Go back"
