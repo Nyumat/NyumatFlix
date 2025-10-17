@@ -7,6 +7,69 @@ import {
 import filtersData from "./filters.json";
 import { MediaItem } from "./typings";
 
+/**
+ * Generates a human-readable title from a row ID
+ * @param rowId The row ID to convert to a title
+ * @returns Human-readable title string
+ */
+export function generateRowTitle(rowId: string): string {
+  return rowId
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+    .replace(/Tvshows/g, "TV Shows")
+    .replace(/Tv /g, "TV ");
+}
+
+/**
+ * Generates a URL href from a row configuration
+ * @param config The row configuration containing category information
+ * @param mediaType The media type (movie or tv)
+ * @returns URL href string
+ */
+export function generateRowHref(
+  config: { category: string },
+  mediaType: string,
+): string {
+  const { category } = config;
+
+  if (category.startsWith("genre-")) {
+    const genreMap: Record<string, string> = {
+      "genre-action": "28",
+      "genre-comedy": "35",
+      "genre-drama": "18",
+      "genre-thriller": "53",
+      "genre-scifi-fantasy": "878,14",
+      "genre-romcom": "10749,35",
+      "genre-horror": "27",
+      "genre-crime": "80",
+      "genre-mystery": "9648",
+      "genre-romance": "10749",
+    };
+    return `/${mediaType}s/browse?genre=${genreMap[category] || category.replace("genre-", "")}`;
+  } else if (category.startsWith("director-")) {
+    return `/${mediaType}s/browse?type=${category}`;
+  } else if (category.startsWith("studio-")) {
+    return `/${mediaType}s/browse?type=${category}`;
+  } else if (category.startsWith("year-")) {
+    const yearMap: Record<string, string> = {
+      "year-80s": "1980-1989",
+      "year-90s": "1990-1999",
+      "year-2000s": "2000-2009",
+      "year-2010s": "2010-2019",
+    };
+    return `/${mediaType}s/browse?year=${yearMap[category] || category.replace("year-", "")}`;
+  } else if (
+    ["upcoming", "popular", "top-rated", "now-playing"].includes(category)
+  ) {
+    return category === "popular"
+      ? `/${mediaType}s/browse`
+      : `/${mediaType}s/browse?type=${category}`;
+  } else {
+    return `/${mediaType}s/browse?filter=${category.replace(/^(critically-|hidden-|blockbuster-|award-|cult-|indie-)/, "")}`;
+  }
+}
+
 // Cache for keyword IDs to avoid repeated API calls
 const keywordIdCache = new Map<string, string>();
 
@@ -203,13 +266,6 @@ function processFilterParams(
 ): Record<string, string> {
   const processedParams = { ...params };
 
-  // Replace {{TODAY}} placeholder with current date
-  for (const [key, value] of Object.entries(processedParams)) {
-    if (value === "{{TODAY}}") {
-      processedParams[key] = new Date().toISOString().split("T")[0];
-    }
-  }
-
   // Add default parameters
   const defaultParams: Record<string, string> = {
     language: "en-US",
@@ -228,6 +284,32 @@ function processFilterParams(
   }
 
   return baseParams;
+}
+
+function resolveDynamicParamValue(value: string): string {
+  if (value === "{{TODAY}}") {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  if (value === "{{THREE_MONTHS_FROM_NOW}}") {
+    const future = new Date();
+    future.setMonth(future.getMonth() + 3);
+    return future.toISOString().split("T")[0];
+  }
+
+  return value;
+}
+
+function resolveDynamicParams(
+  params: Record<string, string>,
+): Record<string, string> {
+  const resolvedParams: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(params)) {
+    resolvedParams[key] = resolveDynamicParamValue(value);
+  }
+
+  return resolvedParams;
 }
 
 /**
@@ -260,13 +342,8 @@ function convertFilterDefinition(
             page,
           );
         } else if (fetcherName === "fetchByStudio" && params?.studioKey) {
-          return customFetchers.fetchByStudio(params.studioKey as "a24", page);
-        } else if (
-          fetcherName === "fetchByCollection" &&
-          params?.collectionKey
-        ) {
-          return customFetchers.fetchByCollection(
-            params.collectionKey as "marvel-mcu",
+          return customFetchers.fetchByStudio(
+            params.studioKey as "a24" | "marvel-studios",
             page,
           );
         } else if (fetcherName === "fetchDiverseTV") {
@@ -275,6 +352,8 @@ function convertFilterDefinition(
           return customFetchers.fetchSitcoms(page);
         } else if (fetcherName === "fetchNetworkHits") {
           return customFetchers.fetchNetworkHits(page);
+        } else if (fetcherName === "fetchUpcomingMovies") {
+          return customFetchers.fetchUpcomingMovies(page);
         }
 
         return { results: [] };
@@ -450,12 +529,14 @@ export function buildFilterParams(filterId: string): {
     sort_by: "popularity.desc",
   };
 
+  const params = {
+    ...baseParams,
+    ...(filter.fetchConfig.params || {}),
+  };
+
   return {
     endpoint: filter.fetchConfig.endpoint || "/discover/movie",
-    params: {
-      ...baseParams,
-      ...(filter.fetchConfig.params || {}),
-    },
+    params: resolveDynamicParams(params),
   };
 }
 
@@ -497,7 +578,7 @@ export async function buildFilterParamsAsync(filterId: string): Promise<{
 
   return {
     endpoint: filter.fetchConfig.endpoint || "/discover/movie",
-    params,
+    params: resolveDynamicParams(params),
   };
 }
 
