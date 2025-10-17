@@ -152,7 +152,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3">
             {people.map((person) => (
               <button
-                key={person.id}
+                key={`person-${person.id}-${crypto.randomUUID()}`}
                 onClick={() => handlePersonClick(person.id)}
                 className="group text-left w-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-md"
                 aria-label={`View ${person.name}`}
