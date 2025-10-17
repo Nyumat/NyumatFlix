@@ -1,12 +1,14 @@
-import { ProgressiveContentLoader } from "@/components/layout/progressive-content-loader";
-import { fetchMultipleContentRows } from "@/lib/content-row-fetcher";
+import { PageBackground } from "@/components/layout/page-background";
 import {
   getRecommendedRowsForPage,
   getRowConfig,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
-import { DynamicMediaCarousel } from "./client-components";
+import {
+  DynamicMediaCarousel,
+  LazyContentRowsDynamic,
+} from "./client-components";
 
 export const dynamic = "force-dynamic";
 
@@ -199,88 +201,18 @@ export default async function Home() {
     enrich?: boolean;
   }>;
 
-  // Load only the first row initially for progressive loading
-  const initialRowCount = 1;
-  const initialRowsConfig = contentRowsConfig.slice(0, initialRowCount);
-  const remainingRowsConfig = contentRowsConfig.slice(initialRowCount);
-
-  // Load initial row data
-  const initialContentRowResults = await fetchMultipleContentRows(
-    initialRowsConfig.map((config) => ({
-      rowId: config.rowId,
-      minCount: 20,
-    })),
-  );
-
-  const initialContentRowsData = initialRowsConfig.map((config) => {
-    const result = initialContentRowResults.find(
-      (r) => r.rowId === config.rowId,
-    );
-    const filteredItems =
-      result?.items.filter((item) => Boolean(item.poster_path)) || [];
-
-    return {
-      ...config,
-      items: filteredItems,
-    };
-  });
-
-  // Create server action to load next batch of rows
-  const getNextRows = async (
-    remainingRows: typeof contentRowsConfig,
-    batchSize: number = 1,
-  ): Promise<typeof contentRowsConfig> => {
-    "use server";
-    if (remainingRows.length === 0) return [];
-
-    // Load next batch of rows
-    const nextBatch = remainingRows.slice(
-      0,
-      Math.min(batchSize, remainingRows.length),
-    );
-
-    const nextRowResults = await fetchMultipleContentRows(
-      nextBatch.map((config) => ({
-        rowId: config.rowId,
-        minCount: 20,
-      })),
-    );
-
-    return nextBatch.map((config) => {
-      const result = nextRowResults.find((r) => r.rowId === config.rowId);
-      const filteredItems =
-        result?.items.filter((item) => Boolean(item.poster_path)) || [];
-
-      return {
-        ...config,
-        items: filteredItems,
-      };
-    });
-  };
-
   return (
     <div>
       <PageBackground imageUrl="/movie-banner.webp" title="Home" />
       <main>
         <DynamicMediaCarousel items={fanFavoriteContentProcessedForHero} />
-        <div className="relative">
-          <div className="absolute inset-0 w-full h-full z-0">
-            <div
-              className="w-full h-full bg-repeat bg-center"
-              style={{
-                backgroundImage: "url('/movie-banner.webp')",
-                filter: "blur(8px)",
-                opacity: 0.3,
-              }}
-            />
-          </div>
-          <div className="relative z-10 min-h-[200vh]">
-            <ProgressiveContentLoader
-              initialRows={initialContentRowsData}
-              remainingRowsConfig={remainingRowsConfig}
-              getNextRows={getNextRows}
-            />
-          </div>
+        <div className="relative z-10 min-h-[200vh]">
+          <LazyContentRowsDynamic
+            rows={contentRowsConfig}
+            initialCount={2}
+            batchSize={1}
+            rootMargin="100px"
+          />
         </div>
       </main>
     </div>

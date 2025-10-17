@@ -92,18 +92,14 @@ export function LazyContentRows({
 
 function LazyRow({ row }: { row: LazyRowConfig }) {
   return (
-    <section id={row.rowId} ref={containerRef}>
-      {shouldRender ? (
-        <SuspenseContentRow
-          rowId={row.rowId}
-          title={row.title}
-          href={row.href}
-          variant={row.variant}
-          enrich={row.enrich}
-        />
-      ) : (
-        <ContentRowSkeleton title={row.title} href={row.href} count={10} />
-      )}
+    <section id={row.rowId} className="my-4">
+      <SuspenseContentRow
+        rowId={row.rowId}
+        title={row.title}
+        href={row.href}
+        variant={row.variant}
+        enrich={row.enrich}
+      />
     </section>
   );
 }
