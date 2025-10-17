@@ -1,6 +1,5 @@
-import { MediaCarousel } from "@/components/hero";
-import { ContentContainer } from "@/components/layout/content-container";
-import { ProgressiveContentLoader } from "@/components/layout/progressive-content-loader";
+import { MediaCarousel } from "@/components/hero/media-carousel";
+import { PageBackground } from "@/components/layout/page-background";
 import {
   generateRowHref,
   generateRowTitle,
@@ -78,79 +77,19 @@ export default async function TVShowsPage() {
     variant?: "ranked";
     enrich?: boolean;
   }>;
-  // Load only the first row initially for progressive loading
-  const initialRowCount = 1;
-  const initialRowsConfig = contentRowsConfig.slice(0, initialRowCount);
-  const remainingRowsConfig = contentRowsConfig.slice(initialRowCount);
-
-  // Load initial row data
-  const initialContentRowsData = await Promise.all(
-    initialRowsConfig.map(async (config) => {
-      const items = await fetchContentRowData(config.rowId, 20, globalSeenIds);
-      return {
-        ...config,
-        items,
-      };
-    }),
-  );
-
-  // Create server action to load next batch of rows
-  const getNextRows = async (
-    remainingRows: typeof contentRowsConfig,
-    batchSize: number = 2,
-  ): Promise<typeof contentRowsConfig> => {
-    "use server";
-    if (remainingRows.length === 0) return [];
-
-    // Load next batch of rows
-    const nextBatch = remainingRows.slice(
-      0,
-      Math.min(batchSize, remainingRows.length),
-    );
-
-    const nextRowResults = await Promise.all(
-      nextBatch.map(async (config) => {
-        const items = await fetchContentRowData(
-          config.rowId,
-          20,
-          globalSeenIds,
-        );
-        return {
-          ...config,
-          items,
-        };
-      }),
-    );
-
-    return nextRowResults;
-  };
-
   return (
     <>
       <PageBackground imageUrl="/movie-banner.webp" title="TV Shows" />
       <main>
         <MediaCarousel items={enrichedTrendingItems} />
       </main>
-      <div className="relative">
-        <div className="absolute inset-0 w-full h-full z-0">
-          <div
-            className="w-full h-full bg-repeat bg-center"
-            style={{
-              backgroundImage: "url('/movie-banner.webp')",
-              filter: "blur(8px)",
-              opacity: 0.3,
-            }}
-          />
-        </div>
-        <div className="relative z-10 min-h-[200vh]">
-          <ContentContainer>
-            <ProgressiveContentLoader
-              initialRows={initialContentRowsData}
-              remainingRowsConfig={remainingRowsConfig}
-              getNextRows={getNextRows}
-            />
-          </ContentContainer>
-        </div>
+      <div className="relative z-10 min-h-[200vh]">
+        <LazyContentRowsDynamic
+          rows={contentRowsConfig}
+          initialCount={2}
+          batchSize={1}
+          rootMargin="100px"
+        />
       </div>
     </>
   );
