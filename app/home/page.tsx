@@ -126,34 +126,34 @@ export default async function Home() {
 
       const customTitles: Record<string, string> = {
         "top-rated-movies": "Top Rated Movies",
-        "early-2000s-movies": "Early 2000s Nostalgia",
+        "early-2000s-movies": "Early 2000s Movies",
         "popular-movies": "Popular Movies",
         "popular-tvshows": "Popular TV Shows",
         "nolan-films": "Christopher Nolan Films",
-        "scifi-fantasy-movies": "Sci-Fi & Fantasy Worlds",
+        "scifi-fantasy-movies": "Sci-Fi & Fantasy Movies",
         "binge-worthy-series": "Binge-Worthy Series",
-        "comedy-movies": "Laugh Out Loud (Comedies)",
+        "comedy-movies": "Comedies",
         "a24-films": "A24 Films",
-        "thriller-movies": "Edge-of-Your-Seat Thrillers",
-        "limited-series": "Limited Series That Hit Hard",
-        "drama-movies": "Heartfelt Dramas",
+        "thriller-movies": "Edge of Your Seat Thrillers",
+        "limited-series": "Limited Series",
+        "drama-movies": "Dramas",
         "critically-acclaimed": "Critically Acclaimed",
-        "eighties-movies": "80s Throwbacks",
-        "reality-tv": "Reality TV Picks",
-        "nineties-movies": "90s Favorites",
-        "romcom-movies": "Chill with Rom-Coms",
-        docuseries: "Docuseries You Can't Miss",
+        "eighties-movies": "80s Movies",
+        "reality-tv": "Reality TV",
+        "nineties-movies": "90s Movies",
+        "romcom-movies": "Rom-Coms",
+        docuseries: "Docuseries",
         "hidden-gems": "Hidden Gems",
-        "marvel-mcu": "Marvel Cinematic Universe",
-        "horror-movies": "Spine-Chilling Horror",
-        "crime-movies": "Crime & Justice",
-        "mystery-movies": "Mind-Bending Mysteries",
-        "warner-bros": "Warner Bros. Classics",
+        "marvel-mcu": "Marvel Studios",
+        "horror-movies": "Spine Chilling Horror",
+        "crime-movies": "Crime Movies",
+        "mystery-movies": "Mystery Movies",
+        "warner-bros": "Warner Bros. Films",
         "universal-films": "Universal Pictures",
-        "spielberg-films": "Steven Spielberg Masterpieces",
-        "scorsese-films": "Martin Scorsese Classics",
-        "fincher-films": "David Fincher Thrillers",
-        "villeneuve-films": "Denis Villeneuve Epics",
+        "spielberg-films": "Steven Spielberg Films",
+        "scorsese-films": "Martin Scorsese Films",
+        "fincher-films": "David Fincher Films",
+        "villeneuve-films": "Denis Villeneuve Films",
         "blockbuster-hits": "Blockbuster Hits",
       };
 
@@ -188,16 +188,16 @@ export default async function Home() {
             .join(" "),
         href: generateHref(config),
         variant: rowId === "top-rated-movies" ? ("ranked" as const) : undefined,
-        enrich: true, // Enable content rating enrichment for all rows
+        enrich: rowId !== "marvel-mcu",
       };
     })
     .filter(Boolean) as Array<{
-      rowId: string;
-      title: string;
-      href: string;
-      variant?: "ranked";
-      enrich?: boolean;
-    }>;
+    rowId: string;
+    title: string;
+    href: string;
+    variant?: "ranked";
+    enrich?: boolean;
+  }>;
 
   // Load only the first row initially for progressive loading
   const initialRowCount = 1;
