@@ -10,7 +10,6 @@ export async function GET(
 
     const response = await fetch(
       `https://api.themoviedb.org/3/tv/${id}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
-      { next: { revalidate: 3600 } },
     );
 
     if (!response.ok) {
