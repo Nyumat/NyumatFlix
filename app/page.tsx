@@ -1,7 +1,8 @@
 import { FAQSection } from "@/components/layout/sections/faq";
 import { HeroSection } from "@/components/layout/sections/hero";
+import type { Metadata } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "NyumatFlix | Watch Movies and TV Shows",
   description:
     "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
