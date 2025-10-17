@@ -69,19 +69,24 @@ export async function fetchContentRowData(
 
   try {
     if (rowUsesCustomFetcher(rowId)) {
-      const result = await handleCustomFetcher(config, 1);
-      if (result) {
-        const filteredItems = result.results
-          .filter(filterAndDeduplicate)
-          .slice(0, minCount);
+      let items: MediaItem[] = [];
+      let page = 1;
+      let totalPages = 1;
 
-        return {
-          items: filteredItems,
-          totalAvailable: result.total_pages
-            ? result.total_pages * 20
-            : result.results.length,
-        };
+      while (items.length < minCount && page <= totalPages && page <= 10) {
+        const result = await handleCustomFetcher(config, page);
+        if (!result) break;
+
+        totalPages = result.total_pages ?? totalPages;
+        const filtered = (result.results || []).filter(filterAndDeduplicate);
+        items = [...items, ...filtered];
+        page++;
       }
+
+      return {
+        items: items.slice(0, minCount),
+        totalAvailable: (totalPages || 1) * 20,
+      };
     }
 
     let page = 1;
