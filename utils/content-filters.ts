@@ -32,7 +32,7 @@ export function generateRowHref(
   mediaType: string,
 ): string {
   const { category } = config;
-
+  const urlPath = mediaType === "tv" ? "tvshows" : `${mediaType}s`;
   if (category.startsWith("genre-")) {
     const genreMap: Record<string, string> = {
       "genre-action": "28",
@@ -46,11 +46,11 @@ export function generateRowHref(
       "genre-mystery": "9648",
       "genre-romance": "10749",
     };
-    return `/${mediaType}s/browse?genre=${genreMap[category] || category.replace("genre-", "")}`;
+    return `/${urlPath}/browse?genre=${genreMap[category] || category.replace("genre-", "")}`;
   } else if (category.startsWith("director-")) {
-    return `/${mediaType}s/browse?type=${category}`;
+    return `/${urlPath}/browse?type=${category}`;
   } else if (category.startsWith("studio-")) {
-    return `/${mediaType}s/browse?type=${category}`;
+    return `/${urlPath}/browse?type=${category}`;
   } else if (category.startsWith("year-")) {
     const yearMap: Record<string, string> = {
       "year-80s": "1980-1989",
@@ -58,22 +58,20 @@ export function generateRowHref(
       "year-2000s": "2000-2009",
       "year-2010s": "2010-2019",
     };
-    return `/${mediaType}s/browse?year=${yearMap[category] || category.replace("year-", "")}`;
+    return `/${urlPath}/browse?year=${yearMap[category] || category.replace("year-", "")}`;
   } else if (
     ["upcoming", "popular", "top-rated", "now-playing"].includes(category)
   ) {
     return category === "popular"
-      ? `/${mediaType}s/browse`
-      : `/${mediaType}s/browse?type=${category}`;
+      ? `/${urlPath}/browse`
+      : `/${urlPath}/browse?type=${category}`;
   } else {
-    return `/${mediaType}s/browse?filter=${category.replace(/^(critically-|hidden-|blockbuster-|award-|cult-|indie-)/, "")}`;
+    return `/${urlPath}/browse?filter=${category.replace(/^(critically-|hidden-|blockbuster-|award-|cult-|indie-)/, "")}`;
   }
 }
 
-// Cache for keyword IDs to avoid repeated API calls
 const keywordIdCache = new Map<string, string>();
 
-// Romance filtering constants
 const ROMANCE_GENRE_ID = 10749;
 const HIGH_RATING_THRESHOLD = 7.5;
 const HIGH_POPULARITY_THRESHOLD = 1000;
@@ -89,16 +87,14 @@ export function shouldAllowRomanceContent(item: {
   vote_average?: number;
   vote_count?: number;
 }): boolean {
-  // Check if item contains romance genre
   const hasRomanceGenre =
     item.genre_ids?.includes(ROMANCE_GENRE_ID) ||
     item.genres?.some((genre) => genre.id === ROMANCE_GENRE_ID);
 
   if (!hasRomanceGenre) {
-    return true; // Not romance, allow it
+    return true;
   }
 
-  // For romance content, check if it's highly rated and popular
   const isHighlyRated = (item.vote_average || 0) >= HIGH_RATING_THRESHOLD;
   const isPopular = (item.vote_count || 0) >= HIGH_POPULARITY_THRESHOLD;
 
@@ -115,14 +111,12 @@ export function addRomanceFiltering(
 ): Record<string, string> {
   const updatedParams = { ...params };
 
-  // If there's already a without_genres parameter, append romance ID
   if (updatedParams.without_genres) {
     const existingGenres = updatedParams.without_genres.split(",");
     if (!existingGenres.includes(ROMANCE_GENRE_ID.toString())) {
       updatedParams.without_genres = `${updatedParams.without_genres},${ROMANCE_GENRE_ID}`;
     }
   } else {
-    // Add romance exclusion
     updatedParams.without_genres = ROMANCE_GENRE_ID.toString();
   }
 
@@ -130,9 +124,9 @@ export function addRomanceFiltering(
 }
 
 /**
- * Filters an array of media items to exclude romance content unless highly rated and popular
+ * Filters an array of media items to exclude romance content
  * @param items Array of media items to filter
- * @returns Filtered array with romance content restrictions
+ * @returns Filtered array without romance content
  */
 export function filterRomanceContent<
   T extends {
@@ -156,7 +150,6 @@ export function shouldKeepZeroRevenueMovie(item: {
   revenue?: number;
   release_date?: string;
 }): boolean {
-  // Only filter movies, not TV shows
   if (item.media_type === "tv" || (!item.media_type && !item.status)) {
     return true;
   }
@@ -229,7 +222,6 @@ async function resolveKeywordIds(keywords: string): Promise<string> {
     }
 
     try {
-      // Search for the keyword using TMDB API
       const response = await fetch(
         `https://api.themoviedb.org/3/search/keyword?api_key=${process.env.TMDB_API_KEY}&query=${encodeURIComponent(keyword)}`,
       );
@@ -237,7 +229,6 @@ async function resolveKeywordIds(keywords: string): Promise<string> {
       if (response.ok) {
         const data = await response.json();
         if (data.results && data.results.length > 0) {
-          // Take the first (most relevant) result
           const keywordId = data.results[0].id.toString();
           keywordIdCache.set(keyword, keywordId);
           resolvedIds.push(keywordId);
@@ -254,7 +245,6 @@ async function resolveKeywordIds(keywords: string): Promise<string> {
     }
   }
 
-  // Return pipe-separated IDs (OR logic) instead of comma-separated (AND logic)
   return resolvedIds.join("|");
 }
 
@@ -266,7 +256,6 @@ function processFilterParams(
 ): Record<string, string> {
   const processedParams = { ...params };
 
-  // Add default parameters
   const defaultParams: Record<string, string> = {
     language: "en-US",
     include_adult: "false",
@@ -278,7 +267,6 @@ function processFilterParams(
     ...processedParams,
   };
 
-  // Apply romance filtering unless this is specifically a romance filter
   if (!params.with_genres?.includes("10749")) {
     return addRomanceFiltering(baseParams);
   }
