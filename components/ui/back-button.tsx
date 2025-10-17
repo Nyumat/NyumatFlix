@@ -1,7 +1,9 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "./button";
 
 interface BackButtonProps {
@@ -13,11 +15,14 @@ export function BackButton({
   className,
   fallbackUrl = "/home",
 }: BackButtonProps) {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
+  const [isClient, setIsClient] = useState(false);
+  const [canGoBack, setCanGoBack] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setIsClient(true);
+    setCanGoBack(window.history.length > 1);
+  }, []);
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -34,11 +39,14 @@ export function BackButton({
   return (
     <Button
       title="Go back"
-      disabled={window.history.length <= 1}
-      aria-disabled={window.history.length <= 1}
+      disabled={!isClient || !canGoBack}
+      aria-disabled={!isClient || !canGoBack}
       onClick={handleBack}
       onMouseEnter={handleMouseEnter}
-      className="absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed"
+      className={cn(
+        "absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed",
+        className,
+      )}
       aria-label="Go back"
     >
       <ChevronLeft size={24} />
