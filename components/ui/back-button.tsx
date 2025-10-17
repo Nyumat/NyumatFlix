@@ -1,8 +1,7 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
 interface BackButtonProps {
@@ -14,6 +13,10 @@ export function BackButton({
   className,
   fallbackUrl = "/home",
 }: BackButtonProps) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   const router = useRouter();
 
   const handleBack = () => {
@@ -30,18 +33,15 @@ export function BackButton({
 
   return (
     <Button
-      variant="ghost"
-      size="sm"
+      title="Go back"
+      disabled={window.history.length <= 1}
+      aria-disabled={window.history.length <= 1}
       onClick={handleBack}
       onMouseEnter={handleMouseEnter}
-      className={cn(
-        "fixed top-20 left-6 z-50 bg-background/80 backdrop-blur-md border border-border/50 hover:bg-background/90 transition-all duration-200",
-        className,
-      )}
+      className="absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed"
       aria-label="Go back"
     >
-      <ArrowLeft className="w-4 h-4 mr-2" />
-      Back
+      <ChevronLeft size={24} />
     </Button>
   );
 }
