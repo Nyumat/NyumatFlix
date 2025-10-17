@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   buildItemsWithCategories,
   fetchAndEnrichMediaItems,
   fetchTMDBData,
 } from "@/app/actions";
 import { MediaItem } from "@/utils/typings";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { Genre } from "@/utils/typings";
+import { NextResponse } from "next/server";
 
 interface GenresResponse {
   genres: Genre[];

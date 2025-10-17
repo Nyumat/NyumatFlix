@@ -1,8 +1,8 @@
+import { auth } from "@/auth";
+import { db, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
-import { db, users } from "@/db/schema";
 
 const updateNameSchema = z.object({
   name: z
