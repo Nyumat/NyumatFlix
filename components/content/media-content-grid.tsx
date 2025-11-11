@@ -258,6 +258,7 @@ export function MediaContentGrid({
   dockPosition = "bottom-right",
   "data-testid": testId,
   itemsPerRow = 4,
+  type,
 }: MediaContentGridProps) {
   const {
     viewMode: storedViewMode,
@@ -290,7 +291,7 @@ export function MediaContentGrid({
 
   const processedItems = items.map((item) => ({
     ...item,
-    media_type: item.media_type,
+    media_type: type || item.media_type,
   }));
 
   const renderMediaCard = (item: ContentItem, viewMode: ViewMode) => {
