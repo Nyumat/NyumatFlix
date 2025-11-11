@@ -19,7 +19,6 @@ import { MediaCarouselProps } from "./types";
 
 export function MediaCarousel({ items }: MediaCarouselProps) {
   const [desktopCarouselApi, setDesktopCarouselApi] = useState<CarouselApi>();
-  const [mobileCarouselApi, setMobileCarouselApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [expandedOverview, setExpandedOverview] = useState<
     Record<number, boolean>
@@ -41,33 +40,43 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
   };
 
   useEffect(() => {
-    const activeApi = desktopCarouselApi || mobileCarouselApi;
-    if (!activeApi) return;
+    if (desktopCarouselApi) {
+      const onSelect = () => {
+        const newIndex = desktopCarouselApi.selectedScrollSnap();
+        setCurrentIndex(newIndex);
+      };
 
-    const onSelect = () => {
-      const newIndex = activeApi.selectedScrollSnap();
-      setCurrentIndex(newIndex);
-    };
+      desktopCarouselApi.on("select", onSelect);
 
-    activeApi.on("select", onSelect);
+      const interval = setInterval(() => {
+        if (document.visibilityState === "visible") {
+          desktopCarouselApi.scrollNext();
+        }
+      }, 7000);
 
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        activeApi.scrollNext();
-      }
-    }, 7000);
+      return () => {
+        desktopCarouselApi.off("select", onSelect);
+        clearInterval(interval);
+      };
+    }
 
-    return () => {
-      activeApi.off("select", onSelect);
-      clearInterval(interval);
-    };
-  }, [desktopCarouselApi, mobileCarouselApi]);
+    if (window.innerWidth < 768) {
+      const interval = setInterval(() => {
+        if (document.visibilityState === "visible") {
+          setCurrentIndex((prevIndex) => (prevIndex + 1) % items.length);
+        }
+      }, 7000);
+
+      return () => clearInterval(interval);
+    }
+  }, [desktopCarouselApi, items.length]);
 
   const handlePosterClick = (index: number) => {
-    const activeApi = desktopCarouselApi || mobileCarouselApi;
-    if (activeApi && index !== currentIndex) {
+    if (desktopCarouselApi && index !== currentIndex) {
       setCurrentIndex(index);
-      activeApi.scrollTo(index);
+      desktopCarouselApi.scrollTo(index);
+    } else if (index !== currentIndex) {
+      setCurrentIndex(index);
     }
   };
 
@@ -94,14 +103,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                     width={1920}
                     height={1080}
                     priority={index <= 2}
-                    className="object-cover brightness-[0.5] z-50"
-                    onError={(e) => {
-                      console.error(
-                        "Failed to load backdrop image:",
-                        item.backdrop_path,
-                      );
-                      e.currentTarget.style.display = "none";
-                    }}
+                    className="object-cover brightness-[0.3] z-50 w-full h-full"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
@@ -132,113 +134,95 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
       </div>
 
       <div className="relative md:hidden pt-20 pb-4">
-        <Carousel
-          className="w-full"
-          setApi={setMobileCarouselApi}
-          plugins={[Fade()]}
-          opts={{ loop: true, duration: 50, containScroll: "trimSnaps" }}
-        >
-          <CarouselContent className="!ml-0">
-            {items.map((item) => {
-              const mediaType = getMediaType(item);
-              const genres = getGenreNames(item.genre_ids, mediaType);
-              const year = match(item)
-                .with({ title: P.string, release_date: P.string }, (movie) =>
-                  new Date(movie.release_date).getFullYear().toString(),
-                )
-                .with({ name: P.string, first_air_date: P.string }, (tvShow) =>
-                  new Date(tvShow.first_air_date).getFullYear().toString(),
-                )
-                .otherwise(() => "");
+        <div className="w-full animate-in fade-in duration-500">
+          {(() => {
+            const currentItem = items[currentIndex];
+            const mediaType = getMediaType(currentItem);
+            const genres = getGenreNames(currentItem.genre_ids, mediaType);
+            const year = match(currentItem)
+              .with({ title: P.string, release_date: P.string }, (movie) =>
+                new Date(movie.release_date).getFullYear().toString(),
+              )
+              .with({ name: P.string, first_air_date: P.string }, (tvShow) =>
+                new Date(tvShow.first_air_date).getFullYear().toString(),
+              )
+              .otherwise(() => "");
 
-              const isExpanded = expandedOverview[item.id] || false;
-              const shouldShowReadMore =
-                item.overview && item.overview.length > 120;
+            const isExpanded = expandedOverview[currentItem.id] || false;
+            const shouldShowReadMore =
+              currentItem.overview && currentItem.overview.length > 100;
 
-              return (
-                <CarouselItem key={item.id} className="pl-0">
-                  <div className="relative w-full h-80 sm:h-96 overflow-hidden shadow-2xl">
-                    <Image
-                      src={`https://image.tmdb.org/t/p/w780${item.backdrop_path}`}
-                      alt={match(item)
-                        .with({ title: P.string }, (movie) => movie.title)
-                        .with({ name: P.string }, (tvShow) => tvShow.name)
-                        .otherwise(() => "Media Item")}
-                      fill
-                      priority={true}
-                      className="object-cover brightness-[0.5]"
-                      onError={(e) => {
-                        console.error(
-                          "Failed to load backdrop image:",
-                          item.backdrop_path,
-                        );
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
-
-                    {/* Content overlay */}
-                    <div className="absolute inset-0 flex flex-col justify-end p-6">
-                      {/* Title */}
-                      <h3 className="text-white text-2xl sm:text-3xl font-bold mb-3 drop-shadow-lg">
-                        {match(item)
+            return (
+              <div className="px-4 w-full">
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 w-24 sm:w-28">
+                    <div className="relative aspect-[2/3] mt-4 overflow-hidden rounded-md bg-muted">
+                      <Image
+                        key={`mobile-poster-${currentItem.id}`}
+                        src={`https://image.tmdb.org/t/p/w342${currentItem.poster_path}`}
+                        alt={match(currentItem)
+                          .with({ title: P.string }, (movie) => movie.title)
+                          .with({ name: P.string }, (tvShow) => tvShow.name)
+                          .otherwise(() => "Media Item")}
+                        fill
+                        priority={true}
+                        className="object-cover"
+                        sizes="(max-width:640px)96px,112px"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between py-2">
+                    <div>
+                      <h3 className="text-white text-lg sm:text-xl font-bold mb-2 drop-shadow-lg line-clamp-2">
+                        {match(currentItem)
                           .with({ title: P.string }, (movie) => movie.title)
                           .with({ name: P.string }, (tvShow) => tvShow.name)
                           .otherwise(() => "Media Item")}
                       </h3>
-
-                      {/* Metadata row */}
-                      <div className="flex items-center gap-3 mb-3 text-white/90 text-sm">
-                        {/* Content rating */}
-                        {item.content_rating && (
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 bg-white/20 rounded text-xs font-medium border border-white/30">
-                              {item.content_rating}
-                            </span>
-                          </div>
+                      <div className="flex items-center gap-2 mb-2 text-white/90 text-xs">
+                        {currentItem.content_rating && (
+                          <span className="px-1.5 py-0.5 bg-white/20 rounded text-[10px] font-medium border border-white/30">
+                            {currentItem.content_rating}
+                          </span>
                         )}
-
-                        {/* Rating */}
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                           <span className="font-medium">
-                            {item.vote_average.toFixed(1)}
+                            {currentItem.vote_average.toFixed(1)}
                           </span>
                         </div>
                       </div>
-
-                      {/* Year and genres */}
-                      <div className="flex items-center gap-2 mb-4 text-white/80 text-sm">
+                      <div className="flex items-center gap-2 mb-3 text-white/80 text-xs flex-wrap">
                         {year && <span>{year}</span>}
                         {year && genres.length > 0 && <span>•</span>}
                         {genres.length > 0 && (
-                          <span>{genres.slice(0, 2).join(" / ")}</span>
+                          <span className="truncate">
+                            {genres.slice(0, 2).join(" / ")}
+                          </span>
                         )}
                         {mediaType === "tv" &&
-                          typeof item.number_of_seasons === "number" &&
-                          item.number_of_seasons > 0 && (
+                          typeof currentItem.number_of_seasons === "number" &&
+                          currentItem.number_of_seasons > 0 && (
                             <>
                               <span>•</span>
                               <span>
-                                {item.number_of_seasons} Season
-                                {item.number_of_seasons !== 1 ? "s" : ""}
+                                {currentItem.number_of_seasons} Season
+                                {currentItem.number_of_seasons !== 1 ? "s" : ""}
                               </span>
                             </>
                           )}
                       </div>
-
-                      {/* Overview */}
-                      {item.overview && (
-                        <div className="mb-4">
-                          <p className="text-white/90 text-sm leading-relaxed">
+                      {currentItem.overview && (
+                        <div className="mb-2">
+                          <p className="text-white/90 text-xs leading-relaxed line-clamp-3">
                             {isExpanded || !shouldShowReadMore
-                              ? item.overview
-                              : `${item.overview.substring(0, 120)}...`}
+                              ? currentItem.overview
+                              : `${currentItem.overview.substring(0, 100)}...`}
                           </p>
                           {shouldShowReadMore && (
                             <button
-                              onClick={() => toggleOverview(item.id)}
-                              className="text-white text-sm font-medium mt-1 hover:text-orange-400 transition-colors"
+                              onClick={() => toggleOverview(currentItem.id)}
+                              className="text-white/80 text-xs font-medium mt-1 hover:text-orange-400 transition-colors"
                             >
                               {isExpanded ? "Read less" : "Read more"}
                             </button>
@@ -247,11 +231,11 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                       )}
                     </div>
                   </div>
-                </CarouselItem>
-              );
-            })}
-          </CarouselContent>
-        </Carousel>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
 
         <div className="flex justify-center space-x-2 mt-4">
           {items.map((_, index) => (

@@ -17,7 +17,7 @@ export function BackgroundImage({
       className={`${
         isFullPage
           ? "fixed -mt-5 h-[100dvh] w-full"
-          : "absolute w-full h-[40vh]"
+          : "absolute w-full h-[40vh] inset-x-0"
       } z-0 overflow-hidden`}
     >
       <Image
