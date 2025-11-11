@@ -17,7 +17,6 @@ export interface VideoServer {
   ) => Promise<boolean>;
 }
 
-// Manual server availability overrides
 export interface ServerOverride {
   serverId: string;
   isAvailable: boolean;
@@ -123,7 +122,6 @@ export const videoServers: VideoServer[] = [
   },
 ];
 
-// Default server overrides - you can easily modify these
 export const defaultServerOverrides: ServerOverride[] = [
   {
     serverId: "embedsu",
