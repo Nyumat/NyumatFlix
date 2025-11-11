@@ -1,12 +1,12 @@
 "use client";
 
-import { LegacyAnimationControls, useAnimation } from "framer-motion";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { YouTubePlayer } from "@/components/hero/youtube-types";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import type { MediaItem } from "@/utils/typings";
 import { getFirstRegularSeason, isTVShow } from "@/utils/typings";
+import { LegacyAnimationControls, useAnimation } from "framer-motion";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export interface UseMediaHeroState {
   currentItemIndex: number;
@@ -216,7 +216,10 @@ export const useMediaHero = ({
     handleNext,
     handleWatch,
     handlePlayTrailer,
-    handleTrailerEnded: () => setIsPlayingTrailer(false),
+    handleTrailerEnded: () => {
+      setIsPlayingTrailer(false);
+      setIsPlayingVideo(false);
+    },
     setYoutubePlayer,
   };
 };
