@@ -9,7 +9,6 @@ import {
   LegacyAnimationControls,
   motion,
 } from "framer-motion";
-import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { YouTubePlayer } from "./youtube-types";
 
@@ -243,27 +242,34 @@ export function HeroBackground({
           className="relative h-full w-full"
           animate={controls}
         >
+          <motion.img
+            src={`https://image.tmdb.org/t/p/original${
+              media.backdrop_path ?? media.poster_path
+            }`}
+            fetchPriority="high"
+            alt={(media.title || media.name) as string}
+            className="w-full h-full object-cover absolute inset-0 z-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0.5 }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+          />
+          <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent"></div>
+
           {isPlayingTrailer && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
-              className="w-full h-full absolute inset-0 z-30"
+              className="w-full absolute z-30 px-4 sm:px-6 lg:px-8"
+              style={{ top: "5rem", height: "calc(100% - 11rem)" }}
             >
-              <button
-                onClick={() => {
-                  if (youtubePlayer) {
-                    youtubePlayer.destroy();
-                    setYoutubePlayer(null);
-                  }
-                  onTrailerEnded();
-                }}
-                className="absolute top-6 left-6 z-50 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border"
-                aria-label="Stop trailer"
-              >
-                <X size={24} />
-              </button>
-              <div id="trailer-player" className="w-full h-full"></div>
+              <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full">
+                <div
+                  id="trailer-player"
+                  className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20"
+                ></div>
+              </div>
             </motion.div>
           )}
           {isPlayingVideo && (
@@ -271,36 +277,18 @@ export function HeroBackground({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
-              className="w-full h-full absolute inset-0 z-30"
+              className="w-full absolute z-30 px-4 sm:px-6 lg:px-8"
+              style={{ top: "5rem", height: "calc(100% - 11rem)" }}
             >
-              <button
-                onClick={() => onTrailerEnded()}
-                className="absolute top-6 left-6 z-50 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border"
-                aria-label="Close video"
-              >
-                <X size={24} />
-              </button>
-              <motion.iframe
-                src={getVideoSrc()}
-                className="w-full h-full"
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-              />
+              <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full">
+                <motion.iframe
+                  src={getVideoSrc()}
+                  className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20"
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
             </motion.div>
-          )}
-          {!isPlayingVideo && !isPlayingTrailer && (
-            <motion.img
-              src={`https://image.tmdb.org/t/p/original${
-                media.backdrop_path ?? media.poster_path
-              }`}
-              fetchPriority="high"
-              alt={(media.title || media.name) as string}
-              className="w-full h-full object-cover absolute inset-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0.5 }}
-              transition={{ duration: 1.5, ease: "easeInOut" }}
-            />
           )}
         </motion.div>
       </AnimatePresence>
