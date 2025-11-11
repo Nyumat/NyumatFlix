@@ -5,7 +5,6 @@ import {
 } from "@/app/actions";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
-import { BackButton } from "@/components/ui/back-button";
 import { MediaItem } from "@/utils/typings";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
@@ -114,7 +113,6 @@ export default async function PersonPage(props: PersonPageProps) {
 
   return (
     <PageContainer className="pb-4 mb-4">
-      <BackButton />
       <div className="relative min-h-screen">
         <StableBackground />
         <div className="relative z-10">

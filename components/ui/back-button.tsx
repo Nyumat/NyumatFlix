@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "./button";
 
@@ -11,6 +11,15 @@ interface BackButtonProps {
   fallbackUrl?: string;
 }
 
+// routes where we should hide the back button
+const HIDE_BACK_BUTTON_ROUTES = [
+  "/",
+  "/home",
+  "/movies",
+  "/tvshows",
+  "/search",
+];
+
 export function BackButton({
   className,
   fallbackUrl = "/home",
@@ -18,6 +27,7 @@ export function BackButton({
   const [isClient, setIsClient] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     setIsClient(true);
@@ -36,6 +46,11 @@ export function BackButton({
     router.prefetch(fallbackUrl);
   };
 
+  // hide on top-level routes
+  if (HIDE_BACK_BUTTON_ROUTES.includes(pathname)) {
+    return null;
+  }
+
   return (
     <Button
       title="Go back"
@@ -44,7 +59,7 @@ export function BackButton({
       onClick={handleBack}
       onMouseEnter={handleMouseEnter}
       className={cn(
-        "absolute top-6 left-6 z-30 bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed",
+        "bg-background/80 hover:bg-background/90 backdrop-blur-sm transition-colors rounded-full p-2 text-foreground border border-border disabled:opacity-50 disabled:cursor-not-allowed",
         className,
       )}
       aria-label="Go back"
