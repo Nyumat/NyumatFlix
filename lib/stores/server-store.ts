@@ -46,34 +46,14 @@ export const videoServers: VideoServer[] = [
     // SuperEmbed regular player doesn't have availability checking, assume always available
   },
   {
-    id: "embedsu",
-    name: "Embed.su",
-    baseUrl: "https://embed.su",
-    getMovieUrl: (tmdbId) => `https://embed.su/embed/movie/${tmdbId}`,
-    getTvUrl: (tmdbId) => `https://embed.su/embed/tv/${tmdbId}`,
+    id: "autoembed",
+    name: "AutoEmbed",
+    baseUrl: "https://player.autoembed.cc",
+    getMovieUrl: (tmdbId) => `https://player.autoembed.cc/embed/movie/${tmdbId}`,
+    getTvUrl: (tmdbId) => `https://player.autoembed.cc/embed/tv/${tmdbId}`,
     getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://embed.su/embed/tv/${tmdbId}/${season}/${episode}`,
-    checkIndividualAvailability: async (tmdbId, type) => {
-      try {
-        const response = await fetch(
-          `/api/embed-su-availability?type=${type}&tmdbId=${tmdbId}`,
-        );
-        if (!response.ok) {
-          console.warn(
-            `Embed.su availability API returned ${response.status} for ${type} TMDB ${tmdbId}`,
-          );
-          return false;
-        }
-        const data = await response.json();
-        return data.available === true;
-      } catch (error) {
-        console.error(
-          `Error checking ${type} availability for Embed.su TMDB ${tmdbId}:`,
-          error,
-        );
-        return false;
-      }
-    },
+      `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`,
+    // AutoEmbed doesn't have availability checking, assume always available
   },
   {
     id: "111movies",
@@ -85,55 +65,9 @@ export const videoServers: VideoServer[] = [
       `https://111movies.com/tv/${tmdbId}/${season}/${episode}`,
     // 111Movies doesn't have availability checking, assume always available
   },
-  {
-    id: "filmku",
-    name: "FilmKu",
-    baseUrl: "https://filmku.stream",
-    getMovieUrl: (tmdbId) => `https://filmku.stream/embed/movie?tmdb=${tmdbId}`,
-    getTvUrl: (tmdbId) => `https://filmku.stream/embed/series?tmdb=${tmdbId}`,
-    getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://filmku.stream/embed/series?tmdb=${tmdbId}&sea=${season}&epi=${episode}`,
-    checkIndividualAvailability: async (tmdbId, type, season, episode) => {
-      try {
-        // Use our API route to keep TMDB API key secure
-        let url = `/api/filmku-availability?tmdbId=${tmdbId}&type=${type}`;
-        if (season !== undefined && episode !== undefined) {
-          url += `&season=${season}&episode=${episode}`;
-        }
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          console.warn(
-            `FilmKu availability API returned ${response.status} for TMDB ${tmdbId}`,
-          );
-          return false;
-        }
-
-        const data = await response.json();
-        return data.available === true;
-      } catch (error) {
-        console.error(
-          `Error checking FilmKu availability for TMDB ${tmdbId}:`,
-          error,
-        );
-        return false;
-      }
-    },
-  },
 ];
 
-export const defaultServerOverrides: ServerOverride[] = [
-  {
-    serverId: "embedsu",
-    isAvailable: false,
-    reason: "Server down",
-  },
-  {
-    serverId: "filmku",
-    isAvailable: false,
-    reason: "Server down",
-  },
-];
+export const defaultServerOverrides: ServerOverride[] = [];
 
 interface ServerState {
   selectedServer: VideoServer;
