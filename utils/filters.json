@@ -1059,7 +1059,7 @@
       },
       {
         "id": "tv-diverse",
-        "title": "Diverse TV Shows",
+        "title": "Assorted TV Shows",
         "mediaType": "tv",
         "customFetcher": "fetchDiverseTV"
       },
