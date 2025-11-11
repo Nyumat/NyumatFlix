@@ -1,8 +1,9 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 interface NavLink {
   label: string;
@@ -23,7 +24,21 @@ export const NavbarLinks = ({
 }: NavbarLinksProps) => {
   const pathname = usePathname();
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+  const [isLgScreen, setIsLgScreen] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const checkScreenSize = () => {
+      setIsLgScreen(window.innerWidth >= 1024);
+    };
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
+
   const isActiveLink = (href: string) => {
+    if (!isMounted) return false;
     if (href === "/") {
       return pathname === "/";
     }
@@ -44,7 +59,6 @@ export const NavbarLinks = ({
 
   const handleLinkInteraction = (link: NavLink) => {
     router.prefetch(link.href);
-
     if (link.href === "/movies") {
       router.prefetch("/movies/browse");
       router.prefetch("/home");
@@ -64,9 +78,22 @@ export const NavbarLinks = ({
     router.prefetch(link.href);
   };
 
+  const filteredLinks = isMobile
+    ? links
+    : links.filter((link) => {
+        if (link.href === "/home") {
+          return isMounted ? isLgScreen : false;
+        }
+        return true;
+      });
+
+  if (!isMounted && !isMobile) {
+    return null;
+  }
+
   return (
     <div className={!isMobile ? "group" : ""}>
-      {links.map((link) => {
+      {filteredLinks.map((link) => {
         const isActive = isActiveLink(link.href);
         return (
           <Link
