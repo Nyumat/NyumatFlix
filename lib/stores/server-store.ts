@@ -80,10 +80,16 @@ export const videoServers: VideoServer[] = [
     getTvUrl: (tmdbId) => `https://vidnest.fun/tv/${tmdbId}`,
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}`,
-    getAnimeUrl: (anilistId, episode) =>
-      `https://vidnest.fun/anime/${anilistId}/${episode}/sub`,
-    getAnimePaheUrl: (anilistId, episode) =>
-      `https://vidnest.fun/animepahe/${anilistId}/${episode}/sub`,
+    getAnimeUrl: (anilistId, episode) => {
+      const state = useServerStore.getState();
+      const preference = state.animePreference;
+      return `https://vidnest.fun/anime/${anilistId}/${episode}/${preference}`;
+    },
+    getAnimePaheUrl: (anilistId, episode) => {
+      const state = useServerStore.getState();
+      const preference = state.animePreference;
+      return `https://vidnest.fun/animepahe/${anilistId}/${episode}/${preference}`;
+    },
     getVidnestUrl: (tmdbId, contentType, season, episode, anilistId) => {
       const state = useServerStore.getState();
       const preference = state.animePreference;
@@ -157,7 +163,7 @@ export const useServerStore = create<ServerState>()(
       selectedServer: videoServers[0],
       serverOverrides: defaultServerOverrides,
       animePreference: "sub" as "sub" | "dub",
-      vidnestContentType: "movie" as "movie" | "tv" | "anime",
+      vidnestContentType: "movie" as "movie" | "tv" | "anime" | "animepahe",
       setSelectedServer: (server) => {
         set({ selectedServer: server });
       },

@@ -6,6 +6,7 @@ import { SeasonTabs } from "@/components/tvshow/season-tabs";
 import { fetchTVShowDetails } from "@/components/tvshow/tvshow-api";
 import { TVShowOverview } from "@/components/tvshow/tvshow-overview";
 import { TVShowSidebar } from "@/components/tvshow/tvshow-sidebar";
+import { fetchAnilistId, getSearchTitle } from "@/utils/anilist-helpers";
 import { Season } from "@/utils/typings";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -183,6 +184,12 @@ export default async function TVShowPage(props: Props) {
         })
       : "Unknown";
 
+    // Fetch Anilist ID for anime content
+    const searchTitle = getSearchTitle(details);
+    const anilistId = searchTitle
+      ? await fetchAnilistId(searchTitle)
+      : undefined;
+
     return (
       <PageContainer className="pb-16">
         <HeroSection
@@ -196,6 +203,7 @@ export default async function TVShowPage(props: Props) {
           noSlide
           isWatch
           mediaType="tv"
+          anilistId={anilistId}
         />
 
         <div className="relative">
