@@ -10,6 +10,15 @@ import { fetchSeasonDetails } from "./tvshow-api";
 type SeasonEpisodesProps = {
   tvId: string;
   seasonNumber: number;
+  episodeRange?: {
+    start: number;
+    end: number;
+  };
+  animeInfo?: {
+    anilistId: number;
+    startEpisode: number;
+    endEpisode: number;
+  };
 };
 
 // Glassmorphism skeleton for episodes loading
@@ -38,7 +47,12 @@ function EpisodeCardSkeleton() {
   );
 }
 
-export function SeasonEpisodes({ tvId, seasonNumber }: SeasonEpisodesProps) {
+export function SeasonEpisodes({
+  tvId,
+  seasonNumber,
+  episodeRange,
+  animeInfo,
+}: SeasonEpisodesProps) {
   const [seasonDetails, setSeasonDetails] = useState<SeasonDetails | null>(
     null,
   );
@@ -63,9 +77,9 @@ export function SeasonEpisodes({ tvId, seasonNumber }: SeasonEpisodesProps) {
 
   const handleEpisodeClick = useCallback(
     (episode: Episode) => {
-      setSelectedEpisode(episode, tvId, seasonNumber);
+      setSelectedEpisode(episode, tvId, seasonNumber, animeInfo);
     },
-    [setSelectedEpisode, tvId, seasonNumber],
+    [setSelectedEpisode, tvId, seasonNumber, animeInfo],
   );
 
   return (
@@ -93,58 +107,66 @@ export function SeasonEpisodes({ tvId, seasonNumber }: SeasonEpisodesProps) {
           </div>
         ) : (
           <div className="space-y-4">
-            {seasonDetails.episodes.map((episode: Episode) => (
-              <div
-                key={episode.id}
-                onClick={() => handleEpisodeClick(episode)}
-                className={`bg-card/50 rounded-lg p-4 transition cursor-pointer border-2 ${
-                  selectedEpisode?.id === episode.id
-                    ? "border-primary bg-primary/10 hover:bg-primary/20"
-                    : "border-transparent hover:bg-card hover:border-border"
-                }`}
-              >
-                <div className="flex">
-                  <div className="w-32 h-20 rounded overflow-hidden mr-4 flex-shrink-0">
-                    {episode.still_path ? (
-                      <Image
-                        src={`https://image.tmdb.org/t/p/w300${episode.still_path}`}
-                        alt={episode.name}
-                        width={300}
-                        height={169}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <Tv size={20} className="text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <h4 className="text-foreground font-medium">
-                        {episode.episode_number}. {episode.name}
-                      </h4>
-                      <div className="text-muted-foreground text-sm">
-                        {episode.runtime ? `${episode.runtime} min` : ""}
-                      </div>
+            {seasonDetails.episodes
+              .filter((episode: Episode) => {
+                if (!episodeRange) return true;
+                return (
+                  episode.episode_number >= episodeRange.start &&
+                  episode.episode_number <= episodeRange.end
+                );
+              })
+              .map((episode: Episode) => (
+                <div
+                  key={episode.id}
+                  onClick={() => handleEpisodeClick(episode)}
+                  className={`bg-card/50 rounded-lg p-4 transition cursor-pointer border-2 ${
+                    selectedEpisode?.id === episode.id
+                      ? "border-primary bg-primary/10 hover:bg-primary/20"
+                      : "border-transparent hover:bg-card hover:border-border"
+                  }`}
+                >
+                  <div className="flex">
+                    <div className="w-32 h-20 rounded overflow-hidden mr-4 flex-shrink-0">
+                      {episode.still_path ? (
+                        <Image
+                          src={`https://image.tmdb.org/t/p/w300${episode.still_path}`}
+                          alt={episode.name}
+                          width={300}
+                          height={169}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <Tv size={20} className="text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
-                    {episode.air_date && (
-                      <div className="text-muted-foreground text-xs mb-1">
-                        {new Date(episode.air_date).toLocaleDateString()}
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <h4 className="text-foreground font-medium">
+                          {episode.episode_number}. {episode.name}
+                        </h4>
+                        <div className="text-muted-foreground text-sm">
+                          {episode.runtime ? `${episode.runtime} min` : ""}
+                        </div>
                       </div>
-                    )}
-                    <p className="text-muted-foreground text-sm line-clamp-2">
-                      {episode.overview}
-                    </p>
-                    {selectedEpisode?.id === episode.id && (
-                      <div className="mt-2 text-primary text-sm font-medium">
-                        Selected for viewing
-                      </div>
-                    )}
+                      {episode.air_date && (
+                        <div className="text-muted-foreground text-xs mb-1">
+                          {new Date(episode.air_date).toLocaleDateString()}
+                        </div>
+                      )}
+                      <p className="text-muted-foreground text-sm line-clamp-2">
+                        {episode.overview}
+                      </p>
+                      {selectedEpisode?.id === episode.id && (
+                        <div className="mt-2 text-primary text-sm font-medium">
+                          Selected for viewing
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>

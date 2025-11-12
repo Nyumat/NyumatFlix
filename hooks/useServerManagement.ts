@@ -1,16 +1,20 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { useServerStore } from "@/lib/stores/server-store";
+import { useCallback, useState } from "react";
 
 export interface UseServerManagementState {
   customReason: string;
   editingServerId: string | null;
+  animePreference: "sub" | "dub";
+  vidnestContentType: "movie" | "tv" | "anime" | "animepahe";
 }
 
 export interface UseServerManagementActions {
   setCustomReason: (value: string) => void;
   setEditingServerId: (id: string | null) => void;
+  setAnimePreference: (preference: "sub" | "dub") => void;
+  setVidnestContentType: (type: "movie" | "tv" | "anime" | "animepahe") => void;
   handleToggleServer: (
     serverId: string,
     isAvailable: boolean,
@@ -18,6 +22,12 @@ export interface UseServerManagementActions {
   ) => void;
   handleCustomReason: (serverId: string) => void;
   getServerStatus: (serverId: string) => "available" | "unavailable";
+  getAnimeUrl: (serverId: string, anilistId: number, episode: number) => string;
+  getAnimePaheUrl: (
+    serverId: string,
+    anilistId: number,
+    episode: number,
+  ) => string;
 }
 
 export interface UseServerManagementReturn
@@ -25,8 +35,17 @@ export interface UseServerManagementReturn
     UseServerManagementActions {}
 
 export const useServerManagement = (): UseServerManagementReturn => {
-  const { setServerOverride, removeServerOverride, getServerOverride } =
-    useServerStore();
+  const {
+    setServerOverride,
+    removeServerOverride,
+    getServerOverride,
+    animePreference,
+    setAnimePreference,
+    vidnestContentType,
+    setVidnestContentType,
+    getAnimeUrl,
+    getAnimePaheUrl,
+  } = useServerStore();
 
   const [customReason, setCustomReason] = useState<string>("");
   const [editingServerId, setEditingServerId] = useState<string | null>(null);
@@ -70,6 +89,12 @@ export const useServerManagement = (): UseServerManagementReturn => {
     handleToggleServer,
     handleCustomReason,
     getServerStatus,
+    animePreference,
+    setAnimePreference,
+    vidnestContentType,
+    setVidnestContentType,
+    getAnimeUrl,
+    getAnimePaheUrl,
   };
 };
 
