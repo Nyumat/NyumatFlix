@@ -6,7 +6,11 @@ import { SeasonTabs } from "@/components/tvshow/season-tabs";
 import { fetchTVShowDetails } from "@/components/tvshow/tvshow-api";
 import { TVShowOverview } from "@/components/tvshow/tvshow-overview";
 import { TVShowSidebar } from "@/components/tvshow/tvshow-sidebar";
-import { fetchAnilistId, getSearchTitle } from "@/utils/anilist-helpers";
+import {
+  fetchAnilistId,
+  getSearchTitle,
+  isAnime,
+} from "@/utils/anilist-helpers";
 import { Season } from "@/utils/typings";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -184,11 +188,19 @@ export default async function TVShowPage(props: Props) {
         })
       : "Unknown";
 
-    // Fetch Anilist ID for anime content
+    // Fetch Anilist ID for anime content only
     const searchTitle = getSearchTitle(details);
-    const anilistId = searchTitle
-      ? await fetchAnilistId(searchTitle)
-      : undefined;
+    console.log("TV Show details genre_ids:", details.genre_ids);
+    console.log("TV Show details genres:", details.genres);
+    console.log("Search title:", searchTitle);
+    console.log(
+      "Is anime check:",
+      isAnime(details.genre_ids || details.genres || []),
+    );
+    const anilistId =
+      searchTitle && isAnime(details.genre_ids || details.genres || [])
+        ? await fetchAnilistId(searchTitle)
+        : undefined;
 
     return (
       <PageContainer className="pb-16">

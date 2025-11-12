@@ -1,4 +1,8 @@
-import { fetchAnilistId, getSearchTitle } from "@/utils/anilist-helpers";
+import {
+  fetchAnilistId,
+  getSearchTitle,
+  isAnime,
+} from "@/utils/anilist-helpers";
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_TMDB_SHOW_IDS = [1429]; // Attack on Titan
@@ -24,6 +28,8 @@ interface TmdbShow {
   last_air_date?: string;
   number_of_seasons: number;
   number_of_episodes: number;
+  genre_ids?: number[];
+  genres?: { id: number }[];
 }
 
 interface AnilistMediaExtended {
@@ -183,10 +189,27 @@ async function fetchTmdbSeason(
 async function fetchAniListCandidates(
   title: string,
   seasonNumber?: number,
+  genreIds?: number[],
+  genres?: { id: number }[],
 ): Promise<AnilistMediaExtended[]> {
+  console.log(
+    "fetchAniListCandidates called with title:",
+    title,
+    "genreIds:",
+    genreIds,
+    "genres:",
+    genres,
+  );
   const cacheKey = `anilist_candidates_${title}`;
   const cached = getCached(cacheKey);
   if (cached && Array.isArray(cached)) return cached as AnilistMediaExtended[];
+
+  // Only fetch AniList data if the content is anime
+  const genreData = genreIds || genres;
+  console.log("Is anime check result:", !genreData || !isAnime(genreData));
+  if (!genreData || !isAnime(genreData)) {
+    return [];
+  }
 
   try {
     const candidates: AnilistMediaExtended[] = [];
@@ -437,6 +460,8 @@ export async function GET(request: NextRequest) {
     const anilistCandidates = await fetchAniListCandidates(
       searchTitle,
       seasonNumber,
+      tmdbShow.genre_ids,
+      tmdbShow.genres,
     );
 
     if (anilistCandidates.length === 0) {
