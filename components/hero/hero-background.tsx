@@ -32,6 +32,8 @@ interface HeroBackgroundProps {
   youtubePlayer: YouTubePlayer;
   /** Setter for YouTube player instance */
   setYoutubePlayer(player: YouTubePlayer): void;
+  /** Anilist ID for anime content */
+  anilistId?: number | null | undefined;
 }
 
 /**
@@ -49,9 +51,11 @@ export function HeroBackground({
   onTrailerEnded,
   youtubePlayer,
   setYoutubePlayer,
+  anilistId,
 }: HeroBackgroundProps) {
   const { getEmbedUrl } = useEpisodeStore();
-  const { selectedServer } = useServerStore();
+  const { selectedServer, vidnestContentType, animePreference } =
+    useServerStore();
   let currentItemVideos: { type: string; key: string }[] = [];
 
   if (media.videos) {
@@ -107,6 +111,81 @@ export function HeroBackground({
 
   const getVideoSrc = () => {
     const detectedMediaType = getMediaType();
+
+    if (selectedServer.id === "vidnest" && selectedServer.getVidnestUrl) {
+      const episodeStore = useEpisodeStore.getState();
+
+      if (vidnestContentType === "movie") {
+        return selectedServer.getVidnestUrl(
+          media.id,
+          "movie",
+          undefined,
+          undefined,
+          undefined,
+        );
+      }
+
+      if (vidnestContentType === "tv") {
+        if (episodeStore.selectedEpisode) {
+          return selectedServer.getVidnestUrl(
+            parseInt(episodeStore.tvShowId || ""),
+            "tv",
+            episodeStore.seasonNumber || undefined,
+            episodeStore.selectedEpisode.episode_number,
+            undefined,
+          );
+        }
+        return selectedServer.getVidnestUrl(
+          media.id,
+          "tv",
+          undefined,
+          undefined,
+          undefined,
+        );
+      }
+
+      if (vidnestContentType === "anime") {
+        if (
+          episodeStore.isAnimeEpisode &&
+          episodeStore.anilistId &&
+          episodeStore.relativeEpisodeNumber
+        ) {
+          return selectedServer.getVidnestUrl(
+            media.id,
+            "anime",
+            undefined,
+            episodeStore.relativeEpisodeNumber,
+            episodeStore.anilistId,
+          );
+        } else {
+          // For non-anime content with anime content type, use anilistId if available, otherwise construct URL manually
+          const episode = episodeStore.selectedEpisode?.episode_number || 1;
+          const idToUse = anilistId || media.id;
+          return `https://vidnest.fun/anime/${idToUse}/${episode}/${animePreference}`;
+        }
+      }
+
+      if (vidnestContentType === "animepahe") {
+        if (
+          episodeStore.isAnimeEpisode &&
+          episodeStore.anilistId &&
+          episodeStore.relativeEpisodeNumber
+        ) {
+          return selectedServer.getVidnestUrl(
+            media.id,
+            "animepahe",
+            undefined,
+            episodeStore.relativeEpisodeNumber,
+            episodeStore.anilistId,
+          );
+        } else {
+          // For non-anime content with animepahe content type, use anilistId if available, otherwise construct URL manually
+          const episode = episodeStore.selectedEpisode?.episode_number || 1;
+          const idToUse = anilistId || media.id;
+          return `https://vidnest.fun/animepahe/${idToUse}/${episode}/${animePreference}`;
+        }
+      }
+    }
 
     // For TV shows, use episode URLs (which now includes anime URLs)
     if (detectedMediaType === "tv") {
@@ -270,6 +349,15 @@ export function HeroBackground({
               <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full">
                 {(() => {
                   const videoSrc = getVideoSrc();
+                  const iframeKey = `${videoSrc}-${vidnestContentType}-${animePreference}-${selectedServer.id}`;
+
+                  console.log("[HeroBackground] Video iframe:", {
+                    videoSrc,
+                    vidnestContentType,
+                    animePreference,
+                    selectedServerId: selectedServer.id,
+                    iframeKey,
+                  });
 
                   if (!videoSrc) {
                     return (
@@ -283,7 +371,7 @@ export function HeroBackground({
 
                   return (
                     <motion.iframe
-                      key={videoSrc}
+                      key={iframeKey}
                       src={videoSrc}
                       className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20"
                       allow="autoplay; encrypted-media; picture-in-picture"

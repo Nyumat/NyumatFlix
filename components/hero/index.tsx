@@ -14,6 +14,7 @@ interface MediaDetailHeroProps {
   isWatch?: boolean;
   mediaType?: "tv" | "movie";
   isUpcoming?: boolean;
+  anilistId?: number | null | undefined;
 }
 
 export function MediaDetailHero({
@@ -22,6 +23,7 @@ export function MediaDetailHero({
   isWatch = false,
   mediaType: passedMediaType,
   isUpcoming = false,
+  anilistId,
 }: MediaDetailHeroProps) {
   const {
     currentItemIndex,
@@ -50,6 +52,7 @@ export function MediaDetailHero({
         onTrailerEnded={handleTrailerEnded}
         youtubePlayer={youtubePlayer}
         setYoutubePlayer={setYoutubePlayer}
+        anilistId={anilistId}
       />
 
       <HeroContent
