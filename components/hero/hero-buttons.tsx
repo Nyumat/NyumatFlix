@@ -88,19 +88,19 @@ export function HeroButtons({
       onClick={handleWatchClick}
       disabled={isWatchDisabled}
       className={cn(
-        "backdrop-blur-md bg-white/20 border border-white/30 text-white py-3 px-6 rounded-full font-bold transition flex items-center shadow-lg",
+        "backdrop-blur-md bg-white/20 border border-white/30 text-white py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
         isWatchDisabled
           ? "bg-white/10 border-white/20 text-white/60 cursor-not-allowed opacity-60"
           : "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
       )}
     >
-      <Play className="mr-2" size={20} />
-      {getWatchButtonText()}
+      <Play className="mr-2 h-4 w-4" />
+      <span className="text-sm">{getWatchButtonText()}</span>
     </button>
   );
 
   return (
-    <div className="flex items-center space-x-4">
+    <div className="flex items-center justify-center gap-2 sm:gap-3">
       {isWatchDisabled ? (
         <Tooltip>
           <TooltipTrigger asChild>{WatchButton}</TooltipTrigger>
@@ -113,11 +113,11 @@ export function HeroButtons({
       )}
 
       <button
-        className="backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg"
+        className="backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg whitespace-nowrap"
         onClick={handlePlayTrailer}
       >
-        <Youtube className="mr-2" size={20} />
-        Play Trailer
+        <Youtube className="mr-2 h-4 w-4" />
+        <span className="text-sm">Play Trailer</span>
       </button>
     </div>
   );

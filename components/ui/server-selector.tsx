@@ -1,21 +1,22 @@
 "use client";
 
-import { Check, Server, Wifi, WifiOff } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useServerStore, videoServers } from "@/lib/stores/server-store";
 import { isMovie, isTVShow, MediaItem } from "@/utils/typings";
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { Check, Server, Wifi, WifiOff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ContentTypeToggle } from "./content-type-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "./tooltip";
+import { SubDubToggle } from "./sub-dub-toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 interface ServerSelectorProps {
   media?: MediaItem;
@@ -35,6 +36,10 @@ export function ServerSelector({
     serverOverrides,
     getServerOverride,
     isServerOverridden,
+    animePreference,
+    setAnimePreference,
+    vidnestContentType,
+    setVidnestContentType,
   } = useServerStore();
   const [availabilityData, setAvailabilityData] = useState<{
     [serverId: string]: {
@@ -304,100 +309,175 @@ export function ServerSelector({
   const isCurrentServerLoading = isCheckingAvailability(selectedServer.id);
 
   return (
-    <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <button
-              className={`backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg gap-2 ${className}`}
-            >
-              <Server className="h-4 w-4" />
-              {selectedServer.name}
-              {isCurrentServerLoading ? (
-                <Wifi className="h-4 w-4 animate-pulse text-yellow-300" />
-              ) : currentServerAvailability ? (
-                <Wifi className="h-4 w-4 text-green-400" />
-              ) : currentServerAvailability === false ? (
-                <WifiOff className="h-4 w-4 text-red-400" />
-              ) : (
-                <Wifi className="h-4 w-4 text-gray-300" />
-              )}
-            </button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Select a server to stream from</p>
-        </TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent align="end" className="w-56">
-        {videoServers
-          .sort((a, b) => {
-            const aAvailable = isContentAvailable(a.id);
-            const bAvailable = isContentAvailable(b.id);
-
-            // We should prioritize available servers.
-            if (aAvailable !== bAvailable) {
-              return bAvailable ? 1 : -1;
-            }
-
-            return 0;
-          })
-          .map((server) => {
-            const available = isContentAvailable(server.id);
-            const isLoading = isCheckingAvailability(server.id);
-            const isDisabled = available === false;
-            const serverOverride = getServerOverride(server.id);
-
-            return (
-              <DropdownMenuItem
-                key={server.id}
-                onClick={() => !isDisabled && handleServerChange(server.id)}
-                className={`flex items-center justify-between cursor-pointer ${
-                  isDisabled ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-                disabled={isDisabled}
-                title={
-                  serverOverride && !serverOverride.isAvailable
-                    ? serverOverride.reason || "Server unavailable"
-                    : undefined
-                }
+    <div className="flex items-center gap-3">
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg gap-2 ${className}`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{server.name}</span>
-                  {getAvailabilityIcon(server.id)}
+                <Server className="h-4 w-4" />
+                {selectedServer.name}
+                {isCurrentServerLoading ? (
+                  <Wifi className="h-4 w-4 animate-pulse text-yellow-300" />
+                ) : currentServerAvailability ? (
+                  <Wifi className="h-4 w-4 text-green-400" />
+                ) : currentServerAvailability === false ? (
+                  <WifiOff className="h-4 w-4 text-red-400" />
+                ) : (
+                  <Wifi className="h-4 w-4 text-gray-300" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Select a server to stream from</p>
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="w-56">
+          {videoServers
+            .sort((a, b) => {
+              const aAvailable = isContentAvailable(a.id);
+              const bAvailable = isContentAvailable(b.id);
+
+              // We should prioritize available servers.
+              if (aAvailable !== bAvailable) {
+                return bAvailable ? 1 : -1;
+              }
+
+              return 0;
+            })
+            .map((server) => {
+              const available = isContentAvailable(server.id);
+              const isLoading = isCheckingAvailability(server.id);
+              const isDisabled = available === false;
+              const serverOverride = getServerOverride(server.id);
+
+              if (server.id === "vidnest") {
+                return (
+                  <DropdownMenuSub key={server.id}>
+                    <DropdownMenuSubTrigger
+                      onClick={() =>
+                        !isDisabled && handleServerChange(server.id)
+                      }
+                      className={`flex items-center justify-between cursor-pointer ${
+                        isDisabled ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                      disabled={isDisabled}
+                      title={
+                        serverOverride && !serverOverride.isAvailable
+                          ? serverOverride.reason || "Server unavailable"
+                          : undefined
+                      }
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{server.name}</span>
+                        {getAvailabilityIcon(server.id)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isLoading && (
+                          <span className="text-xs text-muted-foreground">
+                            Checking...
+                          </span>
+                        )}
+                        {selectedServer.id === server.id && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent
+                      {...({
+                        side: "bottom",
+                        align: "start",
+                        sideOffset: 8,
+                        alignOffset: -4,
+                        collisionPadding: 16,
+                      } as React.ComponentPropsWithoutRef<
+                        typeof DropdownMenuPrimitive.SubContent
+                      >)}
+                      className="w-auto p-3 min-w-[200px]"
+                    >
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-xs font-medium text-muted-foreground px-1 uppercase tracking-wide">
+                            Content Type
+                          </span>
+                          <ContentTypeToggle
+                            value={vidnestContentType}
+                            onValueChange={setVidnestContentType}
+                          />
+                        </div>
+                        {(vidnestContentType === "anime" ||
+                          vidnestContentType === "animepahe") && (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-xs font-medium text-muted-foreground px-1 uppercase tracking-wide">
+                              Audio
+                            </span>
+                            <SubDubToggle
+                              value={animePreference}
+                              onValueChange={setAnimePreference}
+                              aria-label="Choose subtitles or dubbed audio"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                );
+              }
+
+              return (
+                <DropdownMenuItem
+                  key={server.id}
+                  onClick={() => !isDisabled && handleServerChange(server.id)}
+                  className={`flex items-center justify-between cursor-pointer ${
+                    isDisabled ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                  disabled={isDisabled}
+                  title={
+                    serverOverride && !serverOverride.isAvailable
+                      ? serverOverride.reason || "Server unavailable"
+                      : undefined
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{server.name}</span>
+                    {getAvailabilityIcon(server.id)}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isLoading && (
+                      <span className="text-xs text-muted-foreground">
+                        Checking...
+                      </span>
+                    )}
+                    {selectedServer.id === server.id && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                </DropdownMenuItem>
+              );
+            })}
+          {media && (
+            <div className="px-2 py-1 text-xs text-muted-foreground border-t mt-1">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <Wifi className="h-3 w-3 text-green-500" />
+                  <span>Available</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {isLoading && (
-                    <span className="text-xs text-muted-foreground">
-                      Checking...
-                    </span>
-                  )}
-                  {selectedServer.id === server.id && (
-                    <Check className="h-4 w-4 text-primary" />
-                  )}
+                <div className="flex items-center gap-1">
+                  <WifiOff className="h-3 w-3 text-red-500" />
+                  <span>Not Available</span>
                 </div>
-              </DropdownMenuItem>
-            );
-          })}
-        {media && (
-          <div className="px-2 py-1 text-xs text-muted-foreground border-t mt-1">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1">
-                <Wifi className="h-3 w-3 text-green-500" />
-                <span>Available</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <WifiOff className="h-3 w-3 text-red-500" />
-                <span>Not Available</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Wifi className="h-3 w-3 text-yellow-500" />
-                <span>Checking...</span>
+                <div className="flex items-center gap-1">
+                  <Wifi className="h-3 w-3 text-yellow-500" />
+                  <span>Checking...</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

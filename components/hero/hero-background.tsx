@@ -52,7 +52,6 @@ export function HeroBackground({
 }: HeroBackgroundProps) {
   const { getEmbedUrl } = useEpisodeStore();
   const { selectedServer } = useServerStore();
-
   let currentItemVideos: { type: string; key: string }[] = [];
 
   if (media.videos) {
@@ -69,7 +68,6 @@ export function HeroBackground({
     }
   }
 
-  // Look for trailers, teasers, or other promotional videos in order of preference
   const acceptableVideoTypes = ["Trailer", "Teaser", "Clip", "Featurette"];
   const trailerVideo = currentItemVideos.find((video: { type: string }) =>
     acceptableVideoTypes.includes(video.type),
@@ -110,28 +108,17 @@ export function HeroBackground({
   const getVideoSrc = () => {
     const detectedMediaType = getMediaType();
 
-    // For TV shows, we should only allow episode URLs.
+    // For TV shows, use episode URLs (which now includes anime URLs)
     if (detectedMediaType === "tv") {
       const episodeEmbedUrl = getEmbedUrl();
-
       if (episodeEmbedUrl) {
         return episodeEmbedUrl;
-      } else {
-        // We'll return a placeholder or empty string to prevent generic TV URLs.
-        return "";
       }
+      return "";
     }
 
-    // This is a safety check for movies, in case there's an episode URL, which shouldn't happen.
-    const episodeEmbedUrl = getEmbedUrl();
-
-    if (episodeEmbedUrl) {
-      return episodeEmbedUrl;
-    }
-
-    const finalUrl = selectedServer.getMovieUrl(media.id);
-
-    return finalUrl;
+    // For movies, use movie URL
+    return selectedServer.getMovieUrl(media.id);
   };
 
   // I'm using a timeout to detect long pauses (>1s).
@@ -281,12 +268,29 @@ export function HeroBackground({
               style={{ top: "5rem", height: "calc(100% - 11rem)" }}
             >
               <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full">
-                <motion.iframe
-                  src={getVideoSrc()}
-                  className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20"
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
+                {(() => {
+                  const videoSrc = getVideoSrc();
+
+                  if (!videoSrc) {
+                    return (
+                      <div className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20 bg-black/80 flex items-center justify-center">
+                        <div className="text-white text-center">
+                          <p>Loading video...</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <motion.iframe
+                      key={videoSrc}
+                      src={videoSrc}
+                      className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20"
+                      allow="autoplay; encrypted-media; picture-in-picture"
+                      allowFullScreen
+                    />
+                  );
+                })()}
               </div>
             </motion.div>
           )}
