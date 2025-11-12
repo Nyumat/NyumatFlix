@@ -1,16 +1,25 @@
-import { create } from "zustand";
 import { Episode } from "@/utils/typings";
+import { create } from "zustand";
 import { useServerStore } from "./server-store";
 
 interface EpisodeState {
   selectedEpisode: Episode | null;
   tvShowId: string | null;
   seasonNumber: number | null;
+  // anime stuff
+  isAnimeEpisode: boolean;
+  anilistId: number | null;
+  relativeEpisodeNumber: number | null;
   watchCallback: (() => void) | null;
   setSelectedEpisode: (
     episode: Episode,
     tvShowId: string,
     seasonNumber: number,
+    animeInfo?: {
+      anilistId: number;
+      startEpisode: number;
+      endEpisode: number;
+    },
   ) => void;
   clearSelectedEpisode: () => void;
   getEmbedUrl: () => string | null;
@@ -21,12 +30,24 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   selectedEpisode: null,
   tvShowId: null,
   seasonNumber: null,
+  isAnimeEpisode: false,
+  anilistId: null,
+  relativeEpisodeNumber: null,
   watchCallback: null,
-  setSelectedEpisode: (episode, tvShowId, seasonNumber) => {
+  setSelectedEpisode: (episode, tvShowId, seasonNumber, animeInfo) => {
+    const isAnimeEpisode = !!animeInfo;
+    const anilistId = animeInfo?.anilistId || null;
+    const relativeEpisodeNumber = animeInfo
+      ? episode.episode_number - animeInfo.startEpisode + 1
+      : null;
+
     set({
       selectedEpisode: episode,
       tvShowId,
       seasonNumber,
+      isAnimeEpisode,
+      anilistId,
+      relativeEpisodeNumber,
     });
     const { watchCallback } = get();
     if (watchCallback) {
@@ -38,20 +59,45 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       selectedEpisode: null,
       tvShowId: null,
       seasonNumber: null,
+      isAnimeEpisode: false,
+      anilistId: null,
+      relativeEpisodeNumber: null,
     });
   },
   getEmbedUrl: () => {
-    const { selectedEpisode, tvShowId, seasonNumber } = get();
-    if (selectedEpisode && tvShowId && seasonNumber) {
-      const { selectedServer } = useServerStore.getState();
-      const url = selectedServer.getEpisodeUrl(
-        parseInt(tvShowId),
-        seasonNumber,
-        selectedEpisode.episode_number,
-      );
-      return url;
+    const {
+      selectedEpisode,
+      tvShowId,
+      seasonNumber,
+      isAnimeEpisode,
+      anilistId,
+      relativeEpisodeNumber,
+    } = get();
+
+    if (!selectedEpisode || !tvShowId || !seasonNumber) {
+      return null;
     }
-    return null;
+
+    const { selectedServer } = useServerStore.getState();
+
+    if (isAnimeEpisode && anilistId && relativeEpisodeNumber) {
+      if (selectedServer.id === "vidnest") {
+        const { vidnestContentType, animePreference } =
+          useServerStore.getState();
+        if (vidnestContentType === "anime") {
+          return `https://vidnest.fun/anime/${anilistId}/${relativeEpisodeNumber}/${animePreference}`;
+        } else if (vidnestContentType === "animepahe") {
+          return `https://vidnest.fun/animepahe/${anilistId}/${relativeEpisodeNumber}/${animePreference}`;
+        }
+      }
+    }
+
+    const url = selectedServer.getEpisodeUrl(
+      parseInt(tvShowId),
+      seasonNumber,
+      selectedEpisode.episode_number,
+    );
+    return url;
   },
   setWatchCallback: (callback) => {
     set({ watchCallback: callback });

@@ -8,6 +8,15 @@ export interface VideoServer {
   getMovieUrl: (tmdbId: number) => string;
   getTvUrl: (tmdbId: number) => string;
   getEpisodeUrl: (tmdbId: number, season: number, episode: number) => string;
+  getAnimeUrl?: (anilistId: number, episode: number) => string;
+  getAnimePaheUrl?: (anilistId: number, episode: number) => string;
+  getVidnestUrl?: (
+    tmdbId: number,
+    contentType: "movie" | "tv" | "anime" | "animepahe",
+    season?: number,
+    episode?: number,
+    anilistId?: number,
+  ) => string;
   checkAvailability?: (type: "movie" | "tv") => Promise<number[]>;
   checkIndividualAvailability?: (
     tmdbId: number,
@@ -22,17 +31,17 @@ export interface ServerOverride {
   isAvailable: boolean;
   reason?: string; // Optional reason for the override (e.g., "Server down", "Maintenance")
 }
-
+// Old -> vidsrc.xyz
+// New: vidsrc-embed.ru - vidsrc-embed.su - vidsrcme.su - vsrc.su
 export const videoServers: VideoServer[] = [
   {
     id: "vidsrc",
     name: "VidSrc",
-    baseUrl: "https://vidsrc.xyz",
-    getMovieUrl: (tmdbId) => `https://vidsrc.xyz/embed/movie?tmdb=${tmdbId}`,
-    getTvUrl: (tmdbId) => `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}`,
+    baseUrl: "https://vsrc.su",
+    getMovieUrl: (tmdbId) => `https://vsrc.su/embed/movie?tmdb=${tmdbId}`,
+    getTvUrl: (tmdbId) => `https://vsrc.su/embed/tv?tmdb=${tmdbId}`,
     getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
-    // VidSrc doesn't have availability checking, assume always available
+      `https://vsrc.su/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
   },
   {
     id: "superembed",
@@ -43,17 +52,16 @@ export const videoServers: VideoServer[] = [
     getTvUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
-    // SuperEmbed regular player doesn't have availability checking, assume always available
   },
   {
     id: "autoembed",
     name: "AutoEmbed",
     baseUrl: "https://player.autoembed.cc",
-    getMovieUrl: (tmdbId) => `https://player.autoembed.cc/embed/movie/${tmdbId}`,
+    getMovieUrl: (tmdbId) =>
+      `https://player.autoembed.cc/embed/movie/${tmdbId}`,
     getTvUrl: (tmdbId) => `https://player.autoembed.cc/embed/tv/${tmdbId}`,
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`,
-    // AutoEmbed doesn't have availability checking, assume always available
   },
   {
     id: "111movies",
@@ -63,7 +71,44 @@ export const videoServers: VideoServer[] = [
     getTvUrl: (tmdbId) => `https://111movies.com/tv/${tmdbId}`,
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://111movies.com/tv/${tmdbId}/${season}/${episode}`,
-    // 111Movies doesn't have availability checking, assume always available
+  },
+  {
+    id: "vidnest",
+    name: "VidNest",
+    baseUrl: "https://vidnest.fun",
+    getMovieUrl: (tmdbId) => `https://vidnest.fun/movie/${tmdbId}`,
+    getTvUrl: (tmdbId) => `https://vidnest.fun/tv/${tmdbId}`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}`,
+    getAnimeUrl: (anilistId, episode) =>
+      `https://vidnest.fun/anime/${anilistId}/${episode}/sub`,
+    getAnimePaheUrl: (anilistId, episode) =>
+      `https://vidnest.fun/animepahe/${anilistId}/${episode}/sub`,
+    getVidnestUrl: (tmdbId, contentType, season, episode, anilistId) => {
+      const state = useServerStore.getState();
+      const preference = state.animePreference;
+      switch (contentType) {
+        case "movie":
+          return `https://vidnest.fun/movie/${tmdbId}`;
+        case "tv":
+          if (season && episode) {
+            return `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}`;
+          }
+          return `https://vidnest.fun/tv/${tmdbId}`;
+        case "anime":
+          if (anilistId && episode) {
+            return `https://vidnest.fun/anime/${anilistId}/${episode}/${preference}`;
+          }
+          return "";
+        case "animepahe":
+          if (anilistId && episode) {
+            return `https://vidnest.fun/animepahe/${anilistId}/${episode}/${preference}`;
+          }
+          return "";
+        default:
+          return "";
+      }
+    },
   },
 ];
 
@@ -72,7 +117,11 @@ export const defaultServerOverrides: ServerOverride[] = [];
 interface ServerState {
   selectedServer: VideoServer;
   serverOverrides: ServerOverride[];
+  animePreference: "sub" | "dub";
+  vidnestContentType: "movie" | "tv" | "anime" | "animepahe";
   setSelectedServer: (server: VideoServer) => void;
+  setAnimePreference: (preference: "sub" | "dub") => void;
+  setVidnestContentType: (type: "movie" | "tv" | "anime" | "animepahe") => void;
   getServerById: (id: string) => VideoServer | undefined;
   getAvailableServer: (
     tmdbId: number,
@@ -94,15 +143,29 @@ interface ServerState {
   isServerOverridden: (serverId: string) => boolean;
   getServerOverride: (serverId: string) => ServerOverride | undefined;
   resetServerOverrides: () => void;
+  getAnimeUrl: (serverId: string, anilistId: number, episode: number) => string;
+  getAnimePaheUrl: (
+    serverId: string,
+    anilistId: number,
+    episode: number,
+  ) => string;
 }
 
 export const useServerStore = create<ServerState>()(
   persist(
     (set, get) => ({
-      selectedServer: videoServers[0], // Default to VidSrc
+      selectedServer: videoServers[0],
       serverOverrides: defaultServerOverrides,
+      animePreference: "sub" as "sub" | "dub",
+      vidnestContentType: "movie" as "movie" | "tv" | "anime",
       setSelectedServer: (server) => {
         set({ selectedServer: server });
+      },
+      setAnimePreference: (preference) => {
+        set({ animePreference: preference });
+      },
+      setVidnestContentType: (type) => {
+        set({ vidnestContentType: type });
       },
       getServerById: (id) => {
         return videoServers.find((server) => server.id === id);
@@ -110,14 +173,12 @@ export const useServerStore = create<ServerState>()(
       getAvailableServer: (tmdbId, type, availabilityData) => {
         const { serverOverrides } = get();
 
-        // If no availability data provided, return current selected server if it's not overridden as unavailable
         if (!availabilityData) {
           const currentServer = get().selectedServer;
           const override = serverOverrides.find(
             (o) => o.serverId === currentServer.id,
           );
           if (override && !override.isAvailable) {
-            // Current server is manually marked as unavailable, find alternative
             for (const server of videoServers) {
               const serverOverride = serverOverrides.find(
                 (o) => o.serverId === server.id,
@@ -130,15 +191,13 @@ export const useServerStore = create<ServerState>()(
           return currentServer;
         }
 
-        // Check current selected server first
         const currentServer = get().selectedServer;
         const currentServerOverride = serverOverrides.find(
           (o) => o.serverId === currentServer.id,
         );
 
-        // If current server is manually marked as unavailable, skip it
         if (currentServerOverride && !currentServerOverride.isAvailable) {
-          // Skip to finding alternative server
+          // Current server is manually overridden as unavailable, skip availability check
         } else {
           const currentServerData = availabilityData[currentServer.id];
           if (currentServerData && !currentServerData.isLoading) {
@@ -150,13 +209,11 @@ export const useServerStore = create<ServerState>()(
           }
         }
 
-        // Find first available server, considering manual overrides
         for (const server of videoServers) {
           const serverOverride = serverOverrides.find(
             (o) => o.serverId === server.id,
           );
 
-          // If server is manually marked as unavailable, skip it
           if (serverOverride && !serverOverride.isAvailable) {
             continue;
           }
@@ -164,7 +221,6 @@ export const useServerStore = create<ServerState>()(
           const serverData = availabilityData[server.id];
           if (!serverData || serverData.isLoading) continue;
 
-          // If server has no availability checking, consider it available
           if (
             !server.checkAvailability &&
             !server.checkIndividualAvailability
@@ -172,13 +228,11 @@ export const useServerStore = create<ServerState>()(
             return server;
           }
 
-          // Check if content is available on this server
           if (serverData[type]?.includes(tmdbId)) {
             return server;
           }
         }
 
-        // If no available server found, return VidSrc as fallback (if not overridden as unavailable)
         const vidsrcOverride = serverOverrides.find(
           (o) => o.serverId === "vidsrc",
         );
@@ -186,7 +240,6 @@ export const useServerStore = create<ServerState>()(
           return videoServers[0];
         }
 
-        // If VidSrc is also unavailable, return any available server
         for (const server of videoServers) {
           const serverOverride = serverOverrides.find(
             (o) => o.serverId === server.id,
@@ -196,7 +249,6 @@ export const useServerStore = create<ServerState>()(
           }
         }
 
-        // Fallback to VidSrc even if marked unavailable
         return videoServers[0];
       },
       setServerOverride: (serverId, isAvailable, reason) => {
@@ -225,6 +277,24 @@ export const useServerStore = create<ServerState>()(
       resetServerOverrides: () => {
         set({ serverOverrides: defaultServerOverrides });
       },
+      getAnimeUrl: (serverId, anilistId, episode) => {
+        const server = videoServers.find((s) => s.id === serverId);
+        if (!server || !server.getAnimeUrl) return "";
+        if (serverId === "vidnest") {
+          const preference = get().animePreference;
+          return `https://vidnest.fun/anime/${anilistId}/${episode}/${preference}`;
+        }
+        return server.getAnimeUrl(anilistId, episode);
+      },
+      getAnimePaheUrl: (serverId, anilistId, episode) => {
+        const server = videoServers.find((s) => s.id === serverId);
+        if (!server || !server.getAnimePaheUrl) return "";
+        if (serverId === "vidnest") {
+          const preference = get().animePreference;
+          return `https://vidnest.fun/animepahe/${anilistId}/${episode}/${preference}`;
+        }
+        return server.getAnimePaheUrl(anilistId, episode);
+      },
     }),
     {
       name: "video-server-storage",
@@ -234,7 +304,6 @@ export const useServerStore = create<ServerState>()(
           if (!str) return null;
           try {
             const parsed = JSON.parse(str);
-            // Reconstruct the server object with methods
             if (parsed.state && parsed.state.selectedServerId) {
               const server = videoServers.find(
                 (s) => s.id === parsed.state.selectedServerId,
@@ -251,13 +320,12 @@ export const useServerStore = create<ServerState>()(
           }
         },
         setItem: (name, value) => {
-          // Only store the server ID, not the full object
           const toStore = {
             ...value,
             state: {
               ...value.state,
               selectedServerId: value.state.selectedServer.id,
-              selectedServer: undefined, // Don't store the full server object
+              selectedServer: undefined,
             },
           };
           localStorage.setItem(name, JSON.stringify(toStore));
