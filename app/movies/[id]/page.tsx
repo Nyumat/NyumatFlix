@@ -5,8 +5,12 @@ import { MediaCarousels } from "@/components/media/media-carousels";
 import { CountryBadge } from "@/components/ui/country-badge";
 import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  fetchAnilistId,
+  getSearchTitle,
+  isAnime,
+} from "@/utils/anilist-helpers";
 import { isUpcomingMovie } from "@/utils/movie-helpers";
-import { fetchAnilistId, getSearchTitle } from "@/utils/anilist-helpers";
 import { Genre, ProductionCountry } from "@/utils/typings";
 import { Calendar, Clock, Star } from "lucide-react";
 import { Metadata } from "next";
@@ -125,12 +129,18 @@ export default async function MoviePage(props: Props) {
     }
 
     const isUpcoming = isUpcomingMovie(details);
-
-    // Fetch Anilist ID for anime content
     const searchTitle = getSearchTitle(details);
-    const anilistId: number | undefined | null = searchTitle
-      ? await fetchAnilistId(searchTitle)
-      : undefined;
+    console.log("Movie details genre_ids:", details.genre_ids);
+    console.log("Movie details genres:", details.genres);
+    console.log("Search title:", searchTitle);
+    console.log(
+      "Is anime check:",
+      isAnime(details.genre_ids || details.genres || []),
+    );
+    const anilistId: number | undefined | null =
+      searchTitle && isAnime(details.genre_ids || details.genres || [])
+        ? await fetchAnilistId(searchTitle)
+        : undefined;
 
     const hasRuntime = details.runtime && details.runtime > 0;
     const hours = Math.floor((details.runtime || 0) / 60);

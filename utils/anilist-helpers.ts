@@ -22,6 +22,7 @@ export interface MediaWithTitle {
 }
 
 export const fetchAnilistId = async (title: string): Promise<number | null> => {
+  console.log("Fetching Anilist ID for title:", title);
   try {
     const query = `
       query ($search: String) {
@@ -62,6 +63,21 @@ export const fetchAnilistId = async (title: string): Promise<number | null> => {
     console.error("Error fetching Anilist ID:", error);
     return null;
   }
+};
+
+export const isAnime = (
+  genres: number[] | { id: number }[] | undefined,
+): boolean => {
+  if (!genres) return false;
+
+  // Handle both genre_ids array and genres array with objects
+  if (Array.isArray(genres)) {
+    return genres.some((genre) =>
+      typeof genre === "number" ? genre === 16 : genre.id === 16,
+    );
+  }
+
+  return false;
 };
 
 export const getSearchTitle = (media: MediaWithTitle): string => {
