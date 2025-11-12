@@ -78,17 +78,39 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       return null;
     }
 
-    const { selectedServer } = useServerStore.getState();
+    const { selectedServer, vidnestContentType, animePreference } =
+      useServerStore.getState();
 
-    if (isAnimeEpisode && anilistId && relativeEpisodeNumber) {
-      if (selectedServer.id === "vidnest") {
-        const { vidnestContentType, animePreference } =
-          useServerStore.getState();
+    // For vidnest server, handle different content types
+    if (selectedServer.id === "vidnest") {
+      if (isAnimeEpisode && anilistId && relativeEpisodeNumber) {
         if (vidnestContentType === "anime") {
           return `https://vidnest.fun/anime/${anilistId}/${relativeEpisodeNumber}/${animePreference}`;
         } else if (vidnestContentType === "animepahe") {
           return `https://vidnest.fun/animepahe/${anilistId}/${relativeEpisodeNumber}/${animePreference}`;
         }
+      }
+
+      if (vidnestContentType === "tv") {
+        return selectedServer.getEpisodeUrl(
+          parseInt(tvShowId),
+          seasonNumber,
+          selectedEpisode.episode_number,
+        );
+      }
+
+      if (vidnestContentType === "movie") {
+        return selectedServer.getMovieUrl(parseInt(tvShowId));
+      }
+    }
+
+    // For non-vidnest servers or default tv episodes
+    if (isAnimeEpisode && anilistId && relativeEpisodeNumber) {
+      if (selectedServer.getAnimeUrl) {
+        return selectedServer.getAnimeUrl(anilistId, relativeEpisodeNumber);
+      }
+      if (selectedServer.getAnimePaheUrl) {
+        return selectedServer.getAnimePaheUrl(anilistId, relativeEpisodeNumber);
       }
     }
 
