@@ -1,9 +1,27 @@
-bun -e "
-  const fs = require('fs');
-  const emojiRegex = require('emojibase-regex');
-  const msgFile = process.argv[1];
-  const msg = fs.readFileSync(msgFile, 'utf8');
-  if (!msg.match(new RegExp('^\\s*(' + emojiRegex().source + ')'))) {
-    process.exit(1); // run emojify
-  }
-" "$1" || npx --yes @humankode/git-commit-emojify@latest "$1"
+#!/bin/sh
+# Try to find bun in common locations if not in PATH
+if ! command -v bun >/dev/null 2>&1; then
+  if [ -f "$HOME/.bun/bin/bun" ]; then
+    export PATH="$HOME/.bun/bin:$PATH"
+  elif [ -f "/opt/homebrew/bin/bun" ]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+  elif [ -f "$HOME/.local/bin/bun" ]; then
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+fi
+
+# Verify bun is available, fallback to npx if not
+if command -v bun >/dev/null 2>&1; then
+  bun -e "
+    const fs = require('fs');
+    const emojiRegex = require('emojibase-regex');
+    const msgFile = process.argv[1];
+    const msg = fs.readFileSync(msgFile, 'utf8');
+    if (!msg.match(new RegExp('^\\s*(' + emojiRegex().source + ')'))) {
+      process.exit(1); // run emojify
+    }
+  " "$1" || npx --yes @humankode/git-commit-emojify@latest "$1"
+else
+  # Fallback to npx if bun is not available
+  npx --yes @humankode/git-commit-emojify@latest "$1"
+fi

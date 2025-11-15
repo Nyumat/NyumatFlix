@@ -160,4 +160,3 @@ export async function batchCheckWaitingStatus(): Promise<void> {
     console.error("Error in batch check waiting status:", error);
   }
 }
-

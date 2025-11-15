@@ -30,10 +30,7 @@ export async function PATCH(
       .select()
       .from(watchlist)
       .where(
-        and(
-          eq(watchlist.id, params.id),
-          eq(watchlist.userId, session.user.id),
-        ),
+        and(eq(watchlist.id, params.id), eq(watchlist.userId, session.user.id)),
       )
       .limit(1);
 
@@ -46,7 +43,7 @@ export async function PATCH(
 
     // Update the item
     const updateData: {
-      status?: string;
+      status?: "watching" | "waiting" | "finished";
       lastWatchedSeason?: number | null;
       lastWatchedEpisode?: number | null;
       lastWatchedAt?: Date;
@@ -70,10 +67,7 @@ export async function PATCH(
       .update(watchlist)
       .set(updateData)
       .where(
-        and(
-          eq(watchlist.id, params.id),
-          eq(watchlist.userId, session.user.id),
-        ),
+        and(eq(watchlist.id, params.id), eq(watchlist.userId, session.user.id)),
       )
       .returning();
 
@@ -111,10 +105,7 @@ export async function DELETE(
       .select()
       .from(watchlist)
       .where(
-        and(
-          eq(watchlist.id, params.id),
-          eq(watchlist.userId, session.user.id),
-        ),
+        and(eq(watchlist.id, params.id), eq(watchlist.userId, session.user.id)),
       )
       .limit(1);
 
@@ -129,10 +120,7 @@ export async function DELETE(
     await db
       .delete(watchlist)
       .where(
-        and(
-          eq(watchlist.id, params.id),
-          eq(watchlist.userId, session.user.id),
-        ),
+        and(eq(watchlist.id, params.id), eq(watchlist.userId, session.user.id)),
       );
 
     return NextResponse.json(
@@ -147,4 +135,3 @@ export async function DELETE(
     );
   }
 }
-

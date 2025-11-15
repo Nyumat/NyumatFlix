@@ -86,7 +86,10 @@ interface WatchlistSectionProps {
   title: string;
   items: Array<MediaItem & { watchlistItem: WatchlistItem }>;
   watchlistItems: WatchlistItem[];
-  onStatusChange: (itemId: string, newStatus: "watching" | "waiting" | "finished") => void;
+  onStatusChange: (
+    itemId: string,
+    newStatus: "watching" | "waiting" | "finished",
+  ) => void;
 }
 
 function WatchlistSection({
@@ -98,11 +101,6 @@ function WatchlistSection({
   if (items.length === 0) {
     return null;
   }
-
-  // Create a map for quick lookup
-  const watchlistMap = new Map(
-    watchlistItems.map((item) => [item.id, item]),
-  );
 
   return (
     <section className="space-y-4">
@@ -121,4 +119,3 @@ function WatchlistSection({
     </section>
   );
 }
-

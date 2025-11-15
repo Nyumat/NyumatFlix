@@ -13,7 +13,10 @@ interface WatchlistSectionProps {
   status: "watching" | "waiting" | "finished";
   items: MediaItem[];
   watchlistItems: WatchlistItem[];
-  onStatusChange: (itemId: string, newStatus: "watching" | "waiting" | "finished") => void;
+  onStatusChange: (
+    itemId: string,
+    newStatus: "watching" | "waiting" | "finished",
+  ) => void;
 }
 
 export function WatchlistSection({
@@ -74,7 +77,12 @@ export function WatchlistItemCard({
           type="single"
           value={watchlistItem.status}
           onValueChange={(value) => {
-            if (value && (value === "watching" || value === "waiting" || value === "finished")) {
+            if (
+              value &&
+              (value === "watching" ||
+                value === "waiting" ||
+                value === "finished")
+            ) {
               onStatusChange(value);
             }
           }}
@@ -86,7 +94,8 @@ export function WatchlistItemCard({
             size="sm"
             className={cn(
               "px-2 py-1 text-xs",
-              watchlistItem.status === "watching" && "bg-primary text-primary-foreground"
+              watchlistItem.status === "watching" &&
+                "bg-primary text-primary-foreground",
             )}
           >
             Watching
@@ -97,7 +106,8 @@ export function WatchlistItemCard({
             size="sm"
             className={cn(
               "px-2 py-1 text-xs",
-              watchlistItem.status === "waiting" && "bg-primary text-primary-foreground"
+              watchlistItem.status === "waiting" &&
+                "bg-primary text-primary-foreground",
             )}
           >
             Waiting
@@ -108,7 +118,8 @@ export function WatchlistItemCard({
             size="sm"
             className={cn(
               "px-2 py-1 text-xs",
-              watchlistItem.status === "finished" && "bg-primary text-primary-foreground"
+              watchlistItem.status === "finished" &&
+                "bg-primary text-primary-foreground",
             )}
           >
             Finished
@@ -118,4 +129,3 @@ export function WatchlistItemCard({
     </div>
   );
 }
-

@@ -50,10 +50,7 @@ export function BackButton({
       title="Go back"
       onClick={handleBack}
       onMouseEnter={handleMouseEnter}
-      className={cn(
-        "relative h-8 w-8 rounded-full",
-        className,
-      )}
+      className={cn("relative h-8 w-8 rounded-full", className)}
       aria-label="Go back"
     >
       <ChevronLeft size={16} />

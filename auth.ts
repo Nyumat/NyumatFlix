@@ -30,7 +30,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.log(`📧 Email: ${identifier}`);
           console.log(`🔗 Magic Link: ${url}`);
           console.log("=".repeat(60));
-          console.log("⚠️  Development mode: Email not sent. Use the link above to sign in.");
+          console.log(
+            "⚠️  Development mode: Email not sent. Use the link above to sign in.",
+          );
           console.log("=".repeat(60) + "\n");
           return;
         }

@@ -98,12 +98,7 @@ export function WatchlistButton({
 
   if (isLoading) {
     return (
-      <Button
-        variant={variant}
-        size={size}
-        className={cn(className)}
-        disabled
-      >
+      <Button variant={variant} size={size} className={cn(className)} disabled>
         <Bookmark className="h-4 w-4" />
         {children && <span className="ml-2 text-sm">Loading...</span>}
       </Button>
@@ -121,12 +116,7 @@ export function WatchlistButton({
       aria-label={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
     >
       <Icon className="h-4 w-4" />
-      {children && (
-        <span className="ml-2 text-sm font-medium">
-          {children}
-        </span>
-      )}
+      {children && <span className="ml-2 text-sm font-medium">{children}</span>}
     </Button>
   );
 }
-

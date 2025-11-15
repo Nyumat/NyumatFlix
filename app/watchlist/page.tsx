@@ -41,7 +41,10 @@ export default async function WatchlistPage() {
           watchlistItem: item,
         };
       } catch (error) {
-        console.error(`Error fetching ${item.mediaType} ${item.contentId}:`, error);
+        console.error(
+          `Error fetching ${item.mediaType} ${item.contentId}:`,
+          error,
+        );
         return null;
       }
     }),
@@ -57,12 +60,10 @@ export default async function WatchlistPage() {
   const tvShows = validRawItems.filter((item) => item.media_type === "tv");
 
   // Enrich media items by type
-  const enrichedMovies = movies.length > 0
-    ? await fetchAndEnrichMediaItems(movies, "movie")
-    : [];
-  const enrichedTvShows = tvShows.length > 0
-    ? await fetchAndEnrichMediaItems(tvShows, "tv")
-    : [];
+  const enrichedMovies =
+    movies.length > 0 ? await fetchAndEnrichMediaItems(movies, "movie") : [];
+  const enrichedTvShows =
+    tvShows.length > 0 ? await fetchAndEnrichMediaItems(tvShows, "tv") : [];
 
   // Combine enriched items
   const enrichedItems = [...enrichedMovies, ...enrichedTvShows];
@@ -102,4 +103,3 @@ export default async function WatchlistPage() {
     />
   );
 }
-

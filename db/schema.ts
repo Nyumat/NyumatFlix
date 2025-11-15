@@ -127,14 +127,8 @@ export const watchlist = pgTable(
     lastWatchedSeason: integer("lastWatchedSeason"),
     lastWatchedEpisode: integer("lastWatchedEpisode"),
     lastWatchedAt: timestamp("lastWatchedAt", { mode: "date" }),
-    createdAt: timestamp("createdAt", { mode: "date" })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updatedAt", { mode: "date" })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => [
-    unique().on(table.userId, table.contentId, table.mediaType),
-  ],
+  (table) => [unique().on(table.userId, table.contentId, table.mediaType)],
 );
