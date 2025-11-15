@@ -157,6 +157,7 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
         <div className="flex-grow p-4">
           <Info
             title={title}
+            logo={item.logo}
             releaseDate={releaseDate}
             voteAverage={
               voteAverage && voteAverage > 0 ? voteAverage : undefined

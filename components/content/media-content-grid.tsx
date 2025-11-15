@@ -6,6 +6,7 @@ import {
   type ViewMode,
 } from "@/components/content-grid";
 import { MediaCard } from "@/components/media/media-card";
+import { MediaLogo } from "@/components/media/media-logo";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CountryBadge } from "@/components/ui/country-badge";
@@ -151,9 +152,12 @@ function ListViewCard(props: {
           </div>
         </div>
         <div className="flex-1 min-w-0 space-y-2">
-          <h3 className="text-base sm:text-lg font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-200">
-            {title}
-          </h3>
+          <MediaLogo
+            logo={item.logo}
+            title={title}
+            className="mb-2 max-w-[200px]"
+            fallbackClassName="text-base sm:text-lg text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-200"
+          />
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
             <span>{formatDate(releaseDate)}</span>
 

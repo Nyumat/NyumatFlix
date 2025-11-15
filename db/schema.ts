@@ -6,6 +6,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -105,5 +106,35 @@ export const authenticators = pgTable(
         columns: [authenticator.userId, authenticator.credentialID],
       }),
     },
+  ],
+);
+
+export const watchlist = pgTable(
+  "watchlist",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    contentId: integer("contentId").notNull(),
+    mediaType: text("mediaType").notNull().$type<"movie" | "tv">(),
+    status: text("status")
+      .notNull()
+      .default("watching")
+      .$type<"watching" | "waiting" | "finished">(),
+    lastWatchedSeason: integer("lastWatchedSeason"),
+    lastWatchedEpisode: integer("lastWatchedEpisode"),
+    lastWatchedAt: timestamp("lastWatchedAt", { mode: "date" }),
+    createdAt: timestamp("createdAt", { mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique().on(table.userId, table.contentId, table.mediaType),
   ],
 );

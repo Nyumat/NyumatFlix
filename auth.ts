@@ -6,9 +6,11 @@ import { html, text } from "@/emails/email-helpers";
 import {
   MAGIC_LINK_RESEND_FROM,
   MAGIC_LINK_RESEND_SUBJECT,
-} from "./lib/constants";
+} from "@/lib/constants";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
@@ -17,8 +19,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   }),
   providers: [
     Resend({
+      apiKey: process.env.AUTH_RESEND_KEY,
       from: MAGIC_LINK_RESEND_FROM,
       sendVerificationRequest: async ({ identifier, url, provider, theme }) => {
+        // In development, log the magic link to console instead of sending email
+        if (process.env.NODE_ENV === "development") {
+          console.log("\n" + "=".repeat(60));
+          console.log("🔐 MAGIC LINK FOR DEVELOPMENT");
+          console.log("=".repeat(60));
+          console.log(`📧 Email: ${identifier}`);
+          console.log(`🔗 Magic Link: ${url}`);
+          console.log("=".repeat(60));
+          console.log("⚠️  Development mode: Email not sent. Use the link above to sign in.");
+          console.log("=".repeat(60) + "\n");
+          return;
+        }
+
+        // Production: Send actual email via Resend
         const { host } = new URL(url);
         const emailHtml = await html({ url, host, theme });
         const emailText = text({ url, host });
@@ -39,7 +56,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (!res.ok) {
-          throw new Error("Failed to send verification request");
+          const errorData = await res.json().catch(() => ({}));
+          console.error("Resend API Error:", {
+            status: res.status,
+            statusText: res.statusText,
+            error: errorData,
+          });
+          throw new Error(
+            `Failed to send verification request: ${res.status} ${res.statusText} - ${JSON.stringify(errorData)}`,
+          );
         }
       },
     }),
