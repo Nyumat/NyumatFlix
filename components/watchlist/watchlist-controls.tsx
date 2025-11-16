@@ -65,7 +65,10 @@ export function WatchlistControls({
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         {/* Sort Dropdown */}
         <div className="flex items-center gap-2">
-          <label htmlFor="sort-select" className="text-sm text-muted-foreground whitespace-nowrap">
+          <label
+            htmlFor="sort-select"
+            className="text-sm text-muted-foreground whitespace-nowrap"
+          >
             Sort by:
           </label>
           <Select value={sortOption} onValueChange={onSortChange}>
@@ -116,7 +119,10 @@ export function WatchlistControls({
       </div>
 
       {/* Type Tabs */}
-      <Tabs value={typeTab} onValueChange={onTypeTabChange}>
+      <Tabs
+        value={typeTab}
+        onValueChange={(value) => onTypeTabChange(value as TypeTab)}
+      >
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="movies">Movies</TabsTrigger>
@@ -126,4 +132,3 @@ export function WatchlistControls({
     </div>
   );
 }
-

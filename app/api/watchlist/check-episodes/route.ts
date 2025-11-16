@@ -6,10 +6,7 @@ import { checkEpisodesForShow } from "@/app/watchlist/episode-check-service";
 import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 
 // In-memory cache following pattern from app/api/map/route.ts
-const cache = new Map<
-  string,
-  { data: EpisodeInfo; timestamp: number }
->();
+const cache = new Map<string, { data: EpisodeInfo; timestamp: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 function getCached(key: string): EpisodeInfo | null {
@@ -77,4 +74,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

@@ -38,4 +38,3 @@ export function formatCountdown(targetDate: Date): string {
   }
   return `${days} ${days === 1 ? "day" : "days"}, ${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
-

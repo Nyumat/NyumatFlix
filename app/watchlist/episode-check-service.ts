@@ -69,7 +69,9 @@ export async function checkEpisodesForShow(
         )
         .sort((a, b) => {
           if (!a.air_date || !b.air_date) return 0;
-          return new Date(b.air_date).getTime() - new Date(a.air_date).getTime();
+          return (
+            new Date(b.air_date).getTime() - new Date(a.air_date).getTime()
+          );
         });
 
       // Get upcoming episodes (air_date > today)
@@ -82,7 +84,9 @@ export async function checkEpisodesForShow(
         )
         .sort((a, b) => {
           if (!a.air_date || !b.air_date) return 0;
-          return new Date(a.air_date).getTime() - new Date(b.air_date).getTime();
+          return (
+            new Date(a.air_date).getTime() - new Date(b.air_date).getTime()
+          );
         });
 
       // Check for new episodes in this season
@@ -92,17 +96,15 @@ export async function checkEpisodesForShow(
         const episodeDate = new Date(episode.air_date);
         const isNewEpisode =
           episodeDate >= sevenDaysAgo &&
-          ((lastWatchedSeason === null || lastWatchedEpisode === null) ||
+          (lastWatchedSeason === null ||
+            lastWatchedEpisode === null ||
             season.season_number > lastWatchedSeason ||
             (season.season_number === lastWatchedSeason &&
               episode.episode_number > lastWatchedEpisode));
 
         if (isNewEpisode) {
           newEpisodeCount++;
-          if (
-            !latestEpisodeAirDate ||
-            episodeDate > latestEpisodeAirDate
-          ) {
+          if (!latestEpisodeAirDate || episodeDate > latestEpisodeAirDate) {
             latestEpisodeAirDate = episodeDate;
           }
         }
@@ -136,11 +138,7 @@ export async function checkEpisodesForShow(
       latestEpisodeAirDate,
     };
   } catch (error) {
-    console.error(
-      `Error checking episodes for show ${contentId}:`,
-      error,
-    );
+    console.error(`Error checking episodes for show ${contentId}:`, error);
     return null;
   }
 }
-

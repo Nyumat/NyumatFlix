@@ -5,7 +5,12 @@ import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { MediaItem } from "@/utils/typings";
 import { WatchlistItem } from "./actions";
 import { toast } from "sonner";
-import { WatchlistControls, type SortOption, type MediaFilter, type TypeTab } from "@/components/watchlist/watchlist-controls";
+import {
+  WatchlistControls,
+  type SortOption,
+  type MediaFilter,
+  type TypeTab,
+} from "@/components/watchlist/watchlist-controls";
 import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 import { getTitle } from "@/utils/typings";
 
@@ -25,10 +30,10 @@ export function WatchlistClient({
   const [typeTab, setTypeTab] = useState<TypeTab>("all");
 
   // Episode data state
-  const [episodeData, setEpisodeData] = useState<
-    Record<number, EpisodeInfo>
-  >({});
-  const [episodeDataLoading, setEpisodeDataLoading] = useState(true);
+  const [episodeData, setEpisodeData] = useState<Record<number, EpisodeInfo>>(
+    {},
+  );
+  const [_episodeDataLoading, setEpisodeDataLoading] = useState(true);
 
   // Fetch episode data in background
   useEffect(() => {
@@ -40,13 +45,23 @@ export function WatchlistClient({
           const data = await response.json();
           // Convert date strings back to Date objects
           const processedData: Record<number, EpisodeInfo> = {};
-          Object.entries(data.episodeData || {}).forEach(([contentId, info]: [string, any]) => {
-            processedData[Number(contentId)] = {
-              ...info,
-              nextEpisodeDate: info.nextEpisodeDate ? new Date(info.nextEpisodeDate) : null,
-              latestEpisodeAirDate: info.latestEpisodeAirDate ? new Date(info.latestEpisodeAirDate) : null,
-            };
-          });
+          Object.entries(data.episodeData || {}).forEach(
+            ([contentId, info]) => {
+              const typedInfo = info as EpisodeInfo & {
+                nextEpisodeDate?: string;
+                latestEpisodeAirDate?: string;
+              };
+              processedData[Number(contentId)] = {
+                ...typedInfo,
+                nextEpisodeDate: typedInfo.nextEpisodeDate
+                  ? new Date(typedInfo.nextEpisodeDate)
+                  : null,
+                latestEpisodeAirDate: typedInfo.latestEpisodeAirDate
+                  ? new Date(typedInfo.latestEpisodeAirDate)
+                  : null,
+              };
+            },
+          );
           setEpisodeData(processedData);
         }
       } catch (error) {
@@ -92,16 +107,24 @@ export function WatchlistClient({
 
     // Apply media type filter
     if (mediaFilter === "movies") {
-      filtered = filtered.filter((item) => item.watchlistItem.mediaType === "movie");
+      filtered = filtered.filter(
+        (item) => item.watchlistItem.mediaType === "movie",
+      );
     } else if (mediaFilter === "tv") {
-      filtered = filtered.filter((item) => item.watchlistItem.mediaType === "tv");
+      filtered = filtered.filter(
+        (item) => item.watchlistItem.mediaType === "tv",
+      );
     }
 
     // Apply type tab filter
     if (typeTab === "movies") {
-      filtered = filtered.filter((item) => item.watchlistItem.mediaType === "movie");
+      filtered = filtered.filter(
+        (item) => item.watchlistItem.mediaType === "movie",
+      );
     } else if (typeTab === "tv") {
-      filtered = filtered.filter((item) => item.watchlistItem.mediaType === "tv");
+      filtered = filtered.filter(
+        (item) => item.watchlistItem.mediaType === "tv",
+      );
     }
 
     // Note: "New Episodes Available" filter is handled in sorting logic below
@@ -112,33 +135,40 @@ export function WatchlistClient({
     filtered.sort((a, b) => {
       switch (sortOption) {
         case "recently-watched": {
-          const aDate = a.watchlistItem.lastWatchedAt || a.watchlistItem.createdAt;
-          const bDate = b.watchlistItem.lastWatchedAt || b.watchlistItem.createdAt;
+          const aDate =
+            a.watchlistItem.lastWatchedAt || a.watchlistItem.createdAt;
+          const bDate =
+            b.watchlistItem.lastWatchedAt || b.watchlistItem.createdAt;
           return bDate.getTime() - aDate.getTime();
         }
         case "new-episodes": {
           // Sort by new episodes first, then by episode air date
           const aInfo = episodeData[a.id];
           const bInfo = episodeData[b.id];
-          
+
           // Items with new episodes come first
           if (aInfo?.hasNewEpisodes && !bInfo?.hasNewEpisodes) return -1;
           if (!aInfo?.hasNewEpisodes && bInfo?.hasNewEpisodes) return 1;
-          
+
           // If both have new episodes, sort by latest episode air date
           if (aInfo?.hasNewEpisodes && bInfo?.hasNewEpisodes) {
             const aDate = aInfo.latestEpisodeAirDate?.getTime() || 0;
             const bDate = bInfo.latestEpisodeAirDate?.getTime() || 0;
             return bDate - aDate;
           }
-          
+
           // If neither has new episodes, sort by last watched
-          const aDate = a.watchlistItem.lastWatchedAt || a.watchlistItem.createdAt;
-          const bDate = b.watchlistItem.lastWatchedAt || b.watchlistItem.createdAt;
+          const aDate =
+            a.watchlistItem.lastWatchedAt || a.watchlistItem.createdAt;
+          const bDate =
+            b.watchlistItem.lastWatchedAt || b.watchlistItem.createdAt;
           return bDate.getTime() - aDate.getTime();
         }
         case "recently-added": {
-          return b.watchlistItem.createdAt.getTime() - a.watchlistItem.createdAt.getTime();
+          return (
+            b.watchlistItem.createdAt.getTime() -
+            a.watchlistItem.createdAt.getTime()
+          );
         }
         default:
           return 0;
