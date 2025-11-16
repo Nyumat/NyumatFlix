@@ -8,6 +8,11 @@ import { useRouter } from "next/navigation";
 import { match, P } from "ts-pattern";
 import { Info } from "./media-info";
 import { Poster } from "./media-poster";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
+import { EpisodeIndicator } from "@/components/watchlist/episode-indicator";
+import type { WatchlistItem } from "@/app/watchlist/actions";
+import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 
 interface MovieDetails {
   id?: number;
@@ -33,6 +38,15 @@ interface MediaCardProps {
    *  used for carosuel items within detail pages.
    */
   minimal?: boolean;
+  /** Optional watchlist item for status toggle */
+  watchlistItem?: WatchlistItem;
+  /** Optional callback for status change */
+  onStatusChange?: (
+    itemId: string,
+    newStatus: "watching" | "waiting" | "finished",
+  ) => void;
+  /** Optional episode info for TV shows */
+  episodeInfo?: EpisodeInfo | null;
 }
 
 export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
@@ -76,7 +90,15 @@ export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
   );
 };
 
-export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
+export const MediaCard = ({
+  item,
+  type,
+  rating,
+  minimal,
+  watchlistItem,
+  onStatusChange,
+  episodeInfo,
+}: MediaCardProps) => {
   const router = useRouter();
   if (item.id === undefined) return <div>No content ID found</div>;
   const title = getTitle(item);
@@ -129,6 +151,18 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
     router.prefetch(href);
   };
 
+  const handleStatusChange = (newStatus: string) => {
+    if (
+      watchlistItem &&
+      onStatusChange &&
+      (newStatus === "watching" ||
+        newStatus === "waiting" ||
+        newStatus === "finished")
+    ) {
+      onStatusChange(watchlistItem.id, newStatus);
+    }
+  };
+
   if (minimal) {
     return <MinimalMediaCard item={item} />;
   }
@@ -151,6 +185,59 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
               </div>
             </div>
           </div>
+          {/* Status Toggle Overlay */}
+          {watchlistItem && onStatusChange && (
+            <div
+              className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <ToggleGroup
+                type="single"
+                value={watchlistItem.status}
+                onValueChange={handleStatusChange}
+                className="bg-background/90 backdrop-blur-md border border-border rounded-md p-1"
+              >
+                <ToggleGroupItem
+                  value="watching"
+                  aria-label="Watching"
+                  size="sm"
+                  className={cn(
+                    "px-2 py-1 text-xs",
+                    watchlistItem.status === "watching" &&
+                      "bg-primary text-primary-foreground",
+                  )}
+                >
+                  Watching
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="waiting"
+                  aria-label="Waiting"
+                  size="sm"
+                  className={cn(
+                    "px-2 py-1 text-xs",
+                    watchlistItem.status === "waiting" &&
+                      "bg-primary text-primary-foreground",
+                  )}
+                >
+                  Waiting
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="finished"
+                  aria-label="Finished"
+                  size="sm"
+                  className={cn(
+                    "px-2 py-1 text-xs",
+                    watchlistItem.status === "finished" &&
+                      "bg-primary text-primary-foreground",
+                  )}
+                >
+                  Finished
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          )}
         </div>
       </div>
       <CardContent className="p-0 relative h-full flex flex-col">
@@ -168,6 +255,16 @@ export const MediaCard = ({ item, type, rating, minimal }: MediaCardProps) => {
             mediaType={type as "movie" | "tv"} // TODO: fix this
             rating={rating}
           />
+          {/* Episode Indicator */}
+          {type === "tv" && item.id && (
+            <div className="mt-2">
+              <EpisodeIndicator
+                contentId={item.id}
+                mediaType="tv"
+                episodeInfo={episodeInfo || null}
+              />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

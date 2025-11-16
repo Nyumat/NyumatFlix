@@ -83,22 +83,10 @@ export default async function WatchlistPage() {
     };
   });
 
-  // Group by status
-  const watchingItems = itemsWithWatchlist.filter(
-    (item) => item.watchlistItem?.status === "watching",
-  );
-  const waitingItems = itemsWithWatchlist.filter(
-    (item) => item.watchlistItem?.status === "waiting",
-  );
-  const finishedItems = itemsWithWatchlist.filter(
-    (item) => item.watchlistItem?.status === "finished",
-  );
-
+  // Pass all items to client (client will handle filtering/sorting)
   return (
     <WatchlistClient
-      watchingItems={watchingItems}
-      waitingItems={waitingItems}
-      finishedItems={finishedItems}
+      allItems={itemsWithWatchlist}
       watchlistItems={watchlistItems}
     />
   );

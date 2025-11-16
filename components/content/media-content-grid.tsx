@@ -24,6 +24,8 @@ import { Clock, Play, Star } from "lucide-react";
 import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import type { WatchlistItem } from "@/app/watchlist/actions";
+import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 
 function ListViewCard(props: {
   item: MediaItem;
@@ -248,6 +250,15 @@ interface MediaContentGridProps {
   "data-testid"?: string;
   /** Items per row for grid layout */
   itemsPerRow?: number;
+  /** Optional map of watchlist items by contentId */
+  watchlistItemsMap?: Map<number, WatchlistItem>;
+  /** Optional callback for status change */
+  onStatusChange?: (
+    itemId: string,
+    newStatus: "watching" | "waiting" | "finished",
+  ) => void;
+  /** Optional map of episode info by contentId */
+  episodeInfoMap?: Map<number, EpisodeInfo | null>;
 }
 
 export function MediaContentGrid({
@@ -263,6 +274,9 @@ export function MediaContentGrid({
   "data-testid": testId,
   itemsPerRow = 4,
   type,
+  watchlistItemsMap,
+  onStatusChange,
+  episodeInfoMap,
 }: MediaContentGridProps) {
   const {
     viewMode: storedViewMode,
@@ -300,6 +314,14 @@ export function MediaContentGrid({
 
   const renderMediaCard = (item: ContentItem, viewMode: ViewMode) => {
     const mediaItem = item as MediaItem;
+    const watchlistItem =
+      mediaItem.id && watchlistItemsMap
+        ? watchlistItemsMap.get(mediaItem.id)
+        : undefined;
+    const episodeInfo =
+      mediaItem.id && episodeInfoMap
+        ? episodeInfoMap.get(mediaItem.id)
+        : undefined;
 
     if (viewMode === "list") {
       return (
@@ -317,6 +339,9 @@ export function MediaContentGrid({
           item={mediaItem}
           type={mediaItem.media_type}
           rating={mediaItem.content_rating || undefined}
+          watchlistItem={watchlistItem}
+          onStatusChange={onStatusChange}
+          episodeInfo={episodeInfo}
         />
       </div>
     );
