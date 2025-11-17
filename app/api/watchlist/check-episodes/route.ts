@@ -9,6 +9,8 @@ import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 const cache = new Map<string, { data: EpisodeInfo; timestamp: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
+type WatchlistRow = typeof watchlist.$inferSelect;
+
 function getCached(key: string): EpisodeInfo | null {
   const cached = cache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -20,6 +22,25 @@ function getCached(key: string): EpisodeInfo | null {
 
 function setCached(key: string, data: EpisodeInfo) {
   cache.set(key, { data, timestamp: Date.now() });
+}
+
+/**
+ * Cache entries are scoped per user + show + progress so we refresh as soon as the
+ * viewer logs a new episode or flips status (watching/waiting/finished).
+ */
+function makeCacheKey(userId: string, item: WatchlistRow) {
+  const progressKey = [
+    item.lastWatchedSeason ?? "none",
+    item.lastWatchedEpisode ?? "none",
+  ].join("-");
+
+  return [
+    "episode-data",
+    userId,
+    item.contentId,
+    item.status,
+    progressKey,
+  ].join(":");
 }
 
 export async function GET(request: NextRequest) {
@@ -43,9 +64,15 @@ export async function GET(request: NextRequest) {
 
     const episodeData: Record<number, EpisodeInfo> = {};
 
-    // Check episodes for each TV show
+    // Manual verification:
+    // 1. POST /api/watchlist/progress with the latest aired episode.
+    // 2. Hit this endpoint and confirm countdown info is present.
+    // 3. Repeat with an older episode to confirm the cache busts and new-episode data returns.
+
+    // Check episodes for each TV show using progress-aware caching so countdowns
+    // start immediately after catching up on the latest aired episode.
     for (const item of tvShows) {
-      const cacheKey = `episode-data-${item.contentId}`;
+      const cacheKey = makeCacheKey(session.user.id, item);
       let episodeInfo = getCached(cacheKey);
 
       if (!episodeInfo) {

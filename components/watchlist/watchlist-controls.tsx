@@ -11,10 +11,9 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export type SortOption = "recently-watched" | "new-episodes" | "recently-added";
-export type MediaFilter = "all" | "movies" | "tv";
+export type StatusFilter = "all" | "watching" | "waiting" | "finished";
 export type TypeTab = "all" | "movies" | "tv";
 
 interface WatchlistControlsProps {
@@ -22,8 +21,8 @@ interface WatchlistControlsProps {
   onSearchChange: (query: string) => void;
   sortOption: SortOption;
   onSortChange: (sort: SortOption) => void;
-  mediaFilter: MediaFilter;
-  onMediaFilterChange: (filter: MediaFilter) => void;
+  statusFilter: StatusFilter;
+  onStatusFilterChange: (filter: StatusFilter) => void;
   typeTab: TypeTab;
   onTypeTabChange: (tab: TypeTab) => void;
 }
@@ -33,8 +32,8 @@ export function WatchlistControls({
   onSearchChange,
   sortOption,
   onSortChange,
-  mediaFilter,
-  onMediaFilterChange,
+  statusFilter,
+  onStatusFilterChange,
   typeTab,
   onTypeTabChange,
 }: WatchlistControlsProps) {
@@ -87,32 +86,39 @@ export function WatchlistControls({
           </Select>
         </div>
 
-        {/* Filter Buttons */}
+        {/* Status Filter Buttons */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground whitespace-nowrap">
-            Filter:
+            Status:
           </span>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             <Button
-              variant={mediaFilter === "all" ? "default" : "outline"}
+              variant={statusFilter === "all" ? "default" : "outline"}
               size="sm"
-              onClick={() => onMediaFilterChange("all")}
+              onClick={() => onStatusFilterChange("all")}
             >
               All
             </Button>
             <Button
-              variant={mediaFilter === "movies" ? "default" : "outline"}
+              variant={statusFilter === "watching" ? "default" : "outline"}
               size="sm"
-              onClick={() => onMediaFilterChange("movies")}
+              onClick={() => onStatusFilterChange("watching")}
             >
-              Movies Only
+              Watching
             </Button>
             <Button
-              variant={mediaFilter === "tv" ? "default" : "outline"}
+              variant={statusFilter === "waiting" ? "default" : "outline"}
               size="sm"
-              onClick={() => onMediaFilterChange("tv")}
+              onClick={() => onStatusFilterChange("waiting")}
             >
-              TV Shows Only
+              Waiting for New Episodes
+            </Button>
+            <Button
+              variant={statusFilter === "finished" ? "default" : "outline"}
+              size="sm"
+              onClick={() => onStatusFilterChange("finished")}
+            >
+              Finished
             </Button>
           </div>
         </div>

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   WatchlistControls,
   type SortOption,
-  type MediaFilter,
+  type StatusFilter,
   type TypeTab,
 } from "@/components/watchlist/watchlist-controls";
 import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
@@ -26,7 +26,7 @@ export function WatchlistClient({
   // Control states
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("recently-watched");
-  const [mediaFilter, setMediaFilter] = useState<MediaFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeTab, setTypeTab] = useState<TypeTab>("all");
 
   // Episode data state
@@ -105,14 +105,10 @@ export function WatchlistClient({
       });
     }
 
-    // Apply media type filter
-    if (mediaFilter === "movies") {
+    // Apply status filter
+    if (statusFilter !== "all") {
       filtered = filtered.filter(
-        (item) => item.watchlistItem.mediaType === "movie",
-      );
-    } else if (mediaFilter === "tv") {
-      filtered = filtered.filter(
-        (item) => item.watchlistItem.mediaType === "tv",
+        (item) => item.watchlistItem.status === statusFilter,
       );
     }
 
@@ -176,7 +172,7 @@ export function WatchlistClient({
     });
 
     return filtered;
-  }, [allItems, searchQuery, sortOption, mediaFilter, typeTab, episodeData]);
+  }, [allItems, searchQuery, sortOption, statusFilter, typeTab, episodeData]);
 
   // Group items by status
   const watchingItems = useMemo(
@@ -246,8 +242,8 @@ export function WatchlistClient({
         onSearchChange={setSearchQuery}
         sortOption={sortOption}
         onSortChange={setSortOption}
-        mediaFilter={mediaFilter}
-        onMediaFilterChange={setMediaFilter}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
         typeTab={typeTab}
         onTypeTabChange={setTypeTab}
       />
