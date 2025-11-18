@@ -88,15 +88,21 @@ export function WatchlistControls({
           </div>
 
           {/* Type Tabs (moved here for better grouping on mobile) */}
-           <Tabs
+          <Tabs
             value={typeTab}
             onValueChange={(value) => onTypeTabChange(value as TypeTab)}
             className="w-full sm:w-auto"
           >
             <TabsList className="w-full sm:w-auto">
-              <TabsTrigger value="all" className="flex-1 sm:flex-none">All</TabsTrigger>
-              <TabsTrigger value="movies" className="flex-1 sm:flex-none">Movies</TabsTrigger>
-              <TabsTrigger value="tv" className="flex-1 sm:flex-none">TV Shows</TabsTrigger>
+              <TabsTrigger value="all" className="flex-1 sm:flex-none">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="movies" className="flex-1 sm:flex-none">
+                Movies
+              </TabsTrigger>
+              <TabsTrigger value="tv" className="flex-1 sm:flex-none">
+                TV Shows
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

@@ -215,7 +215,9 @@ export function WatchlistClient({
     newStatus: "watching" | "waiting" | "finished",
   ) => {
     // 1. Find item to backup
-    const itemToUpdate = allItems.find((item) => item.watchlistItem.id === itemId);
+    const itemToUpdate = allItems.find(
+      (item) => item.watchlistItem.id === itemId,
+    );
     if (!itemToUpdate) return;
 
     const oldStatus = itemToUpdate.watchlistItem.status;
@@ -263,30 +265,30 @@ export function WatchlistClient({
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status, reverting changes");
-      
+
       // 4. Revert on failure
       setAllItems(
         allItems.map((item) => {
-            if (item.watchlistItem.id === itemId) {
-                return {
-                    ...item,
-                    watchlistItem: {
-                        ...item.watchlistItem,
-                        status: oldStatus
-                    }
-                }
-            }
-            return item;
-        })
+          if (item.watchlistItem.id === itemId) {
+            return {
+              ...item,
+              watchlistItem: {
+                ...item.watchlistItem,
+                status: oldStatus,
+              },
+            };
+          }
+          return item;
+        }),
       );
       setWatchlistItems(
-          watchlistItems.map(item => {
-              if (item.id === itemId) {
-                  return { ...item, status: oldStatus };
-              }
-              return item;
-          })
-      )
+        watchlistItems.map((item) => {
+          if (item.id === itemId) {
+            return { ...item, status: oldStatus };
+          }
+          return item;
+        }),
+      );
     }
   };
 
@@ -295,14 +297,15 @@ export function WatchlistClient({
     return (
       <div className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center min-h-[60vh] animate-in fade-in duration-700">
         <div className="bg-muted/30 p-6 rounded-full mb-6">
-           <div className="flex gap-2">
-             <Film className="w-8 h-8 text-muted-foreground" />
-             <Tv className="w-8 h-8 text-muted-foreground" />
-           </div>
+          <div className="flex gap-2">
+            <Film className="w-8 h-8 text-muted-foreground" />
+            <Tv className="w-8 h-8 text-muted-foreground" />
+          </div>
         </div>
         <h1 className="text-3xl font-bold mb-2">Your watchlist is empty</h1>
         <p className="text-muted-foreground max-w-md mb-8 text-lg">
-          Start building your collection by adding movies and TV shows you want to watch.
+          Start building your collection by adding movies and TV shows you want
+          to watch.
         </p>
         <div className="flex gap-4">
           <Link
@@ -377,19 +380,19 @@ export function WatchlistClient({
 
         {/* Empty Search/Filter State */}
         {filteredAndSortedItems.length === 0 && (
-           <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg">
-             <p className="text-lg">No items match your filters</p>
-             <button 
-               onClick={() => {
-                 setSearchQuery("");
-                 setStatusFilter("all");
-                 setTypeTab("all");
-               }}
-               className="text-primary hover:underline mt-2 text-sm"
-             >
-               Clear all filters
-             </button>
-           </div>
+          <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg">
+            <p className="text-lg">No items match your filters</p>
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setStatusFilter("all");
+                setTypeTab("all");
+              }}
+              className="text-primary hover:underline mt-2 text-sm"
+            >
+              Clear all filters
+            </button>
+          </div>
         )}
       </div>
     </div>
