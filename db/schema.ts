@@ -13,16 +13,19 @@ import postgres from "postgres";
 
 const connectionString =
   process.env.NODE_ENV === "production"
-    ? process.env.PROD_DATABASE_URL!
-    : process.env.DATABASE_URL!;
+    ? process.env.PROD_DATABASE_URL
+    : process.env.DATABASE_URL;
 
 if (!connectionString) {
-  throw new Error("DATABASE_URL is not set");
-} else {
-  // TODO: Find secure way to log connection string
+  console.warn(
+    "⚠️  DATABASE_URL is not set. Using dummy connection string for build.",
+  );
 }
 
-const pool = postgres(connectionString, { max: 1 });
+const pool = postgres(
+  connectionString || "postgres://postgres:postgres@localhost:5432/nyumatflix",
+  { max: 1 },
+);
 
 export const db = drizzle(pool);
 
