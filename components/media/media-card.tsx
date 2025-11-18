@@ -159,6 +159,7 @@ export const MediaCard = ({
         newStatus === "waiting" ||
         newStatus === "finished")
     ) {
+      // Pass the watchlistItem.id (the database ID) not the contentId
       onStatusChange(watchlistItem.id, newStatus);
     }
   };

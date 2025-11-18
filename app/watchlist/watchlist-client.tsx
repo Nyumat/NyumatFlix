@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { MediaItem } from "@/utils/typings";
 import { WatchlistItem } from "./actions";
 import { toast } from "sonner";
@@ -13,6 +12,9 @@ import {
 } from "@/components/watchlist/watchlist-controls";
 import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 import { getTitle } from "@/utils/typings";
+import { WatchlistSection } from "@/components/watchlist/watchlist-section";
+import Link from "next/link";
+import { Film, Tv } from "lucide-react";
 
 interface WatchlistClientProps {
   allItems: Array<MediaItem & { watchlistItem: WatchlistItem }>;
@@ -20,9 +22,13 @@ interface WatchlistClientProps {
 }
 
 export function WatchlistClient({
-  allItems,
-  watchlistItems,
+  allItems: initialAllItems,
+  watchlistItems: initialWatchlistItems,
 }: WatchlistClientProps) {
+  // State for items to handle optimistic updates
+  const [allItems, setAllItems] = useState(initialAllItems);
+  const [watchlistItems, setWatchlistItems] = useState(initialWatchlistItems);
+
   // Control states
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("recently-watched");
@@ -123,10 +129,6 @@ export function WatchlistClient({
       );
     }
 
-    // Note: "New Episodes Available" filter is handled in sorting logic below
-    // When sort is "new-episodes", it sorts all items with new episodes first
-    // but doesn't filter them out (shows all items, just sorted)
-
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortOption) {
@@ -199,11 +201,52 @@ export function WatchlistClient({
     [filteredAndSortedItems],
   );
 
+  // Calculate stats
+  const stats = useMemo(() => {
+    const movieCount = watchlistItems.filter(
+      (i) => i.mediaType === "movie",
+    ).length;
+    const tvCount = watchlistItems.filter((i) => i.mediaType === "tv").length;
+    return { movieCount, tvCount, total: watchlistItems.length };
+  }, [watchlistItems]);
+
   const handleStatusChange = async (
     itemId: string,
     newStatus: "watching" | "waiting" | "finished",
   ) => {
+    // 1. Find item to backup
+    const itemToUpdate = allItems.find((item) => item.watchlistItem.id === itemId);
+    if (!itemToUpdate) return;
+
+    const oldStatus = itemToUpdate.watchlistItem.status;
+
+    // 2. Optimistic update
+    const updatedAllItems = allItems.map((item) => {
+      if (item.watchlistItem.id === itemId) {
+        return {
+          ...item,
+          watchlistItem: {
+            ...item.watchlistItem,
+            status: newStatus,
+          },
+        };
+      }
+      return item;
+    });
+    setAllItems(updatedAllItems);
+
+    const updatedWatchlistItems = watchlistItems.map((item) => {
+      if (item.id === itemId) {
+        return { ...item, status: newStatus };
+      }
+      return item;
+    });
+    setWatchlistItems(updatedWatchlistItems);
+
+    toast.success("Status updated");
+
     try {
+      // 3. API Call
       const response = await fetch(`/api/watchlist/${itemId}`, {
         method: "PATCH",
         headers: {
@@ -217,23 +260,81 @@ export function WatchlistClient({
       if (!response.ok) {
         throw new Error("Failed to update status");
       }
-
-      toast.success("Status updated");
-      // Refresh the page to show updated status
-      window.location.reload();
     } catch (error) {
       console.error("Error updating status:", error);
-      toast.error("Failed to update status");
+      toast.error("Failed to update status, reverting changes");
+      
+      // 4. Revert on failure
+      setAllItems(
+        allItems.map((item) => {
+            if (item.watchlistItem.id === itemId) {
+                return {
+                    ...item,
+                    watchlistItem: {
+                        ...item.watchlistItem,
+                        status: oldStatus
+                    }
+                }
+            }
+            return item;
+        })
+      );
+      setWatchlistItems(
+          watchlistItems.map(item => {
+              if (item.id === itemId) {
+                  return { ...item, status: oldStatus };
+              }
+              return item;
+          })
+      )
     }
   };
 
-  return (
-    <div className="container mx-auto px-4 pt-24 pb-8 space-y-12">
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold text-foreground">My Watchlist</h1>
-        <p className="text-muted-foreground">
-          Track your viewing progress and manage your watchlist
+  // Global Empty State
+  if (watchlistItems.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center min-h-[60vh] animate-in fade-in duration-700">
+        <div className="bg-muted/30 p-6 rounded-full mb-6">
+           <div className="flex gap-2">
+             <Film className="w-8 h-8 text-muted-foreground" />
+             <Tv className="w-8 h-8 text-muted-foreground" />
+           </div>
+        </div>
+        <h1 className="text-3xl font-bold mb-2">Your watchlist is empty</h1>
+        <p className="text-muted-foreground max-w-md mb-8 text-lg">
+          Start building your collection by adding movies and TV shows you want to watch.
         </p>
+        <div className="flex gap-4">
+          <Link
+            href="/browse/genre/movies"
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-6 py-2"
+          >
+            Browse Movies
+          </Link>
+          <Link
+            href="/browse/genre/tv"
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-6 py-2"
+          >
+            Browse TV Shows
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 pt-24 pb-8 space-y-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold text-foreground">My Watchlist</h1>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span>{stats.total} items</span>
+            <span>•</span>
+            <span>{stats.movieCount} movies</span>
+            <span>•</span>
+            <span>{stats.tvCount} TV shows</span>
+          </div>
+        </div>
       </div>
 
       {/* Controls */}
@@ -249,73 +350,48 @@ export function WatchlistClient({
       />
 
       {/* Sections */}
-      <WatchlistSection
-        title="Watching"
-        items={watchingItems}
-        watchlistItemsMap={watchlistItemsMap}
-        episodeInfoMap={episodeInfoMap}
-        onStatusChange={handleStatusChange}
-      />
+      <div className="space-y-12">
+        <WatchlistSection
+          title="Watching"
+          items={watchingItems}
+          watchlistItemsMap={watchlistItemsMap}
+          episodeInfoMap={episodeInfoMap}
+          onStatusChange={handleStatusChange}
+        />
 
-      <WatchlistSection
-        title="Waiting for New Episodes"
-        items={waitingItems}
-        watchlistItemsMap={watchlistItemsMap}
-        episodeInfoMap={episodeInfoMap}
-        onStatusChange={handleStatusChange}
-      />
+        <WatchlistSection
+          title="Waiting for New Episodes"
+          items={waitingItems}
+          watchlistItemsMap={watchlistItemsMap}
+          episodeInfoMap={episodeInfoMap}
+          onStatusChange={handleStatusChange}
+        />
 
-      <WatchlistSection
-        title="Finished"
-        items={finishedItems}
-        watchlistItemsMap={watchlistItemsMap}
-        episodeInfoMap={episodeInfoMap}
-        onStatusChange={handleStatusChange}
-      />
-    </div>
-  );
-}
+        <WatchlistSection
+          title="Finished"
+          items={finishedItems}
+          watchlistItemsMap={watchlistItemsMap}
+          episodeInfoMap={episodeInfoMap}
+          onStatusChange={handleStatusChange}
+        />
 
-interface WatchlistSectionProps {
-  title: string;
-  items: Array<MediaItem & { watchlistItem: WatchlistItem }>;
-  watchlistItemsMap: Map<number, WatchlistItem>;
-  episodeInfoMap: Map<number, EpisodeInfo | null>;
-  onStatusChange: (
-    itemId: string,
-    newStatus: "watching" | "waiting" | "finished",
-  ) => void;
-}
-
-function WatchlistSection({
-  title,
-  items,
-  watchlistItemsMap,
-  episodeInfoMap,
-  onStatusChange,
-}: WatchlistSectionProps) {
-  // Hide section if empty (current behavior)
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-        <span className="text-sm text-muted-foreground">
-          {items.length} {items.length === 1 ? "item" : "items"}
-        </span>
+        {/* Empty Search/Filter State */}
+        {filteredAndSortedItems.length === 0 && (
+           <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg">
+             <p className="text-lg">No items match your filters</p>
+             <button 
+               onClick={() => {
+                 setSearchQuery("");
+                 setStatusFilter("all");
+                 setTypeTab("all");
+               }}
+               className="text-primary hover:underline mt-2 text-sm"
+             >
+               Clear all filters
+             </button>
+           </div>
+        )}
       </div>
-      <MediaContentGrid
-        items={items}
-        defaultViewMode="grid"
-        showViewModeControls={true}
-        showDock={false}
-        watchlistItemsMap={watchlistItemsMap}
-        onStatusChange={onStatusChange}
-        episodeInfoMap={episodeInfoMap}
-      />
-    </section>
+    </div>
   );
 }

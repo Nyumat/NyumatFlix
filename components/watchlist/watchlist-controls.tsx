@@ -61,41 +61,57 @@ export function WatchlistControls({
       </div>
 
       {/* Controls Row */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        {/* Sort Dropdown */}
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor="sort-select"
-            className="text-sm text-muted-foreground whitespace-nowrap"
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label
+              htmlFor="sort-select"
+              className="text-sm text-muted-foreground whitespace-nowrap"
+            >
+              Sort by:
+            </label>
+            <Select value={sortOption} onValueChange={onSortChange}>
+              <SelectTrigger id="sort-select" className="w-full sm:w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recently-watched">
+                  Most Recently Watched
+                </SelectItem>
+                <SelectItem value="new-episodes">
+                  New Episodes Available
+                </SelectItem>
+                <SelectItem value="recently-added">Recently Added</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Type Tabs (moved here for better grouping on mobile) */}
+           <Tabs
+            value={typeTab}
+            onValueChange={(value) => onTypeTabChange(value as TypeTab)}
+            className="w-full sm:w-auto"
           >
-            Sort by:
-          </label>
-          <Select value={sortOption} onValueChange={onSortChange}>
-            <SelectTrigger id="sort-select" className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="recently-watched">
-                Most Recently Watched
-              </SelectItem>
-              <SelectItem value="new-episodes">
-                New Episodes Available
-              </SelectItem>
-              <SelectItem value="recently-added">Recently Added</SelectItem>
-            </SelectContent>
-          </Select>
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="all" className="flex-1 sm:flex-none">All</TabsTrigger>
+              <TabsTrigger value="movies" className="flex-1 sm:flex-none">Movies</TabsTrigger>
+              <TabsTrigger value="tv" className="flex-1 sm:flex-none">TV Shows</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Status Filter Buttons */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground whitespace-nowrap">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto">
+          <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline-block">
             Status:
           </span>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button
               variant={statusFilter === "all" ? "default" : "outline"}
               size="sm"
               onClick={() => onStatusFilterChange("all")}
+              className="flex-1 sm:flex-none"
             >
               All
             </Button>
@@ -103,6 +119,7 @@ export function WatchlistControls({
               variant={statusFilter === "watching" ? "default" : "outline"}
               size="sm"
               onClick={() => onStatusFilterChange("watching")}
+              className="flex-1 sm:flex-none"
             >
               Watching
             </Button>
@@ -110,31 +127,21 @@ export function WatchlistControls({
               variant={statusFilter === "waiting" ? "default" : "outline"}
               size="sm"
               onClick={() => onStatusFilterChange("waiting")}
+              className="flex-1 sm:flex-none"
             >
-              Waiting for New Episodes
+              Waiting
             </Button>
             <Button
               variant={statusFilter === "finished" ? "default" : "outline"}
               size="sm"
               onClick={() => onStatusFilterChange("finished")}
+              className="flex-1 sm:flex-none"
             >
               Finished
             </Button>
           </div>
         </div>
       </div>
-
-      {/* Type Tabs */}
-      <Tabs
-        value={typeTab}
-        onValueChange={(value) => onTypeTabChange(value as TypeTab)}
-      >
-        <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="movies">Movies</TabsTrigger>
-          <TabsTrigger value="tv">TV Shows</TabsTrigger>
-        </TabsList>
-      </Tabs>
     </div>
   );
 }
