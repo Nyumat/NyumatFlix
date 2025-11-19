@@ -47,7 +47,19 @@ export const fetchAnilistId = async (title: string): Promise<number | null> => {
     });
 
     if (!response.ok) {
-      console.error("Anilist API error:", response.status, response.statusText);
+      // 404 is expected when content doesn't exist on Anilist
+      if (response.status === 404) {
+        console.warn(
+          `Anilist API: Content not found for title "${title}" (${response.statusText})`,
+        );
+      } else {
+        // Log actual errors (5xx, etc.) as errors
+        console.error(
+          "Anilist API error:",
+          response.status,
+          response.statusText,
+        );
+      }
       return null;
     }
 

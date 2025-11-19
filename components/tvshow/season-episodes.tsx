@@ -6,6 +6,7 @@ import { Tv } from "lucide-react";
 import Image from "next/legacy/image";
 import { useCallback, useEffect, useState } from "react";
 import { fetchSeasonDetails } from "./tvshow-api";
+import { EpisodeProgressIndicator } from "@/components/watchlist/episode-progress-indicator";
 
 type SeasonEpisodesProps = {
   tvId: string;
@@ -158,11 +159,18 @@ export function SeasonEpisodes({
                       <p className="text-muted-foreground text-sm line-clamp-2">
                         {episode.overview}
                       </p>
-                      {selectedEpisode?.id === episode.id && (
-                        <div className="mt-2 text-primary text-sm font-medium">
-                          Selected for viewing
-                        </div>
-                      )}
+                      <div className="mt-2 flex items-center gap-3">
+                        {selectedEpisode?.id === episode.id && (
+                          <div className="text-primary text-sm font-medium">
+                            Selected for viewing
+                          </div>
+                        )}
+                        <EpisodeProgressIndicator
+                          contentId={parseInt(tvId)}
+                          seasonNumber={seasonNumber}
+                          episodeNumber={episode.episode_number}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

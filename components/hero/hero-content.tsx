@@ -13,6 +13,7 @@ import { HeroDetails } from "./hero-details";
 import { HeroGenres } from "./hero-genres";
 import { HeroGradients } from "./hero-gradients";
 import type { YouTubePlayer } from "./youtube-types";
+import { WatchlistButton } from "@/components/watchlist/watchlist-button";
 
 interface HeroContentProps {
   media: MediaItem;
@@ -204,6 +205,13 @@ export function HeroContent({
                       handlePlayTrailer={handlePlayTrailer}
                       mediaType={mediaType}
                       isUpcoming={isUpcoming}
+                    />
+                    <WatchlistButton
+                      contentId={media.id}
+                      mediaType={mediaType || "movie"}
+                      variant="outline"
+                      size="default"
+                      className="backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40"
                     />
                     <ServerSelector
                       media={media}

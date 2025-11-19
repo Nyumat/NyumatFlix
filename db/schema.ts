@@ -6,22 +6,26 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 const connectionString =
   process.env.NODE_ENV === "production"
-    ? process.env.PROD_DATABASE_URL!
-    : process.env.DATABASE_URL!;
+    ? process.env.PROD_DATABASE_URL
+    : process.env.DATABASE_URL;
 
 if (!connectionString) {
-  throw new Error("DATABASE_URL is not set");
-} else {
-  // TODO: Find secure way to log connection string
+  console.warn(
+    "⚠️  DATABASE_URL is not set. Using dummy connection string for build.",
+  );
 }
 
-const pool = postgres(connectionString, { max: 1 });
+const pool = postgres(
+  connectionString || "postgres://postgres:postgres@localhost:5432/nyumatflix",
+  { max: 1 },
+);
 
 export const db = drizzle(pool);
 
@@ -106,4 +110,28 @@ export const authenticators = pgTable(
       }),
     },
   ],
+);
+
+export const watchlist = pgTable(
+  "watchlist",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    contentId: integer("contentId").notNull(),
+    mediaType: text("mediaType").notNull().$type<"movie" | "tv">(),
+    status: text("status")
+      .notNull()
+      .default("watching")
+      .$type<"watching" | "waiting" | "finished">(),
+    lastWatchedSeason: integer("lastWatchedSeason"),
+    lastWatchedEpisode: integer("lastWatchedEpisode"),
+    lastWatchedAt: timestamp("lastWatchedAt", { mode: "date" }),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.userId, table.contentId, table.mediaType)],
 );
