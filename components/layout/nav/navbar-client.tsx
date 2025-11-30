@@ -26,11 +26,7 @@ const NAV_LINKS_WITH_HOME: NavLink[] = [
 ];
 
 const getNavLinks = (session: Session | null): NavLink[] => {
-  const links = [...NAV_LINKS_WITH_HOME];
-  if (session) {
-    links.push({ label: "Watchlist", href: "/watchlist" });
-  }
-  return links;
+  return [...NAV_LINKS_WITH_HOME];
 };
 
 interface NavbarClientProps {
