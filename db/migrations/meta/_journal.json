@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1757807500075,
-      "tag": "0000_wonderful_eternity",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1757808763157,
-      "tag": "0001_many_baron_strucker",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1757810000000,
-      "tag": "0002_add_watchlist_table",
+      "when": 1766484713945,
+      "tag": "0000_daily_zeigeist",
       "breakpoints": true
     }
   ]
