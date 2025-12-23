@@ -1,7 +1,3 @@
-import { ArrowRight, Mail } from "lucide-react";
-import { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +9,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ArrowRight, Mail } from "lucide-react";
+import { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
 import { NeuralNetworkBackground } from "./neural-network-client";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Login | NyumatFlix",
@@ -68,8 +69,10 @@ export default function LoginPage() {
     try {
       await signIn("resend", {
         email,
-        redirectTo: "/home",
+        redirect: false,
       });
+
+      redirect("/login/verify");
     } catch (error) {
       console.error("Sign in error:", error);
       throw error;

@@ -5,12 +5,14 @@ import { cn } from "@/lib/utils";
 import { Play, Youtube } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { WatchlistButton } from "../watchlist/watchlist-button";
 
 interface HeroButtonsProps {
   handleWatch(): void;
   handlePlayTrailer(): void;
   mediaType?: "tv" | "movie";
   isUpcoming?: boolean;
+  contentId: number;
 }
 
 export function HeroButtons({
@@ -18,6 +20,7 @@ export function HeroButtons({
   handlePlayTrailer,
   mediaType,
   isUpcoming = false,
+  contentId,
 }: HeroButtonsProps) {
   const { selectedEpisode } = useEpisodeStore();
 
@@ -88,7 +91,7 @@ export function HeroButtons({
       onClick={handleWatchClick}
       disabled={isWatchDisabled}
       className={cn(
-        "backdrop-blur-md bg-white/20 border border-white/30 text-white py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
+        "opacity-75 backdrop-blur-md bg-white/20 border border-white/30 text-white py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
         isWatchDisabled
           ? "bg-white/10 border-white/20 text-white/60 cursor-not-allowed opacity-60"
           : "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
@@ -111,6 +114,14 @@ export function HeroButtons({
       ) : (
         WatchButton
       )}
+
+      <WatchlistButton
+        contentId={contentId}
+        mediaType={mediaType}
+        variant="outline"
+        size="default"
+        className="backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40"
+      />
 
       <button
         className="backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg whitespace-nowrap"

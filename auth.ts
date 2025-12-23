@@ -1,12 +1,13 @@
-import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import NextAuth from "next-auth";
-import Resend from "next-auth/providers/resend";
 import { accounts, db, sessions, users, verificationTokens } from "@/db/schema";
 import { html, text } from "@/emails/email-helpers";
 import {
   MAGIC_LINK_RESEND_FROM,
   MAGIC_LINK_RESEND_SUBJECT,
 } from "@/lib/constants";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import NextAuth from "next-auth";
+import Resend from "next-auth/providers/resend";
+import { redirect } from "next/navigation";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
@@ -34,6 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             "⚠️  Development mode: Email not sent. Use the link above to sign in.",
           );
           console.log("=".repeat(60) + "\n");
+          redirect(new URL(url).toString());
           return;
         }
 
