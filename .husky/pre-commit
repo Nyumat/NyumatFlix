@@ -1,6 +1,24 @@
 #!/bin/sh
 echo "🚀 Running pre-commit checks..."
 
+# Try to find bun in common locations if not in PATH
+if ! command -v bun >/dev/null 2>&1; then
+  if [ -f "$HOME/.bun/bin/bun" ]; then
+    export PATH="$HOME/.bun/bin:$PATH"
+  elif [ -f "/opt/homebrew/bin/bun" ]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+  elif [ -f "$HOME/.local/bin/bun" ]; then
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+fi
+
+# Verify bun is available
+if ! command -v bun >/dev/null 2>&1; then
+  echo "❌ Error: bun command not found. Please ensure bun is installed and in your PATH."
+  echo "   You can install bun from: https://bun.sh"
+  exit 1
+fi
+
 pids=""
 
 bun run lint & pids="$pids $!"

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { CountryBadge } from "@/components/ui/country-badge";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import type { Genre } from "@/utils/typings";
+import { MediaLogo } from "@/components/media/media-logo";
 
 /**
  * Props for the Info component
@@ -12,6 +13,12 @@ import type { Genre } from "@/utils/typings";
 interface InfoProps {
   /** Title of the media content */
   title?: string;
+  /** Logo object for displaying media logo */
+  logo?: {
+    file_path: string;
+    width: number;
+    height: number;
+  };
   /** Release date for movies or first air date for TV shows */
   releaseDate?: string;
   /** Average vote rating (0-10) */
@@ -35,6 +42,7 @@ interface InfoProps {
  */
 export const Info = ({
   title,
+  logo,
   releaseDate,
   voteAverage,
   runtime,
@@ -63,9 +71,12 @@ export const Info = ({
 
   return (
     <div className="border-t border-primary/20 p-2 sm:p-3 md:p-4 text-foreground">
-      <h3 className="text-xs sm:text-sm md:text-base font-semibold mb-1 leading-tight line-clamp-2">
-        {title}
-      </h3>
+      <MediaLogo
+        logo={logo}
+        title={title}
+        className="mb-1 max-w-[200px]"
+        fallbackClassName="mb-1 text-xs sm:text-sm md:text-base leading-tight line-clamp-2"
+      />
       <div className="flex items-center gap-2 mb-2 text-xs md:text-sm flex-wrap">
         <span className="text-muted-foreground">{formatDate(releaseDate)}</span>
 

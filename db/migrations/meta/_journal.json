@@ -15,6 +15,13 @@
       "when": 1757808763157,
       "tag": "0001_many_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1757810000000,
+      "tag": "0002_add_watchlist_table",
+      "breakpoints": true
     }
   ]
 }

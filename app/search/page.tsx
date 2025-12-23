@@ -4,15 +4,6 @@ import { SearchPageClient } from "@/components/search/search";
 import { Suspense } from "react";
 
 export default function SearchPage() {
-  const apiKey = process.env.TMDB_API_KEY;
-
-  if (!apiKey) {
-    console.error("TMDB API key is missing for SearchPage");
-    throw new Error(
-      "TMDB API key is missing. Search functionality is unavailable.",
-    );
-  }
-
   return (
     <div className="w-full flex flex-col">
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" />

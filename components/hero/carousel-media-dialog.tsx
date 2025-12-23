@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { match, P } from "ts-pattern";
 import { GenreBadge } from "../ui/genre-badge";
+import { WatchlistButton } from "@/components/watchlist/watchlist-button";
 import { MediaInfoDialogProps } from "./types";
 
 export function MediaInfoDialog({
@@ -225,6 +226,20 @@ export function MediaInfoDialog({
                   <Play className="mr-2 h-4 w-4" />
                   Watch Now
                 </Button>
+                {typeof media.id === "number" && (
+                  <WatchlistButton
+                    contentId={media.id}
+                    mediaType={mediaInfoDialogType}
+                    variant="outline"
+                    className={cn(
+                      "flex-1 font-bold transition-all duration-200 shadow-lg",
+                      "backdrop-blur-md bg-white/10 border border-white/30 text-white",
+                      "hover:bg-white/20 hover:border-white/40 hover:shadow-xl",
+                    )}
+                  >
+                    Watchlist
+                  </WatchlistButton>
+                )}
                 <Button
                   asChild
                   className={cn(

@@ -79,9 +79,22 @@ export function ContentCard({
 
           <div className="flex flex-col justify-between text-foreground min-w-0">
             <div className="flex justify-between items-center">
-              <h3 className="truncate font-medium text-xs md:text-base">
-                {title}
-              </h3>
+              {item.logo ? (
+                <div className="max-w-[120px] md:max-w-[150px] w-auto flex-shrink">
+                  <Image
+                    src={`https://image.tmdb.org/t/p/w342${item.logo.file_path}`}
+                    alt={title}
+                    width={item.logo.width || 150}
+                    height={item.logo.height || 75}
+                    className="max-w-full h-auto object-contain"
+                    style={{ width: "auto", height: "auto" }}
+                  />
+                </div>
+              ) : (
+                <h3 className="truncate font-medium text-xs md:text-base">
+                  {title}
+                </h3>
+              )}
               {item.content_rating && (
                 <span className="w-fit whitespace-nowrap px-1 py-0.5 text-[10px] font-medium border border-white/30 text-white rounded-sm backdrop-blur-sm">
                   {item.content_rating}
@@ -129,8 +142,21 @@ export function ContentCard({
       </button>
 
       <div className="mt-2 space-y-1 text-foreground">
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-semibold truncate">{title}</h3>
+        <div className="flex flex-col items-center gap-1">
+          {item.logo ? (
+            <div className="max-w-[120px] md:max-w-[150px] w-auto">
+              <Image
+                src={`https://image.tmdb.org/t/p/w342${item.logo.file_path}`}
+                alt={title}
+                width={item.logo.width || 150}
+                height={item.logo.height || 75}
+                className="max-w-full h-auto object-contain"
+                style={{ width: "auto", height: "auto" }}
+              />
+            </div>
+          ) : (
+            <h3 className="text-sm font-semibold text-center">{title}</h3>
+          )}
           {item.content_rating && (
             <span className="w-fit whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-white/30 text-white backdrop-blur-sm">
               {item.content_rating}
@@ -138,7 +164,7 @@ export function ContentCard({
           )}
         </div>
 
-        <div className="flex justify-between items-center text-xs text-muted-foreground">
+        <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground">
           {item.vote_average && item.vote_average > 0 && (
             <div className="flex items-center gap-1">
               <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
