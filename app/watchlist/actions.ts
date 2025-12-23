@@ -1,9 +1,9 @@
 "use server";
 
 import { auth } from "@/auth";
-import { db, watchlist } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
 import { fetchTVShowDetails } from "@/components/tvshow/tvshow-api";
+import { db, watchlist } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 export interface WatchlistItem {
   id: string;

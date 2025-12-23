@@ -7,13 +7,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import Image from "next/legacy/image";
 import { useEffect, useMemo } from "react";
-import { ServerSelector } from "../ui/server-selector";
 import { HeroButtons } from "./hero-buttons";
 import { HeroDetails } from "./hero-details";
 import { HeroGenres } from "./hero-genres";
 import { HeroGradients } from "./hero-gradients";
 import type { YouTubePlayer } from "./youtube-types";
-import { WatchlistButton } from "@/components/watchlist/watchlist-button";
+import { ServerSelector } from "../ui/server-selector";
 
 interface HeroContentProps {
   media: MediaItem;
@@ -205,18 +204,7 @@ export function HeroContent({
                       handlePlayTrailer={handlePlayTrailer}
                       mediaType={mediaType}
                       isUpcoming={isUpcoming}
-                    />
-                    <WatchlistButton
                       contentId={media.id}
-                      mediaType={mediaType || "movie"}
-                      variant="outline"
-                      size="default"
-                      className="backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40"
-                    />
-                    <ServerSelector
-                      media={media}
-                      mediaType={mediaType}
-                      className="flex-shrink-0"
                     />
                   </div>
                 </div>

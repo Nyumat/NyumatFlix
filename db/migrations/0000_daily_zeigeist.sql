@@ -30,20 +30,36 @@ CREATE TABLE "session" (
 	"expires" timestamp NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "user" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text,
+	"email" text,
+	"emailVerified" timestamp,
+	"image" text,
+	CONSTRAINT "user_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
 CREATE TABLE "verificationToken" (
 	"identifier" text NOT NULL,
 	"token" text NOT NULL,
 	"expires" timestamp NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "user" DROP CONSTRAINT "user_id_unique";--> statement-breakpoint
-ALTER TABLE "user" ALTER COLUMN "id" SET DATA TYPE text;--> statement-breakpoint
-ALTER TABLE "user" ALTER COLUMN "id" DROP DEFAULT;--> statement-breakpoint
-ALTER TABLE "user" ALTER COLUMN "email" DROP NOT NULL;--> statement-breakpoint
-ALTER TABLE "user" ADD COLUMN "emailVerified" timestamp;--> statement-breakpoint
+CREATE TABLE "watchlist" (
+	"id" text PRIMARY KEY NOT NULL,
+	"userId" text NOT NULL,
+	"contentId" integer NOT NULL,
+	"mediaType" text NOT NULL,
+	"status" text DEFAULT 'watching' NOT NULL,
+	"lastWatchedSeason" integer,
+	"lastWatchedEpisode" integer,
+	"lastWatchedAt" timestamp,
+	"createdAt" timestamp DEFAULT now() NOT NULL,
+	"updatedAt" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "watchlist_userId_contentId_mediaType_unique" UNIQUE("userId","contentId","mediaType")
+);
+--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "authenticator" ADD CONSTRAINT "authenticator_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user" DROP COLUMN "created_at";--> statement-breakpoint
-ALTER TABLE "user" DROP COLUMN "updated_at";--> statement-breakpoint
-ALTER TABLE "user" DROP COLUMN "password";
+ALTER TABLE "watchlist" ADD CONSTRAINT "watchlist_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;

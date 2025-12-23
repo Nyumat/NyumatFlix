@@ -1,9 +1,9 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, MailCheck } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NeuralNetworkBackground } from "../neural-network-client";
 
 export const metadata: Metadata = {
@@ -80,7 +80,9 @@ export default function VerifyRequestPage() {
                     <MailCheck className="w-6 h-6 text-primary" />
                   </div>
                   <p className="text-sm text-foreground font-medium mb-2">
-                    The magic link has been sent to your email.
+                    {process.env.NODE_ENV === "development"
+                      ? "(DEV): The magic link is in the console where you're running the server."
+                      : "The magic link has been sent to your email."}
                   </p>
                 </div>
 

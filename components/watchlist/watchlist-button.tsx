@@ -1,15 +1,16 @@
 "use client";
 
-import { type ReactNode, useState, useEffect } from "react";
-import { Bookmark, BookmarkCheck } from "lucide-react";
+import { getWatchlistItem } from "@/app/watchlist/actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Bookmark, BookmarkCheck } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getWatchlistItem } from "@/app/watchlist/actions";
 
 interface WatchlistButtonProps {
   contentId: number;
-  mediaType: "movie" | "tv";
+  mediaType?: "movie" | "tv";
   className?: string;
   variant?: "default" | "outline" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
@@ -26,8 +27,10 @@ export function WatchlistButton({
 }: WatchlistButtonProps) {
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const session = useSession();
 
   useEffect(() => {
+    if (!mediaType) return;
     const checkWatchlistStatus = async () => {
       try {
         const item = await getWatchlistItem(contentId, mediaType);
@@ -38,15 +41,21 @@ export function WatchlistButton({
         setIsLoading(false);
       }
     };
-
+    // TODO(Nyumat): Fix over-fetching with TanStack Query and or caching
     checkWatchlistStatus();
   }, [contentId, mediaType]);
 
   const handleToggle = async () => {
     if (isLoading) return;
+    // TODO(Nyumat): local-only / single device watchlists
+    if (!session.data?.user?.id)
+      return toast.error(
+        "To add items to your watchlist, you must be logged in.",
+      );
 
     try {
       if (isInWatchlist) {
+        if (!mediaType) return;
         // Get the watchlist item ID first
         const item = await getWatchlistItem(contentId, mediaType);
         if (!item) {
@@ -66,6 +75,7 @@ export function WatchlistButton({
         setIsInWatchlist(false);
         toast.success("Removed from watchlist");
       } else {
+        if (!mediaType) return;
         // Add to watchlist
         const response = await fetch("/api/watchlist", {
           method: "POST",
