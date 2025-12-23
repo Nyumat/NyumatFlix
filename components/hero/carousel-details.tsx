@@ -86,13 +86,15 @@ export const CarouselDetails = React.memo(function CarouselDetails({
       <div className="absolute bottom-0 left-0 p-4 md:p-8 lg:p-12 w-full md:w-3/4 lg:w-1/2 hidden md:block">
         <div className={cn("p-4 rounded-lg")}>
           {current.logo ? (
-            <div className={`mb-4 max-w-[250px] md:max-w-[350px] w-full`}>
+            <div className="mb-4 h-[100px] md:h-[150px] flex items-center">
               <Image
                 src={`https://image.tmdb.org/t/p/w500${current.logo.file_path}`}
                 alt={titleText}
+                fill={false}
                 width={current.logo.width}
                 height={current.logo.height}
-                className="w-full h-auto object-contain"
+                className="max-h-full w-auto object-contain"
+                priority
               />
             </div>
           ) : (

@@ -16,7 +16,7 @@ export function BackgroundImage({
     <div
       className={`${
         isFullPage
-          ? "fixed -mt-5 h-[100dvh] w-full"
+          ? "fixed inset-0 h-[100dvh] w-full"
           : "absolute w-full h-[40vh] inset-x-0"
       } z-0 overflow-hidden`}
     >
@@ -25,7 +25,7 @@ export function BackgroundImage({
         alt={title}
         width={1920}
         height={1080}
-        className="rounded-lg object-cover w-full h-full"
+        className={`${isFullPage ? "" : "rounded-lg"} object-cover w-full h-full`}
         priority
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/50 to-transparent opacity-70" />
