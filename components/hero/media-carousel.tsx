@@ -14,6 +14,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { match, P } from "ts-pattern";
+import { Poster } from "../media/media-poster";
 import { CarouselDetails } from "./carousel-details";
 import { MediaCarouselProps } from "./types";
 
@@ -155,21 +156,16 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
             return (
               <div className="px-4 w-full">
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-24 sm:w-28">
-                    <div className="relative aspect-[2/3] mt-4 overflow-hidden rounded-md bg-muted">
-                      <Image
-                        key={`mobile-poster-${currentItem.id}`}
-                        src={`https://image.tmdb.org/t/p/w342${currentItem.poster_path}`}
-                        alt={match(currentItem)
-                          .with({ title: P.string }, (movie) => movie.title)
-                          .with({ name: P.string }, (tvShow) => tvShow.name)
-                          .otherwise(() => "Media Item")}
-                        fill
-                        priority={true}
-                        className="object-cover"
-                        sizes="(max-width:640px)96px,112px"
-                      />
-                    </div>
+                  <div className="flex-shrink-0 w-24 sm:w-28 mt-4">
+                    <Poster
+                      posterPath={currentItem.poster_path ?? undefined}
+                      title={match(currentItem)
+                        .with({ title: P.string }, (movie) => movie.title)
+                        .with({ name: P.string }, (tvShow) => tvShow.name)
+                        .otherwise(() => "Media Item")}
+                      size="small"
+                      className="rounded-md bg-muted"
+                    />
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-2">
                     <div>

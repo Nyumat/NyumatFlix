@@ -1,8 +1,9 @@
 "use client";
 
+import { WatchlistItem } from "@/app/watchlist/actions";
 import Script from "next/script";
 import { useMediaHero } from "../../hooks/useMediaHero";
-import { MediaItem } from "../../utils/typings";
+import { Episode, MediaItem } from "../../utils/typings";
 import { HeroBackground } from "./hero-background";
 import { HeroContent } from "./hero-content";
 import { HeroPagination } from "./hero-pagination";
@@ -15,6 +16,9 @@ interface MediaDetailHeroProps {
   mediaType?: "tv" | "movie";
   isUpcoming?: boolean;
   anilistId?: number | null | undefined;
+  watchlistItem?: WatchlistItem | null;
+  initialEpisode?: Episode | null;
+  initialSeasonNumber?: number | null;
 }
 
 export function MediaDetailHero({
@@ -24,6 +28,9 @@ export function MediaDetailHero({
   mediaType: passedMediaType,
   isUpcoming = false,
   anilistId,
+  watchlistItem,
+  initialEpisode,
+  initialSeasonNumber,
 }: MediaDetailHeroProps) {
   const {
     currentItemIndex,
@@ -73,6 +80,9 @@ export function MediaDetailHero({
         youtubePlayer={youtubePlayer}
         setYoutubePlayer={setYoutubePlayer}
         isUpcoming={isUpcoming}
+        watchlistItem={watchlistItem}
+        initialEpisode={initialEpisode}
+        initialSeasonNumber={initialSeasonNumber}
       />
 
       {!noSlide && !isPlayingVideo && !isWatch && media.length > 1 && (

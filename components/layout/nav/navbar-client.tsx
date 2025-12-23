@@ -37,20 +37,6 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
   return (
     <>
       <nav className={cn("absolute top-0 z-30 w-full")}>
-        <div className="w-full bg-black/30 backdrop-blur-md border-b border-white/20">
-          <div className="flex items-center justify-center gap-2 px-4 py-2 md:max-w-7xl lg:max-w-8xl mx-auto">
-            <Badge className="bg-primary/10 hover:bg-primary/20 text-white shrink-0 text-xs font-medium">
-              NEW!
-            </Badge>
-            <p className="text-sm text-primary text-center">
-              Keep track of your favorite movies and TV shows with our new{" "}
-              <Link className="text-white underline" href="/watchlist">
-                watchlist
-              </Link>{" "}
-              feature
-            </p>
-          </div>
-        </div>
         <div className="flex justify-between items-center md:max-w-7xl lg:max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
           <div className="flex flex-row items-center gap-2">
             <BackButton />
@@ -109,7 +95,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
           </div>
         </div>
       </nav>
-      <div className="h-[35px] md:h-auto" aria-hidden="true" />
+      {/* <div className="h-[35px] md:h-auto" aria-hidden="true" /> */}
     </>
   );
 };

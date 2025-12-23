@@ -5,6 +5,8 @@ import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { MediaLogo } from "../media/media-logo";
+import { Poster } from "../media/media-poster";
 
 interface ContentCardProps {
   item: MediaItem;
@@ -64,32 +66,27 @@ export function ContentCard({
             onClick={navigate}
             onMouseEnter={prefetch}
             onKeyDown={handleKeyDown}
-            className="relative aspect-[3/4] w-20 lg:w-24 overflow-hidden rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+            className="relative w-20 lg:w-24 overflow-hidden rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
             aria-label={`View ${title}`}
           >
-            <Image
-              src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
-              alt={title || "Poster"}
-              fill
-              sizes="(max-width:1024px)80px,96px"
-              priority={rank <= 3}
-              className="object-cover transition-transform duration-300 hover:scale-105"
+            <Poster
+              posterPath={item.poster_path ?? undefined}
+              title={title || "Poster"}
+              size="small"
+              aspectRatio="3/4"
+              className="transition-transform duration-300 hover:scale-105"
             />
           </button>
 
           <div className="flex flex-col justify-between text-foreground min-w-0">
             <div className="flex justify-between items-center">
               {item.logo ? (
-                <div className="max-w-[120px] md:max-w-[150px] w-auto flex-shrink">
-                  <Image
-                    src={`https://image.tmdb.org/t/p/w342${item.logo.file_path}`}
-                    alt={title}
-                    width={item.logo.width || 150}
-                    height={item.logo.height || 75}
-                    className="max-w-full h-auto object-contain"
-                    style={{ width: "auto", height: "auto" }}
-                  />
-                </div>
+                <MediaLogo
+                  logo={item.logo}
+                  title={title}
+                  size="small"
+                  maxWidth="150px"
+                />
               ) : (
                 <h3 className="truncate font-medium text-xs md:text-base">
                   {title}
@@ -128,32 +125,26 @@ export function ContentCard({
         onClick={navigate}
         onMouseEnter={prefetch}
         onKeyDown={handleKeyDown}
-        className="relative w-full aspect-[2/3] overflow-hidden rounded-xl group focus:outline-none focus:ring-2 focus:ring-primary"
+        className="relative w-full overflow-hidden rounded-xl group focus:outline-none focus:ring-2 focus:ring-primary"
         aria-label={`View ${title}`}
       >
-        <Image
-          src={`https://image.tmdb.org/t/p/w342${item.poster_path}`}
-          alt={title || "Poster"}
-          fill
-          sizes="(max-width:640px)40vw,(max-width:1024px)22vw,12vw"
-          priority={isRanked && rank !== undefined && rank <= 3}
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+        <Poster
+          posterPath={item.poster_path ?? undefined}
+          title={title || "Poster"}
+          size="medium"
+          className="transition-transform duration-300 group-hover:scale-105"
         />
       </button>
 
       <div className="mt-2 space-y-1 text-foreground">
         <div className="flex flex-col items-center gap-1">
           {item.logo ? (
-            <div className="max-w-[120px] md:max-w-[150px] w-auto">
-              <Image
-                src={`https://image.tmdb.org/t/p/w342${item.logo.file_path}`}
-                alt={title}
-                width={item.logo.width || 150}
-                height={item.logo.height || 75}
-                className="max-w-full h-auto object-contain"
-                style={{ width: "auto", height: "auto" }}
-              />
-            </div>
+            <MediaLogo
+              logo={item.logo}
+              title={title}
+              size="small"
+              maxWidth="150px"
+            />
           ) : (
             <h3 className="text-sm font-semibold text-center">{title}</h3>
           )}

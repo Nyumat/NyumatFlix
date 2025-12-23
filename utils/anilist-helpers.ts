@@ -1,39 +1,50 @@
-export interface AnilistMedia {
-  id: number;
-  title: {
-    english: string | null;
-  };
+import { MediaItem } from "./typings";
+
+export function getSearchTitle(media: MediaItem): string | null {
+  if (!media) return null;
+
+  if (media.media_type === "tv" || "name" in media) {
+    return media.name || null;
+  }
+
+  return media.title || null;
 }
 
-export interface AnilistResponse {
-  data: {
-    Media: AnilistMedia | null;
-  };
+export function isAnime(
+  genres: Array<{ id: number; name?: string }> | number[],
+): boolean {
+  const animeGenreId = 16;
+
+  if (!genres || genres.length === 0) {
+    return false;
+  }
+
+  if (typeof genres[0] === "number") {
+    return (genres as number[]).includes(animeGenreId);
+  }
+
+  return (genres as Array<{ id: number; name?: string }>).some(
+    (genre) => genre.id === animeGenreId,
+  );
 }
 
-export interface MediaWithTitle {
-  title?: {
-    english?: string | null;
-    original_name?: string | null;
-  } | null;
-  original_title?: string | null;
-  name?: string | null;
-  original_name?: string | null;
-}
+export async function fetchAnilistId(
+  searchTitle: string,
+): Promise<number | null> {
+  if (!searchTitle) return null;
 
-export const fetchAnilistId = async (title: string): Promise<number | null> => {
-  console.log("Fetching Anilist ID for title:", title);
   try {
     const query = `
       query ($search: String) {
         Media(search: $search, type: ANIME) {
           id
-          title {
-            english
-          }
         }
       }
     `;
+
+    const variables = {
+      search: searchTitle,
+    };
 
     const response = await fetch("https://graphql.anilist.co", {
       method: "POST",
@@ -42,63 +53,36 @@ export const fetchAnilistId = async (title: string): Promise<number | null> => {
       },
       body: JSON.stringify({
         query,
-        variables: { search: title },
+        variables,
       }),
     });
 
     if (!response.ok) {
-      // 404 is expected when content doesn't exist on Anilist
-      if (response.status === 404) {
-        console.warn(
-          `Anilist API: Content not found for title "${title}" (${response.statusText})`,
-        );
-      } else {
-        // Log actual errors (5xx, etc.) as errors
-        console.error(
-          "Anilist API error:",
-          response.status,
-          response.statusText,
-        );
-      }
       return null;
     }
 
-    const data: AnilistResponse = await response.json();
+    const data = await response.json();
 
-    if (!data.data.Media) {
-      console.warn(`No anime found for title: ${title}`);
-      return null;
+    if (data?.data?.Media?.id) {
+      return data.data.Media.id;
     }
 
-    return data.data.Media.id;
+    return null;
   } catch (error) {
     console.error("Error fetching Anilist ID:", error);
     return null;
   }
-};
+}
 
-export const isAnime = (
-  genres: number[] | { id: number }[] | undefined,
-): boolean => {
-  if (!genres) return false;
+export async function getAnilistIdForMedia(
+  media: MediaItem,
+): Promise<number | null | undefined> {
+  const searchTitle = getSearchTitle(media);
+  const genres = media.genre_ids || media.genres || [];
 
-  // Handle both genre_ids array and genres array with objects
-  if (Array.isArray(genres)) {
-    return genres.some((genre) =>
-      typeof genre === "number" ? genre === 16 : genre.id === 16,
-    );
+  if (!searchTitle || !isAnime(genres)) {
+    return undefined;
   }
 
-  return false;
-};
-
-export const getSearchTitle = (media: MediaWithTitle): string => {
-  return (
-    media.title?.english ||
-    media.title?.original_name ||
-    media.original_title ||
-    media.name ||
-    media.original_name ||
-    ""
-  ).trim();
-};
+  return await fetchAnilistId(searchTitle);
+}

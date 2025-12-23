@@ -14,9 +14,9 @@ import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Poster } from "../media/media-poster";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 
@@ -214,13 +214,12 @@ export function RankedContentRow({
                 </span>
               </div>
 
-              <div className="relative overflow-hidden rounded h-20 w-14 sm:h-24 sm:w-16 shrink-0 mx-2 group-hover:scale-105 transition-transform duration-300">
-                <Image
-                  src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
-                  alt={displayTitle || "Media poster"}
-                  fill
-                  sizes="(max-width: 640px) 56px, 64px"
-                  className="object-cover transition-transform duration-300"
+              <div className="shrink-0 mx-2 w-14 sm:w-16 h-20 sm:h-24 group-hover:scale-105 transition-transform duration-300">
+                <Poster
+                  posterPath={item.poster_path ?? undefined}
+                  title={displayTitle || "Media poster"}
+                  size="small"
+                  className="rounded"
                 />
               </div>
 

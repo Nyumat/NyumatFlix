@@ -11,10 +11,11 @@ import {
 import { cn } from "@/lib/utils";
 import { MediaItem } from "@/utils/typings";
 import { Info, Play, Star } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import { match, P } from "ts-pattern";
+import { MediaLogo } from "../media/media-logo";
+import { Poster } from "../media/media-poster";
 import { MediaInfoDialog } from "./carousel-media-dialog";
 import { CarouselDetailsProps } from "./types";
 
@@ -86,15 +87,12 @@ export const CarouselDetails = React.memo(function CarouselDetails({
       <div className="absolute bottom-0 left-0 p-4 md:p-8 lg:p-12 w-full md:w-3/4 lg:w-1/2 hidden md:block">
         <div className={cn("p-4 rounded-lg")}>
           {current.logo ? (
-            <div className="mb-4 h-[100px] md:h-[150px] flex items-center">
-              <Image
-                src={`https://image.tmdb.org/t/p/w500${current.logo.file_path}`}
-                alt={titleText}
-                fill={false}
-                width={current.logo.width}
-                height={current.logo.height}
-                className="max-h-full w-auto object-contain"
-                priority
+            <div className="mb-4">
+              <MediaLogo
+                logo={current.logo}
+                title={titleText}
+                size="large"
+                maxHeight="300px"
               />
             </div>
           ) : (
@@ -219,17 +217,17 @@ export const CarouselDetails = React.memo(function CarouselDetails({
                     >
                       <div className="flex flex-col items-center text-center cursor-pointer group">
                         <div
-                          className={`relative w-full aspect-[2/3] rounded-lg overflow-hidden transition-all duration-300 transform-gpu ${
+                          className={`relative w-full rounded-lg overflow-hidden transition-all duration-300 transform-gpu ${
                             isActive
                               ? "border-2 border-primary"
                               : "border-2 border-transparent"
                           }`}
                         >
-                          <Image
-                            src={`https://image.tmdb.org/t/p/w185${item.poster_path}`}
-                            alt={itemTitle}
-                            fill
-                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          <Poster
+                            posterPath={item.poster_path ?? undefined}
+                            title={itemTitle}
+                            size="small"
+                            className="transition-transform duration-300 group-hover:scale-105"
                           />
                         </div>
                         <p

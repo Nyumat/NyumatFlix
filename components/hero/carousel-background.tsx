@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { MediaLogo } from "../media/media-logo";
 import { BackgroundImageProps } from "./types";
 
 export function BackgroundImage({
@@ -34,19 +35,18 @@ export function BackgroundImage({
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent opacity-70" />
       {!hideTitle && (isFullPage || logo) && title && (
         <div className="absolute inset-0 flex items-center justify-center">
-          {logo ? (
-            <div className="max-w-[300px] md:max-w-[500px] w-auto px-4">
-              <Image
-                src={`https://image.tmdb.org/t/p/w500${logo.file_path}`}
-                alt={title}
-                width={logo.width}
-                height={logo.height}
-                className="max-w-full h-auto"
+          {logo && typeof logo === "object" && "file_path" in logo ? (
+            <div className="px-4">
+              <MediaLogo
+                logo={logo}
+                title={title}
+                size="large"
+                maxWidth={isFullPage ? "500px" : "300px"}
               />
             </div>
           ) : (
             <div className="text-center my-12 mt-44">
-              {logo ? (
+              {logo && typeof logo === "string" ? (
                 <div className="flex justify-center items-center">
                   <Image
                     src={logo}

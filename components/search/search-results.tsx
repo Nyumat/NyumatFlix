@@ -29,6 +29,7 @@ import { Clock, Play, Star } from "lucide-react";
 import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
+import { Poster } from "../media/media-poster";
 
 const isValidMediaItem = (item: Movie | TvShow): boolean => {
   return Boolean(item.poster_path || item.backdrop_path);
@@ -105,10 +106,6 @@ function SearchResultCard({ item }: { item: MediaItem }) {
   // Build href without narrowing item in each branch to avoid TS 'never' issue
   const href = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
 
-  const posterUrl = posterPath
-    ? `https://image.tmdb.org/t/p/w342${posterPath}`
-    : "/placeholder-poster.jpg";
-
   const backdropUrl = backdropPath
     ? `https://image.tmdb.org/t/p/w1280${backdropPath}`
     : undefined;
@@ -137,12 +134,11 @@ function SearchResultCard({ item }: { item: MediaItem }) {
       <div className="absolute inset-0 bg-gradient-to-r from-background/60 via-background/40 to-background/30" />
       <div className="relative flex gap-6 p-6 h-full">
         <div className="flex-shrink-0 w-24 sm:w-28 md:w-32 lg:w-36">
-          <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-border/20">
-            <Image
-              src={posterUrl}
-              alt={title || "Media poster"}
-              layout="fill"
-              objectFit="cover"
+          <div className="relative rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-border/20">
+            <Poster
+              posterPath={posterPath}
+              title={title || "Media poster"}
+              size="medium"
               className="transition-transform duration-500 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 flex items-center justify-center">

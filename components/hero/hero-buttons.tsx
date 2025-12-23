@@ -1,7 +1,9 @@
 "use client";
 
+import { WatchlistItem } from "@/app/watchlist/actions";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { cn } from "@/lib/utils";
+import { Episode } from "@/utils/typings";
 import { Play, Youtube } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -13,6 +15,9 @@ interface HeroButtonsProps {
   mediaType?: "tv" | "movie";
   isUpcoming?: boolean;
   contentId: number;
+  watchlistItem?: WatchlistItem | null;
+  initialEpisode?: Episode | null;
+  initialSeasonNumber?: number | null;
 }
 
 export function HeroButtons({
@@ -21,13 +26,18 @@ export function HeroButtons({
   mediaType,
   isUpcoming = false,
   contentId,
+  watchlistItem,
+  initialEpisode,
+  initialSeasonNumber,
 }: HeroButtonsProps) {
-  const { selectedEpisode } = useEpisodeStore();
+  const { selectedEpisode, setSelectedEpisode } = useEpisodeStore();
 
   const handleWatchClick = () => {
     // For TV shows, require episode selection
     if (mediaType === "tv") {
-      if (!selectedEpisode) {
+      const episodeToUse = selectedEpisode || initialEpisode;
+
+      if (!episodeToUse) {
         toast.error(
           "Please select an episode from the seasons below before watching",
           {
@@ -55,6 +65,19 @@ export function HeroButtons({
         );
         return;
       }
+
+      if (!selectedEpisode && initialEpisode && initialSeasonNumber) {
+        // If we're using initialEpisode but it's not in the store yet, set it
+        setSelectedEpisode(
+          initialEpisode,
+          contentId.toString(),
+          initialSeasonNumber,
+          undefined,
+          false, // Don't skip callback - we want to watch
+        );
+        // The callback will be triggered, which calls handleWatch
+        return;
+      }
     }
 
     // Proceed with watch
@@ -69,13 +92,22 @@ export function HeroButtons({
       if (selectedEpisode) {
         return `Watch S${useEpisodeStore.getState().seasonNumber}E${selectedEpisode.episode_number}`;
       }
+      if (
+        watchlistItem?.lastWatchedSeason &&
+        watchlistItem?.lastWatchedEpisode
+      ) {
+        return `Watch S${watchlistItem.lastWatchedSeason}E${watchlistItem.lastWatchedEpisode}`;
+      }
       return "Select Episode to Watch";
     }
     return "Watch Now";
   };
 
   const isWatchDisabled =
-    isUpcoming || (mediaType === "tv" && !selectedEpisode);
+    isUpcoming ||
+    (mediaType === "tv" &&
+      !selectedEpisode &&
+      !watchlistItem?.lastWatchedEpisode);
 
   const getDisabledTooltip = () => {
     if (isUpcoming) {
