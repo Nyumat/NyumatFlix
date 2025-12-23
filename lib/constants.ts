@@ -11,7 +11,13 @@ export const requiredEnvVars = [
   "PROD_DATABASE_URL",
 ];
 export const LOGGER_TITLE = "Nyumatflix 3.0";
-export const MAGIC_LINK_RESEND_FROM = "Nyumatflix <login@auth.nyumatflix.com>";
+// For development, you can set RESEND_FROM_EMAIL in .env.local
+// The email domain must be verified in your Resend account
+// Example: RESEND_FROM_EMAIL="Nyumatflix <noreply@yourdomain.com>"
+export const MAGIC_LINK_RESEND_FROM =
+  process.env.NODE_ENV === "production"
+    ? "Nyumatflix <login@auth.nyumatflix.com>"
+    : process.env.RESEND_FROM_EMAIL || "Nyumatflix <delivered@resend.dev>";
 export const MAGIC_LINK_RESEND_SUBJECT =
   "nyumatflix.com - Here's your magic link to sign in";
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";

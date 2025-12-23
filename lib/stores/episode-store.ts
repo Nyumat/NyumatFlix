@@ -49,6 +49,25 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       anilistId,
       relativeEpisodeNumber,
     });
+
+    // Track watch progress
+    if (tvShowId && seasonNumber && episode.episode_number) {
+      fetch("/api/watchlist/progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contentId: parseInt(tvShowId),
+          mediaType: "tv",
+          seasonNumber,
+          episodeNumber: episode.episode_number,
+        }),
+      }).catch((error) => {
+        console.error("Error tracking watch progress:", error);
+      });
+    }
+
     const { watchCallback } = get();
     if (watchCallback) {
       watchCallback();

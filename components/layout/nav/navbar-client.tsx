@@ -25,6 +25,10 @@ const NAV_LINKS_WITH_HOME: NavLink[] = [
   { label: "Search", href: "/search" },
 ];
 
+const getNavLinks = (session: Session | null): NavLink[] => {
+  return [...NAV_LINKS_WITH_HOME];
+};
+
 interface NavbarClientProps {
   session: Session | null;
 }
@@ -34,7 +38,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
     <nav className={cn("absolute top-0 z-30 w-full")}>
       <div className="flex justify-between items-center md:max-w-7xl lg:max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
         <div className="flex flex-row items-center gap-2">
-          <BackButton className="bg-background/80 hover:bg-background/90 backdrop-blur-sm rounded-full p-2 border border-border" />
+          <BackButton />
           <Link href="/">
             <Image
               src="/logo.svg"
@@ -74,12 +78,12 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
         </div>
 
         <div className="hidden md:flex items-center space-x-1 lg:space-x-2 ml-auto">
-          <NavbarLinks links={NAV_LINKS_WITH_HOME} />
+          <NavbarLinks links={getNavLinks(session)} />
           <NavbarAuth session={session} />
         </div>
 
         <div className="flex md:hidden items-center space-x-2">
-          <NavbarMobileNavigation links={NAV_LINKS_WITH_HOME}>
+          <NavbarMobileNavigation links={getNavLinks(session)}>
             <div className="px-2">
               <NavbarSearchClient />
             </div>
