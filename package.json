@@ -78,7 +78,7 @@
     "lodash": "^4.17.21",
     "lucide-react": "^0.544.0",
     "moviedb-promise": "^4.0.7",
-    "next": "^16.0.3",
+    "next": "15.5.9",
     "next-auth": "^5.0.0-beta.29",
     "next-themes": "^0.3.0",
     "postgres": "^3.4.7",
