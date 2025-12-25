@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchPreview } from "@/hooks/use-search-preview";
 import { cn } from "@/lib/utils";
+import { Poster } from "../media/media-poster";
 import SearchResults from "./search-results";
 
 interface SearchComponentProps {
@@ -409,11 +410,10 @@ export const NavbarSearchClient = forwardRef<
                         >
                           <div className="relative w-8 h-12 flex-shrink-0">
                             {item.poster_path ? (
-                              <Image
-                                src={`https://image.tmdb.org/t/p/w92${item.poster_path}`}
-                                alt={title}
-                                layout="fill"
-                                objectFit="cover"
+                              <Poster
+                                posterPath={item.poster_path}
+                                title={title}
+                                size="small"
                                 className="rounded"
                               />
                             ) : (

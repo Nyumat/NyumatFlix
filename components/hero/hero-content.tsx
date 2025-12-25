@@ -1,18 +1,20 @@
 "use client";
 
+import { WatchlistItem } from "@/app/watchlist/actions";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { MediaItem, Movie, TvShow } from "@/utils/typings";
+import { Episode, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import Image from "next/legacy/image";
 import { useEffect, useMemo } from "react";
+import { MediaLogo } from "../media/media-logo";
+import { Poster } from "../media/media-poster";
+import { ServerSelector } from "../ui/server-selector";
 import { HeroButtons } from "./hero-buttons";
 import { HeroDetails } from "./hero-details";
 import { HeroGenres } from "./hero-genres";
 import { HeroGradients } from "./hero-gradients";
 import type { YouTubePlayer } from "./youtube-types";
-import { ServerSelector } from "../ui/server-selector";
 
 interface HeroContentProps {
   media: MediaItem;
@@ -26,6 +28,9 @@ interface HeroContentProps {
   youtubePlayer: YouTubePlayer;
   setYoutubePlayer(player: YouTubePlayer): void;
   isUpcoming?: boolean;
+  watchlistItem?: WatchlistItem | null;
+  initialEpisode?: Episode | null;
+  initialSeasonNumber?: number | null;
 }
 
 export function HeroContent({
@@ -40,6 +45,9 @@ export function HeroContent({
   youtubePlayer,
   setYoutubePlayer,
   isUpcoming = false,
+  watchlistItem,
+  initialEpisode,
+  initialSeasonNumber,
 }: HeroContentProps) {
   const {
     selectedEpisode,
@@ -47,8 +55,37 @@ export function HeroContent({
     tvShowId,
     clearSelectedEpisode,
     setWatchCallback,
+    setSelectedEpisode,
   } = useEpisodeStore();
   const title = media.title || media.name;
+
+  // Initialize episode from server-rendered data
+  useEffect(() => {
+    if (initialEpisode && initialSeasonNumber && mediaType === "tv") {
+      const currentSelected = useEpisodeStore.getState().selectedEpisode;
+      const currentTvShowId = useEpisodeStore.getState().tvShowId;
+
+      if (!currentSelected || currentTvShowId !== media.id.toString()) {
+        setSelectedEpisode(
+          initialEpisode,
+          media.id.toString(),
+          initialSeasonNumber,
+          undefined,
+          true,
+        );
+      }
+    }
+  }, [
+    initialEpisode,
+    initialSeasonNumber,
+    mediaType,
+    media.id,
+    setSelectedEpisode,
+  ]);
+
+  // Use server-rendered episode if available, otherwise use store
+  const displayEpisode = selectedEpisode || initialEpisode;
+  const displaySeasonNumber = seasonNumber || initialSeasonNumber;
 
   // Set the watch callback in the episode store
   useEffect(() => {
@@ -123,21 +160,30 @@ export function HeroContent({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="md:max-w-7xl lg:max-w-8xl mx-auto w-full">
+              <div className="md:max-w-7xl lg:max-w-8xl mx-auto w-full relative">
+                {isWatch && media.poster_path && (
+                  <div className="lg:hidden absolute right-4 sm:right-6 top-1/2 -translate-y-40 z-30 w-24 sm:w-28">
+                    <div className="rounded-lg overflow-hidden shadow-2xl border-2 border-white/20">
+                      <Poster
+                        posterPath={media.poster_path}
+                        title={(title as string) || "Poster"}
+                        size="small"
+                        className="rounded-lg"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div
                   className={`${isWatch ? "max-w-3xl" : "max-w-2xl translate-y-36"} py-16`}
                 >
                   {media.logo ? (
-                    <div className="mb-4 max-w-[200px] md:max-w-[300px] w-auto">
-                      <Image
-                        src={`https://image.tmdb.org/t/p/w342${media.logo.file_path}`}
-                        alt={(title as string) || "Logo"}
-                        width={media.logo.width || 200}
-                        height={media.logo.height || 100}
-                        layout="responsive"
-                        objectFit="contain"
-                      />
-                    </div>
+                    <MediaLogo
+                      logo={media.logo}
+                      title={(title as string) || "Logo"}
+                      size="large"
+                      maxHeight="300px"
+                      className="mb-4"
+                    />
                   ) : (
                     <h1 className="text-4xl font-bold text-foreground mb-4">
                       {title as string}
@@ -145,30 +191,32 @@ export function HeroContent({
                   )}
 
                   {/* Episode Selection Display */}
-                  {selectedEpisode && seasonNumber && mediaType === "tv" && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="text-primary font-medium">
-                          Selected: Season {seasonNumber}, Episode{" "}
-                          {selectedEpisode.episode_number}
-                        </p>
-                        <p className="text-primary/80 text-sm">
-                          {selectedEpisode.name}
-                        </p>
-                      </div>
-                      <button
-                        onClick={clearSelectedEpisode}
-                        className="ml-4 p-1 hover:bg-primary/20 rounded-full transition-colors"
-                        aria-label="Clear episode selection"
+                  {displayEpisode &&
+                    displaySeasonNumber &&
+                    mediaType === "tv" && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between lg:w-full w-fit"
                       >
-                        <X size={16} className="text-primary" />
-                      </button>
-                    </motion.div>
-                  )}
+                        <div>
+                          <p className="text-primary font-medium">
+                            Selected: Season {displaySeasonNumber}, Episode{" "}
+                            {displayEpisode.episode_number}
+                          </p>
+                          <p className="text-primary/80 text-sm">
+                            {displayEpisode.name}
+                          </p>
+                        </div>
+                        <button
+                          onClick={clearSelectedEpisode}
+                          className="ml-4 p-1 hover:bg-primary/20 rounded-full transition-colors"
+                          aria-label="Clear episode selection"
+                        >
+                          <X size={16} className="text-primary" />
+                        </button>
+                      </motion.div>
+                    )}
 
                   {isWatch && (
                     <>
@@ -205,6 +253,9 @@ export function HeroContent({
                       mediaType={mediaType}
                       isUpcoming={isUpcoming}
                       contentId={media.id}
+                      watchlistItem={watchlistItem}
+                      initialEpisode={initialEpisode}
+                      initialSeasonNumber={initialSeasonNumber}
                     />
                   </div>
                 </div>

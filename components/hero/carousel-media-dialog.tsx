@@ -12,10 +12,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { isMovie } from "@/utils/typings";
 import { Calendar, Clock, Globe, Info, Play, Star } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { match, P } from "ts-pattern";
+import { Poster } from "../media/media-poster";
 import { GenreBadge } from "../ui/genre-badge";
 import { WatchlistButton } from "@/components/watchlist/watchlist-button";
 import { MediaInfoDialogProps } from "./types";
@@ -103,15 +103,13 @@ export function MediaInfoDialog({
         </DialogHeader>
 
         <div className="flex flex-col md:flex-row gap-3 md:gap-4 min-h-0">
-          <div className="flex-shrink-0">
-            <div className="relative w-28 h-40 md:w-40 md:h-60 mx-auto md:mx-0 rounded-lg overflow-hidden shadow-xl">
-              <Image
-                src={`https://image.tmdb.org/t/p/w342${media.poster_path}`}
-                alt={titleText}
-                fill
-                className="object-cover"
-              />
-            </div>
+          <div className="flex-shrink-0 w-28 md:w-40 mx-auto md:mx-0">
+            <Poster
+              posterPath={media.poster_path ?? undefined}
+              title={titleText}
+              size="medium"
+              className="rounded-lg shadow-xl"
+            />
           </div>
 
           <div className="flex-1 min-w-0">
