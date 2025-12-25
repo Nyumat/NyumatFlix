@@ -36,11 +36,11 @@ interface NavbarClientProps {
 export const NavbarClient = ({ session }: NavbarClientProps) => {
   return (
     <>
-      <nav className={cn("absolute top-0 z-30 w-full")}>
+      <nav className={cn("absolute top-0 z-50 w-full")}>
         <div className="flex justify-between items-center md:max-w-7xl lg:max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
-          <div className="flex flex-row items-center gap-2">
+          <div className="flex flex-row items-center gap-2 shrink-0">
             <BackButton />
-            <Link href="/">
+            <Link href="/" className="shrink-0">
               <Image
                 src="/logo.svg"
                 alt="NyumatFlix Logo"
