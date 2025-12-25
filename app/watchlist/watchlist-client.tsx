@@ -1,20 +1,41 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { MediaItem } from "@/utils/typings";
-import { WatchlistItem } from "./actions";
-import { toast } from "sonner";
+import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   WatchlistControls,
   type SortOption,
   type StatusFilter,
   type TypeTab,
 } from "@/components/watchlist/watchlist-controls";
-import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
-import { getTitle } from "@/utils/typings";
 import { WatchlistSection } from "@/components/watchlist/watchlist-section";
+import { getTitle, MediaItem } from "@/utils/typings";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 import Link from "next/link";
-import { Film, Tv } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { WatchlistItem } from "./actions";
+
+const DummyWatchlistButton = () => {
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const BookmarkIcon = isInWatchlist ? BookmarkCheck : Bookmark;
+
+  return (
+    <Button
+      variant="outline"
+      size="default"
+      onClick={() => setIsInWatchlist(!isInWatchlist)}
+      className="inline-flex items-center gap-1.5 h-8 px-3 mx-1 bg-black/30 backdrop-blur-md border-white/20"
+      aria-label={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+    >
+      <span className="sr-only">
+        {isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+      </span>
+      <BookmarkIcon className="h-4 w-4" aria-hidden="true" />
+    </Button>
+  );
+};
 
 interface WatchlistClientProps {
   allItems: Array<MediaItem & { watchlistItem: WatchlistItem }>;
@@ -295,38 +316,33 @@ export function WatchlistClient({
   // Global Empty State
   if (watchlistItems.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center min-h-[60vh] animate-in fade-in duration-700">
-        <div className="bg-muted/30 p-6 rounded-full mb-6">
-          <div className="flex gap-2">
-            <Film className="w-8 h-8 text-muted-foreground" />
-            <Tv className="w-8 h-8 text-muted-foreground" />
-          </div>
-        </div>
-        <h1 className="text-3xl font-bold mb-2">Your watchlist is empty</h1>
-        <p className="text-muted-foreground max-w-md mb-8 text-lg">
-          Start building your collection by adding movies and TV shows you want
-          to watch.
-        </p>
-        <div className="flex gap-4">
-          <Link
-            href="/browse/genre/movies"
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-6 py-2"
-          >
-            Browse Movies
-          </Link>
-          <Link
-            href="/browse/genre/tv"
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-6 py-2"
-          >
-            Browse TV Shows
-          </Link>
-        </div>
+      <div className="w-full flex flex-col items-center justify-center min-h-[60vh] py-24 animate-in fade-in duration-700">
+        <Card className="max-w-2xl w-full shadow-lg backdrop-blur-md bg-black/30 border border-white/20">
+          <CardContent className="flex flex-col items-center justify-center text-center p-12">
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-4">
+              Watchlist is empty
+            </h1>
+            <p className="text-muted-foreground max-w-md mb-10 text-lg text-balance">
+              Start building your watchlist by clicking the{" "}
+              <DummyWatchlistButton /> button on any movie or TV show you want
+              to track.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <Button asChild variant="chrome" size="lg" className="sm:w-auto">
+                <Link href="/movies">Browse Movies</Link>
+              </Button>
+              <Button asChild variant="chrome" size="lg" className="sm:w-auto">
+                <Link href="/tvshows">Browse TV Shows</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 pt-24 pb-8 space-y-8">
+    <div className="w-full max-w-7xl mx-auto px-4 pt-24 pb-8 space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold text-foreground">My Watchlist</h1>

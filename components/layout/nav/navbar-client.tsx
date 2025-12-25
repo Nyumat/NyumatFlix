@@ -35,61 +35,67 @@ interface NavbarClientProps {
 
 export const NavbarClient = ({ session }: NavbarClientProps) => {
   return (
-    <nav className={cn("absolute top-0 z-30 w-full")}>
-      <div className="flex justify-between items-center md:max-w-7xl lg:max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
-        <div className="flex flex-row items-center gap-2">
-          <BackButton />
-          <Link href="/">
-            <Image
-              src="/logo.svg"
-              alt="NyumatFlix Logo"
-              width={150}
-              height={150}
-              className="size-10"
-            />
-          </Link>
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge
-                className={cn(
-                  "text-xs",
-                  "bg-primary/10 hover:bg-primary/20 text-primary",
-                )}
-              >
-                <span
+    <>
+      <nav className={cn("absolute top-0 z-50 w-full")}>
+        <div className="flex justify-between items-center md:max-w-7xl lg:max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
+          <div className="flex flex-row items-center gap-2 shrink-0">
+            <BackButton />
+            <Link href="/" className="shrink-0">
+              <Image
+                src="/logo.svg"
+                alt="NyumatFlix Logo"
+                width={150}
+                height={150}
+                className="size-10"
+              />
+            </Link>
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge
                   className={cn(
-                    "animate-pulse rounded-full px-2 py-1 text-primary font-bold",
-                    "text-yellow-500 scale-150",
+                    "text-xs",
+                    "bg-primary/10 hover:bg-primary/20 text-primary",
                   )}
                 >
-                  •
-                </span>
-                Beta
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>You're using the NyumatFlix 3.0 Beta</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
+                  <span
+                    className={cn(
+                      "animate-pulse rounded-full px-2 py-1 text-primary font-bold",
+                      "text-yellow-500 scale-150",
+                    )}
+                  >
+                    •
+                  </span>
+                  Beta
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>You're using the NyumatFlix 3.0 Beta</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
 
-        <div className="hidden md:flex flex-1 mx-8">
-          <NavbarSearchClient />
-        </div>
+          <div className="hidden md:flex flex-1 mx-8">
+            <NavbarSearchClient />
+          </div>
 
-        <div className="hidden md:flex items-center space-x-1 lg:space-x-2 ml-auto">
-          <NavbarLinks links={getNavLinks(session)} />
-          <NavbarAuth session={session} />
-        </div>
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-2 ml-auto">
+            <NavbarLinks links={getNavLinks(session)} />
+            <NavbarAuth session={session} />
+          </div>
 
-        <div className="flex md:hidden items-center space-x-2">
-          <NavbarMobileNavigation links={getNavLinks(session)}>
-            <div className="px-2">
-              <NavbarSearchClient />
-            </div>
-          </NavbarMobileNavigation>
+          <div className="flex md:hidden items-center space-x-2">
+            <NavbarMobileNavigation
+              links={getNavLinks(session)}
+              session={session}
+            >
+              <div className="px-2">
+                <NavbarSearchClient />
+              </div>
+            </NavbarMobileNavigation>
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+      {/* <div className="h-[35px] md:h-auto" aria-hidden="true" /> */}
+    </>
   );
 };

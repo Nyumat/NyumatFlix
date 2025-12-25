@@ -3,8 +3,9 @@
 import { cn } from "@/lib/utils";
 import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { MediaLogo } from "../media/media-logo";
+import { Poster } from "../media/media-poster";
 
 interface ContentCardProps {
   item: MediaItem;
@@ -64,45 +65,28 @@ export function ContentCard({
             onClick={navigate}
             onMouseEnter={prefetch}
             onKeyDown={handleKeyDown}
-            className="relative aspect-[3/4] w-20 lg:w-24 overflow-hidden rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+            className="relative w-20 lg:w-24 overflow-hidden rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
             aria-label={`View ${title}`}
           >
-            <Image
-              src={`https://image.tmdb.org/t/p/w300${item.poster_path}`}
-              alt={title || "Poster"}
-              fill
-              sizes="(max-width:1024px)80px,96px"
-              priority={rank <= 3}
-              className="object-cover transition-transform duration-300 hover:scale-105"
+            <Poster
+              posterPath={item.poster_path ?? undefined}
+              size="small"
+              aspectRatio="3/4"
+              className="transition-transform duration-300 hover:scale-105"
             />
           </button>
 
           <div className="flex flex-col justify-between text-foreground min-w-0">
-            <div className="flex justify-between items-center">
-              {item.logo ? (
-                <div className="max-w-[120px] md:max-w-[150px] w-auto flex-shrink">
-                  <Image
-                    src={`https://image.tmdb.org/t/p/w342${item.logo.file_path}`}
-                    alt={title}
-                    width={item.logo.width || 150}
-                    height={item.logo.height || 75}
-                    className="max-w-full h-auto object-contain"
-                    style={{ width: "auto", height: "auto" }}
-                  />
-                </div>
-              ) : (
-                <h3 className="truncate font-medium text-xs md:text-base">
-                  {title}
-                </h3>
-              )}
+            <div className="flex justify-between items-center gap-2">
+              <h3 className="font-medium text-balance text-sm md:text-base"></h3>
               {item.content_rating && (
-                <span className="w-fit whitespace-nowrap px-1 py-0.5 text-[10px] font-medium border border-white/30 text-white rounded-sm backdrop-blur-sm">
+                <span className="w-fit whitespace-nowrap px-1 py-0.5 text-[10px] font-medium border border-white/30 text-white rounded-sm backdrop-blur-sm shrink-0">
                   {item.content_rating}
                 </span>
               )}
             </div>
 
-            <div className="flex justify-between text-xs text-muted-foreground">
+            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
               {item.vote_average && item.vote_average > 0 && (
                 <div className="flex items-center gap-1">
                   <Star
@@ -128,52 +112,46 @@ export function ContentCard({
         onClick={navigate}
         onMouseEnter={prefetch}
         onKeyDown={handleKeyDown}
-        className="relative w-full aspect-[2/3] overflow-hidden rounded-xl group focus:outline-none focus:ring-2 focus:ring-primary"
+        className="relative w-full overflow-hidden rounded-xl group focus:outline-none focus:ring-2 focus:ring-primary"
         aria-label={`View ${title}`}
       >
-        <Image
-          src={`https://image.tmdb.org/t/p/w342${item.poster_path}`}
-          alt={title || "Poster"}
-          fill
-          sizes="(max-width:640px)40vw,(max-width:1024px)22vw,12vw"
-          priority={isRanked && rank !== undefined && rank <= 3}
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+        <Poster
+          posterPath={item.poster_path ?? undefined}
+          title={title || "Poster"}
+          size="medium"
+          className="transition-transform duration-300 group-hover:scale-105"
         />
       </button>
 
-      <div className="mt-2 space-y-1 text-foreground">
-        <div className="flex flex-col items-center gap-1">
-          {item.logo ? (
-            <div className="max-w-[120px] md:max-w-[150px] w-auto">
-              <Image
-                src={`https://image.tmdb.org/t/p/w342${item.logo.file_path}`}
-                alt={title}
-                width={item.logo.width || 150}
-                height={item.logo.height || 75}
-                className="max-w-full h-auto object-contain"
-                style={{ width: "auto", height: "auto" }}
-              />
-            </div>
-          ) : (
-            <h3 className="text-sm font-semibold text-center">{title}</h3>
-          )}
+      <div className="text-foreground flex flex-col items-center bg-black/30 backdrop-blur-sm p-2 rounded-lg">
+        <MediaLogo
+          logo={item.logo}
+          className="w-full scale-75 max-h-full mx-auto -mb-4"
+          title={title}
+          fallbackClassName="text-balance text-center my-2"
+          size="large"
+        />
+
+        <div className="flex flex-col items-center gap-2">
           {item.content_rating && (
             <span className="w-fit whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-white/30 text-white backdrop-blur-sm">
               {item.content_rating}
             </span>
           )}
-        </div>
 
-        <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground">
-          {item.vote_average && item.vote_average > 0 && (
-            <div className="flex items-center gap-1">
-              <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
-              <span className="font-medium text-foreground">
-                {item.vote_average.toFixed(1)}
-              </span>
-            </div>
-          )}
-          {year && <span className="text-foreground font-medium">{year}</span>}
+          <div className="flex justify-center items-center gap-2 text-xs">
+            {item.vote_average && item.vote_average > 0 && (
+              <div className="flex items-center gap-1">
+                <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
+                <span className="font-medium text-foreground">
+                  {item.vote_average.toFixed(1)}
+                </span>
+              </div>
+            )}
+            {year && (
+              <span className="text-muted-foreground font-medium">{year}</span>
+            )}
+          </div>
         </div>
       </div>
     </article>

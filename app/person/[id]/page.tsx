@@ -5,12 +5,13 @@ import {
 } from "@/app/actions";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
+import { StableBackground } from "@/components/layout/stable-background";
+import { BiographyReadMore } from "@/components/person/biography-read-more";
 import { MediaItem } from "@/utils/typings";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { memo } from "react";
 import { PersonFilmography } from "./client-filmography";
 
 interface PersonPageProps {
@@ -52,22 +53,6 @@ export async function generateMetadata(
     };
   }
 }
-
-const StableBackground = memo(function StableBackground() {
-  return (
-    <div className="absolute inset-0 w-full min-h-full z-0">
-      <div
-        className="w-full min-h-full bg-repeat bg-center"
-        style={{
-          backgroundImage: "url('/movie-banner.webp')",
-          filter: "blur(8px)",
-          opacity: 0.3,
-        }}
-      />
-      <div className="absolute inset-0 bg-black/50 -mt-4 -mb-4" />
-    </div>
-  );
-});
 
 export default async function PersonPage(props: PersonPageProps) {
   const params = await props.params;
@@ -175,14 +160,7 @@ export default async function PersonPage(props: PersonPageProps) {
                   </div>
 
                   {person.biography && (
-                    <div className="space-y-3">
-                      <h2 className="text-xl font-semibold text-white">
-                        Biography
-                      </h2>
-                      <p className="text-gray-300 leading-relaxed">
-                        {person.biography}
-                      </p>
-                    </div>
+                    <BiographyReadMore biography={person.biography} />
                   )}
                 </div>
               </div>

@@ -3,6 +3,7 @@ import {
   getSearchTitle,
   isAnime,
 } from "@/utils/anilist-helpers";
+import { MediaItem } from "@/utils/typings";
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_TMDB_SHOW_IDS = [1429]; // Attack on Titan
@@ -456,7 +457,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const searchTitle = getSearchTitle(tmdbShow);
+    const mediaItemAdapter: MediaItem = {
+      id: tmdbShow.id,
+      name: tmdbShow.name,
+      original_name: tmdbShow.original_name,
+      first_air_date: tmdbShow.first_air_date,
+      genre_ids: tmdbShow.genre_ids || [],
+      original_language: "",
+      overview: "",
+      popularity: 0,
+      vote_average: 0,
+      vote_count: 0,
+      poster_path: null,
+      media_type: "tv",
+    };
+
+    const searchTitle = getSearchTitle(mediaItemAdapter);
+    if (!searchTitle) {
+      return NextResponse.json(
+        { error: "Failed to extract search title from TMDB show" },
+        { status: 502 },
+      );
+    }
+
     const anilistCandidates = await fetchAniListCandidates(
       searchTitle,
       seasonNumber,

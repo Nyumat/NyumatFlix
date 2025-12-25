@@ -1,14 +1,8 @@
 "use client";
 
-import { useDetectAdBlock } from "adblock-detect-react";
-import { ArrowRight, User } from "lucide-react";
-import dynamic from "next/dynamic";
-import Image from "next/legacy/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
 import AdblockerAlert from "@/components/content/adblocker-alert";
 import AdblockerIcons from "@/components/content/adblocker-icons";
+import { Badge } from "@/components/ui/badge";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +10,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useDetectAdBlock } from "adblock-detect-react";
+import { ArrowRight, User } from "lucide-react";
+import dynamic from "next/dynamic";
+import Image from "next/legacy/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 import StreamingServices from "./steaming-services";
 
 const NeuralNetworkBackground = dynamic(
@@ -44,10 +45,10 @@ export const HeroSection = () => {
   }, [adBlockDetected, router]);
 
   return (
-    <section className="relative w-full min-h-[100vh] md:min-h-screen overflow-hidden">
+    <section className="relative w-full min-h-[100vh] md:min-h-screen overflow-x-hidden">
       <div className="absolute inset-0 z-0">
         <div
-          className="w-screen h-screen flex flex-col relative opacity-50"
+          className="w-full h-full flex flex-col relative opacity-50"
           suppressHydrationWarning
         >
           <NeuralNetworkBackground />
@@ -56,6 +57,22 @@ export const HeroSection = () => {
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none select-none">
         <div className="flex flex-col items-center justify-center min-h-[80vh] lg:min-h-[85vh] gap-6 sm:gap-8 pt-24 pb-8 md:pt-28 md:pb-16">
           <div className="flex flex-col items-center text-center space-y-6 sm:space-y-8 max-w-6xl">
+            <div
+              className="scale-75 sm:scale-100 flex min-w-fit w-full items-center justify-center gap-2 backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40 shadow-lg hover:shadow-xl transition-all duration-200 px-3 py-2 rounded-md max-w-xs mx-auto"
+              aria-hidden="true"
+            >
+              <Badge>NEW!</Badge>
+              <p className="text-xs text-white text-center">
+                Track favorites with the <span className="font-bold">new</span>{" "}
+                <Link
+                  className="text-white underline cursor-pointer"
+                  href="/watchlist"
+                >
+                  watchlist
+                </Link>{" "}
+                feature!
+              </p>
+            </div>
             <div className="max-w-4xl">
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-light leading-tight text-white drop-shadow-lg">
                 Movies and TV Shows <br />

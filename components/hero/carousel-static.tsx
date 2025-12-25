@@ -19,7 +19,9 @@ export function StaticHero({
     pathname.includes("/privacy") ||
     pathname.includes("/cookie-policy") ||
     pathname.includes("/dmca");
-  const isFullPageBackground = isSearchPage || isBrowsePage || isLegalPage;
+  const isWatchlistPage = pathname.includes("/watchlist");
+  const isFullPageBackground =
+    isSearchPage || isBrowsePage || isLegalPage || isWatchlistPage;
 
   return (
     <>

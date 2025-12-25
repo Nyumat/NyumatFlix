@@ -4,6 +4,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 /* *=========== Default theme =========== */
@@ -247,6 +248,7 @@ html {
   }
   body {
     @apply bg-background text-foreground;
+    @apply !min-w-full;
   }
 
   #scrollbar_hide {

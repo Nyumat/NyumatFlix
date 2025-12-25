@@ -20,6 +20,7 @@ interface EpisodeState {
       startEpisode: number;
       endEpisode: number;
     },
+    skipWatchCallback?: boolean,
   ) => void;
   clearSelectedEpisode: () => void;
   getEmbedUrl: () => string | null;
@@ -34,7 +35,13 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   anilistId: null,
   relativeEpisodeNumber: null,
   watchCallback: null,
-  setSelectedEpisode: (episode, tvShowId, seasonNumber, animeInfo) => {
+  setSelectedEpisode: (
+    episode,
+    tvShowId,
+    seasonNumber,
+    animeInfo,
+    skipWatchCallback = false,
+  ) => {
     const isAnimeEpisode = !!animeInfo;
     const anilistId = animeInfo?.anilistId || null;
     const relativeEpisodeNumber = animeInfo
@@ -68,9 +75,11 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       });
     }
 
-    const { watchCallback } = get();
-    if (watchCallback) {
-      watchCallback();
+    if (!skipWatchCallback) {
+      const { watchCallback } = get();
+      if (watchCallback) {
+        watchCallback();
+      }
     }
   },
   clearSelectedEpisode: () => {
