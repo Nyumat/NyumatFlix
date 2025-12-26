@@ -119,6 +119,9 @@ function ListViewCard(props: {
       className="group relative overflow-hidden bg-card/50 backdrop-blur-md border border-border/20 hover:border-primary/40 transition-all duration-300 cursor-pointer"
       onClick={() => router.push(href)}
       onMouseEnter={handleMouseEnter}
+      data-testid={`media-content-card-${item.id}`}
+      data-media-type={type}
+      data-content-id={item.id}
     >
       {backdropUrl && (
         <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-300">
@@ -348,8 +351,18 @@ export function MediaContentGrid({
   };
 
   return (
-    <div className="space-y-6">
-      {title && <h2 className="text-2xl font-bold text-foreground">{title}</h2>}
+    <div
+      className="space-y-6"
+      data-testid={testId || "media-content-grid-container"}
+    >
+      {title && (
+        <h2
+          className="text-2xl font-bold text-foreground"
+          data-testid="media-content-grid-title"
+        >
+          {title}
+        </h2>
+      )}
       <ContentGrid
         items={processedItems}
         renderCard={renderMediaCard}
@@ -360,7 +373,7 @@ export function MediaContentGrid({
         showViewModeControls={showViewModeControls}
         showDock={false}
         dockPosition={dockPosition}
-        data-testid={testId}
+        data-testid={testId ? `${testId}-grid` : "media-content-grid"}
         itemsPerRow={itemsPerRow}
       />
     </div>

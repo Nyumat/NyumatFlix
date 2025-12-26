@@ -74,7 +74,10 @@ export const HeroSection = () => {
               </p>
             </div>
             <div className="max-w-4xl">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-light leading-tight text-white drop-shadow-lg">
+              <h1
+                className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-light leading-tight text-white drop-shadow-lg"
+                data-testid="hero-title"
+              >
                 Movies and TV Shows <br />
                 <span className="text-transparent px-2 bg-gradient-to-r from-[#D247BF] to-primary bg-clip-text">
                   For Everyone.
@@ -93,6 +96,7 @@ export const HeroSection = () => {
                 onMouseEnter={() => {
                   router.prefetch("/home");
                 }}
+                data-testid="hero-start-watching-button"
               >
                 Start Watching
                 <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
@@ -119,7 +123,10 @@ export const HeroSection = () => {
               </Tooltip>
             </div>
           </div>
-          <AdblockerAlert openSignal={adblockAlertTrigger} />
+          <AdblockerAlert
+            openSignal={adblockAlertTrigger}
+            data-testid="hero-adblocker-alert"
+          />
           <div className="flex flex-col items-center gap-4 sm:gap-6 pointer-events-auto select-auto max-w-4xl">
             <p className="text-sm font-extralight text-white/80 text-center px-4 drop-shadow-md">
               I recommend using one of the adblockers below for the best
