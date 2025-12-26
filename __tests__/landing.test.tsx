@@ -1,8 +1,8 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, test } from "vitest";
 import Page from "../app/page";
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -20,10 +20,9 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
 describe("Landing Page", () => {
   test("renders the header", () => {
     render(<Page />, { wrapper: TestWrapper });
-    const part1 = screen.getByText("Movies and TV Shows");
-    const part2 = screen.getByText("For Everyone.");
-    expect(part1).toBeInTheDocument();
-    expect(part2).toBeInTheDocument();
+    const title = screen.getByTestId("hero-title");
+    expect(title).toHaveTextContent("Movies and TV Shows");
+    expect(title).toHaveTextContent("For Everyone.");
   });
 
   test("renders the subtitle", () => {
@@ -36,9 +35,10 @@ describe("Landing Page", () => {
 
   test("renders navigation and content sections", () => {
     render(<Page />, { wrapper: TestWrapper });
-    // Check for key sections that should be present
-    expect(screen.getByText("Movies and TV Shows")).toBeInTheDocument();
-    expect(screen.getByText("For Everyone.")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-title")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("hero-start-watching-button"),
+    ).toBeInTheDocument();
   });
 
   describe("Preview Image", () => {
