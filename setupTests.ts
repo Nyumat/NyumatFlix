@@ -70,6 +70,14 @@ if (typeof window !== "undefined") {
   window.scrollTo = vi.fn();
 }
 
+if (
+  typeof Element !== "undefined" &&
+  Element.prototype &&
+  !Element.prototype.scrollIntoView
+) {
+  Element.prototype.scrollIntoView = vi.fn();
+}
+
 afterEach(() => {
   vi.clearAllMocks();
 });
