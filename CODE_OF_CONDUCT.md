@@ -1,9 +1,9 @@
-# NyumatFlix Code of Conduct
+# Code of Conduct
 
 ## Our Pledge
 
 In the interest of fostering an open and welcoming environment, we as
-contributors and maintainers pledge to making participation in the NyumatFlix project a harassment-free and inclusive experience for everyone. We are committed to ensuring that all members of the NyumatFlix community, regardless of age, disability, ethnicity, gender identity and expression, level of experience,
+contributors and maintainers pledge to making participation in the project a harassment-free and inclusive experience for everyone. We are committed to ensuring that all members of the project's community, regardless of age, disability, ethnicity, gender identity and expression, level of experience,
 education, socio-economic status, nationality, personal appearance, race,
 religion, or sexual identity and orientation, feel welcome and respected.
 
@@ -12,9 +12,9 @@ religion, or sexual identity and orientation, feel welcome and respected.
 Examples of behavior that helps create a positive community for the project include:
 
 * Using welcoming and inclusive language in code, discussions, and contributions
-* Being respectful of differing viewpoints and experiences about NyumatFlix, media, and technology
+* Being respectful of differing viewpoints and experiences about the project, media, and technology
 * Gracefully accepting constructive criticism related to the project
-* Focusing on what is best for the NyumatFlix community
+* Focusing on what is best for the project's community
 * Showing empathy towards other contributors and users
 
 Examples of unacceptable behavior by members of the project's community include:
@@ -41,7 +41,7 @@ threatening, offensive, or harmful to the project.
 
 This Code of Conduct applies both within project spaces and in public spaces
 when an individual is representing the project or its community. Examples include using an official project e-mail address, posting via an official social media account, or acting as an appointed
-representative at an online or offline event. Representation of NyumatFlix may be
+representative at an online or offline event. Representation of the project may be
 further defined and clarified by project maintainers.
 
 ## Enforcement
