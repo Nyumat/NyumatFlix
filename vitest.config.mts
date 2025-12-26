@@ -1,4 +1,3 @@
-// vitest.config.ts
 import react from "@vitejs/plugin-react";
 import { loadEnv } from "vite";
 import magicalSvg from "vite-plugin-magical-svg";
