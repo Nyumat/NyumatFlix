@@ -34,7 +34,9 @@ beforeAll(() => {
     removeListener: vi.fn(),
   }));
 
-  Element.prototype.scrollIntoView = vi.fn();
+  if (typeof Element !== "undefined" && Element.prototype) {
+    Element.prototype.scrollIntoView = vi.fn();
+  }
 });
 
 const mockFetchResponse = (data: unknown) => ({
@@ -130,7 +132,10 @@ describe("SearchResults Component", () => {
       expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Results for "test"/)).toBeInTheDocument();
+    expect(screen.getByTestId("search-results-title")).toHaveTextContent(
+      /Results for "test"/,
+    );
+    expect(screen.getByTestId("search-results-list")).toBeInTheDocument();
   });
 
   test("shows empty state message for empty query", async () => {
@@ -138,8 +143,8 @@ describe("SearchResults Component", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Please enter a search query."),
-      ).toBeInTheDocument();
+        screen.getByTestId("search-results-empty-query"),
+      ).toHaveTextContent("Please enter a search query.");
     });
   });
 
@@ -159,9 +164,9 @@ describe("SearchResults Component", () => {
     renderWithProviders(<SearchResults query="nonexistent" />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/No results found for "nonexistent"/),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("search-results-no-results")).toHaveTextContent(
+        /No results found for "nonexistent"/,
+      );
     });
   });
 
@@ -178,9 +183,9 @@ describe("SearchResults Component", () => {
 
     renderWithProviders(<SearchResults query="test" />);
 
-    expect(
-      screen.getByText(/Loading search results for "test"/),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("search-results-loading")).toHaveTextContent(
+      /Loading search results for "test"/,
+    );
 
     await act(async () => {
       resolveSearch!(
@@ -195,7 +200,9 @@ describe("SearchResults Component", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByText(/Loading/)).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("search-results-loading"),
+      ).not.toBeInTheDocument();
       expect(screen.getByText("Test Movie")).toBeInTheDocument();
     });
   });
@@ -226,7 +233,9 @@ describe("SearchResults Component", () => {
     renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Network error")).toBeInTheDocument();
+      expect(screen.getByTestId("search-results-error")).toHaveTextContent(
+        "Network error",
+      );
     });
   });
 
@@ -249,12 +258,11 @@ describe("SearchResults Component", () => {
     renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
-
-      expect(
-        screen.getByRole("link", { name: /previous/i }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /next/i })).toBeInTheDocument();
+      expect(screen.getByTestId("pagination-info")).toHaveTextContent(
+        "Page 1 of 3",
+      );
+      expect(screen.getByTestId("pagination-previous")).toBeInTheDocument();
+      expect(screen.getByTestId("pagination-next")).toBeInTheDocument();
     });
   });
 
@@ -284,7 +292,7 @@ describe("SearchResults Component", () => {
       expect(screen.getByText("Test Movie")).toBeInTheDocument();
     });
 
-    const nextButton = screen.getByRole("link", { name: /next/i });
+    const nextButton = screen.getByTestId("pagination-next");
     await user.click(nextButton);
     await waitFor(() => {
       expect(screen.queryByText("Test Movie")).not.toBeInTheDocument();
@@ -296,7 +304,8 @@ describe("SearchResults Component", () => {
     renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Filter by Genre")).toBeInTheDocument();
+      expect(screen.getByTestId("genre-filter")).toBeInTheDocument();
+      expect(screen.getByTestId("genre-multi-select")).toBeInTheDocument();
     });
   });
 });
@@ -314,6 +323,9 @@ describe("MediaContentGrid Component", () => {
     );
 
     await waitFor(() => {
+      expect(
+        screen.getByTestId("media-content-grid-container"),
+      ).toBeInTheDocument();
       expect(screen.getByText("Test Movie")).toBeInTheDocument();
       expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
