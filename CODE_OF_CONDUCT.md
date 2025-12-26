@@ -1,5 +1,7 @@
 # Code of Conduct
 
+This document outlines some of the rules and guidelines for contributing to this project.
+
 ## Our Pledge
 
 In the interest of fostering an open and welcoming environment, we as
