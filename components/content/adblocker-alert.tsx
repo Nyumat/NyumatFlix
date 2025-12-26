@@ -15,9 +15,13 @@ import { Button } from "@/components/ui/button";
 
 export type AdblockerAlertProps = {
   openSignal: boolean;
+  "data-testid"?: string;
 };
 
-export const AdblockerAlert = ({ openSignal }: AdblockerAlertProps) => {
+export const AdblockerAlert = ({
+  openSignal,
+  "data-testid": testId,
+}: AdblockerAlertProps) => {
   const [showOptions, setShowOptions] = useState<boolean>(false);
   const [open, setOpen] = useState<boolean>(false);
   const router = useRouter();
@@ -38,6 +42,7 @@ export const AdblockerAlert = ({ openSignal }: AdblockerAlertProps) => {
       <AlertDialogContent
         role="dialog"
         aria-label="adblock recommendation dialog"
+        data-testid={testId || "adblocker-alert-dialog"}
         className="max-w-md p-5 sm:p-6"
       >
         <AlertDialogHeader>

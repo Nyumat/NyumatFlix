@@ -119,6 +119,9 @@ function SearchResultCard({ item }: { item: MediaItem }) {
       className="group relative overflow-hidden bg-gradient-to-r from-background/95 via-background/80 to-background/60 backdrop-blur-xl border border-border/30 hover:border-primary/50 transition-all duration-500 cursor-pointer h-full"
       onClick={() => router.push(href)}
       onMouseEnter={handleMouseEnter}
+      data-testid={`search-result-card-${item.id}`}
+      data-media-type={item.media_type}
+      data-content-id={item.id}
     >
       {backdropUrl && (
         <div className="absolute inset-0 opacity-30 group-hover:opacity-40 transition-opacity duration-500">
@@ -293,6 +296,8 @@ function EnhancedPagination({
                 ? "pointer-events-none opacity-50 h-8 px-2 text-sm"
                 : "cursor-pointer h-8 px-2 text-sm"
             }
+            data-testid="pagination-previous"
+            aria-label="Previous page"
           />
         </PaginationItem>
 
@@ -315,6 +320,8 @@ function EnhancedPagination({
                 }}
                 isActive={currentPage === page}
                 className="cursor-pointer h-8 w-8 text-sm"
+                data-testid={`pagination-page-${page}`}
+                aria-label={`Go to page ${page}`}
               >
                 {page}
               </PaginationLink>
@@ -336,6 +343,8 @@ function EnhancedPagination({
                 ? "pointer-events-none opacity-50 h-8 px-2 text-sm"
                 : "cursor-pointer h-8 px-2 text-sm"
             }
+            data-testid="pagination-next"
+            aria-label="Next page"
           />
         </PaginationItem>
       </PaginationContent>
@@ -372,19 +381,32 @@ export default function SearchResults({ query }: { query: string }) {
 
   if (isLoading && items.length === 0 && query && query.trim()) {
     return (
-      <div className="text-center py-0 text-muted-foreground">
+      <div
+        className="text-center py-0 text-muted-foreground"
+        data-testid="search-results-loading"
+      >
         Loading search results for &quot;{query.trim()}&quot;...
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-destructive text-center py-10">{error}</div>;
+    return (
+      <div
+        className="text-destructive text-center py-10"
+        data-testid="search-results-error"
+      >
+        {error}
+      </div>
+    );
   }
 
   if (!query || !query.trim()) {
     return (
-      <div className="text-center py-10 text-muted-foreground">
+      <div
+        className="text-center py-10 text-muted-foreground"
+        data-testid="search-results-empty-query"
+      >
         Please enter a search query.
       </div>
     );
@@ -392,7 +414,10 @@ export default function SearchResults({ query }: { query: string }) {
 
   if (items.length === 0 && !isLoading) {
     return (
-      <div className="text-center py-10 text-muted-foreground">
+      <div
+        className="text-center py-10 text-muted-foreground"
+        data-testid="search-results-no-results"
+      >
         No results found for &quot;{query.trim()}&quot;.
       </div>
     );
@@ -455,7 +480,7 @@ export default function SearchResults({ query }: { query: string }) {
           />
 
           <div className="mt-4">
-            <div className="space-y-4" data-testid="search-results-grid">
+            <div className="space-y-4" data-testid="search-results-list">
               {filteredItems
                 .filter((item) => isValidMediaItem(item))
                 .map((item) => {

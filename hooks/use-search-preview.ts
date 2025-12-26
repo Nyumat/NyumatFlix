@@ -1,7 +1,7 @@
 "use client";
 
 import { debounce } from "lodash";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "@/lib/utils";
 
 /**
@@ -52,6 +52,8 @@ export function useSearchPreview(
   const [results, setResults] = useState<PreviewResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const currentQueryRef = useRef<string>("");
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchResults = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim() || searchQuery.length < 2) {
@@ -61,26 +63,70 @@ export function useSearchPreview(
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    currentQueryRef.current = searchQuery;
+
     setIsLoading(true);
     setError(null);
 
     try {
       const response = await fetch(
         `/api/search-preview?query=${encodeURIComponent(searchQuery)}`,
+        { signal: abortController.signal },
       );
+
+      if (
+        abortController.signal.aborted ||
+        currentQueryRef.current !== searchQuery
+      ) {
+        return;
+      }
 
       if (!response.ok) {
         throw new Error("Search preview failed");
       }
 
       const data = await response.json();
-      setResults(data.results || []);
+
+      if (
+        currentQueryRef.current === searchQuery &&
+        !abortController.signal.aborted
+      ) {
+        setResults(data.results || []);
+      }
     } catch (err) {
-      logger.error("Error fetching preview results", err);
-      setError("Failed to load search suggestions");
-      setResults([]);
+      if (
+        abortController.signal.aborted ||
+        currentQueryRef.current !== searchQuery
+      ) {
+        return;
+      }
+
+      const isAbortError =
+        (err instanceof Error && err.name === "AbortError") ||
+        (err instanceof DOMException && err.name === "AbortError");
+
+      if (isAbortError) {
+        return;
+      }
+
+      if (currentQueryRef.current === searchQuery) {
+        logger.error("Error fetching preview results", err);
+        setError("Failed to load search suggestions");
+        setResults([]);
+      }
     } finally {
-      setIsLoading(false);
+      if (
+        currentQueryRef.current === searchQuery &&
+        !abortController.signal.aborted
+      ) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -95,6 +141,11 @@ export function useSearchPreview(
     if (query.trim()) {
       debouncedFetch(query);
     } else {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      currentQueryRef.current = "";
       setResults([]);
       setIsLoading(false);
       setError(null);
@@ -102,6 +153,10 @@ export function useSearchPreview(
 
     return () => {
       debouncedFetch.cancel();
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
     };
   }, [query, debouncedFetch]);
 

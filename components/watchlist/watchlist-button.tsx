@@ -27,6 +27,7 @@ export function WatchlistButton({
 }: WatchlistButtonProps) {
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isToggling, setIsToggling] = useState(false);
   const session = useSession();
 
   useEffect(() => {
@@ -46,13 +47,14 @@ export function WatchlistButton({
   }, [contentId, mediaType]);
 
   const handleToggle = async () => {
-    if (isLoading) return;
+    if (isLoading || isToggling) return;
     // TODO(Nyumat): local-only / single device watchlists
     if (!session.data?.user?.id)
       return toast.error(
         "To add items to your watchlist, you must be logged in.",
       );
 
+    setIsToggling(true);
     try {
       if (isInWatchlist) {
         if (!mediaType) return;
@@ -103,14 +105,29 @@ export function WatchlistButton({
           ? "Failed to remove from watchlist"
           : "Failed to add to watchlist",
       );
+    } finally {
+      setIsToggling(false);
     }
   };
 
   if (isLoading) {
     return (
-      <Button variant={variant} size={size} className={cn(className)} disabled>
+      <Button
+        variant={variant}
+        size={size}
+        className={cn(className)}
+        disabled
+        data-testid="watchlist-button-loading"
+      >
         <Bookmark className="h-4 w-4" />
-        {children && <span className="ml-2 text-sm">Loading...</span>}
+        {children && (
+          <span
+            className="ml-2 text-sm"
+            data-testid="watchlist-button-loading-text"
+          >
+            Loading...
+          </span>
+        )}
       </Button>
     );
   }
@@ -123,10 +140,22 @@ export function WatchlistButton({
       size={size}
       onClick={handleToggle}
       className={cn(className)}
+      disabled={isToggling}
       aria-label={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+      data-testid={`watchlist-button-${isInWatchlist ? "remove" : "add"}`}
+      data-in-watchlist={isInWatchlist}
+      data-content-id={contentId}
+      data-media-type={mediaType}
     >
       <Icon className="h-4 w-4" />
-      {children && <span className="ml-2 text-sm font-medium">{children}</span>}
+      {children && (
+        <span
+          className="ml-2 text-sm font-medium"
+          data-testid="watchlist-button-text"
+        >
+          {children}
+        </span>
+      )}
     </Button>
   );
 }
