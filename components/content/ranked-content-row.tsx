@@ -1,110 +1,36 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import {
   Carousel,
-  type CarouselApi,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
+import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Poster } from "../media/media-poster";
-import { ContentCard } from "./content-card";
+import { MediaLogo } from "../media/media-logo";
 import { ContentRowHeader } from "./content-row-header";
 
 export interface RankedContentRowProps {
   title: string;
   items: MediaItem[];
   href: string;
-  contentRating?: Record<number, string | null>;
-  onLoadMore?: () => Promise<MediaItem[]>;
-  hasMoreItems?: boolean;
-}
-
-interface ItemWithId {
-  id: number;
 }
 
 export function RankedContentRow({
   title,
   items: initialItems,
   href,
-  contentRating = {},
-  onLoadMore,
-  hasMoreItems = false,
 }: RankedContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
-  const [items, setItems] = useState<MediaItem[]>(initialItems);
-  const [loading, setLoading] = useState(false);
-  const [api, setApi] = useState<CarouselApi>();
-  const lastScrollProgressRef = useRef(0);
   const router = useRouter();
-
-  useEffect(() => {
-    if (
-      initialItems.length > 0 &&
-      items.length > 0 &&
-      initialItems[0]?.id !== items[0]?.id
-    ) {
-      setItems(initialItems);
-    } else if (initialItems.length > 0 && items.length === 0) {
-      setItems(initialItems);
-    }
-  }, [initialItems, items]);
-
-  // need scroll end detection for infinite loading (mostly for mobile carousel)
-  useEffect(() => {
-    if (!api || !hasMoreItems || !isMobile) return;
-
-    const handleScroll = () => {
-      const scrollProgress = api.scrollProgress();
-      lastScrollProgressRef.current = scrollProgress;
-
-      if (scrollProgress > 0.85 && !loading && hasMoreItems) {
-        loadMoreItems();
-      }
-    };
-
-    api.on("scroll", handleScroll);
-
-    return () => {
-      api.off("scroll", handleScroll);
-    };
-  }, [api, hasMoreItems, loading, isMobile]);
-
-  const getContentRating = (item: MediaItem & ItemWithId) => {
-    return item.content_rating || contentRating[item.id] || undefined;
-  };
-
-  const loadMoreItems = async () => {
-    if (onLoadMore && hasMoreItems && !loading) {
-      setLoading(true);
-      try {
-        const newItems = await onLoadMore();
-        if (newItems && newItems.length > 0) {
-          setItems((prev) => [...prev, ...newItems]);
-        }
-      } catch (error) {
-        console.error("Error loading more items:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const LoadingComponent = () => (
-    <div className="flex items-center justify-center min-h-[150px] w-full">
-      <LoadingSpinner size="lg" />
-    </div>
-  );
+  const items = initialItems.slice(0, 3);
 
   const getItemDetails = (item: MediaItem) => {
     const movieItem = isMovie(item) ? (item as Movie) : null;
@@ -132,6 +58,88 @@ export function RankedContentRow({
     router.prefetch(itemHref);
   };
 
+  const LandscapeCard = ({ item, rank }: { item: MediaItem; rank: number }) => {
+    const { displayTitle, year } = getItemDetails(item);
+    const backdropUrl = item.backdrop_path
+      ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
+      : undefined;
+
+    return (
+      <div
+        onClick={() => handleItemClick(item)}
+        onMouseEnter={() => handleItemMouseEnter(item)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleItemClick(item);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        className="group relative overflow-hidden rounded-lg bg-black/40 backdrop-blur-md ring-1 ring-white/[0.08] shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-primary/5 hover:ring-primary/30 transition-all duration-300 cursor-pointer aspect-video"
+        aria-label={`View details for ${displayTitle}`}
+      >
+        {backdropUrl ? (
+          <Image
+            src={backdropUrl}
+            alt={displayTitle || "Backdrop"}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+
+        <div className="absolute inset-0 flex flex-col justify-end p-6 z-10">
+          <div className="flex items-center gap-3 mb-3">
+            <span
+              className={cn(
+                "text-5xl md:text-6xl font-black tabular-nums tracking-tighter",
+                "bg-gradient-to-b bg-clip-text text-transparent",
+                rank === 1
+                  ? "from-amber-300 to-amber-600"
+                  : "from-slate-200 to-slate-500",
+              )}
+            >
+              {rank}
+            </span>
+            <div className="flex-1">
+              <MediaLogo
+                logo={item.logo}
+                title={displayTitle}
+                align="left"
+                className="mb-2"
+                fallbackClassName="text-xl md:text-2xl font-bold text-white mb-2"
+              />
+              <div className="flex items-center gap-2 text-sm text-white/80">
+                {year && <span>{year}</span>}
+                {item.vote_average && item.vote_average > 0 && (
+                  <>
+                    <span className="text-white/40">•</span>
+                    <div className="flex items-center gap-1">
+                      <Star
+                        className="w-4 h-4 text-amber-400"
+                        fill="currentColor"
+                      />
+                      <span>{item.vote_average.toFixed(1)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
+          <Icons.play className="w-12 h-12 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" />
+        </div>
+      </div>
+    );
+  };
+
   if (isMobile) {
     return (
       <div className="mx-4 md:mx-8">
@@ -144,33 +152,20 @@ export function RankedContentRow({
               dragFree: true,
               skipSnaps: true,
             }}
-            setApi={setApi}
             className="w-full"
           >
             <CarouselContent className="-ml-3">
               {items.map((item, index) => (
                 <CarouselItem
                   key={`${item.id}-${index}`}
-                  className="pl-3 md:pl-4 basis-[40%] sm:basis-[28%] md:basis-[22%] lg:basis-[18%] xl:basis-[12%]"
+                  className="pl-3 md:pl-4 basis-[85%] sm:basis-[70%]"
                 >
-                  <ContentCard
-                    item={item}
-                    isRanked
-                    rank={index + 1}
-                    isMobile={true}
-                    rating={getContentRating(item)}
-                  />
+                  <LandscapeCard item={item} rank={index + 1} />
                 </CarouselItem>
               ))}
-
-              {hasMoreItems && loading && (
-                <CarouselItem className="pl-3 basis-[48%] sm:basis-[35%] flex items-center justify-center">
-                  <LoadingComponent />
-                </CarouselItem>
-              )}
             </CarouselContent>
-            <CarouselPrevious className="absolute -left-3 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm hover:bg-background/90 border-0 shadow-md" />
-            <CarouselNext className="absolute -right-3 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm hover:bg-background/90 border-0 shadow-md" />
+            <CarouselPrevious className="absolute -left-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
+            <CarouselNext className="absolute -right-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
           </Carousel>
         </div>
       </div>
@@ -181,100 +176,15 @@ export function RankedContentRow({
     <div className="mx-4 md:mx-8">
       <ContentRowHeader title={title} href={href} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-4">
-        {items.slice(0, 8).map((item, index) => {
-          const { displayTitle, year } = getItemDetails(item);
-
-          return (
-            <div
-              key={`${item.id}-${index}`}
-              onClick={() => handleItemClick(item)}
-              onMouseEnter={() => handleItemMouseEnter(item)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleItemClick(item);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              className="flex group relative overflow-hidden rounded-md bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 p-2 items-center cursor-pointer"
-              aria-label={`View details for ${displayTitle}`}
-            >
-              <div className="flex items-center justify-center w-12 shrink-0">
-                <span
-                  className={cn(
-                    "text-4xl xl:text-5xl font-medium",
-                    index === 0
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground group-hover:text-primary/80 transition-colors duration-200",
-                  )}
-                >
-                  {index + 1}
-                </span>
-              </div>
-
-              <div className="shrink-0 mx-2 w-14 sm:w-16 h-20 sm:h-24 group-hover:scale-105 transition-transform duration-300">
-                <Poster
-                  posterPath={item.poster_path ?? undefined}
-                  title={displayTitle || "Media poster"}
-                  size="small"
-                  className="rounded"
-                />
-              </div>
-
-              <div className="flex flex-col justify-center flex-1 min-w-0">
-                <h3 className="font-semibold text-sm sm:text-base text-foreground leading-tight group-hover:text-primary transition-colors duration-200">
-                  {displayTitle}
-                </h3>
-
-                <div className="flex flex-wrap items-center text-xs text-muted-foreground mt-0.5">
-                  <div className="flex items-center mr-1.5">
-                    <Star
-                      className="w-3 h-3 text-yellow-400 mr-0.5"
-                      fill="currentColor"
-                    />
-                    <span>{item.vote_average?.toFixed(1)}</span>
-                  </div>
-                  {year && <span className="mr-1.5">• {year}</span>}
-                </div>
-
-                <div className="flex items-center gap-1 mt-1">
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] py-0 h-4 px-1.5 border-border text-muted-foreground group-hover:border-accent group-hover:text-accent-foreground transition-colors duration-200"
-                  >
-                    {isMovie(item) ? "Movie" : "TV"}
-                  </Badge>
-                  {getContentRating(item) && (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] py-0 h-4 px-1.5 border-border text-muted-foreground group-hover:border-accent group-hover:text-accent-foreground transition-colors duration-200"
-                    >
-                      {getContentRating(item)}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        {items.map((item, index) => (
+          <LandscapeCard
+            key={`${item.id}-${index}`}
+            item={item}
+            rank={index + 1}
+          />
+        ))}
       </div>
-
-      {hasMoreItems && !isMobile && (
-        <div className="flex justify-center mt-8">
-          {loading ? (
-            <LoadingComponent />
-          ) : (
-            <button
-              onClick={loadMoreItems}
-              className="px-4 py-2 bg-accent hover:bg-accent/80 rounded-md text-sm text-accent-foreground transition-colors duration-200"
-            >
-              Load More Ranked
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }

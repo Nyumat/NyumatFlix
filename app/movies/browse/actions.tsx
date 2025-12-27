@@ -2,6 +2,7 @@
 
 import {
   buildItemsWithCategories,
+  enrichItemsWithContentRatings,
   fetchPaginatedCategory,
   fetchTMDBData,
 } from "@/app/actions";
@@ -48,7 +49,12 @@ export async function getMoreMovies(
     "movie",
   );
 
-  const uniqueMovies = processedMovies.filter((item) => {
+  const processedMoviesWithRatings = await enrichItemsWithContentRatings(
+    processedMovies,
+    "movie",
+  );
+
+  const uniqueMovies = processedMoviesWithRatings.filter((item) => {
     if (typeof item.id !== "number") return true;
     if (seenIdsSet.has(item.id)) return false;
     return true;

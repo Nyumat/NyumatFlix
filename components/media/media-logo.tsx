@@ -24,20 +24,25 @@ interface MediaLogoProps {
    */
   size?: "small" | "medium" | "large" | "xlarge" | "2xxl";
   /**
-   * Maximum height constraint
+   * Maximum height override (CSS value, e.g., "300px")
    */
   maxHeight?: string;
   /**
-   * Maximum width constraint
+   * Maximum width override (CSS value, e.g., "500px")
    */
   maxWidth?: string;
+  /**
+   * Alignment of the logo within its container
+   * @default "left"
+   */
+  align?: "left" | "center" | "right";
 }
 
 /**
  * Displays a media title logo inside a responsive container.
  * Automatically adjusts based on logo aspect ratio and container size.
  * Falls back to text when a logo asset is unavailable.
- * Now supports various aspect ratios and extra large sizes.
+ * v3.3 supports various aspect ratios and extra large sizes.
  */
 export function MediaLogo({
   logo,
@@ -47,8 +52,8 @@ export function MediaLogo({
   size = "medium",
   maxHeight,
   maxWidth,
+  align = "left",
 }: MediaLogoProps) {
-  // Accept more granular aspect ratios
   const aspectRatio = useMemo(() => {
     if (!logo) return null;
     if (logo.aspect_ratio) return logo.aspect_ratio;
@@ -56,12 +61,6 @@ export function MediaLogo({
     return null;
   }, [logo]);
 
-  // Keep several aspect buckets for flexibility
-  //  ultraWide: > 3.2
-  //  wide: > 2
-  //  standard: 1.2-2
-  //  squareish: 0.8-1.2
-  //  tall: < 0.8
   const aspectType = useMemo(() => {
     if (aspectRatio === null) return "standard";
     if (aspectRatio > 3.2) return "ultraWide";
@@ -73,15 +72,19 @@ export function MediaLogo({
   }, [aspectRatio]);
 
   const containerClasses = useMemo(() => {
-    const base = "flex items-center justify-start rounded-md bg-transparent";
-    // Each size/aspectType variant - using max-w instead of fixed w for wide logos
+    const base = cn(
+      "flex items-center rounded-md bg-transparent",
+      align === "left" && "justify-start",
+      align === "center" && "justify-center",
+      align === "right" && "justify-end",
+    );
     const sizeVariants = {
       small: {
-        ultraWide: "h-4 max-w-28 sm:h-5 sm:max-w-36 md:h-6 md:max-w-48", // 7:2ish
-        wide: "h-6 max-w-20 sm:h-7 sm:max-w-24 md:h-8 md:max-w-28", // 3:1
-        standard: "h-8 max-w-24 sm:h-9 sm:max-w-28 md:h-10 md:max-w-32", // 16:9, 2:1
-        squareish: "h-9 max-w-9 sm:h-10 sm:max-w-10 md:h-12 md:max-w-12", // nearly square
-        tall: "h-10 max-w-12 sm:h-12 sm:max-w-14 md:h-14 md:max-w-16", // poster
+        ultraWide: "h-4 max-w-28 sm:h-5 sm:max-w-36 md:h-6 md:max-w-48",
+        wide: "h-6 max-w-20 sm:h-7 sm:max-w-24 md:h-8 md:max-w-28",
+        standard: "h-8 max-w-24 sm:h-9 sm:max-w-28 md:h-10 md:max-w-32",
+        squareish: "h-9 max-w-9 sm:h-10 sm:max-w-10 md:h-12 md:max-w-12",
+        tall: "h-10 max-w-12 sm:h-12 sm:max-w-14 md:h-14 md:max-w-16",
       },
       medium: {
         ultraWide: "h-8 max-w-56 sm:h-9 sm:max-w-64 md:h-10 md:max-w-80",
@@ -132,10 +135,9 @@ export function MediaLogo({
     };
 
     return getClass();
-  }, [size, aspectType, className]);
+  }, [size, aspectType, className, align]);
 
   const imageSizes = useMemo(() => {
-    // Tailor image sizes for new xlarge and 2xxl
     switch (size) {
       case "small":
         return "(max-width: 640px) 80px, (max-width: 768px) 112px, 128px";
@@ -164,7 +166,12 @@ export function MediaLogo({
             src={`https://image.tmdb.org/t/p/w500${logo.file_path}`}
             alt={title || "Logo"}
             fill
-            className="object-contain object-left"
+            className={cn(
+              "object-contain",
+              align === "left" && "object-left",
+              align === "center" && "object-center",
+              align === "right" && "object-right",
+            )}
             sizes={imageSizes}
             priority={false}
           />

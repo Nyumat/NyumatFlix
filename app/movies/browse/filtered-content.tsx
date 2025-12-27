@@ -1,5 +1,6 @@
 import {
   buildItemsWithCategories,
+  enrichItemsWithContentRatings,
   fetchPaginatedCategory,
   fetchTMDBData,
 } from "@/app/actions";
@@ -95,9 +96,14 @@ export async function FilteredMovieContent({
     "movie",
   );
 
+  const processedContentWithRatings = await enrichItemsWithContentRatings(
+    processedContent,
+    "movie",
+  );
+
   const initialOffset = 2;
 
-  const initialSeenIds = processedContent
+  const initialSeenIds = processedContentWithRatings
     .map((item) => item.id)
     .filter((id): id is number => typeof id === "number");
 
@@ -110,7 +116,7 @@ export async function FilteredMovieContent({
       className="space-y-8"
       initialSeenIds={initialSeenIds}
       unifiedGrid={true}
-      initialItems={processedContent}
+      initialItems={processedContentWithRatings}
       gridType="movie"
     />
   );

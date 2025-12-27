@@ -106,8 +106,8 @@ export default async function PersonPage(props: PersonPageProps) {
             topSpacing={false}
           >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              <div className="lg:col-span-1">
-                <div className="rounded-lg overflow-hidden shadow-xl mt-4 mb-4">
+              <div className="lg:col-span-1 flex justify-center lg:justify-start">
+                <div className="rounded-lg overflow-hidden shadow-xl mt-4 mb-4 w-[280px] sm:w-[320px] lg:w-full">
                   {person.profile_path ? (
                     <Image
                       src={`https://image.tmdb.org/t/p/w500${person.profile_path}`}
@@ -117,7 +117,7 @@ export default async function PersonPage(props: PersonPageProps) {
                       className="w-full h-auto"
                     />
                   ) : (
-                    <div className="w-full h-[750px] flex items-center justify-center bg-muted">
+                    <div className="w-full aspect-[2/3] flex items-center justify-center bg-muted">
                       <User size={120} className="text-muted-foreground" />
                     </div>
                   )}
@@ -170,8 +170,7 @@ export default async function PersonPage(props: PersonPageProps) {
               <div className="space-y-4 mb-6">
                 <h2 className="text-2xl font-bold text-white">Filmography</h2>
                 <p className="text-gray-300">
-                  All movies and TV shows featuring {person.name}, sorted by
-                  role importance
+                  All movies and TV shows featuring {person.name}.
                 </p>
               </div>
 
