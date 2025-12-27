@@ -9,7 +9,8 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import Fade from "embla-carousel-fade";
-import { Info, Play, Star } from "lucide-react";
+import { Icons } from "@/lib/icons";
+import { Info, Star } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -268,7 +269,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
             variant="outline"
             className="bg-white/10 backdrop-blur-sm text-white border-white/30 hover:bg-white/20 flex-1"
           >
-            <Play className="mr-2 h-4 w-4" />
+            <Icons.play className="mr-2 h-4 w-4" />
             Play
           </Button>
           <Button

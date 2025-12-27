@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CountryBadge } from "@/components/ui/country-badge";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
+import { MediaLogo } from "../media/media-logo";
 import {
   Pagination,
   PaginationContent,
@@ -25,7 +26,8 @@ import type {
   TvShow,
 } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
-import { Clock, Play, Star } from "lucide-react";
+import { Icons } from "@/lib/icons";
+import { Clock, Star } from "lucide-react";
 import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
@@ -103,7 +105,6 @@ function SearchResultCard({ item }: { item: MediaItem }) {
       ? (item.genres as Genre[])
       : undefined;
 
-  // Build href without narrowing item in each branch to avoid TS 'never' issue
   const href = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
 
   const backdropUrl = backdropPath
@@ -116,7 +117,7 @@ function SearchResultCard({ item }: { item: MediaItem }) {
 
   return (
     <Card
-      className="group relative overflow-hidden bg-gradient-to-r from-background/95 via-background/80 to-background/60 backdrop-blur-xl border border-border/30 hover:border-primary/50 transition-all duration-500 cursor-pointer h-full"
+      className="group relative overflow-hidden bg-card/40 backdrop-blur-xl border border-white/10 hover:border-primary/50 transition-all duration-500 cursor-pointer shadow-2xl h-full"
       onClick={() => router.push(href)}
       onMouseEnter={handleMouseEnter}
       data-testid={`search-result-card-${item.id}`}
@@ -124,105 +125,108 @@ function SearchResultCard({ item }: { item: MediaItem }) {
       data-content-id={item.id}
     >
       {backdropUrl && (
-        <div className="absolute inset-0 opacity-30 group-hover:opacity-40 transition-opacity duration-500">
+        <div className="absolute inset-0 opacity-15 group-hover:opacity-25 transition-opacity duration-700">
           <Image
             src={backdropUrl}
             alt={title || "Media backdrop"}
             layout="fill"
             objectFit="cover"
-            className="blur-[6px] scale-110 group-hover:blur-[4px] transition-all duration-500"
+            className="blur-sm scale-110"
           />
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-r from-background/60 via-background/40 to-background/30" />
-      <div className="relative flex gap-6 p-6 h-full">
+      <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent pointer-events-none" />
+      <div className="relative flex gap-6 p-4 md:p-6 h-full">
         <div className="flex-shrink-0 w-24 sm:w-28 md:w-32 lg:w-36">
-          <div className="relative rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-border/20">
+          <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-white/10 group-hover:ring-primary/30 transition-all duration-500">
             <Poster
               posterPath={posterPath}
               title={title || "Media poster"}
               size="medium"
-              className="transition-transform duration-500 group-hover:scale-105"
+              className="transition-transform duration-700 group-hover:scale-[1.05]"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 flex items-center justify-center">
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                <div className="flex items-center justify-center w-12 h-12 bg-primary/90 backdrop-blur-sm rounded-full shadow-xl ring-2 ring-primary/20">
-                  <Play className="text-primary-foreground w-5 h-5 ml-0.5" />
-                </div>
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 scale-75 group-hover:scale-100 transition-transform">
+                <Icons.play
+                  className="text-primary-foreground w-12 h-12 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+                  strokeWidth={1.5}
+                />
               </div>
             </div>
           </div>
         </div>
-        <div className="flex-1 min-w-0 flex flex-col py-2">
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-xl sm:text-2xl font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300 leading-tight">
-                {title}
-              </h3>
-              <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
-                <span className="font-medium">{formatDate(releaseDate)}</span>
+        <div className="flex-1 min-w-0 flex flex-col justify-center py-2 space-y-3">
+          <div className="space-y-1">
+            <MediaLogo
+              logo={item.logo}
+              title={title}
+              align="left"
+              className="mb-1 max-w-[240px]"
+              fallbackClassName="text-xl sm:text-2xl md:text-3xl font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300 leading-tight tracking-tight"
+            />
+            <div className="flex items-center gap-3 text-sm text-muted-foreground/80 font-medium flex-wrap">
+              <span>{formatDate(releaseDate)}</span>
 
-                {voteAverage && voteAverage > 0 && (
-                  <>
-                    <span>•</span>
-                    <div className="flex items-center gap-1.5">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold text-yellow-400">
-                        {voteAverage.toFixed(1)}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                {runtime && (
-                  <>
-                    <span>•</span>
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-4 h-4" />
-                      <span>{formatRuntime(runtime)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge
-                variant="secondary"
-                className="text-xs font-semibold bg-primary/15 border-primary/30 text-primary px-2 py-1"
-              >
-                {type === "movie" ? "Movie" : "TV Show"}
-              </Badge>
-
-              {country && country.length > 0 && (
-                <CountryBadge
-                  country={{ iso_3166_1: country[0], name: country[0] }}
-                  variant="outline"
-                  className="text-xs bg-muted/30 border-border/50 text-muted-foreground"
-                  size="sm"
-                  showName={false}
-                  mediaType={type as "movie" | "tv"}
-                />
+              {voteAverage && voteAverage > 0 && (
+                <>
+                  <span className="opacity-40">•</span>
+                  <div className="flex items-center gap-1.5">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-foreground font-semibold">
+                      {voteAverage.toFixed(1)}
+                    </span>
+                  </div>
+                </>
               )}
 
-              {itemGenres && itemGenres.length > 0 && (
-                <SmartGenreBadgeGroup
-                  genreIds={itemGenres.map((g) => g.id)}
-                  mediaType={type as "movie" | "tv"}
-                  maxVisible={3}
-                  className="flex gap-1.5"
-                  badgeClassName="text-xs bg-muted/30 text-muted-foreground border-border/50 px-2 py-1"
-                  variant="outline"
-                />
+              {runtime && (
+                <>
+                  <span className="opacity-40">•</span>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4" />
+                    <span>{formatRuntime(runtime)}</span>
+                  </div>
+                </>
               )}
             </div>
+          </div>
 
-            {overview && (
-              <p className="text-sm text-muted-foreground/90 leading-relaxed">
-                {overview}
-              </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge
+              variant="secondary"
+              className="text-[10px] font-semibold uppercase tracking-widest bg-primary/15 border-primary/20 text-primary px-2 py-0.5 rounded-md"
+            >
+              {type === "movie" ? "Movie" : "TV Show"}
+            </Badge>
+
+            {country && country.length > 0 && (
+              <CountryBadge
+                country={{ iso_3166_1: country[0], name: country[0] }}
+                variant="outline"
+                className="text-[10px] bg-white/5 border-white/10 text-white/60 font-semibold uppercase tracking-wider h-5"
+                size="sm"
+                showName={false}
+                mediaType={type as "movie" | "tv"}
+              />
+            )}
+
+            {itemGenres && itemGenres.length > 0 && (
+              <SmartGenreBadgeGroup
+                genreIds={itemGenres.map((g) => g.id)}
+                mediaType={type as "movie" | "tv"}
+                maxVisible={3}
+                className="flex gap-2"
+                badgeClassName="text-[10px] bg-white/5 text-white/60 border-white/10 font-semibold uppercase tracking-wider h-5 hover:bg-primary/20 hover:text-primary transition-all"
+                variant="outline"
+              />
             )}
           </div>
+
+          {overview && (
+            <p className="text-sm text-muted-foreground/90 leading-relaxed line-clamp-2 md:line-clamp-3 max-w-2xl font-normal">
+              {overview}
+            </p>
+          )}
         </div>
       </div>
     </Card>

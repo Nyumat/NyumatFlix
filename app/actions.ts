@@ -1090,6 +1090,41 @@ export async function fetchAndEnrichMediaItems<
   return enrichedItems;
 }
 
+// Function to enrich media items with content ratings (lighter than fetchAndEnrichMediaItems)
+export async function enrichItemsWithContentRatings<
+  T extends { id: number } & Partial<MediaItem>,
+>(items: T[], mediaType: "movie" | "tv"): Promise<T[]> {
+  if (!items || items.length === 0) {
+    return [];
+  }
+
+  const enrichedItems = await Promise.all(
+    items.map(async (item) => {
+      try {
+        let contentRating: string | null = null;
+        if (mediaType === "movie") {
+          contentRating = await fetchMovieCertification(item.id);
+        } else if (mediaType === "tv") {
+          contentRating = await fetchTVShowCertification(item.id);
+        }
+
+        return {
+          ...item,
+          content_rating: contentRating,
+        } as T;
+      } catch (error) {
+        logger.error(
+          `Error fetching content rating for ${mediaType} ID ${item.id}:`,
+          error,
+        );
+        return item; // Return original item on error
+      }
+    }),
+  );
+
+  return enrichedItems;
+}
+
 // New function to fetch movies by production company
 export async function fetchMoviesByCompany(
   companyId: number,
