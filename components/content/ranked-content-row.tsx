@@ -97,7 +97,7 @@ export function RankedContentRow({
           <div className="flex items-center gap-3 mb-3">
             <span
               className={cn(
-                "text-5xl md:text-6xl font-black tabular-nums tracking-tighter",
+                "text-5xl md:text-6xl font-black tabular-nums tracking-tighter w-10",
                 "bg-gradient-to-b bg-clip-text text-transparent",
                 rank === 1
                   ? "from-amber-300 to-amber-600"

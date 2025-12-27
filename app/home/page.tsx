@@ -132,6 +132,7 @@ export default async function Home() {
 
       const customTitles: Record<string, string> = {
         "top-rated-movies": "Top Rated Movies",
+        "top-rated-tvshows": "Top Rated TV Shows",
         "early-2000s-movies": "Early 2000s Movies",
         "popular-movies": "Popular Movies",
         "popular-tvshows": "Popular TV Shows",
@@ -193,7 +194,10 @@ export default async function Home() {
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(" "),
         href: generateHref(config),
-        variant: rowId === "top-rated-movies" ? ("ranked" as const) : undefined,
+        variant:
+          rowId === "top-rated-movies" || rowId === "top-rated-tvshows"
+            ? ("ranked" as const)
+            : undefined,
         enrich: rowId !== "marvel-mcu",
       };
     })

@@ -384,6 +384,7 @@
   "pageRowRecommendations": {
     "home": [
       "top-rated-movies",
+      "top-rated-tvshows",
       "early-2000s-movies",
       "popular-movies",
       "popular-tvshows",
