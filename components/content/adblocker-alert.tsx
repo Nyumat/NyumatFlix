@@ -16,15 +16,26 @@ import { Button } from "@/components/ui/button";
 export type AdblockerAlertProps = {
   openSignal: boolean;
   "data-testid"?: string;
+  onProceed?: () => void;
 };
 
 export const AdblockerAlert = ({
   openSignal,
   "data-testid": testId,
+  onProceed,
 }: AdblockerAlertProps) => {
   const [showOptions, setShowOptions] = useState<boolean>(false);
   const [open, setOpen] = useState<boolean>(false);
   const router = useRouter();
+
+  const handleProceed = () => {
+    setOpen(false);
+    if (onProceed) {
+      onProceed();
+    } else {
+      router.push("/home");
+    }
+  };
 
   useEffect(() => {
     if (openSignal) {
@@ -78,10 +89,7 @@ export const AdblockerAlert = ({
                 <Button
                   variant="outline"
                   className="font-bold w-full sm:w-auto whitespace-normal text-center text-sm sm:text-base"
-                  onClick={() => {
-                    setOpen(false);
-                    router.push("/home");
-                  }}
+                  onClick={handleProceed}
                   aria-label="Proceed without ad blocker"
                 >
                   No thanks, I&apos;m fine with popups
@@ -100,10 +108,7 @@ export const AdblockerAlert = ({
                   <Button
                     variant="outline"
                     className="font-bold w-full whitespace-normal text-center"
-                    onClick={() => {
-                      setOpen(false);
-                      router.push("/home");
-                    }}
+                    onClick={handleProceed}
                     aria-label="Continue to home"
                   >
                     No thanks, I&apos;m fine with popups
