@@ -1,14 +1,13 @@
 "use client";
 
-import { ArrowRight, Search } from "lucide-react";
-import Image from "next/legacy/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchPreview } from "@/hooks/use-search-preview";
 import { cn } from "@/lib/utils";
+import { ArrowRight, Search } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Poster } from "../media/media-poster";
 import SearchResults from "./search-results";
 
@@ -173,17 +172,17 @@ export function SearchPageClient() {
                 handleSearch();
               }
             }}
-            className="pl-10 pr-16 py-3 text-base w-full rounded-xl bg-black/30 backdrop-blur-md border border-white/20 focus:border-primary focus:bg-black/40 transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground shadow-xl"
+            className="pl-10 pr-12 md:pr-16 py-3 text-base w-full rounded-xl bg-black/30 backdrop-blur-md border border-white/20 focus:border-primary focus:bg-black/40 transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground shadow-xl"
           />
-          <div className="absolute md:scale-50 right-2 top-1/2 transform -translate-y-1/2">
+          <div className="absolute md:scale-50 right-1.5 md:right-2 top-1/2 transform -translate-y-1/2">
             <Button
               type="submit"
               variant="ghost"
               size="icon"
-              className="size-6 md:size-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+              className="size-7 md:size-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={!query.trim()}
             >
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
           </div>
         </div>
