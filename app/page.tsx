@@ -1,4 +1,4 @@
-import { FAQSection } from "@/components/layout/sections/faq";
+import { FAQSectionClient } from "@/components/layout/sections/faq-client";
 import { HeroSection } from "@/components/layout/sections/hero";
 import type { Metadata } from "next";
 
@@ -46,7 +46,7 @@ export default function Home() {
   return (
     <>
       <HeroSection />
-      <FAQSection />
+      <FAQSectionClient />
     </>
   );
 }

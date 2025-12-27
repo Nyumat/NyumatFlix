@@ -48,7 +48,7 @@ export const HeroSection = () => {
     <section className="relative w-full min-h-[100vh] md:min-h-screen overflow-x-hidden">
       <div className="absolute inset-0 z-0">
         <div
-          className="w-full h-full flex flex-col relative opacity-50"
+          className="w-full h-full flex flex-col relative opacity-50 overflow-hidden"
           suppressHydrationWarning
         >
           <NeuralNetworkBackground />
