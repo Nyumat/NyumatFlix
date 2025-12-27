@@ -132,7 +132,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
 
   if (error) {
     return (
-      <div className="bg-card/50 backdrop-blur-sm border rounded-lg p-4">
+      <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4">
         <h4 className="text-sm font-medium text-foreground mb-3">People</h4>
         <div className="text-xs text-destructive">{error}</div>
       </div>
@@ -141,7 +141,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
 
   if (people.length === 0 && isLoading) {
     return (
-      <div className="bg-card/50 backdrop-blur-sm border rounded-lg p-4">
+      <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4">
         <h4 className="text-sm font-medium text-foreground mb-3">People</h4>
         <div className="text-xs text-muted-foreground">Loading...</div>
       </div>
@@ -151,8 +151,8 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
   if (people.length === 0) return null;
 
   return (
-    <div className="bg-card/50 backdrop-blur-sm border rounded-lg overflow-hidden">
-      <div className="p-4 pb-2 border-b">
+    <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg overflow-hidden">
+      <div className="p-4 pb-2 border-b border-border/50">
         <h4 className="text-sm font-medium text-foreground">People</h4>
       </div>
       <ScrollArea className="h-[400px]">
