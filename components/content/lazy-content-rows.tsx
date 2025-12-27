@@ -21,11 +21,8 @@ export interface LazyRowConfig {
 
 interface LazyContentRowsProps {
   rows: LazyRowConfig[];
-  /** how many rows to render initially */
   initialCount?: number;
-  /** how many rows to reveal per intersection */
   batchSize?: number;
-  /** pre-load rows when user is within this margin */
   rootMargin?: string;
 }
 
@@ -52,7 +49,7 @@ export function LazyContentRows({
         setVisibleCount((count) => Math.min(count + batchSize, rows.length));
       });
     }
-  }, [visibleCount, rows.length, isPending, batchSize, startTransition]);
+  }, [visibleCount, rows.length, isPending, batchSize]);
 
   useEffect(() => {
     if (inView) {
@@ -92,7 +89,14 @@ export function LazyContentRows({
 
 function LazyRow({ row }: { row: LazyRowConfig }) {
   return (
-    <section id={row.rowId} className="my-4">
+    <section
+      id={row.rowId}
+      className="my-4"
+      style={{
+        contentVisibility: "auto",
+        containIntrinsicSize: "420px",
+      }}
+    >
       <SuspenseContentRow
         rowId={row.rowId}
         title={row.title}

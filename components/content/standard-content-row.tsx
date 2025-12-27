@@ -118,7 +118,7 @@ export function StandardContentRow({
     <div className="mx-4 md:mx-8 mb-8">
       <ContentRowHeader title={title} href={href} />
 
-      <div className="relative">
+      <div className="relative -mx-10 p-2">
         <Carousel
           opts={{
             align: "start",
@@ -129,11 +129,11 @@ export function StandardContentRow({
           setApi={setApi}
           className="w-full"
         >
-          <CarouselContent className="-ml-2 md:-ml-3">
+          <CarouselContent className="md:mx-0 px-4 md:px-0 w-full">
             {items.map((item, index) => (
               <CarouselItem
                 key={`${item.id}-${index}`}
-                className="pl-2 md:pl-3 basis-[45%] sm:basis-[32%] md:basis-[24%] lg:basis-[19%] xl:basis-[14%]"
+                className="pl-2 md:pl-3 basis-[45%] sm:basis-[32%] md:basis-[24%] lg:basis-[19%] xl:basis-[14%] p-2"
               >
                 <ContentCard
                   item={item}
