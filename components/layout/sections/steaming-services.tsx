@@ -1,13 +1,14 @@
 "use client";
 
+import AdblockerAlert from "@/components/content/adblocker-alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Marquee } from "@devnomic/marquee";
 import "@devnomic/marquee/dist/index.css";
+import { useDetectAdBlock } from "adblock-detect-react";
 import { ArrowRight, Search } from "lucide-react";
 import Image from "next/legacy/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useLayoutEffect, useState } from "react";
 
@@ -49,7 +50,10 @@ const services: StreamingService[] = [
 
 export default function Sponsors() {
   const [query, setQuery] = useState("");
+  const [adblockAlertTrigger, setAdblockAlertTrigger] =
+    useState<boolean>(false);
   const router = useRouter();
+  const adBlockDetected = useDetectAdBlock();
 
   useLayoutEffect(() => {
     router.prefetch("/search");
@@ -57,9 +61,14 @@ export default function Sponsors() {
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      if (adBlockDetected) {
+        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+        return;
+      }
+
+      setAdblockAlertTrigger(true);
     }
-  }, [query, router]);
+  }, [query, router, adBlockDetected]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +80,15 @@ export default function Sponsors() {
       id="sponsors"
       className="w-full max-w-full mx-auto overflow-hidden"
     >
+      <AdblockerAlert
+        openSignal={adblockAlertTrigger}
+        data-testid="hero-search-adblocker-alert"
+        onProceed={() => {
+          if (query.trim()) {
+            router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+          }
+        }}
+      />
       <div className="max-w-lg mx-auto px-4 mt-4 mb-6 pointer-events-auto scale-90 md:scale-110">
         <form onSubmit={handleSubmit}>
           <div className="relative">
@@ -101,12 +119,7 @@ export default function Sponsors() {
               size="icon"
               className="size-10 absolute right-2 top-1/2 transform -translate-y-1/2 scale-75"
             >
-              <Link
-                prefetch={true}
-                href={"/search?q=" + encodeURIComponent(query.trim())}
-              >
-                <ArrowRight className="size-5" />
-              </Link>
+              <ArrowRight className="size-5" />
             </Button>
           </div>
         </form>

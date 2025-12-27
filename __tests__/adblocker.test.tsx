@@ -1,5 +1,6 @@
 import { AdblockerAlert } from "@/components/content/adblocker-alert";
 import { HeroSection } from "@/components/layout/sections/hero";
+import StreamingServices from "@/components/layout/sections/steaming-services";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useDetectAdBlock } from "adblock-detect-react";
@@ -268,6 +269,31 @@ describe("AdblockerAlert", () => {
     });
     expect(resetButton).toBeInTheDocument();
   });
+
+  test("calls onProceed callback when provided instead of navigating to home", async () => {
+    const onProceed = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(
+      <AdblockerAlert openSignal={true} onProceed={onProceed} />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /proceed without ad blocker/i }),
+      ).toBeInTheDocument();
+    });
+
+    const noThanksButton = screen.getByRole("button", {
+      name: /proceed without ad blocker/i,
+    });
+    await user.click(noThanksButton);
+
+    await waitFor(() => {
+      expect(onProceed).toHaveBeenCalled();
+    });
+
+    expect(mockPush).not.toHaveBeenCalled();
+  });
 });
 
 describe("HeroSection", () => {
@@ -379,5 +405,116 @@ describe("HeroSection", () => {
     const dialog = await screen.findByTestId("hero-adblocker-alert");
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveAttribute("role", "dialog");
+  });
+});
+
+describe("StreamingServices (Hero Search Input)", () => {
+  let mockPush: ReturnType<typeof vi.fn>;
+  let mockPrefetch: ReturnType<typeof vi.fn>;
+  let mockRouter: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPush = vi.fn();
+    mockPrefetch = vi.fn().mockResolvedValue(undefined);
+    mockRouter = vi.fn(() => ({
+      push: mockPush,
+      back: vi.fn(),
+      forward: vi.fn(),
+      refresh: vi.fn(),
+      replace: vi.fn(),
+      prefetch: mockPrefetch,
+    }));
+    mockUseRouter.mockImplementation(mockRouter);
+    mockUseDetectAdBlock.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("navigates directly to search when adblock is detected", async () => {
+    mockUseDetectAdBlock.mockReturnValue(true);
+
+    const user = userEvent.setup();
+    renderWithProviders(<StreamingServices />);
+
+    const searchInput = await screen.findByTestId("hero-search-input");
+    await user.type(searchInput, "test query");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/search?q=test%20query");
+    });
+
+    expect(mockPrefetch).toHaveBeenCalledWith("/search");
+  });
+
+  test("triggers alert when adblock is not detected", async () => {
+    mockUseDetectAdBlock.mockReturnValue(false);
+
+    const user = userEvent.setup();
+    renderWithProviders(<StreamingServices />);
+
+    const searchInput = await screen.findByTestId("hero-search-input");
+    await user.type(searchInput, "test query");
+    await user.keyboard("{Enter}");
+
+    const dialog = await screen.findByTestId("hero-search-adblocker-alert");
+    expect(dialog).toBeInTheDocument();
+
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPrefetch).toHaveBeenCalledWith("/search");
+  });
+
+  test("does not show alert initially", () => {
+    mockUseDetectAdBlock.mockReturnValue(false);
+    renderWithProviders(<StreamingServices />);
+
+    expect(
+      screen.queryByTestId("hero-search-adblocker-alert"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("shows alert only after searching without adblock", async () => {
+    mockUseDetectAdBlock.mockReturnValue(false);
+
+    const user = userEvent.setup();
+    renderWithProviders(<StreamingServices />);
+
+    expect(
+      screen.queryByTestId("hero-search-adblocker-alert"),
+    ).not.toBeInTheDocument();
+
+    const searchInput = await screen.findByTestId("hero-search-input");
+    await user.type(searchInput, "test query");
+    await user.keyboard("{Enter}");
+
+    const dialog = await screen.findByTestId("hero-search-adblocker-alert");
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("role", "dialog");
+  });
+
+  test("navigates to search page when proceeding from alert", async () => {
+    mockUseDetectAdBlock.mockReturnValue(false);
+
+    const user = userEvent.setup();
+    renderWithProviders(<StreamingServices />);
+
+    const searchInput = await screen.findByTestId("hero-search-input");
+    await user.type(searchInput, "test query");
+    await user.keyboard("{Enter}");
+
+    const dialog = await screen.findByTestId("hero-search-adblocker-alert");
+    expect(dialog).toBeInTheDocument();
+
+    const noThanksButton = await screen.findByRole("button", {
+      name: /proceed without ad blocker/i,
+    });
+    await user.click(noThanksButton);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/search?q=test%20query");
+    });
   });
 });
