@@ -1,11 +1,18 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User } from "lucide-react";
-import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
+import { PersonCollage } from "./person-collage";
+
+interface KnownForItem {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path?: string | null;
+  media_type: string;
+}
 
 interface Person {
   id: number;
@@ -13,6 +20,7 @@ interface Person {
   profile_path?: string | null;
   popularity?: number;
   known_for_department?: string;
+  known_for?: KnownForItem[];
 }
 
 interface PeopleInfiniteScrollProps {
@@ -157,21 +165,12 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
                 className="group text-left w-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-md"
                 aria-label={`View ${person.name}`}
               >
-                <div className="rounded-md overflow-hidden aspect-[3/4] bg-muted relative">
-                  {person.profile_path ? (
-                    <Image
-                      src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
-                      layout="fill"
-                      objectFit="cover"
-                      alt={person.name}
-                      className="transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                      <User size={32} />
-                    </div>
-                  )}
+                <div className="rounded-md overflow-hidden aspect-[3/4] bg-muted relative group-hover:ring-2 group-hover:ring-primary/50 transition-all duration-300">
+                  <PersonCollage
+                    knownFor={person.known_for}
+                    profilePath={person.profile_path}
+                    className="group-hover:scale-[1.02] transition-transform duration-300"
+                  />
                 </div>
                 <div className="mt-2 space-y-0.5">
                   <p className="text-xs font-medium text-foreground/90 line-clamp-1 group-hover:text-primary transition-colors">

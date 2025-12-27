@@ -2,12 +2,21 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 
+interface KnownForItem {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path?: string | null;
+  media_type: string;
+}
+
 interface PersonResult {
   id: number;
   name: string;
   profile_path?: string | null;
   popularity?: number;
   known_for_department?: string | null;
+  known_for?: KnownForItem[];
 }
 
 interface TmdbPersonSearchResult {
@@ -91,7 +100,7 @@ export async function GET(request: NextRequest) {
     const data: TmdbPersonSearchResponse = await response.json();
 
     // ensure proper typing and sorting by popularity
-    const results: PersonResult[] = (data.results || [])
+    const mappedResults: PersonResult[] = (data.results || [])
       .filter((person: TmdbPersonSearchResult) => person.id && person.name)
       .map((person: TmdbPersonSearchResult) => ({
         id: person.id,
@@ -99,7 +108,23 @@ export async function GET(request: NextRequest) {
         profile_path: person.profile_path || null,
         popularity: person.popularity || 0,
         known_for_department: person.known_for_department || null,
-      }))
+        known_for: (person.known_for || [])
+          .filter((item) => item.poster_path)
+          .slice(0, 10)
+          .map((item) => ({
+            id: item.id,
+            title: item.title || item.name,
+            name: item.name || item.title,
+            poster_path: item.poster_path || null,
+            media_type: item.media_type,
+          })),
+      }));
+
+    const results: PersonResult[] = mappedResults
+      .filter((person: PersonResult) => {
+        const knownForCount = person.known_for?.length || 0;
+        return knownForCount > 0;
+      })
       .sort(
         (a: PersonResult, b: PersonResult) =>
           (b.popularity || 0) - (a.popularity || 0),
