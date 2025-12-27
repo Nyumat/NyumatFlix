@@ -4,14 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Grid2X2, List } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const CONTENT_GRID_VIEW_MODE_KEY = "content-grid-view-mode";
 
 const GridSkeleton = ({ count = 8 }: { count?: number }) => (
-  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+  <div className="flex flex-wrap gap-4">
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="space-y-2">
+      <div
+        key={i}
+        className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)] space-y-2"
+      >
         <Skeleton className="aspect-[2/3] w-full rounded-lg" />
         <div className="space-y-1">
           <Skeleton className="h-4 w-3/4" />
@@ -73,16 +76,22 @@ export function ContentGrid({
 }: ContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
   const [isLoading, setIsLoading] = useState(true);
+  const isFirstMount = useRef(true);
 
   useEffect(() => {
-    const savedViewMode = localStorage.getItem(
-      CONTENT_GRID_VIEW_MODE_KEY,
-    ) as ViewMode;
-    if (
-      savedViewMode &&
-      (savedViewMode === "grid" || savedViewMode === "list")
-    ) {
-      setViewMode(savedViewMode);
+    if (isFirstMount.current) {
+      const savedViewMode = localStorage.getItem(
+        CONTENT_GRID_VIEW_MODE_KEY,
+      ) as ViewMode;
+      if (
+        savedViewMode &&
+        (savedViewMode === "grid" || savedViewMode === "list")
+      ) {
+        setViewMode(savedViewMode);
+      } else {
+        setViewMode(defaultViewMode);
+      }
+      isFirstMount.current = false;
     } else {
       setViewMode(defaultViewMode);
     }
@@ -112,22 +121,32 @@ export function ContentGrid({
   const getGridClasses = () => {
     if (viewMode !== "grid") return "";
 
-    const baseClasses = "grid gap-4 transition-all duration-200";
+    const baseClasses = "flex flex-wrap gap-4 transition-all duration-200";
 
     if (gridColumns === "auto") {
-      return `${baseClasses} grid-cols-4`;
+      return baseClasses;
     }
 
-    const colClasses = {
-      1: "grid-cols-1",
-      2: "grid-cols-1 md:grid-cols-2",
-      3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
-      4: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-      5: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
-      6: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6",
+    return baseClasses;
+  };
+
+  const getItemClasses = () => {
+    if (viewMode !== "grid") return "";
+
+    if (gridColumns === "auto") {
+      return "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]";
+    }
+
+    const itemClasses = {
+      1: "w-[calc(50%-0.5rem)] md:w-full",
+      2: "w-[calc(50%-0.5rem)]",
+      3: "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)]",
+      4: "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)]",
+      5: "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]",
+      6: "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)] 2xl:w-[calc(16.666%-0.833rem)]",
     };
 
-    return `${baseClasses} ${colClasses[gridColumns]}`;
+    return itemClasses[gridColumns];
   };
 
   const getListClasses = () => {
@@ -197,7 +216,17 @@ export function ContentGrid({
           viewMode === "grid" ? getGridClasses() : getListClasses(),
         )}
       >
-        {itemsToDisplay.map((item) => renderCard(item, viewMode))}
+        {itemsToDisplay.map((item) => {
+          const card = renderCard(item, viewMode);
+          if (viewMode === "grid") {
+            return (
+              <div key={item.id} className={getItemClasses()}>
+                {card}
+              </div>
+            );
+          }
+          return card;
+        })}
       </div>
 
       {itemsToDisplay.length === 0 && (

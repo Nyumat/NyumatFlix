@@ -121,7 +121,7 @@ export default async function Page(props: PageProps) {
       <ContentContainer className="w-full flex flex-col items-center z-10">
         {/* Title Area - Center */}
         <div className="text-center my-6 sm:my-12">
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold text-foreground tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight">
             {pageTitle}
           </h1>
         </div>

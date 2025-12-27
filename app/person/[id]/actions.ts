@@ -4,6 +4,7 @@ import {
   buildItemsWithCategories,
   fetchPersonFilmography,
 } from "@/app/actions";
+import { MediaItem } from "@/utils/typings";
 
 function isValidMediaData(
   item: unknown,
@@ -19,8 +20,10 @@ function isValidMediaData(
 export async function getFilmographyListNodes(
   personId: number,
   offset: number,
-) {
+  seenIds?: number[],
+): Promise<{ items: MediaItem[]; nextOffset: number | null } | null> {
   try {
+    const seenIdsSet = new Set(seenIds || []);
     const response = await fetchPersonFilmography(personId, offset);
 
     if (!response?.results) {
@@ -48,10 +51,25 @@ export async function getFilmographyListNodes(
       "multi",
     );
 
+    const uniqueFilmography = processedFilmography.filter((item) => {
+      if (typeof item.id !== "number") return true;
+      if (seenIdsSet.has(item.id)) return false;
+      return true;
+    });
+
+    if (uniqueFilmography.length === 0) {
+      const nextOffset =
+        offset < (response.total_pages || 0) ? offset + 1 : null;
+      if (nextOffset && offset < 100) {
+        return getFilmographyListNodes(personId, nextOffset, seenIds);
+      }
+      return null;
+    }
+
     const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
 
     return {
-      items: processedFilmography,
+      items: uniqueFilmography,
       nextOffset,
     };
   } catch (error) {

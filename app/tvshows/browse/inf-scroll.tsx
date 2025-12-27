@@ -23,18 +23,15 @@ export async function InfiniteContent({
   genre,
   year,
 }: ICProps): Promise<React.JSX.Element> {
-  // Determine the endpoint and params based on the parameters
   let endpoint = "";
   let params: Record<string, string> | { useCustomFetch: true } = {};
   let useCategoryFetching = false;
 
-  // Handle year filtering first
   if (year) {
     const yearFilterConfig = createYearFilterParams(year, "tv");
     endpoint = yearFilterConfig.endpoint;
     params = yearFilterConfig.params;
   } else if (genre) {
-    // If genre is provided and no filterId, use direct genre filtering
     endpoint = "/discover/tv";
     params = {
       with_genres: genre,
@@ -43,11 +40,10 @@ export async function InfiniteContent({
       sort_by: "popularity.desc",
     };
   } else if (filterId) {
-    // Use centralized filter configuration when filterId is provided
     const filter = getFilterConfig(filterId);
     if (filter?.fetchConfig.customFetch) {
       useCategoryFetching = true;
-      endpoint = filterId; // pass category ID through for pagination
+      endpoint = filterId;
       params = { useCustomFetch: true };
     } else {
       const filterConfig = buildFilterParams(filterId);
@@ -55,13 +51,11 @@ export async function InfiniteContent({
       params = filterConfig.params;
     }
   } else {
-    // Default to popular TV shows if no parameters using filter system
     useCategoryFetching = true;
     endpoint = "tv-popular";
     params = { useCustomFetch: true };
   }
 
-  // Fetch initial TV shows
   let initialResults: MediaItem[] = [];
   if (useCategoryFetching) {
     initialResults = await fetchPaginatedCategory(endpoint, "tv", 1);
@@ -81,7 +75,6 @@ export async function InfiniteContent({
     );
   }
 
-  // Filter out items without poster_path for consistency
   const validInitialResults = initialResults.filter((item: MediaItem) =>
     Boolean(item.poster_path),
   );
@@ -94,7 +87,6 @@ export async function InfiniteContent({
     );
   }
 
-  // Process the results with categories
   const processedShows = await buildItemsWithCategories<MediaItem>(
     validInitialResults,
     "tv",
@@ -102,12 +94,19 @@ export async function InfiniteContent({
 
   const initialOffset = 2;
 
-  // Get the page title from the filter config or use a default
-  // const pageTitle = filterConfig?.title || "TV Shows";
+  const initialSeenIds = processedShows
+    .map((item) => item.id)
+    .filter((id): id is number => typeof id === "number");
 
-  const getTVShowListNodes = async (offset: number) => {
+  const getTVShowListNodes = async (
+    offset: number,
+    seenIds?: number[],
+  ): Promise<
+    readonly [React.JSX.Element, number | null, MediaItem[] | undefined] | null
+  > => {
     "use server";
     try {
+      const seenIdsSet = new Set(seenIds || []);
       let pageResults: MediaItem[] = [];
 
       if (useCategoryFetching) {
@@ -121,7 +120,6 @@ export async function InfiniteContent({
         if (!response?.results || response.results.length === 0) return null;
       }
 
-      // Filter out items without poster_path to match initial load behavior
       const validResults = pageResults.filter((item: MediaItem) =>
         Boolean(item.poster_path),
       );
@@ -132,23 +130,43 @@ export async function InfiniteContent({
         "tv",
       );
 
-      // For category fetching, we don't know total pages; keep going while results appear
+      const uniqueShows = processedShows.filter((item) => {
+        if (typeof item.id !== "number") return true;
+        if (seenIdsSet.has(item.id)) return false;
+        return true;
+      });
+
+      if (uniqueShows.length === 0) {
+        const nextOffset = useCategoryFetching
+          ? validResults.length > 0
+            ? offset + 1
+            : null
+          : offset < 1000 && offset < 100
+            ? offset + 1
+            : null;
+        if (nextOffset) {
+          return getTVShowListNodes(nextOffset, seenIds);
+        }
+        return null;
+      }
+
       const nextOffset = useCategoryFetching
         ? validResults.length > 0
           ? offset + 1
           : null
-        : offset < 1000 // fallback safety if API omits total_pages
+        : offset < 1000
           ? offset + 1
           : null;
 
       return [
         <ContentGrid
-          items={processedShows}
+          items={uniqueShows}
           key={offset}
           type="tv"
           showViewModeControls={false}
         />,
         nextOffset,
+        uniqueShows,
       ] as const;
     } catch (error) {
       console.error("Error loading more TV shows:", error);
@@ -161,8 +179,11 @@ export async function InfiniteContent({
       getListNodes={getTVShowListNodes}
       initialOffset={initialOffset}
       className="space-y-8"
-    >
-      <ContentGrid items={processedShows} type="tv" itemsPerRow={4} />
-    </InfiniteScroll>
+      initialSeenIds={initialSeenIds}
+      unifiedGrid={true}
+      initialItems={processedShows}
+      gridType="tv"
+      gridItemsPerRow={4}
+    />
   );
 }
