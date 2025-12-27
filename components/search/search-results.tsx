@@ -435,7 +435,7 @@ export default function SearchResults({ query }: { query: string }) {
 
           {!genresLoading && parsedGenresForFilter.length > 0 && (
             <div
-              className="bg-card/50 backdrop-blur-sm border rounded-lg p-4"
+              className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4"
               data-testid="genre-filter"
             >
               <h4 className="text-sm font-medium text-foreground mb-3">
