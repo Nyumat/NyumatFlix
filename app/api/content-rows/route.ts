@@ -11,9 +11,12 @@ import {
   rowUsesCustomFetcher,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
+import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 
-async function fetchStandardizedRow(
+const CACHE_TTL_SECONDS = 20 * 60; // 20 minutes
+
+async function fetchStandardizedRowUncached(
   rowId: string,
   minCount: number = 20,
 ): Promise<MediaItem[]> {
@@ -88,8 +91,16 @@ async function fetchStandardizedRow(
   return items.slice(0, minCount);
 }
 
+const fetchStandardizedRow = unstable_cache(
+  fetchStandardizedRowUncached,
+  ["content-row"],
+  { revalidate: CACHE_TTL_SECONDS },
+);
+
 /**
  * API route handler for fetching row content
+ * Note: we only cache the base TMDB data, not the enriched version
+ * (enriched data can exceed the 2MB cache limit)
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -108,15 +119,20 @@ export async function GET(request: Request) {
   }
 
   try {
+    // base fetch is cached, enrichment runs after (too large to cache)
     const items = await fetchStandardizedRow(rowId, minCount);
-
     const config = getRowConfig(rowId);
+
     const response =
       shouldEnrich && config
         ? await fetchAndEnrichMediaItems(items, config.mediaType)
         : items;
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: {
+        "Cache-Control": `public, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_TTL_SECONDS * 2}`,
+      },
+    });
   } catch (error) {
     console.error(`Error fetching row ${rowId}:`, error);
     return NextResponse.json(

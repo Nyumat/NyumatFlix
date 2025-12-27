@@ -1,45 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { getWatchlistItem } from "@/app/watchlist/actions";
+import { WatchlistItem } from "@/app/watchlist/actions";
 import { cn } from "@/lib/utils";
 
 interface EpisodeProgressIndicatorProps {
-  contentId: number;
   seasonNumber: number;
   episodeNumber: number;
+  watchlistItem: WatchlistItem | null;
   className?: string;
 }
 
 export function EpisodeProgressIndicator({
-  contentId,
   seasonNumber,
   episodeNumber,
+  watchlistItem,
   className,
 }: EpisodeProgressIndicatorProps) {
-  const [isLastWatched, setIsLastWatched] = useState(false);
-
-  useEffect(() => {
-    const checkProgress = async () => {
-      try {
-        const item = await getWatchlistItem(contentId, "tv");
-        if (
-          item &&
-          item.lastWatchedSeason === seasonNumber &&
-          item.lastWatchedEpisode === episodeNumber
-        ) {
-          setIsLastWatched(true);
-        } else {
-          setIsLastWatched(false);
-        }
-      } catch (error) {
-        console.error("Error checking episode progress:", error);
-      }
-    };
-
-    checkProgress();
-  }, [contentId, seasonNumber, episodeNumber]);
+  const isLastWatched =
+    watchlistItem &&
+    watchlistItem.lastWatchedSeason === seasonNumber &&
+    watchlistItem.lastWatchedEpisode === episodeNumber;
 
   if (!isLastWatched) {
     return null;

@@ -1,5 +1,6 @@
 "use client";
 
+import { WatchlistItem } from "@/app/watchlist/actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Season, TvShowDetails } from "@/utils/typings";
@@ -7,7 +8,6 @@ import { Tv } from "lucide-react";
 import Image from "next/legacy/image";
 import { Suspense, useEffect, useState } from "react";
 import { SeasonEpisodes } from "./season-episodes";
-import { WatchlistItem } from "@/app/watchlist/actions";
 
 type SeasonTabsProps = {
   details: TvShowDetails;
@@ -17,7 +17,7 @@ type SeasonTabsProps = {
 };
 
 const ENHANCED_SEASON_SHOWS = [
-  { tmdbId: "1429", name: "Attack on Titan", enhancedSeasons: [4] }, // all because of tmdb... 🤦🏿‍♂️
+  { tmdbId: "1429", name: "Attack on Titan", enhancedSeasons: [4] },
 ];
 
 type AnilistMapping = {
@@ -102,8 +102,8 @@ export function SeasonTabs({
           name: `Season ${season.season_number}`,
           seasonNumber: season.season_number,
           episodeCount: season.episode_count,
-          airDate: season.air_date,
-          posterPath: season.poster_path,
+          airDate: season.air_date ?? undefined,
+          posterPath: season.poster_path ?? undefined,
           overview: season.overview,
         }));
         setEnhancedSeasons(enhanced);
@@ -128,7 +128,7 @@ export function SeasonTabs({
               }
             }
           } catch (_error) {
-            // Silently ignore errors for individual season mappings to avoid breaking the entire load
+            // silently ignore errors for individual season mappings
           }
         }),
       );
@@ -152,8 +152,8 @@ export function SeasonTabs({
               name: partName,
               seasonNumber: season.season_number * 100 + partNumber,
               episodeCount: segment.endEpisode - segment.startEpisode + 1,
-              airDate: season.air_date,
-              posterPath: season.poster_path,
+              airDate: season.air_date ?? undefined,
+              posterPath: season.poster_path ?? undefined,
               overview: season.overview,
               isAniListPart: true,
               anilistId: segment.anilistMediaId,
@@ -168,8 +168,8 @@ export function SeasonTabs({
             name: season.name || `Season ${season.season_number}`,
             seasonNumber: season.season_number,
             episodeCount: season.episode_count,
-            airDate: season.air_date,
-            posterPath: season.poster_path,
+            airDate: season.air_date ?? undefined,
+            posterPath: season.poster_path ?? undefined,
             overview: season.overview,
           });
         }

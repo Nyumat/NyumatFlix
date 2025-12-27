@@ -24,7 +24,6 @@ type SeasonEpisodesProps = {
   watchlistItem: WatchlistItem | null;
 };
 
-// Glassmorphism skeleton for episodes loading
 function EpisodeCardSkeleton() {
   return (
     <div className="bg-gradient-to-r from-white/8 to-white/4 backdrop-blur-sm border border-white/10 rounded-lg p-3 sm:p-4 animate-pulse">
@@ -219,9 +218,9 @@ export function SeasonEpisodes({
                           </div>
                         )}
                         <EpisodeProgressIndicator
-                          contentId={parseInt(tvId)}
                           seasonNumber={seasonNumber}
                           episodeNumber={episode.episode_number}
+                          watchlistItem={watchlistItem}
                         />
                       </div>
                     </div>
