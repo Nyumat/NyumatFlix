@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { Icons } from "@/lib/icons";
 import { isMovie } from "@/utils/typings";
-import { Calendar, Clock, Globe, Info, Play, Star } from "lucide-react";
+import { Calendar, Clock, Globe, Info, Star } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { match, P } from "ts-pattern";
@@ -221,7 +222,7 @@ export function MediaInfoDialog({
                     "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
                   )}
                 >
-                  <Play className="mr-2 h-4 w-4" />
+                  <Icons.play className="mr-2 h-4 w-4" />
                   Watch Now
                 </Button>
                 {typeof media.id === "number" && (

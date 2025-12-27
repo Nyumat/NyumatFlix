@@ -1,4 +1,8 @@
-import { buildItemsWithCategories, getMovies } from "@/app/actions";
+import {
+  buildItemsWithCategories,
+  enrichItemsWithContentRatings,
+  getMovies,
+} from "@/app/actions";
 import { ContentGrid } from "@/components/content/media-content-grid";
 import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import { MediaItem, MovieCategory } from "@/utils/typings";
@@ -24,8 +28,13 @@ export async function InfiniteContent({
     "movie",
   );
 
+  const initialMoviesWithRatings = await enrichItemsWithContentRatings(
+    initialMovies,
+    "movie",
+  );
+
   const initialOffset = 2;
-  const initialSeenIds = initialMovies
+  const initialSeenIds = initialMoviesWithRatings
     .map((item) => item.id)
     .filter((id): id is number => typeof id === "number");
 
@@ -57,7 +66,12 @@ export async function InfiniteContent({
         "movie",
       );
 
-      const uniqueMovies = processedMovies.filter((item) => {
+      const processedMoviesWithRatings = await enrichItemsWithContentRatings(
+        processedMovies,
+        "movie",
+      );
+
+      const uniqueMovies = processedMoviesWithRatings.filter((item) => {
         if (typeof item.id !== "number") return true;
         if (seenIdsSet.has(item.id)) return false;
         return true;
@@ -100,7 +114,7 @@ export async function InfiniteContent({
       className="space-y-8"
       initialSeenIds={initialSeenIds}
       unifiedGrid={true}
-      initialItems={initialMovies}
+      initialItems={initialMoviesWithRatings}
       gridType="movie"
     />
   );

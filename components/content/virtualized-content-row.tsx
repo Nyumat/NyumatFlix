@@ -86,7 +86,7 @@ export function VirtualizedContentRow({
                     setIsLoadingMore(false);
                   }
                 }}
-                className="px-4 py-2 bg-accent hover:bg-accent/80 rounded-md text-sm text-accent-foreground transition-colors duration-200"
+                className="px-5 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg ring-1 ring-primary/30 hover:ring-primary/50 shadow-lg shadow-primary/5 text-sm transition-all duration-200"
               >
                 Load More
               </button>

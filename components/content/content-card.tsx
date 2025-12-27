@@ -1,8 +1,11 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
+import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MediaLogo } from "../media/media-logo";
 import { Poster } from "../media/media-poster";
@@ -43,117 +46,169 @@ export function ContentCard({
   };
 
   if (isRanked && !isMobile && rank !== undefined) {
+    const backdropUrl = item.backdrop_path
+      ? `https://image.tmdb.org/t/p/w342${item.backdrop_path}`
+      : undefined;
+
     return (
-      <article
-        className="flex items-center gap-3 select-none"
+      <Card
+        className="group relative flex items-center gap-4 p-3 bg-card/40 backdrop-blur-md border border-white/10 hover:border-primary/50 transition-all duration-300 shadow-xl cursor-pointer overflow-hidden"
         aria-label={`Rank ${rank}: ${title}`}
+        onClick={navigate}
+        onMouseEnter={prefetch}
       >
+        {backdropUrl && (
+          <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none">
+            <Image
+              src={backdropUrl}
+              alt=""
+              fill
+              className="object-cover blur-[2px]"
+            />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/40 to-transparent pointer-events-none" />
+
         <span
           className={cn(
-            "text-4xl md:text-5xl font-bold font-serif",
-            rank === 1 && "text-yellow-400",
-            rank === 2 && "text-gray-300",
-            rank === 3 && "text-amber-700",
-            rank > 3 && "text-foreground/80",
+            "relative text-5xl md:text-6xl font-black italic tracking-tighter opacity-20 group-hover:opacity-40 transition-opacity duration-300",
+            rank === 1 && "text-yellow-500/80",
+            rank === 2 && "text-slate-400/80",
+            rank === 3 && "text-amber-600/80",
+            rank > 3 && "text-foreground/40",
           )}
         >
           {rank}
         </span>
 
-        <div className="flex items-center gap-3 flex-1">
-          <button
-            onClick={navigate}
-            onMouseEnter={prefetch}
-            onKeyDown={handleKeyDown}
-            className="relative w-20 lg:w-24 overflow-hidden rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-            aria-label={`View ${title}`}
-          >
+        <div className="relative flex items-center gap-4 flex-1 min-w-0">
+          <div className="relative w-16 lg:w-20 aspect-[2/3] flex-shrink-0 overflow-hidden rounded-lg shadow-2xl ring-1 ring-white/10 transition-all duration-500">
             <Poster
               posterPath={item.poster_path ?? undefined}
               size="small"
-              aspectRatio="3/4"
-              className="transition-transform duration-300 hover:scale-105"
+              className="transition-transform duration-500 group-hover:scale-110"
             />
-          </button>
-
-          <div className="flex flex-col justify-between text-foreground min-w-0">
-            <div className="flex justify-between items-center gap-2">
-              <h3 className="font-medium text-balance text-sm md:text-base"></h3>
-              {item.content_rating && (
-                <span className="w-fit whitespace-nowrap px-1 py-0.5 text-[10px] font-medium border border-white/30 text-white rounded-sm backdrop-blur-sm shrink-0">
-                  {item.content_rating}
-                </span>
-              )}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+              <Icons.play className="text-primary-foreground fill-current w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
+          </div>
 
-            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-              {item.vote_average && item.vote_average > 0 && (
-                <div className="flex items-center gap-1">
-                  <Star
-                    className="w-3 h-3 text-yellow-400"
-                    fill="currentColor"
-                  />
-                  <span className="font-medium text-foreground">
-                    {item.vote_average.toFixed(1)}
-                  </span>
-                </div>
-              )}
+          <div className="flex flex-col justify-center min-w-0 flex-1 md:opacity-0 md:group-hover:opacity-100 md:translate-x-2 md:group-hover:translate-x-0 transition-all duration-500">
+            <MediaLogo
+              logo={item.logo}
+              title={title}
+              align="left"
+              className="mb-1.5 max-w-[120px]"
+              fallbackClassName="text-sm font-semibold line-clamp-1 mb-1"
+            />
+
+            <div className="flex items-center gap-2.5 text-[10px] font-medium text-muted-foreground/80">
               {year && <span>{year}</span>}
+
+              {item.vote_average && item.vote_average > 0 && (
+                <>
+                  <span className="opacity-40">•</span>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                    <span className="text-foreground">
+                      {item.vote_average.toFixed(1)}
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {item.content_rating && (
+                <>
+                  <span className="opacity-40">•</span>
+                  <span className="px-1 py-0 bg-white/5 border border-white/10 rounded-sm text-[8px] uppercase font-bold">
+                    {item.content_rating}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
-      </article>
+      </Card>
     );
   }
 
+  const backdropUrl = item.backdrop_path
+    ? `https://image.tmdb.org/t/p/w342${item.backdrop_path}`
+    : undefined;
+
   return (
-    <article className="select-none w-full" aria-label={title || "Media item"}>
-      <button
-        onClick={navigate}
-        onMouseEnter={prefetch}
-        onKeyDown={handleKeyDown}
-        className="relative w-full overflow-hidden rounded-xl group focus:outline-none focus:ring-2 focus:ring-primary"
-        aria-label={`View ${title}`}
-      >
+    <Card
+      className="group relative overflow-hidden bg-card/40 backdrop-blur-md border border-white/10 hover:border-primary/50 transition-all duration-300 shadow-xl cursor-pointer h-full flex flex-col md:aspect-[2/3]"
+      onClick={navigate}
+      onMouseEnter={prefetch}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${title}`}
+    >
+      {backdropUrl && (
+        <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
+          <Image
+            src={backdropUrl}
+            alt=""
+            fill
+            className="object-cover blur-[2px]"
+          />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent pointer-events-none md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-500 z-10" />
+
+      <div className="relative flex-shrink-0 aspect-[2/3] overflow-hidden">
         <Poster
           posterPath={item.poster_path ?? undefined}
           title={title || "Poster"}
           size="medium"
-          className="transition-transform duration-300 group-hover:scale-105"
+          className="rounded-none transition-transform duration-500 group-hover:scale-[1.05]"
         />
-      </button>
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
+          <Icons.play
+            className="w-8 h-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+            strokeWidth={1.5}
+          />
+        </div>
+      </div>
 
-      <div className="text-foreground flex flex-col items-center bg-black/30 backdrop-blur-sm p-2 rounded-lg">
+      <div className="p-3 relative flex-grow flex flex-col items-center text-center transition-all duration-500 md:absolute md:bottom-0 md:left-0 md:right-0 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 z-30 md:bg-gradient-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]">
         <MediaLogo
           logo={item.logo}
-          className="w-full scale-75 max-h-full mx-auto -mb-4"
+          align="center"
+          className="w-full max-h-10 mx-auto mb-2"
           title={title}
-          fallbackClassName="text-balance text-center my-2"
-          size="large"
+          fallbackClassName="text-sm font-semibold leading-tight line-clamp-2 mb-2"
         />
 
-        <div className="flex flex-col items-center gap-2">
-          {item.content_rating && (
-            <span className="w-fit whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-white/30 text-white backdrop-blur-sm">
-              {item.content_rating}
-            </span>
-          )}
+        <div className="flex flex-col items-center gap-2 w-full mt-auto">
+          <div className="flex justify-center items-center gap-3 text-[10px] font-medium text-muted-foreground/80">
+            {year && <span>{year}</span>}
 
-          <div className="flex justify-center items-center gap-2 text-xs">
             {item.vote_average && item.vote_average > 0 && (
-              <div className="flex items-center gap-1">
-                <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
-                <span className="font-medium text-foreground">
-                  {item.vote_average.toFixed(1)}
-                </span>
-              </div>
+              <>
+                <span className="opacity-40">•</span>
+                <div className="flex items-center gap-1">
+                  <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                  <span className="text-foreground">
+                    {item.vote_average.toFixed(1)}
+                  </span>
+                </div>
+              </>
             )}
-            {year && (
-              <span className="text-muted-foreground font-medium">{year}</span>
+
+            {item.content_rating && (
+              <>
+                <span className="opacity-40">•</span>
+                <span className="px-1 py-0 bg-white/5 border border-white/10 rounded-sm text-[8px] font-bold text-white/70 uppercase">
+                  {item.content_rating}
+                </span>
+              </>
             )}
           </div>
         </div>
       </div>
-    </article>
+    </Card>
   );
 }

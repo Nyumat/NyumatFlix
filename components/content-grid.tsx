@@ -13,12 +13,17 @@ const GridSkeleton = ({ count = 8 }: { count?: number }) => (
     {Array.from({ length: count }).map((_, i) => (
       <div
         key={i}
-        className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)] space-y-2"
+        className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]"
       >
-        <Skeleton className="aspect-[2/3] w-full rounded-lg" />
-        <div className="space-y-1">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
+        <div className="bg-card/40 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-xl animate-pulse">
+          <Skeleton className="aspect-[2/3] w-full rounded-none" />
+          <div className="p-4 space-y-3">
+            <Skeleton className="h-4 w-3/4 mx-auto bg-muted/20" />
+            <div className="flex justify-center gap-2">
+              <Skeleton className="h-3 w-1/4 bg-muted/10" />
+              <Skeleton className="h-3 w-1/4 bg-muted/10" />
+            </div>
+          </div>
         </div>
       </div>
     ))}
@@ -28,13 +33,24 @@ const GridSkeleton = ({ count = 8 }: { count?: number }) => (
 const ListSkeleton = ({ count = 8 }: { count?: number }) => (
   <div className="space-y-4">
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="flex gap-4 p-4 border rounded-lg">
-        <Skeleton className="w-20 h-28 rounded-md flex-shrink-0" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-5 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-2/3" />
+      <div
+        key={i}
+        className="flex gap-6 p-6 bg-card/40 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl animate-pulse"
+      >
+        <Skeleton className="w-24 sm:w-28 md:w-32 lg:w-36 aspect-[2/3] rounded-xl flex-shrink-0 bg-muted/20" />
+        <div className="flex-1 space-y-4 py-2">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-1/2 bg-muted/20" />
+            <Skeleton className="h-4 w-1/4 bg-muted/10" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-20 rounded-md bg-muted/10" />
+            <Skeleton className="h-5 w-16 rounded-md bg-muted/10" />
+          </div>
+          <div className="space-y-2 hidden sm:block">
+            <Skeleton className="h-4 w-full bg-muted/5" />
+            <Skeleton className="h-4 w-2/3 bg-muted/5" />
+          </div>
         </div>
       </div>
     ))}

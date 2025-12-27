@@ -1,5 +1,6 @@
 import {
   buildItemsWithCategories,
+  enrichItemsWithContentRatings,
   fetchPaginatedCategory,
   fetchTMDBData,
 } from "@/app/actions";
@@ -92,9 +93,14 @@ export async function InfiniteContent({
     "tv",
   );
 
+  const processedShowsWithRatings = await enrichItemsWithContentRatings(
+    processedShows,
+    "tv",
+  );
+
   const initialOffset = 2;
 
-  const initialSeenIds = processedShows
+  const initialSeenIds = processedShowsWithRatings
     .map((item) => item.id)
     .filter((id): id is number => typeof id === "number");
 
@@ -130,7 +136,12 @@ export async function InfiniteContent({
         "tv",
       );
 
-      const uniqueShows = processedShows.filter((item) => {
+      const processedShowsWithRatings = await enrichItemsWithContentRatings(
+        processedShows,
+        "tv",
+      );
+
+      const uniqueShows = processedShowsWithRatings.filter((item) => {
         if (typeof item.id !== "number") return true;
         if (seenIdsSet.has(item.id)) return false;
         return true;
@@ -181,7 +192,7 @@ export async function InfiniteContent({
       className="space-y-8"
       initialSeenIds={initialSeenIds}
       unifiedGrid={true}
-      initialItems={processedShows}
+      initialItems={processedShowsWithRatings}
       gridType="tv"
       gridItemsPerRow={4}
     />

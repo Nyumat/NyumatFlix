@@ -9,8 +9,9 @@ import {
   CarouselNext,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
+import { Icons } from "@/lib/icons";
 import { MediaItem } from "@/utils/typings";
-import { Info, Play, Star } from "lucide-react";
+import { Info, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import { match, P } from "ts-pattern";
@@ -171,7 +172,7 @@ export const CarouselDetails = React.memo(function CarouselDetails({
                 "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
               )}
             >
-              <Play className="mr-2 h-5 w-5" />
+              <Icons.play className="mr-2 h-5 w-5" />
               Play
             </Button>
             <Button

@@ -1,10 +1,11 @@
 "use client";
 
 import { WatchlistItem } from "@/app/watchlist/actions";
+import { Icons } from "@/lib/icons";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { cn } from "@/lib/utils";
 import { Episode } from "@/utils/typings";
-import { Play, Youtube } from "lucide-react";
+import { Youtube } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { WatchlistButton } from "../watchlist/watchlist-button";
@@ -129,7 +130,7 @@ export function HeroButtons({
           : "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
       )}
     >
-      <Play className="mr-2 h-4 w-4" />
+      <Icons.play className="mr-2 h-4 w-4" />
       <span className="text-sm">{getWatchButtonText()}</span>
     </button>
   );
