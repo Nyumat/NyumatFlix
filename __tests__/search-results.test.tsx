@@ -3,6 +3,7 @@ import SearchResults from "@/components/search/search-results";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Movie, TvShow } from "@/utils/typings";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -116,10 +117,21 @@ afterEach(() => {
 });
 
 const renderWithProviders = (component: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+
   return render(
-    <GlobalDockProvider>
-      <TooltipProvider>{component}</TooltipProvider>
-    </GlobalDockProvider>,
+    <QueryClientProvider client={queryClient}>
+      <GlobalDockProvider>
+        <TooltipProvider>{component}</TooltipProvider>
+      </GlobalDockProvider>
+    </QueryClientProvider>,
   );
 };
 

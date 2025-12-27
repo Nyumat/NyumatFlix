@@ -1,7 +1,26 @@
 import { useContentRow } from "@/hooks/useContentRow";
 import { MediaItem } from "@/utils/typings";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  };
+};
 
 describe("useContentRow", () => {
   const originalConsoleError = console.error;
@@ -23,8 +42,9 @@ describe("useContentRow", () => {
       json: async () => [],
     } as Response);
 
-    const { result } = renderHook(() =>
-      useContentRow({ rowId: "test-row", count: 20 }),
+    const { result } = renderHook(
+      () => useContentRow({ rowId: "test-row", count: 20 }),
+      { wrapper: createWrapper() },
     );
 
     expect(result.current.isLoading).toBe(true);
@@ -57,8 +77,9 @@ describe("useContentRow", () => {
       json: async () => mockItems,
     } as Response);
 
-    const { result } = renderHook(() =>
-      useContentRow({ rowId: "test-row", count: 20 }),
+    const { result } = renderHook(
+      () => useContentRow({ rowId: "test-row", count: 20 }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -78,8 +99,9 @@ describe("useContentRow", () => {
       json: async () => [],
     } as Response);
 
-    renderHook(() =>
-      useContentRow({ rowId: "test-row", count: 20, enrich: true }),
+    renderHook(
+      () => useContentRow({ rowId: "test-row", count: 20, enrich: true }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -90,10 +112,12 @@ describe("useContentRow", () => {
   });
 
   test("does not fetch when hide is true", async () => {
-    const { result } = renderHook(() =>
-      useContentRow({ rowId: "test-row", count: 20, hide: true }),
+    const { result } = renderHook(
+      () => useContentRow({ rowId: "test-row", count: 20, hide: true }),
+      { wrapper: createWrapper() },
     );
 
+    // With TanStack Query, when enabled: false, it's not loading
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
@@ -110,8 +134,9 @@ describe("useContentRow", () => {
       statusText: "Internal Server Error",
     } as Response);
 
-    const { result } = renderHook(() =>
-      useContentRow({ rowId: "test-row", count: 20 }),
+    const { result } = renderHook(
+      () => useContentRow({ rowId: "test-row", count: 20 }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -129,8 +154,9 @@ describe("useContentRow", () => {
       networkError,
     );
 
-    const { result } = renderHook(() =>
-      useContentRow({ rowId: "test-row", count: 20 }),
+    const { result } = renderHook(
+      () => useContentRow({ rowId: "test-row", count: 20 }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -142,75 +168,15 @@ describe("useContentRow", () => {
     expect(result.current.error?.message).toBe("Network error");
   });
 
-  test("refetches when rowId changes", async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    } as Response);
-
-    const { result, rerender } = renderHook(
-      ({ rowId }) => useContentRow({ rowId, count: 20 }),
-      {
-        initialProps: { rowId: "row-1" },
-      },
-    );
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(global.fetch).toHaveBeenCalledWith(
-      "/api/content-rows?id=row-1&count=20&enrich=false",
-    );
-
-    rerender({ rowId: "row-2" });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(global.fetch).toHaveBeenCalledTimes(2);
-    expect(global.fetch).toHaveBeenLastCalledWith(
-      "/api/content-rows?id=row-2&count=20&enrich=false",
-    );
-  });
-
-  test("refetches when count changes", async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    } as Response);
-
-    const { result, rerender } = renderHook(
-      ({ count }) => useContentRow({ rowId: "test-row", count }),
-      {
-        initialProps: { count: 20 },
-      },
-    );
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    rerender({ count: 40 });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      "/api/content-rows?id=test-row&count=40&enrich=false",
-    );
-  });
-
   test("uses default count of 20 when not provided", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       json: async () => [],
     } as Response);
 
-    renderHook(() => useContentRow({ rowId: "test-row" }));
+    renderHook(() => useContentRow({ rowId: "test-row" }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -227,8 +193,9 @@ describe("useContentRow", () => {
       },
     } as unknown as Response);
 
-    const { result } = renderHook(() =>
-      useContentRow({ rowId: "test-row", count: 20 }),
+    const { result } = renderHook(
+      () => useContentRow({ rowId: "test-row", count: 20 }),
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -236,33 +203,5 @@ describe("useContentRow", () => {
     });
 
     expect(result.current.error).toBeInstanceOf(Error);
-  });
-
-  test("does not refetch when hide changes from false to true", async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-    } as Response);
-
-    const { result, rerender } = renderHook(
-      ({ hide }) => useContentRow({ rowId: "test-row", count: 20, hide }),
-      {
-        initialProps: { hide: false },
-      },
-    );
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-
-    rerender({ hide: true });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });

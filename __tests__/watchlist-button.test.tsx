@@ -1,5 +1,3 @@
-import { getWatchlistItem } from "@/app/watchlist/actions";
-import { WatchlistButton } from "@/components/watchlist/watchlist-button";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useSession } from "next-auth/react";
@@ -21,12 +19,19 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const mockUseSession = useSession as ReturnType<typeof vi.fn>;
-const mockGetWatchlistItem = getWatchlistItem as ReturnType<typeof vi.fn>;
-const mockToast = toast as unknown as {
+const { WatchlistButton } = await import(
+  "@/components/watchlist/watchlist-button"
+);
+const watchlistActions = await import("@/app/watchlist/actions");
+
+const mockUseSession = vi.mocked(useSession);
+const mockGetWatchlistItem = vi.mocked(watchlistActions.getWatchlistItem);
+
+type ToastMock = {
   success: ReturnType<typeof vi.fn>;
   error: ReturnType<typeof vi.fn>;
 };
+const mockToast = toast as unknown as ToastMock;
 
 describe("WatchlistButton", () => {
   beforeEach(() => {

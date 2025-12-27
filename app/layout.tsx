@@ -6,6 +6,7 @@ import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryProvider } from "@/lib/query-client";
 import { cn, validateEnv } from "@/lib/utils";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -54,7 +55,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         {process.env.NODE_ENV === "production" && (
           <Script
@@ -66,25 +67,27 @@ export default function RootLayout({
         )}
       </head>
       <body className={cn("min-h-screen bg-background", inter.className)}>
-        <AuthSessionProvider>
-          <OnboardingProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="dark"
-              forcedTheme="dark"
-              disableTransitionOnChange
-            >
-              <TooltipProvider>
-                <GlobalDockProvider>
-                  <NavbarServer />
-                  <main className="flex-1">{children}</main>
-                  <FooterSection />
-                  <Toaster richColors closeButton />
-                </GlobalDockProvider>
-              </TooltipProvider>
-            </ThemeProvider>
-          </OnboardingProvider>
-        </AuthSessionProvider>
+        <QueryProvider>
+          <AuthSessionProvider>
+            <OnboardingProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="dark"
+                forcedTheme="dark"
+                disableTransitionOnChange
+              >
+                <TooltipProvider>
+                  <GlobalDockProvider>
+                    <NavbarServer />
+                    <main className="flex-1">{children}</main>
+                    <FooterSection />
+                    <Toaster richColors closeButton />
+                  </GlobalDockProvider>
+                </TooltipProvider>
+              </ThemeProvider>
+            </OnboardingProvider>
+          </AuthSessionProvider>
+        </QueryProvider>
       </body>
     </html>
   );
