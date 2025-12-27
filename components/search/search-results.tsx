@@ -449,7 +449,7 @@ export default function SearchResults({ query }: { query: string }) {
                 }}
                 placeholder="Select genres..."
                 defaultValue={selectedGenreIds}
-                className="border-none focus:ring-0 focus:ring-offset-0"
+                className="backdrop-blur-md bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/40 shadow-lg focus:ring-0 focus:ring-offset-0 [&_span]:text-white [&_svg]:text-white/80 [&_svg:hover]:text-white"
                 data-testid="genre-multi-select"
               />
             </div>
