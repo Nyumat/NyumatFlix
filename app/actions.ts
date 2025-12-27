@@ -419,7 +419,9 @@ export async function fetchTMDBData<T = MediaItem>(
     }
   }
 
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), {
+    next: { revalidate: 3600 }, // cache tmdb responses for 1 hour
+  });
 
   if (!response.ok) {
     logger.error(
