@@ -4,10 +4,10 @@ import {
   MAGIC_LINK_RESEND_FROM,
   MAGIC_LINK_RESEND_SUBJECT,
 } from "@/lib/constants";
+import { setDevMagicLink } from "@/lib/dev-magic-link-store";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
-import { redirect } from "next/navigation";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
@@ -23,23 +23,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       apiKey: process.env.AUTH_RESEND_KEY,
       from: MAGIC_LINK_RESEND_FROM,
       sendVerificationRequest: async ({ identifier, url, provider, theme }) => {
-        // In development, log the magic link to console instead of sending email
         if (process.env.NODE_ENV === "development") {
           console.log("\n" + "=".repeat(60));
           console.log("🔐 MAGIC LINK FOR DEVELOPMENT");
           console.log("=".repeat(60));
           console.log(`📧 Email: ${identifier}`);
           console.log(`🔗 Magic Link: ${url}`);
-          console.log("=".repeat(60));
-          console.log(
-            "⚠️  Development mode: Email not sent. Use the link above to sign in.",
-          );
           console.log("=".repeat(60) + "\n");
-          redirect(new URL(url).toString());
+          setDevMagicLink(identifier, url);
           return;
         }
-
-        // Production: Send actual email via Resend
         const { host } = new URL(url);
         const emailHtml = await html({ url, host, theme });
         const emailText = text({ url, host });
