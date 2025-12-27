@@ -1,6 +1,8 @@
 "use client";
 
+import { MediaItem } from "@/utils/typings";
 import NextDynamic from "next/dynamic";
+import { use } from "react";
 
 export const DynamicMediaCarousel = NextDynamic(
   () => import("@/components/hero/media-carousel").then((m) => m.MediaCarousel),
@@ -19,3 +21,14 @@ export const LazyContentRowsDynamic = NextDynamic(
     ),
   { ssr: false },
 );
+
+interface StreamingMediaCarouselProps {
+  itemsPromise: Promise<MediaItem[]>;
+}
+
+export function StreamingMediaCarousel({
+  itemsPromise,
+}: StreamingMediaCarouselProps) {
+  const items = use(itemsPromise);
+  return <DynamicMediaCarousel items={items} />;
+}
