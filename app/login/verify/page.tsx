@@ -1,10 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, MailCheck } from "lucide-react";
+import { ArrowLeft, ExternalLink, MailCheck } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { NeuralNetworkBackground } from "../neural-network-client";
+
+type VerifyRequestPageProps = {
+  searchParams: Promise<{ devLink?: string }>;
+};
 
 export const metadata: Metadata = {
   title: "Verify Email | NyumatFlix",
@@ -36,7 +40,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function VerifyRequestPage() {
+export default async function VerifyRequestPage({
+  searchParams,
+}: VerifyRequestPageProps) {
+  const { devLink } = await searchParams;
+
   return (
     <div className="relative min-h-screen overflow-hidden pt-12">
       <div className="absolute inset-0 z-0">
@@ -79,11 +87,23 @@ export default function VerifyRequestPage() {
                   <div className="w-12 h-12 bg-gradient-to-r from-primary/20 to-fuchsia-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <MailCheck className="w-6 h-6 text-primary" />
                   </div>
-                  <p className="text-sm text-foreground font-medium mb-2">
-                    {process.env.NODE_ENV === "development"
-                      ? "(DEV): The magic link is in the console where you're running the server."
-                      : "The magic link has been sent to your email."}
-                  </p>
+                  {devLink ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-foreground font-medium">
+                        (DEV): Click the button below to sign in
+                      </p>
+                      <Button asChild variant="default" size="sm">
+                        <a href={devLink}>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Open Magic Link
+                        </a>
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-foreground font-medium mb-2">
+                      The magic link has been sent to your email.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-3">

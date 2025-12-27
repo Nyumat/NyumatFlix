@@ -9,12 +9,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getDevMagicLink } from "@/lib/dev-magic-link-store";
 import { ArrowRight, Mail } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { NeuralNetworkBackground } from "./neural-network-client";
 import { redirect } from "next/navigation";
+import { NeuralNetworkBackground } from "./neural-network-client";
 
 export const metadata: Metadata = {
   title: "Login | NyumatFlix",
@@ -71,12 +72,19 @@ export default function LoginPage() {
         email,
         redirect: false,
       });
-
-      redirect("/login/verify");
     } catch (error) {
       console.error("Sign in error:", error);
       throw error;
     }
+
+    if (process.env.NODE_ENV === "development") {
+      const magicLink = getDevMagicLink(email);
+      if (magicLink) {
+        redirect(`/login/verify?devLink=${encodeURIComponent(magicLink)}`);
+      }
+    }
+
+    redirect("/login/verify");
   };
 
   return (
