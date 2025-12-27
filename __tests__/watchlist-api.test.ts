@@ -1,6 +1,3 @@
-import { GET, POST } from "@/app/api/watchlist/route";
-import { auth } from "@/auth";
-import { db } from "@/db/schema";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -18,7 +15,11 @@ vi.mock("@/db/schema", () => ({
   watchlist: {},
 }));
 
-const mockAuth = auth as ReturnType<typeof vi.fn>;
+const { GET, POST } = await import("@/app/api/watchlist/route");
+const { auth } = await import("@/auth");
+const { db } = await import("@/db/schema");
+
+const mockAuth = vi.mocked(auth);
 const mockDb = db as unknown as {
   select: ReturnType<typeof vi.fn>;
   insert: ReturnType<typeof vi.fn>;
