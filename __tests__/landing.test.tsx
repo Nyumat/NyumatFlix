@@ -25,20 +25,22 @@ describe("Landing Page", () => {
     expect(title).toHaveTextContent("For Everyone.");
   });
 
-  test("renders the subtitle", () => {
-    render(<Page />, { wrapper: TestWrapper });
-    const subtitle = screen.getByText(
-      /Curated from all the.*streaming services below, Nyumatflix is a no-cost, ad-free, and open-source aggregator\./,
-    );
-    expect(subtitle).toBeInTheDocument();
-  });
-
   test("renders navigation and content sections", () => {
     render(<Page />, { wrapper: TestWrapper });
     expect(screen.getByTestId("hero-title")).toBeInTheDocument();
     expect(
       screen.getByTestId("hero-start-watching-button"),
     ).toBeInTheDocument();
+  });
+
+  test("renders the search input", () => {
+    render(<Page />, { wrapper: TestWrapper });
+    const searchInput = screen.getByTestId("hero-search-input");
+    expect(searchInput).toBeInTheDocument();
+    expect(searchInput).toHaveAttribute(
+      "placeholder",
+      "Search movies, TV shows...",
+    );
   });
 
   describe("Preview Image", () => {

@@ -4,10 +4,20 @@ import { useGSAP } from "@gsap/react";
 import { shaderMaterial } from "@react-three/drei";
 import { Canvas, extend, useFrame } from "@react-three/fiber";
 import gsap from "gsap";
-import { useMemo, useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
 gsap.registerPlugin(useGSAP);
+
+interface ReactDevToolsHook {
+  renderers?: Map<number, { version?: string }>;
+}
+
+declare global {
+  interface Window {
+    __REACT_DEVTOOLS_GLOBAL_HOOK__?: ReactDevToolsHook;
+  }
+}
 const vertexShader = `
   varying vec2 vUv;
   void main() {
@@ -235,6 +245,30 @@ export function ShaderBackground() {
         gl={{ antialias: true, alpha: false }}
         dpr={[1, 2]}
         style={{ width: "100%", height: "100%" }}
+        // filthy hack we need because of the RDT ext semver error
+        onCreated={() => {
+          if (
+            typeof window !== "undefined" &&
+            window.__REACT_DEVTOOLS_GLOBAL_HOOK__
+          ) {
+            try {
+              const hook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+              if (hook.renderers) {
+                hook.renderers.forEach((renderer) => {
+                  if (
+                    renderer &&
+                    typeof renderer === "object" &&
+                    !renderer.version
+                  ) {
+                    renderer.version = React.version || "19.2.0";
+                  }
+                });
+              }
+            } catch {
+              // ignore devtools errors
+            }
+          }
+        }}
       >
         <ShaderPlane />
       </Canvas>

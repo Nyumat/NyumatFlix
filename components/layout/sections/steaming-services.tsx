@@ -1,6 +1,15 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { Marquee } from "@devnomic/marquee";
 import "@devnomic/marquee/dist/index.css";
+import { ArrowRight, Search } from "lucide-react";
 import Image from "next/legacy/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useLayoutEffect, useState } from "react";
 
 interface StreamingService {
   filePath: string;
@@ -39,16 +48,69 @@ const services: StreamingService[] = [
 ];
 
 export default function Sponsors() {
+  const [query, setQuery] = useState("");
+  const router = useRouter();
+
+  useLayoutEffect(() => {
+    router.prefetch("/search");
+  }, [router]);
+
+  const handleSearch = useCallback(() => {
+    if (query.trim()) {
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    }
+  }, [query, router]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSearch();
+  };
+
   return (
     <section
       id="sponsors"
       className="w-full max-w-full mx-auto overflow-hidden"
     >
-      <h2 className="text-sm font-extralight sm:text-base md:text-lg lg:text-xl max-w-screen-sm mx-auto text-center select-none pointer-events-none px-4 mb-6">
-        Curated from all the <span className="line-through">expensive ass</span>{" "}
-        streaming services below, Nyumatflix is a no-cost, ad-free, and
-        open-source aggregator.
-      </h2>
+      <div className="max-w-lg mx-auto px-4 mt-4 mb-6 pointer-events-auto scale-90 md:scale-110">
+        <form onSubmit={handleSubmit}>
+          <div className="relative">
+            <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-white/70 h-7 w-7 z-10 pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Search movies, TV shows..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+              className={cn(
+                "pl-16 pr-20 py-5 text-base md:text-xl w-full rounded-xl",
+                "backdrop-blur-md bg-white/10 border border-white/20",
+                "text-white placeholder:text-white/60 focus:outline-none",
+              )}
+              data-testid="hero-search-input"
+            />
+            <Button
+              type="submit"
+              disabled={!query.trim()}
+              variant="chrome"
+              aria-label="Search"
+              size="icon"
+              className="size-10 absolute right-2 top-1/2 transform -translate-y-1/2 scale-75"
+            >
+              <Link
+                prefetch={true}
+                href={"/search?q=" + encodeURIComponent(query.trim())}
+              >
+                <ArrowRight className="size-5" />
+              </Link>
+            </Button>
+          </div>
+        </form>
+      </div>
 
       <div className="w-full overflow-hidden">
         <Marquee

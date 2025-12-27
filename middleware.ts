@@ -3,10 +3,7 @@ import { NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
-
-  // Add the pathname to the request headers so the navbar can access it
   response.headers.set("x-pathname", request.nextUrl.pathname);
-
   return response;
 }
 

@@ -311,7 +311,7 @@ export const NavbarSearchClient = forwardRef<
   }, [showPreview, inputRef]);
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("max-w-xl flex-grow mx-auto md:max-w-2xl", className)}>
       <div className="relative">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
@@ -343,9 +343,9 @@ export const NavbarSearchClient = forwardRef<
                 }
               }
             }}
-            className="pl-10 pr-20 py-2 text-sm w-full rounded-lg bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
+            className="pl-8 pr-20 py-2 text-sm w-full rounded-lg bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
           />
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {!query && !isFocused && (
               <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
                 ⌘ K
