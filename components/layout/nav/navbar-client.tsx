@@ -49,29 +49,6 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
                 className="size-10"
               />
             </Link>
-            <Tooltip>
-              <TooltipTrigger>
-                <Badge
-                  className={cn(
-                    "text-xs",
-                    "bg-primary/10 hover:bg-primary/20 text-primary",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "animate-pulse rounded-full px-2 py-1 text-primary font-bold",
-                      "text-yellow-500 scale-150",
-                    )}
-                  >
-                    •
-                  </span>
-                  Beta
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>You're using the NyumatFlix 3.0 Beta</p>
-              </TooltipContent>
-            </Tooltip>
           </div>
 
           <div className="hidden md:flex flex-1 mx-8">

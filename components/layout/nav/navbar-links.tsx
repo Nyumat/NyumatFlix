@@ -25,16 +25,9 @@ export const NavbarLinks = ({
   const pathname = usePathname();
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
-  const [isLgScreen, setIsLgScreen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    const checkScreenSize = () => {
-      setIsLgScreen(window.innerWidth >= 1024);
-    };
-    checkScreenSize();
-    window.addEventListener("resize", checkScreenSize);
-    return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
   const isActiveLink = (href: string) => {
@@ -78,22 +71,10 @@ export const NavbarLinks = ({
     router.prefetch(link.href);
   };
 
-  const filteredLinks = isMobile
-    ? links
-    : links.filter((link) => {
-        if (link.href === "/home") {
-          return isMounted ? isLgScreen : false;
-        }
-        return true;
-      });
-
-  if (!isMounted && !isMobile) {
-    return null;
-  }
-
   return (
-    <div className={!isMobile ? "group" : ""}>
-      {filteredLinks.map((link) => {
+    <div className={cn(!isMobile && "group flex items-center flex-nowrap")}>
+      {links.map((link) => {
+        const isHomeLink = link.href === "/home" && !isMobile;
         const isActive = isActiveLink(link.href);
         return (
           <Link
@@ -108,6 +89,7 @@ export const NavbarLinks = ({
                 (isActive
                   ? "after:scale-x-100 group-hover:after:scale-x-0"
                   : "after:scale-x-0 hover:after:scale-x-100"),
+              isHomeLink && "hidden lg:inline",
             )}
             onMouseEnter={() => handleMouseEnter(link)}
             onFocus={() => handleLinkInteraction(link)}
