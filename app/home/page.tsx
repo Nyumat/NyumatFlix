@@ -4,10 +4,11 @@ import {
   getRowConfig,
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
+import { Suspense } from "react";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
 import {
-  DynamicMediaCarousel,
   LazyContentRowsDynamic,
+  StreamingMediaCarousel,
 } from "./client-components";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,7 @@ export const metadata = {
   },
 };
 
-export default async function Home() {
+async function getHeroCarouselData(): Promise<MediaItem[]> {
   const [fanFavoriteMoviesResponse, fanFavoriteTVShowsResponse] =
     await Promise.all([
       fetchTMDBData("/discover/movie", {
@@ -81,7 +82,7 @@ export default async function Home() {
   const combinedFanFavorites = [...moviesWithType, ...tvShowsWithType];
 
   if (combinedFanFavorites.length === 0) {
-    return null;
+    return [];
   }
 
   const seenIds = new Set<number>();
@@ -114,10 +115,13 @@ export default async function Home() {
       : Promise.resolve([]),
   ]);
 
-  const fanFavoriteContentProcessedForHero = [
-    ...enrichedMovies,
-    ...enrichedTVShows,
-  ].sort((a, b) => b.vote_average - a.vote_average);
+  return [...enrichedMovies, ...enrichedTVShows].sort(
+    (a, b) => b.vote_average - a.vote_average,
+  );
+}
+
+export default async function Home() {
+  const heroCarouselPromise = getHeroCarouselData();
 
   const recommendedRows = getRecommendedRowsForPage("home");
 
@@ -205,7 +209,13 @@ export default async function Home() {
     <div>
       <PageBackground imageUrl="/movie-banner.webp" title="Home" />
       <main>
-        <DynamicMediaCarousel items={fanFavoriteContentProcessedForHero} />
+        <Suspense
+          fallback={
+            <div className="relative h-[75vh] md:h-[85vh] lg:h-[92vh] overflow-hidden bg-black" />
+          }
+        >
+          <StreamingMediaCarousel itemsPromise={heroCarouselPromise} />
+        </Suspense>
         <div className="relative z-10 min-h-[200vh]">
           <LazyContentRowsDynamic
             rows={contentRowsConfig}

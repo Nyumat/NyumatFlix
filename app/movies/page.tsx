@@ -1,4 +1,3 @@
-import { MediaCarousel } from "@/components/hero/media-carousel";
 import { PageBackground } from "@/components/layout/page-background";
 import {
   generateRowHref,
@@ -8,8 +7,12 @@ import {
 } from "@/utils/content-filters";
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
+import { Suspense } from "react";
 import { fetchAndEnrichMediaItems, fetchTMDBData } from "../actions";
-import { LazyContentRowsDynamic } from "./client-components";
+import {
+  LazyContentRowsDynamic,
+  StreamingMediaCarousel,
+} from "./client-components";
 
 export const metadata: Metadata = {
   title: "Movies | NyumatFlix",
@@ -47,7 +50,7 @@ export interface Movie {
   categories?: string[];
 }
 
-export default async function MoviesPage() {
+async function getMoviesHeroData(): Promise<MediaItem[]> {
   const trendingMoviesResponse = await fetchTMDBData("/discover/movie", {
     sort_by: "popularity.desc",
     with_genres: "28|12|16|35|878|10749|10751|10765",
@@ -79,10 +82,11 @@ export default async function MoviesPage() {
       )
       .slice(0, 10) || [];
 
-  const enrichedTrendingItems = await fetchAndEnrichMediaItems(
-    basicTrendingItems as MediaItem[],
-    "movie",
-  );
+  return fetchAndEnrichMediaItems(basicTrendingItems as MediaItem[], "movie");
+}
+
+export default async function MoviesPage() {
+  const heroDataPromise = getMoviesHeroData();
 
   const recommendedRows = getRecommendedRowsForPage("movies");
 
@@ -110,7 +114,13 @@ export default async function MoviesPage() {
   return (
     <>
       <PageBackground imageUrl="/movie-banner.webp" title="Movies" />
-      <MediaCarousel items={enrichedTrendingItems} />
+      <Suspense
+        fallback={
+          <div className="relative h-[80vh] md:h-[92vh] overflow-hidden bg-black" />
+        }
+      >
+        <StreamingMediaCarousel itemsPromise={heroDataPromise} />
+      </Suspense>
       <div className="relative z-10 min-h-[200vh]">
         <LazyContentRowsDynamic
           rows={contentRowsConfig}
