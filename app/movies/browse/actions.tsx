@@ -13,7 +13,12 @@ export async function getMoreMovies(
   endpoint: string,
   params: Record<string, string> | { useCustomFetch: boolean },
   offset: number,
-): Promise<readonly [React.JSX.Element, number | null] | null> {
+  seenIds?: number[],
+): Promise<
+  readonly [React.JSX.Element, number | null, MediaItem[] | undefined] | null
+> {
+  const seenIdsSet = new Set(seenIds || []);
+
   let response: { results?: MediaItem[]; total_pages?: number } | null = null;
 
   if (typeof params === "object" && "useCustomFetch" in params) {
@@ -43,6 +48,27 @@ export async function getMoreMovies(
     "movie",
   );
 
+  const uniqueMovies = processedMovies.filter((item) => {
+    if (typeof item.id !== "number") return true;
+    if (seenIdsSet.has(item.id)) return false;
+    return true;
+  });
+
+  if (uniqueMovies.length === 0) {
+    const nextOffset =
+      typeof response.total_pages === "number"
+        ? offset < response.total_pages
+          ? offset + 1
+          : null
+        : response.results.length > 0
+          ? offset + 1
+          : null;
+    if (nextOffset && offset < 100) {
+      return getMoreMovies(endpoint, params, nextOffset, seenIds);
+    }
+    return null;
+  }
+
   const nextOffset =
     typeof response.total_pages === "number"
       ? offset < response.total_pages
@@ -54,11 +80,12 @@ export async function getMoreMovies(
 
   return [
     <ContentGrid
-      items={processedMovies}
+      items={uniqueMovies}
       key={offset}
       type="movie"
       showViewModeControls={false}
     />,
     nextOffset,
+    uniqueMovies,
   ] as const;
 }
