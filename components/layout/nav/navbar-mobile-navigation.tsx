@@ -16,7 +16,7 @@ import { Session } from "next-auth";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface NavLink {
   label: string;
@@ -48,6 +48,11 @@ export const NavbarMobileNavigation = ({
   session,
 }: NavbarMobileNavigationProps) => {
   const [open, setOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/" });
@@ -60,6 +65,21 @@ export const NavbarMobileNavigation = ({
   const userEmail = session?.user?.email || "";
   const userName = session?.user?.name;
   const userImage = session?.user?.image;
+
+  if (!isMounted) {
+    return (
+      <div className="md:hidden">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Toggle navigation menu"
+          className="h-10 w-10"
+        >
+          <Menu size={20} />
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="md:hidden">
