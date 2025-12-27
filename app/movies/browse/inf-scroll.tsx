@@ -13,30 +13,37 @@ export async function InfiniteContent({
   const initialMoviesResponse = await getMovies(type, 1);
   if (!initialMoviesResponse?.results) return <div>No movies found</div>;
 
-  // Filter out items without poster_path for consistency
   const validInitialResults = initialMoviesResponse.results.filter(
     (item): item is MediaItem => Boolean(item.poster_path),
   );
 
   if (validInitialResults.length === 0) return <div>No movies found</div>;
 
-  // Transform the raw results into MediaItem[]
   const initialMovies = await buildItemsWithCategories(
     validInitialResults,
     "movie",
   );
 
   const initialOffset = 2;
-  const getMovieListNodes = async (offset: number) => {
+  const initialSeenIds = initialMovies
+    .map((item) => item.id)
+    .filter((id): id is number => typeof id === "number");
+
+  const getMovieListNodes = async (
+    offset: number,
+    seenIds?: number[],
+  ): Promise<
+    readonly [React.JSX.Element, number | null, MediaItem[] | undefined] | null
+  > => {
     "use server";
     try {
+      const seenIdsSet = new Set(seenIds || []);
       const response = await getMovies(type, offset);
 
       if (!response?.results) {
         return null;
       }
 
-      // Filter out items without poster_path to match initial load behavior
       const validResults = response.results.filter((item): item is MediaItem =>
         Boolean(item.poster_path),
       );
@@ -45,23 +52,40 @@ export async function InfiniteContent({
         return null;
       }
 
-      // Transform the raw results into MediaItem[]
       const processedMovies = await buildItemsWithCategories(
         validResults,
         "movie",
       );
+
+      const uniqueMovies = processedMovies.filter((item) => {
+        if (typeof item.id !== "number") return true;
+        if (seenIdsSet.has(item.id)) return false;
+        return true;
+      });
+
+      if (uniqueMovies.length === 0) {
+        const nextOffset =
+          offset < (response.total_pages || 0) ? offset + 1 : null;
+        if (nextOffset) {
+          if (offset < (response.total_pages || 0) && offset < 100) {
+            return getMovieListNodes(nextOffset, seenIds);
+          }
+        }
+        return null;
+      }
 
       const nextOffset =
         offset < (response.total_pages || 0) ? offset + 1 : null;
 
       return [
         <ContentGrid
-          items={processedMovies}
+          items={uniqueMovies}
           key={offset}
           type="movie"
           showViewModeControls={false}
         />,
         nextOffset,
+        uniqueMovies,
       ] as const;
     } catch (error) {
       console.error("Error loading more movies:", error);
@@ -74,8 +98,10 @@ export async function InfiniteContent({
       getListNodes={getMovieListNodes}
       initialOffset={initialOffset}
       className="space-y-8"
-    >
-      <ContentGrid items={initialMovies} type="movie" />
-    </InfiniteScroll>
+      initialSeenIds={initialSeenIds}
+      unifiedGrid={true}
+      initialItems={initialMovies}
+      gridType="movie"
+    />
   );
 }

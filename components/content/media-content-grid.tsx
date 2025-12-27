@@ -1,5 +1,7 @@
 "use client";
 
+import type { WatchlistItem } from "@/app/watchlist/actions";
+import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 import {
   ContentGrid,
   type ContentItem,
@@ -24,8 +26,6 @@ import { Clock, Play, Star } from "lucide-react";
 import Image from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import type { WatchlistItem } from "@/app/watchlist/actions";
-import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 
 function ListViewCard(props: {
   item: MediaItem;
@@ -310,7 +310,12 @@ export function MediaContentGrid({
     setShowDock(showDock);
   }, [showDock, setShowDock]);
 
-  const processedItems = items.map((item) => ({
+  // Filter out any invalid items (no ID, null, undefined)
+  const validItems = items.filter(
+    (item) => item && item.id !== null && item.id !== undefined,
+  );
+
+  const processedItems = validItems.map((item) => ({
     ...item,
     media_type: type || item.media_type,
   }));

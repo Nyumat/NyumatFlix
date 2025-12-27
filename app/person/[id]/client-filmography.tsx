@@ -16,10 +16,14 @@ export function PersonFilmography({
 }: PersonFilmographyProps) {
   const initialOffset = 2;
 
+  const initialSeenIds = initialFilmography
+    .map((item) => item.id)
+    .filter((id): id is number => typeof id === "number");
+
   return (
     <InfiniteScroll
-      getListNodes={async (offset: number) => {
-        const result = await getFilmographyListNodes(personId, offset);
+      getListNodes={async (offset: number, seenIds?: number[]) => {
+        const result = await getFilmographyListNodes(personId, offset, seenIds);
         if (!result) return null;
 
         const { items, nextOffset } = result;
@@ -32,12 +36,16 @@ export function PersonFilmography({
             itemsPerRow={4}
           />,
           nextOffset,
+          items,
         ] as const;
       }}
       initialOffset={initialOffset}
       className="space-y-8"
-    >
-      <ContentGrid items={initialFilmography} type="multi" itemsPerRow={4} />
-    </InfiniteScroll>
+      initialSeenIds={initialSeenIds}
+      unifiedGrid={true}
+      initialItems={initialFilmography}
+      gridType="multi"
+      gridItemsPerRow={4}
+    />
   );
 }
