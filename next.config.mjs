@@ -46,6 +46,7 @@ const nextConfig = {
     scrollRestoration: true,
     taint: true,
     browserDebugInfoInTerminal: true,
+    clientSegmentCache: true,
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
