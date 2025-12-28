@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
 import type { ViewMode } from "@/components/content-grid";
 import { ViewModeCompactDock } from "@/components/ui/compact-dock";
+import { usePathname } from "next/navigation";
+import { createContext, useContext, useState } from "react";
 
 interface GlobalDockContextType {
   viewMode: ViewMode;
@@ -28,6 +29,9 @@ interface GlobalDockProviderProps {
 export function GlobalDockProvider({ children }: GlobalDockProviderProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [showDock, setShowDock] = useState(false);
+  const pathname = usePathname();
+
+  const shouldShowDock = showDock && pathname !== "/";
 
   return (
     <GlobalDockContext.Provider
@@ -39,7 +43,7 @@ export function GlobalDockProvider({ children }: GlobalDockProviderProps) {
       }}
     >
       {children}
-      {showDock && (
+      {shouldShowDock && (
         <ViewModeCompactDock
           viewMode={viewMode}
           onViewModeChange={setViewMode}
