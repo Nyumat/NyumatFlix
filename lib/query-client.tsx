@@ -70,7 +70,14 @@ export function QueryProvider({ children }: QueryProviderProps) {
       }}
     >
       {children}
-      {isMounted && <ReactQueryDevtools initialIsOpen={false} />}
+      {isMounted && (
+        <ReactQueryDevtools
+          hideDisabledQueries={true}
+          theme="dark"
+          initialIsOpen={false}
+          buttonPosition="top-right"
+        />
+      )}
     </PersistQueryClientProvider>
   );
 }
