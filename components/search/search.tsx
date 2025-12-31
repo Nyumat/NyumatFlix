@@ -427,6 +427,10 @@ export const NavbarSearchClient = forwardRef<
                             </p>
                             <p className="text-xs text-muted-foreground capitalize">
                               {item.media_type}
+                              {item.genre_names?.[0] &&
+                                ` • ${item.genre_names[0]}`}
+                              {(item.release_date || item.first_air_date) &&
+                                ` • ${(item.release_date || item.first_air_date)?.split("-")[0]}`}
                             </p>
                           </div>
                         </div>
