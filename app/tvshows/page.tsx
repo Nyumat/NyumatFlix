@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 const isTalkShow = (item: MediaItem): boolean => {
   if (Array.isArray(item.genre_ids) && item.genre_ids.includes(10767))

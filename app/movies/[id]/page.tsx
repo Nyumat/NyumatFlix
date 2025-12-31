@@ -1,3 +1,4 @@
+import { fetchTMDBData } from "@/app/actions";
 import { MediaCarousels } from "@/components/media/media-carousels";
 import { MediaDetailLayout } from "@/components/media/media-detail-layout";
 import { MediaErrorPage } from "@/components/media/media-error-page";
@@ -9,13 +10,40 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
 import { generateMediaMetadata } from "@/utils/media-metadata-helpers";
 import { isUpcomingMovie } from "@/utils/movie-helpers";
-import { Genre, ProductionCountry } from "@/utils/typings";
+import { Genre, MediaItem, ProductionCountry } from "@/utils/typings";
 import { Calendar, Clock, Star } from "lucide-react";
 import { Metadata } from "next";
+
+export const revalidate = 3600;
+export const dynamicParams = true;
 
 type Props = {
   params: Promise<{ id: string }>;
 };
+
+export async function generateStaticParams() {
+  const [popular, topRated, nowPlaying] = await Promise.all([
+    fetchTMDBData("/movie/popular", { language: "en-US", region: "US" }),
+    fetchTMDBData("/movie/top_rated", { language: "en-US", region: "US" }),
+    fetchTMDBData("/movie/now_playing", { language: "en-US", region: "US" }),
+  ]);
+
+  const allMovies = [
+    ...((popular.results as MediaItem[]) || []),
+    ...((topRated.results as MediaItem[]) || []),
+    ...((nowPlaying.results as MediaItem[]) || []),
+  ];
+
+  // deduplicate by id
+  const uniqueMovies = Array.from(
+    new Map(allMovies.map((movie) => [movie.id, movie])).values(),
+  );
+
+  // pre-render top 60 movies at build time
+  return uniqueMovies.slice(0, 60).map((movie) => ({
+    id: movie.id.toString(),
+  }));
+}
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params;
