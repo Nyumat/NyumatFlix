@@ -14,6 +14,8 @@ import {
   StreamingMediaCarousel,
 } from "./client-components";
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: "Movies | NyumatFlix",
   description: "Discover popular and top-rated movies on NyumatFlix.",

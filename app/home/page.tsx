@@ -10,10 +10,11 @@ import {
   LazyContentRowsDynamic,
   StreamingMediaCarousel,
 } from "./client-components";
+import { type Metadata } from "next";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Home | NyumatFlix",
   description:
     "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
