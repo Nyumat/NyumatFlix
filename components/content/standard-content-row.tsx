@@ -151,8 +151,8 @@ export function StandardContentRow({
             )}
           </CarouselContent>
 
-          <CarouselPrevious className="absolute -left-3 md:left-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
-          <CarouselNext className="absolute -right-3 md:right-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
+          <CarouselPrevious className="hidden md:inline-flex absolute md:left-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
+          <CarouselNext className="hidden md:inline-flex absolute md:right-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
         </Carousel>
       </div>
     </div>
