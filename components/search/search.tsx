@@ -18,8 +18,13 @@ interface SearchComponentProps {
 export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSearch = useCallback(
     (searchQuery: string) => {
@@ -76,7 +81,7 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   }, []);
 
   return (
-    <div className="relative w-full max-w-lg mx-auto">
+    <div className="relative w-full max-w-lg mx-auto" suppressHydrationWarning>
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
@@ -94,7 +99,7 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
             className="pl-10 pr-20 py-2.5 w-full rounded-xl bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
           />
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-            {!query && !isFocused && (
+            {isMounted && !query && !isFocused && (
               <kbd className="hidden sm:inline-block px-2 py-1 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
                 /
               </kbd>
@@ -206,6 +211,7 @@ export const NavbarSearchClient = forwardRef<
   const [showPreview, setShowPreview] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [isMouseOverResults, setIsMouseOverResults] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const innerRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -213,6 +219,10 @@ export const NavbarSearchClient = forwardRef<
   const inputRef = (ref as React.RefObject<HTMLInputElement>) || innerRef;
 
   const { results, isLoading } = useSearchPreview(query);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
@@ -310,7 +320,10 @@ export const NavbarSearchClient = forwardRef<
   }, [showPreview, inputRef]);
 
   return (
-    <div className={cn("max-w-xl flex-grow mx-auto md:max-w-2xl", className)}>
+    <div
+      className={cn("max-w-xl flex-grow mx-auto md:max-w-2xl", className)}
+      suppressHydrationWarning
+    >
       <div className="relative">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
@@ -345,7 +358,7 @@ export const NavbarSearchClient = forwardRef<
             className="pl-8 pr-20 py-2 text-sm w-full rounded-lg bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
           />
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-            {!query && !isFocused && (
+            {isMounted && !query && !isFocused && (
               <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
                 ⌘ K
               </kbd>

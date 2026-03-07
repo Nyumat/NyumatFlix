@@ -1,19 +1,21 @@
 "use client";
 
 import { WatchlistItem } from "@/app/watchlist/actions";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { Season, TvShowDetails } from "@/utils/typings";
+import { Season, SeasonDetails, TvShowDetails } from "@/utils/typings";
 import { Tv } from "lucide-react";
 import Image from "next/legacy/image";
-import { Suspense, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { SeasonEpisodes } from "./season-episodes";
+import { SeriesGraph } from "./series-graph";
 
 type SeasonTabsProps = {
   details: TvShowDetails;
   tvId: string;
   firstSeason: Season | undefined;
   watchlistItem: WatchlistItem | null;
+  allSeasonDetails: Record<number, SeasonDetails>;
 };
 
 const ENHANCED_SEASON_SHOWS = [
@@ -43,72 +45,151 @@ type EnhancedSeason = {
   originalSeasonNumber?: number;
 };
 
-function EpisodesSkeleton() {
+function computeInitialEnhancedSeasons(
+  details: TvShowDetails,
+): EnhancedSeason[] {
+  if (!details.seasons?.length) return [];
+
+  const seasons = details.seasons.filter(
+    (season: Season) => season.season_number > 0,
+  );
+
+  return seasons.map((season) => ({
+    id: season.id.toString(),
+    name: `Season ${season.season_number}`,
+    seasonNumber: season.season_number,
+    episodeCount: season.episode_count,
+    airDate: season.air_date ?? undefined,
+    posterPath: season.poster_path ?? undefined,
+    overview: season.overview,
+  }));
+}
+
+type SeasonContentProps = {
+  season: EnhancedSeason;
+  tvId: string;
+  watchlistItem: WatchlistItem | null;
+  allSeasonDetails: Record<number, SeasonDetails>;
+};
+
+const SeasonContent = memo(function SeasonContent({
+  season,
+  tvId,
+  watchlistItem,
+  allSeasonDetails,
+}: SeasonContentProps) {
   return (
-    <div className="space-y-4 mt-2">
-      <div className="h-6 w-20 bg-gradient-to-r from-white/15 to-white/5 backdrop-blur-sm border border-white/10 rounded-md animate-pulse" />
-      <div className="min-h-[200px] max-h-[300px] overflow-hidden space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="bg-gradient-to-r from-white/8 to-white/4 backdrop-blur-sm border border-white/10 rounded-lg p-4 animate-pulse"
-          >
-            <div className="flex">
-              <div className="w-32 h-20 rounded overflow-hidden mr-4 flex-shrink-0">
-                <div className="w-full h-full bg-gradient-to-br from-white/12 to-white/6 backdrop-blur-md border border-white/20 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent" />
-                </div>
-              </div>
-              <div className="flex-1 space-y-2">
-                <div className="flex justify-between">
-                  <div className="h-4 w-48 bg-gradient-to-r from-white/12 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm" />
-                  <div className="h-4 w-16 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm" />
-                </div>
-                <div className="h-3 w-20 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm" />
-                <div className="space-y-1">
-                  <div className="h-3 w-full bg-gradient-to-r from-white/8 to-white/4 backdrop-blur-sm border border-white/10 rounded-sm" />
-                  <div className="h-3 w-2/3 bg-gradient-to-r from-white/8 to-white/4 backdrop-blur-sm border border-white/10 rounded-sm" />
-                </div>
-              </div>
+    <div className="grid grid-cols-1 gap-3 sm:gap-4">
+      <div className="flex mb-3 sm:mb-4 items-start sm:items-center">
+        <div className="w-16 h-24 sm:w-24 sm:h-36 rounded overflow-hidden mr-3 sm:mr-4 flex-shrink-0">
+          {season.posterPath ? (
+            <Image
+              src={`https://image.tmdb.org/t/p/w185${season.posterPath}`}
+              alt={season.name}
+              width={92}
+              height={138}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <Tv size={20} className="sm:size-6 text-muted-foreground" />
             </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-foreground text-base sm:text-lg font-medium">
+            {season.name}
+          </h3>
+          <div className="text-muted-foreground text-xs sm:text-sm">
+            {season.episodeCount} Episodes
           </div>
-        ))}
+          {season.airDate && (
+            <div className="text-muted-foreground text-xs sm:text-sm">
+              {new Date(season.airDate).getFullYear()}
+            </div>
+          )}
+          {season.overview && (
+            <p className="text-muted-foreground text-xs sm:text-sm mt-1 sm:mt-2 line-clamp-2 sm:line-clamp-2">
+              {season.overview}
+            </p>
+          )}
+          {season.isAniListPart && season.anilistId && (
+            <div className="text-muted-foreground text-[10px] sm:text-xs mt-1">
+              AniList ID: {season.anilistId}
+            </div>
+          )}
+        </div>
       </div>
+
+      <SeasonEpisodes
+        tvId={tvId}
+        seasonNumber={season.originalSeasonNumber || season.seasonNumber}
+        episodeRange={
+          season.isAniListPart
+            ? {
+                start: season.startEpisode!,
+                end: season.endEpisode!,
+              }
+            : undefined
+        }
+        animeInfo={
+          season.isAniListPart
+            ? {
+                anilistId: season.anilistId!,
+                startEpisode: season.startEpisode!,
+                endEpisode: season.endEpisode!,
+              }
+            : undefined
+        }
+        watchlistItem={watchlistItem}
+        initialSeasonDetails={
+          allSeasonDetails[season.originalSeasonNumber || season.seasonNumber]
+        }
+      />
     </div>
   );
-}
+});
 
 export function SeasonTabs({
   details,
   tvId,
   firstSeason,
   watchlistItem,
+  allSeasonDetails,
 }: SeasonTabsProps) {
-  const [enhancedSeasons, setEnhancedSeasons] = useState<EnhancedSeason[]>([]);
-  const [_, setMappings] = useState<Record<number, AnilistMapping>>({});
+  const initialSeasons = useMemo(
+    () => computeInitialEnhancedSeasons(details),
+    [details],
+  );
+
+  const [enhancedSeasons, setEnhancedSeasons] =
+    useState<EnhancedSeason[]>(initialSeasons);
+
+  const defaultTab = firstSeason?.season_number.toString() || "1";
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  const activeSeason = useMemo(
+    () => enhancedSeasons.find((s) => s.seasonNumber.toString() === activeTab),
+    [enhancedSeasons, activeTab],
+  );
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+  }, []);
 
   useEffect(() => {
-    const loadEnhancedSeasons = async () => {
+    const loadEnhancedMappings = async () => {
       if (!details.seasons?.length) return;
+
       const enhancedShow = ENHANCED_SEASON_SHOWS.find(
         (show) => show.tmdbId === tvId,
       );
+
+      if (!enhancedShow) return;
+
       const seasons = details.seasons.filter(
         (season: Season) => season.season_number > 0,
       );
-      if (!enhancedShow) {
-        const enhanced: EnhancedSeason[] = seasons.map((season) => ({
-          id: season.id.toString(),
-          name: `Season ${season.season_number}`,
-          seasonNumber: season.season_number,
-          episodeCount: season.episode_count,
-          airDate: season.air_date ?? undefined,
-          posterPath: season.poster_path ?? undefined,
-          overview: season.overview,
-        }));
-        setEnhancedSeasons(enhanced);
-        return;
-      }
 
       const newMappings: Record<number, AnilistMapping> = {};
       const seasonsToEnhance = seasons.filter((season) =>
@@ -128,12 +209,13 @@ export function SeasonTabs({
               }
             }
           } catch (_error) {
-            // silently ignore errors for individual season mappings
+            // silently ignore errors
           }
         }),
       );
 
-      setMappings(newMappings);
+      if (Object.keys(newMappings).length === 0) return;
+
       const enhanced: EnhancedSeason[] = [];
       for (const season of seasons) {
         const mapping = newMappings[season.season_number];
@@ -178,7 +260,7 @@ export function SeasonTabs({
       setEnhancedSeasons(enhanced);
     };
 
-    loadEnhancedSeasons();
+    loadEnhancedMappings();
   }, [details.seasons, tvId]);
 
   if (!enhancedSeasons.length) return null;
@@ -188,8 +270,14 @@ export function SeasonTabs({
       <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-3 sm:mb-4">
         Seasons & Episodes
       </h2>
+
+      <div className="mb-6">
+        <SeriesGraph allSeasonDetails={allSeasonDetails} />
+      </div>
+
       <Tabs
-        defaultValue={firstSeason?.season_number.toString() || "1"}
+        value={activeTab}
+        onValueChange={handleTabChange}
         className="w-full"
       >
         <div className="overflow-x-auto pb-2 -mx-3 sm:mx-0 px-3 sm:px-0">
@@ -211,92 +299,17 @@ export function SeasonTabs({
           </TabsList>
         </div>
 
-        {enhancedSeasons.map((season) => (
-          <TabsContent
-            key={season.id}
-            value={season.seasonNumber.toString()}
-            className="min-h-[400px]"
-          >
-            <div className="grid grid-cols-1 gap-3 sm:gap-4">
-              <div className="flex mb-3 sm:mb-4 items-start sm:items-center">
-                <div className="w-16 h-24 sm:w-24 sm:h-36 rounded overflow-hidden mr-3 sm:mr-4 flex-shrink-0">
-                  {season.posterPath ? (
-                    <Image
-                      src={`https://image.tmdb.org/t/p/w185${season.posterPath}`}
-                      alt={season.name}
-                      width={92}
-                      height={138}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-muted flex items-center justify-center">
-                      <Tv
-                        size={20}
-                        className="sm:size-6 text-muted-foreground"
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-foreground text-base sm:text-lg font-medium">
-                    {season.name}
-                  </h3>
-                  <div className="text-muted-foreground text-xs sm:text-sm">
-                    {season.episodeCount} Episodes
-                  </div>
-                  {season.airDate && (
-                    <div className="text-muted-foreground text-xs sm:text-sm">
-                      {new Date(season.airDate).getFullYear()}
-                    </div>
-                  )}
-                  {season.overview && (
-                    <p className="text-muted-foreground text-xs sm:text-sm mt-1 sm:mt-2 line-clamp-2 sm:line-clamp-2">
-                      {season.overview}
-                    </p>
-                  )}
-                  {season.isAniListPart && season.anilistId && (
-                    <div className="text-muted-foreground text-[10px] sm:text-xs mt-1">
-                      AniList ID: {season.anilistId}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <Suspense
-                fallback={
-                  <div className="min-h-[600px]">
-                    <EpisodesSkeleton />
-                  </div>
-                }
-              >
-                <SeasonEpisodes
-                  tvId={tvId}
-                  seasonNumber={
-                    season.originalSeasonNumber || season.seasonNumber
-                  }
-                  episodeRange={
-                    season.isAniListPart
-                      ? {
-                          start: season.startEpisode!,
-                          end: season.endEpisode!,
-                        }
-                      : undefined
-                  }
-                  animeInfo={
-                    season.isAniListPart
-                      ? {
-                          anilistId: season.anilistId!,
-                          startEpisode: season.startEpisode!,
-                          endEpisode: season.endEpisode!,
-                        }
-                      : undefined
-                  }
-                  watchlistItem={watchlistItem}
-                />
-              </Suspense>
-            </div>
-          </TabsContent>
-        ))}
+        <div className="min-h-[400px]">
+          {activeSeason && (
+            <SeasonContent
+              key={activeSeason.id}
+              season={activeSeason}
+              tvId={tvId}
+              watchlistItem={watchlistItem}
+              allSeasonDetails={allSeasonDetails}
+            />
+          )}
+        </div>
       </Tabs>
     </section>
   );
