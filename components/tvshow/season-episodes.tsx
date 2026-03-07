@@ -6,8 +6,7 @@ import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { Episode, SeasonDetails } from "@/utils/typings";
 import { Tv } from "lucide-react";
 import Image from "next/legacy/image";
-import { useCallback, useEffect, useState } from "react";
-import { fetchSeasonDetails } from "./tvshow-api";
+import { useCallback, useEffect } from "react";
 
 type SeasonEpisodesProps = {
   tvId: string;
@@ -22,32 +21,8 @@ type SeasonEpisodesProps = {
     endEpisode: number;
   };
   watchlistItem: WatchlistItem | null;
+  initialSeasonDetails?: SeasonDetails | null;
 };
-
-function EpisodeCardSkeleton() {
-  return (
-    <div className="bg-gradient-to-r from-white/8 to-white/4 backdrop-blur-sm border border-white/10 rounded-lg p-3 sm:p-4 animate-pulse">
-      <div className="flex">
-        <div className="w-24 h-16 sm:w-32 sm:h-20 rounded overflow-hidden mr-3 sm:mr-4 flex-shrink-0">
-          <div className="w-full h-full bg-gradient-to-br from-white/12 to-white/6 backdrop-blur-md border border-white/20 shadow-lg">
-            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent" />
-          </div>
-        </div>
-        <div className="flex-1 space-y-2 min-w-0">
-          <div className="flex justify-between gap-2">
-            <div className="h-3 sm:h-4 w-32 sm:w-48 bg-gradient-to-r from-white/12 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm" />
-            <div className="h-3 sm:h-4 w-12 sm:w-16 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm flex-shrink-0" />
-          </div>
-          <div className="h-2.5 sm:h-3 w-16 sm:w-20 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/10 rounded-sm" />
-          <div className="space-y-1">
-            <div className="h-2.5 sm:h-3 w-full bg-gradient-to-r from-white/8 to-white/4 backdrop-blur-sm border border-white/10 rounded-sm" />
-            <div className="h-2.5 sm:h-3 w-2/3 bg-gradient-to-r from-white/8 to-white/4 backdrop-blur-sm border border-white/10 rounded-sm" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function SeasonEpisodes({
   tvId,
@@ -55,28 +30,12 @@ export function SeasonEpisodes({
   episodeRange,
   animeInfo,
   watchlistItem,
+  initialSeasonDetails,
 }: SeasonEpisodesProps) {
-  const [seasonDetails, setSeasonDetails] = useState<SeasonDetails | null>(
-    null,
-  );
-  const [loading, setLoading] = useState(true);
   const { selectedEpisode, setSelectedEpisode } = useEpisodeStore();
 
-  useEffect(() => {
-    const loadSeasonDetails = async () => {
-      setLoading(true);
-      try {
-        const details = await fetchSeasonDetails(tvId, seasonNumber);
-        setSeasonDetails(details);
-      } catch (error) {
-        console.error("Error loading season details:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSeasonDetails();
-  }, [tvId, seasonNumber]);
+  // use pre-fetched data directly - no loading state needed
+  const seasonDetails = initialSeasonDetails ?? null;
 
   useEffect(() => {
     if (!seasonDetails?.episodes || seasonDetails.episodes.length === 0) {
@@ -136,15 +95,9 @@ export function SeasonEpisodes({
         Episodes
       </h3>
       <div className="min-h-[300px] max-h-[400px] overflow-y-auto pr-1 sm:pr-2">
-        {loading ? (
-          <div className="space-y-3 sm:space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <EpisodeCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : !seasonDetails ||
-          !seasonDetails.episodes ||
-          seasonDetails.episodes.length === 0 ? (
+        {!seasonDetails ||
+        !seasonDetails.episodes ||
+        seasonDetails.episodes.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center space-y-2">
               <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center">

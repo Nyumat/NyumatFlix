@@ -39,6 +39,8 @@ export const EpisodeSchema = z.object({
   air_date: z.string(),
   still_path: z.string().nullable(),
   runtime: z.number().nullable(),
+  vote_average: z.number().optional(),
+  vote_count: z.number().optional(),
 });
 
 export const SeasonSchema = z.object({
