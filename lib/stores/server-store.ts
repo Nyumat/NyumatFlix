@@ -17,13 +17,6 @@ export interface VideoServer {
     episode?: number,
     anilistId?: number,
   ) => string;
-  checkAvailability?: (type: "movie" | "tv") => Promise<number[]>;
-  checkIndividualAvailability?: (
-    tmdbId: number,
-    type: "movie" | "tv",
-    season?: number,
-    episode?: number,
-  ) => Promise<boolean>;
 }
 
 export interface ServerOverride {
@@ -31,38 +24,38 @@ export interface ServerOverride {
   isAvailable: boolean;
   reason?: string; // Optional reason for the override (e.g., "Server down", "Maintenance")
 }
-// Old -> vidsrc.xyz
-// New: vidsrc-embed.ru - vidsrc-embed.su - vidsrcme.su - vsrc.su
+// Old -> vidsrc.xyz - vsrc.su
+// New: vsembed.ru - vsembed.su
 export const videoServers: VideoServer[] = [
   {
     id: "vidsrc",
     name: "VidSrc",
-    baseUrl: "https://vsrc.su",
-    getMovieUrl: (tmdbId) => `https://vsrc.su/embed/movie?tmdb=${tmdbId}`,
-    getTvUrl: (tmdbId) => `https://vsrc.su/embed/tv?tmdb=${tmdbId}`,
+    baseUrl: "https://vsembed.ru",
+    getMovieUrl: (tmdbId) => `https://vsembed.ru/embed/movie?tmdb=${tmdbId}`,
+    getTvUrl: (tmdbId) => `https://vsembed.ru/embed/tv?tmdb=${tmdbId}`,
     getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://vsrc.su/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+      `https://vsembed.ru/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
   },
-  {
-    id: "superembed",
-    name: "SuperEmbed",
-    baseUrl: "https://multiembed.mov",
-    getMovieUrl: (tmdbId) =>
-      `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
-    getTvUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
-    getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
-  },
-  {
-    id: "autoembed",
-    name: "AutoEmbed",
-    baseUrl: "https://player.autoembed.cc",
-    getMovieUrl: (tmdbId) =>
-      `https://player.autoembed.cc/embed/movie/${tmdbId}`,
-    getTvUrl: (tmdbId) => `https://player.autoembed.cc/embed/tv/${tmdbId}`,
-    getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`,
-  },
+  // {
+  //   id: "superembed",
+  //   name: "SuperEmbed",
+  //   baseUrl: "https://multiembed.mov",
+  //   getMovieUrl: (tmdbId) =>
+  //     `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
+  //   getTvUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
+  //   getEpisodeUrl: (tmdbId, season, episode) =>
+  //     `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
+  // },
+  // {
+  //   id: "autoembed",
+  //   name: "AutoEmbed",
+  //   baseUrl: "https://player.autoembed.cc",
+  //   getMovieUrl: (tmdbId) =>
+  //     `https://player.autoembed.cc/embed/movie/${tmdbId}`,
+  //   getTvUrl: (tmdbId) => `https://player.autoembed.cc/embed/tv/${tmdbId}`,
+  //   getEpisodeUrl: (tmdbId, season, episode) =>
+  //     `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`,
+  // },
   {
     id: "111movies",
     name: "111Movies",
@@ -116,6 +109,50 @@ export const videoServers: VideoServer[] = [
       }
     },
   },
+  {
+    id: "vidfast",
+    name: "VidFast",
+    baseUrl: "https://vidfast.pro",
+    getMovieUrl: (tmdbId) =>
+      `https://vidfast.pro/movie/${tmdbId}?autoPlay=true`,
+    getTvUrl: (tmdbId) => `https://vidfast.pro/tv/${tmdbId}`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}?autoPlay=true&nextButton=true&autoNext=true`,
+  },
+  {
+    id: "videasy",
+    name: "VidEasy",
+    baseUrl: "https://player.videasy.net",
+    getMovieUrl: (tmdbId) => `https://player.videasy.net/movie/${tmdbId}`,
+    getTvUrl: (tmdbId) => `https://player.videasy.net/tv/${tmdbId}/1/1`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}`,
+    getAnimeUrl: (anilistId, episode) => {
+      const state = useServerStore.getState();
+      const dubParam = state.animePreference === "dub" ? "?dub=true" : "";
+      return `https://player.videasy.net/anime/${anilistId}/${episode}${dubParam}`;
+    },
+  },
+  {
+    id: "vixsrc",
+    name: "VixSrc",
+    baseUrl: "https://vixsrc.to",
+    getMovieUrl: (tmdbId) => `https://vixsrc.to/movie/${tmdbId}?autoplay=true`,
+    getTvUrl: (tmdbId) => `https://vixsrc.to/tv/${tmdbId}/1/1`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://vixsrc.to/tv/${tmdbId}/${season}/${episode}?autoplay=true`,
+  },
+  {
+    id: "vidking",
+    name: "VidKing",
+    baseUrl: "https://www.vidking.net",
+    getMovieUrl: (tmdbId) =>
+      `https://www.vidking.net/embed/movie/${tmdbId}?color=9146ff&autoPlay=true`,
+    getTvUrl: (tmdbId) =>
+      `https://www.vidking.net/embed/tv/${tmdbId}/1/1?color=9146ff&autoPlay=true&nextEpisode=true&episodeSelector=true`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}?color=9146ff&autoPlay=true&nextEpisode=true&episodeSelector=true`,
+  },
 ];
 
 export const defaultServerOverrides: ServerOverride[] = [];
@@ -129,17 +166,7 @@ interface ServerState {
   setAnimePreference: (preference: "sub" | "dub") => void;
   setVidnestContentType: (type: "movie" | "tv" | "anime" | "animepahe") => void;
   getServerById: (id: string) => VideoServer | undefined;
-  getAvailableServer: (
-    tmdbId: number,
-    type: "movie" | "tv",
-    availabilityData?: {
-      [serverId: string]: {
-        movies: number[];
-        tv: number[];
-        isLoading: boolean;
-      };
-    },
-  ) => VideoServer;
+  getAvailableServer: (tmdbId: number, type: "movie" | "tv") => VideoServer;
   setServerOverride: (
     serverId: string,
     isAvailable: boolean,
@@ -176,86 +203,23 @@ export const useServerStore = create<ServerState>()(
       getServerById: (id) => {
         return videoServers.find((server) => server.id === id);
       },
-      getAvailableServer: (tmdbId, type, availabilityData) => {
+      getAvailableServer: (tmdbId, type) => {
         const { serverOverrides } = get();
-
-        if (!availabilityData) {
-          const currentServer = get().selectedServer;
-          const override = serverOverrides.find(
-            (o) => o.serverId === currentServer.id,
-          );
-          if (override && !override.isAvailable) {
-            for (const server of videoServers) {
-              const serverOverride = serverOverrides.find(
-                (o) => o.serverId === server.id,
-              );
-              if (!serverOverride || serverOverride.isAvailable) {
-                return server;
-              }
-            }
-          }
-          return currentServer;
-        }
-
         const currentServer = get().selectedServer;
-        const currentServerOverride = serverOverrides.find(
+        const override = serverOverrides.find(
           (o) => o.serverId === currentServer.id,
         );
-
-        if (currentServerOverride && !currentServerOverride.isAvailable) {
-          // Current server is manually overridden as unavailable, skip availability check
-        } else {
-          const currentServerData = availabilityData[currentServer.id];
-          if (currentServerData && !currentServerData.isLoading) {
-            const isCurrentAvailable =
-              currentServerData[type]?.includes(tmdbId);
-            if (isCurrentAvailable) {
-              return currentServer;
+        if (override && !override.isAvailable) {
+          for (const server of videoServers) {
+            const serverOverride = serverOverrides.find(
+              (o) => o.serverId === server.id,
+            );
+            if (!serverOverride || serverOverride.isAvailable) {
+              return server;
             }
           }
         }
-
-        for (const server of videoServers) {
-          const serverOverride = serverOverrides.find(
-            (o) => o.serverId === server.id,
-          );
-
-          if (serverOverride && !serverOverride.isAvailable) {
-            continue;
-          }
-
-          const serverData = availabilityData[server.id];
-          if (!serverData || serverData.isLoading) continue;
-
-          if (
-            !server.checkAvailability &&
-            !server.checkIndividualAvailability
-          ) {
-            return server;
-          }
-
-          if (serverData[type]?.includes(tmdbId)) {
-            return server;
-          }
-        }
-
-        const vidsrcOverride = serverOverrides.find(
-          (o) => o.serverId === "vidsrc",
-        );
-        if (!vidsrcOverride || vidsrcOverride.isAvailable) {
-          return videoServers[0];
-        }
-
-        for (const server of videoServers) {
-          const serverOverride = serverOverrides.find(
-            (o) => o.serverId === server.id,
-          );
-          if (!serverOverride || serverOverride.isAvailable) {
-            return server;
-          }
-        }
-
-        return videoServers[0];
+        return currentServer;
       },
       setServerOverride: (serverId, isAvailable, reason) => {
         set((state) => ({

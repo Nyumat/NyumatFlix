@@ -351,14 +351,6 @@ export function HeroBackground({
                   const videoSrc = getVideoSrc();
                   const iframeKey = `${videoSrc}-${vidnestContentType}-${animePreference}-${selectedServer.id}`;
 
-                  console.log("[HeroBackground] Video iframe:", {
-                    videoSrc,
-                    vidnestContentType,
-                    animePreference,
-                    selectedServerId: selectedServer.id,
-                    iframeKey,
-                  });
-
                   if (!videoSrc) {
                     return (
                       <div className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20 bg-black/80 flex items-center justify-center">

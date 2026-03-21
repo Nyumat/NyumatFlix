@@ -158,7 +158,7 @@ export function VideoCarousel({ videos }: VideoCarouselProps) {
                       className="w-full h-full"
                       allowFullScreen
                       onError={() => handleVideoError(video.id, video.name)}
-                    ></iframe>
+                    />
                   </div>
                   <div className="text-center">
                     <h3 className="text-foreground font-medium text-sm mb-1 line-clamp-2">
