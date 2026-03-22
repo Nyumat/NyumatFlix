@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 type DiscoverMultiLogic = "and" | "or";
 
@@ -15,21 +15,13 @@ export const useDiscoverMultiSelect = ({
 }) => {
   const separator = logic === "and" ? "," : "|";
 
-  const [optimisticValue, setOptimisticValue] = useState<string | null>(null);
-
-  useEffect(() => {
-    setOptimisticValue(null);
-  }, [value]);
-
-  const effectiveValue = optimisticValue ?? value;
-
   const selection = useMemo(() => {
-    if (!effectiveValue) return [];
-    return effectiveValue
+    if (!value) return [];
+    return value
       .split(separator)
       .map((part) => Number.parseInt(part, 10))
       .filter((n) => !Number.isNaN(n));
-  }, [separator, effectiveValue]);
+  }, [separator, value]);
 
   const toggleSelection = useCallback(
     (id: number) => {
@@ -40,15 +32,12 @@ export const useDiscoverMultiSelect = ({
         set.add(id);
       }
       const next = Array.from(set);
-      const nextStr = next.length ? next.join(separator) : "";
-      setOptimisticValue(nextStr);
-      onChange(nextStr);
+      onChange(next.length ? next.join(separator) : "");
     },
     [onChange, selection, separator],
   );
 
   const clearSelection = useCallback(() => {
-    setOptimisticValue("");
     onChange("");
   }, [onChange]);
 
