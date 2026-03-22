@@ -4,10 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import {
-  matchesEpisodeSearch,
-  parseEpisodeSearchQuery,
-} from "@/lib/parse-episode-search-query";
 import { buildEpisodeIndex, type IndexedEpisode } from "@/lib/tv-episode-index";
 import { cn } from "@/lib/utils";
 import { Episode, SeasonDetails, TvShowDetails } from "@/utils/typings";
@@ -66,8 +62,6 @@ export function HeroTvEpisodePanel({
 
   const [query, setQuery] = useState("");
 
-  const parsedQuery = useMemo(() => parseEpisodeSearchQuery(query), [query]);
-
   useEffect(() => {
     if (storeSeason && seasonNumbers.includes(storeSeason)) {
       setSelectedSeason(storeSeason);
@@ -95,23 +89,28 @@ export function HeroTvEpisodePanel({
   const searchActive = query.trim().length > 0;
 
   const displayedList: IndexedEpisode[] = useMemo(() => {
-    if (!query.trim()) {
+    const q = query.trim().toLowerCase();
+    if (!q) {
       return seasonEpisodes.map((episode) => ({
         episode,
         seasonNumber: selectedSeason,
       }));
     }
     return episodeIndex.filter(({ episode, seasonNumber }) => {
-      const titleLower = (episode.name || "").toLowerCase();
-      return matchesEpisodeSearch(
-        episode,
-        seasonNumber,
-        titleLower,
-        parsedQuery,
-        query.trim(),
+      const title = (episode.name || "").toLowerCase();
+      const seasonMatch = `s${seasonNumber}`;
+      const seasonWord = `season ${seasonNumber}`;
+      return (
+        title.includes(q) ||
+        String(episode.episode_number).includes(q) ||
+        String(seasonNumber).includes(q) ||
+        `${seasonNumber}x${episode.episode_number}`.includes(q) ||
+        `${seasonNumber}.${episode.episode_number}`.includes(q) ||
+        seasonMatch.includes(q) ||
+        seasonWord.includes(q)
       );
     });
-  }, [episodeIndex, parsedQuery, query, seasonEpisodes, selectedSeason]);
+  }, [episodeIndex, query, seasonEpisodes, selectedSeason]);
 
   const handleEpisodeClick = useCallback(
     (episode: Episode, episodeSeason: number) => {

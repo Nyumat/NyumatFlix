@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import { useServerStore } from "@/lib/stores/server-store";
 import { Icons } from "@/lib/icons";
 import { cn, logger } from "@/lib/utils";
@@ -295,7 +294,6 @@ export function HeroButtons({
 }: HeroButtonsProps) {
   const { selectedEpisode, setSelectedEpisode } = useEpisodeStore();
   const router = useRouter();
-  const pathname = usePathname();
 
   const handleWatchClick = () => {
     // For TV shows, require episode selection
@@ -310,11 +308,6 @@ export function HeroButtons({
             action: {
               label: "Show episode list",
               onClick: () => {
-                const id = String(contentId);
-                const basePath = `${pages.tv.root.link}/${id}`;
-                useMediaDetailTabStore
-                  .getState()
-                  .setMediaDetailTab("tv", id, "seasons-episodes");
                 const heroPanel = document.querySelector(
                   "[data-hero-episode-browser]",
                 );
@@ -335,18 +328,9 @@ export function HeroButtons({
                   });
                   return;
                 }
-                if (pathname !== basePath) {
-                  router.push(basePath);
-                  return;
-                }
-                requestAnimationFrame(() => {
-                  document
-                    .getElementById("seasons-episodes-panel")
-                    ?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "center",
-                    });
-                });
+                router.push(
+                  `${pages.tv.root.link}/${contentId}/seasons-episodes`,
+                );
               },
             },
           },
@@ -806,7 +790,7 @@ export function MediaInfoDialog({
                     className="flex items-center justify-center"
                   >
                     <Info className="mr-2 h-4 w-4" />
-                    Watch Now
+                    View Details
                   </Link>
                 </Button>
               </div>
@@ -1591,12 +1575,10 @@ export function HeroContent({
                 )}
                 <div
                   className={cn(
-                    "flex w-full flex-col gap-8 py-12 sm:py-16 lg:gap-8 xl:gap-10",
+                    "flex w-full flex-col gap-8 py-12 sm:py-16 lg:flex-row lg:items-start lg:gap-8 xl:gap-10",
                     tvHeroEpisodeData &&
                       mediaType === "tv" &&
-                      "lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:justify-between",
-                    (!tvHeroEpisodeData || mediaType !== "tv") &&
-                      "lg:flex-row lg:items-start",
+                      "lg:items-stretch lg:justify-between",
                   )}
                 >
                   <div
@@ -1605,7 +1587,7 @@ export function HeroContent({
                       "min-w-0 w-full flex-1",
                       tvHeroEpisodeData &&
                         mediaType === "tv" &&
-                        "lg:max-w-none",
+                        "lg:max-w-[min(56%,40rem)]",
                     )}
                   >
                     {media.logo ? (
@@ -1700,7 +1682,7 @@ export function HeroContent({
                     <div
                       id="hero-episode-browser"
                       data-hero-episode-browser
-                      className="hidden w-full shrink-0 self-stretch lg:block lg:w-full lg:max-w-[380px] lg:justify-self-end"
+                      className="hidden w-full shrink-0 self-stretch lg:block lg:w-[min(380px,38%)] lg:max-w-[420px]"
                     >
                       <HeroTvEpisodePanel
                         tvId={tvHeroEpisodeData.tvId}
