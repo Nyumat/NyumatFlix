@@ -125,7 +125,7 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
               href={`${pages.movie.root.link}/${item.id}`}
               className={buttonVariants({ size: "lg", variant: "default" })}
             >
-              Details <ArrowRight className="ml-2 size-4" aria-hidden />
+              Watch Now <ArrowRight className="ml-2 size-4" aria-hidden />
             </Link>
             <Link
               href={pages.trending.movie.link}

@@ -136,7 +136,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
                 href={`${pages.movie.root.link}/${item.id}`}
                 className={buttonVariants({ size: "lg", variant: "default" })}
               >
-                Details <ArrowRight className="ml-2 size-4" aria-hidden />
+                Watch Now <ArrowRight className="ml-2 size-4" aria-hidden />
               </Link>
               <Link
                 href={hubLink}
@@ -254,7 +254,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
               href={`${pages.tv.root.link}/${item.id}`}
               className={buttonVariants({ size: "lg", variant: "default" })}
             >
-              Details <ArrowRight className="ml-2 size-4" aria-hidden />
+              Watch Now <ArrowRight className="ml-2 size-4" aria-hidden />
             </Link>
             <Link
               href={hubLink}
