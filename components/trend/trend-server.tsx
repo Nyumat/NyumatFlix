@@ -1,10 +1,5 @@
-import {
-  filterReleasedMovies,
-  filterReleasedTvShows,
-} from "@/lib/released-media";
 import { notFound } from "next/navigation";
 import { tmdb } from "@/tmdb/api";
-import type { Movie, TvShow } from "@/tmdb/models";
 
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -29,20 +24,13 @@ export const TrendList: React.FC<TrendListProps> = async ({
   description,
 }) => {
   const {
-    results: rawTrends,
+    results: trends,
     total_pages: totalPages,
     page: currentPage,
   } = await tmdb.trending[type]({
     time,
     page,
   });
-
-  const trends =
-    type === "movie"
-      ? filterReleasedMovies(rawTrends as Movie[])
-      : type === "tv"
-        ? filterReleasedTvShows(rawTrends as TvShow[])
-        : rawTrends;
 
   if (!trends?.length) {
     return notFound();
@@ -66,11 +54,9 @@ export const TrendList: React.FC<TrendListProps> = async ({
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
               {title}
             </h1>
-            {description ? (
-              <p className="mx-auto mt-2 max-w-3xl text-muted-foreground">
-                {description}
-              </p>
-            ) : null}
+            <p className="mx-auto mt-2 max-w-3xl text-muted-foreground">
+              {description}
+            </p>
           </div>
 
           <div className="grid-list">

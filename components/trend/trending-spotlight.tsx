@@ -106,7 +106,7 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
             <MediaRating average={item.vote_average} count={item.vote_count} />
             {item.genres.slice(0, 4).map((genre) => (
               <Link
-                href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
+                href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}`}
                 key={genre.id}
               >
                 <Badge variant="secondary" className="select-none">
@@ -125,7 +125,7 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
               href={`${pages.movie.root.link}/${item.id}`}
               className={buttonVariants({ size: "lg", variant: "default" })}
             >
-              Watch Now <ArrowRight className="ml-2 size-4" aria-hidden />
+              Details <ArrowRight className="ml-2 size-4" aria-hidden />
             </Link>
             <Link
               href={pages.trending.movie.link}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   MovieWithMediaType,
@@ -9,14 +9,10 @@ import {
 } from "@/tmdb/models";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
-import { ContentCard } from "@/components/content/content-card";
-import { MovieCard } from "@/components/movie/movie-card";
-import { hasPosterPath, hasProfilePath } from "@/lib/media-poster-path";
-import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
+import { MovieCard } from "@/components/movie/movie-card";
 import { PersonCard } from "@/components/person/person-card";
 import { TvCard } from "@/components/tv/tv-card";
-import type { MediaItem } from "@/utils/typings";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Carousel,
@@ -32,10 +28,7 @@ interface TrendCarouselProps {
   link?: string;
   items: MovieWithMediaType[] | TvShowWithMediaType[] | PersonWithMediaType[];
   type: "movie" | "tv" | "person";
-  /**
-   * tighter slides + poster cards with title/rating overlay (discover showcase rows).
-   * when false, uses content cards with logo strip for trending/popular-style rows.
-   */
+  /** tighter carousel slides — more cards visible per row (e.g. catalog) */
   compact?: boolean;
   /** show title row with arrows (default true); set false when the page already has a heading */
   showToolbar?: boolean;
@@ -56,72 +49,40 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
   compact = false,
   showToolbar = true,
 }) => {
-  const visibleItems = useMemo(
-    () =>
-      items.filter((item) =>
-        item.media_type === "person"
-          ? hasProfilePath(item)
-          : hasPosterPath(item),
-      ),
-    [items],
-  );
-
   const [api, setApi] = useState<CarouselApi>();
-  const [pageCount, setPageCount] = useState(0);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
-  const isMobile = useMedia("(max-width: 768px)", false);
+  const [total, setTotal] = useState(0);
+  const [current, setCurrent] = useState(0);
 
   useEffect(() => {
     if (!api) return;
 
-    const sync = () => {
-      const snaps = api.scrollSnapList();
-      setPageCount(snaps.length);
-      setPageIndex(api.selectedScrollSnap());
-      setCanScrollPrev(api.canScrollPrev());
-      setCanScrollNext(api.canScrollNext());
-    };
+    setTotal(api.scrollSnapList().length);
+    setCurrent(api.selectedScrollSnap() + 1);
 
-    sync();
-    api.on("select", sync);
-    api.on("reInit", sync);
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap() + 1);
+    });
+  }, [api]);
 
-    return () => {
-      api.off("select", sync);
-      api.off("reInit", sync);
-    };
-  }, [api, visibleItems.length]);
-
-  const handleCarouselNext = () => {
+  function nextSlide() {
     api?.scrollNext();
-  };
+  }
 
-  const handleCarouselPrev = () => {
+  function previousSlide() {
     api?.scrollPrev();
-  };
+  }
 
   return (
-    <Carousel
-      opts={{
-        align: "start",
-        slidesToScroll: "auto",
-        dragFree: false,
-      }}
-      setApi={setApi}
-    >
+    <Carousel opts={{ dragFree: true }} setApi={setApi}>
       {showToolbar ? (
         <div className="mb-4 flex items-center justify-between gap-4 rounded-md p-2 pr-4 md:justify-start">
           {icon ? <div className="shrink-0">{icon}</div> : null}
 
           <div className="mr-32 w-full shrink truncate">
             <h2 className="font-xl">{title}</h2>
-            {description ? (
-              <p className="hidden truncate text-sm text-muted-foreground xl:block">
-                {description}
-              </p>
-            ) : null}
+            <p className="hidden truncate text-sm text-muted-foreground xl:block">
+              {description}
+            </p>
           </div>
 
           {link && (
@@ -133,52 +94,31 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
               )}
               prefetch={false}
             >
-              More
+              Explore more
             </Link>
           )}
 
           <div className="ml-4 hidden shrink-0 items-center gap-2 md:flex">
-            {pageCount > 0 ? (
-              <p
-                className="mr-4 text-xs text-muted-foreground"
-                aria-live="polite"
-              >
-                <span className="font-bold text-foreground">
-                  {pageIndex + 1}
-                </span>
-                <span> / </span>
-                <span>{pageCount}</span>
-              </p>
-            ) : null}
+            <p className="mr-4 text-xs text-muted-foreground">
+              <span className="font-bold text-foreground">{current}</span>
+              <span> / </span>
+              <span>{total}</span>
+            </p>
 
-            <Button
-              type="button"
-              disabled={!canScrollPrev}
-              onClick={handleCarouselPrev}
-              size="sm"
-              variant="outline"
-              aria-label="Previous page of titles"
-            >
+            <Button onClick={previousSlide} size="sm" variant="outline">
               <ArrowLeft className="size-3" />
-              <span className="sr-only">Previous page</span>
+              <span className="sr-only">Previous</span>
             </Button>
-            <Button
-              type="button"
-              disabled={!canScrollNext}
-              onClick={handleCarouselNext}
-              size="sm"
-              variant="outline"
-              aria-label="Next page of titles"
-            >
+            <Button onClick={nextSlide} size="sm" variant="outline">
               <ArrowRight className="size-3" />
-              <span className="sr-only">Next page</span>
+              <span className="sr-only">Next</span>
             </Button>
           </div>
         </div>
       ) : null}
 
       <CarouselContent>
-        {visibleItems.map((item) => (
+        {items.map((item) => (
           <CarouselItem
             key={item.id}
             className={
@@ -186,17 +126,11 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
             }
           >
             {item.media_type === "tv" ? (
-              compact ? (
-                <TvCard {...item} />
-              ) : (
-                <ContentCard item={item as MediaItem} isMobile={isMobile} />
-              )
+              <TvCard key={item.id} {...item} />
             ) : item.media_type === "person" ? (
               <PersonCard key={item.id} {...item} />
-            ) : compact ? (
-              <MovieCard {...item} />
             ) : (
-              <ContentCard item={item as MediaItem} isMobile={isMobile} />
+              <MovieCard key={item.id} {...item} />
             )}
           </CarouselItem>
         ))}
