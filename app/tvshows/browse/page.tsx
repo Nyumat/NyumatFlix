@@ -10,6 +10,7 @@ export default async function TvBrowseRedirect({
   const sp = normalizeRouteSearchParams(raw);
   const next = new URLSearchParams();
   next.set("view", "discover");
+  next.set("mode", "results");
   for (const [k, v] of Object.entries(sp)) {
     if (k === "view") continue;
     next.set(k, v);
