@@ -1,8 +1,12 @@
 import { fetchAllSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { TvShowDetailShell } from "@/components/tvshow/tvshow-detail-shell";
+import { hydrateTvShowDetailQueries } from "@/lib/prefetch-media-detail-queries";
 import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
+import { dehydrate, QueryClient } from "@tanstack/react-query";
+import { HydrationBoundary } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 export const revalidate = 3600;
 
@@ -30,14 +34,21 @@ export default async function TVShowDetailLayout({ children, params }: Props) {
     fetchAllSeasonDetails(id, details.seasons),
   ]);
 
+  const queryClient = new QueryClient();
+  await hydrateTvShowDetailQueries(queryClient, id, details, allSeasonDetails);
+
   return (
-    <TvShowDetailShell
-      details={details}
-      tvId={id}
-      anilistId={anilistId}
-      allSeasonDetails={allSeasonDetails}
-    >
-      {children}
-    </TvShowDetailShell>
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <Suspense fallback={null}>
+        <TvShowDetailShell
+          details={details}
+          tvId={id}
+          anilistId={anilistId}
+          allSeasonDetails={allSeasonDetails}
+        >
+          {children}
+        </TvShowDetailShell>
+      </Suspense>
+    </HydrationBoundary>
   );
 }
