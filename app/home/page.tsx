@@ -5,13 +5,12 @@ import { TrendCarousel } from "@/components/trend";
 import { MovieHero } from "@/components/movie";
 import { TvHero } from "@/components/tv";
 import { pages } from "@/config/pages";
+import { TMDB_WATCH_REGION } from "@/lib/constants";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
 } from "@/lib/released-media";
-import { getCountryName } from "@/lib/utils";
 import { tmdb } from "@/tmdb/api";
-import { cookies } from "next/headers";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -36,10 +35,6 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const cookieStore = await cookies();
-  const region = cookieStore.get("region")?.value ?? "US";
-  const countryLabel = getCountryName(region);
-
   const { results: moviesRaw } = await tmdb.trending.movie({
     time: "day",
     page: "1",
@@ -49,7 +44,7 @@ export default async function Home() {
   const { results: popularMoviesRaw } = await tmdb.movie.list({
     list: "popular",
     page: "1",
-    region,
+    region: TMDB_WATCH_REGION,
   });
   const popularMovies = filterReleasedMovies(popularMoviesRaw);
 
@@ -62,7 +57,7 @@ export default async function Home() {
   const { results: popularTvRaw } = await tmdb.tv.list({
     list: "popular",
     page: "1",
-    region,
+    region: TMDB_WATCH_REGION,
   });
   const popularTv = filterReleasedTvShows(popularTvRaw);
 
@@ -111,7 +106,7 @@ export default async function Home() {
 
             <TrendCarousel
               type="movie"
-              title={`Popular movies in ${countryLabel}`}
+              title="Popular movies"
               description={pages.movie.popular.description}
               link={pages.movie.popular.link}
               items={popularMoviesForTrendCarousel}
@@ -143,7 +138,7 @@ export default async function Home() {
 
             <TrendCarousel
               type="tv"
-              title={`Popular TV in ${countryLabel}`}
+              title="Popular TV"
               description={pages.tv.popular.description}
               link={pages.tv.popular.link}
               items={popularTvForTrendCarousel}

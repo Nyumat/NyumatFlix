@@ -29,9 +29,9 @@ import {
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
+import { TMDB_WATCH_REGION } from "@/lib/constants";
 import {
   filterDiscoverParams,
-  getCountryName,
   getUserTimezone,
   normalizeRouteSearchParams,
 } from "@/lib/utils";
@@ -40,7 +40,6 @@ import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/utils/typings";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
 export const revalidate = 3600;
 
@@ -83,8 +82,6 @@ export default async function TvShowsCatalogPage(props: PageProps) {
   const layoutState = getCatalogLayoutState(sp, view);
   const { title, description } =
     getDiscoverCatalogCopy(sp, "tv") ?? getTvCatalogListCopy(view);
-  const cookieStore = await cookies();
-  const region = cookieStore.get("region")?.value ?? "US";
   const timezone = getUserTimezone();
   const catalogQueryParams = toCatalogQueryParams(sp);
 
@@ -93,7 +90,6 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     const discoverParams = filterDiscoverParams(sp);
     const catalogUrlMerge = buildCatalogDiscoverUrlMerge(sp, "tv");
     const mergedDiscover = { ...discoverParams, ...catalogUrlMerge };
-    const countryLabel = getCountryName(region);
     const [
       { results: trendingRaw },
       catalogResponse,
@@ -101,7 +97,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     ] = await Promise.all([
       tmdb.trending.tv({ time: "day", page: "1" }),
       tmdb.discover.tv({
-        watch_region: region,
+        watch_region: TMDB_WATCH_REGION,
         page: sp.page ?? "1",
         sort_by: (sp.sort_by as SortByTypeTv | undefined) ?? "popularity.desc",
         ...mergedDiscover,
@@ -110,7 +106,12 @@ export default async function TvShowsCatalogPage(props: PageProps) {
           today,
         ),
       }),
-      tmdb.tv.list({ list: "popular", page: "1", region, timezone }),
+      tmdb.tv.list({
+        list: "popular",
+        page: "1",
+        region: TMDB_WATCH_REGION,
+        timezone,
+      }),
     ]);
 
     const trendingShows = filterReleasedTvShows(trendingRaw);
@@ -123,7 +124,9 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     } = catalogResponse;
     const shows = filterReleasedTvShows(showsRaw);
 
-    const providerResponse = await tmdb.watchProviders.tv({ region });
+    const providerResponse = await tmdb.watchProviders.tv({
+      region: TMDB_WATCH_REGION,
+    });
     const providers = providerResponse.results ?? [];
 
     const { genres } = await tmdb.genres.tv();
@@ -289,7 +292,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
               {hubPopularCarousel.length > 0 ? (
                 <TrendCarousel
                   type="tv"
-                  title={`Popular in ${countryLabel}`}
+                  title="Popular"
                   description={pages.tv.popular.description}
                   link={pages.tv.popular.link}
                   items={hubPopularCarouselEnriched as TvShowWithMediaType[]}
@@ -335,13 +338,13 @@ export default async function TvShowsCatalogPage(props: PageProps) {
           page: sp.page ?? "1",
         })
       : tmdb.tv.list({
-          region,
+          region: TMDB_WATCH_REGION,
           list: view,
           page: sp.page ?? "1",
           timezone,
         }),
     tmdb.genres.tv(),
-    tmdb.watchProviders.tv({ region }),
+    tmdb.watchProviders.tv({ region: TMDB_WATCH_REGION }),
   ]);
 
   const {
