@@ -536,10 +536,14 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   providers,
   serverDiscoverFilters,
 }) => {
-  const { count, getFilter, setFilter, saveFilters, clearFilters } = useFilters(
-    type,
-    serverDiscoverFilters,
-  );
+  const {
+    count,
+    getFilter,
+    setFilter,
+    saveFilters,
+    clearFilters,
+    resetDraftFromUrl,
+  } = useFilters(type, serverDiscoverFilters);
 
   const dateGte =
     type === "movie" ? "primary_release_date.gte" : "first_air_date.gte";
@@ -547,7 +551,13 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
     type === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
 
   return (
-    <Sheet>
+    <Sheet
+      onOpenChange={(open) => {
+        if (open) {
+          resetDraftFromUrl();
+        }
+      }}
+    >
       <SheetTrigger className={cn(buttonVariants({ variant: "outline" }))}>
         <SlidersHorizontal className="mr-2 size-4" /> Filters
         {count > 0 && (
