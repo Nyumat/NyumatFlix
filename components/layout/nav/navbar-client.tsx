@@ -38,9 +38,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
           </div>
           <div className="flex md:hidden">
             <NavbarMobileNavigation links={MOBILE_LINKS} session={session}>
-              <div className="px-2 pb-2">
-                <NavbarSearchClient />
-              </div>
+              <NavbarSearchClient />
             </NavbarMobileNavigation>
           </div>
         </div>
