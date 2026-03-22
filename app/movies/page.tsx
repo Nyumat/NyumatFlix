@@ -29,17 +29,13 @@ import {
   filterReleasedMovies,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
-import {
-  filterDiscoverParams,
-  getCountryName,
-  normalizeRouteSearchParams,
-} from "@/lib/utils";
+import { TMDB_WATCH_REGION } from "@/lib/constants";
+import { filterDiscoverParams, normalizeRouteSearchParams } from "@/lib/utils";
 import type { SortByTypeMovie } from "@/tmdb/api";
 import { tmdb } from "@/tmdb/api";
 import type { MovieWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/utils/typings";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
 export const revalidate = 3600;
 
@@ -82,8 +78,6 @@ export default async function MoviesCatalogPage(props: PageProps) {
   const layoutState = getCatalogLayoutState(sp, view);
   const { title, description } =
     getDiscoverCatalogCopy(sp, "movie") ?? getMovieCatalogListCopy(view);
-  const cookieStore = await cookies();
-  const region = cookieStore.get("region")?.value ?? "US";
   const catalogQueryParams = toCatalogQueryParams(sp);
 
   if (view === "discover") {
@@ -91,7 +85,6 @@ export default async function MoviesCatalogPage(props: PageProps) {
     const discoverParams = filterDiscoverParams(sp);
     const catalogUrlMerge = buildCatalogDiscoverUrlMerge(sp, "movie");
     const mergedDiscover = { ...discoverParams, ...catalogUrlMerge };
-    const countryLabel = getCountryName(region);
     const [
       { results: trendingRaw },
       catalogResponse,
@@ -99,7 +92,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
     ] = await Promise.all([
       tmdb.trending.movie({ time: "day", page: "1" }),
       tmdb.discover.movie({
-        watch_region: region,
+        watch_region: TMDB_WATCH_REGION,
         page: sp.page ?? "1",
         sort_by:
           (sp.sort_by as SortByTypeMovie | undefined) ?? "popularity.desc",
@@ -109,7 +102,11 @@ export default async function MoviesCatalogPage(props: PageProps) {
           today,
         ),
       }),
-      tmdb.movie.list({ list: "popular", page: "1", region }),
+      tmdb.movie.list({
+        list: "popular",
+        page: "1",
+        region: TMDB_WATCH_REGION,
+      }),
     ]);
 
     const trendingMovies = filterReleasedMovies(trendingRaw);
@@ -122,7 +119,9 @@ export default async function MoviesCatalogPage(props: PageProps) {
     } = catalogResponse;
     const movies = filterReleasedMovies(moviesRaw);
 
-    const providerResponse = await tmdb.watchProviders.movie({ region });
+    const providerResponse = await tmdb.watchProviders.movie({
+      region: TMDB_WATCH_REGION,
+    });
     const providers = providerResponse.results ?? [];
 
     const { genres } = await tmdb.genres.movie();
@@ -292,7 +291,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
               {hubPopularCarousel.length > 0 ? (
                 <TrendCarousel
                   type="movie"
-                  title={`Popular in ${countryLabel}`}
+                  title="Popular"
                   description={pages.movie.popular.description}
                   link={pages.movie.popular.link}
                   items={hubPopularCarouselEnriched as MovieWithMediaType[]}
@@ -338,12 +337,12 @@ export default async function MoviesCatalogPage(props: PageProps) {
           page: sp.page ?? "1",
         })
       : tmdb.movie.list({
-          region,
+          region: TMDB_WATCH_REGION,
           list: view,
           page: sp.page ?? "1",
         }),
     tmdb.genres.movie(),
-    tmdb.watchProviders.movie({ region }),
+    tmdb.watchProviders.movie({ region: TMDB_WATCH_REGION }),
   ]);
 
   const {
