@@ -142,17 +142,23 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
       <Label className="text-muted-foreground">Genres</Label>
 
       <div className="flex flex-wrap gap-2">
-        {genres.map((genre) => (
-          <button
-            key={genre.id}
-            onClick={() => toggleSelection(genre.id)}
-            className={badgeVariants({
-              variant: selection.includes(genre.id) ? "default" : "secondary",
-            })}
-          >
-            {genre.name}
-          </button>
-        ))}
+        {genres.map((genre) => {
+          const id = Number(genre.id);
+          const isSelected = selection.includes(id);
+          return (
+            <button
+              key={genre.id}
+              type="button"
+              onClick={() => toggleSelection(id)}
+              aria-pressed={isSelected}
+              className={badgeVariants({
+                variant: isSelected ? "default" : "secondary",
+              })}
+            >
+              {genre.name}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
