@@ -4,6 +4,7 @@ import { fetchCatalogNextPage } from "@/app/actions/fetch-catalog-next-page";
 import { ContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
+import { filterWithPosterPath } from "@/lib/media-poster-path";
 import type { MediaItem } from "@/utils/typings";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -45,7 +46,7 @@ export const CatalogInfiniteGrid = ({
   queryParams,
 }: CatalogInfiniteGridProps) => {
   const [store, setStore] = useState<CatalogEntityStore>(() =>
-    buildCatalogEntityStore(initialItems, mediaType),
+    buildCatalogEntityStore(filterWithPosterPath(initialItems), mediaType),
   );
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +55,9 @@ export const CatalogInfiniteGrid = ({
   const queryKey = JSON.stringify(queryParams);
 
   useEffect(() => {
-    setStore(buildCatalogEntityStore(initialItems, mediaType));
+    setStore(
+      buildCatalogEntityStore(filterWithPosterPath(initialItems), mediaType),
+    );
     setCurrentPage(initialPage);
   }, [initialItems, initialPage, queryKey, mediaType]);
 
@@ -73,7 +76,7 @@ export const CatalogInfiniteGrid = ({
       setIsLoading(true);
       const nextPage = currentPage + 1;
       const data = await fetchCatalogNextPage(mediaType, queryParams, nextPage);
-      const raw = data.results ?? [];
+      const raw = filterWithPosterPath(data.results ?? []);
 
       setStore((prev) => {
         const nextMap = new Map(prev.entityMap);

@@ -1,5 +1,6 @@
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { DiscoverFilters, DiscoverSort } from "@/components/discover";
+import { filterDiscoverParams } from "@/lib/utils";
 import type { Genre, WatchProvider } from "@/tmdb/models";
 import type { MediaItem } from "@/utils/typings";
 
@@ -29,8 +30,10 @@ export const CatalogResultsLayout = ({
   queryParams,
   emptyTitle,
   emptyDescription,
-}: CatalogResultsLayoutProps) =>
-  items.length ? (
+}: CatalogResultsLayoutProps) => {
+  const serverDiscoverFilters = filterDiscoverParams(queryParams);
+
+  return items.length ? (
     <>
       <header className="space-y-1 text-center md:text-left">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
@@ -46,6 +49,7 @@ export const CatalogResultsLayout = ({
           type={mediaType}
           genres={genres}
           providers={providers}
+          serverDiscoverFilters={serverDiscoverFilters}
         />
         <DiscoverSort type={mediaType} />
       </div>
@@ -76,6 +80,7 @@ export const CatalogResultsLayout = ({
           type={mediaType}
           genres={genres}
           providers={providers}
+          serverDiscoverFilters={serverDiscoverFilters}
         />
         <DiscoverSort type={mediaType} />
       </div>
@@ -90,3 +95,4 @@ export const CatalogResultsLayout = ({
       </div>
     </>
   );
+};
