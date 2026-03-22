@@ -133,7 +133,7 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
               )}
               prefetch={false}
             >
-              Explore more
+              More
             </Link>
           )}
 
