@@ -80,9 +80,11 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
 
           <div className="mr-32 w-full shrink truncate">
             <h2 className="font-xl">{title}</h2>
-            <p className="hidden truncate text-sm text-muted-foreground xl:block">
-              {description}
-            </p>
+            {description ? (
+              <p className="hidden truncate text-sm text-muted-foreground xl:block">
+                {description}
+              </p>
+            ) : null}
           </div>
 
           {link && (

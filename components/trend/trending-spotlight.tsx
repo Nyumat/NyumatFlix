@@ -106,7 +106,7 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
             <MediaRating average={item.vote_average} count={item.vote_count} />
             {item.genres.slice(0, 4).map((genre) => (
               <Link
-                href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}`}
+                href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                 key={genre.id}
               >
                 <Badge variant="secondary" className="select-none">
