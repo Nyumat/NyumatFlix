@@ -1,6 +1,7 @@
 "use client";
 
 import { MediaCard, MediaPoster } from "@/components/media";
+import { hasProfilePath } from "@/lib/media-poster-path";
 import { isDeceasedAsOfToday } from "@/lib/utils";
 import { type Person } from "@/tmdb/models";
 import Link from "next/link";
@@ -14,6 +15,10 @@ export const PersonCard: React.FC<Person> = ({
   deathday,
 }) => {
   const monochrome = isDeceasedAsOfToday(deathday);
+
+  if (!hasProfilePath({ profile_path })) {
+    return null;
+  }
 
   return (
     <Link href={`/person/${id}`} key={id} className="w-full" prefetch={false}>

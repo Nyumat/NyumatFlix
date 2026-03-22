@@ -74,7 +74,7 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
           {logo ? (
             <Image
               src={tmdbImage.logo(logo.file_path, "w500")}
-              className="mx-auto my-6 w-[min(70%,18rem)] md:my-8 md:w-[min(55%,16rem)] lg:w-[min(50%,18rem)]"
+              className="mx-auto my-6 w-[min(58%,15rem)] md:my-8 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
               alt={item.name}
               height={logo.height}
               width={logo.width}
