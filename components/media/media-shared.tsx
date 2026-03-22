@@ -423,22 +423,17 @@ export const MediaVideos: React.FC<MediaVideosProps> = async ({ videos }) => {
 };
 
 type MediaProvidersHeadingProps = {
-  country: string;
   type: "movie" | "tv";
 };
 
-export function MediaProvidersHeading({
-  country,
-  type,
-}: MediaProvidersHeadingProps) {
+export function MediaProvidersHeading({ type }: MediaProvidersHeadingProps) {
   return (
     <div>
       <h2 className="flex items-center gap-2 text-lg font-medium">
         Where to Watch
         <InfoTooltip className="w-60">
-          Currently showing providers for{" "}
-          <span className="underline">{country}</span> You can change your
-          preferred region in the settings
+          Streaming availability is from TMDb for the United States (fixed
+          region, not based on your location).
         </InfoTooltip>
       </h2>
       <p className="text-muted-foreground">
