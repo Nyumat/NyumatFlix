@@ -12,7 +12,8 @@ import {
 } from "@/app/actions/media-detail-tab-data";
 import { HeroTvEpisodePanel } from "@/components/hero/hero-tv-episode-panel";
 import { MediaImages } from "@/components/media/media-client";
-import { MediaCreditsList, MediaVideos } from "@/components/media/media-shared";
+import { MediaCreditsList } from "@/components/media/media-shared";
+import { MediaVideos } from "@/components/media/media-videos";
 import { MediaReviewCard } from "@/components/media/media-review-card";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { TvShowOverviewTab } from "@/components/tvshow/tv-show-overview-tab";
@@ -154,7 +155,7 @@ export const TvShowDetailTabPanels = ({
         <div className="space-y-4">
           <section className="grid-list">
             {recommendationsData.results.map((show) => (
-              <TvCard key={show.id} {...show} />
+              <TvCard key={show.id} {...show} variant="linkOnly" />
             ))}
           </section>
           <ListPagination
@@ -172,7 +173,7 @@ export const TvShowDetailTabPanels = ({
         <div className="space-y-4">
           <section className="grid-list">
             {similarData.results.map((show) => (
-              <TvCard key={show.id} {...show} />
+              <TvCard key={show.id} {...show} variant="linkOnly" />
             ))}
           </section>
           <ListPagination

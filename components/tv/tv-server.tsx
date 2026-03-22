@@ -35,8 +35,8 @@ import {
   MediaBackdrop,
   MediaCreditsList,
   MediaRating,
-  MediaVideos,
 } from "@/components/media/media-shared";
+import { MediaVideos } from "@/components/media/media-videos";
 import { MediaWatchProviders } from "@/components/media/media-watch-providers";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { TvCard } from "./tv-card";
@@ -112,7 +112,7 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
                 variant: "default",
               })}
             >
-              Details <ArrowRight className="ml-2 size-4" />
+              Watch Now <ArrowRight className="ml-2 size-4" />
             </Link>
           </div>
         </div>
