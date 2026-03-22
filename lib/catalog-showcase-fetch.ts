@@ -25,7 +25,7 @@ type ShowcaseDef = {
 const movieShowcase: ShowcaseDef[] = [
   {
     id: "showcase-action",
-    title: "Action picks",
+    title: "Action Movies",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
@@ -43,7 +43,7 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-comedy",
-    title: "Comedy night",
+    title: "Comedy Movies",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
@@ -61,7 +61,7 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-scifi",
-    title: "Sci‑Fi & fantasy",
+    title: "Sci-Fi & Fantasy",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
@@ -79,7 +79,7 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-drama",
-    title: "Drama spotlight",
+    title: "Drama Movies",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
@@ -97,7 +97,7 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-thriller",
-    title: "Thrillers",
+    title: "Thriller Movies",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
@@ -115,7 +115,7 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-horror",
-    title: "Horror corner",
+    title: "Horror Movies",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
@@ -151,7 +151,7 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-animation",
-    title: "Animation",
+    title: "Animated Movies",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
@@ -172,7 +172,7 @@ const movieShowcase: ShowcaseDef[] = [
 const tvShowcase: ShowcaseDef[] = [
   {
     id: "showcase-tv-drama",
-    title: "Drama series",
+    title: "Drama Series",
     href: buildCatalogCtaUrl("tv", {
       view: "discover",
       mode: "results",
@@ -190,7 +190,7 @@ const tvShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-tv-comedy",
-    title: "Comedy series",
+    title: "Comedy Series",
     href: buildCatalogCtaUrl("tv", {
       view: "discover",
       mode: "results",
@@ -208,7 +208,7 @@ const tvShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-tv-scifi",
-    title: "Sci‑Fi & fantasy TV",
+    title: "Sci-Fi & Fantasy TV",
     href: buildCatalogCtaUrl("tv", {
       view: "discover",
       mode: "results",

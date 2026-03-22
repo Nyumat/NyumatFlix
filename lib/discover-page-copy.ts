@@ -9,12 +9,21 @@ import {
   getDiscoverSlugTitle,
   getYearDiscoverTitle,
 } from "@/lib/discover-copy-titles";
+import {
+  DEFAULT_DISCOVER_SORT,
+  getEffectiveDiscoverSort,
+  hasActiveDiscoverFilters,
+} from "@/lib/discover-query-state";
+import {
+  getDiscoverSortTitle,
+  withDiscoverMediaSuffix,
+} from "@/lib/discover-sort-labels";
 import { parseMovieView, parseTvView } from "@/lib/catalog-query";
 
 const resolveCatalogFromCopy = (
   sp: Record<string, string>,
   mediaType: "movie" | "tv",
-): { title: string; description: string } | null => {
+): { title: string; description?: string } | null => {
   const raw = sp.catalog_from?.trim();
   if (!raw) return null;
   if (mediaType === "movie") {
@@ -45,7 +54,7 @@ const titleFromWithGenres = (
 export const getDiscoverCatalogCopy = (
   sp: Record<string, string>,
   mediaType: "movie" | "tv",
-): { title: string; description: string } | null => {
+): { title: string; description?: string } | null => {
   const view =
     mediaType === "movie" ? parseMovieView(sp.view) : parseTvView(sp.view);
   if (view !== "discover") {
@@ -63,27 +72,22 @@ export const getDiscoverCatalogCopy = (
     mediaType === "movie"
       ? pages.movie.discoverResults.title
       : pages.tv.discoverResults.title;
-  const discoverResultsDescription =
-    mediaType === "movie"
-      ? pages.movie.discoverResults.description
-      : pages.tv.discoverResults.description;
 
   if (typeParam) {
     const t = getDiscoverSlugTitle(typeParam);
-    if (t) return { title: t, description: "" };
-    return { title: rootTitle, description: "" };
+    if (t) return { title: t };
+    return { title: rootTitle };
   }
 
   if (filterParam) {
     const t = getDiscoverSlugTitle(filterParam);
-    if (t) return { title: t, description: "" };
-    return { title: rootTitle, description: "" };
+    if (t) return { title: t };
+    return { title: rootTitle };
   }
 
   if (yearParam) {
     return {
       title: getYearDiscoverTitle(yearParam, mediaType),
-      description: "",
     };
   }
 
@@ -101,7 +105,6 @@ export const getDiscoverCatalogCopy = (
     }
     return {
       title: mediaType === "movie" ? "Movies by studio" : "TV shows by studio",
-      description: "",
     };
   }
 
@@ -116,7 +119,6 @@ export const getDiscoverCatalogCopy = (
     }
     return {
       title: "TV shows by network",
-      description: "",
     };
   }
 
@@ -126,16 +128,23 @@ export const getDiscoverCatalogCopy = (
     if (genreTitle) {
       const fromCopy = resolveCatalogFromCopy(sp, mediaType);
       if (fromCopy) return fromCopy;
-      return { title: genreTitle, description: "" };
+      return { title: genreTitle };
     }
   }
 
   if (!layoutState.isHubLayout) {
     const fromCopy = resolveCatalogFromCopy(sp, mediaType);
     if (fromCopy) return fromCopy;
+    if (getEffectiveDiscoverSort(sp.sort_by) !== DEFAULT_DISCOVER_SORT) {
+      return { title: getDiscoverSortTitle(sp.sort_by, mediaType) };
+    }
+    if (hasActiveDiscoverFilters(sp)) {
+      return {
+        title: withDiscoverMediaSuffix("Filtered results", mediaType),
+      };
+    }
     return {
-      title: discoverResultsTitle,
-      description: discoverResultsDescription,
+      title: withDiscoverMediaSuffix(discoverResultsTitle, mediaType),
     };
   }
 
