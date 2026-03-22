@@ -1,3 +1,4 @@
+import { enrichMediaItemsWithLogos } from "@/app/actions";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
@@ -7,80 +8,41 @@ import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { CatalogSpotlight } from "@/components/trend/catalog-spotlight";
 import { TrendCarousel } from "@/components/trend/trend-client";
-import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { TvHero } from "@/components/tv";
+import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { pages } from "@/config";
+import {
+  filterUnseenById,
+  takeUniqueByIdInOrder,
+} from "@/lib/catalog-page-dedupe";
 import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import {
   parseTrendingTime,
   parseTvView,
   stripCatalogUiParams,
 } from "@/lib/catalog-query";
+import { buildCatalogDiscoverUrlMerge } from "@/lib/discover-merge";
+import { getTvCatalogListCopy } from "@/lib/catalog-list-copy";
 import { getDiscoverCatalogCopy } from "@/lib/discover-page-copy";
 import {
   clampDiscoverTvLte,
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
-import { buildCatalogDiscoverUrlMerge } from "@/lib/discover-merge";
-import {
-  filterUnseenById,
-  takeUniqueByIdInOrder,
-} from "@/lib/catalog-page-dedupe";
 import {
   filterDiscoverParams,
   getCountryName,
   getUserTimezone,
   normalizeRouteSearchParams,
 } from "@/lib/utils";
-import { tmdb } from "@/tmdb/api";
 import type { SortByTypeTv } from "@/tmdb/api";
+import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
+import type { MediaItem } from "@/utils/typings";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import type { MediaItem } from "@/utils/typings";
 
 export const revalidate = 3600;
-
-const getTvCopy = (view: ReturnType<typeof parseTvView>) => {
-  switch (view) {
-    case "discover":
-      return {
-        title: pages.tv.discover.title,
-        description: pages.tv.discover.description,
-      };
-    case "popular":
-      return {
-        title: pages.tv.popular.title,
-        description: pages.tv.popular.description,
-      };
-    case "on_the_air":
-      return {
-        title: pages.tv.onTheAir.title,
-        description: pages.tv.onTheAir.description,
-      };
-    case "airing_today":
-      return {
-        title: pages.tv.airingToday.title,
-        description: pages.tv.airingToday.description,
-      };
-    case "top_rated":
-      return {
-        title: pages.tv.topRated.title,
-        description: pages.tv.topRated.description,
-      };
-    case "trending":
-      return {
-        title: pages.trending.tv.title,
-        description: pages.trending.tv.description,
-      };
-    default:
-      return {
-        title: pages.tv.discover.title,
-        description: pages.tv.discover.description,
-      };
-  }
-};
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -93,7 +55,7 @@ export async function generateMetadata({
   const sp = normalizeRouteSearchParams(raw);
   const view = parseTvView(sp.view);
   const { title, description } =
-    getDiscoverCatalogCopy(sp, "tv") ?? getTvCopy(view);
+    getDiscoverCatalogCopy(sp, "tv") ?? getTvCatalogListCopy(view);
 
   return {
     title: `${title} | NyumatFlix`,
@@ -120,7 +82,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
   const view = parseTvView(sp.view);
   const layoutState = getCatalogLayoutState(sp, view);
   const { title, description } =
-    getDiscoverCatalogCopy(sp, "tv") ?? getTvCopy(view);
+    getDiscoverCatalogCopy(sp, "tv") ?? getTvCatalogListCopy(view);
   const cookieStore = await cookies();
   const region = cookieStore.get("region")?.value ?? "US";
   const timezone = getUserTimezone();
@@ -222,15 +184,33 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     const hubTrendingCarousel = takeUniqueByIdInOrder(
       trendingShows,
       hubSeen,
-      20,
+      40,
     );
     const hubTrendingHeroPair = takeUniqueByIdInOrder(
       trendingShows,
       hubSeen,
       2,
     );
-    const hubPopularCarousel = takeUniqueByIdInOrder(popularTv, hubSeen, 20);
+    const hubPopularCarousel = takeUniqueByIdInOrder(popularTv, hubSeen, 40);
     const hubPopularHeroPair = takeUniqueByIdInOrder(popularTv, hubSeen, 2);
+
+    const [hubTrendingCarouselEnriched, hubPopularCarouselEnriched] =
+      await Promise.all([
+        enrichMediaItemsWithLogos(
+          hubTrendingCarousel.map((s) => ({
+            ...s,
+            media_type: "tv" as const,
+          })),
+          "tv",
+        ),
+        enrichMediaItemsWithLogos(
+          hubPopularCarousel.map((s) => ({
+            ...s,
+            media_type: "tv" as const,
+          })),
+          "tv",
+        ),
+      ]);
 
     const hubGridItems: MediaItem[] = filterUnseenById(shows, hubSeen).map(
       (s) => ({ ...s, media_type: "tv" as const }),
@@ -257,6 +237,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                   type="tv"
                   genres={genres}
                   providers={providers}
+                  serverDiscoverFilters={filterDiscoverParams(sp)}
                 />
                 <DiscoverSort type="tv" />
               </div>
@@ -278,12 +259,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                   title={pages.trending.tv.title}
                   description={pages.trending.tv.description}
                   link={pages.trending.tv.link}
-                  items={
-                    hubTrendingCarousel.map((s) => ({
-                      ...s,
-                      media_type: "tv" as const,
-                    })) as TvShowWithMediaType[]
-                  }
+                  items={hubTrendingCarouselEnriched as TvShowWithMediaType[]}
                 />
               ) : null}
 
@@ -301,7 +277,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
               {hubTopPicksRow.length > 0 ? (
                 <ContentRow
                   variant="ranked"
-                  title="Top picks"
+                  title="Top Picks"
                   items={hubTopPicksRow.map((s) => ({
                     ...s,
                     media_type: "tv" as const,
@@ -316,12 +292,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                   title={`Popular in ${countryLabel}`}
                   description={pages.tv.popular.description}
                   link={pages.tv.popular.link}
-                  items={
-                    hubPopularCarousel.map((s) => ({
-                      ...s,
-                      media_type: "tv" as const,
-                    })) as TvShowWithMediaType[]
-                  }
+                  items={hubPopularCarouselEnriched as TvShowWithMediaType[]}
                 />
               ) : null}
 

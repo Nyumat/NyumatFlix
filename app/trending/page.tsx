@@ -1,3 +1,4 @@
+import { enrichMediaItemsWithLogos } from "@/app/actions";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { TrendCarousel, TrendingSpotlight } from "@/components/trend";
@@ -44,6 +45,11 @@ export default async function TrendingHub() {
   const movies = filterReleasedMovies(moviesRaw);
   const tvShows = filterReleasedTvShows(tvShowsRaw);
 
+  const [moviesForTrendCarousel, tvShowsForTrendCarousel] = await Promise.all([
+    enrichMediaItemsWithLogos(movies, "movie"),
+    enrichMediaItemsWithLogos(tvShows, "tv"),
+  ]);
+
   const featured = movies.find((m) => Boolean(m.poster_path)) ?? movies[0];
 
   if (!featured) {
@@ -73,7 +79,7 @@ export default async function TrendingHub() {
               title={pages.trending.movie.title}
               description={pages.trending.movie.description}
               link={pages.trending.movie.link}
-              items={movies}
+              items={moviesForTrendCarousel}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -85,7 +91,7 @@ export default async function TrendingHub() {
               title={pages.trending.tv.title}
               description={pages.trending.tv.description}
               link={pages.trending.tv.link}
-              items={tvShows}
+              items={tvShowsForTrendCarousel}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
