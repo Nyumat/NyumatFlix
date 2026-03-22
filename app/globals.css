@@ -297,7 +297,7 @@ html {
     @apply grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-4 md:grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))];
   }
   .h-hero {
-    @apply h-[560px] md:h-[780px];
+    @apply h-[min(72vh,640px)] md:h-[min(60vh,760px)] lg:h-[min(64vh,860px)];
   }
   .overlay {
     @apply absolute inset-0 flex items-end rounded-md border bg-gradient-to-tr from-background/95;
