@@ -1,15 +1,9 @@
-import { enrichMediaItemsWithLogos } from "@/app/actions";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { TrendCarousel, TrendingSpotlight } from "@/components/trend";
 import { MovieHero } from "@/components/movie";
 import { TvHero } from "@/components/tv";
 import { pages } from "@/config/pages";
-import { siteConfig } from "@/config/site";
-import {
-  filterReleasedMovies,
-  filterReleasedTvShows,
-} from "@/lib/released-media";
 import { tmdb } from "@/tmdb/api";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -18,38 +12,30 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Trending | NyumatFlix",
-  description: siteConfig.description,
+  description: pages.trending.root.description,
   openGraph: {
     type: "website",
     url: "https://nyumatflix.com/trending",
     title: "Trending | NyumatFlix",
-    description: siteConfig.description,
+    description: pages.trending.root.description,
     images: [{ url: "https://nyumatflix.com/og.webp", alt: "NyumatFlix" }],
   },
   twitter: {
     card: "summary_large_image",
     site: "https://nyumatflix.com",
     title: "Trending | NyumatFlix",
-    description: siteConfig.description,
+    description: pages.trending.root.description,
     images: ["https://nyumatflix.com/og.webp"],
   },
 };
 
 export default async function TrendingHub() {
-  const [{ results: moviesRaw }, { results: tvShowsRaw }, { results: people }] =
+  const [{ results: movies }, { results: tvShows }, { results: people }] =
     await Promise.all([
       tmdb.trending.movie({ time: "day", page: "1" }),
       tmdb.trending.tv({ time: "day", page: "1" }),
       tmdb.trending.people({ time: "day", page: "1" }),
     ]);
-
-  const movies = filterReleasedMovies(moviesRaw);
-  const tvShows = filterReleasedTvShows(tvShowsRaw);
-
-  const [moviesForTrendCarousel, tvShowsForTrendCarousel] = await Promise.all([
-    enrichMediaItemsWithLogos(movies, "movie"),
-    enrichMediaItemsWithLogos(tvShows, "tv"),
-  ]);
 
   const featured = movies.find((m) => Boolean(m.poster_path)) ?? movies[0];
 
@@ -68,6 +54,9 @@ export default async function TrendingHub() {
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
                 Trending
               </h1>
+              <p className="text-muted-foreground">
+                {pages.trending.root.description}
+              </p>
             </header>
 
             <TrendingSpotlight movieId={featured.id} priority />
@@ -75,8 +64,9 @@ export default async function TrendingHub() {
             <TrendCarousel
               type="movie"
               title={pages.trending.movie.title}
+              description={pages.trending.movie.description}
               link={pages.trending.movie.link}
-              items={moviesForTrendCarousel}
+              items={movies}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -86,8 +76,9 @@ export default async function TrendingHub() {
             <TrendCarousel
               type="tv"
               title={pages.trending.tv.title}
+              description={pages.trending.tv.description}
               link={pages.trending.tv.link}
-              items={tvShowsForTrendCarousel}
+              items={tvShows}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -97,6 +88,7 @@ export default async function TrendingHub() {
             <TrendCarousel
               type="person"
               title={pages.trending.people.title}
+              description={pages.trending.people.description}
               link={pages.trending.people.link}
               items={people}
             />
