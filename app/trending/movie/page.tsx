@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${pages.trending.movie.title} | NyumatFlix`,
-    description: pages.trending.movie.description,
   };
 }
 

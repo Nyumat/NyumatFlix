@@ -12,13 +12,12 @@ import type { Metadata } from "next";
 const resolvePopularPeopleMeta = (params: {
   department: PeopleDepartmentValue | undefined;
   genderFilter: PeopleGenderFilter | undefined;
-}): { title: string; description: string } => {
+}): { title: string; description?: string } => {
   const { department, genderFilter } = params;
 
   if (department === undefined) {
     return {
       title: pages.people.popular.title,
-      description: pages.people.popular.description,
     };
   }
 
@@ -26,32 +25,26 @@ const resolvePopularPeopleMeta = (params: {
     if (genderFilter === 2) {
       return {
         title: pages.people.popularActors.title,
-        description: pages.people.popularActors.description,
       };
     }
     if (genderFilter === 1) {
       return {
         title: pages.people.popularActresses.title,
-        description: pages.people.popularActresses.description,
       };
     }
     return {
-      title: "Popular performers",
-      description:
-        "Actors and actresses from TMDB’s popular people list (all genders).",
+      title: "Popular Performers",
     };
   }
 
   if (department === "Directing") {
     return {
       title: pages.people.popularDirectors.title,
-      description: pages.people.popularDirectors.description,
     };
   }
 
   return {
-    title: "Popular producers",
-    description: "Producers on TMDB’s popular people list.",
+    title: "Popular Producers",
   };
 };
 
@@ -80,10 +73,10 @@ export async function generateMetadata({
 
   return {
     title: `${title} | NyumatFlix`,
-    description,
+    description: description ?? undefined,
     openGraph: {
       title: `${title} | NyumatFlix`,
-      description,
+      description: description ?? undefined,
       type: "website",
       siteName: "NyumatFlix",
     },

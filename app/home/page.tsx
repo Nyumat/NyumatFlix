@@ -5,6 +5,7 @@ import { TrendCarousel } from "@/components/trend";
 import { MovieHero } from "@/components/movie";
 import { TvHero } from "@/components/tv";
 import { pages } from "@/config/pages";
+import { siteConfig } from "@/config/site";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import {
   filterReleasedMovies,
@@ -17,19 +18,19 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Home | NyumatFlix",
-  description: pages.home.description,
+  description: siteConfig.description,
   openGraph: {
     type: "website",
     url: "https://nyumatflix.com/home",
     title: "Home | NyumatFlix",
-    description: pages.home.description,
+    description: siteConfig.description,
     images: [{ url: "https://nyumatflix.com/og.webp", alt: "NyumatFlix" }],
   },
   twitter: {
     card: "summary_large_image",
     site: "https://nyumatflix.com",
     title: "Home | NyumatFlix",
-    description: pages.home.description,
+    description: siteConfig.description,
     images: ["https://nyumatflix.com/og.webp"],
   },
 };
@@ -91,7 +92,6 @@ export default async function Home() {
             <TrendCarousel
               type="movie"
               title="Trending movies"
-              description={pages.trending.movie.description}
               link={pages.trending.movie.link}
               items={moviesForTrendCarousel}
             />
@@ -107,7 +107,6 @@ export default async function Home() {
             <TrendCarousel
               type="movie"
               title="Popular movies"
-              description={pages.movie.popular.description}
               link={pages.movie.popular.link}
               items={popularMoviesForTrendCarousel}
             />
@@ -123,7 +122,6 @@ export default async function Home() {
             <TrendCarousel
               type="tv"
               title="Trending TV shows"
-              description={pages.trending.tv.description}
               link={pages.trending.tv.link}
               items={tvShowsForTrendCarousel}
             />
@@ -139,7 +137,6 @@ export default async function Home() {
             <TrendCarousel
               type="tv"
               title="Popular TV"
-              description={pages.tv.popular.description}
               link={pages.tv.popular.link}
               items={popularTvForTrendCarousel}
             />
