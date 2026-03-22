@@ -8,13 +8,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import useMedia from "@/hooks/useMedia";
-import { Icons } from "@/lib/icons";
-import { cn } from "@/lib/utils";
-import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
-import { Star } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { MediaLogo } from "@/components/media/media-display";
+import { MediaItem } from "@/utils/typings";
 import { ContentRowHeader } from "./content-row-header";
 import { RankedBackdropCard } from "./ranked-backdrop-card";
 
@@ -30,7 +24,7 @@ export function RankedContentRow({
   href,
 }: RankedContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
-  const items = filterWithPosterPath(initialItems).slice(0, 3);
+  const items = initialItems.slice(0, 3);
 
   if (isMobile) {
     return (
