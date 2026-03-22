@@ -68,20 +68,20 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
       </div>
 
       <div className="overlay">
-        <div className="mx-auto max-w-3xl space-y-4 p-4 pb-8 text-center md:p-14">
+        <div className="mx-auto max-w-3xl space-y-3 p-4 pb-6 text-center md:space-y-4 md:p-8 md:pb-8 lg:p-10">
           <Badge className="select-none">{label}</Badge>
 
           {logo ? (
             <Image
               src={tmdbImage.logo(logo.file_path, "w500")}
-              className="mx-auto my-12 w-3/4"
+              className="mx-auto my-6 w-[min(70%,18rem)] md:my-8 md:w-[min(55%,16rem)] lg:w-[min(50%,18rem)]"
               alt={item.name}
               height={logo.height}
               width={logo.width}
               unoptimized
             />
           ) : (
-            <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-4xl">
+            <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-3xl lg:text-4xl">
               {item.name}
             </h1>
           )}
@@ -90,7 +90,7 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
             <MediaRating average={item.vote_average} count={item.vote_count} />
             {item.genres.map((genre) => (
               <Link
-                href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}`}
+                href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                 key={genre.id}
               >
                 <Badge variant="secondary" className="ml-2 select-none">
@@ -126,6 +126,7 @@ interface TvHeroProps {
   label: string;
   count?: number;
   priority?: boolean;
+  pick?: "random" | "first";
 }
 
 export const TvHero: React.FC<TvHeroProps> = ({
@@ -133,8 +134,12 @@ export const TvHero: React.FC<TvHeroProps> = ({
   label,
   count = 1,
   priority,
+  pick = "random",
 }) => {
-  const items = getRandomItems(tvShows, count);
+  const items =
+    pick === "first"
+      ? tvShows.slice(0, Math.min(count, tvShows.length))
+      : getRandomItems(tvShows, count);
 
   return items.map((item) => (
     <TvHeroItem
