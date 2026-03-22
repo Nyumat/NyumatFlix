@@ -33,9 +33,7 @@ const splitKeywords = (s: string): string[] => {
   return words;
 };
 
-export const parseEpisodeSearchQuery = (
-  raw: string,
-): ParsedEpisodeSearchQuery => {
+export const parseEpisodeSearchQuery = (raw: string): ParsedEpisodeSearchQuery => {
   let s = normalizeWhitespace(raw);
   let season: number | undefined;
   let episode: number | undefined;
@@ -89,10 +87,7 @@ export const parseEpisodeSearchQuery = (
   return { season, episode, keywords };
 };
 
-const titleMatchesKeywords = (
-  titleLower: string,
-  keywords: string[],
-): boolean => {
+const titleMatchesKeywords = (titleLower: string, keywords: string[]): boolean => {
   if (keywords.length === 0) return true;
   return keywords.every((kw) => titleLower.includes(kw));
 };
@@ -133,16 +128,11 @@ export const matchesEpisodeSearch = (
   }
 
   if (season !== undefined) {
-    return (
-      seasonNumber === season && titleMatchesKeywords(titleLower, keywords)
-    );
+    return seasonNumber === season && titleMatchesKeywords(titleLower, keywords);
   }
 
   if (epNum !== undefined) {
-    return (
-      episode.episode_number === epNum &&
-      titleMatchesKeywords(titleLower, keywords)
-    );
+    return episode.episode_number === epNum && titleMatchesKeywords(titleLower, keywords);
   }
 
   const q = normalizeWhitespace(rawQuery);
