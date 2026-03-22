@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import { useServerStore } from "@/lib/stores/server-store";
 import { Icons } from "@/lib/icons";
 import { cn, logger } from "@/lib/utils";
@@ -294,6 +295,7 @@ export function HeroButtons({
 }: HeroButtonsProps) {
   const { selectedEpisode, setSelectedEpisode } = useEpisodeStore();
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleWatchClick = () => {
     // For TV shows, require episode selection
@@ -308,6 +310,11 @@ export function HeroButtons({
             action: {
               label: "Show episode list",
               onClick: () => {
+                const id = String(contentId);
+                const basePath = `${pages.tv.root.link}/${id}`;
+                useMediaDetailTabStore
+                  .getState()
+                  .setMediaDetailTab("tv", id, "seasons-episodes");
                 const heroPanel = document.querySelector(
                   "[data-hero-episode-browser]",
                 );
@@ -328,9 +335,18 @@ export function HeroButtons({
                   });
                   return;
                 }
-                router.push(
-                  `${pages.tv.root.link}/${contentId}/seasons-episodes`,
-                );
+                if (pathname !== basePath) {
+                  router.push(basePath);
+                  return;
+                }
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById("seasons-episodes-panel")
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    });
+                });
               },
             },
           },
