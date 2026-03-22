@@ -1,4 +1,5 @@
 import React from "react";
+import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,8 +10,6 @@ import { MovieListType, WithImages } from "@/tmdb/api";
 import { format, tmdbImage } from "@/tmdb/utils";
 import { ArrowRight } from "lucide-react";
 
-import { TMDB_WATCH_REGION } from "@/lib/constants";
-import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { cn, formatValue, getRandomItems } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -88,7 +87,7 @@ export const MovieCollectionPart: React.FC<Movie> = ({
                 "mt-4",
               )}
             >
-              Watch Now
+              View Details
             </Link>
           </div>
         </div>
@@ -167,20 +166,20 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
       </div>
 
       <div className="overlay">
-        <div className="mx-auto max-w-3xl space-y-3 p-4 pb-6 text-center md:space-y-4 md:p-8 md:pb-8 lg:p-10">
+        <div className="mx-auto max-w-3xl space-y-4 p-4 pb-8 text-center md:p-14">
           <Badge className="select-none">{label}</Badge>
 
           {logo ? (
             <Image
               src={tmdbImage.logo(logo.file_path, "w500")}
-              className="mx-auto my-6 w-[min(58%,15rem)] md:my-8 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
+              className="mx-auto my-12 w-3/4"
               alt={item.title}
               height={logo.height}
               width={logo.width}
               unoptimized
             />
           ) : (
-            <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-3xl lg:text-4xl">
+            <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-4xl">
               {item.title}
             </h1>
           )}
@@ -189,7 +188,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
             <MediaRating average={item.vote_average} count={item.vote_count} />
             {item.genres.map((genre) => (
               <Link
-                href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
+                href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}`}
                 key={genre.id}
               >
                 <Badge variant="secondary" className="ml-2 select-none">
@@ -211,7 +210,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
                 variant: "default",
               })}
             >
-              Watch Now <ArrowRight className="ml-2 size-4" />
+              Details <ArrowRight className="ml-2 size-4" />
             </Link>
           </div>
         </div>
@@ -225,7 +224,6 @@ interface MovieHeroProps {
   label: string;
   count?: number;
   priority?: boolean;
-  pick?: "random" | "first";
 }
 
 export const MovieHero: React.FC<MovieHeroProps> = ({
@@ -233,12 +231,8 @@ export const MovieHero: React.FC<MovieHeroProps> = ({
   label,
   count = 1,
   priority,
-  pick = "random",
 }) => {
-  const items =
-    pick === "first"
-      ? movies.slice(0, Math.min(count, movies.length))
-      : getRandomItems(movies, count);
+  const items = getRandomItems(movies, count);
 
   return items.map((item) => (
     <MovieHeroItem
@@ -263,23 +257,20 @@ export const MovieList: React.FC<MovieListProps> = async ({
   title,
   description,
 }) => {
+  const cookieStore = await cookies();
+  const region = cookieStore.get("region")?.value ?? "US";
+
   const {
     results,
     total_pages: totalPages,
     page: currentPage,
   } = await tmdb.movie.list({
-    region: TMDB_WATCH_REGION,
+    region,
     list,
     page,
   });
 
   if (!results?.length) {
-    return notFound();
-  }
-
-  const withPosters = filterWithPosterPath(results);
-
-  if (!withPosters.length) {
     return notFound();
   }
 
@@ -291,7 +282,7 @@ export const MovieList: React.FC<MovieListProps> = async ({
       </div>
 
       <div className="grid-list">
-        {withPosters.map((movie) => (
+        {results.map((movie) => (
           <MovieCard key={movie.id} {...movie} />
         ))}
       </div>
