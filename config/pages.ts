@@ -34,7 +34,7 @@ const movie = {
   },
   popular: {
     title: "Popular Movies",
-    description: "What audiences are watching right now in your region.",
+    description: "What audiences are watching right now.",
     link: buildCatalogCtaUrl("movie", { view: "popular", mode: "results" }),
   },
   topRated: {

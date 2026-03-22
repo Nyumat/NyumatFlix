@@ -87,6 +87,39 @@ export const getDiscoverCatalogCopy = (
     };
   }
 
+  const withCompaniesRaw = sp.with_companies?.trim();
+  if (withCompaniesRaw) {
+    const companyName = sp.company_name?.trim();
+    if (companyName) {
+      return {
+        title: companyName,
+        description:
+          mediaType === "movie"
+            ? `Movies produced by ${companyName}.`
+            : `TV shows produced by ${companyName}.`,
+      };
+    }
+    return {
+      title: mediaType === "movie" ? "Movies by studio" : "TV shows by studio",
+      description: "",
+    };
+  }
+
+  const withNetworksRaw = sp.with_networks?.trim();
+  if (withNetworksRaw && mediaType === "tv") {
+    const networkName = sp.network_name?.trim();
+    if (networkName) {
+      return {
+        title: networkName,
+        description: `TV shows on ${networkName}.`,
+      };
+    }
+    return {
+      title: "TV shows by network",
+      description: "",
+    };
+  }
+
   const withGenresRaw = sp.with_genres?.trim();
   if (withGenresRaw) {
     const genreTitle = titleFromWithGenres(withGenresRaw, mediaType);
