@@ -806,7 +806,7 @@ export function MediaInfoDialog({
                     className="flex items-center justify-center"
                   >
                     <Info className="mr-2 h-4 w-4" />
-                    View Details
+                    Watch Now
                   </Link>
                 </Button>
               </div>
