@@ -142,27 +142,17 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
       <Label className="text-muted-foreground">Genres</Label>
 
       <div className="flex flex-wrap gap-2">
-        {genres.map((genre) => {
-          const id = Number(genre.id);
-          const isSelected = selection.includes(id);
-          return (
-            <button
-              key={genre.id}
-              type="button"
-              onClick={() => toggleSelection(id)}
-              aria-pressed={isSelected}
-              className={cn(
-                badgeVariants({
-                  variant: isSelected ? "default" : "secondary",
-                }),
-                isSelected &&
-                  "ring-2 ring-primary/60 ring-offset-2 ring-offset-background",
-              )}
-            >
-              {genre.name}
-            </button>
-          );
-        })}
+        {genres.map((genre) => (
+          <button
+            key={genre.id}
+            onClick={() => toggleSelection(genre.id)}
+            className={badgeVariants({
+              variant: selection.includes(genre.id) ? "default" : "secondary",
+            })}
+          >
+            {genre.name}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -276,15 +266,10 @@ interface DiscoverFilterVoteAverageProps {
 export const DiscoverFilterVoteAverage: React.FC<
   DiscoverFilterVoteAverageProps
 > = ({ value: initialValue, onChange }) => {
-  const fromProps = initialValue ? parseInt(initialValue, 10) : 0;
-  const [local, setLocal] = React.useState(fromProps);
+  const value = initialValue ? parseInt(initialValue) : 0;
 
-  React.useEffect(() => {
-    setLocal(fromProps);
-  }, [fromProps]);
-
-  const handleValueCommit = (value: number[]) => {
-    onChange(value[0] !== undefined ? String(value[0]) : "");
+  const handleValueChange = (value: number[]) => {
+    onChange(value.toString());
   };
 
   return (
@@ -295,9 +280,8 @@ export const DiscoverFilterVoteAverage: React.FC<
         min={0}
         max={10}
         step={1}
-        value={[local]}
-        onValueChange={(v) => setLocal(v[0] ?? 0)}
-        onValueCommit={handleValueCommit}
+        value={[value]}
+        onValueChange={handleValueChange}
       />
 
       <div className="mt-4 flex justify-between border-t">
@@ -306,7 +290,7 @@ export const DiscoverFilterVoteAverage: React.FC<
             <span
               className={cn(
                 "text-[9px]",
-                local !== i && "text-muted-foreground",
+                value !== i && "text-muted-foreground",
               )}
             >
               {i}
@@ -329,15 +313,10 @@ interface DiscoverFilterVoteCountProps {
 export const DiscoverFilterVoteCount: React.FC<
   DiscoverFilterVoteCountProps
 > = ({ value: initialValue, onChange }) => {
-  const fromProps = initialValue ? parseInt(initialValue, 10) : 0;
-  const [local, setLocal] = React.useState(fromProps);
+  const value = initialValue ? parseInt(initialValue) : 0;
 
-  React.useEffect(() => {
-    setLocal(fromProps);
-  }, [fromProps]);
-
-  const handleValueCommit = (value: number[]) => {
-    onChange(value[0] !== undefined ? String(value[0]) : "");
+  const handleValueChange = (value: number[]) => {
+    onChange(value.toString());
   };
 
   return (
@@ -348,9 +327,8 @@ export const DiscoverFilterVoteCount: React.FC<
         min={0}
         max={500}
         step={500 / 10}
-        value={[local]}
-        onValueChange={(v) => setLocal(v[0] ?? 0)}
-        onValueCommit={handleValueCommit}
+        value={[value]}
+        onValueChange={handleValueChange}
       />
 
       <div className="mt-4 flex justify-between border-t">
@@ -359,7 +337,7 @@ export const DiscoverFilterVoteCount: React.FC<
             <span
               className={cn(
                 "text-[9px]",
-                local !== i * 50 && "text-muted-foreground",
+                value !== i * 50 && "text-muted-foreground",
               )}
             >
               {i * 50}
@@ -406,8 +384,8 @@ export const DiscoverFilterProvider: React.FC<DiscoverFilterProviderProps> = ({
       <Label className="flex items-center gap-2 text-muted-foreground">
         Where to watch
         <InfoTooltip className="w-60">
-          Provider filters use the US catalog from TMDb (fixed region, not based
-          on your location).
+          Currently showing providers are available in your region. You can
+          change your region in the settings.
         </InfoTooltip>
       </Label>
       <Popover>
@@ -520,30 +498,21 @@ const ProviderList = ({
     </Command>
   );
 };
-
 // --- discover-filters.tsx ---
 
 interface DiscoverFiltersProps {
   type: "movie" | "tv";
   genres: Genre[];
   providers: WatchProvider[];
-  serverDiscoverFilters?: Record<string, string>;
 }
 
 export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   type,
   genres,
   providers,
-  serverDiscoverFilters,
 }) => {
-  const {
-    count,
-    getFilter,
-    setFilter,
-    saveFilters,
-    clearFilters,
-    resetDraftFromUrl,
-  } = useFilters(type, serverDiscoverFilters);
+  const { count, getFilter, setFilter, saveFilters, clearFilters } =
+    useFilters(type);
 
   const dateGte =
     type === "movie" ? "primary_release_date.gte" : "first_air_date.gte";
@@ -551,13 +520,7 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
     type === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
 
   return (
-    <Sheet
-      onOpenChange={(open) => {
-        if (open) {
-          resetDraftFromUrl();
-        }
-      }}
-    >
+    <Sheet>
       <SheetTrigger className={cn(buttonVariants({ variant: "outline" }))}>
         <SlidersHorizontal className="mr-2 size-4" /> Filters
         {count > 0 && (
