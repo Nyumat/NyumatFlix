@@ -152,7 +152,6 @@ const SiteNavItem = ({
             ? "border border-primary/35 bg-primary/10 dark:border-white/30 dark:bg-white/15"
             : "hover:border-border/60 hover:bg-muted/50 focus-within:border-border/60 focus-within:bg-muted/50 dark:hover:border-white/25 dark:hover:bg-white/10 dark:focus-within:border-white/25 dark:focus-within:bg-white/10",
         )}
-        onPointerEnter={() => setMenuValue(title)}
       >
         <NavigationMenuLink asChild>
           <Link
