@@ -151,9 +151,13 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
               type="button"
               onClick={() => toggleSelection(id)}
               aria-pressed={isSelected}
-              className={badgeVariants({
-                variant: isSelected ? "default" : "secondary",
-              })}
+              className={cn(
+                badgeVariants({
+                  variant: isSelected ? "default" : "secondary",
+                }),
+                isSelected &&
+                  "ring-2 ring-primary/60 ring-offset-2 ring-offset-background",
+              )}
             >
               {genre.name}
             </button>
@@ -272,10 +276,15 @@ interface DiscoverFilterVoteAverageProps {
 export const DiscoverFilterVoteAverage: React.FC<
   DiscoverFilterVoteAverageProps
 > = ({ value: initialValue, onChange }) => {
-  const value = initialValue ? parseInt(initialValue) : 0;
+  const fromProps = initialValue ? parseInt(initialValue, 10) : 0;
+  const [local, setLocal] = React.useState(fromProps);
 
-  const handleValueChange = (value: number[]) => {
-    onChange(value.toString());
+  React.useEffect(() => {
+    setLocal(fromProps);
+  }, [fromProps]);
+
+  const handleValueCommit = (value: number[]) => {
+    onChange(value[0] !== undefined ? String(value[0]) : "");
   };
 
   return (
@@ -286,8 +295,9 @@ export const DiscoverFilterVoteAverage: React.FC<
         min={0}
         max={10}
         step={1}
-        value={[value]}
-        onValueChange={handleValueChange}
+        value={[local]}
+        onValueChange={(v) => setLocal(v[0] ?? 0)}
+        onValueCommit={handleValueCommit}
       />
 
       <div className="mt-4 flex justify-between border-t">
@@ -296,7 +306,7 @@ export const DiscoverFilterVoteAverage: React.FC<
             <span
               className={cn(
                 "text-[9px]",
-                value !== i && "text-muted-foreground",
+                local !== i && "text-muted-foreground",
               )}
             >
               {i}
@@ -319,10 +329,15 @@ interface DiscoverFilterVoteCountProps {
 export const DiscoverFilterVoteCount: React.FC<
   DiscoverFilterVoteCountProps
 > = ({ value: initialValue, onChange }) => {
-  const value = initialValue ? parseInt(initialValue) : 0;
+  const fromProps = initialValue ? parseInt(initialValue, 10) : 0;
+  const [local, setLocal] = React.useState(fromProps);
 
-  const handleValueChange = (value: number[]) => {
-    onChange(value.toString());
+  React.useEffect(() => {
+    setLocal(fromProps);
+  }, [fromProps]);
+
+  const handleValueCommit = (value: number[]) => {
+    onChange(value[0] !== undefined ? String(value[0]) : "");
   };
 
   return (
@@ -333,8 +348,9 @@ export const DiscoverFilterVoteCount: React.FC<
         min={0}
         max={500}
         step={500 / 10}
-        value={[value]}
-        onValueChange={handleValueChange}
+        value={[local]}
+        onValueChange={(v) => setLocal(v[0] ?? 0)}
+        onValueCommit={handleValueCommit}
       />
 
       <div className="mt-4 flex justify-between border-t">
@@ -343,7 +359,7 @@ export const DiscoverFilterVoteCount: React.FC<
             <span
               className={cn(
                 "text-[9px]",
-                value !== i * 50 && "text-muted-foreground",
+                local !== i * 50 && "text-muted-foreground",
               )}
             >
               {i * 50}
@@ -504,21 +520,26 @@ const ProviderList = ({
     </Command>
   );
 };
+
 // --- discover-filters.tsx ---
 
 interface DiscoverFiltersProps {
   type: "movie" | "tv";
   genres: Genre[];
   providers: WatchProvider[];
+  serverDiscoverFilters?: Record<string, string>;
 }
 
 export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   type,
   genres,
   providers,
+  serverDiscoverFilters,
 }) => {
-  const { count, getFilter, setFilter, saveFilters, clearFilters } =
-    useFilters(type);
+  const { count, getFilter, setFilter, saveFilters, clearFilters } = useFilters(
+    type,
+    serverDiscoverFilters,
+  );
 
   const dateGte =
     type === "movie" ? "primary_release_date.gte" : "first_air_date.gte";
