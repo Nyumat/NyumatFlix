@@ -1,4 +1,5 @@
 import React from "react";
+import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,7 +11,6 @@ import { TvListType, WithCredits, WithImages, WithVideos } from "@/tmdb/api";
 import { format, tmdbImage } from "@/tmdb/utils";
 import { ArrowRight, Calendar, Clock } from "lucide-react";
 
-import { TMDB_WATCH_REGION } from "@/lib/constants";
 import {
   formatValue,
   getRandomItems,
@@ -35,8 +35,8 @@ import {
   MediaBackdrop,
   MediaCreditsList,
   MediaRating,
+  MediaVideos,
 } from "@/components/media/media-shared";
-import { MediaVideos } from "@/components/media/media-videos";
 import { MediaWatchProviders } from "@/components/media/media-watch-providers";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { TvCard } from "./tv-card";
@@ -68,20 +68,20 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
       </div>
 
       <div className="overlay">
-        <div className="mx-auto max-w-3xl space-y-3 p-4 pb-6 text-center md:space-y-4 md:p-8 md:pb-8 lg:p-10">
+        <div className="mx-auto max-w-3xl space-y-4 p-4 pb-8 text-center md:p-14">
           <Badge className="select-none">{label}</Badge>
 
           {logo ? (
             <Image
               src={tmdbImage.logo(logo.file_path, "w500")}
-              className="mx-auto my-6 w-[min(58%,15rem)] md:my-8 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
+              className="mx-auto my-12 w-3/4"
               alt={item.name}
               height={logo.height}
               width={logo.width}
               unoptimized
             />
           ) : (
-            <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-3xl lg:text-4xl">
+            <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-4xl">
               {item.name}
             </h1>
           )}
@@ -90,7 +90,7 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
             <MediaRating average={item.vote_average} count={item.vote_count} />
             {item.genres.map((genre) => (
               <Link
-                href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
+                href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}`}
                 key={genre.id}
               >
                 <Badge variant="secondary" className="ml-2 select-none">
@@ -112,7 +112,7 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
                 variant: "default",
               })}
             >
-              Watch Now <ArrowRight className="ml-2 size-4" />
+              Details <ArrowRight className="ml-2 size-4" />
             </Link>
           </div>
         </div>
@@ -126,7 +126,6 @@ interface TvHeroProps {
   label: string;
   count?: number;
   priority?: boolean;
-  pick?: "random" | "first";
 }
 
 export const TvHero: React.FC<TvHeroProps> = ({
@@ -134,12 +133,8 @@ export const TvHero: React.FC<TvHeroProps> = ({
   label,
   count = 1,
   priority,
-  pick = "random",
 }) => {
-  const items =
-    pick === "first"
-      ? tvShows.slice(0, Math.min(count, tvShows.length))
-      : getRandomItems(tvShows, count);
+  const items = getRandomItems(tvShows, count);
 
   return items.map((item) => (
     <TvHeroItem
@@ -396,6 +391,8 @@ export const TvList: React.FC<TvListProps> = async ({
   title,
   description,
 }) => {
+  const cookieStore = await cookies();
+  const region = cookieStore.get("region")?.value ?? "US";
   const timezone = getUserTimezone();
 
   const {
@@ -403,7 +400,7 @@ export const TvList: React.FC<TvListProps> = async ({
     total_pages: totalPages,
     page: currentPage,
   } = await tmdb.tv.list({
-    region: TMDB_WATCH_REGION,
+    region,
     list,
     page,
     timezone,
