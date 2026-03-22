@@ -41,7 +41,7 @@ NavigationMenuList.displayName = NavigationMenuPrimitive.List.displayName;
 const NavigationMenuItem = NavigationMenuPrimitive.Item;
 
 const navigationMenuTriggerStyle = cva(
-  "group inline-flex h-10 w-max items-center justify-center rounded-md border border-border/70 bg-background/50 px-4 py-2 text-sm font-medium text-foreground shadow-md backdrop-blur-md transition-all hover:bg-muted/60 hover:text-foreground focus:bg-muted/50 focus:text-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-muted/50 data-[state=open]:bg-muted/50 dark:border-white/25 dark:bg-white/5 dark:text-white dark:hover:bg-white/15 dark:focus:bg-white/15 dark:data-[active]:bg-white/15 dark:data-[state=open]:bg-white/15",
+  "group inline-flex h-10 w-max items-center justify-center rounded-full border border-border/25 bg-background/20 px-4 py-2 text-sm font-medium text-foreground shadow-none backdrop-blur-sm transition-all hover:bg-muted/40 hover:text-foreground focus:bg-muted/30 focus:text-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-muted/30 data-[state=open]:bg-muted/30 dark:border-white/10 dark:bg-white/[0.06] dark:text-white/90 dark:hover:bg-white/10 dark:focus:bg-white/10 dark:data-[active]:bg-white/10 dark:data-[state=open]:bg-white/10",
 );
 
 type NavigationMenuTriggerProps = React.ComponentPropsWithoutRef<
@@ -97,7 +97,7 @@ const NavigationMenuViewport = React.forwardRef<
   <div className={cn("absolute left-0 top-full flex justify-center")}>
     <NavigationMenuPrimitive.Viewport
       className={cn(
-        "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-md border border-border/80 bg-popover/95 text-popover-foreground shadow-lg backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90 md:w-[var(--radix-navigation-menu-viewport-width)] dark:border-white/20",
+        "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-md border border-border/40 bg-popover/90 text-popover-foreground shadow-md backdrop-blur-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90 md:w-[var(--radix-navigation-menu-viewport-width)] dark:border-white/12",
         className,
       )}
       ref={ref}
