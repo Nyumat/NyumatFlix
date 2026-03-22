@@ -43,9 +43,21 @@ export const useSort = (type: "movie" | "tv") => {
 
   const setSort = (value: string) => {
     const search = new URLSearchParams(searchParams);
+    const currentView = search.get("view")?.trim();
+    const existingFrom = search.get("catalog_from")?.trim();
+    const catalogFrom =
+      existingFrom ||
+      (currentView && currentView !== "discover" && currentView !== "upcoming"
+        ? currentView
+        : undefined);
 
     search.set("view", "discover");
     search.set("mode", "results");
+    if (catalogFrom) {
+      search.set("catalog_from", catalogFrom);
+    } else {
+      search.delete("catalog_from");
+    }
     search.set("sort_by", value);
     search.delete("page");
 

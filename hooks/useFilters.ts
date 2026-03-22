@@ -1,56 +1,61 @@
-import { useEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { pages } from "@/config";
-
+import { parseMovieView, parseTvView } from "@/lib/catalog-query";
+import { countCatalogFilterBadge } from "@/lib/discover-filter-count";
 import { filterDiscoverParams, searchParamsToRecord } from "@/lib/utils";
 
-export const useFilters = (type: "movie" | "tv") => {
+export const useFilters = (
+  type: "movie" | "tv",
+  serverDiscoverFilters?: Record<string, string>,
+) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
 
-  const activeParams = useMemo(
-    () => searchParamsToRecord(new URLSearchParams(searchKey)),
-    [searchKey],
+  const [urlRecord, setUrlRecord] = useState<Record<string, string>>(() =>
+    serverDiscoverFilters ? { ...serverDiscoverFilters } : {},
   );
 
-  const activeFilters = useMemo(
-    () => filterDiscoverParams(activeParams),
-    [activeParams],
-  );
-
-  const [overrides, setOverrides] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    setOverrides({});
+  useLayoutEffect(() => {
+    setUrlRecord(
+      searchParamsToRecord(new URLSearchParams(window.location.search)),
+    );
   }, [searchKey]);
 
-  const mergedFilters = useMemo(
-    () => ({ ...activeFilters, ...overrides }),
-    [activeFilters, overrides],
+  const activeFilters = useMemo(
+    () => filterDiscoverParams(urlRecord),
+    [urlRecord],
   );
 
-  const getFilter = (key: string) => mergedFilters[key] ?? "";
-
-  const setFilter = (value: Record<string, string>) => {
-    setOverrides((prev) => ({
-      ...prev,
-      ...value,
-    }));
-  };
+  const getFilter = (key: string) => activeFilters[key] ?? "";
 
   const catalogBase =
     type === "movie" ? pages.movie.catalog.link : pages.tv.catalog.link;
 
-  const saveFilters = () => {
+  const pushDiscoverFiltersToUrl = (mergedDiscover: Record<string, string>) => {
+    const raw =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams(searchKey);
+    const record = searchParamsToRecord(raw);
+    const sortBy = record.sort_by;
+    const currentView = record.view?.trim();
+    const catalogFrom =
+      record.catalog_from?.trim() ||
+      (currentView && currentView !== "discover" && currentView !== "upcoming"
+        ? currentView
+        : undefined);
+
     const next = new URLSearchParams();
     next.set("view", "discover");
     next.set("mode", "results");
-    for (const [key, val] of Object.entries(mergedFilters)) {
+    if (catalogFrom) {
+      next.set("catalog_from", catalogFrom);
+    }
+    for (const [key, val] of Object.entries(mergedDiscover)) {
       if (val) next.set(key, val);
     }
-    const sortBy = activeParams.sort_by;
-
     if (sortBy) {
       next.set("sort_by", sortBy);
     }
@@ -58,31 +63,63 @@ export const useFilters = (type: "movie" | "tv") => {
     router.replace(`${catalogBase}?${next.toString()}`);
   };
 
+  const setFilter = (partial: Record<string, string>) => {
+    const raw =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams(searchKey);
+    const current = filterDiscoverParams(searchParamsToRecord(raw));
+    const merged = { ...current, ...partial };
+    pushDiscoverFiltersToUrl(merged);
+  };
+
+  const saveFilters = () => {
+    pushDiscoverFiltersToUrl(activeFilters);
+  };
+
   const clearFilters = () => {
+    const catalogFromRaw = urlRecord.catalog_from?.trim();
+    if (catalogFromRaw) {
+      const listView =
+        type === "movie"
+          ? parseMovieView(catalogFromRaw)
+          : parseTvView(catalogFromRaw);
+      if (listView !== "discover") {
+        const cleared = new URLSearchParams();
+        cleared.set("view", listView);
+        cleared.set("mode", "results");
+        if (listView === "trending") {
+          const tt = urlRecord.trending_time;
+          if (tt === "week") cleared.set("trending_time", "week");
+        }
+        router.replace(`${catalogBase}?${cleared.toString()}`);
+        return;
+      }
+    }
+
     const cleared = new URLSearchParams();
     cleared.set("view", "discover");
-    const sortBy = activeParams.sort_by;
-    const hasUrlFilters = Object.values(activeFilters).some(Boolean);
+    const sortBy = urlRecord.sort_by;
+    const hasUrlFilters = countCatalogFilterBadge(urlRecord, activeFilters) > 0;
 
     if (sortBy) {
       cleared.set("sort_by", sortBy);
     }
 
-    if (activeParams.mode === "results" || hasUrlFilters || Boolean(sortBy)) {
+    if (urlRecord.mode === "results" || hasUrlFilters || Boolean(sortBy)) {
       cleared.set("mode", "results");
     }
 
-    setOverrides({});
     router.replace(`${catalogBase}?${cleared.toString()}`);
   };
 
   const count = useMemo(
-    () => Object.values(mergedFilters).filter(Boolean).length,
-    [mergedFilters],
+    () => countCatalogFilterBadge(urlRecord, activeFilters),
+    [urlRecord, activeFilters],
   );
 
   return {
-    filters: mergedFilters,
+    filters: activeFilters,
     count,
     getFilter,
     setFilter,
