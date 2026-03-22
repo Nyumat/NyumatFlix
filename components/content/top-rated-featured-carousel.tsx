@@ -98,7 +98,7 @@ export const TopRatedFeaturedCarousel = ({
                 )}
                 prefetch={false}
               >
-                Explore more
+                More
               </Link>
             ) : null}
           </div>
