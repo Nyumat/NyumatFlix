@@ -64,11 +64,9 @@ export const PersonList: React.FC<PersonListProps> = async ({
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
               {title}
             </h1>
-            {description ? (
-              <p className="mx-auto mt-2 max-w-3xl text-muted-foreground">
-                {description}
-              </p>
-            ) : null}
+            <p className="mx-auto mt-2 max-w-3xl text-muted-foreground">
+              {description}
+            </p>
           </div>
 
           <div className="grid-list">
