@@ -1,5 +1,4 @@
 import React from "react";
-import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,6 +10,7 @@ import { TvListType, WithCredits, WithImages, WithVideos } from "@/tmdb/api";
 import { format, tmdbImage } from "@/tmdb/utils";
 import { ArrowRight, Calendar, Clock } from "lucide-react";
 
+import { TMDB_WATCH_REGION } from "@/lib/constants";
 import {
   formatValue,
   getRandomItems,
@@ -396,8 +396,6 @@ export const TvList: React.FC<TvListProps> = async ({
   title,
   description,
 }) => {
-  const cookieStore = await cookies();
-  const region = cookieStore.get("region")?.value ?? "US";
   const timezone = getUserTimezone();
 
   const {
@@ -405,7 +403,7 @@ export const TvList: React.FC<TvListProps> = async ({
     total_pages: totalPages,
     page: currentPage,
   } = await tmdb.tv.list({
-    region,
+    region: TMDB_WATCH_REGION,
     list,
     page,
     timezone,

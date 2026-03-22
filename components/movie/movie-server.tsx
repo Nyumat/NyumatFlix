@@ -1,5 +1,4 @@
 import React from "react";
-import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,6 +9,7 @@ import { MovieListType, WithImages } from "@/tmdb/api";
 import { format, tmdbImage } from "@/tmdb/utils";
 import { ArrowRight } from "lucide-react";
 
+import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { cn, formatValue, getRandomItems } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -211,7 +211,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
                 variant: "default",
               })}
             >
-              Details <ArrowRight className="ml-2 size-4" />
+              Watch Now <ArrowRight className="ml-2 size-4" />
             </Link>
           </div>
         </div>
@@ -263,15 +263,12 @@ export const MovieList: React.FC<MovieListProps> = async ({
   title,
   description,
 }) => {
-  const cookieStore = await cookies();
-  const region = cookieStore.get("region")?.value ?? "US";
-
   const {
     results,
     total_pages: totalPages,
     page: currentPage,
   } = await tmdb.movie.list({
-    region,
+    region: TMDB_WATCH_REGION,
     list,
     page,
   });
