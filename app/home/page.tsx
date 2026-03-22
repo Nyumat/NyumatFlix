@@ -4,6 +4,10 @@ import { TrendCarousel } from "@/components/trend";
 import { MovieHero } from "@/components/movie";
 import { TvHero } from "@/components/tv";
 import { pages } from "@/config/pages";
+import {
+  filterReleasedMovies,
+  filterReleasedTvShows,
+} from "@/lib/released-media";
 import { getCountryName } from "@/lib/utils";
 import { tmdb } from "@/tmdb/api";
 import { cookies } from "next/headers";
@@ -35,27 +39,31 @@ export default async function Home() {
   const region = cookieStore.get("region")?.value ?? "US";
   const countryLabel = getCountryName(region);
 
-  const { results: movies } = await tmdb.trending.movie({
+  const { results: moviesRaw } = await tmdb.trending.movie({
     time: "day",
     page: "1",
   });
+  const movies = filterReleasedMovies(moviesRaw);
 
-  const { results: popularMovies } = await tmdb.movie.list({
+  const { results: popularMoviesRaw } = await tmdb.movie.list({
     list: "popular",
     page: "1",
     region,
   });
+  const popularMovies = filterReleasedMovies(popularMoviesRaw);
 
-  const { results: tvShows } = await tmdb.trending.tv({
+  const { results: tvShowsRaw } = await tmdb.trending.tv({
     time: "day",
     page: "1",
   });
+  const tvShows = filterReleasedTvShows(tvShowsRaw);
 
-  const { results: popularTv } = await tmdb.tv.list({
+  const { results: popularTvRaw } = await tmdb.tv.list({
     list: "popular",
     page: "1",
     region,
   });
+  const popularTv = filterReleasedTvShows(popularTvRaw);
 
   return (
     <div className="flex w-full flex-col">
