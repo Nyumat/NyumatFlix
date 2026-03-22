@@ -1,3 +1,5 @@
+import { buildCatalogCtaUrl } from "@/lib/catalog-query";
+
 const home = {
   title: "Home",
   description:
@@ -16,6 +18,10 @@ const movie = {
     title: "Movies",
     description: "Browse and filter movies.",
     link: "/movies",
+    resultsLink: buildCatalogCtaUrl("movie", {
+      mode: "results",
+      extra: { view: "discover" },
+    }),
   },
   discover: {
     title: "Discover Movies",
@@ -25,35 +31,34 @@ const movie = {
   popular: {
     title: "Popular Movies",
     description: "What audiences are watching right now in your region.",
-    link: "/movies?view=popular",
+    link: buildCatalogCtaUrl("movie", { view: "popular", mode: "results" }),
   },
   topRated: {
     title: "Top Rated Movies",
     description: "Highly rated films worth your time.",
-    link: "/movies?view=top_rated",
-  },
-  upcoming: {
-    title: "Upcoming Movies",
-    description: "Coming soon to theaters and streaming.",
-    link: "/movies?view=upcoming",
+    link: buildCatalogCtaUrl("movie", { view: "top_rated", mode: "results" }),
   },
   nowPlaying: {
     title: "Now Playing",
     description: "Currently in theaters.",
-    link: "/movies?view=now_playing",
+    link: buildCatalogCtaUrl("movie", { view: "now_playing", mode: "results" }),
   },
 };
 
 const tv = {
   root: {
     title: "TV Shows",
-    description: "Binge-worthy series, new episodes, and timeless classics.",
+    description: "Trending series, new episodes, and timeless classics.",
     link: "/tvshows",
   },
   catalog: {
     title: "TV Shows",
     description: "Browse and filter TV series.",
     link: "/tvshows",
+    resultsLink: buildCatalogCtaUrl("tv", {
+      mode: "results",
+      extra: { view: "discover" },
+    }),
   },
   discover: {
     title: "Discover TV Shows",
@@ -64,22 +69,22 @@ const tv = {
   popular: {
     title: "Popular TV Shows",
     description: "Shows people are talking about.",
-    link: "/tvshows?view=popular",
+    link: buildCatalogCtaUrl("tv", { view: "popular", mode: "results" }),
   },
   topRated: {
     title: "Top Rated TV Shows",
     description: "Critically acclaimed television.",
-    link: "/tvshows?view=top_rated",
+    link: buildCatalogCtaUrl("tv", { view: "top_rated", mode: "results" }),
   },
   airingToday: {
     title: "Airing Today",
     description: "Episodes airing today.",
-    link: "/tvshows?view=airing_today",
+    link: buildCatalogCtaUrl("tv", { view: "airing_today", mode: "results" }),
   },
   onTheAir: {
     title: "On The Air",
     description: "Shows currently releasing new episodes.",
-    link: "/tvshows?view=on_the_air",
+    link: buildCatalogCtaUrl("tv", { view: "on_the_air", mode: "results" }),
   },
 };
 
@@ -125,12 +130,12 @@ const trending = {
   movie: {
     title: "Trending Movies",
     description: "Films gaining momentum right now.",
-    link: "/trending/movie",
+    link: buildCatalogCtaUrl("movie", { view: "trending", mode: "results" }),
   },
   tv: {
     title: "Trending TV Shows",
     description: "Series people can’t stop watching.",
-    link: "/trending/tv",
+    link: buildCatalogCtaUrl("tv", { view: "trending", mode: "results" }),
   },
   people: {
     title: "Trending People",

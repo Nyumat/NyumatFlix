@@ -55,11 +55,6 @@ const movies: NavItem = {
       description: pages.movie.nowPlaying.description,
     },
     {
-      title: "Upcoming",
-      href: pages.movie.upcoming.link,
-      description: pages.movie.upcoming.description,
-    },
-    {
       title: "Top Rated",
       href: pages.movie.topRated.link,
       description: pages.movie.topRated.description,
