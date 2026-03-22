@@ -13,11 +13,11 @@ import {
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
+import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterDiscoverParams, getUserTimezone } from "@/lib/utils";
 import { tmdb } from "@/tmdb/api";
 import type { SortByTypeMovie, SortByTypeTv } from "@/tmdb/api";
 import type { MediaItem } from "@/utils/typings";
-import { cookies } from "next/headers";
 
 const toSearchParams = (queryParams: Record<string, string>) => {
   const sp: Record<string, string> = { ...queryParams };
@@ -29,8 +29,7 @@ export const fetchCatalogNextPage = async (
   queryParams: Record<string, string>,
   page: number,
 ): Promise<{ results: MediaItem[]; page: number }> => {
-  const cookieStore = await cookies();
-  const region = cookieStore.get("region")?.value ?? "US";
+  const region = TMDB_WATCH_REGION;
   const sp = toSearchParams(queryParams);
   const pageStr = String(page);
 
