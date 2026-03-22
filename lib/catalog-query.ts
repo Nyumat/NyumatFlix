@@ -34,7 +34,7 @@ export const parseTvView = (value: string | undefined): TvCatalogView => {
   return "discover";
 };
 
-export const CATALOG_UI_PARAM_KEYS = ["mode", "catalog_from"] as const;
+export const CATALOG_UI_PARAM_KEYS = ["mode"] as const;
 
 export type CatalogUiMode = "results";
 
@@ -89,30 +89,6 @@ export const buildCatalogCtaUrl = (
   const base = catalogBase[mediaType];
   return qs ? `${base}?${qs}` : base;
 };
-
-export const buildProductionCompanyCatalogUrl = (
-  mediaType: "movie" | "tv",
-  company: { id: number; name: string },
-): string =>
-  buildCatalogCtaUrl(mediaType, {
-    mode: "results",
-    extra: {
-      with_companies: String(company.id),
-      company_name: company.name,
-    },
-  });
-
-export const buildNetworkCatalogUrl = (network: {
-  id: number;
-  name: string;
-}): string =>
-  buildCatalogCtaUrl("tv", {
-    mode: "results",
-    extra: {
-      with_networks: String(network.id),
-      network_name: network.name,
-    },
-  });
 
 export const parseTrendingTime = (value: string | undefined): "day" | "week" =>
   value === "week" ? "week" : "day";

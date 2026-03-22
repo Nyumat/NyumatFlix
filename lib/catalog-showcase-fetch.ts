@@ -4,12 +4,10 @@ import {
   filterReleasedTvShows,
 } from "@/lib/released-media";
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
-import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { tmdb } from "@/tmdb/api";
 import type { MediaItem } from "@/utils/typings";
 
-const MIN_PER_ROW = 20;
-const MAX_FETCH_PAGES = 5;
+const MIN_PER_ROW = 14;
 
 type ShowcaseDef = {
   id: string;
@@ -17,7 +15,6 @@ type ShowcaseDef = {
   href: string;
   fetchPage: (
     region: string,
-    page: string,
   ) => Promise<{ results: Array<Record<string, unknown>> }>;
   mapItem: (raw: Record<string, unknown>) => MediaItem;
 };
@@ -25,16 +22,16 @@ type ShowcaseDef = {
 const movieShowcase: ShowcaseDef[] = [
   {
     id: "showcase-action",
-    title: "Action Movies",
+    title: "Action picks",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "28" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.movie({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "28",
         "vote_count.gte": "50",
@@ -43,16 +40,16 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-comedy",
-    title: "Comedy Movies",
+    title: "Comedy night",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "35" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.movie({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "35",
         "vote_count.gte": "50",
@@ -61,16 +58,16 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-scifi",
-    title: "Sci-Fi & Fantasy",
+    title: "Sci‑Fi & fantasy",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "878" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.movie({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "878",
         "vote_count.gte": "40",
@@ -79,16 +76,16 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-drama",
-    title: "Drama Movies",
+    title: "Drama spotlight",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "18" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.movie({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "18",
         "vote_count.gte": "80",
@@ -97,16 +94,16 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-thriller",
-    title: "Thriller Movies",
+    title: "Thrillers",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "53" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.movie({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "53",
         "vote_count.gte": "40",
@@ -115,16 +112,16 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-horror",
-    title: "Horror Movies",
+    title: "Horror corner",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "27" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.movie({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "27",
         "vote_count.gte": "40",
@@ -139,10 +136,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "80" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.movie({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "80",
         "vote_count.gte": "40",
@@ -151,16 +148,16 @@ const movieShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-animation",
-    title: "Animated Movies",
+    title: "Animation",
     href: buildCatalogCtaUrl("movie", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "16" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.movie({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "16",
         "vote_count.gte": "40",
@@ -172,16 +169,16 @@ const movieShowcase: ShowcaseDef[] = [
 const tvShowcase: ShowcaseDef[] = [
   {
     id: "showcase-tv-drama",
-    title: "Drama Series",
+    title: "Drama series",
     href: buildCatalogCtaUrl("tv", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "18" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.tv({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "18",
         "vote_count.gte": "25",
@@ -190,16 +187,16 @@ const tvShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-tv-comedy",
-    title: "Comedy Series",
+    title: "Comedy series",
     href: buildCatalogCtaUrl("tv", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "35" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.tv({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "35",
         "vote_count.gte": "25",
@@ -208,16 +205,16 @@ const tvShowcase: ShowcaseDef[] = [
   },
   {
     id: "showcase-tv-scifi",
-    title: "Sci-Fi & Fantasy TV",
+    title: "Sci‑Fi & fantasy TV",
     href: buildCatalogCtaUrl("tv", {
       view: "discover",
       mode: "results",
       extra: { with_genres: "10765" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.tv({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "10765",
         "vote_count.gte": "20",
@@ -232,10 +229,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "10759" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.tv({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "10759",
         "vote_count.gte": "20",
@@ -250,10 +247,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "80" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.tv({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "80",
         "vote_count.gte": "20",
@@ -268,10 +265,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "9648" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.tv({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "9648",
         "vote_count.gte": "15",
@@ -286,10 +283,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "16" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.tv({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "16",
         "vote_count.gte": "15",
@@ -304,10 +301,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "99" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region) =>
       tmdb.discover.tv({
         watch_region: region,
-        page,
+        page: "1",
         sort_by: "popularity.desc",
         with_genres: "99",
         "vote_count.gte": "10",
@@ -315,6 +312,8 @@ const tvShowcase: ShowcaseDef[] = [
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
 ];
+
+const hasPoster = (item: MediaItem): boolean => Boolean(item.poster_path);
 
 export const fetchCatalogShowcaseRows = async (
   pageKey: "movies" | "tv",
@@ -337,28 +336,21 @@ export const fetchCatalogShowcaseRows = async (
   }> = [];
 
   for (const def of defs) {
+    const raw = await def.fetchPage(region);
+    const base = raw.results.map((r) => def.mapItem(r));
+    const released =
+      mediaType === "movie"
+        ? filterReleasedMovies(base)
+        : filterReleasedTvShows(base);
+
     const picked: MediaItem[] = [];
-
-    for (
-      let pageNum = 1;
-      picked.length < MIN_PER_ROW && pageNum <= MAX_FETCH_PAGES;
-      pageNum++
-    ) {
-      const raw = await def.fetchPage(region, String(pageNum));
-      const base = raw.results.map((r) => def.mapItem(r));
-      const released =
-        mediaType === "movie"
-          ? filterReleasedMovies(base)
-          : filterReleasedTvShows(base);
-      const withPoster = filterWithPosterPath(released);
-
-      for (const item of withPoster) {
-        const key = makeEntityKey(item.id, mediaType);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        picked.push(item);
-        if (picked.length >= MIN_PER_ROW) break;
-      }
+    for (const item of released) {
+      if (!hasPoster(item)) continue;
+      const key = makeEntityKey(item.id, mediaType);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      picked.push(item);
+      if (picked.length >= MIN_PER_ROW) break;
     }
 
     if (picked.length > 0) {
