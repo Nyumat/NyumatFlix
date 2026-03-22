@@ -2,6 +2,7 @@
 
 import { HoverCardPortal } from "@radix-ui/react-hover-card";
 import { pages } from "@/config";
+import { hasPosterPath } from "@/lib/media-poster-path";
 import { formatValue } from "@/lib/utils";
 import { type Movie } from "@/tmdb/models";
 import { format } from "@/tmdb/utils";
@@ -18,6 +19,10 @@ import React from "react";
 export const MovieCard: React.FC<Movie> = (props) => {
   const { id, poster_path, title, vote_average, vote_count, release_date } =
     props;
+
+  if (!hasPosterPath({ poster_path })) {
+    return null;
+  }
 
   return (
     <HoverCard>

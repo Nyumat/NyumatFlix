@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Icons } from "@/components/icons";
 import { pages } from "@/config";
+import { hasPosterPath } from "@/lib/media-poster-path";
 import { cn, formatValue } from "@/lib/utils";
 import {
   type Cast,
@@ -284,11 +285,13 @@ export const MediaPreview: React.FC<Movie | TvShow> = (props) => {
       )}
 
       <div className="relative flex gap-3 p-3 sm:gap-4 sm:p-4">
-        <div className="flex w-[4.75rem] shrink-0 flex-col justify-center sm:w-24">
-          <div className="relative aspect-poster w-full overflow-hidden rounded-md border border-white/15 shadow-lg ring-1 ring-black/20">
-            <MediaPoster image={poster_path} alt={title} size="w342" />
+        {hasPosterPath({ poster_path }) ? (
+          <div className="flex w-[4.75rem] shrink-0 flex-col justify-center sm:w-24">
+            <div className="relative aspect-poster w-full overflow-hidden rounded-md border border-white/15 shadow-lg ring-1 ring-black/20">
+              <MediaPoster image={poster_path} alt={title} size="w342" />
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="min-w-0 flex-1">
           <h3 className="mb-2 line-clamp-2 text-sm font-semibold leading-snug sm:text-base">

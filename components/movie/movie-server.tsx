@@ -10,6 +10,7 @@ import { MovieListType, WithImages } from "@/tmdb/api";
 import { format, tmdbImage } from "@/tmdb/utils";
 import { ArrowRight } from "lucide-react";
 
+import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { cn, formatValue, getRandomItems } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -172,7 +173,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
           {logo ? (
             <Image
               src={tmdbImage.logo(logo.file_path, "w500")}
-              className="mx-auto my-6 w-[min(70%,18rem)] md:my-8 md:w-[min(55%,16rem)] lg:w-[min(50%,18rem)]"
+              className="mx-auto my-6 w-[min(58%,15rem)] md:my-8 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
               alt={item.title}
               height={logo.height}
               width={logo.width}
@@ -279,6 +280,12 @@ export const MovieList: React.FC<MovieListProps> = async ({
     return notFound();
   }
 
+  const withPosters = filterWithPosterPath(results);
+
+  if (!withPosters.length) {
+    return notFound();
+  }
+
   return (
     <div className="container space-y-8">
       <div className="md:mb-12 md:mt-6">
@@ -287,7 +294,7 @@ export const MovieList: React.FC<MovieListProps> = async ({
       </div>
 
       <div className="grid-list">
-        {results.map((movie) => (
+        {withPosters.map((movie) => (
           <MovieCard key={movie.id} {...movie} />
         ))}
       </div>

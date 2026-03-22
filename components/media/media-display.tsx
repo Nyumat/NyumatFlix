@@ -1,6 +1,5 @@
 "use client";
 
-import { Icons } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import type { PosterSize } from "@/tmdb/utils";
 import { tmdbImage } from "@/tmdb/utils";
@@ -119,19 +118,7 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
   const src = image ? tmdbImage.poster(image, size) : null;
 
   if (!src) {
-    return (
-      <div
-        className={cn(
-          "relative aspect-poster w-full rounded-md border bg-muted text-muted-foreground",
-          className,
-        )}
-        {...props}
-      >
-        <div className="grid size-full min-h-0 place-items-center">
-          <Icons.Logo className="size-12" />
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

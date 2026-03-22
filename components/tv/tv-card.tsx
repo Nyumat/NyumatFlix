@@ -2,6 +2,7 @@
 
 import { HoverCardPortal } from "@radix-ui/react-hover-card";
 import { pages } from "@/config";
+import { hasPosterPath } from "@/lib/media-poster-path";
 import { format } from "@/tmdb/utils";
 import { type TvShow } from "@/tmdb/models";
 import { formatValue } from "@/lib/utils";
@@ -18,6 +19,10 @@ import React from "react";
 export const TvCard: React.FC<TvShow> = (props) => {
   const { id, poster_path, name, vote_average, vote_count, first_air_date } =
     props;
+
+  if (!hasPosterPath({ poster_path })) {
+    return null;
+  }
 
   return (
     <HoverCard>
