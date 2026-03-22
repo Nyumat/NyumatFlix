@@ -74,6 +74,16 @@ export function getUserTimezone(): string {
   }
 }
 
+export const searchParamsToRecord = (
+  sp: Pick<URLSearchParams, "forEach">,
+): Record<string, string> => {
+  const out: Record<string, string> = {};
+  sp.forEach((value, key) => {
+    out[key] = value;
+  });
+  return out;
+};
+
 export function filterDiscoverParams(
   params?: Record<string, string>,
 ): Record<string, string> {
