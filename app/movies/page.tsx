@@ -88,7 +88,8 @@ export default async function MoviesCatalogPage(props: PageProps) {
     const [
       { results: trendingRaw },
       catalogResponse,
-      { results: popularMoviesRaw },
+      popularByVoteResponse,
+      { results: topRatedMoviesForHubRaw },
     ] = await Promise.all([
       tmdb.trending.movie({ time: "day", page: "1" }),
       tmdb.discover.movie({
@@ -102,15 +103,28 @@ export default async function MoviesCatalogPage(props: PageProps) {
           today,
         ),
       }),
+      tmdb.discover.movie({
+        watch_region: TMDB_WATCH_REGION,
+        page: "1",
+        sort_by: "vote_count.desc",
+        ...mergedDiscover,
+        "primary_release_date.lte": clampDiscoverMovieLte(
+          mergedDiscover["primary_release_date.lte"],
+          today,
+        ),
+      }),
       tmdb.movie.list({
-        list: "popular",
+        list: "top_rated",
         page: "1",
         region: TMDB_WATCH_REGION,
       }),
     ]);
 
     const trendingMovies = filterReleasedMovies(trendingRaw);
-    const popularMovies = filterReleasedMovies(popularMoviesRaw);
+    const popularMovies = filterReleasedMovies(
+      popularByVoteResponse.results ?? [],
+    );
+    const topRatedMoviesForHub = filterReleasedMovies(topRatedMoviesForHubRaw);
 
     const {
       results: moviesRaw,
@@ -170,8 +184,8 @@ export default async function MoviesCatalogPage(props: PageProps) {
 
     const moviesForRanked =
       heroFeaturedId != null
-        ? movies.filter((m) => m.id !== heroFeaturedId)
-        : movies;
+        ? topRatedMoviesForHub.filter((m) => m.id !== heroFeaturedId)
+        : topRatedMoviesForHub;
 
     const hubTopPicksRow = moviesForRanked.slice(0, 12);
 
@@ -259,7 +273,6 @@ export default async function MoviesCatalogPage(props: PageProps) {
                 <TrendCarousel
                   type="movie"
                   title={pages.trending.movie.title}
-                  description={pages.trending.movie.description}
                   link={pages.trending.movie.link}
                   items={hubTrendingCarouselEnriched as MovieWithMediaType[]}
                 />
@@ -279,12 +292,12 @@ export default async function MoviesCatalogPage(props: PageProps) {
               {hubTopPicksRow.length > 0 ? (
                 <ContentRow
                   variant="ranked"
-                  title="Top Picks"
+                  title={pages.movie.topRated.title}
                   items={hubTopPicksRow.map((m) => ({
                     ...m,
                     media_type: "movie" as const,
                   }))}
-                  href={pages.movie.catalog.resultsLink}
+                  href={pages.movie.topRated.link}
                 />
               ) : null}
 
@@ -292,8 +305,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
                 <TrendCarousel
                   type="movie"
                   title="Popular"
-                  description={pages.movie.popular.description}
-                  link={pages.movie.popular.link}
+                  link={pages.movie.popular.discoverHubLink}
                   items={hubPopularCarouselEnriched as MovieWithMediaType[]}
                 />
               ) : null}

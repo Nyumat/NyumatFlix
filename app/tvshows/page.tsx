@@ -93,7 +93,8 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     const [
       { results: trendingRaw },
       catalogResponse,
-      { results: popularTvRaw },
+      popularByVoteResponse,
+      { results: topRatedTvForHubRaw },
     ] = await Promise.all([
       tmdb.trending.tv({ time: "day", page: "1" }),
       tmdb.discover.tv({
@@ -106,8 +107,18 @@ export default async function TvShowsCatalogPage(props: PageProps) {
           today,
         ),
       }),
+      tmdb.discover.tv({
+        watch_region: TMDB_WATCH_REGION,
+        page: "1",
+        sort_by: "vote_count.desc",
+        ...mergedDiscover,
+        "first_air_date.lte": clampDiscoverTvLte(
+          mergedDiscover["first_air_date.lte"],
+          today,
+        ),
+      }),
       tmdb.tv.list({
-        list: "popular",
+        list: "top_rated",
         page: "1",
         region: TMDB_WATCH_REGION,
         timezone,
@@ -115,7 +126,8 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     ]);
 
     const trendingShows = filterReleasedTvShows(trendingRaw);
-    const popularTv = filterReleasedTvShows(popularTvRaw);
+    const popularTv = filterReleasedTvShows(popularByVoteResponse.results ?? []);
+    const topRatedTvForHub = filterReleasedTvShows(topRatedTvForHubRaw);
 
     const {
       results: showsRaw,
@@ -175,8 +187,8 @@ export default async function TvShowsCatalogPage(props: PageProps) {
 
     const showsForRanked =
       heroFeaturedId != null
-        ? shows.filter((s) => s.id !== heroFeaturedId)
-        : shows;
+        ? topRatedTvForHub.filter((s) => s.id !== heroFeaturedId)
+        : topRatedTvForHub;
 
     const hubTopPicksRow = showsForRanked.slice(0, 12);
 
@@ -260,7 +272,6 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                 <TrendCarousel
                   type="tv"
                   title={pages.trending.tv.title}
-                  description={pages.trending.tv.description}
                   link={pages.trending.tv.link}
                   items={hubTrendingCarouselEnriched as TvShowWithMediaType[]}
                 />
@@ -280,12 +291,12 @@ export default async function TvShowsCatalogPage(props: PageProps) {
               {hubTopPicksRow.length > 0 ? (
                 <ContentRow
                   variant="ranked"
-                  title="Top Picks"
+                  title={pages.tv.topRated.title}
                   items={hubTopPicksRow.map((s) => ({
                     ...s,
                     media_type: "tv" as const,
                   }))}
-                  href={pages.tv.catalog.resultsLink}
+                  href={pages.tv.topRated.link}
                 />
               ) : null}
 
@@ -293,8 +304,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                 <TrendCarousel
                   type="tv"
                   title="Popular"
-                  description={pages.tv.popular.description}
-                  link={pages.tv.popular.link}
+                  link={pages.tv.popular.discoverHubLink}
                   items={hubPopularCarouselEnriched as TvShowWithMediaType[]}
                 />
               ) : null}
