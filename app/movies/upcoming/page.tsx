@@ -7,7 +7,7 @@ export default async function MoviesUpcomingRedirect({
 }) {
   const sp = await searchParams;
   const next = new URLSearchParams();
-  next.set("view", "upcoming");
+  next.set("mode", "results");
   if (sp.page) next.set("page", sp.page);
   redirect(`/movies?${next.toString()}`);
 }
