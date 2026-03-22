@@ -1,5 +1,5 @@
+import { CatalogDiscoverToolbarDynamic } from "@/components/catalog/catalog-discover-toolbar-dynamic";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
-import { DiscoverFilters, DiscoverSort } from "@/components/discover";
 import { filterDiscoverParams } from "@/lib/utils";
 import type { Genre, WatchProvider } from "@/tmdb/models";
 import type { MediaItem } from "@/utils/typings";
@@ -44,15 +44,12 @@ export const CatalogResultsLayout = ({
         ) : null}
       </header>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <DiscoverFilters
-          type={mediaType}
-          genres={genres}
-          providers={providers}
-          serverDiscoverFilters={serverDiscoverFilters}
-        />
-        <DiscoverSort type={mediaType} />
-      </div>
+      <CatalogDiscoverToolbarDynamic
+        mediaType={mediaType}
+        genres={genres}
+        providers={providers}
+        serverDiscoverFilters={serverDiscoverFilters}
+      />
 
       <CatalogInfiniteGrid
         mediaType={mediaType}
@@ -75,15 +72,12 @@ export const CatalogResultsLayout = ({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <DiscoverFilters
-          type={mediaType}
-          genres={genres}
-          providers={providers}
-          serverDiscoverFilters={serverDiscoverFilters}
-        />
-        <DiscoverSort type={mediaType} />
-      </div>
+      <CatalogDiscoverToolbarDynamic
+        mediaType={mediaType}
+        genres={genres}
+        providers={providers}
+        serverDiscoverFilters={serverDiscoverFilters}
+      />
 
       <div className="rounded-lg border border-dashed p-12 text-center">
         <p className="font-medium">{emptyTitle}</p>

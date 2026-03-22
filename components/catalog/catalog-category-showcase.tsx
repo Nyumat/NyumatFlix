@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { cookies } from "next/headers";
 
 import { TrendCarousel } from "@/components/trend/trend-client";
+import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { fetchCatalogShowcaseRows } from "@/lib/catalog-showcase-fetch";
 import type { MovieWithMediaType, TvShowWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/utils/typings";
@@ -44,12 +44,9 @@ async function CatalogCategoryShowcaseInner({
   excludeIds?: number[];
 }) {
   const mediaType = pageKey === "movies" ? "movie" : "tv";
-  const cookieStore = await cookies();
-  const region = cookieStore.get("region")?.value ?? "US";
-
   const rowsData = await fetchCatalogShowcaseRows(
     pageKey,
-    region,
+    TMDB_WATCH_REGION,
     excludeIds ?? [],
   );
 
