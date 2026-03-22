@@ -1,8 +1,12 @@
 "use client";
 
 import { pages } from "@/config";
+import {
+  mediaDetailTabStoreKey,
+  useMediaDetailTabStore,
+} from "@/lib/stores/media-detail-tab-store";
 import { cn } from "@/lib/utils";
-import { TabsLink } from "@/components/ui/tabs";
+import { usePathname } from "next/navigation";
 
 type MediaDetailRouteTabsProps = {
   mediaType: "movie" | "tv";
@@ -25,12 +29,66 @@ const tvTabs = [
   { segment: "seasons-episodes", label: "Seasons & Episodes" },
   { segment: "credits", label: "Cast" },
   { segment: "reviews", label: "Reviews" },
-  { segment: "series-graph", label: "Series graph" },
+  { segment: "series-graph", label: "Series Graph" },
   { segment: "images", label: "Images" },
   { segment: "videos", label: "Videos" },
   { segment: "recommendations", label: "Recommendations" },
   { segment: "similar", label: "Similar" },
 ] as const;
+
+const MediaDetailTabButton = ({
+  root,
+  id,
+  segment,
+  label,
+  mediaType,
+}: {
+  root: string;
+  id: string;
+  segment: string;
+  label: string;
+  mediaType: "movie" | "tv";
+}) => {
+  const pathname = usePathname();
+  const setMediaDetailTab = useMediaDetailTabStore((s) => s.setMediaDetailTab);
+  const owner = mediaType === "movie" ? "movie" : "tv";
+  const stored = useMediaDetailTabStore(
+    (s) => s.tabs[mediaDetailTabStoreKey(owner, id)],
+  );
+
+  const basePath = `${root}/${id}`;
+  const isActive =
+    pathname === basePath &&
+    (mediaType === "movie"
+      ? segment === ""
+        ? stored === undefined
+        : stored === segment
+      : stored === segment);
+
+  const handleClick = () => {
+    if (mediaType === "movie" && segment === "") {
+      setMediaDetailTab("movie", id, "");
+      return;
+    }
+    setMediaDetailTab(owner, id, segment);
+  };
+
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={isActive}
+      tabIndex={0}
+      onClick={handleClick}
+      data-state={isActive ? "active" : "inactive"}
+      className={cn(
+        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+      )}
+    >
+      {label}
+    </button>
+  );
+};
 
 export const MediaDetailRouteTabs = ({
   mediaType,
@@ -52,6 +110,7 @@ export const MediaDetailRouteTabs = ({
         )}
       >
         <div
+          role="tablist"
           className={cn(
             "rounded-md bg-muted p-1 text-muted-foreground",
             mediaType === "tv"
@@ -59,14 +118,16 @@ export const MediaDetailRouteTabs = ({
               : "inline-flex min-h-10 w-max items-center gap-1",
           )}
         >
-          {tabs.map(({ segment, label }) => {
-            const href = segment ? `${root}/${id}/${segment}` : `${root}/${id}`;
-            return (
-              <TabsLink key={label} href={href}>
-                {label}
-              </TabsLink>
-            );
-          })}
+          {tabs.map(({ segment, label }) => (
+            <MediaDetailTabButton
+              key={label}
+              root={root}
+              id={id}
+              segment={segment}
+              label={label}
+              mediaType={mediaType}
+            />
+          ))}
         </div>
       </div>
     </div>
