@@ -147,7 +147,7 @@ export const PersonCreditsTable: React.FC<PersonCreditsTableProps> = ({
               <TableRow>
                 <TableHead className="w-12"></TableHead>
                 <TableHead className="w-24">Year</TableHead>
-                <TableHead className="w-full">Details</TableHead>
+                <TableHead className="w-full">Title</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
