@@ -45,6 +45,7 @@ export const useSort = (type: "movie" | "tv") => {
     const search = new URLSearchParams(searchParams);
 
     search.set("view", "discover");
+    search.set("mode", "results");
     search.set("sort_by", value);
     search.delete("page");
 

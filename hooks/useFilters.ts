@@ -1,27 +1,42 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { pages } from "@/config";
 
-import { filterDiscoverParams } from "@/lib/utils";
+import { filterDiscoverParams, searchParamsToRecord } from "@/lib/utils";
 
 export const useFilters = (type: "movie" | "tv") => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeParams = Object.fromEntries(searchParams);
+  const searchKey = searchParams.toString();
 
-  const [filters, setFilters] = useState<Record<string, string>>(() =>
-    filterDiscoverParams(activeParams),
+  const activeParams = useMemo(
+    () => searchParamsToRecord(new URLSearchParams(searchKey)),
+    [searchKey],
   );
 
-  const getFilter = (key: string) => {
-    return filters[key] ?? "";
-  };
+  const activeFilters = useMemo(
+    () => filterDiscoverParams(activeParams),
+    [activeParams],
+  );
+
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setOverrides({});
+  }, [searchKey]);
+
+  const mergedFilters = useMemo(
+    () => ({ ...activeFilters, ...overrides }),
+    [activeFilters, overrides],
+  );
+
+  const getFilter = (key: string) => mergedFilters[key] ?? "";
 
   const setFilter = (value: Record<string, string>) => {
-    setFilters({
-      ...filters,
+    setOverrides((prev) => ({
+      ...prev,
       ...value,
-    });
+    }));
   };
 
   const catalogBase =
@@ -30,7 +45,8 @@ export const useFilters = (type: "movie" | "tv") => {
   const saveFilters = () => {
     const next = new URLSearchParams();
     next.set("view", "discover");
-    for (const [key, val] of Object.entries(filters)) {
+    next.set("mode", "results");
+    for (const [key, val] of Object.entries(mergedFilters)) {
       if (val) next.set(key, val);
     }
     const sortBy = activeParams.sort_by;
@@ -46,19 +62,27 @@ export const useFilters = (type: "movie" | "tv") => {
     const cleared = new URLSearchParams();
     cleared.set("view", "discover");
     const sortBy = activeParams.sort_by;
+    const hasUrlFilters = Object.values(activeFilters).some(Boolean);
 
     if (sortBy) {
       cleared.set("sort_by", sortBy);
     }
 
-    setFilters({});
+    if (activeParams.mode === "results" || hasUrlFilters || Boolean(sortBy)) {
+      cleared.set("mode", "results");
+    }
+
+    setOverrides({});
     router.replace(`${catalogBase}?${cleared.toString()}`);
   };
 
-  const count = Object.values(filters).filter(Boolean).length;
+  const count = useMemo(
+    () => Object.values(mergedFilters).filter(Boolean).length,
+    [mergedFilters],
+  );
 
   return {
-    filters,
+    filters: mergedFilters,
     count,
     getFilter,
     setFilter,
