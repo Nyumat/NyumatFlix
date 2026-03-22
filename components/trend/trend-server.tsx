@@ -1,5 +1,10 @@
+import {
+  filterReleasedMovies,
+  filterReleasedTvShows,
+} from "@/lib/released-media";
 import { notFound } from "next/navigation";
 import { tmdb } from "@/tmdb/api";
+import type { Movie, TvShow } from "@/tmdb/models";
 
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -24,13 +29,20 @@ export const TrendList: React.FC<TrendListProps> = async ({
   description,
 }) => {
   const {
-    results: trends,
+    results: rawTrends,
     total_pages: totalPages,
     page: currentPage,
   } = await tmdb.trending[type]({
     time,
     page,
   });
+
+  const trends =
+    type === "movie"
+      ? filterReleasedMovies(rawTrends as Movie[])
+      : type === "tv"
+        ? filterReleasedTvShows(rawTrends as TvShow[])
+        : rawTrends;
 
   if (!trends?.length) {
     return notFound();
