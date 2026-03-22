@@ -2,7 +2,6 @@
 
 import { SiteNav } from "@/components/layout/site-nav";
 import { NavbarSearchClient } from "@/components/search/search";
-import { cn } from "@/lib/utils";
 import type { Session } from "next-auth";
 import { BackButton } from "../../ui/back-button";
 import { NavbarAuth } from "./navbar-auth";
@@ -21,12 +20,8 @@ interface NavbarClientProps {
 
 export const NavbarClient = ({ session }: NavbarClientProps) => {
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
-      )}
-    >
-      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-4 sm:px-6 lg:gap-3 lg:px-8">
+    <header className="sticky top-0 z-50 w-full bg-transparent">
+      <div className="mx-auto flex min-h-14 max-w-[1400px] items-center gap-2 px-4 py-2.5 sm:px-6 lg:gap-3 lg:px-8">
         <div className="flex shrink-0 items-center gap-1 lg:gap-2">
           <BackButton />
         </div>
