@@ -63,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(manrope.variable, "dark")}
+      className={manrope.variable}
       suppressHydrationWarning
       data-scroll-behavior="smooth"
     >

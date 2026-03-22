@@ -22,6 +22,14 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: [
+          "var(--font-manrope)",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
+      },
       aspectRatio: {
         poster: "2 / 3",
       },
