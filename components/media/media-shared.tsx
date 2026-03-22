@@ -1,12 +1,5 @@
 import { InfoTooltip } from "@/components/shared/info-tooltip";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -24,11 +17,10 @@ import {
   type GuestStar,
   type Movie,
   type TvShow,
-  type Video,
 } from "@/tmdb/models";
 import type { BackdropSize } from "@/tmdb/utils";
-import { format, tmdbImage, yt } from "@/tmdb/utils";
-import { Play, User } from "lucide-react";
+import { format, tmdbImage } from "@/tmdb/utils";
+import { User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import React, { type ComponentProps } from "react";
@@ -97,31 +89,40 @@ export const MediaBackdrop: React.FC<MediaBackdropProps> = ({
 interface MediaRatingProps extends BadgeProps {
   average: number;
   count?: number;
+  showTooltip?: boolean;
 }
+
+const ratingBadgeClass =
+  "inline-flex w-fit min-w-12 shrink-0 justify-center tabular-nums";
 
 export const MediaRating: React.FC<MediaRatingProps> = ({
   average,
   count,
   className,
+  showTooltip = true,
   ...props
 }) => {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger>
-          <Badge
-            className={cn("flex items-center gap-1", className)}
-            {...props}
-          >
-            {average ? average.toFixed(1) : "N/A"}
-          </Badge>
-        </TooltipTrigger>
+  const badge = (
+    <Badge
+      className={cn("items-center gap-1", ratingBadgeClass, className)}
+      {...props}
+    >
+      {average ? average.toFixed(1) : "N/A"}
+    </Badge>
+  );
 
-        {!!count && (
-          <TooltipContent className="flex items-center gap-1 bg-foreground text-xs text-background">
-            <User className="size-3" /> {count}
-          </TooltipContent>
-        )}
+  if (!showTooltip || !count) {
+    return badge;
+  }
+
+  return (
+    <TooltipProvider delayDuration={500}>
+      <Tooltip>
+        <TooltipTrigger asChild>{badge}</TooltipTrigger>
+
+        <TooltipContent className="flex items-center gap-1 bg-foreground text-xs text-background">
+          <User className="size-3" /> {count}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -341,83 +342,10 @@ export const MediaPreview: React.FC<Movie | TvShow> = (props) => {
               "mt-3 border-white/20 bg-background/35 backdrop-blur-sm hover:bg-background/50",
             )}
           >
-            View Details
+            Watch Now
           </Link>
         </div>
       </div>
-    </div>
-  );
-};
-
-interface MediaVideosCardProps extends ComponentProps<"div"> {
-  name: string;
-  ytKey: string;
-}
-
-export const MediaVideosCard: React.FC<MediaVideosCardProps> = ({
-  name,
-  ytKey,
-  className,
-  ...props
-}) => (
-  <div
-    className={cn(
-      "relative aspect-video cursor-pointer overflow-hidden rounded-md border border-white/10 bg-black",
-      className,
-    )}
-    {...props}
-  >
-    <Image
-      className="object-cover"
-      src={yt.thumbnail(ytKey)}
-      alt={name}
-      unoptimized
-      fill
-      sizes="(max-width: 768px) 100vw, 33vw"
-    />
-    <div className="pointer-events-none absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/90 via-black/25 to-black/40 p-4 md:p-6">
-      <div className="flex flex-1 items-center justify-center">
-        <Play
-          className="size-10 text-white drop-shadow-md md:size-12"
-          aria-hidden
-        />
-      </div>
-      <h3 className="line-clamp-2 text-center text-sm font-semibold text-white drop-shadow md:text-left md:text-lg">
-        {name}
-      </h3>
-    </div>
-  </div>
-);
-
-interface MediaVideosProps {
-  videos: Video[];
-}
-
-export const MediaVideos: React.FC<MediaVideosProps> = async ({ videos }) => {
-  if (!videos?.length) return <div className="empty-box">No videos</div>;
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {videos.map(({ id, key, name }) => (
-        <Dialog key={id} modal>
-          <DialogTrigger asChild>
-            <MediaVideosCard name={name} ytKey={key} />
-          </DialogTrigger>
-
-          <DialogContent className="max-w-screen-lg">
-            <DialogHeader>
-              <DialogTitle>{name}</DialogTitle>
-            </DialogHeader>
-
-            <iframe
-              className="aspect-square size-full rounded-md sm:aspect-video"
-              src={yt.video(key, true)}
-              allow="autoplay; encrypted-media"
-              allowFullScreen={true}
-            />
-          </DialogContent>
-        </Dialog>
-      ))}
     </div>
   );
 };
