@@ -16,7 +16,7 @@ export function TvSeriesGraphTab({ allSeasonDetails }: TvSeriesGraphTabProps) {
       className="scroll-mt-24"
     >
       <h2 className="mb-3 text-xl font-semibold text-foreground sm:mb-4 sm:text-2xl">
-        Series graph
+        Series Graph
       </h2>
       <div className="rounded-xl border border-white/10 bg-black/10 p-3 shadow-xl backdrop-blur-md sm:p-4">
         <SeriesGraph allSeasonDetails={allSeasonDetails} />
