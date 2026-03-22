@@ -1,113 +1,117 @@
-import { buildCatalogCtaUrl } from "@/lib/catalog-query";
-
 const home = {
   title: "Home",
+  description:
+    "Browse trending and popular movies and TV on NyumatFlix — open, free, and ad-free.",
   link: "/home",
 };
 
 const movie = {
   root: {
     title: "Movies",
+    description:
+      "Discover films to watch next — from new releases to celebrated favorites.",
     link: "/movies",
   },
   catalog: {
     title: "Movies",
+    description: "Browse and filter movies.",
     link: "/movies",
-    resultsLink: buildCatalogCtaUrl("movie", {
-      mode: "results",
-      extra: { view: "discover" },
-    }),
   },
   discover: {
-    title: "Movies",
+    title: "Discover Movies",
+    description: "Filter and explore movies by genre, year, rating, and more.",
     link: "/movies",
-  },
-  discoverResults: {
-    title: "Most Popular",
   },
   popular: {
     title: "Popular Movies",
-    link: buildCatalogCtaUrl("movie", { view: "popular", mode: "results" }),
-    discoverHubLink: buildCatalogCtaUrl("movie", {
-      mode: "results",
-      extra: { sort_by: "vote_count.desc" },
-    }),
+    description: "What audiences are watching right now in your region.",
+    link: "/movies?view=popular",
   },
   topRated: {
     title: "Top Rated Movies",
-    link: buildCatalogCtaUrl("movie", { view: "top_rated", mode: "results" }),
+    description: "Highly rated films worth your time.",
+    link: "/movies?view=top_rated",
+  },
+  upcoming: {
+    title: "Upcoming Movies",
+    description: "Coming soon to theaters and streaming.",
+    link: "/movies?view=upcoming",
   },
   nowPlaying: {
     title: "Now Playing",
-    link: buildCatalogCtaUrl("movie", { view: "now_playing", mode: "results" }),
+    description: "Currently in theaters.",
+    link: "/movies?view=now_playing",
   },
 };
 
 const tv = {
   root: {
     title: "TV Shows",
+    description: "Binge-worthy series, new episodes, and timeless classics.",
     link: "/tvshows",
   },
   catalog: {
     title: "TV Shows",
+    description: "Browse and filter TV series.",
     link: "/tvshows",
-    resultsLink: buildCatalogCtaUrl("tv", {
-      mode: "results",
-      extra: { view: "discover" },
-    }),
   },
   discover: {
-    title: "TV Shows",
+    title: "Discover TV Shows",
+    description:
+      "Find your next series with filters tailored to how you watch.",
     link: "/tvshows",
-  },
-  discoverResults: {
-    title: "Most Popular",
   },
   popular: {
     title: "Popular TV Shows",
-    link: buildCatalogCtaUrl("tv", { view: "popular", mode: "results" }),
-    discoverHubLink: buildCatalogCtaUrl("tv", {
-      mode: "results",
-      extra: { sort_by: "vote_count.desc" },
-    }),
+    description: "Shows people are talking about.",
+    link: "/tvshows?view=popular",
   },
   topRated: {
     title: "Top Rated TV Shows",
-    link: buildCatalogCtaUrl("tv", { view: "top_rated", mode: "results" }),
+    description: "Critically acclaimed television.",
+    link: "/tvshows?view=top_rated",
   },
   airingToday: {
     title: "Airing Today",
-    link: buildCatalogCtaUrl("tv", { view: "airing_today", mode: "results" }),
+    description: "Episodes airing today.",
+    link: "/tvshows?view=airing_today",
   },
   onTheAir: {
     title: "On The Air",
-    link: buildCatalogCtaUrl("tv", { view: "on_the_air", mode: "results" }),
+    description: "Shows currently releasing new episodes.",
+    link: "/tvshows?view=on_the_air",
   },
 };
 
 const people = {
   root: {
     title: "People",
+    description: "Actors, directors, and crew behind the titles you love.",
     link: "/people/popular",
   },
   popular: {
     title: "Popular People",
+    description: "The most visible people on TMDB’s popular list.",
     link: "/people/popular",
   },
   search: {
-    title: "Search People",
+    title: "Search people",
+    description: "Look up actors, directors, and crew by name.",
     link: "/search",
   },
   popularActors: {
-    title: "Popular Actors",
+    title: "Popular actors",
+    description: "Male performers on TMDB’s popular people list.",
     link: "/people/popular?department=Acting&gender=2",
   },
   popularActresses: {
-    title: "Popular Actresses",
+    title: "Popular actresses",
+    description: "Female performers on TMDB’s popular people list.",
     link: "/people/popular?department=Acting&gender=1",
   },
   popularDirectors: {
-    title: "Popular Directors",
+    title: "Popular directors",
+    description: "Directors on TMDB’s popular people list.",
     link: "/people/popular?department=Directing",
   },
 };
@@ -115,18 +119,22 @@ const people = {
 const trending = {
   root: {
     title: "Trending",
+    description: "What’s hot in movies and TV today.",
     link: "/trending",
   },
   movie: {
     title: "Trending Movies",
-    link: buildCatalogCtaUrl("movie", { view: "trending", mode: "results" }),
+    description: "Films gaining momentum right now.",
+    link: "/trending/movie",
   },
   tv: {
     title: "Trending TV Shows",
-    link: buildCatalogCtaUrl("tv", { view: "trending", mode: "results" }),
+    description: "Series people can’t stop watching.",
+    link: "/trending/tv",
   },
   people: {
     title: "Trending People",
+    description: "Names in the spotlight.",
     link: "/trending/people",
   },
 };
@@ -134,12 +142,14 @@ const trending = {
 const collection = {
   root: {
     title: "Collections",
+    description: "Curated lists from TMDB.",
     link: "/search",
   },
 };
 
 const search = {
   title: "Search",
+  description: "Find movies, TV shows, and people.",
   link: "/search",
 };
 
