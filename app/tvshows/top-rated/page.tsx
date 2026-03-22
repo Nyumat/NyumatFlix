@@ -8,6 +8,7 @@ export default async function TvTopRatedRedirect({
   const sp = await searchParams;
   const next = new URLSearchParams();
   next.set("view", "top_rated");
+  next.set("mode", "results");
   if (sp.page) next.set("page", sp.page);
   redirect(`/tvshows?${next.toString()}`);
 }
