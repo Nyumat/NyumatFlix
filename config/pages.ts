@@ -24,9 +24,13 @@ const movie = {
     }),
   },
   discover: {
-    title: "Discover Movies",
-    description: "Filter and explore movies by genre, year, rating, and more.",
+    title: "Movies",
+    description: "",
     link: "/movies",
+  },
+  discoverResults: {
+    title: "Top Picks",
+    description: "",
   },
   popular: {
     title: "Popular Movies",
@@ -61,10 +65,13 @@ const tv = {
     }),
   },
   discover: {
-    title: "Discover TV Shows",
-    description:
-      "Find your next series with filters tailored to how you watch.",
+    title: "TV Shows",
+    description: "",
     link: "/tvshows",
+  },
+  discoverResults: {
+    title: "Top Picks",
+    description: "",
   },
   popular: {
     title: "Popular TV Shows",
