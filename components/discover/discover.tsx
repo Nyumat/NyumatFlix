@@ -406,8 +406,8 @@ export const DiscoverFilterProvider: React.FC<DiscoverFilterProviderProps> = ({
       <Label className="flex items-center gap-2 text-muted-foreground">
         Where to watch
         <InfoTooltip className="w-60">
-          Currently showing providers are available in your region. You can
-          change your region in the settings.
+          Provider filters use the US catalog from TMDb (fixed region, not based
+          on your location).
         </InfoTooltip>
       </Label>
       <Popover>
