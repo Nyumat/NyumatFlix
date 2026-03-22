@@ -1,3 +1,4 @@
+import { enrichMediaItemsWithLogos } from "@/app/actions";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { TrendCarousel } from "@/components/trend";
@@ -65,6 +66,24 @@ export default async function Home() {
   });
   const popularTv = filterReleasedTvShows(popularTvRaw);
 
+  const [
+    moviesForTrendCarousel,
+    popularMoviesForTrendCarousel,
+    tvShowsForTrendCarousel,
+    popularTvForTrendCarousel,
+  ] = await Promise.all([
+    enrichMediaItemsWithLogos(movies, "movie"),
+    enrichMediaItemsWithLogos(
+      popularMovies.map((m) => ({ ...m, media_type: "movie" as const })),
+      "movie",
+    ),
+    enrichMediaItemsWithLogos(tvShows, "tv"),
+    enrichMediaItemsWithLogos(
+      popularTv.map((s) => ({ ...s, media_type: "tv" as const })),
+      "tv",
+    ),
+  ]);
+
   return (
     <div className="flex w-full flex-col">
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
@@ -79,7 +98,7 @@ export default async function Home() {
               title="Trending movies"
               description={pages.trending.movie.description}
               link={pages.trending.movie.link}
-              items={movies}
+              items={moviesForTrendCarousel}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -95,10 +114,7 @@ export default async function Home() {
               title={`Popular movies in ${countryLabel}`}
               description={pages.movie.popular.description}
               link={pages.movie.popular.link}
-              items={popularMovies.map((movie) => ({
-                ...movie,
-                media_type: "movie" as const,
-              }))}
+              items={popularMoviesForTrendCarousel}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -114,7 +130,7 @@ export default async function Home() {
               title="Trending TV shows"
               description={pages.trending.tv.description}
               link={pages.trending.tv.link}
-              items={tvShows}
+              items={tvShowsForTrendCarousel}
             />
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -130,10 +146,7 @@ export default async function Home() {
               title={`Popular TV in ${countryLabel}`}
               description={pages.tv.popular.description}
               link={pages.tv.popular.link}
-              items={popularTv.map((tv) => ({
-                ...tv,
-                media_type: "tv" as const,
-              }))}
+              items={popularTvForTrendCarousel}
             />
 
             <div className="grid gap-4 md:grid-cols-2">

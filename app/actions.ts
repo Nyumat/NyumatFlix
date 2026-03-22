@@ -865,6 +865,48 @@ export async function fetchTVShowCertification(
   }
 }
 
+const LOGO_ENRICH_CHUNK = 8;
+
+export async function enrichMediaItemsWithLogos<
+  T extends { id: number } & Partial<MediaItem>,
+>(items: T[], mediaType: "movie" | "tv"): Promise<T[]> {
+  if (!items.length) {
+    return items;
+  }
+
+  const out: T[] = [];
+
+  for (let i = 0; i < items.length; i += LOGO_ENRICH_CHUNK) {
+    const slice = items.slice(i, i + LOGO_ENRICH_CHUNK);
+    const batch = await Promise.all(
+      slice.map(async (item) => {
+        try {
+          const detailedData = await fetchTMDBData(`/${mediaType}/${item.id}`);
+          const logos = (detailedData as TmdbTvShowDetails).images?.logos;
+          let logo: Logo | undefined;
+          if (logos?.length) {
+            const pick = logos.find((l) => l.iso_639_1 === "en") ?? logos[0];
+            const logoResult = LogoSchema.safeParse(pick);
+            if (logoResult.success) {
+              logo = logoResult.data;
+            }
+          }
+          return { ...item, logo } as T;
+        } catch (error) {
+          logger.error(
+            `enrichMediaItemsWithLogos failed for ${mediaType} ${item.id}:`,
+            error,
+          );
+          return item;
+        }
+      }),
+    );
+    out.push(...batch);
+  }
+
+  return out;
+}
+
 export async function fetchAndEnrichMediaItems<
   T extends { id: number } & Partial<MediaItem>,
 >(items: T[], mediaType?: "movie" | "tv"): Promise<T[]> {

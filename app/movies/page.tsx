@@ -1,3 +1,4 @@
+import { enrichMediaItemsWithLogos } from "@/app/actions";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
@@ -10,71 +11,37 @@ import { CatalogSpotlight } from "@/components/trend/catalog-spotlight";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { pages } from "@/config";
+import {
+  filterUnseenById,
+  takeUniqueByIdInOrder,
+} from "@/lib/catalog-page-dedupe";
 import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import {
   parseMovieView,
   parseTrendingTime,
   stripCatalogUiParams,
 } from "@/lib/catalog-query";
+import { buildCatalogDiscoverUrlMerge } from "@/lib/discover-merge";
+import { getMovieCatalogListCopy } from "@/lib/catalog-list-copy";
 import { getDiscoverCatalogCopy } from "@/lib/discover-page-copy";
 import {
   clampDiscoverMovieLte,
   filterReleasedMovies,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
-import { buildCatalogDiscoverUrlMerge } from "@/lib/discover-merge";
-import {
-  filterUnseenById,
-  takeUniqueByIdInOrder,
-} from "@/lib/catalog-page-dedupe";
 import {
   filterDiscoverParams,
   getCountryName,
   normalizeRouteSearchParams,
 } from "@/lib/utils";
-import { tmdb } from "@/tmdb/api";
 import type { SortByTypeMovie } from "@/tmdb/api";
+import { tmdb } from "@/tmdb/api";
 import type { MovieWithMediaType } from "@/tmdb/models";
+import type { MediaItem } from "@/utils/typings";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import type { MediaItem } from "@/utils/typings";
 
 export const revalidate = 3600;
-
-const getMovieCopy = (view: ReturnType<typeof parseMovieView>) => {
-  switch (view) {
-    case "discover":
-      return {
-        title: pages.movie.discover.title,
-        description: pages.movie.discover.description,
-      };
-    case "popular":
-      return {
-        title: pages.movie.popular.title,
-        description: pages.movie.popular.description,
-      };
-    case "now_playing":
-      return {
-        title: pages.movie.nowPlaying.title,
-        description: pages.movie.nowPlaying.description,
-      };
-    case "top_rated":
-      return {
-        title: pages.movie.topRated.title,
-        description: pages.movie.topRated.description,
-      };
-    case "trending":
-      return {
-        title: pages.trending.movie.title,
-        description: pages.trending.movie.description,
-      };
-    default:
-      return {
-        title: pages.movie.discover.title,
-        description: pages.movie.discover.description,
-      };
-  }
-};
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -87,7 +54,7 @@ export async function generateMetadata({
   const sp = normalizeRouteSearchParams(raw);
   const view = parseMovieView(sp.view);
   const { title, description } =
-    getDiscoverCatalogCopy(sp, "movie") ?? getMovieCopy(view);
+    getDiscoverCatalogCopy(sp, "movie") ?? getMovieCatalogListCopy(view);
 
   return {
     title: `${title} | NyumatFlix`,
@@ -114,7 +81,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
   const view = parseMovieView(sp.view);
   const layoutState = getCatalogLayoutState(sp, view);
   const { title, description } =
-    getDiscoverCatalogCopy(sp, "movie") ?? getMovieCopy(view);
+    getDiscoverCatalogCopy(sp, "movie") ?? getMovieCatalogListCopy(view);
   const cookieStore = await cookies();
   const region = cookieStore.get("region")?.value ?? "US";
   const catalogQueryParams = toCatalogQueryParams(sp);
@@ -216,7 +183,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
     const hubTrendingCarousel = takeUniqueByIdInOrder(
       trendingMovies,
       hubSeen,
-      20,
+      40,
     );
     const hubTrendingHeroPair = takeUniqueByIdInOrder(
       trendingMovies,
@@ -226,9 +193,27 @@ export default async function MoviesCatalogPage(props: PageProps) {
     const hubPopularCarousel = takeUniqueByIdInOrder(
       popularMovies,
       hubSeen,
-      20,
+      40,
     );
     const hubPopularHeroPair = takeUniqueByIdInOrder(popularMovies, hubSeen, 2);
+
+    const [hubTrendingCarouselEnriched, hubPopularCarouselEnriched] =
+      await Promise.all([
+        enrichMediaItemsWithLogos(
+          hubTrendingCarousel.map((m) => ({
+            ...m,
+            media_type: "movie" as const,
+          })),
+          "movie",
+        ),
+        enrichMediaItemsWithLogos(
+          hubPopularCarousel.map((m) => ({
+            ...m,
+            media_type: "movie" as const,
+          })),
+          "movie",
+        ),
+      ]);
 
     const hubGridItems: MediaItem[] = filterUnseenById(movies, hubSeen).map(
       (m) => ({ ...m, media_type: "movie" as const }),
@@ -255,6 +240,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
                   type="movie"
                   genres={genres}
                   providers={providers}
+                  serverDiscoverFilters={filterDiscoverParams(sp)}
                 />
                 <DiscoverSort type="movie" />
               </div>
@@ -276,12 +262,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
                   title={pages.trending.movie.title}
                   description={pages.trending.movie.description}
                   link={pages.trending.movie.link}
-                  items={
-                    hubTrendingCarousel.map((m) => ({
-                      ...m,
-                      media_type: "movie" as const,
-                    })) as MovieWithMediaType[]
-                  }
+                  items={hubTrendingCarouselEnriched as MovieWithMediaType[]}
                 />
               ) : null}
 
@@ -299,7 +280,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
               {hubTopPicksRow.length > 0 ? (
                 <ContentRow
                   variant="ranked"
-                  title="Top picks"
+                  title="Top Picks"
                   items={hubTopPicksRow.map((m) => ({
                     ...m,
                     media_type: "movie" as const,
@@ -314,12 +295,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
                   title={`Popular in ${countryLabel}`}
                   description={pages.movie.popular.description}
                   link={pages.movie.popular.link}
-                  items={
-                    hubPopularCarousel.map((m) => ({
-                      ...m,
-                      media_type: "movie" as const,
-                    })) as MovieWithMediaType[]
-                  }
+                  items={hubPopularCarouselEnriched as MovieWithMediaType[]}
                 />
               ) : null}
 
