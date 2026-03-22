@@ -2,7 +2,11 @@ import { useLayoutEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { pages } from "@/config";
 import { parseMovieView, parseTvView } from "@/lib/catalog-query";
-import { countCatalogFilterBadge } from "@/lib/discover-filter-count";
+import {
+  countCatalogFilterBadge,
+  countDiscoverFilterSelections,
+  isMeaningfulDiscoverValue,
+} from "@/lib/discover-filter-count";
 import { filterDiscoverParams, searchParamsToRecord } from "@/lib/utils";
 
 export const useFilters = (
@@ -17,10 +21,16 @@ export const useFilters = (
     serverDiscoverFilters ? { ...serverDiscoverFilters } : {},
   );
 
+  const [draftFilters, setDraftFilters] = useState<Record<string, string>>(() =>
+    filterDiscoverParams(serverDiscoverFilters ?? {}),
+  );
+
   useLayoutEffect(() => {
-    setUrlRecord(
-      searchParamsToRecord(new URLSearchParams(window.location.search)),
+    const record = searchParamsToRecord(
+      new URLSearchParams(window.location.search),
     );
+    setUrlRecord(record);
+    setDraftFilters(filterDiscoverParams(record));
   }, [searchKey]);
 
   const activeFilters = useMemo(
@@ -28,7 +38,7 @@ export const useFilters = (
     [urlRecord],
   );
 
-  const getFilter = (key: string) => activeFilters[key] ?? "";
+  const getFilter = (key: string) => draftFilters[key] ?? "";
 
   const catalogBase =
     type === "movie" ? pages.movie.catalog.link : pages.tv.catalog.link;
@@ -64,21 +74,30 @@ export const useFilters = (
   };
 
   const setFilter = (partial: Record<string, string>) => {
-    const raw =
-      typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search)
-        : new URLSearchParams(searchKey);
-    const current = filterDiscoverParams(searchParamsToRecord(raw));
-    const merged = { ...current, ...partial };
-    pushDiscoverFiltersToUrl(merged);
+    setDraftFilters((prev) => {
+      const merged = { ...prev, ...partial };
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(merged)) {
+        if (isMeaningfulDiscoverValue(k, v)) {
+          out[k] = v;
+        }
+      }
+      return out;
+    });
   };
 
-  const saveFilters = () => {
-    pushDiscoverFiltersToUrl(activeFilters);
+  const resetDraftFromUrl = () => {
+    const record = searchParamsToRecord(
+      new URLSearchParams(window.location.search),
+    );
+    setDraftFilters(filterDiscoverParams(record));
   };
 
-  const clearFilters = () => {
-    const catalogFromRaw = urlRecord.catalog_from?.trim();
+  const applyEmptyDiscoverFiltersToUrl = () => {
+    const record = searchParamsToRecord(
+      new URLSearchParams(window.location.search),
+    );
+    const catalogFromRaw = record.catalog_from?.trim();
     if (catalogFromRaw) {
       const listView =
         type === "movie"
@@ -89,7 +108,7 @@ export const useFilters = (
         cleared.set("view", listView);
         cleared.set("mode", "results");
         if (listView === "trending") {
-          const tt = urlRecord.trending_time;
+          const tt = record.trending_time;
           if (tt === "week") cleared.set("trending_time", "week");
         }
         router.replace(`${catalogBase}?${cleared.toString()}`);
@@ -97,20 +116,33 @@ export const useFilters = (
       }
     }
 
+    const applied = filterDiscoverParams(record);
     const cleared = new URLSearchParams();
     cleared.set("view", "discover");
-    const sortBy = urlRecord.sort_by;
-    const hasUrlFilters = countCatalogFilterBadge(urlRecord, activeFilters) > 0;
+    const sortBy = record.sort_by;
+    const hasUrlFilters = countCatalogFilterBadge(record, applied) > 0;
 
     if (sortBy) {
       cleared.set("sort_by", sortBy);
     }
 
-    if (urlRecord.mode === "results" || hasUrlFilters || Boolean(sortBy)) {
+    if (record.mode === "results" || hasUrlFilters || Boolean(sortBy)) {
       cleared.set("mode", "results");
     }
 
     router.replace(`${catalogBase}?${cleared.toString()}`);
+  };
+
+  const saveFilters = () => {
+    if (countDiscoverFilterSelections(draftFilters) === 0) {
+      applyEmptyDiscoverFiltersToUrl();
+      return;
+    }
+    pushDiscoverFiltersToUrl(draftFilters);
+  };
+
+  const clearFilters = () => {
+    setDraftFilters({});
   };
 
   const count = useMemo(
@@ -125,5 +157,6 @@ export const useFilters = (
     setFilter,
     saveFilters,
     clearFilters,
+    resetDraftFromUrl,
   };
 };
