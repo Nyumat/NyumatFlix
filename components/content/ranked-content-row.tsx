@@ -8,6 +8,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import useMedia from "@/hooks/useMedia";
+import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { MediaItem } from "@/utils/typings";
 import { ContentRowHeader } from "./content-row-header";
 import { RankedBackdropCard } from "./ranked-backdrop-card";
@@ -24,7 +25,7 @@ export function RankedContentRow({
   href,
 }: RankedContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
-  const items = initialItems.slice(0, 3);
+  const items = filterWithPosterPath(initialItems).slice(0, 3);
 
   if (isMobile) {
     return (
