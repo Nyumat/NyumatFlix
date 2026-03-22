@@ -66,9 +66,11 @@ export const TrendList: React.FC<TrendListProps> = async ({
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
               {title}
             </h1>
-            <p className="mx-auto mt-2 max-w-3xl text-muted-foreground">
-              {description}
-            </p>
+            {description ? (
+              <p className="mx-auto mt-2 max-w-3xl text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
           </div>
 
           <div className="grid-list">
