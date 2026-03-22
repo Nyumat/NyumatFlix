@@ -34,7 +34,7 @@ export const parseTvView = (value: string | undefined): TvCatalogView => {
   return "discover";
 };
 
-export const CATALOG_UI_PARAM_KEYS = ["mode"] as const;
+export const CATALOG_UI_PARAM_KEYS = ["mode", "catalog_from"] as const;
 
 export type CatalogUiMode = "results";
 

@@ -1,3 +1,5 @@
+import { hasPosterPath } from "@/lib/media-poster-path";
+
 export const getTodayIsoDateUtc = (): string => {
   const n = new Date();
   const y = n.getUTCFullYear();
@@ -25,16 +27,28 @@ export const isPremieredTvByDate = (
 };
 
 export const filterReleasedMovies = <
-  T extends { release_date?: string | null },
+  T extends {
+    release_date?: string | null;
+    poster_path?: string | null;
+  },
 >(
   items: T[],
-): T[] => items.filter((m) => isReleasedMovieByDate(m.release_date));
+): T[] =>
+  items.filter(
+    (m) => isReleasedMovieByDate(m.release_date) && hasPosterPath(m),
+  );
 
 export const filterReleasedTvShows = <
-  T extends { first_air_date?: string | null },
+  T extends {
+    first_air_date?: string | null;
+    poster_path?: string | null;
+  },
 >(
   items: T[],
-): T[] => items.filter((s) => isPremieredTvByDate(s.first_air_date));
+): T[] =>
+  items.filter(
+    (s) => isPremieredTvByDate(s.first_air_date) && hasPosterPath(s),
+  );
 
 export const clampDiscoverMovieLte = (
   requested: string | undefined,

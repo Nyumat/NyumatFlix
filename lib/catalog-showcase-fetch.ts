@@ -4,10 +4,12 @@ import {
   filterReleasedTvShows,
 } from "@/lib/released-media";
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
+import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { tmdb } from "@/tmdb/api";
 import type { MediaItem } from "@/utils/typings";
 
-const MIN_PER_ROW = 14;
+const MIN_PER_ROW = 20;
+const MAX_FETCH_PAGES = 5;
 
 type ShowcaseDef = {
   id: string;
@@ -15,6 +17,7 @@ type ShowcaseDef = {
   href: string;
   fetchPage: (
     region: string,
+    page: string,
   ) => Promise<{ results: Array<Record<string, unknown>> }>;
   mapItem: (raw: Record<string, unknown>) => MediaItem;
 };
@@ -28,10 +31,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "28" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.movie({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "28",
         "vote_count.gte": "50",
@@ -46,10 +49,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "35" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.movie({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "35",
         "vote_count.gte": "50",
@@ -64,10 +67,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "878" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.movie({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "878",
         "vote_count.gte": "40",
@@ -82,10 +85,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "18" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.movie({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "18",
         "vote_count.gte": "80",
@@ -100,10 +103,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "53" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.movie({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "53",
         "vote_count.gte": "40",
@@ -118,10 +121,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "27" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.movie({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "27",
         "vote_count.gte": "40",
@@ -136,10 +139,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "80" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.movie({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "80",
         "vote_count.gte": "40",
@@ -154,10 +157,10 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "16" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.movie({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "16",
         "vote_count.gte": "40",
@@ -175,10 +178,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "18" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.tv({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "18",
         "vote_count.gte": "25",
@@ -193,10 +196,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "35" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.tv({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "35",
         "vote_count.gte": "25",
@@ -211,10 +214,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "10765" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.tv({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "10765",
         "vote_count.gte": "20",
@@ -229,10 +232,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "10759" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.tv({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "10759",
         "vote_count.gte": "20",
@@ -247,10 +250,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "80" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.tv({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "80",
         "vote_count.gte": "20",
@@ -265,10 +268,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "9648" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.tv({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "9648",
         "vote_count.gte": "15",
@@ -283,10 +286,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "16" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.tv({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "16",
         "vote_count.gte": "15",
@@ -301,10 +304,10 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "99" },
     }),
-    fetchPage: (region) =>
+    fetchPage: (region, page) =>
       tmdb.discover.tv({
         watch_region: region,
-        page: "1",
+        page,
         sort_by: "popularity.desc",
         with_genres: "99",
         "vote_count.gte": "10",
@@ -312,8 +315,6 @@ const tvShowcase: ShowcaseDef[] = [
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
 ];
-
-const hasPoster = (item: MediaItem): boolean => Boolean(item.poster_path);
 
 export const fetchCatalogShowcaseRows = async (
   pageKey: "movies" | "tv",
@@ -336,21 +337,28 @@ export const fetchCatalogShowcaseRows = async (
   }> = [];
 
   for (const def of defs) {
-    const raw = await def.fetchPage(region);
-    const base = raw.results.map((r) => def.mapItem(r));
-    const released =
-      mediaType === "movie"
-        ? filterReleasedMovies(base)
-        : filterReleasedTvShows(base);
-
     const picked: MediaItem[] = [];
-    for (const item of released) {
-      if (!hasPoster(item)) continue;
-      const key = makeEntityKey(item.id, mediaType);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      picked.push(item);
-      if (picked.length >= MIN_PER_ROW) break;
+
+    for (
+      let pageNum = 1;
+      picked.length < MIN_PER_ROW && pageNum <= MAX_FETCH_PAGES;
+      pageNum++
+    ) {
+      const raw = await def.fetchPage(region, String(pageNum));
+      const base = raw.results.map((r) => def.mapItem(r));
+      const released =
+        mediaType === "movie"
+          ? filterReleasedMovies(base)
+          : filterReleasedTvShows(base);
+      const withPoster = filterWithPosterPath(released);
+
+      for (const item of withPoster) {
+        const key = makeEntityKey(item.id, mediaType);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        picked.push(item);
+        if (picked.length >= MIN_PER_ROW) break;
+      }
     }
 
     if (picked.length > 0) {
