@@ -1,7 +1,8 @@
 import { ProviderTable } from "@/components/provider";
-import { TMDB_WATCH_REGION } from "@/lib/constants";
+import { getCountryName } from "@/lib/utils";
 import type { WatchLocale } from "@/tmdb/models";
 import { tmdb } from "@/tmdb/api";
+import { cookies } from "next/headers";
 import React from "react";
 import { MediaProvidersHeading } from "./media-shared";
 
@@ -18,11 +19,14 @@ export const MediaWatchProviders: React.FC<MediaWatchProvidersProps> = async ({
 }) => {
   const { results } = await tmdb[type].providers({ id, season });
 
-  const region = TMDB_WATCH_REGION as keyof WatchLocale;
+  const cookieStore = await cookies();
+  const region = (cookieStore.get("region")?.value ??
+    "US") as keyof WatchLocale;
+  const country = getCountryName(region);
 
   return (
     <div className="space-y-6 rounded-md border bg-background p-6">
-      <MediaProvidersHeading type={type} />
+      <MediaProvidersHeading country={country} type={type} />
 
       <div className="space-y-6">
         <div className="grid gap-4 lg:grid-cols-3">
