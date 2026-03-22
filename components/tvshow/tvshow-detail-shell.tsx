@@ -3,6 +3,7 @@
 import { WatchlistItem } from "@/app/watchlist/actions";
 import { MediaDetailRouteTabs } from "@/components/media/media-detail-route-tabs";
 import { MediaDetailLayout } from "@/components/media/media-server";
+import { TvShowViewportDefaultTabSync } from "@/components/tvshow/tv-show-viewport-default-tab-sync";
 import { useWatchlistItem } from "@/hooks/useWatchlistItem";
 import { Episode, SeasonDetails, TvShowDetails } from "@/utils/typings";
 import { useMemo } from "react";
@@ -46,28 +47,34 @@ export const TvShowDetailShell = ({
     : watchlistItem;
 
   return (
-    <MediaDetailLayout
-      media={[
-        {
-          ...details,
-          title: details.name,
-          videos: details.videos?.results || [],
-        },
-      ]}
-      mediaType="tv"
-      anilistId={anilistId}
-      watchlistItem={passedWatchlistItem}
-      initialEpisode={initialEpisode}
-      initialSeasonNumber={watchlistItem?.lastWatchedSeason || null}
-      contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl !pt-4 sm:!pt-6 lg:!pt-8"
-      sectionNav={<MediaDetailRouteTabs mediaType="tv" id={tvId} />}
-      tvHeroEpisodeData={{
-        tvId,
-        details,
-        allSeasonDetails,
-      }}
-    >
-      <div className="mt-4">{children}</div>
-    </MediaDetailLayout>
+    <>
+      <TvShowViewportDefaultTabSync
+        tvId={tvId}
+        numberOfEpisodes={details.number_of_episodes}
+      />
+      <MediaDetailLayout
+        media={[
+          {
+            ...details,
+            title: details.name,
+            videos: details.videos?.results || [],
+          },
+        ]}
+        mediaType="tv"
+        anilistId={anilistId}
+        watchlistItem={passedWatchlistItem}
+        initialEpisode={initialEpisode}
+        initialSeasonNumber={watchlistItem?.lastWatchedSeason || null}
+        contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl !pt-4 sm:!pt-6 lg:!pt-8"
+        sectionNav={<MediaDetailRouteTabs mediaType="tv" id={tvId} />}
+        tvHeroEpisodeData={{
+          tvId,
+          details,
+          allSeasonDetails,
+        }}
+      >
+        <div className="mt-4">{children}</div>
+      </MediaDetailLayout>
+    </>
   );
 };
