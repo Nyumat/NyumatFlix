@@ -12,7 +12,8 @@ import {
 import { MovieCard } from "@/components/movie/movie-card";
 import { MovieOverviewTab } from "@/components/movie/movie-overview-tab";
 import { MediaImages } from "@/components/media/media-client";
-import { MediaCreditsList, MediaVideos } from "@/components/media/media-shared";
+import { MediaCreditsList } from "@/components/media/media-shared";
+import { MediaVideos } from "@/components/media/media-videos";
 import { MediaReviewCard } from "@/components/media/media-review-card";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { useMediaDetailTab } from "@/lib/stores/media-detail-tab-store";
@@ -121,7 +122,7 @@ export const MovieDetailTabPanels = ({
         <div className="space-y-4">
           <section className="grid-list">
             {recommendationsData.results.map((movie) => (
-              <MovieCard key={movie.id} {...movie} />
+              <MovieCard key={movie.id} {...movie} variant="linkOnly" />
             ))}
           </section>
           <ListPagination
@@ -139,7 +140,7 @@ export const MovieDetailTabPanels = ({
         <div className="space-y-4">
           <section className="grid-list">
             {similarData.results.map((movie) => (
-              <MovieCard key={movie.id} {...movie} />
+              <MovieCard key={movie.id} {...movie} variant="linkOnly" />
             ))}
           </section>
           <ListPagination

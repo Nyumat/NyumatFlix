@@ -88,7 +88,7 @@ export const MovieCollectionPart: React.FC<Movie> = ({
                 "mt-4",
               )}
             >
-              View Details
+              Watch Now
             </Link>
           </div>
         </div>
