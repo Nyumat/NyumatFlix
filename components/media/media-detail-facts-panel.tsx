@@ -14,7 +14,7 @@ type MediaDetailFactsPanelProps = {
 };
 
 export const MediaDetailFactsPanel = ({
-  title = "Facts",
+  title = "Details",
   rows,
   className,
   children,
