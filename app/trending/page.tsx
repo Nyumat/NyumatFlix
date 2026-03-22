@@ -4,6 +4,10 @@ import { TrendCarousel, TrendingSpotlight } from "@/components/trend";
 import { MovieHero } from "@/components/movie";
 import { TvHero } from "@/components/tv";
 import { pages } from "@/config/pages";
+import {
+  filterReleasedMovies,
+  filterReleasedTvShows,
+} from "@/lib/released-media";
 import { tmdb } from "@/tmdb/api";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -30,12 +34,15 @@ export const metadata: Metadata = {
 };
 
 export default async function TrendingHub() {
-  const [{ results: movies }, { results: tvShows }, { results: people }] =
+  const [{ results: moviesRaw }, { results: tvShowsRaw }, { results: people }] =
     await Promise.all([
       tmdb.trending.movie({ time: "day", page: "1" }),
       tmdb.trending.tv({ time: "day", page: "1" }),
       tmdb.trending.people({ time: "day", page: "1" }),
     ]);
+
+  const movies = filterReleasedMovies(moviesRaw);
+  const tvShows = filterReleasedTvShows(tvShowsRaw);
 
   const featured = movies.find((m) => Boolean(m.poster_path)) ?? movies[0];
 
