@@ -8,8 +8,13 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import useMedia from "@/hooks/useMedia";
-import { filterWithPosterPath } from "@/lib/media-poster-path";
-import { MediaItem } from "@/utils/typings";
+import { Icons } from "@/lib/icons";
+import { cn } from "@/lib/utils";
+import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
+import { Star } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { MediaLogo } from "@/components/media/media-display";
 import { ContentRowHeader } from "./content-row-header";
 import { RankedBackdropCard } from "./ranked-backdrop-card";
 
