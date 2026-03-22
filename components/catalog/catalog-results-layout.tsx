@@ -1,6 +1,5 @@
-import { CatalogDiscoverToolbarDynamic } from "@/components/catalog/catalog-discover-toolbar-dynamic";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
-import { filterDiscoverParams } from "@/lib/utils";
+import { DiscoverFilters, DiscoverSort } from "@/components/discover";
 import type { Genre, WatchProvider } from "@/tmdb/models";
 import type { MediaItem } from "@/utils/typings";
 
@@ -30,10 +29,8 @@ export const CatalogResultsLayout = ({
   queryParams,
   emptyTitle,
   emptyDescription,
-}: CatalogResultsLayoutProps) => {
-  const serverDiscoverFilters = filterDiscoverParams(queryParams);
-
-  return items.length ? (
+}: CatalogResultsLayoutProps) =>
+  items.length ? (
     <>
       <header className="space-y-1 text-center md:text-left">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
@@ -44,12 +41,14 @@ export const CatalogResultsLayout = ({
         ) : null}
       </header>
 
-      <CatalogDiscoverToolbarDynamic
-        mediaType={mediaType}
-        genres={genres}
-        providers={providers}
-        serverDiscoverFilters={serverDiscoverFilters}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <DiscoverFilters
+          type={mediaType}
+          genres={genres}
+          providers={providers}
+        />
+        <DiscoverSort type={mediaType} />
+      </div>
 
       <CatalogInfiniteGrid
         mediaType={mediaType}
@@ -72,12 +71,14 @@ export const CatalogResultsLayout = ({
         ) : null}
       </div>
 
-      <CatalogDiscoverToolbarDynamic
-        mediaType={mediaType}
-        genres={genres}
-        providers={providers}
-        serverDiscoverFilters={serverDiscoverFilters}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <DiscoverFilters
+          type={mediaType}
+          genres={genres}
+          providers={providers}
+        />
+        <DiscoverSort type={mediaType} />
+      </div>
 
       <div className="rounded-lg border border-dashed p-12 text-center">
         <p className="font-medium">{emptyTitle}</p>
@@ -89,4 +90,3 @@ export const CatalogResultsLayout = ({
       </div>
     </>
   );
-};
