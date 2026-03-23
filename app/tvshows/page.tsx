@@ -126,7 +126,9 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     ]);
 
     const trendingShows = filterReleasedTvShows(trendingRaw);
-    const popularTv = filterReleasedTvShows(popularByVoteResponse.results ?? []);
+    const popularTv = filterReleasedTvShows(
+      popularByVoteResponse.results ?? [],
+    );
     const topRatedTvForHub = filterReleasedTvShows(topRatedTvForHubRaw);
 
     const {
