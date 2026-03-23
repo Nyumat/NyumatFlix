@@ -5,7 +5,11 @@ import {
 } from "@/lib/parse-episode-search-query";
 import type { Episode } from "@/utils/typings";
 
-const ep = (n: number, name: string, season = 2): { episode: Episode; seasonNumber: number } => ({
+const ep = (
+  n: number,
+  name: string,
+  season = 2,
+): { episode: Episode; seasonNumber: number } => ({
   episode: {
     id: n,
     name,

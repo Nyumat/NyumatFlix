@@ -3,7 +3,7 @@ import type { MovieCatalogView, TvCatalogView } from "@/lib/catalog-query";
 
 export const getMovieCatalogListCopy = (
   view: MovieCatalogView,
-): { title: string } => {
+): { title: string; description?: string } => {
   switch (view) {
     case "discover":
       return {
@@ -32,7 +32,9 @@ export const getMovieCatalogListCopy = (
   }
 };
 
-export const getTvCatalogListCopy = (view: TvCatalogView): { title: string } => {
+export const getTvCatalogListCopy = (
+  view: TvCatalogView,
+): { title: string; description?: string } => {
   switch (view) {
     case "discover":
       return {
