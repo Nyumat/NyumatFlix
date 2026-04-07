@@ -12,8 +12,8 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { MediaShowcaseCard } from "@/components/media/media-client";
 import { Actor, Movie, TvShow, Video } from "@/utils/typings";
-import MediaCard from "./media-card";
 
 type MediaCarouselsProps = {
   cast?: Actor[];
@@ -227,7 +227,7 @@ export function RecommendationsCarousel({
                 }}
                 onMouseEnter={() => handleItemMouseEnter(item)}
               >
-                <MediaCard
+                <MediaShowcaseCard
                   item={item}
                   type={mediaType}
                   rating={item.vote_average?.toString()}
