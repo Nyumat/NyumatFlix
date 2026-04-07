@@ -21,7 +21,7 @@ const Content: React.FC<ComponentProps<"div">> = ({
   ...props
 }) => {
   return (
-    <div className={cn("overlay", className)} {...props}>
+    <div className={cn("overlay border-0", className)} {...props}>
       <div className="p-2 md:p-6">{children}</div>
     </div>
   );
@@ -68,6 +68,8 @@ interface MediaPosterProps extends ComponentProps<"div"> {
   alt: string;
   priority?: boolean;
   monochrome?: boolean;
+  framed?: boolean;
+  imageClassName?: string;
 }
 
 type LegacyPosterSize = "small" | "medium" | "large";
@@ -83,6 +85,8 @@ type PosterCompatProps = {
   title?: string;
   size?: LegacyPosterSize | PosterSize;
   className?: string;
+  framed?: boolean;
+  imageClassName?: string;
 };
 
 export function Poster({
@@ -90,6 +94,8 @@ export function Poster({
   title = "",
   size = "w342",
   className,
+  framed = true,
+  imageClassName,
 }: PosterCompatProps) {
   const resolved: PosterSize =
     size === "small" || size === "medium" || size === "large"
@@ -102,6 +108,8 @@ export function Poster({
       alt={title}
       size={resolved}
       className={className}
+      framed={framed}
+      imageClassName={imageClassName}
     />
   );
 }
@@ -113,6 +121,8 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
   className,
   priority,
   monochrome,
+  framed = true,
+  imageClassName,
   ...props
 }) => {
   const src = image ? tmdbImage.poster(image, size) : null;
@@ -124,7 +134,10 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
   return (
     <div
       className={cn(
-        "relative aspect-poster w-full overflow-hidden rounded-md border bg-muted",
+        "relative isolate aspect-poster w-full overflow-hidden",
+        framed
+          ? "rounded-md border bg-muted"
+          : "rounded-[inherit] border-0 bg-transparent",
         className,
       )}
       {...props}
@@ -136,7 +149,12 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
         unoptimized
         fill
         sizes="(max-width: 768px) 40vw, (max-width: 1200px) 20vw, 200px"
-        className={cn("object-cover", monochrome && "grayscale")}
+        className={cn(
+          "object-cover [transform:translateZ(0)]",
+          framed ? "rounded-md" : "rounded-[inherit]",
+          monochrome && "grayscale",
+          imageClassName,
+        )}
       />
     </div>
   );

@@ -1591,10 +1591,12 @@ export function HeroContent({
                 )}
                 <div
                   className={cn(
-                    "flex w-full flex-col gap-8 py-12 sm:py-16 lg:flex-row lg:items-start lg:gap-8 xl:gap-10",
+                    "flex w-full flex-col gap-8 py-12 sm:py-16 lg:gap-8 xl:gap-10",
                     tvHeroEpisodeData &&
                       mediaType === "tv" &&
-                      "lg:items-stretch lg:justify-between",
+                      "lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:justify-between",
+                    (!tvHeroEpisodeData || mediaType !== "tv") &&
+                      "lg:flex-row lg:items-start",
                   )}
                 >
                   <div
@@ -1603,7 +1605,7 @@ export function HeroContent({
                       "min-w-0 w-full flex-1",
                       tvHeroEpisodeData &&
                         mediaType === "tv" &&
-                        "lg:max-w-[min(56%,40rem)]",
+                        "lg:max-w-none",
                     )}
                   >
                     {media.logo ? (
@@ -1698,7 +1700,7 @@ export function HeroContent({
                     <div
                       id="hero-episode-browser"
                       data-hero-episode-browser
-                      className="hidden w-full shrink-0 self-stretch lg:block lg:w-[min(380px,38%)] lg:max-w-[420px]"
+                      className="hidden w-full shrink-0 self-stretch lg:block lg:w-full lg:max-w-[380px] lg:justify-self-end"
                     >
                       <HeroTvEpisodePanel
                         tvId={tvHeroEpisodeData.tvId}
