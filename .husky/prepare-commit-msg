@@ -11,10 +11,21 @@ if ! command -v bun >/dev/null 2>&1; then
   fi
 fi
 
-# Verify bun is available, fallback to npx if not
+# Try to find node in common locations if not in PATH (for check-emoji when bun is absent)
+if ! command -v node >/dev/null 2>&1; then
+  if [ -f "/opt/homebrew/bin/node" ]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+  elif [ -f "/usr/local/bin/node" ]; then
+    export PATH="/usr/local/bin:$PATH"
+  fi
+fi
+
+# Always run the checker when possible so we skip emojify if the subject already has an emoji.
+# Previously, the no-bun path skipped the checker and always ran emojify (duplicate emojis).
 if command -v bun >/dev/null 2>&1; then
   bun "$SCRIPT_DIR/check-emoji.js" "$1" || bunx --bun @humankode/git-commit-emojify@latest "$1"
+elif command -v node >/dev/null 2>&1; then
+  node "$SCRIPT_DIR/check-emoji.js" "$1" || npx --yes @humankode/git-commit-emojify@latest "$1"
 else
-  # Fallback to npx if bun is not available
   npx --yes @humankode/git-commit-emojify@latest "$1"
 fi

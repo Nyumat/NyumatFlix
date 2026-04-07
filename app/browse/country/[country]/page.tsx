@@ -1,4 +1,4 @@
-import { StaticHero } from "@/components/hero/carousel-static";
+import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { getFriendlyCountryName } from "@/utils/country-helpers";
@@ -19,12 +19,10 @@ export default async function BrowseCountryPage(props: PageProps) {
     : searchParams?.type;
   const mediaType = typeParam === "tv" ? "tv" : "movie";
 
-  // Find country name from country code with friendly name override
   const countryData = countries.all.find((c) => c.alpha2 === countryCode);
   const countryName = getFriendlyCountryName(countryCode, countryData?.name);
   const countryEmoji = countryData?.emoji || "🌎";
 
-  // Fetch initial content from the new API endpoint with enriched data
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/country/${countryCode}?type=${mediaType}&page=1&sortBy=vote_average.desc`,
   );
@@ -36,41 +34,44 @@ export default async function BrowseCountryPage(props: PageProps) {
   const data = await response.json();
   const initialItems = data.results || [];
 
-  // Get backdrop image from the first high-rated item
   const backdropImage =
     initialItems.length > 0 && initialItems[0].backdrop_path
       ? `https://image.tmdb.org/t/p/original${initialItems[0].backdrop_path}`
       : "/movie-banner.webp";
 
-  const pageTitle = `${countryEmoji} ${countryName} ${mediaType === "movie" ? "Movies" : "TV Shows"}`;
-
   return (
-    <PageContainer>
+    <PageContainer className="pb-16">
       <StaticHero
         imageUrl={backdropImage}
-        title={pageTitle}
+        title={countryName}
         route=""
         hideTitle
       />
       <ContentContainer className="relative z-10" topSpacing={false}>
-        <div className="pt-12 md:pt-24 pb-8 w-full flex flex-col items-center">
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-foreground mb-4 text-center flex items-center gap-2 sm:gap-4">
-            <span className="text-4xl sm:text-6xl">{countryEmoji}</span>
-            {countryName}
-          </h1>
-          <p className="text-lg text-muted-foreground mb-10 text-center">
-            Discover the best {mediaType === "movie" ? "movies" : "TV shows"}{" "}
-            from {countryName}
-          </p>
-          <div className="w-full max-w-7xl px-2 sm:px-4">
-            <BrowseCountryClient
-              countryCode={countryCode}
-              countryName={countryName}
-              initialItems={initialItems}
-              totalPages={data.total_pages || 1}
-              mediaType={mediaType as "movie" | "tv"}
-            />
+        <div className="mx-auto w-full max-w-7xl space-y-8 px-2 pb-12 sm:px-4">
+          <div className="flex flex-col gap-4 pb-2 pt-20 md:pt-28">
+            <div className="text-center">
+              <h1 className="mb-4 flex flex-wrap items-center justify-center gap-2 text-3xl font-bold tracking-tight text-foreground sm:mb-6 sm:gap-4 sm:text-5xl md:text-6xl">
+                <span className="text-4xl sm:text-6xl" aria-hidden>
+                  {countryEmoji}
+                </span>
+                <span>{countryName}</span>
+              </h1>
+              <p className="mx-auto max-w-2xl text-muted-foreground">
+                Discover standout{" "}
+                {mediaType === "movie" ? "movies" : "TV shows"} from{" "}
+                {countryName}.
+              </p>
+            </div>
           </div>
+
+          <BrowseCountryClient
+            countryCode={countryCode}
+            countryName={countryName}
+            initialItems={initialItems}
+            totalPages={data.total_pages || 1}
+            mediaType={mediaType as "movie" | "tv"}
+          />
         </div>
       </ContentContainer>
     </PageContainer>

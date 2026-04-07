@@ -1,4 +1,4 @@
-import { StaticHero } from "@/components/hero/carousel-static";
+import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { LegalPage } from "@/components/layout/legal-page";
 
@@ -44,9 +44,9 @@ export default function TermsPage() {
               <p className="text-muted-foreground leading-relaxed">
                 By accessing and using NyumatFlix, you accept and agree to be
                 bound by these terms and conditions. If you do not agree with
-                these terms, please do not use this service. Since NyumatFlix
-                requires no account registration, your continued use of the site
-                constitutes acceptance of these terms.
+                these terms, please do not use this service. Your continued use
+                of the site, and creating an account if you choose to,
+                constitute acceptance of these terms.
               </p>
             </section>
 
@@ -75,11 +75,15 @@ export default function TermsPage() {
                   <strong>Recommendations:</strong> Suggest similar content
                   based on your browsing
                 </li>
+                <li>
+                  <strong>Optional accounts:</strong> Email-based sign-in,
+                  watchlist, and playback progress for signed-in users
+                </li>
               </ul>
               <p className="text-muted-foreground leading-relaxed mt-4">
-                <strong>What we do NOT provide:</strong> Video hosting, content
-                streaming, user accounts, paid subscriptions, or content
-                downloads.
+                <strong>What we do NOT provide:</strong> Video hosting, direct
+                video streaming from our servers, paid subscriptions, or
+                authorized downloads of copyrighted video from us.
               </p>
             </section>
 
@@ -177,6 +181,29 @@ export default function TermsPage() {
 
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-foreground mb-4">
+                Accounts, watchlist, and progress
+              </h2>
+              <p className="text-muted-foreground leading-relaxed mb-4">
+                If you create an account, you agree that:
+              </p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
+                <li>
+                  You provide accurate contact information and keep access to
+                  your email secure; magic links grant access to your account.
+                </li>
+                <li>
+                  Watchlist and progress data are provided for convenience and
+                  may be changed or removed if we need to maintain the service.
+                </li>
+                <li>
+                  You may stop using your account at any time; contact us for
+                  data deletion requests as described in the Privacy Policy.
+                </li>
+              </ul>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-2xl font-bold text-foreground mb-4">
                 User Responsibilities
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
@@ -201,6 +228,10 @@ export default function TermsPage() {
                 <li>
                   Respecting the intellectual property rights of content
                   creators
+                </li>
+                <li>
+                  Not abusing APIs, automation, or credential-sharing in a way
+                  that strains the service or others&apos; networks
                 </li>
               </ul>
             </section>

@@ -15,7 +15,7 @@ export const SubDubToggle = React.forwardRef<HTMLDivElement, SubDubToggleProps>(
     <div
       ref={ref}
       className={cn(
-        "backdrop-blur-md bg-white/10 border border-white/30 rounded-full hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition shadow-lg overflow-hidden",
+        "overflow-hidden rounded-full border border-border/80 bg-background/50 shadow-lg backdrop-blur-md transition hover:border-border hover:shadow-xl dark:border-white/30 dark:bg-white/10 dark:hover:border-white/40 dark:hover:bg-white/20",
         className,
       )}
       {...props}
@@ -30,14 +30,14 @@ export const SubDubToggle = React.forwardRef<HTMLDivElement, SubDubToggleProps>(
       >
         <ToggleGroupItem
           value="sub"
-          className="px-2 py-0.5 text-[10px] font-medium rounded-full data-[state=on]:bg-white/20 data-[state=on]:text-black data-[state=off]:text-white data-[state=off]:hover:text-white/80 transition-colors duration-200"
+          className="rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors duration-200 data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=off]:text-muted-foreground data-[state=off]:hover:text-foreground dark:data-[state=on]:bg-white/20 dark:data-[state=on]:text-black dark:data-[state=off]:text-white/80 dark:data-[state=off]:hover:text-white"
           aria-label="Subtitles"
         >
           SUB
         </ToggleGroupItem>
         <ToggleGroupItem
           value="dub"
-          className="px-2 py-0.5 text-[10px] font-medium rounded-full data-[state=on]:bg-white/20 data-[state=on]:text-black data-[state=off]:text-white data-[state=off]:hover:text-white/80 transition-colors duration-200"
+          className="rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors duration-200 data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=off]:text-muted-foreground data-[state=off]:hover:text-foreground dark:data-[state=on]:bg-white/20 dark:data-[state=on]:text-black dark:data-[state=off]:text-white/80 dark:data-[state=off]:hover:text-white"
           aria-label="Dubbed audio"
         >
           DUB

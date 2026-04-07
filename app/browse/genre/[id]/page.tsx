@@ -1,5 +1,5 @@
 import { getCategories } from "@/app/actions";
-import { StaticHero } from "@/components/hero/carousel-static";
+import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import BrowseGenreClient from "./browse-client";
@@ -41,7 +41,7 @@ export default async function BrowseGenrePage(props: PageProps) {
       : "/movie-banner.webp";
 
   return (
-    <PageContainer>
+    <PageContainer className="pb-16">
       <StaticHero
         imageUrl={backdropImage}
         title={genreName}
@@ -49,19 +49,25 @@ export default async function BrowseGenrePage(props: PageProps) {
         hideTitle
       />
       <ContentContainer className="relative z-10" topSpacing={false}>
-        <div className="pt-32 md:pt-48 pb-8 w-full flex flex-col items-center">
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-foreground mb-6 sm:mb-10 text-center">
-            {genreName}
-          </h1>
-          <div className="w-full max-w-7xl px-2 sm:px-4">
-            <BrowseGenreClient
-              genreId={genreId}
-              genreName={genreName}
-              initialItems={initialItems}
-              totalPages={data.total_pages || 1}
-              mediaType={mediaType as "movie" | "tv"}
-            />
+        <div className="mx-auto w-full max-w-7xl space-y-8 px-2 pb-12 sm:px-4">
+          <div className="flex flex-col gap-4 pb-2 pt-20 md:pt-28">
+            <div className="text-center">
+              <h1 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:mb-6 sm:text-5xl md:text-6xl">
+                {genreName}
+              </h1>
+              <p className="mx-auto max-w-2xl text-muted-foreground">
+                Discover titles in the {genreName} genre.
+              </p>
+            </div>
           </div>
+
+          <BrowseGenreClient
+            genreId={genreId}
+            genreName={genreName}
+            initialItems={initialItems}
+            totalPages={data.total_pages || 1}
+            mediaType={mediaType as "movie" | "tv"}
+          />
         </div>
       </ContentContainer>
     </PageContainer>

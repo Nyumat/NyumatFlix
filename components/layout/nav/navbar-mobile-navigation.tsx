@@ -12,11 +12,12 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { List, LogIn, LogOut, Menu } from "lucide-react";
+import type { NavbarSearchClientProps } from "@/components/search/search";
 import { Session } from "next-auth";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useState } from "react";
 
 interface NavLink {
   label: string;
@@ -55,6 +56,7 @@ export const NavbarMobileNavigation = ({
   }, []);
 
   const handleSignOut = async () => {
+    setOpen(false);
     await signOut({ callbackUrl: "/" });
   };
 
@@ -65,6 +67,13 @@ export const NavbarMobileNavigation = ({
   const userEmail = session?.user?.email || "";
   const userName = session?.user?.name;
   const userImage = session?.user?.image;
+
+  const searchContent =
+    isValidElement(children) && typeof children.type !== "string"
+      ? cloneElement(children as React.ReactElement<NavbarSearchClientProps>, {
+          onAfterNavigation: handleLinkClick,
+        })
+      : children;
 
   if (!isMounted) {
     return (
@@ -143,7 +152,7 @@ export const NavbarMobileNavigation = ({
             <Separator className="my-4 bg-white/10" />
 
             {/* Search Section */}
-            <div className="px-4 py-4">{children}</div>
+            <div className="px-4 py-4">{searchContent}</div>
           </div>
 
           {/* Profile Section at Bottom */}

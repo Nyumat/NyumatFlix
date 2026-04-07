@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   WatchlistControls,
+  WatchlistSection,
   type SortOption,
   type StatusFilter,
   type TypeTab,
-} from "@/components/watchlist/watchlist-controls";
-import { WatchlistSection } from "@/components/watchlist/watchlist-section";
+} from "@/components/watchlist";
 import { getTitle, MediaItem } from "@/utils/typings";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import Link from "next/link";

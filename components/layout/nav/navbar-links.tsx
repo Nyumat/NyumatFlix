@@ -53,10 +53,10 @@ export const NavbarLinks = ({
   const handleLinkInteraction = (link: NavLink) => {
     router.prefetch(link.href);
     if (link.href === "/movies") {
-      router.prefetch("/movies/browse");
+      router.prefetch("/movies");
       router.prefetch("/home");
     } else if (link.href === "/tvshows") {
-      router.prefetch("/tvshows/browse");
+      router.prefetch("/tvshows");
       router.prefetch("/home");
     } else if (link.href === "/home") {
       router.prefetch("/movies");

@@ -1,14 +1,13 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { isMovie, isTVShow, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { MediaLogo } from "../media/media-logo";
-import { Poster } from "../media/media-poster";
+import { MediaLogo, Poster } from "@/components/media/media-display";
+import { hasPosterPath } from "@/lib/media-poster-path";
 
 interface ContentCardProps {
   item: MediaItem;
@@ -35,6 +34,7 @@ export function ContentCard({
   const year =
     movie?.release_date?.slice(0, 4) || show?.first_air_date?.slice(0, 4);
   const link = href || (movie ? `/movies/${item.id}` : `/tvshows/${item.id}`);
+  const isInteractive = !isMobile;
 
   const navigate = () => router.push(link);
   const prefetch = () => router.prefetch(link);
@@ -45,20 +45,34 @@ export function ContentCard({
     }
   };
 
+  if (!hasPosterPath(item)) {
+    return null;
+  }
+
   if (isRanked && !isMobile && rank !== undefined) {
     const backdropUrl = item.backdrop_path
       ? `https://image.tmdb.org/t/p/w342${item.backdrop_path}`
       : undefined;
 
     return (
-      <Card
-        className="group relative flex items-center gap-4 p-3 bg-card/40 backdrop-blur-md border border-white/10 hover:border-primary/50 transition-all duration-300 shadow-xl cursor-pointer overflow-hidden"
+      <div
+        className={cn(
+          "group relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-[24px] border border-white/12 bg-card/40 p-3 shadow-xl backdrop-blur-md",
+          isInteractive &&
+            "transition-all duration-300 hover:border-primary/50",
+        )}
         aria-label={`Rank ${rank}: ${title}`}
         onClick={navigate}
         onMouseEnter={prefetch}
       >
         {backdropUrl && (
-          <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none">
+          <div
+            className={cn(
+              "absolute inset-0 pointer-events-none opacity-5",
+              isInteractive &&
+                "transition-opacity duration-500 group-hover:opacity-10",
+            )}
+          >
             <Image
               src={backdropUrl}
               alt=""
@@ -71,7 +85,9 @@ export function ContentCard({
 
         <span
           className={cn(
-            "relative text-5xl md:text-6xl font-black italic tracking-tighter opacity-20 group-hover:opacity-40 transition-opacity duration-300",
+            "relative text-5xl md:text-6xl font-black italic tracking-tighter opacity-20",
+            isInteractive &&
+              "transition-opacity duration-300 group-hover:opacity-40",
             rank === 1 && "text-yellow-500/80",
             rank === 2 && "text-slate-400/80",
             rank === 3 && "text-amber-600/80",
@@ -82,18 +98,47 @@ export function ContentCard({
         </span>
 
         <div className="relative flex items-center gap-4 flex-1 min-w-0">
-          <div className="relative w-16 lg:w-20 aspect-[2/3] flex-shrink-0 overflow-hidden rounded-lg shadow-2xl ring-1 ring-white/10 transition-all duration-500">
+          <div
+            className={cn(
+              "relative w-16 lg:w-20 aspect-[2/3] flex-shrink-0 overflow-hidden rounded-[18px] shadow-2xl ring-1 ring-white/10",
+              isInteractive && "transition-all duration-500",
+            )}
+          >
             <Poster
               posterPath={item.poster_path ?? undefined}
               size="small"
-              className="transition-transform duration-500 group-hover:scale-110"
+              framed={false}
+              className={cn(
+                "h-full w-full rounded-[inherit]",
+                isInteractive &&
+                  "transition-transform duration-500 group-hover:scale-110",
+              )}
             />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
-              <Icons.play className="text-primary-foreground fill-current w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div
+              className={cn(
+                "absolute inset-0 flex items-center justify-center",
+                isInteractive &&
+                  "bg-black/0 transition-all duration-300 group-hover:bg-black/20",
+              )}
+            >
+              <Icons.play
+                className={cn(
+                  "text-primary-foreground fill-current w-4 h-4",
+                  isInteractive
+                    ? "opacity-0 transition-opacity group-hover:opacity-100"
+                    : "hidden",
+                )}
+              />
             </div>
           </div>
 
-          <div className="flex flex-col justify-center min-w-0 flex-1 md:opacity-0 md:group-hover:opacity-100 md:translate-x-2 md:group-hover:translate-x-0 transition-all duration-500">
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 flex-col justify-center",
+              isInteractive &&
+                "transition-all duration-500 md:translate-x-2 md:opacity-0 md:group-hover:translate-x-0 md:group-hover:opacity-100",
+            )}
+          >
             <MediaLogo
               logo={item.logo}
               title={title}
@@ -128,7 +173,7 @@ export function ContentCard({
             </div>
           </div>
         </div>
-      </Card>
+      </div>
     );
   }
 
@@ -137,8 +182,11 @@ export function ContentCard({
     : undefined;
 
   return (
-    <Card
-      className="group relative overflow-hidden bg-card/40 backdrop-blur-md border border-white/10 hover:border-primary/50 transition-all duration-300 shadow-xl cursor-pointer h-full flex flex-col md:aspect-[2/3]"
+    <div
+      className={cn(
+        "group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[28px] border border-white/12 bg-card/40 shadow-xl backdrop-blur-md md:aspect-[2/3]",
+        isInteractive && "transition-all duration-300 hover:border-primary/50",
+      )}
       onClick={navigate}
       onMouseEnter={prefetch}
       onKeyDown={handleKeyDown}
@@ -147,7 +195,13 @@ export function ContentCard({
       aria-label={`View ${title}`}
     >
       {backdropUrl && (
-        <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
+        <div
+          className={cn(
+            "absolute inset-0 pointer-events-none opacity-10",
+            isInteractive &&
+              "transition-opacity duration-500 group-hover:opacity-20",
+          )}
+        >
           <Image
             src={backdropUrl}
             alt=""
@@ -156,16 +210,35 @@ export function ContentCard({
           />
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent pointer-events-none md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-500 z-10" />
+      <div
+        className={cn(
+          "absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-background/95 via-background/40 to-transparent",
+          isInteractive
+            ? "transition-opacity duration-500 md:opacity-0 md:group-hover:opacity-100"
+            : "opacity-0",
+        )}
+      />
 
-      <div className="relative flex-shrink-0 aspect-[2/3] overflow-hidden">
+      <div className="relative flex-shrink-0 aspect-[2/3] overflow-hidden rounded-[inherit]">
         <Poster
           posterPath={item.poster_path ?? undefined}
           title={title || "Poster"}
           size="medium"
-          className="rounded-none transition-transform duration-500 group-hover:scale-[1.05]"
+          framed={false}
+          className={cn(
+            "h-full w-full rounded-[inherit]",
+            isInteractive &&
+              "transition-transform duration-500 group-hover:scale-[1.05]",
+          )}
         />
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
+        <div
+          className={cn(
+            "absolute inset-0 z-20 flex items-center justify-center pointer-events-none",
+            isInteractive
+              ? "opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              : "hidden",
+          )}
+        >
           <Icons.play
             className="w-8 h-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
             strokeWidth={1.5}
@@ -173,7 +246,13 @@ export function ContentCard({
         </div>
       </div>
 
-      <div className="p-3 relative flex-grow flex flex-col items-center text-center transition-all duration-500 md:absolute md:bottom-0 md:left-0 md:right-0 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 z-30 md:bg-gradient-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]">
+      <div
+        className={cn(
+          "relative z-30 flex flex-grow flex-col items-center p-3 text-center",
+          isInteractive &&
+            "transition-all duration-500 md:absolute md:bottom-0 md:left-0 md:right-0 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:bg-gradient-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]",
+        )}
+      >
         <MediaLogo
           logo={item.logo}
           align="center"
@@ -209,6 +288,6 @@ export function ContentCard({
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

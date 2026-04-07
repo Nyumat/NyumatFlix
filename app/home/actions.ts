@@ -26,11 +26,7 @@ const ROW_TYPE_TO_ENDPOINT = {
 
   "popular-tvshows": "/tv/popular",
   "top-rated-tvshows": "/tv/top_rated",
-  "binge-worthy-series":
-    "/discover/tv?sort_by=popularity.desc&with_status=0&with_type=0",
   "limited-series": "/discover/tv?with_type=2",
-  "reality-tv": "/discover/tv?with_genres=10764",
-  docuseries: "/discover/tv?with_genres=99",
 };
 
 /**

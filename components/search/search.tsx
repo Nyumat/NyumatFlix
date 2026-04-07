@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRight, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
-import { Poster } from "../media/media-poster";
+import { Poster } from "@/components/media/media-display";
 import SearchResults from "./search-results";
 
 interface SearchComponentProps {
@@ -198,14 +198,15 @@ export function SearchPageClient() {
   );
 }
 
-interface NavbarSearchClientProps {
+export interface NavbarSearchClientProps {
   className?: string;
+  onAfterNavigation?: () => void;
 }
 
 export const NavbarSearchClient = forwardRef<
   HTMLInputElement,
   NavbarSearchClientProps
->(({ className }, ref) => {
+>(({ className, onAfterNavigation }, ref) => {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
@@ -226,10 +227,11 @@ export const NavbarSearchClient = forwardRef<
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
+      onAfterNavigation?.();
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
       setShowPreview(false);
     }
-  }, [query, router]);
+  }, [query, router, onAfterNavigation]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -253,11 +255,11 @@ export const NavbarSearchClient = forwardRef<
             if (selectedResult) {
               const mediaType =
                 selectedResult.media_type === "movie" ? "movies" : "tvshows";
+              onAfterNavigation?.();
               router.push(`/${mediaType}/${selectedResult.id}`);
               setShowPreview(false);
             }
           } else {
-            // no result selected or "go to search page" selected, go to search page
             handleSearch();
           }
           break;
@@ -274,10 +276,17 @@ export const NavbarSearchClient = forwardRef<
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [showPreview, results, selectedIndex, handleSearch, router, inputRef]);
+  }, [
+    showPreview,
+    results,
+    selectedIndex,
+    handleSearch,
+    router,
+    inputRef,
+    onAfterNavigation,
+  ]);
 
   useEffect(() => {
-    // don't auto-select first result, keep selectedIndex at -1 (no selection)
     setSelectedIndex(-1);
   }, [results]);
 
@@ -331,6 +340,7 @@ export const NavbarSearchClient = forwardRef<
             ref={inputRef}
             type="text"
             placeholder="Search..."
+            suppressHydrationWarning
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => {
@@ -349,17 +359,16 @@ export const NavbarSearchClient = forwardRef<
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                // always go to search page when pressing enter, unless a specific result is selected
                 if (!showPreview || selectedIndex === -1) {
                   handleSearch();
                 }
               }
             }}
-            className="pl-8 pr-20 py-2 text-sm w-full rounded-lg bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
+            className="pl-8 pr-20 py-2 text-sm w-full rounded-full bg-muted/15 border border-border/25 focus:border-primary/50 focus:bg-background/30 transition-all duration-200 placeholder:text-muted-foreground/55"
           />
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {isMounted && !query && !isFocused && (
-              <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded border border-muted-foreground/20">
+              <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs text-muted-foreground/80 rounded border border-border/30 bg-muted/20">
                 ⌘ K
               </kbd>
             )}
@@ -410,6 +419,7 @@ export const NavbarSearchClient = forwardRef<
                           key={`${item.id}-${item.media_type}`}
                           onMouseDown={(e) => {
                             e.preventDefault();
+                            onAfterNavigation?.();
                             router.push(href);
                             setShowPreview(false);
                           }}
@@ -452,6 +462,7 @@ export const NavbarSearchClient = forwardRef<
                   </div>
                   <div className="border-t border-border">
                     <button
+                      type="button"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         handleSearch();
@@ -473,6 +484,7 @@ export const NavbarSearchClient = forwardRef<
                     No results found
                   </p>
                   <button
+                    type="button"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       handleSearch();

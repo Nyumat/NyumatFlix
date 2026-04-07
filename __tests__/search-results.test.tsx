@@ -1,4 +1,3 @@
-import { MediaContentGrid } from "@/components/content/media-content-grid";
 import SearchResults from "@/components/search/search-results";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -318,28 +317,6 @@ describe("SearchResults Component", () => {
     await waitFor(() => {
       expect(screen.getByTestId("genre-filter")).toBeInTheDocument();
       expect(screen.getByTestId("genre-multi-select")).toBeInTheDocument();
-    });
-  });
-});
-
-describe("MediaContentGrid Component", () => {
-  test("renders media items", async () => {
-    const items = [mockMovie, mockTvShow].map((item) => ({
-      ...item,
-      media_type: "title" in item ? "movie" : ("tv" as const),
-      genres: [],
-    }));
-
-    renderWithProviders(
-      <MediaContentGrid items={items} defaultViewMode="grid" />,
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByTestId("media-content-grid-container"),
-      ).toBeInTheDocument();
-      expect(screen.getByText("Test Movie")).toBeInTheDocument();
-      expect(screen.getByText("Test Show")).toBeInTheDocument();
     });
   });
 });

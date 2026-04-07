@@ -1,14 +1,14 @@
+import { GithubIcon } from "@/components/icons/github-icon";
+import { Separator } from "@/components/ui/separator";
 import { Cannabis, Globe, Heart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { GithubIcon } from "@/components/icons/github-icon";
-import { Separator } from "@/components/ui/separator";
 
 export const FooterSection = () => {
   return (
     <footer
       id="footer"
-      className="w-full bg-card/50 backdrop-blur-sm border-t border-border/50 mt-auto"
+      className="relative z-10 w-full bg-card/50 backdrop-blur-sm border-t border-border/50 mt-auto"
       role="contentinfo"
       aria-label="Site footer"
     >

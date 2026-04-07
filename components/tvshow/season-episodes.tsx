@@ -1,7 +1,7 @@
 "use client";
 
 import { WatchlistItem } from "@/app/watchlist/actions";
-import { EpisodeProgressIndicator } from "@/components/watchlist/episode-progress-indicator";
+import { EpisodeProgressIndicator } from "@/components/watchlist/watchlist";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { Episode, SeasonDetails } from "@/utils/typings";
 import { Tv } from "lucide-react";
@@ -90,15 +90,15 @@ export function SeasonEpisodes({
   );
 
   return (
-    <div className="space-y-3 sm:space-y-4 mt-2">
-      <h3 className="text-lg sm:text-xl font-semibold text-foreground">
+    <div className="mt-2 space-y-3 sm:space-y-4">
+      <h3 className="text-lg font-semibold text-foreground sm:text-xl">
         Episodes
       </h3>
-      <div className="min-h-[300px] max-h-[400px] overflow-y-auto pr-1 sm:pr-2">
+      <div className="min-h-[200px]">
         {!seasonDetails ||
         !seasonDetails.episodes ||
         seasonDetails.episodes.length === 0 ? (
-          <div className="h-full flex items-center justify-center">
+          <div className="flex min-h-[200px] items-center justify-center py-8">
             <div className="text-center space-y-2">
               <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center">
                 <Tv size={20} className="sm:size-6 text-muted-foreground" />

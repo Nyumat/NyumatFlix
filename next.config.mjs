@@ -3,8 +3,18 @@ const nextConfig = {
   redirects: async () => {
     return [
       {
+        source: "/movie",
+        destination: "/movies",
+        permanent: true,
+      },
+      {
+        source: "/tv",
+        destination: "/tvshows",
+        permanent: true,
+      },
+      {
         source: "/movies/top_rated",
-        destination: "/movies/browse?filter=top-rated",
+        destination: "/movies?view=top_rated",
         permanent: true,
       },
     ];

@@ -1,3 +1,7 @@
+import {
+  isPremieredTvByDate,
+  isReleasedMovieByDate,
+} from "@/lib/released-media";
 import { NextResponse } from "next/server";
 import { getGenreNames } from "@/components/content/genre-helpers";
 import {
@@ -58,11 +62,14 @@ export async function GET(request: Request) {
       : rawData;
     const filteredResults: PreviewResult[] =
       data.results
-        ?.filter(
-          (item: Movie | TvShow) =>
-            item.poster_path &&
-            (item.media_type === "movie" || item.media_type === "tv"),
-        )
+        ?.filter((item: Movie | TvShow) => {
+          if (!item.poster_path) return false;
+          if (item.media_type === "movie")
+            return isReleasedMovieByDate(item.release_date);
+          if (item.media_type === "tv")
+            return isPremieredTvByDate(item.first_air_date);
+          return false;
+        })
         .slice(0, 8)
         .map((item: Movie | TvShow) => ({
           id: item.id,
