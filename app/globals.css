@@ -88,7 +88,7 @@ html {
     --sidebar-accent-foreground: 203.8863 88.2845% 53.1373%;
     --sidebar-border: 205 25% 90.5882%;
     --sidebar-ring: 202.8169 89.1213% 53.1373%;
-    --font-sans: Open Sans, sans-serif;
+    --font-sans: var(--font-manrope), sans-serif;
     --font-serif: Georgia, serif;
     --font-mono: Menlo, monospace;
     --radius: 1.3rem;
@@ -145,7 +145,7 @@ html {
     --sidebar-accent-foreground: 203.7736 87.6033% 52.549%;
     --sidebar-border: 205.7143 15.7895% 26.0784%;
     --sidebar-ring: 202.8169 89.1213% 53.1373%;
-    --font-sans: Open Sans, sans-serif;
+    --font-sans: var(--font-manrope), sans-serif;
     --font-serif: Georgia, serif;
     --font-mono: Menlo, monospace;
     --radius: 1.3rem;
@@ -249,6 +249,7 @@ html {
   body {
     @apply bg-background text-foreground;
     @apply !min-w-full;
+    font-optical-sizing: auto;
   }
 
   #scrollbar_hide {
@@ -289,6 +290,31 @@ html {
 * {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted-foreground) / 0.4) hsl(var(--background));
+}
+
+@layer components {
+  .grid-list {
+    @apply grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-4 md:grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))];
+  }
+  .h-hero {
+    @apply h-[min(72vh,640px)] md:h-[min(60vh,760px)] lg:h-[min(64vh,860px)];
+  }
+  .overlay {
+    @apply absolute inset-0 flex items-end rounded-md border bg-gradient-to-tr from-background/95;
+  }
+  .overlay-darker {
+    @apply absolute inset-0 flex items-end rounded-md border bg-gradient-to-tr from-background/95 to-background/50;
+  }
+  .empty-box {
+    @apply flex h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground;
+  }
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @theme inline {

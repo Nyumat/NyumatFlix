@@ -1,4 +1,10 @@
-import { Logo, MediaItem } from "@/utils/typings";
+import { Logo, MediaItem, SeasonDetails, TvShowDetails } from "@/utils/typings";
+
+export type TvHeroEpisodeData = {
+  tvId: string;
+  details: TvShowDetails;
+  allSeasonDetails: Record<number, SeasonDetails>;
+};
 
 export interface HeroProps {
   imageUrl: string;

@@ -3,13 +3,13 @@
 import { cn } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface BackButtonProps {
   className?: string;
   fallbackUrl?: string;
 }
 
-// routes where we should hide the back button
 const HIDE_BACK_BUTTON_ROUTES = [
   "/",
   "/home",
@@ -25,6 +25,11 @@ export function BackButton({
 }: BackButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -38,7 +43,10 @@ export function BackButton({
     router.prefetch(fallbackUrl);
   };
 
-  // hide on top-level routes
+  if (!mounted) {
+    return <div className="h-8 w-8 shrink-0" aria-hidden />;
+  }
+
   if (HIDE_BACK_BUTTON_ROUTES.includes(pathname)) {
     return null;
   }

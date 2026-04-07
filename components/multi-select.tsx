@@ -37,9 +37,9 @@ const multiSelectVariants = cva("m-1 transition ease-in-out", {
   variants: {
     variant: {
       default:
-        "border-foreground/10 text-foreground bg-primary/10 hover:bg-primary/20 backdrop-blur-sm border border-primary/30",
+        "border border-primary/30 bg-primary/12 text-primary backdrop-blur-md shadow-sm hover:bg-primary/22 dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20",
       secondary:
-        "border-foreground/10 bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        "border border-border/60 bg-secondary/35 text-secondary-foreground backdrop-blur-md hover:bg-secondary/55 dark:border-white/25 dark:bg-white/10 dark:text-white",
       destructive:
         "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
       inverted: "inverted",
@@ -172,10 +172,11 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
         <PopoverTrigger asChild>
           <Button
             ref={ref}
+            variant="outline"
             {...props}
             onClick={handleTogglePopover}
             className={cn(
-              "flex w-full p-1 rounded-md border min-h-10 h-auto items-center justify-between bg-background hover:bg-background/90 shadow-inner",
+              "flex h-auto min-h-10 w-full items-center justify-between rounded-md p-1",
               className,
             )}
           >

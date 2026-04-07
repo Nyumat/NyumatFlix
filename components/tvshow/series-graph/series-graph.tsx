@@ -7,11 +7,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { LARGE_SERIES_GRAPH_NODE_THRESHOLD } from "@/lib/constants";
+import { useTvDetailIsDesktop } from "@/hooks/useTvDetailDesktop";
 import { cn } from "@/lib/utils";
 import { SeasonDetails } from "@/utils/typings";
 import { ArrowDownUp, ArrowLeftRight, LayoutGrid, Network } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GridView } from "./grid-view";
 import { RatingLegend } from "./rating-legend";
 import { ViewMode } from "./types";
@@ -20,8 +22,6 @@ const CanvasView = dynamic(
   () => import("./canvas-view").then((mod) => mod.CanvasView),
   { ssr: false },
 );
-
-const LARGE_SERIES_THRESHOLD = 75;
 
 type SeriesGraphProps = {
   allSeasonDetails: Record<number, SeasonDetails>;
@@ -38,11 +38,19 @@ export function SeriesGraph({ allSeasonDetails }: SeriesGraphProps) {
     return seasonRatings.length + totalEpisodes;
   }, [seasonRatings]);
 
-  const initialViewMode: ViewMode =
-    totalCount > LARGE_SERIES_THRESHOLD ? "canvas" : "grid";
-
-  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [inverted, setInverted] = useState(false);
+  const isDesktop = useTvDetailIsDesktop(false);
+
+  useEffect(() => {
+    if (isDesktop) {
+      setViewMode("grid");
+      return;
+    }
+    if (totalCount > LARGE_SERIES_GRAPH_NODE_THRESHOLD) {
+      setViewMode("canvas");
+    }
+  }, [isDesktop, totalCount]);
 
   if (seasonRatings.length === 0) {
     return null;

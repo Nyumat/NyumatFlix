@@ -4,24 +4,26 @@ import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 backdrop-blur-md",
   {
     variants: {
       variant: {
-        icon: "size-10 rounded-full",
+        icon: "size-10 rounded-full shadow-md border border-border/70 bg-muted/50 text-foreground hover:bg-muted/75 hover:shadow-lg dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20",
         stylish:
-          "bg-gradient-to-r from-[#D247BF]/20 to-primary/20 text-white border border-white/20 backdrop-blur-sm hover:from-[#D247BF]/30 hover:to-primary/30 hover:border-white/30 transition-all duration-300",
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+          "bg-gradient-to-r from-[#D247BF]/20 to-primary/20 text-foreground border border-primary/25 backdrop-blur-sm hover:from-[#D247BF]/30 hover:to-primary/30 hover:border-primary/40 transition-all duration-300 dark:text-white dark:border-white/20",
+        default:
+          "font-semibold shadow-lg border border-primary/30 bg-primary/12 text-primary hover:bg-primary/22 hover:border-primary/45 hover:shadow-xl dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:border-white/45",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "shadow-lg border border-destructive/80 bg-destructive/90 text-destructive-foreground hover:bg-destructive hover:shadow-xl",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "shadow-md border border-border/80 bg-background/50 text-foreground hover:bg-muted/60 hover:border-border hover:shadow-lg dark:border-white/25 dark:bg-white/5 dark:text-white dark:hover:bg-white/15 dark:hover:border-white/40",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "shadow-md border border-border/60 bg-secondary/35 text-secondary-foreground hover:bg-secondary/55 hover:shadow-lg dark:bg-white/10 dark:border-white/25 dark:text-white dark:hover:bg-white/18",
+        ghost:
+          "border border-transparent bg-transparent shadow-none backdrop-blur-sm text-foreground hover:bg-muted/50 hover:border-border/60 hover:shadow-md dark:text-white dark:hover:bg-white/10 dark:hover:border-white/25",
+        link: "border-transparent bg-transparent shadow-none backdrop-blur-none text-primary underline-offset-4 hover:underline dark:text-primary",
         chrome:
-          "w-full font-bold transition-all duration-200 shadow-lg group/arrow backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40 hover:shadow-xl",
+          "font-semibold shadow-lg group/arrow border border-border/80 bg-background/50 text-foreground hover:bg-muted/65 hover:border-border hover:shadow-xl dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:border-white/40",
       },
       size: {
         default: "h-10 px-4 py-2",

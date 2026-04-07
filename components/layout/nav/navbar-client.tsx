@@ -1,33 +1,18 @@
 "use client";
 
+import { SiteNav } from "@/components/layout/site-nav";
 import { NavbarSearchClient } from "@/components/search/search";
-import { cn } from "@/lib/utils";
-import { Session } from "next-auth";
-import Image from "next/image";
-import Link from "next/link";
+import type { Session } from "next-auth";
 import { BackButton } from "../../ui/back-button";
-import { Badge } from "../../ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 import { NavbarAuth } from "./navbar-auth";
-import { NavbarLinks } from "./navbar-links";
 import { NavbarMobileNavigation } from "./navbar-mobile-navigation";
 
-interface NavLink {
-  label: string;
-  href: string;
-  external?: boolean;
-}
-
-const NAV_LINKS_WITH_HOME: NavLink[] = [
+const MOBILE_LINKS = [
   { label: "Home", href: "/home" },
   { label: "Movies", href: "/movies" },
   { label: "TV Shows", href: "/tvshows" },
   { label: "Search", href: "/search" },
 ];
-
-const getNavLinks = (session: Session | null): NavLink[] => {
-  return [...NAV_LINKS_WITH_HOME];
-};
 
 interface NavbarClientProps {
   session: Session | null;
@@ -35,44 +20,29 @@ interface NavbarClientProps {
 
 export const NavbarClient = ({ session }: NavbarClientProps) => {
   return (
-    <>
-      <nav className={cn("absolute top-0 z-50 w-full")}>
-        <div className="flex justify-between items-center md:max-w-7xl lg:max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:pb-8">
-          <div className="flex flex-row items-center gap-2 shrink-0">
-            <BackButton />
-            <Link href="/" className="shrink-0">
-              <Image
-                src="/logo.svg"
-                alt="NyumatFlix Logo"
-                width={150}
-                height={150}
-                className="size-10"
-              />
-            </Link>
-          </div>
+    <header className="sticky top-0 z-50 w-full bg-transparent">
+      <div className="mx-auto flex min-h-14 max-w-[1400px] items-center gap-2 px-4 py-2.5 sm:px-6 lg:gap-3 lg:px-8">
+        <div className="flex shrink-0 items-center gap-1 lg:gap-2">
+          <BackButton />
+        </div>
 
-          <div className="hidden md:flex flex-1 mx-8">
-            <NavbarSearchClient />
-          </div>
+        <SiteNav />
 
-          <div className="hidden md:flex items-center space-x-1 lg:space-x-2 ml-auto">
-            <NavbarLinks links={getNavLinks(session)} />
+        <div className="hidden min-w-0 flex-1 md:flex md:justify-center md:px-4">
+          <NavbarSearchClient />
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          <div className="hidden md:flex">
             <NavbarAuth session={session} />
           </div>
-
-          <div className="flex md:hidden items-center space-x-2">
-            <NavbarMobileNavigation
-              links={getNavLinks(session)}
-              session={session}
-            >
-              <div className="px-2">
-                <NavbarSearchClient />
-              </div>
+          <div className="flex md:hidden">
+            <NavbarMobileNavigation links={MOBILE_LINKS} session={session}>
+              <NavbarSearchClient />
             </NavbarMobileNavigation>
           </div>
         </div>
-      </nav>
-      {/* <div className="h-[35px] md:h-auto" aria-hidden="true" /> */}
-    </>
+      </div>
+    </header>
   );
 };

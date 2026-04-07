@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { getGenreName } from "@/components/content/genre-helpers";
 import { Badge } from "@/components/ui/badge";
+import { buildCatalogCtaUrl } from "@/lib/catalog-query";
 import {
   Tooltip,
   TooltipContent,
@@ -33,11 +34,13 @@ export function GenreBadge({
   className,
   clickable = true,
 }: GenreBadgeProps) {
-  const href =
-    mediaType === "movie"
-      ? `/movies/browse?genre=${genreId}`
-      : `/tvshows/browse?genre=${genreId}`;
-  const tooltipText = `Browse ${genreName} ${mediaType === "movie" ? "movies" : "TV shows"}`;
+  const catalogMediaType = mediaType === "movie" ? "movie" : "tv";
+  const href = buildCatalogCtaUrl(catalogMediaType, {
+    view: "discover",
+    mode: "results",
+    extra: { with_genres: genreId.toString() },
+  });
+  const tooltipText = `Browse ${genreName} ${catalogMediaType === "movie" ? "movies" : "TV shows"}`;
 
   if (!clickable) {
     return (

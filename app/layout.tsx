@@ -9,10 +9,16 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/lib/query-client";
 import { cn, validateEnv } from "@/lib/utils";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
-const inter = Inter({ subsets: ["latin"] });
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: "variable",
+  variable: "--font-manrope",
+  display: "swap",
+});
 
 if (process.env.NODE_ENV !== "production") {
   validateEnv();
@@ -55,7 +61,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html
+      lang="en"
+      className={cn(manrope.variable, "dark")}
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+    >
       <head>
         {process.env.NODE_ENV === "production" && (
           <Script
@@ -66,7 +77,7 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={cn("min-h-screen bg-background", inter.className)}>
+      <body className={cn("min-h-screen bg-background font-sans")}>
         <QueryProvider>
           <AuthSessionProvider>
             <OnboardingProvider>

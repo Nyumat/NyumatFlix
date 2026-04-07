@@ -1,4 +1,4 @@
-import { SeasonDetails, TvShowDetails } from "@/utils/typings";
+import { Season, SeasonDetails, TvShowDetails } from "@/utils/typings";
 
 /**
  * Fetches details for a TV show by ID
@@ -48,6 +48,29 @@ export async function fetchSeasonDetailsServer(
 /**
  * Fetches details for a specific season of a TV show (client-side)
  */
+export async function fetchAllSeasonDetails(
+  tvId: string,
+  seasons: Season[] | undefined,
+): Promise<Record<number, SeasonDetails>> {
+  const regularSeasons =
+    seasons?.filter((season: Season) => season.season_number > 0) || [];
+
+  const allSeasonDetailsPromises = regularSeasons.map((season: Season) =>
+    fetchSeasonDetailsServer(tvId, season.season_number).catch(() => null),
+  );
+
+  const allSeasonDetailsArray = await Promise.all(allSeasonDetailsPromises);
+  const allSeasonDetails: Record<number, SeasonDetails> = {};
+
+  allSeasonDetailsArray.forEach((seasonDetail) => {
+    if (seasonDetail) {
+      allSeasonDetails[seasonDetail.season_number] = seasonDetail;
+    }
+  });
+
+  return allSeasonDetails;
+}
+
 export async function fetchSeasonDetails(
   tvId: string,
   seasonNumber: number,

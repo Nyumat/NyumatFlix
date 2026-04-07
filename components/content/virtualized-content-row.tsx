@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { hasPosterPath } from "@/lib/media-poster-path";
 import {
   isMovie,
   type MediaItem,
@@ -55,7 +56,7 @@ export function VirtualizedContentRow({
 
       <div className="relative">
         <div className="grid grid-cols-4 gap-4">
-          {items.map((item, index) => (
+          {items.filter(hasPosterPath).map((item, index) => (
             <ContentCard
               key={`${item.id}-${index}`}
               item={item}
@@ -77,8 +78,9 @@ export function VirtualizedContentRow({
                   setIsLoadingMore(true);
                   try {
                     const more = await onLoadMore();
-                    if (more && more.length > 0) {
-                      setItems((prev) => [...prev, ...more]);
+                    const withPosters = more?.filter(hasPosterPath) ?? [];
+                    if (withPosters.length > 0) {
+                      setItems((prev) => [...prev, ...withPosters]);
                     }
                   } catch (error) {
                     console.error("Error loading more items:", error);

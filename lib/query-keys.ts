@@ -1,10 +1,6 @@
 export const queryKeys = {
   all: ["nyumatflix"] as const,
 
-  contentRows: () => [...queryKeys.all, "content-rows"] as const,
-  contentRow: (rowId: string, options?: { count?: number; enrich?: boolean }) =>
-    [...queryKeys.contentRows(), rowId, options] as const,
-
   search: () => [...queryKeys.all, "search"] as const,
   searchPreview: (query: string) =>
     [...queryKeys.search(), "preview", query] as const,
@@ -22,6 +18,43 @@ export const queryKeys = {
   movieDetails: (movieId: number) =>
     [...queryKeys.media(), "movie", movieId] as const,
   tvDetails: (tvId: number) => [...queryKeys.media(), "tv", tvId] as const,
+
+  tvAllSeasons: (tvId: string) =>
+    [...queryKeys.media(), "tv", tvId, "all-seasons"] as const,
+  tvTabCredits: (tvId: string) =>
+    [...queryKeys.media(), "tv", tvId, "tab", "credits"] as const,
+  tvTabImages: (tvId: string) =>
+    [...queryKeys.media(), "tv", tvId, "tab", "images"] as const,
+  tvTabVideos: (tvId: string) =>
+    [...queryKeys.media(), "tv", tvId, "tab", "videos"] as const,
+  tvTabReviews: (tvId: string, page: string) =>
+    [...queryKeys.media(), "tv", tvId, "tab", "reviews", page] as const,
+  tvTabRecommendations: (tvId: string, page: string) =>
+    [...queryKeys.media(), "tv", tvId, "tab", "recommendations", page] as const,
+  tvTabSimilar: (tvId: string, page: string) =>
+    [...queryKeys.media(), "tv", tvId, "tab", "similar", page] as const,
+
+  movieTabCredits: (movieId: string) =>
+    [...queryKeys.media(), "movie", movieId, "tab", "credits"] as const,
+  movieTabImages: (movieId: string) =>
+    [...queryKeys.media(), "movie", movieId, "tab", "images"] as const,
+  movieTabVideos: (movieId: string) =>
+    [...queryKeys.media(), "movie", movieId, "tab", "videos"] as const,
+  movieTabReviews: (movieId: string, page: string) =>
+    [...queryKeys.media(), "movie", movieId, "tab", "reviews", page] as const,
+  movieTabRecommendations: (movieId: string, page: string) =>
+    [
+      ...queryKeys.media(),
+      "movie",
+      movieId,
+      "tab",
+      "recommendations",
+      page,
+    ] as const,
+  movieTabSimilar: (movieId: string, page: string) =>
+    [...queryKeys.media(), "movie", movieId, "tab", "similar", page] as const,
+  movieCollection: (collectionId: number) =>
+    [...queryKeys.media(), "collection", collectionId] as const,
 } as const;
 
 export type QueryKeys = typeof queryKeys;

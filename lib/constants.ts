@@ -21,6 +21,17 @@ export const MAGIC_LINK_RESEND_FROM =
 export const MAGIC_LINK_RESEND_SUBJECT =
   "nyumatflix.com - Here's your magic link to sign in";
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+
+/** TMDB `number_of_episodes` above which desktop `/tvshows/[id]` defaults to Overview (mobile uses Seasons & Episodes) */
+export const LARGE_TV_SHOW_EPISODE_OVERVIEW_THRESHOLD = 75;
+
+/** Series graph total nodes (seasons + episodes) above which mobile defaults to canvas */
+export const LARGE_SERIES_GRAPH_NODE_THRESHOLD = 75;
+
+/** matches Tailwind `lg` — tv root tab redirect, series graph grid on desktop */
+export const TV_DETAIL_LG_MEDIA_QUERY = "(min-width: 1024px)";
+
+export const TMDB_WATCH_REGION = "US" as const;
 let TMDB_API_KEY: string | undefined;
 if (!isBrowser) {
   TMDB_API_KEY = process.env.TMDB_API_KEY;

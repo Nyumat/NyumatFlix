@@ -16,7 +16,9 @@ export function ContentContainer({
   topSpacing = true,
 }: ContentContainerProps) {
   return (
-    <div className={`w-full pt-12 ${topSpacing ? "mt-4" : ""} ${className}`}>
+    <div
+      className={`w-full ${topSpacing ? "mt-4 pt-12" : "pt-0"} ${className}`}
+    >
       {children}
     </div>
   );

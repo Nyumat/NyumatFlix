@@ -1,29 +1,5 @@
 import type { Genre, MediaItem } from "@/utils/typings";
 
-export interface ContentRowResponse {
-  items: MediaItem[];
-}
-
-export async function fetchContentRow(
-  rowId: string,
-  count: number = 20,
-  enrich: boolean = false,
-): Promise<MediaItem[]> {
-  const params = new URLSearchParams({
-    id: rowId,
-    count: count.toString(),
-    enrich: enrich.toString(),
-  });
-
-  const response = await fetch(`/api/content-rows?${params}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch content row: ${response.status}`);
-  }
-
-  return response.json();
-}
-
 export interface SearchPreviewResult {
   id: number;
   title?: string;

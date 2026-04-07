@@ -19,9 +19,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const { WatchlistButton } = await import(
-  "@/components/watchlist/watchlist-button"
-);
+const { WatchlistButton } = await import("@/components/watchlist/watchlist");
 const watchlistActions = await import("@/app/watchlist/actions");
 
 const mockUseSession = vi.mocked(useSession);

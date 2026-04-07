@@ -1,6 +1,5 @@
 import {
   fetchCombinedGenres,
-  fetchContentRow,
   fetchMovieGenres,
   fetchSearchPreview,
   fetchSearchResults,
@@ -25,60 +24,6 @@ describe("API functions", () => {
 
   afterEach(() => {
     vi.resetAllMocks();
-  });
-
-  describe("fetchContentRow", () => {
-    test("fetches content row with default parameters", async () => {
-      const mockItems = [{ id: 1, title: "Test Movie" }];
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockItems,
-      } as Response);
-
-      const result = await fetchContentRow("trending-movies");
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/content-rows?id=trending-movies&count=20&enrich=false",
-      );
-      expect(result).toEqual(mockItems);
-    });
-
-    test("fetches content row with custom count", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      } as Response);
-
-      await fetchContentRow("trending-movies", 10);
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/content-rows?id=trending-movies&count=10&enrich=false",
-      );
-    });
-
-    test("fetches content row with enrich enabled", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      } as Response);
-
-      await fetchContentRow("trending-movies", 20, true);
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/content-rows?id=trending-movies&count=20&enrich=true",
-      );
-    });
-
-    test("throws error on failed response", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-      } as Response);
-
-      await expect(fetchContentRow("trending-movies")).rejects.toThrow(
-        "Failed to fetch content row: 500",
-      );
-    });
   });
 
   describe("fetchSearchPreview", () => {

@@ -1,4 +1,4 @@
-import { StaticHero } from "@/components/hero/carousel-static";
+import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { LegalPage } from "@/components/layout/legal-page";
 
@@ -23,15 +23,16 @@ export default function CookiePolicyPage() {
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
                 NyumatFlix is a free, open-source movie and TV show discovery
-                platform that requires no user accounts or personal information.
-                We use minimal cookies to ensure the website functions properly
-                and to understand general usage patterns through privacy-focused
-                analytics.
+                platform. We use a small number of cookies and similar
+                technologies so the site works, so you can stay signed in if you
+                choose, and so we can measure aggregate traffic. &quot;Where to
+                watch&quot; data is requested from TMDb for a fixed region (US),
+                not based on your location.
               </p>
               <p className="text-muted-foreground leading-relaxed">
-                <strong>No Tracking:</strong> We do not use tracking cookies,
-                advertising cookies, or any cookies that identify individual
-                users across sessions or websites.
+                <strong>No ad tracking on our pages:</strong> We do not run
+                third-party ad networks on NyumatFlix itself or use marketing
+                cookies for cross-site profiling.
               </p>
             </section>
 
@@ -53,49 +54,37 @@ export default function CookiePolicyPage() {
                 How NyumatFlix Uses Cookies
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                NyumatFlix uses cookies for essential functionality and
-                privacy-focused analytics only:
+                NyumatFlix uses cookies for strictly necessary authentication
+                (when you sign in), optional client preferences, and
+                privacy-oriented analytics in production:
               </p>
 
               <div className="mb-6">
                 <h3 className="text-xl font-semibold text-foreground mb-3">
-                  Essential Cookies
+                  Essential and authentication cookies
                 </h3>
                 <p className="text-muted-foreground leading-relaxed mb-2">
-                  These cookies are necessary for the website to function
-                  properly:
+                  When you sign in with a magic link, Auth.js (NextAuth) sets
+                  HTTP-only session cookies so we know which account is
+                  connected. These are necessary for watchlist and progress
+                  features. There may also be short-lived CSRF or callback
+                  cookies during sign-in.
                 </p>
                 <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4">
-                  <li>Theme preferences (dark/light mode)</li>
+                  <li>Session and security cookies for logged-in users</li>
                   <li>Basic website functionality</li>
-                  <li>Security and error prevention</li>
-                  <li>Session management for browsing</li>
                 </ul>
               </div>
 
               <div className="mb-6">
                 <h3 className="text-xl font-semibold text-foreground mb-3">
-                  Analytics Cookies
+                  Analytics
                 </h3>
                 <p className="text-muted-foreground leading-relaxed mb-2">
-                  We use Umami Analytics, a privacy-focused analytics service
-                  that:
+                  In production we load Umami Analytics, which may set its own
+                  cookies or use storage to measure aggregate traffic. See
+                  umami.is for details.
                 </p>
-                <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4">
-                  <li>
-                    Collects anonymized usage statistics (page views, popular
-                    content)
-                  </li>
-                  <li>
-                    Does not track individual users or create user profiles
-                  </li>
-                  <li>Does not use persistent identifiers across sessions</li>
-                  <li>
-                    Helps us understand which content is popular to improve
-                    recommendations
-                  </li>
-                  <li>Is GDPR compliant and privacy-focused by design</li>
-                </ul>
               </div>
             </section>
 
@@ -116,20 +105,16 @@ export default function CookiePolicyPage() {
                   integration or tracking
                 </li>
                 <li>
-                  <strong>User Profile Cookies:</strong> No user accounts means
-                  no profile tracking
+                  <strong>Ad-tech remarketing:</strong> We do not run
+                  remarketing pixels for ads on NyumatFlix
                 </li>
                 <li>
-                  <strong>Cross-Site Tracking:</strong> We don't track you
-                  across other websites
+                  <strong>Cross-site ad profiles:</strong> We do not sell data
+                  to ad networks for profiling you across the web
                 </li>
                 <li>
-                  <strong>Persistent User IDs:</strong> No unique identifiers
-                  tied to individuals
-                </li>
-                <li>
-                  <strong>Marketing Cookies:</strong> No marketing or
-                  remarketing functionality
+                  <strong>Embedded ad SDKs:</strong> We do not load third-party
+                  advertising network scripts on NyumatFlix pages
                 </li>
               </ul>
             </section>
@@ -224,20 +209,16 @@ export default function CookiePolicyPage() {
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
                 <li>
-                  <strong>Essential Functions:</strong> The website will still
-                  work for browsing and discovering content
+                  <strong>Browsing:</strong> Much of the site may still work for
+                  discovering content
                 </li>
                 <li>
-                  <strong>Theme Settings:</strong> Your dark/light mode
-                  preference won't be remembered
+                  <strong>Sign-in:</strong> You will not stay signed in if you
+                  block authentication cookies
                 </li>
                 <li>
-                  <strong>Analytics:</strong> We won't collect any usage
-                  statistics (which is fine!)
-                </li>
-                <li>
-                  <strong>No Account Impact:</strong> Since there are no user
-                  accounts, no login functionality is affected
+                  <strong>Analytics:</strong> Aggregate measurement may be
+                  reduced or blocked
                 </li>
               </ul>
             </section>
@@ -251,16 +232,13 @@ export default function CookiePolicyPage() {
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4 mt-4">
                 <li>
-                  <strong>Essential Cookies:</strong> Expire when you close your
-                  browser or after 1 year maximum
+                  <strong>Session cookies:</strong> Tied to your sign-in session
+                  and expire when the session ends or after the period set by
+                  the auth library
                 </li>
                 <li>
-                  <strong>Analytics Cookies:</strong> Short-term session cookies
-                  that don't persist across visits
-                </li>
-                <li>
-                  <strong>Theme Preferences:</strong> Stored locally until you
-                  clear browser data
+                  <strong>Analytics:</strong> As described by Umami for their
+                  script
                 </li>
               </ul>
             </section>

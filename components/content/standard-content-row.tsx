@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import { isMovie, isTVShow, MediaItem } from "@/utils/typings";
 import { useEffect, useRef, useState } from "react";
+import { hasPosterPath } from "@/lib/media-poster-path";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 
@@ -88,8 +89,9 @@ export function StandardContentRow({
       setLoading(true);
       try {
         const newItems = await onLoadMore();
-        if (newItems && newItems.length > 0) {
-          setItems((prev) => [...prev, ...newItems]);
+        const withPosters = newItems?.filter(hasPosterPath) ?? [];
+        if (withPosters.length > 0) {
+          setItems((prev) => [...prev, ...withPosters]);
         }
       } catch (error) {
         console.error("Error loading more items:", error);
@@ -130,7 +132,7 @@ export function StandardContentRow({
           className="w-full"
         >
           <CarouselContent className="md:mx-0 px-4 md:px-0 w-full">
-            {items.map((item, index) => (
+            {items.filter(hasPosterPath).map((item, index) => (
               <CarouselItem
                 key={`${item.id}-${index}`}
                 className="pl-2 md:pl-3 basis-[45%] sm:basis-[32%] md:basis-[24%] lg:basis-[19%] xl:basis-[14%] p-2"

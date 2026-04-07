@@ -7,13 +7,14 @@ import {
   type ContentItem,
   type ViewMode,
 } from "@/components/content-grid";
-import { MediaCard } from "@/components/media/media-card";
-import { MediaLogo } from "@/components/media/media-logo";
+import MediaShowcaseCard from "@/components/media/media-client";
+import { MediaLogo } from "@/components/media/media-display";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CountryBadge } from "@/components/ui/country-badge";
 import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import { useGlobalDock } from "@/components/ui/global-dock";
+import { hasPosterPath } from "@/lib/media-poster-path";
 import { Icons } from "@/lib/icons";
 import { useViewModeStore } from "@/lib/stores/view-mode-store";
 import type {
@@ -327,9 +328,9 @@ export function MediaContentGrid({
     setShowDock(showDock);
   }, [showDock, setShowDock]);
 
-  // Filter out any invalid items (no ID, null, undefined)
   const validItems = items.filter(
-    (item) => item && item.id !== null && item.id !== undefined,
+    (item) =>
+      item && item.id !== null && item.id !== undefined && hasPosterPath(item),
   );
 
   const processedItems = validItems.map((item) => ({
@@ -360,7 +361,7 @@ export function MediaContentGrid({
 
     return (
       <div key={`${mediaItem.id}`} className="w-full">
-        <MediaCard
+        <MediaShowcaseCard
           item={mediaItem}
           type={mediaItem.media_type}
           rating={mediaItem.content_rating || undefined}

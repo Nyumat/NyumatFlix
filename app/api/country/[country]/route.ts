@@ -3,6 +3,11 @@ import {
   fetchAndEnrichMediaItems,
   fetchTMDBData,
 } from "@/app/actions";
+import {
+  filterReleasedMovies,
+  filterReleasedTvShows,
+  getTodayIsoDateUtc,
+} from "@/lib/released-media";
 import { MediaItem } from "@/utils/typings";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -35,9 +40,12 @@ export async function GET(
       page: page.toString(),
     };
 
+    const today = getTodayIsoDateUtc();
+
     // Add country filtering
     if (mediaType === "movie") {
       queryParams.region = countryCode;
+      queryParams["primary_release_date.lte"] = today;
       // For movies, we can also use production companies for better results
       if (countryCode === "US") {
         queryParams.with_origin_country = "US";
@@ -45,6 +53,7 @@ export async function GET(
     } else {
       // For TV shows, use origin country
       queryParams.with_origin_country = countryCode;
+      queryParams["first_air_date.lte"] = today;
     }
 
     // Add quality filters
@@ -76,11 +85,16 @@ export async function GET(
       mediaType as "movie" | "tv",
     );
 
+    const releasedOnly =
+      mediaType === "movie"
+        ? filterReleasedMovies(enrichedResults)
+        : filterReleasedTvShows(enrichedResults);
+
     return NextResponse.json({
       page: data.page,
       total_pages: data.total_pages,
       total_results: data.total_results,
-      results: enrichedResults,
+      results: releasedOnly,
       type: mediaType,
       countryCode,
       sortBy,

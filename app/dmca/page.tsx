@@ -1,4 +1,4 @@
-import { StaticHero } from "@/components/hero/carousel-static";
+import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { LegalPage } from "@/components/layout/legal-page";
 
@@ -70,8 +70,9 @@ export default function DMCAPage() {
                   content to our platform
                 </li>
                 <li>
-                  <strong>No User Accounts:</strong> We have no user-generated
-                  content or user profiles
+                  <strong>No user-uploaded video:</strong> Signed-in users
+                  cannot upload or host video on NyumatFlix; accounts are for
+                  features like watchlists and progress only
                 </li>
               </ul>
             </section>
@@ -238,11 +239,11 @@ export default function DMCAPage() {
                 Repeat Infringer Policy
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                While NyumatFlix has no user accounts or user-generated content,
-                we maintain a policy of removing persistent infringing
-                information if notified by copyright holders. Since we don't
-                host content, this typically involves removing information or
-                links rather than content itself.
+                NyumatFlix does not host video or allow users to upload media
+                files. We maintain a policy of addressing persistent infringing
+                listings (for example metadata, links, or descriptions) if
+                notified by copyright holders. Repeat abuse of accounts to
+                circumvent enforcement may result in suspension.
               </p>
             </section>
 

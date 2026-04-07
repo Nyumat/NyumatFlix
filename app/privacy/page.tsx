@@ -1,4 +1,4 @@
-import { StaticHero } from "@/components/hero/carousel-static";
+import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { LegalPage } from "@/components/layout/legal-page";
 
@@ -30,10 +30,10 @@ export default function PrivacyPage() {
                 sources.
               </p>
               <p className="text-muted-foreground leading-relaxed">
-                <strong>No Account Required:</strong> NyumatFlix does not
-                require user registration, login, or any personal account
-                creation. You can browse and discover content completely
-                anonymously.
+                <strong>Accounts are optional:</strong> You can browse most of
+                the site without signing in. If you create an account (email
+                magic link), we store the data needed for sign-in, your
+                watchlist, and optional playback progress, as described below.
               </p>
             </section>
 
@@ -42,31 +42,44 @@ export default function PrivacyPage() {
                 Information We Collect
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                Since NyumatFlix has no user accounts or registration system, we
-                collect minimal information:
+                We collect only what we need to run the service:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
                 <li>
-                  <strong>Basic Analytics:</strong> We use Umami Analytics
-                  (privacy-focused) to understand general usage patterns like
-                  page views and popular content. This data is anonymized and
-                  does not identify individual users.
+                  <strong>Basic Analytics:</strong> In production we use Umami
+                  Analytics (privacy-focused) for aggregate usage such as page
+                  views. It is designed not to profile individuals across sites.
                 </li>
                 <li>
-                  <strong>Technical Data:</strong> Standard web server logs
-                  including IP addresses, browser type, and timestamps for
-                  security and performance monitoring.
+                  <strong>Technical Data:</strong> Standard web server and
+                  hosting logs (for example IP address, user agent, timestamps)
+                  for security, abuse prevention, and performance.
                 </li>
                 <li>
-                  <strong>Cookies:</strong> Essential cookies for basic website
-                  functionality and analytics. No tracking or advertising
-                  cookies.
+                  <strong>Authentication (if you sign in):</strong> Email
+                  address (for magic-link sign-in), optional display name and
+                  profile image if you add them, session identifiers, and OAuth
+                  tokens our auth library needs to keep you signed in. We send
+                  sign-in links through Resend.
+                </li>
+                <li>
+                  <strong>Watchlist and progress (if you sign in):</strong> TMDb
+                  title identifiers, media type (movie or TV), status, and
+                  optional last-watched episode or season so we can resume where
+                  you left off.
+                </li>
+                <li>
+                  <strong>Cookies:</strong> Strictly necessary cookies for
+                  authentication when you use an account, plus cookies or
+                  similar technologies used by our analytics provider. We do not
+                  use advertising or cross-site tracking cookies on NyumatFlix
+                  itself.
                 </li>
               </ul>
               <p className="text-muted-foreground leading-relaxed mt-4">
-                <strong>We do NOT collect:</strong> Names, email addresses,
-                passwords, payment information, personal profiles, or any
-                personally identifiable information.
+                <strong>We do NOT:</strong> Sell your personal data, run
+                third-party ad networks on our own pages, or require payment to
+                use NyumatFlix.
               </p>
             </section>
 
@@ -81,6 +94,9 @@ export default function PrivacyPage() {
                 <li>Maintain and improve website performance</li>
                 <li>
                   Understand which content is popular to improve recommendations
+                </li>
+                <li>
+                  Provide signed-in features (watchlist, progress, onboarding)
                 </li>
                 <li>Detect and prevent technical issues or abuse</li>
                 <li>Comply with legal requirements if necessary</li>
@@ -114,9 +130,39 @@ export default function PrivacyPage() {
                 </h3>
                 <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
                   <li>
-                    <strong>Umami Analytics:</strong> Privacy-focused analytics
-                    that doesn't track users across sites or collect personal
-                    data.
+                    <strong>Umami Analytics:</strong> Hosted analytics focused
+                    on aggregate traffic. See umami.is for their practices.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-foreground mb-3">
+                  Email delivery
+                </h3>
+                <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
+                  <li>
+                    <strong>Resend:</strong> Sends magic-link emails when you
+                    sign in. Resend processes the recipient address and delivery
+                    metadata needed to complete the request.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-foreground mb-3">
+                  Database & hosting
+                </h3>
+                <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
+                  <li>
+                    Account and watchlist data are stored in a PostgreSQL
+                    database (for example Neon) controlled as part of this
+                    deployment.
+                  </li>
+                  <li>
+                    The site may be served from edge or serverless
+                    infrastructure (for example Vercel), which processes
+                    requests and standard HTTP metadata.
                   </li>
                 </ul>
               </div>
@@ -151,13 +197,17 @@ export default function PrivacyPage() {
                 Data Sharing
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                We do not sell, trade, or share any user data with third
-                parties. The only data sharing that occurs is:
+                We do not sell your personal information. Service providers
+                (hosting, database, email, analytics) process data only to
+                operate NyumatFlix. Sharing otherwise occurs when:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4 mt-4">
-                <li>Anonymized analytics data processed by Umami</li>
+                <li>Analytics data is processed by Umami under their terms</li>
                 <li>
                   Standard web requests to TMDb API for content information
+                </li>
+                <li>
+                  Email delivery is handled by Resend when you request a link
                 </li>
                 <li>Legal compliance if required by law enforcement</li>
               </ul>
@@ -168,8 +218,8 @@ export default function PrivacyPage() {
                 Data Security & Retention
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                Since we don't collect personal data, security risks are
-                minimal. However, we:
+                We protect data in line with the sensitivity of what we store.
+                In general we:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
                 <li>Use HTTPS encryption for all connections</li>
@@ -184,25 +234,26 @@ export default function PrivacyPage() {
                 Your Rights & Control
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                Since NyumatFlix doesn't require accounts or collect personal
-                information, there's minimal data to control. However:
+                Depending on where you live, you may have rights to access,
+                correct, export, or delete personal data. For NyumatFlix:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
                 <li>
-                  <strong>Cookies:</strong> You can disable cookies in your
-                  browser settings (may affect functionality)
+                  <strong>Browsing:</strong> You can use much of the site
+                  without an account.
                 </li>
                 <li>
-                  <strong>Analytics:</strong> You can opt out of analytics by
-                  using ad blockers or privacy tools
+                  <strong>Cookies:</strong> You can limit cookies in your
+                  browser; disabling auth cookies will sign you out.
                 </li>
                 <li>
-                  <strong>Access:</strong> You can browse completely anonymously
-                  without creating any account
+                  <strong>Analytics:</strong> You can use privacy tools or
+                  blockers that affect third-party scripts.
                 </li>
                 <li>
-                  <strong>Data Deletion:</strong> Since we don't store personal
-                  data, there's nothing to delete
+                  <strong>Account data:</strong> Contact us via the GitHub
+                  repository listed below to request deletion or export of data
+                  tied to your account. We will verify reasonable requests.
                 </li>
               </ul>
             </section>
@@ -225,11 +276,10 @@ export default function PrivacyPage() {
                 Children's Privacy
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                Since NyumatFlix doesn't collect personal information from
-                anyone, including children under 13, we are inherently compliant
-                with children's privacy requirements. Parents should supervise
-                their children's use of external streaming sites that we link
-                to.
+                The service is not directed at children under 13, and we do not
+                knowingly collect data from children without appropriate
+                consent. Parents should supervise minors&apos; use of external
+                streaming sites we link to.
               </p>
             </section>
 

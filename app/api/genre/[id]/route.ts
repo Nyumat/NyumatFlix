@@ -3,6 +3,11 @@ import {
   fetchAndEnrichMediaItems,
   fetchTMDBData,
 } from "@/app/actions";
+import {
+  filterReleasedMovies,
+  filterReleasedTvShows,
+  getTodayIsoDateUtc,
+} from "@/lib/released-media";
 import { MediaItem } from "@/utils/typings";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -20,6 +25,7 @@ export async function GET(
   const page = parseInt(pageParam, 10);
 
   try {
+    const today = getTodayIsoDateUtc();
     const data = await fetchTMDBData<MediaItem>(
       `/discover/${mediaType}`,
       {
@@ -28,6 +34,9 @@ export async function GET(
         language: "en-US",
         include_adult: "false",
         "vote_count.gte": "10", // Minimum vote count for quality
+        ...(mediaType === "movie"
+          ? { "primary_release_date.lte": today }
+          : { "first_air_date.lte": today }),
       },
       page,
     );
@@ -48,10 +57,15 @@ export async function GET(
       mediaType as "movie" | "tv",
     );
 
+    const releasedOnly =
+      mediaType === "movie"
+        ? filterReleasedMovies(enrichedResults)
+        : filterReleasedTvShows(enrichedResults);
+
     return NextResponse.json({
       page: data.page,
       total_pages: data.total_pages,
-      results: enrichedResults,
+      results: releasedOnly,
       type: mediaType,
       genreId,
     });

@@ -8,41 +8,6 @@ describe("queryKeys", () => {
     });
   });
 
-  describe("content rows", () => {
-    test("contentRows returns correct key structure", () => {
-      expect(queryKeys.contentRows()).toEqual(["nyumatflix", "content-rows"]);
-    });
-
-    test("contentRow returns key with rowId", () => {
-      expect(queryKeys.contentRow("trending-movies")).toEqual([
-        "nyumatflix",
-        "content-rows",
-        "trending-movies",
-        undefined,
-      ]);
-    });
-
-    test("contentRow includes options when provided", () => {
-      expect(
-        queryKeys.contentRow("trending-movies", { count: 10, enrich: true }),
-      ).toEqual([
-        "nyumatflix",
-        "content-rows",
-        "trending-movies",
-        { count: 10, enrich: true },
-      ]);
-    });
-
-    test("contentRow with partial options", () => {
-      expect(queryKeys.contentRow("trending-movies", { count: 5 })).toEqual([
-        "nyumatflix",
-        "content-rows",
-        "trending-movies",
-        { count: 5 },
-      ]);
-    });
-  });
-
   describe("search keys", () => {
     test("search returns base search key", () => {
       expect(queryKeys.search()).toEqual(["nyumatflix", "search"]);
@@ -130,20 +95,6 @@ describe("queryKeys", () => {
   });
 
   describe("key uniqueness", () => {
-    test("different content rows have different keys", () => {
-      const key1 = queryKeys.contentRow("trending-movies");
-      const key2 = queryKeys.contentRow("popular-tv");
-
-      expect(key1).not.toEqual(key2);
-    });
-
-    test("same content row with different options have different keys", () => {
-      const key1 = queryKeys.contentRow("trending-movies", { count: 10 });
-      const key2 = queryKeys.contentRow("trending-movies", { count: 20 });
-
-      expect(key1).not.toEqual(key2);
-    });
-
     test("different search queries have different keys", () => {
       const key1 = queryKeys.searchPreview("batman");
       const key2 = queryKeys.searchPreview("superman");

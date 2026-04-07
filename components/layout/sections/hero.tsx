@@ -21,7 +21,12 @@ import StreamingServices from "./steaming-services";
 
 const NeuralNetworkBackground = dynamic(
   () => import("@/components/ui/neural-network-hero"),
-  { ssr: false, loading: () => <div className="w-full h-full bg-black" /> },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[100dvh] w-full bg-background" aria-hidden />
+    ),
+  },
 );
 
 export const HeroSection = () => {
@@ -45,7 +50,7 @@ export const HeroSection = () => {
   }, [adBlockDetected, router]);
 
   return (
-    <section className="relative w-full min-h-[100vh] md:min-h-screen overflow-x-hidden">
+    <section className="relative -mt-14 w-full min-h-[100dvh] overflow-x-hidden overflow-hidden pt-14 md:min-h-screen">
       <div className="absolute inset-0 z-0">
         <div
           className="w-full h-full flex flex-col relative opacity-50 overflow-hidden"
@@ -55,7 +60,7 @@ export const HeroSection = () => {
         </div>
       </div>
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none select-none">
-        <div className="flex flex-col items-center justify-center min-h-[80vh] lg:min-h-[85vh] gap-6 sm:gap-8 pt-24 pb-8 md:pt-28 md:pb-16">
+        <div className="flex min-h-[80vh] flex-col items-center justify-center gap-6 pt-10 pb-8 sm:gap-8 md:pt-14 md:pb-16 lg:min-h-[85vh]">
           <div className="flex flex-col items-center text-center space-y-6 sm:space-y-8 max-w-6xl">
             <div
               className="scale-75 sm:scale-100 flex min-w-fit w-full items-center justify-center gap-2 backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40 shadow-lg hover:shadow-xl transition-all duration-200 px-3 py-2 rounded-md max-w-xs mx-auto pointer-events-auto"

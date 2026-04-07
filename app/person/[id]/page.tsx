@@ -3,10 +3,13 @@ import {
   fetchPersonFilmography,
   getPersonDetails,
 } from "@/app/actions";
+import { cn, isDeceasedAsOfToday } from "@/lib/utils";
+import { DetailSectionNav } from "@/components/media/detail-section-nav";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
-import { BiographyReadMore } from "@/components/person/biography-read-more";
+import { BiographyReadMore } from "@/components/person";
+import type { PersonDetails } from "@/tmdb/models";
 import { MediaItem } from "@/utils/typings";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
@@ -68,6 +71,8 @@ export default async function PersonPage(props: PersonPageProps) {
     notFound();
   }
 
+  const { deathday } = person as PersonDetails;
+
   // Fetch initial filmography for the client component
   const initialFilmographyResponse = await fetchPersonFilmography(personId, 1);
   let initialFilmography: MediaItem[] = [];
@@ -105,7 +110,17 @@ export default async function PersonPage(props: PersonPageProps) {
             className="mx-auto px-4 mt-6 relative z-10 max-w-7xl"
             topSpacing={false}
           >
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <DetailSectionNav
+              sections={[
+                { id: "section-bio", label: "Profile" },
+                { id: "section-filmography", label: "Filmography" },
+              ]}
+            />
+
+            <div
+              id="section-bio"
+              className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8"
+            >
               <div className="lg:col-span-1 flex justify-center lg:justify-start">
                 <div className="rounded-lg overflow-hidden shadow-xl mt-4 mb-4 w-[280px] sm:w-[320px] lg:w-full">
                   {person.profile_path ? (
@@ -114,7 +129,10 @@ export default async function PersonPage(props: PersonPageProps) {
                       alt={person.name || "Person"}
                       width={500}
                       height={750}
-                      className="w-full h-auto"
+                      className={cn(
+                        "h-auto w-full",
+                        isDeceasedAsOfToday(deathday) && "grayscale",
+                      )}
                     />
                   ) : (
                     <div className="w-full aspect-[2/3] flex items-center justify-center bg-muted">
@@ -136,6 +154,18 @@ export default async function PersonPage(props: PersonPageProps) {
                         <Calendar size={18} className="text-gray-400" />
                         <span className="text-white">
                           Born: {new Date(person.birthday).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+
+                    {deathday && deathday.trim() !== "" && (
+                      <div className="flex items-center space-x-3">
+                        <Calendar size={18} className="text-gray-400" />
+                        <span className="text-white">
+                          Died:{" "}
+                          {new Date(
+                            `${deathday}T12:00:00`,
+                          ).toLocaleDateString()}
                         </span>
                       </div>
                     )}
@@ -166,7 +196,10 @@ export default async function PersonPage(props: PersonPageProps) {
               </div>
             </div>
 
-            <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-lg p-6 shadow-xl">
+            <div
+              id="section-filmography"
+              className="scroll-mt-24 bg-black/60 backdrop-blur-md border border-white/20 rounded-lg p-6 shadow-xl"
+            >
               <div className="space-y-4 mb-6">
                 <h2 className="text-2xl font-bold text-white">Filmography</h2>
                 <p className="text-gray-300">

@@ -5,7 +5,7 @@ import { WatchlistClient } from "./watchlist-client";
 import { Metadata } from "next";
 import { fetchAndEnrichMediaItems } from "../actions";
 import { MediaItem } from "@/utils/typings";
-import { StaticHero } from "@/components/hero/carousel-static";
+import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 
 export const metadata: Metadata = {

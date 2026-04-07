@@ -75,7 +75,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
           hideDisabledQueries={true}
           theme="dark"
           initialIsOpen={false}
-          buttonPosition="top-right"
+          buttonPosition="bottom-right"
         />
       )}
     </PersistQueryClientProvider>

@@ -1,3 +1,7 @@
+import {
+  filterReleasedMovies,
+  filterReleasedTvShows,
+} from "@/lib/released-media";
 import { Movie, TmdbResponse, TvShow } from "@/utils/typings";
 import { NextResponse } from "next/server";
 
@@ -84,10 +88,13 @@ export async function GET(request: Request) {
         media_type: "tv" as const,
       }));
 
-    // Filter out released movies with zero revenue, then combine and sort by popularity
-    const { filterZeroRevenueMovies } = await import("@/utils/content-filters");
+    const { filterZeroRevenueMovies } = await import(
+      "@/lib/movie-revenue-filter"
+    );
     const filteredMovies = filterZeroRevenueMovies(movies);
-    const allMedia = [...filteredMovies, ...tvShows].sort((a, b) => {
+    const releasedMovies = filterReleasedMovies(filteredMovies);
+    const releasedTv = filterReleasedTvShows(tvShows);
+    const allMedia = [...releasedMovies, ...releasedTv].sort((a, b) => {
       const popA = a.popularity || 0;
       const popB = b.popularity || 0;
       return popB - popA;

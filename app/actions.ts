@@ -1,13 +1,7 @@
 import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
 import { logger } from "@/lib/utils";
-import {
-  addRomanceFiltering,
-  buildFilterParams,
-  buildFilterParamsAsync,
-  filterRomanceContent,
-  filterZeroRevenueMovies,
-  getFilterConfig,
-} from "@/utils/content-filters";
+import { addRomanceFiltering, filterRomanceContent } from "@/lib/romance-media";
+import { filterZeroRevenueMovies } from "@/lib/movie-revenue-filter";
 import {
   Genre,
   GenreSchema,
@@ -174,10 +168,7 @@ export const fetchAllData = async () => {
     ninetiesMovies,
     earlyTwosMovies,
     recentReleases,
-    bingeWorthySeries,
     limitedSeries,
-    realityTV,
-    docuseries,
     fanFavoriteClassicsForHero,
   ] = await Promise.all([
     fetchTMDBData("/movie/popular", {
@@ -312,12 +303,6 @@ export const fetchAllData = async () => {
 
     // TV-Specific
     fetchTMDBData("/discover/tv", {
-      sort_by: "popularity.desc",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }), // Binge-Worthy Series
-    fetchTMDBData("/discover/tv", {
       with_type: "5",
       "vote_average.gte": "7.5",
       sort_by: "popularity.desc",
@@ -325,20 +310,6 @@ export const fetchAllData = async () => {
       include_adult: "false",
       without_genres: "10749",
     }), // Limited Series
-    fetchTMDBData("/discover/tv", {
-      with_genres: "10764",
-      sort_by: "popularity.desc",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }), // Reality TV
-    fetchTMDBData("/discover/tv", {
-      with_genres: "99",
-      sort_by: "popularity.desc",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }), // Docuseries
     // Fetch for Fan Favorite Classics Hero Carousel
     fetchTMDBData("/discover/movie", {
       with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
@@ -377,10 +348,7 @@ export const fetchAllData = async () => {
     recentReleases: recentReleases.results,
 
     // TV-Specific
-    bingeWorthySeries: bingeWorthySeries.results,
     limitedSeries: limitedSeries.results,
-    realityTV: realityTV.results,
-    docuseries: docuseries.results,
     fanFavoriteClassicsForHero: fanFavoriteClassicsForHero.results,
   };
 };
@@ -897,106 +865,46 @@ export async function fetchTVShowCertification(
   }
 }
 
-// Functions to fetch paginated content for each category
-export async function fetchPaginatedMovies(
-  endpoint: string,
-  params: Params = {},
-  page: number = 1,
-): Promise<MediaItem[]> {
-  try {
-    const data = await fetchTMDBData(
-      endpoint,
-      { ...params, page: page.toString() },
-      page,
+const LOGO_ENRICH_CHUNK = 8;
+
+export async function enrichMediaItemsWithLogos<
+  T extends { id: number } & Partial<MediaItem>,
+>(items: T[], mediaType: "movie" | "tv"): Promise<T[]> {
+  if (!items.length) {
+    return items;
+  }
+
+  const out: T[] = [];
+
+  for (let i = 0; i < items.length; i += LOGO_ENRICH_CHUNK) {
+    const slice = items.slice(i, i + LOGO_ENRICH_CHUNK);
+    const batch = await Promise.all(
+      slice.map(async (item) => {
+        try {
+          const detailedData = await fetchTMDBData(`/${mediaType}/${item.id}`);
+          const logos = (detailedData as TmdbTvShowDetails).images?.logos;
+          let logo: Logo | undefined;
+          if (logos?.length) {
+            const pick = logos.find((l) => l.iso_639_1 === "en") ?? logos[0];
+            const logoResult = LogoSchema.safeParse(pick);
+            if (logoResult.success) {
+              logo = logoResult.data;
+            }
+          }
+          return { ...item, logo } as T;
+        } catch (error) {
+          logger.error(
+            `enrichMediaItemsWithLogos failed for ${mediaType} ${item.id}:`,
+            error,
+          );
+          return item;
+        }
+      }),
     );
-    return data.results || [];
-  } catch (error) {
-    logger.error(`Error fetching paginated movies from ${endpoint}:`, error);
-    return [];
+    out.push(...batch);
   }
-}
 
-export async function fetchPaginatedCategory(
-  category: string,
-  type: "movie" | "tv",
-  page: number = 1,
-): Promise<MediaItem[]> {
-  try {
-    // Check if this filter has a custom fetch function first
-    const filter = getFilterConfig(category);
-    if (filter?.fetchConfig.customFetch) {
-      const result = await filter.fetchConfig.customFetch(page);
-      return result.results || [];
-    }
-
-    // Check if the filter has keyword strings that need resolution
-    const hasKeywordStrings =
-      filter?.fetchConfig.params?.with_keywords &&
-      !filter.fetchConfig.params.with_keywords.match(/^\d+(\|\d+)*$/);
-
-    // Use async version if keywords need resolution, otherwise use sync version
-    const filterConfig = hasKeywordStrings
-      ? await buildFilterParamsAsync(category)
-      : buildFilterParams(category);
-
-    // If we have a valid filter configuration, use it
-    if (filterConfig.endpoint && Object.keys(filterConfig.params).length > 0) {
-      // Add page parameter
-      const params = {
-        ...filterConfig.params,
-        page: page.toString(),
-      };
-
-      const results = await fetchPaginatedMovies(
-        filterConfig.endpoint,
-        params,
-        page,
-      );
-
-      return results;
-    }
-
-    // Otherwise fall back to the original logic
-    // Use standard params for all requests
-    const baseParams = {
-      language: "en-US",
-      include_adult: "false",
-    };
-
-    // Add region param for movies only (TV shows might be international but in English)
-    const params =
-      type === "movie" ? { ...baseParams, region: "US" } : baseParams;
-
-    let results: MediaItem[] = [];
-
-    // Handle standard categories
-    if (category === "popular") {
-      results = await fetchPaginatedMovies(`/${type}/popular`, params, page);
-    } else if (category === "top_rated") {
-      results = await fetchPaginatedMovies(`/${type}/top_rated`, params, page);
-    } else if (category === "upcoming" && type === "movie") {
-      results = await fetchPaginatedMovies("/movie/upcoming", params, page);
-    } else if (category === "now_playing" && type === "movie") {
-      results = await fetchPaginatedMovies("/movie/now_playing", params, page);
-    } else if (category === "on_the_air" && type === "tv") {
-      results = await fetchPaginatedMovies("/tv/on_the_air", params, page);
-    } else {
-      // For other categories, use discover endpoint with basic parameters
-      results = await fetchPaginatedMovies(
-        `/discover/${type}`,
-        {
-          ...params,
-          sort_by: "popularity.desc",
-        },
-        page,
-      );
-    }
-
-    return results;
-  } catch (error) {
-    logger.error(`Error fetching paginated category ${category}:`, error);
-    return [];
-  }
+  return out;
 }
 
 export async function fetchAndEnrichMediaItems<

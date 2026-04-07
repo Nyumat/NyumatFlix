@@ -17,33 +17,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 0.9,
     },
-    // Movies section
     {
       url: "https://nyumatflix.com/movies",
       lastModified: lastModifiedDate,
       changeFrequency: "daily",
       priority: 0.9,
     },
-    // Movies browse page
-    {
-      url: "https://nyumatflix.com/movies/browse",
-      lastModified: lastModifiedDate,
-      changeFrequency: "daily",
-      priority: 0.8,
-    },
-    // TV Shows section
     {
       url: "https://nyumatflix.com/tvshows",
       lastModified: lastModifiedDate,
       changeFrequency: "daily",
       priority: 0.9,
-    },
-    // TV Shows browse page
-    {
-      url: "https://nyumatflix.com/tvshows/browse",
-      lastModified: lastModifiedDate,
-      changeFrequency: "daily",
-      priority: 0.8,
     },
     // Search page
     {

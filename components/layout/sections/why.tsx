@@ -35,7 +35,7 @@ const whyList: WhyProps[] = [
   },
 ];
 
-export function WhyNyumatFlix() {
+export function WhyPlatformSection() {
   return (
     <section id="benefits" className="container py-24 sm:py-32">
       <div className="grid lg:grid-cols-2 place-items-center lg:gap-24">
