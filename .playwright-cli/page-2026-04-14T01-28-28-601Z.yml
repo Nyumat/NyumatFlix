@@ -1,0 +1,256 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - link "NyumatFlix NyumatFlix" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "NyumatFlix" [ref=e6]
+          - generic [ref=e7]: NyumatFlix
+        - navigation "Main" [ref=e8]:
+          - list [ref=e10]:
+            - listitem [ref=e11]:
+              - link "Home" [ref=e12] [cursor=pointer]:
+                - /url: /home
+            - listitem [ref=e13]:
+              - generic [ref=e14]:
+                - link "Movies" [ref=e15] [cursor=pointer]:
+                  - /url: /movies
+                - button "Open Movies submenu" [ref=e16] [cursor=pointer]:
+                  - generic [ref=e17]: Open Movies submenu
+                  - img [ref=e18]
+            - listitem [ref=e20]:
+              - generic [ref=e21]:
+                - link "TV Shows" [ref=e22] [cursor=pointer]:
+                  - /url: /tvshows
+                - button "Open TV Shows submenu" [ref=e23] [cursor=pointer]:
+                  - generic [ref=e24]: Open TV Shows submenu
+                  - img [ref=e25]
+            - listitem [ref=e27]:
+              - generic [ref=e28]:
+                - link "People" [ref=e29] [cursor=pointer]:
+                  - /url: /people/popular
+                - button "Open People submenu" [ref=e30] [cursor=pointer]:
+                  - generic [ref=e31]: Open People submenu
+                  - img [ref=e32]
+            - listitem [ref=e34]:
+              - generic [ref=e35]:
+                - link "Trending" [ref=e36] [cursor=pointer]:
+                  - /url: /trending
+                - button "Open Trending submenu" [ref=e37] [cursor=pointer]:
+                  - generic [ref=e38]: Open Trending submenu
+                  - img [ref=e39]
+      - generic [ref=e44]:
+        - img [ref=e45]
+        - textbox "Search..." [ref=e48]
+        - generic [ref=e50]: ⌘ K
+      - link "Sign In" [ref=e53] [cursor=pointer]:
+        - /url: /login
+        - button "Sign In" [ref=e54]:
+          - img [ref=e55]
+          - text: Sign In
+  - main [ref=e58]:
+    - generic [ref=e59]:
+      - generic:
+        - generic:
+          - generic:
+            - generic [ref=e63]:
+              - generic [ref=e64]: NEW!
+              - paragraph [ref=e65]:
+                - text: Track favorites with the new
+                - link [ref=e66] [cursor=pointer]:
+                  - /url: /watchlist
+                  - text: watchlist
+                - text: feature!
+            - generic:
+              - heading "Movies and TV Shows For Everyone." [level=1]:
+                - text: Movies and TV Shows
+                - text: For Everyone.
+            - generic:
+              - generic:
+                - generic [ref=e69]:
+                  - img
+                  - textbox "Search movies, TV shows..." [ref=e70]
+                  - button "Search" [disabled]:
+                    - img
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Peacock"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "HBO Max"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Hulu"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Netflix"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Apple TV"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Disney+"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Prime Video"
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Peacock"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "HBO Max"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Hulu"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Netflix"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Apple TV"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Disney+"
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                          - img "Prime Video"
+            - generic:
+              - button "Get Started" [ref=e71] [cursor=pointer]:
+                - text: Start Watching
+                - img [ref=e72]
+              - link "Login / Signup" [ref=e74] [cursor=pointer]:
+                - /url: /login
+                - text: Login / Signup
+                - img [ref=e75]
+          - generic [ref=e78]:
+            - paragraph [ref=e79]: I recommend using one of the adblockers below for the best experience.
+            - generic [ref=e80]:
+              - generic [ref=e81]:
+                - link "Get uBlock Origin for Firefox" [ref=e82] [cursor=pointer]:
+                  - /url: https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/
+                  - generic [ref=e83]:
+                    - generic [ref=e84]:
+                      - img [ref=e86]
+                      - img "uBlock Origin" [ref=e87]
+                    - generic [ref=e88]:
+                      - img [ref=e90]
+                      - img "Firefox" [ref=e91]
+                - link "Get AdGuard for Safari" [ref=e92] [cursor=pointer]:
+                  - /url: https://apps.apple.com/us/app/adguard-for-safari/id1440147259
+                  - generic [ref=e93]:
+                    - generic [ref=e94]:
+                      - img [ref=e96]
+                      - img "AdGuard" [ref=e97]
+                    - generic [ref=e98]:
+                      - img [ref=e100]
+                      - img "Safari" [ref=e101]
+                - link "Get uBlock Origin for Chrome" [ref=e102] [cursor=pointer]:
+                  - /url: https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm
+                  - generic [ref=e103]:
+                    - generic [ref=e104]:
+                      - img [ref=e106]
+                      - img "uBlock Origin" [ref=e107]
+                    - generic [ref=e108]:
+                      - img [ref=e110]
+                      - img "Chrome" [ref=e111]
+              - link "How to enable uBlock Origin again" [ref=e112] [cursor=pointer]:
+                - /url: https://www.reddit.com/r/Adblock/comments/1j6f099/to_all_those_asking_how_to_enable_ublock_origin/
+                - text: Can't download on Chrome?
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - img "NyumatFlix Platform"
+  - contentinfo "Site footer" [ref=e113]:
+    - generic [ref=e114]:
+      - generic [ref=e115]:
+        - generic [ref=e116]:
+          - link "NyumatFlix homepage" [ref=e117] [cursor=pointer]:
+            - /url: /
+            - img "NyumatFlix Logo" [ref=e118]
+            - heading "NyumatFlix" [level=3] [ref=e119]
+          - paragraph [ref=e120]: An open source aggregator which curates movies and TV shows online for everyone to enjoy freely.
+          - list "Social media links" [ref=e121]:
+            - link "NyumatFlix GitHub repository" [ref=e122] [cursor=pointer]:
+              - /url: https://github.com/Nyumat/NyumatFlix
+              - img [ref=e123]
+            - link "Creator's website" [ref=e125] [cursor=pointer]:
+              - /url: https://nyuma.dev
+              - img [ref=e126]
+        - navigation "Explore" [ref=e129]:
+          - heading "Explore" [level=4] [ref=e130]
+          - list [ref=e131]:
+            - listitem [ref=e132]:
+              - link "Home" [ref=e133] [cursor=pointer]:
+                - /url: /home
+            - listitem [ref=e134]:
+              - link "Movies" [ref=e135] [cursor=pointer]:
+                - /url: /movies
+            - listitem [ref=e136]:
+              - link "TV Shows" [ref=e137] [cursor=pointer]:
+                - /url: /tvshows
+            - listitem [ref=e138]:
+              - link "Search" [ref=e139] [cursor=pointer]:
+                - /url: /search
+        - navigation "Legal" [ref=e140]:
+          - heading "Legal" [level=4] [ref=e141]
+          - list [ref=e142]:
+            - listitem [ref=e143]:
+              - link "Terms of Service" [ref=e144] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=e145]:
+              - link "Privacy Policy" [ref=e146] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e147]:
+              - link "Cookie Policy" [ref=e148] [cursor=pointer]:
+                - /url: /cookie-policy
+            - listitem [ref=e149]:
+              - link "DMCA" [ref=e150] [cursor=pointer]:
+                - /url: /dmca
+      - generic [ref=e151]:
+        - paragraph [ref=e152]: © 2026 NyumatFlix. All rights reserved.
+        - paragraph [ref=e153]:
+          - text: Made with
+          - img [ref=e154]
+          - text: and
+          - img [ref=e156]
+          - text: for movie, TV show, and anime enthusiasts.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e163] [cursor=pointer]:
+    - img [ref=e164]
+  - alert [ref=e167]

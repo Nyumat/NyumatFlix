@@ -86,7 +86,6 @@
     "moviedb-promise": "^4.0.7",
     "next": "15.5.9",
     "next-auth": "^5.0.0-beta.29",
-    "next-themes": "^0.3.0",
     "nuqs": "^2.8.9",
     "postgres": "^3.4.7",
     "react": "^19.2.0",

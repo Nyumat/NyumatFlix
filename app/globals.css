@@ -5,6 +5,7 @@
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
+  color-scheme: dark;
 }
 
 /* *=========== Default theme =========== */
@@ -55,64 +56,12 @@ html {
     --radius: 0.5rem;
   } */
 
+  /*
+   * Dark palette on :root so semantic tokens (e.g. --border) are correct on the
+   * first paint without relying on a `.dark` class or client-only theme scripts.
+   * Keep class "dark" on <html> for Tailwind `dark:` variants.
+   */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 210 25% 7.8431%;
-    --card: 180 6.6667% 97.0588%;
-    --card-foreground: 210 25% 7.8431%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 25% 7.8431%;
-    --primary: 203.8863 88.2845% 53.1373%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 25% 7.8431%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 240 1.9608% 90%;
-    --muted-foreground: 210 25% 7.8431%;
-    --accent: 211.5789 51.3514% 92.7451%;
-    --accent-foreground: 203.8863 88.2845% 53.1373%;
-    --destructive: 356.3033 90.5579% 54.3137%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 201.4286 30.4348% 90.9804%;
-    --input: 200 23.0769% 97.451%;
-    --ring: 202.8169 89.1213% 53.1373%;
-    --chart-1: 203.8863 88.2845% 53.1373%;
-    --chart-2: 159.7826 100% 36.0784%;
-    --chart-3: 42.029 92.8251% 56.2745%;
-    --chart-4: 147.1429 78.5047% 41.9608%;
-    --chart-5: 341.4894 75.2% 50.9804%;
-    --sidebar: 180 6.6667% 97.0588%;
-    --sidebar-foreground: 210 25% 7.8431%;
-    --sidebar-primary: 203.8863 88.2845% 53.1373%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 211.5789 51.3514% 92.7451%;
-    --sidebar-accent-foreground: 203.8863 88.2845% 53.1373%;
-    --sidebar-border: 205 25% 90.5882%;
-    --sidebar-ring: 202.8169 89.1213% 53.1373%;
-    --font-sans: var(--font-manrope), sans-serif;
-    --font-serif: Georgia, serif;
-    --font-mono: Menlo, monospace;
-    --radius: 1.3rem;
-    --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
-    --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
-    --shadow-sm:
-      0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0), 0px 1px 2px -1px
-      hsl(202.8169 89.1213% 53.1373% / 0);
-    --shadow:
-      0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0), 0px 1px 2px -1px
-      hsl(202.8169 89.1213% 53.1373% / 0);
-    --shadow-md:
-      0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0), 0px 2px 4px -1px
-      hsl(202.8169 89.1213% 53.1373% / 0);
-    --shadow-lg:
-      0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0), 0px 4px 6px -1px
-      hsl(202.8169 89.1213% 53.1373% / 0);
-    --shadow-xl:
-      0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0), 0px 8px 10px -1px
-      hsl(202.8169 89.1213% 53.1373% / 0);
-    --shadow-2xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
-  }
-
-  .dark {
     --background: 0 0% 0%;
     --foreground: 200 6.6667% 91.1765%;
     --card: 228 9.8039% 10%;
@@ -300,10 +249,10 @@ html {
     @apply h-[min(72vh,640px)] md:h-[min(60vh,760px)] lg:h-[min(64vh,860px)];
   }
   .overlay {
-    @apply absolute inset-0 flex items-end rounded-md border bg-gradient-to-tr from-background/95;
+    @apply absolute inset-0 flex items-end rounded-md bg-gradient-to-tr from-background/95;
   }
   .overlay-darker {
-    @apply absolute inset-0 flex items-end rounded-md border bg-gradient-to-tr from-background/95 to-background/50;
+    @apply absolute inset-0 flex items-end rounded-md bg-gradient-to-tr from-background/95 to-background/50;
   }
   .empty-box {
     @apply flex h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground;

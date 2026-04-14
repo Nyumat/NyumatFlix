@@ -21,7 +21,7 @@ const Content: React.FC<ComponentProps<"div">> = ({
   ...props
 }) => {
   return (
-    <div className={cn("overlay border-0", className)} {...props}>
+    <div className={cn("overlay", className)} {...props}>
       <div className="p-2 md:p-6">{children}</div>
     </div>
   );

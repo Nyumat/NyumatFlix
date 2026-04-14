@@ -1,0 +1,7 @@
+[     748ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[    1085ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://www3.doubleclick.net/:0
+[    1107ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://www3.doubleclick.net/:0
+[    3712ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[    3931ms] [LOG] [Fast Refresh] done in 321ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[    4574ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[    5138ms] [LOG] [Fast Refresh] done in 666ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
