@@ -1,3 +1,4 @@
+import { MovieDetailScrollReset } from "@/components/movie/movie-detail-scroll-reset";
 import { MediaDetailRouteTabs } from "@/components/media/media-detail-route-tabs";
 import { MediaDetailLayout } from "@/components/media/media-server";
 import { hydrateMovieDetailQueries } from "@/lib/prefetch-media-detail-queries";
@@ -34,6 +35,7 @@ export default async function MovieDetailLayout({ children, params }: Props) {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
+      <MovieDetailScrollReset />
       <Suspense fallback={null}>
         <MediaDetailLayout
           media={[details]}

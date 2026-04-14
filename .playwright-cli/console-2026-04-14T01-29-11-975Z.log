@@ -1,0 +1,20 @@
+[    1300ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[    1623ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[    1817ms] [LOG] [Fast Refresh] done in 295ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[    4358ms] [WARNING] Image with src "https://image.tmdb.org/t/p/w1280//hz7TdCrpLLt2Dz7S3PS2HG9rpAO.jpg" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.
+Read more: https://nextjs.org/docs/api-reference/next/image#priority @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[   78877ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[   79535ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[   79561ms] [LOG] [Fast Refresh] done in 758ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[   79967ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[   80080ms] [LOG] [Fast Refresh] done in 214ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[   82842ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706
+[   83561ms] [WARNING] Image with src "https://image.tmdb.org/t/p/w1280//fPfDB0IHOqvmKIzFP9CA51OOS1N.jpg" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.
+Read more: https://nextjs.org/docs/api-reference/next/image#priority @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1706

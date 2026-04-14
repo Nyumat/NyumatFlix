@@ -1,4 +1,3 @@
-import { ThemeProvider } from "@/components/layout/theme-provider";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { render, screen } from "@testing-library/react";
@@ -6,15 +5,9 @@ import { describe, expect, test } from "vitest";
 import Page from "../app/page";
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <ThemeProvider
-    attribute="class"
-    defaultTheme="system"
-    disableTransitionOnChange
-  >
-    <GlobalDockProvider>
-      <TooltipProvider>{children}</TooltipProvider>
-    </GlobalDockProvider>
-  </ThemeProvider>
+  <GlobalDockProvider>
+    <TooltipProvider>{children}</TooltipProvider>
+  </GlobalDockProvider>
 );
 
 describe("Landing Page", () => {

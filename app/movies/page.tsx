@@ -3,7 +3,7 @@ import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-s
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
 import { ContentRow } from "@/components/content/content-row";
-import { DiscoverFilters, DiscoverSort } from "@/components/discover";
+import { DiscoverHubToolbarDynamic } from "@/components/discover";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { MovieHero } from "@/components/movie";
@@ -248,15 +248,12 @@ export default async function MoviesCatalogPage(props: PageProps) {
                 ) : null}
               </header>
 
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <DiscoverFilters
-                  type="movie"
-                  genres={genres}
-                  providers={providers}
-                  serverDiscoverFilters={filterDiscoverParams(sp)}
-                />
-                <DiscoverSort type="movie" />
-              </div>
+              <DiscoverHubToolbarDynamic
+                type="movie"
+                genres={genres}
+                providers={providers}
+                serverDiscoverFilters={filterDiscoverParams(sp)}
+              />
 
               {heroFeaturedId != null ? (
                 <CatalogSpotlight

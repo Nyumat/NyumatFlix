@@ -1,6 +1,5 @@
 import { NavbarServer } from "@/components/layout/nav/navbar-server";
 import { FooterSection } from "@/components/layout/sections/footer";
-import { ThemeProvider } from "@/components/layout/theme-provider";
 import { OnboardingProvider } from "@/components/providers/onboarding-provider";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlobalDockProvider } from "@/components/ui/global-dock";
@@ -81,21 +80,14 @@ export default function RootLayout({
         <QueryProvider>
           <AuthSessionProvider>
             <OnboardingProvider>
-              <ThemeProvider
-                attribute="class"
-                defaultTheme="dark"
-                forcedTheme="dark"
-                disableTransitionOnChange
-              >
-                <TooltipProvider>
-                  <GlobalDockProvider>
-                    <NavbarServer />
-                    <main className="flex-1">{children}</main>
-                    <FooterSection />
-                    <Toaster richColors closeButton />
-                  </GlobalDockProvider>
-                </TooltipProvider>
-              </ThemeProvider>
+              <TooltipProvider>
+                <GlobalDockProvider>
+                  <NavbarServer />
+                  <main className="flex-1">{children}</main>
+                  <FooterSection />
+                  <Toaster richColors closeButton />
+                </GlobalDockProvider>
+              </TooltipProvider>
             </OnboardingProvider>
           </AuthSessionProvider>
         </QueryProvider>
