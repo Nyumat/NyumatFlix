@@ -3,6 +3,13 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import {
   matchesEpisodeSearch,
@@ -11,13 +18,7 @@ import {
 import { buildEpisodeIndex, type IndexedEpisode } from "@/lib/tv-episode-index";
 import { cn } from "@/lib/utils";
 import { Episode, SeasonDetails, TvShowDetails } from "@/utils/typings";
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  Tv,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Tv } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -157,26 +158,27 @@ export function HeroTvEpisodePanel({
           <span className="hidden text-xs sm:inline">Prev</span>
         </Button>
         <div className="relative min-w-0 flex-1">
-          <select
+          <Select
             value={String(selectedSeason)}
-            onChange={(e) => setSelectedSeason(Number(e.target.value))}
-            aria-label="Select season"
-            suppressHydrationWarning
-            className={cn(
-              "h-9 w-full cursor-pointer appearance-none rounded-md border border-white/15 bg-white/[0.08] py-2 pl-3 pr-9 text-sm text-foreground shadow-none dark:border-white/20 dark:bg-white/[0.08]",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
-            )}
+            onValueChange={(value) => setSelectedSeason(Number(value))}
           >
-            {seasonNumbers.map((num) => (
-              <option key={num} value={String(num)}>
-                Season {num}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50"
-            aria-hidden
-          />
+            <SelectTrigger
+              aria-label="Select season"
+              className={cn(
+                "h-9 w-full cursor-pointer rounded-md border border-white/15 bg-white/[0.08] py-2 shadow-none dark:border-white/20 dark:bg-white/[0.08]",
+                "focus:ring-offset-background",
+              )}
+            >
+              <SelectValue placeholder="Season" />
+            </SelectTrigger>
+            <SelectContent className="border-white/15 bg-popover/95 dark:border-white/20">
+              {seasonNumbers.map((num) => (
+                <SelectItem key={num} value={String(num)}>
+                  Season {num}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button
           type="button"
