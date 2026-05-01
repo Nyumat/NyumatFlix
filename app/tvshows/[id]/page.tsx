@@ -18,9 +18,7 @@ export default async function TvShowDetailPage(props: Props) {
     notFound();
   }
 
-  return (
-    <TvShowDetailTabPanels tvId={id} />
-  );
+  return <TvShowDetailTabPanels tvId={id} />;
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
