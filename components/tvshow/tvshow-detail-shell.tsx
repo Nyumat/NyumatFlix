@@ -3,7 +3,6 @@
 import { WatchlistItem } from "@/app/watchlist/actions";
 import { MediaDetailRouteTabs } from "@/components/media/media-detail-route-tabs";
 import { MediaDetailLayout } from "@/components/media/media-server";
-import { TvShowViewportDefaultTabSync } from "@/components/tvshow/tv-show-viewport-default-tab-sync";
 import { useWatchlistItem } from "@/hooks/useWatchlistItem";
 import { Episode, SeasonDetails, TvShowDetails } from "@/utils/typings";
 import { useMemo } from "react";
@@ -48,10 +47,6 @@ export const TvShowDetailShell = ({
 
   return (
     <>
-      <TvShowViewportDefaultTabSync
-        tvId={tvId}
-        numberOfEpisodes={details.number_of_episodes}
-      />
       <MediaDetailLayout
         media={[
           {

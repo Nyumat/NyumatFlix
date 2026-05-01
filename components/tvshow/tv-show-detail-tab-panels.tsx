@@ -28,13 +28,9 @@ import { useSearchParams } from "next/navigation";
 
 type TvShowDetailTabPanelsProps = {
   tvId: string;
-  numberOfEpisodes: number;
 };
 
-export const TvShowDetailTabPanels = ({
-  tvId,
-  numberOfEpisodes,
-}: TvShowDetailTabPanelsProps) => {
+export const TvShowDetailTabPanels = ({ tvId }: TvShowDetailTabPanelsProps) => {
   const searchParams = useSearchParams();
   const activeTab = useMediaDetailTab("tv", tvId);
   const listPage = searchParams.get("page") ?? "1";
@@ -93,7 +89,7 @@ export const TvShowDetailTabPanels = ({
   const resolvedDetails = details as TvShowDetails | undefined;
 
   if (!activeTab) {
-    return <TvShowRootRedirect id={tvId} numberOfEpisodes={numberOfEpisodes} />;
+    return <TvShowRootRedirect id={tvId} />;
   }
 
   switch (activeTab) {
