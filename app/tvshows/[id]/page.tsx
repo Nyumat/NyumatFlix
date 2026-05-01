@@ -19,10 +19,7 @@ export default async function TvShowDetailPage(props: Props) {
   }
 
   return (
-    <TvShowDetailTabPanels
-      tvId={id}
-      numberOfEpisodes={details.number_of_episodes}
-    />
+    <TvShowDetailTabPanels tvId={id} />
   );
 }
 
