@@ -1,10 +1,5 @@
 import { buildCatalogCtaUrl } from "@/lib/catalog-query";
 
-const home = {
-  title: "Home",
-  link: "/home",
-};
-
 const movie = {
   root: {
     title: "Movies",
@@ -151,7 +146,6 @@ const person = {
 };
 
 export const pages = {
-  home,
   movie,
   tv,
   people,

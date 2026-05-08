@@ -54,11 +54,11 @@ export const NavbarLinks = ({
     router.prefetch(link.href);
     if (link.href === "/movies") {
       router.prefetch("/movies");
-      router.prefetch("/home");
+      router.prefetch("/");
     } else if (link.href === "/tvshows") {
       router.prefetch("/tvshows");
-      router.prefetch("/home");
-    } else if (link.href === "/home") {
+      router.prefetch("/");
+    } else if (link.href === "/") {
       router.prefetch("/movies");
       router.prefetch("/tvshows");
     } else if (link.href === "/search") {
@@ -74,7 +74,6 @@ export const NavbarLinks = ({
   return (
     <div className={cn(!isMobile && "group flex items-center flex-nowrap")}>
       {links.map((link) => {
-        const isHomeLink = link.href === "/home" && !isMobile;
         const isActive = isActiveLink(link.href);
         return (
           <Link
@@ -89,7 +88,6 @@ export const NavbarLinks = ({
                 (isActive
                   ? "after:scale-x-100 group-hover:after:scale-x-0"
                   : "after:scale-x-0 hover:after:scale-x-100"),
-              isHomeLink && "hidden lg:inline",
             )}
             onMouseEnter={() => handleMouseEnter(link)}
             onFocus={() => handleLinkInteraction(link)}

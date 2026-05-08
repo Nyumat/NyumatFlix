@@ -1,8 +1,5 @@
 "use client";
 
-import { navigation, type NavItem } from "@/config/site";
-import { useActiveNav } from "@/hooks";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   NavigationMenu,
@@ -13,13 +10,16 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import { navigation, type NavItem } from "@/config/site";
+import { useActiveNav } from "@/hooks";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState } from "react";
 
 type SetMenuValue = (value: string) => void;
 
 const focusRing =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 export const SiteNavDesktop = () => {
   const [menuValue, setMenuValue] = useState<string>("");
@@ -60,10 +60,10 @@ const SiteNavItem = ({
     <NavigationMenuItem value={title}>
       <div
         className={cn(
-          "flex items-center rounded-full",
+          "flex items-center rounded-full border border-border/30 bg-background/60 shadow-sm backdrop-blur-md transition-all dark:border-white/15 dark:bg-black/40",
           isActive
-            ? "border border-primary/20 bg-primary/8 dark:border-white/15 dark:bg-white/[0.08]"
-            : "hover:border-border/30 hover:bg-muted/30 focus-within:border-border/30 focus-within:bg-muted/30 dark:hover:border-white/10 dark:hover:bg-white/[0.05] dark:focus-within:border-white/10 dark:focus-within:bg-white/[0.05]",
+            ? "border-primary/20 bg-primary/20 dark:border-white/20 dark:bg-white/15"
+            : "hover:bg-muted/60 focus-within:bg-muted/60 dark:hover:bg-white/15 dark:focus-within:bg-white/15",
         )}
       >
         <NavigationMenuLink asChild>
@@ -116,7 +116,7 @@ const SiteNavItemSingle = ({ title, href }: NavItem) => {
           className={cn(
             navigationMenuTriggerStyle(),
             isActive &&
-              "border border-primary/20 bg-primary/8 dark:border-white/15 dark:bg-white/[0.08]",
+              "border-primary/20 bg-primary/20 dark:border-white/20 dark:bg-white/15",
             "gap-2",
           )}
         >
