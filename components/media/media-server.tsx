@@ -47,7 +47,7 @@ const DetailHero: React.FC<ComponentProps<"div">> = ({
       className={cn("container md:mt-8 md:px-16 xl:mt-12 xl:px-32", className)}
       {...props}
     >
-      <div className="grid gap-4 md:grid-cols-[auto,1fr] md:gap-10 xl:gap-16">
+      <div className="grid gap-4 md:grid-cols-[auto_1fr] md:gap-10 xl:gap-16">
         {children}
       </div>
     </div>
@@ -179,7 +179,7 @@ export const MediaTrailerDialog: React.FC<MediaTrailerDialogProps> = ({
       </DialogTrigger>
 
       {trailer && (
-        <DialogContent className="max-w-screen-lg">
+        <DialogContent className="max-w-(--breakpoint-lg)">
           <iframe
             className="aspect-square size-full rounded-md sm:aspect-video"
             src={yt.video(trailer.key, true)}
@@ -300,7 +300,7 @@ export function MediaDetailLayout({
           <ContentContainer
             className={
               contentContainerClassName ||
-              "container mx-auto px-3 sm:px-4 lg:px-4 !pt-2 sm:!pt-4 lg:!pt-6 !mt-0"
+              "container mx-auto px-3 sm:px-4 lg:px-4 pt-2! sm:pt-4! lg:pt-6! mt-0!"
             }
           >
             {sectionNav}

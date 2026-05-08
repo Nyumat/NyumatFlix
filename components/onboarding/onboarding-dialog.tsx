@@ -34,7 +34,7 @@ export const OnboardingDialog = ({
       >
         <DialogHeader className="text-center space-y-6">
           <div className="mx-auto">
-            <div className="w-20 h-20 bg-black/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto shadow-lg border border-black/30">
+            <div className="w-20 h-20 bg-black/20 backdrop-blur-xs rounded-2xl flex items-center justify-center mx-auto shadow-lg border border-black/30">
               <Image
                 src="/logo.svg"
                 alt="NyumatFlix"

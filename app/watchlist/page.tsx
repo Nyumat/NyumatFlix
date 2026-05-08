@@ -1,16 +1,21 @@
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
-import { getUserWatchlist } from "./actions";
-import { WatchlistClient } from "./watchlist-client";
-import { Metadata } from "next";
-import { fetchAndEnrichMediaItems } from "../actions";
-import { MediaItem } from "@/utils/typings";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
+import { MediaItemSchema, type MediaItem } from "@/utils/typings";
+import { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { fetchAndEnrichMediaItems } from "../actions";
+import { getUserWatchlist, type WatchlistItem } from "./actions";
+import { WatchlistClient } from "./watchlist-client";
 
 export const metadata: Metadata = {
   title: "My Watchlist | NyumatFlix",
   description: "Manage your watchlist and track your viewing progress",
+};
+
+type WatchlistMediaResponse = MediaItem & {
+  media_type: "movie" | "tv";
+  watchlistItem: WatchlistItem;
 };
 
 export default async function WatchlistPage() {
@@ -22,35 +27,47 @@ export default async function WatchlistPage() {
 
   const watchlistItems = await getUserWatchlist();
 
-  // Fetch media details for each watchlist item
-  const mediaItems = await Promise.all(
-    watchlistItems.map(async (item) => {
-      try {
-        const url =
-          item.mediaType === "movie"
-            ? `https://api.themoviedb.org/3/movie/${item.contentId}?api_key=${process.env.TMDB_API_KEY}&language=en-US`
-            : `https://api.themoviedb.org/3/tv/${item.contentId}?api_key=${process.env.TMDB_API_KEY}&language=en-US`;
+  // Fetch media details for each watchlist item in batches
+  const BATCH_SIZE = 10;
+  const mediaItems: Array<WatchlistMediaResponse | null> = [];
 
-        const response = await fetch(url, { next: { revalidate: 3600 } });
-        if (!response.ok) {
+  for (let i = 0; i < watchlistItems.length; i += BATCH_SIZE) {
+    const batch = watchlistItems.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (item) => {
+        try {
+          const url =
+            item.mediaType === "movie"
+              ? `https://api.themoviedb.org/3/movie/${item.contentId}?api_key=${process.env.TMDB_API_KEY}&language=en-US`
+              : `https://api.themoviedb.org/3/tv/${item.contentId}?api_key=${process.env.TMDB_API_KEY}&language=en-US`;
+
+          const response = await fetch(url, { next: { revalidate: 3600 } });
+          if (!response.ok) {
+            return null;
+          }
+
+          const data: unknown = await response.json();
+          const parsed = MediaItemSchema.safeParse(data);
+          if (!parsed.success) {
+            return null;
+          }
+
+          return {
+            ...parsed.data,
+            media_type: item.mediaType,
+            watchlistItem: item,
+          };
+        } catch (error) {
+          console.error(
+            `Error fetching ${item.mediaType} ${item.contentId}:`,
+            error,
+          );
           return null;
         }
-
-        const data = await response.json();
-        return {
-          ...data,
-          media_type: item.mediaType,
-          watchlistItem: item,
-        };
-      } catch (error) {
-        console.error(
-          `Error fetching ${item.mediaType} ${item.contentId}:`,
-          error,
-        );
-        return null;
-      }
-    }),
-  );
+      }),
+    );
+    mediaItems.push(...batchResults);
+  }
 
   // Filter out null values and separate by type
   const validRawItems = mediaItems.filter(

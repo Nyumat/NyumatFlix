@@ -5,7 +5,7 @@ import { EpisodeProgressIndicator } from "@/components/watchlist/watchlist";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { Episode, SeasonDetails } from "@/utils/typings";
 import { Tv } from "lucide-react";
-import Image from "next/legacy/image";
+import Image from "next/image";
 import { useCallback, useEffect } from "react";
 
 type SeasonEpisodesProps = {
@@ -100,7 +100,7 @@ export function SeasonEpisodes({
         seasonDetails.episodes.length === 0 ? (
           <div className="flex min-h-[200px] items-center justify-center py-8">
             <div className="text-center space-y-2">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto bg-linear-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center">
                 <Tv size={20} className="sm:size-6 text-muted-foreground" />
               </div>
               <div className="text-muted-foreground text-sm sm:text-base">
@@ -129,7 +129,7 @@ export function SeasonEpisodes({
                   }`}
                 >
                   <div className="flex">
-                    <div className="w-24 h-16 sm:w-32 sm:h-20 rounded overflow-hidden mr-3 sm:mr-4 flex-shrink-0">
+                    <div className="w-24 h-16 sm:w-32 sm:h-20 rounded overflow-hidden mr-3 sm:mr-4 shrink-0">
                       {episode.still_path ? (
                         <Image
                           src={`https://image.tmdb.org/t/p/w300${episode.still_path}`}
@@ -152,7 +152,7 @@ export function SeasonEpisodes({
                         <h4 className="text-foreground font-medium text-sm sm:text-base leading-tight">
                           {episode.episode_number}. {episode.name}
                         </h4>
-                        <div className="text-muted-foreground text-xs sm:text-sm flex-shrink-0">
+                        <div className="text-muted-foreground text-xs sm:text-sm shrink-0">
                           {episode.runtime ? `${episode.runtime} min` : ""}
                         </div>
                       </div>

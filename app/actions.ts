@@ -1,7 +1,7 @@
 import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
-import { logger } from "@/lib/utils";
-import { addRomanceFiltering, filterRomanceContent } from "@/lib/romance-media";
 import { filterZeroRevenueMovies } from "@/lib/movie-revenue-filter";
+import { addRomanceFiltering, filterRomanceContent } from "@/lib/romance-media";
+import { logger } from "@/lib/utils";
 import {
   Genre,
   GenreSchema,
@@ -19,6 +19,7 @@ import {
   TVShowCategory,
   TvShowSchema,
 } from "@/utils/typings";
+import { cache } from "react";
 
 interface Params {
   [key: string]: string;
@@ -117,7 +118,7 @@ export async function buildMaybeItemsWithCategories<
   return buildItemsWithCategories(items, type);
 }
 
-export async function getCategories(
+export const getCategories = cache(async function getCategories(
   type: "movie" | "tv" | "multi",
 ): Promise<Genre[]> {
   if (type === "multi") {
@@ -148,7 +149,7 @@ export async function getCategories(
   const genres = await fetchTMDBData(`/genre/${type}/list`);
   const genresResponse = genres as unknown as TmdbGenreResponse;
   return GenreSchema.array().parse(genresResponse.genres || []);
-}
+});
 
 export const fetchAllData = async () => {
   const [
@@ -364,15 +365,13 @@ export async function fetchTMDBData<T = MediaItem>(
   }
 
   const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
-  // Always append videos and images for our primary data fetching
+  // Only append videos and images for detail endpoints (e.g. /movie/123 or /tv/123)
   const appendItems = ["videos", "images"];
 
-  // Check if endpoint is for a specific item (e.g. /movie/123 or /tv/123)
-  // For list endpoints (e.g. /movie/popular), videos/images are not directly available at the top level for each item in the list.
-  // They are typically fetched individually or if the API supports it for lists (TMDB does not for lists in this way).
-  // So, only append videos,images if it's a detail endpoint.
-  // For now, we will append it generally and rely on individual fetching for lists where needed.
-  url.searchParams.append("append_to_response", appendItems.join(","));
+  const isDetailEndpoint = /\/(?:movie|tv)\/\d+(?:\/|$)/.test(endpoint);
+  if (isDetailEndpoint) {
+    url.searchParams.append("append_to_response", appendItems.join(","));
+  }
   url.searchParams.append("api_key", apiKey);
   url.searchParams.append("page", page.toString());
 
@@ -443,23 +442,29 @@ export async function getNumberOfSeasons(
  */
 export async function determineMediaType(id: string | number) {
   try {
-    // First, try to fetch as a movie
+    // Try to fetch as a movie first
     const movieResponse = await fetch(
       `${TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}`,
     );
+
+    if (movieResponse.ok) {
+      const movieData = await movieResponse.json();
+      if (!movieData.success === false) {
+        // TMDB returns success: false for non-existent items
+        return "movie";
+      }
+    }
 
     // If not a movie, try to fetch as a TV show
     const tvResponse = await fetch(
       `${TMDB_BASE_URL}/tv/${id}?api_key=${TMDB_API_KEY}`,
     );
 
-    const movieResponseData = await movieResponse.json();
-    const tvResponseData = await tvResponse.json();
-    if (movieResponseData.media_type === "movie") {
-      return "movie";
-    }
-    if (tvResponseData.media_type === "tv") {
-      return "tv";
+    if (tvResponse.ok) {
+      const tvData = await tvResponse.json();
+      if (!tvData.success === false) {
+        return "tv";
+      }
     }
 
     // If neither worked, return unknown
@@ -881,11 +886,23 @@ export async function enrichMediaItemsWithLogos<
     const batch = await Promise.all(
       slice.map(async (item) => {
         try {
-          const detailedData = await fetchTMDBData(`/${mediaType}/${item.id}`);
-          const logos = (detailedData as TmdbTvShowDetails).images?.logos;
+          const detailedData = await fetchTMDBData<{ logos?: unknown[] }>(
+            `/${mediaType}/${item.id}/images`,
+          );
+          const logos = detailedData.logos;
           let logo: Logo | undefined;
-          if (logos?.length) {
-            const pick = logos.find((l) => l.iso_639_1 === "en") ?? logos[0];
+          if (Array.isArray(logos) && logos.length > 0) {
+            const pick =
+              logos.find((candidate) => {
+                if (
+                  typeof candidate !== "object" ||
+                  candidate === null ||
+                  !("iso_639_1" in candidate)
+                ) {
+                  return false;
+                }
+                return candidate.iso_639_1 === "en";
+              }) ?? logos[0];
             const logoResult = LogoSchema.safeParse(pick);
             if (logoResult.success) {
               logo = logoResult.data;
@@ -905,6 +922,26 @@ export async function enrichMediaItemsWithLogos<
   }
 
   return out;
+}
+
+export async function enrichAboveFoldMediaItemsWithLogos<
+  T extends { id: number } & Partial<MediaItem>,
+>(items: T[], mediaType: "movie" | "tv", aboveFoldCount: number): Promise<T[]> {
+  if (!items.length || aboveFoldCount <= 0) {
+    return items;
+  }
+
+  if (items.length <= aboveFoldCount) {
+    return enrichMediaItemsWithLogos(items, mediaType);
+  }
+
+  const aboveFoldItems = items.slice(0, aboveFoldCount);
+  const belowFoldItems = items.slice(aboveFoldCount);
+  const enrichedAboveFold = await enrichMediaItemsWithLogos(
+    aboveFoldItems,
+    mediaType,
+  );
+  return [...enrichedAboveFold, ...belowFoldItems];
 }
 
 export async function fetchAndEnrichMediaItems<

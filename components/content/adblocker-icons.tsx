@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/legacy/image";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Tooltip,
@@ -33,7 +33,7 @@ export const AdblockerIcons = ({
               aria-label="Get uBlock Origin for Firefox"
               className="hover:scale-110 transition-transform"
             >
-              <span className="flex items-center gap-0.5 bg-background/80 rounded-lg p-2 border border-border shadow-sm">
+              <span className="flex items-center gap-0.5 bg-background/80 rounded-lg p-2 border border-border shadow-xs">
                 <Image
                   src="/ublock.svg"
                   alt="uBlock Origin"
@@ -67,7 +67,7 @@ export const AdblockerIcons = ({
               aria-label="Get AdGuard for Safari"
               className="hover:scale-110 transition-transform"
             >
-              <span className="flex items-center gap-0.5 bg-background/80 rounded-lg p-2 border border-border shadow-sm">
+              <span className="flex items-center gap-0.5 bg-background/80 rounded-lg p-2 border border-border shadow-xs">
                 <Image
                   src="/adguard.svg"
                   alt="AdGuard"
@@ -99,7 +99,7 @@ export const AdblockerIcons = ({
               aria-label="Get uBlock Origin for Chrome"
               className="hover:scale-110 transition-transform"
             >
-              <span className="flex items-center gap-0.5 bg-background/80 rounded-lg p-2 border border-border shadow-sm">
+              <span className="flex items-center gap-0.5 bg-background/80 rounded-lg p-2 border border-border shadow-xs">
                 <Image
                   src="/ublock.svg"
                   alt="uBlock Origin"

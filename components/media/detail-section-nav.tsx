@@ -71,7 +71,7 @@ export const DetailSectionNav = ({
     <nav aria-label="On this page" className={cn("mb-6 sm:mb-8", className)}>
       <div className="max-w-screen scrollbar-hidden -mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:overflow-visible lg:px-0">
         <div
-          className="inline-flex min-h-10 w-max max-w-none items-center gap-1 rounded-md border border-border/60 bg-muted/80 p-1 text-muted-foreground backdrop-blur-sm"
+          className="inline-flex min-h-10 w-max max-w-none items-center gap-1 rounded-md border border-border/60 bg-muted/80 p-1 text-muted-foreground backdrop-blur-xs"
           role="tablist"
         >
           {sections.map(({ id, label }) => {
@@ -85,9 +85,9 @@ export const DetailSectionNav = ({
                 aria-controls={id}
                 onClick={() => handleNavigate(id)}
                 className={cn(
-                  "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-sm px-3 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-xs px-3 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   isActive
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >

@@ -84,7 +84,7 @@ export default async function VerifyRequestPage({
               </CardHeader>
               <CardContent className="text-center space-y-6">
                 <div className="p-6 bg-muted/30 rounded-lg border border-border/50">
-                  <div className="w-12 h-12 bg-gradient-to-r from-primary/20 to-fuchsia-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-12 h-12 bg-linear-to-r from-primary/20 to-fuchsia-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <MailCheck className="w-6 h-6 text-primary" />
                   </div>
                   {devLink ? (

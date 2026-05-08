@@ -135,7 +135,7 @@ export default async function PersonPage(props: PersonPageProps) {
                       )}
                     />
                   ) : (
-                    <div className="w-full aspect-[2/3] flex items-center justify-center bg-muted">
+                    <div className="w-full aspect-2/3 flex items-center justify-center bg-muted">
                       <User size={120} className="text-muted-foreground" />
                     </div>
                   )}

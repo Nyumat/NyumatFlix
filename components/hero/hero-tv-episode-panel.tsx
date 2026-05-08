@@ -152,7 +152,7 @@ export function HeroTvEpisodePanel({
           disabled={!canPrev}
           onClick={handlePrev}
           aria-label="Previous season"
-          className="h-9 shrink-0 border border-white/10 bg-white/[0.06] px-2 text-foreground hover:bg-white/10 dark:border-white/15"
+          className="h-9 shrink-0 border border-white/10 bg-white/6 px-2 text-foreground hover:bg-white/10 dark:border-white/15"
         >
           <ChevronLeft className="h-4 w-4 sm:mr-0.5" aria-hidden />
           <span className="hidden text-xs sm:inline">Prev</span>
@@ -165,7 +165,7 @@ export function HeroTvEpisodePanel({
             <SelectTrigger
               aria-label="Select season"
               className={cn(
-                "h-9 w-full cursor-pointer rounded-md border border-white/15 bg-white/[0.08] py-2 shadow-none dark:border-white/20 dark:bg-white/[0.08]",
+                "h-9 w-full cursor-pointer rounded-md border border-white/15 bg-white/8 py-2 shadow-none dark:border-white/20 dark:bg-white/8",
                 "focus:ring-offset-background",
               )}
             >
@@ -187,7 +187,7 @@ export function HeroTvEpisodePanel({
           disabled={!canNext}
           onClick={handleNext}
           aria-label="Next season"
-          className="h-9 shrink-0 border border-white/10 bg-white/[0.06] px-2 text-foreground hover:bg-white/10 dark:border-white/15"
+          className="h-9 shrink-0 border border-white/10 bg-white/6 px-2 text-foreground hover:bg-white/10 dark:border-white/15"
         >
           <span className="hidden text-xs sm:inline">Next</span>
           <ChevronRight className="h-4 w-4 sm:ml-0.5" aria-hidden />
@@ -206,7 +206,7 @@ export function HeroTvEpisodePanel({
           placeholder="Search all episodes"
           aria-label="Search episodes across all seasons"
           suppressHydrationWarning
-          className="h-10 rounded-full border-white/20 bg-white/[0.06] pl-9 text-sm placeholder:text-muted-foreground/80 dark:border-white/15 dark:bg-white/[0.06]"
+          className="h-10 rounded-full border-white/20 bg-white/6 pl-9 text-sm placeholder:text-muted-foreground/80 dark:border-white/15 dark:bg-white/6"
         />
       </div>
 
@@ -235,7 +235,7 @@ export function HeroTvEpisodePanel({
                   aria-current={active ? "true" : undefined}
                   className={cn(
                     "flex w-full gap-3 rounded-lg border p-2 text-left transition-colors",
-                    "border-transparent bg-white/[0.04] hover:border-white/15 hover:bg-white/[0.07]",
+                    "border-transparent bg-white/4 hover:border-white/15 hover:bg-white/[0.07]",
                     active &&
                       "border-primary/50 bg-primary/15 ring-1 ring-primary/30",
                   )}

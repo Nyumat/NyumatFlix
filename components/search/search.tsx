@@ -1,5 +1,6 @@
 "use client";
 
+import { Poster } from "@/components/media/media-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { ArrowRight, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
-import { Poster } from "@/components/media/media-display";
 import SearchResults from "./search-results";
 
 interface SearchComponentProps {
@@ -96,7 +96,7 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
               setIsFocused(false);
             }}
             onKeyDown={handleKeyDown}
-            className="pl-10 pr-20 py-2.5 w-full rounded-xl bg-muted/30 border border-muted-foreground/20 focus:border-primary focus:bg-background/50 transition-all duration-200 placeholder:text-muted-foreground/60"
+            className="pl-10 pr-20 py-2.5 w-full rounded-xl border border-border/30 bg-background/60 shadow-sm backdrop-blur-md transition-all hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:border-border/30 dark:border-white/15 dark:bg-black/40 dark:hover:bg-white/15 dark:focus-visible:bg-white/15 placeholder:text-muted-foreground/60"
           />
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {isMounted && !query && !isFocused && (
@@ -330,7 +330,7 @@ export const NavbarSearchClient = forwardRef<
 
   return (
     <div
-      className={cn("max-w-xl flex-grow mx-auto md:max-w-2xl", className)}
+      className={cn("max-w-xl grow mx-auto md:max-w-2xl", className)}
       suppressHydrationWarning
     >
       <div className="relative">
@@ -364,7 +364,7 @@ export const NavbarSearchClient = forwardRef<
                 }
               }
             }}
-            className="pl-8 pr-20 py-2 text-sm w-full rounded-full bg-muted/15 border border-border/25 focus:border-primary/50 focus:bg-background/30 transition-all duration-200 placeholder:text-muted-foreground/55"
+            className="pl-8 pr-20 py-2 text-sm w-full rounded-full border border-border/30 bg-background/60 shadow-sm backdrop-blur-md transition-all hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:border-border/30 dark:border-white/15 dark:bg-black/40 dark:hover:bg-white/15 dark:focus-visible:bg-white/15 placeholder:text-muted-foreground/55"
           />
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {isMounted && !query && !isFocused && (
@@ -430,7 +430,7 @@ export const NavbarSearchClient = forwardRef<
                             index === selectedIndex ? "bg-accent/80" : ""
                           }`}
                         >
-                          <div className="relative w-8 h-12 flex-shrink-0">
+                          <div className="relative w-8 h-12 shrink-0">
                             {item.poster_path ? (
                               <Poster
                                 posterPath={item.poster_path}

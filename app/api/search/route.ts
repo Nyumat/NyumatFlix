@@ -163,7 +163,11 @@ export async function GET(request: Request) {
       totalResults,
     };
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    });
   } catch (error) {
     console.error("Error in main search API route:", error);
     return NextResponse.json(

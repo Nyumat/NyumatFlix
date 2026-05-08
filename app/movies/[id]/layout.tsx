@@ -42,7 +42,7 @@ export default async function MovieDetailLayout({ children, params }: Props) {
           mediaType="movie"
           isUpcoming={isUpcoming}
           anilistId={anilistId}
-          contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl !pt-4 sm:!pt-6 lg:!pt-8"
+          contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl pt-4! sm:pt-6! lg:pt-8!"
           sectionNav={<MediaDetailRouteTabs mediaType="movie" id={id} />}
         >
           <div className="mt-4">{children}</div>

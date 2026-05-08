@@ -60,7 +60,7 @@ export const TvShowDetailShell = ({
         watchlistItem={passedWatchlistItem}
         initialEpisode={initialEpisode}
         initialSeasonNumber={watchlistItem?.lastWatchedSeason || null}
-        contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl !pt-4 sm:!pt-6 lg:!pt-8"
+        contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl pt-4! sm:pt-6! lg:pt-8!"
         sectionNav={<MediaDetailRouteTabs mediaType="tv" id={tvId} />}
         tvHeroEpisodeData={{
           tvId,

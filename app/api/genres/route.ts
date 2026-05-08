@@ -41,11 +41,16 @@ export async function GET(request: Request) {
     const movieGenres = await fetchGenresFromTMDB("movie", apiKey);
     const tvGenres = await fetchGenresFromTMDB("tv", apiKey);
 
+    // Add Cache-Control header
+    const headers = {
+      "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
+    };
+
     // Return genres in the expected format for each media type
     if (type === "movie") {
-      return NextResponse.json({ genres: movieGenres });
+      return NextResponse.json({ genres: movieGenres }, { headers });
     } else if (type === "tv") {
-      return NextResponse.json({ genres: tvGenres });
+      return NextResponse.json({ genres: tvGenres }, { headers });
     }
 
     // Return a combined structure if no specific type requested
@@ -58,7 +63,7 @@ export async function GET(request: Request) {
       }
     });
 
-    return NextResponse.json(genresMap);
+    return NextResponse.json(genresMap, { headers });
   } catch (error) {
     console.error("Error fetching genres:", error);
     return NextResponse.json(

@@ -27,7 +27,6 @@ import { Image as TmdbImage } from "@/tmdb/models";
 import { tmdbImage } from "@/tmdb/utils";
 import { Clock, Download, Expand, Link, Star, User } from "lucide-react";
 import Image from "next/image";
-import LegacyImage from "next/legacy/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -70,7 +69,7 @@ export const MediaImages: React.FC<MediaImagesProps> = ({
                 src={tmdbImage.url(file_path, "w780")}
                 alt={file_path}
                 className="size-full rounded-md border"
-                unoptimized
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 fill
               />
 
@@ -80,7 +79,9 @@ export const MediaImages: React.FC<MediaImagesProps> = ({
             </div>
           </DialogTrigger>
 
-          <DialogContent className={cn(aspect_ratio > 1 && "max-w-screen-xl")}>
+          <DialogContent
+            className={cn(aspect_ratio > 1 && "max-w-(--breakpoint-xl)")}
+          >
             <div
               className={cn(
                 aspect_ratio > 1 ? "aspect-video" : "aspect-poster",
@@ -90,12 +91,12 @@ export const MediaImages: React.FC<MediaImagesProps> = ({
                 src={tmdbImage.url(file_path, "original")}
                 alt={file_path}
                 className="rounded-md border bg-muted"
-                unoptimized
+                sizes="100vw"
                 fill
               />
             </div>
 
-            <div className="absolute bottom-0 left-0 flex h-32 w-full items-end justify-end space-x-2 bg-gradient-to-t from-background to-transparent pb-4 pr-4">
+            <div className="absolute bottom-0 left-0 flex h-32 w-full items-end justify-end space-x-2 bg-linear-to-t from-background to-transparent pb-4 pr-4">
               <Button
                 size="sm"
                 variant="ghost"
@@ -234,15 +235,6 @@ export const Info = ({
             </div>
           </>
         )}
-
-        <span className="opacity-40">•</span>
-        <Badge
-          href={mediaType === "movie" ? "/movies" : "/tvshows"}
-          variant="secondary"
-          className="text-[9px] py-0 h-4 px-1.5 bg-primary/10 border-primary/20 text-primary font-semibold uppercase tracking-wider rounded-sm hover:bg-primary/20 transition-colors cursor-pointer"
-        >
-          {mediaType === "movie" ? "Movie" : "TV"}
-        </Badge>
       </div>
 
       <div
@@ -254,7 +246,7 @@ export const Info = ({
         {rating && (
           <Badge
             variant="outline"
-            className="text-[9px] py-0 h-4 px-1.5 bg-white/5 border-white/20 text-white/70 font-medium rounded-sm whitespace-nowrap"
+            className="text-[9px] py-0 h-4 px-1.5 bg-white/5 border-white/20 text-white/70 font-medium rounded-xs whitespace-nowrap"
           >
             {rating}
           </Badge>
@@ -264,7 +256,7 @@ export const Info = ({
           <CountryBadge
             country={country[0]}
             variant="outline"
-            className="text-[9px] py-0 h-4 px-1.5 bg-white/5 border-white/20 text-white/70 font-normal rounded-sm"
+            className="text-[9px] py-0 h-4 px-1.5 bg-white/5 border-white/20 text-white/70 font-normal rounded-xs"
             size="sm"
             showName={false}
             mediaType={mediaType}
@@ -277,7 +269,7 @@ export const Info = ({
             mediaType={mediaType}
             maxVisible={1}
             className="flex flex-wrap gap-1 items-center"
-            badgeClassName="text-[9px] h-4 leading-none bg-white/5 text-white/70 px-1.5 py-0 border border-white/10 font-normal hover:bg-primary/20 hover:text-primary hover:border-primary/30 transition-colors rounded-sm"
+            badgeClassName="text-[9px] h-4 leading-none bg-white/5 text-white/70 px-1.5 py-0 font-normal hover:bg-primary/20 hover:text-primary hover:border-primary/30 transition-colors rounded-xs"
             variant="outline"
           />
         )}
@@ -343,19 +335,17 @@ export function CastCarousel({ cast }: CastCarouselProps) {
                 className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8"
               >
                 <div
-                  className="w-full flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                  className="w-full shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => router.push(`/person/${person.id}`)}
                   onMouseEnter={() => handlePersonMouseEnter(person)}
                 >
-                  <div className="rounded-lg overflow-hidden mb-3 aspect-[2/3] bg-muted">
+                  <div className="rounded-lg overflow-hidden mb-3 aspect-2/3 bg-muted">
                     {person.profile_path ? (
-                      <LegacyImage
+                      <Image
                         src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
                         alt={person.name}
                         width={185}
                         height={278}
-                        layout="responsive"
-                        objectFit="cover"
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -376,8 +366,8 @@ export function CastCarousel({ cast }: CastCarouselProps) {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="left-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-sm" />
-          <CarouselNext className="right-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-sm" />
+          <CarouselPrevious className="left-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-xs" />
+          <CarouselNext className="right-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-xs" />
         </Carousel>
       </div>
     </section>
@@ -421,7 +411,7 @@ export function VideoCarousel({ videos }: VideoCarouselProps) {
           <CarouselContent>
             {youtubeVideos.slice(0, 10).map((video: Video) => (
               <CarouselItem key={video.id} className="basis-1/2 sm:basis-1/3">
-                <div className="w-full flex-shrink-0">
+                <div className="w-full shrink-0">
                   <div className="rounded-lg overflow-hidden mb-3 aspect-video bg-muted">
                     <iframe
                       src={`https://www.youtube.com/embed/${video.key}`}
@@ -443,8 +433,8 @@ export function VideoCarousel({ videos }: VideoCarouselProps) {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="left-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-sm" />
-          <CarouselNext className="right-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-sm" />
+          <CarouselPrevious className="left-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-xs" />
+          <CarouselNext className="right-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-xs" />
         </Carousel>
       </div>
     </section>
@@ -492,7 +482,7 @@ export function RecommendationsCarousel({
             {recommendations.slice(0, 20).map((item: Movie | TvShow) => (
               <CarouselItem
                 key={item.id}
-                className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8 w-full flex-shrink-0 hover:opacity-80 transition block"
+                className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8 w-full shrink-0 hover:opacity-80 transition block"
                 onClick={() => {
                   router.push(getHref(item));
                 }}
@@ -507,8 +497,8 @@ export function RecommendationsCarousel({
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="left-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-sm" />
-          <CarouselNext className="right-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-sm" />
+          <CarouselPrevious className="left-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-xs" />
+          <CarouselNext className="right-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-xs" />
         </Carousel>
       </div>
     </section>
@@ -570,7 +560,7 @@ export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
   };
   return (
     <Card
-      className="group relative overflow-hidden bg-card/40 backdrop-blur-md border border-white/10 hover:border-primary/50 transition-all duration-300 shadow-xl cursor-pointer aspect-[2/3]"
+      className="group relative overflow-hidden border-0 bg-card/40 backdrop-blur-md transition-all duration-300 shadow-xl cursor-pointer aspect-2/3"
       onClick={() => router.push(href)}
       onMouseEnter={handleMouseEnter}
     >
@@ -580,11 +570,12 @@ export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
             src={backdropUrl}
             alt=""
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover blur-[2px]"
           />
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
       <div className="relative h-full">
         <Poster
           posterPath={posterPath}
@@ -684,7 +675,7 @@ export const MediaShowcaseCard = ({
 
   return (
     <Card
-      className="group relative overflow-hidden bg-card/40 backdrop-blur-md border border-white/10 hover:border-primary/50 transition-all duration-300 shadow-xl cursor-pointer h-full flex flex-col"
+      className="group relative overflow-hidden border-0 bg-card/40 backdrop-blur-md transition-all duration-300 shadow-xl cursor-pointer h-full flex flex-col"
       onMouseEnter={handleMouseEnter}
       onClick={() => {
         router.push(href);
@@ -696,19 +687,20 @@ export const MediaShowcaseCard = ({
             src={backdropUrl}
             alt=""
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover blur-[2px]"
           />
         </div>
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent pointer-events-none md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-500 z-10" />
+      <div className="absolute inset-0 bg-linear-to-t from-background/95 via-background/40 to-transparent pointer-events-none md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-500 z-10" />
 
-      <div className="relative flex-shrink-0">
+      <div className="relative shrink-0">
         <div className="relative group overflow-hidden">
           <Poster
             posterPath={posterPath}
             title={title}
-            className="rounded-none border-b border-white/5 transition-transform duration-500 group-hover:scale-[1.02]"
+            className="rounded-none transition-transform duration-500 group-hover:scale-[1.02]"
           />
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
             <LibIcons.play
@@ -729,7 +721,7 @@ export const MediaShowcaseCard = ({
                 type="single"
                 value={watchlistItem.status}
                 onValueChange={handleStatusChange}
-                className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-lg p-1 shadow-2xl"
+                className="bg-black/60 backdrop-blur-xl rounded-lg p-1 shadow-2xl"
               >
                 <ToggleGroupItem
                   value="watching"
@@ -773,7 +765,7 @@ export const MediaShowcaseCard = ({
         </div>
       </div>
 
-      <CardContent className="p-4 relative flex-grow flex flex-col justify-start transition-all duration-500 md:absolute md:bottom-0 md:left-0 md:right-0 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 z-30 md:bg-gradient-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]">
+      <CardContent className="p-4 relative grow flex flex-col justify-start transition-all duration-500 md:absolute md:bottom-0 md:left-0 md:right-0 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 z-30 md:bg-linear-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]">
         <Info
           title={title}
           logo={item.logo}

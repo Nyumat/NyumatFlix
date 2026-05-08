@@ -96,19 +96,19 @@ export function HeroGradients() {
   return (
     <>
       <motion.div
-        className="absolute inset-0 bg-gradient-to-r from-black via-black/20 to-transparent z-10"
+        className="absolute inset-0 bg-linear-to-r from-black via-black/20 to-transparent z-10"
         initial={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
       />
       <motion.div
-        className="absolute inset-0 bg-gradient-to-l from-black via-black/20 to-transparent z-10"
+        className="absolute inset-0 bg-linear-to-l from-black via-black/20 to-transparent z-10"
         initial={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
       />
       <motion.div
-        className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-10"
+        className="absolute inset-0 bg-linear-to-t from-black via-black/50 to-transparent z-10"
         initial={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
@@ -468,7 +468,7 @@ export function BackgroundImage({
     <div
       className={`${
         isFullPage
-          ? "fixed inset-0 h-[100dvh] w-full"
+          ? "fixed inset-0 h-dvh w-full"
           : "absolute w-full h-[40vh] inset-x-0"
       } z-0 overflow-hidden`}
     >
@@ -480,10 +480,10 @@ export function BackgroundImage({
         className={`${isFullPage ? "" : "rounded-lg"} object-cover w-full h-full`}
         priority
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/50 to-transparent opacity-70" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent opacity-70" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-black/70 via-black/50 to-transparent opacity-70" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent opacity-70" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/50 to-transparent opacity-70" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-transparent opacity-70" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-l from-black/70 via-black/50 to-transparent opacity-70" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-black/70 via-black/50 to-transparent opacity-70" />
       {!hideTitle && (isFullPage || logo) && title && (
         <div className="absolute inset-0 flex items-center justify-center">
           {logo && typeof logo === "object" && "file_path" in logo ? (
@@ -533,7 +533,7 @@ export function StaticHero({
   const isSearchPage = pathname === "/search" || !!route;
   const isBrowsePage = pathname.includes("/browse");
   const isCatalogPage =
-    pathname === "/home" ||
+    pathname === "/" ||
     pathname === "/movies" ||
     pathname === "/tvshows" ||
     pathname.startsWith("/people") ||
@@ -564,9 +564,9 @@ export function StaticHero({
       />
       <div
         className={cn(
-          "pointer-events-none fixed inset-0 z-[1]",
+          "pointer-events-none fixed inset-0 z-1",
           isCatalogPage
-            ? "bg-gradient-to-b from-background/65 via-background/30 to-background/95 backdrop-blur-sm"
+            ? "bg-linear-to-b from-background/65 via-background/30 to-background/95 backdrop-blur-xs"
             : "absolute inset-0 -z-10 bg-black/50 opacity-70 dark:bg-black/70",
         )}
       />
@@ -651,14 +651,14 @@ export function MediaInfoDialog({
           "bg-black/60 backdrop-blur-md border border-white/20 shadow-xl",
         )}
       >
-        <DialogHeader className="flex-shrink-0 mb-3">
+        <DialogHeader className="shrink-0 mb-3">
           <DialogTitle className="text-lg md:text-xl font-bold text-white pr-6">
             {titleText}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col md:flex-row gap-3 md:gap-4 min-h-0">
-          <div className="flex-shrink-0 w-28 md:w-40 mx-auto md:mx-0">
+          <div className="shrink-0 w-28 md:w-40 mx-auto md:mx-0">
             <Poster
               posterPath={media.poster_path ?? undefined}
               title={titleText}
@@ -1369,7 +1369,7 @@ export function HeroBackground({
             exit={{ opacity: 0.5 }}
             transition={{ duration: 1.5, ease: "easeInOut" }}
           />
-          <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent"></div>
+          <div className="absolute inset-0 z-0 bg-linear-to-t from-black/50 via-black/20 to-transparent"></div>
 
           {isPlayingTrailer && (
             <motion.div
@@ -1552,7 +1552,7 @@ export function HeroContent({
                 }
                 handleTrailerEnded();
               }}
-              className="group relative bg-background/90 hover:bg-background backdrop-blur-md transition-all duration-200 rounded-full p-2.5 sm:p-3 text-foreground border border-border/50 hover:border-border shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+              className="group relative bg-background/90 hover:bg-background backdrop-blur-md transition-all duration-200 rounded-full p-2.5 sm:p-3 text-foreground border border-border/50 hover:border-border shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
               aria-label={isPlayingTrailer ? "Stop trailer" : "Close video"}
             >
               <X
@@ -1792,7 +1792,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
           plugins={[Fade()]}
           opts={{ loop: true, duration: 50, containScroll: "trimSnaps" }}
         >
-          <CarouselContent className="!ml-0 h-full">
+          <CarouselContent className="ml-0! h-full">
             {items.map((item, index) => (
               <CarouselItem key={item.id} className="pl-0 h-full">
                 <div className="relative w-full h-full z-50">
@@ -1808,8 +1808,8 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                     priority={index <= 2}
                     className="object-cover brightness-[0.3] z-50 w-full h-full"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-r from-black/60 to-transparent" />
                 </div>
               </CarouselItem>
             ))}
@@ -1858,7 +1858,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
             return (
               <div className="px-4 w-full">
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-24 sm:w-28 mt-4">
+                  <div className="shrink-0 w-24 sm:w-28 mt-4">
                     <Poster
                       posterPath={currentItem.poster_path ?? undefined}
                       title={match(currentItem)
@@ -1968,7 +1968,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
             }}
             size="lg"
             variant="outline"
-            className="bg-white/10 backdrop-blur-sm text-white border-white/30 hover:bg-white/20 flex-1"
+            className="bg-white/10 backdrop-blur-xs text-white border-white/30 hover:bg-white/20 flex-1"
           >
             <Icons.play className="mr-2 h-4 w-4" />
             Play
@@ -1990,7 +1990,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
             }}
             size="default"
             variant="outline"
-            className="bg-white/10 backdrop-blur-sm text-white border-white/30 hover:bg-white/20"
+            className="bg-white/10 backdrop-blur-xs text-white border-white/30 hover:bg-white/20"
           >
             <Info className="mr-2 h-4 w-4" />
             More Info

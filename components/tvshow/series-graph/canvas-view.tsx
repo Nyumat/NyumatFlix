@@ -210,12 +210,12 @@ export function CanvasView({ seasons }: CanvasViewProps) {
             const data = node.data as EpisodeNodeData;
             return getRatingColor(data.rating);
           }}
-          className="!bg-black/80 !border-white/10 !rounded-lg"
+          className="bg-black/80! border-white/10! rounded-lg!"
           style={{ width: 100, height: 70 }}
           position="top-left"
         /> */}
         <Controls
-          className="!bg-black/80 !border-white/10 !rounded-lg [&>button]:!bg-black/60 [&>button]:!border-white/10 [&>button]:!text-white [&>button:hover]:!bg-white/20"
+          className="bg-black/80! border-white/10! rounded-lg! [&>button]:bg-black/60! [&>button]:border-white/10! [&>button]:text-white! [&>button:hover]:bg-white/20!"
           showInteractive={false}
         />
       </ReactFlow>

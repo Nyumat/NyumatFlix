@@ -25,7 +25,7 @@ import type {
 } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
 import { Clock, Star } from "lucide-react";
-import Image from "next/legacy/image";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -118,7 +118,7 @@ function ListViewCard(props: {
 
   return (
     <Card
-      className="group relative overflow-hidden bg-card/40 backdrop-blur-xl border border-white/10 hover:border-primary/50 transition-all duration-500 cursor-pointer shadow-2xl"
+      className="group relative overflow-hidden border-0 bg-card/40 backdrop-blur-xl transition-all duration-500 cursor-pointer shadow-2xl"
       onClick={() => router.push(href)}
       onMouseEnter={handleMouseEnter}
       data-testid={`media-content-card-${item.id}`}
@@ -130,24 +130,24 @@ function ListViewCard(props: {
           <Image
             src={backdropUrl}
             alt=""
-            layout="fill"
-            objectFit="cover"
-            className="blur-sm scale-110"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="scale-110 object-cover blur-xs"
           />
         </div>
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
+      <div className="absolute inset-0 bg-linear-to-r from-background/95 via-background/70 to-transparent" />
 
       <div className="relative flex gap-6 p-4 md:p-6">
-        <div className="flex-shrink-0 w-24 sm:w-28 md:w-32 lg:w-36">
-          <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-white/10 transition-all duration-500">
+        <div className="shrink-0 w-24 sm:w-28 md:w-32 lg:w-36">
+          <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-muted shadow-2xl transition-all duration-500">
             <Image
               src={posterUrl}
               alt={title || "Media poster"}
-              layout="fill"
-              objectFit="cover"
-              className="transition-transform duration-700 group-hover:scale-[1.05]"
+              fill
+              sizes="(max-width: 768px) 40vw, (max-width: 1200px) 20vw, 180px"
+              className="object-cover transition-transform duration-700 group-hover:scale-[1.05]"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 flex items-center justify-center">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500">
@@ -186,7 +186,7 @@ function ListViewCard(props: {
               {item.content_rating && (
                 <>
                   <span className="opacity-40">•</span>
-                  <span className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded-sm text-[10px] uppercase font-bold">
+                  <span className="px-1.5 py-0.5 bg-white/5 rounded-xs text-[10px] uppercase font-bold">
                     {item.content_rating}
                   </span>
                 </>

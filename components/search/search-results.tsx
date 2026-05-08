@@ -33,7 +33,7 @@ import type {
 } from "@/utils/typings";
 import { getAirDate, getTitle, isMovie } from "@/utils/typings";
 import { ArrowRight, Clock, Search, Star, User } from "lucide-react";
-import Image from "next/legacy/image";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   forwardRef,
@@ -121,10 +121,10 @@ export function PersonCollage({
       <div className={cn("w-full h-full relative", className)}>
         <Image
           src={`https://image.tmdb.org/t/p/w185${profilePath}`}
-          layout="fill"
-          objectFit="cover"
+          fill
+          sizes="(max-width: 768px) 45vw, (max-width: 1200px) 20vw, 120px"
           alt="Profile"
-          className="rounded-md"
+          className="rounded-md object-cover"
           loading="lazy"
         />
       </div>
@@ -169,10 +169,10 @@ export function PersonCollage({
               {item.poster_path ? (
                 <Image
                   src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
-                  layout="fill"
-                  objectFit="cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   alt={item.title || item.name || "Media"}
-                  className="transition-transform duration-300 group-hover:scale-105"
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
                   loading="lazy"
                 />
               ) : (
@@ -201,10 +201,10 @@ export function PersonCollage({
           {item.poster_path ? (
             <Image
               src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
-              layout="fill"
-              objectFit="cover"
+              fill
+              sizes="(max-width: 768px) 45vw, (max-width: 1200px) 20vw, 120px"
               alt={item.title || item.name || "Media"}
-              className="transition-transform duration-300 group-hover:scale-105"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
               loading="lazy"
             />
           ) : (
@@ -336,7 +336,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
 
   if (error) {
     return (
-      <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4">
+      <div className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg p-4">
         <h4 className="text-sm font-medium text-foreground mb-3">People</h4>
         <div className="text-xs text-destructive">{error}</div>
       </div>
@@ -345,7 +345,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
 
   if (people.length === 0 && isLoading) {
     return (
-      <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4">
+      <div className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg p-4">
         <h4 className="text-sm font-medium text-foreground mb-3">People</h4>
         <div className="text-xs text-muted-foreground">Loading...</div>
       </div>
@@ -355,7 +355,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
   if (people.length === 0) return null;
 
   return (
-    <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg overflow-hidden">
+    <div className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg overflow-hidden">
       <div className="p-4 pb-2 border-b border-border/50">
         <h4 className="text-sm font-medium text-foreground">People</h4>
       </div>
@@ -366,10 +366,10 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
               <button
                 key={`person-${person.id}-${crypto.randomUUID()}`}
                 onClick={() => handlePersonClick(person.id)}
-                className="group text-left w-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-md"
+                className="group text-left w-full focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-md"
                 aria-label={`View ${person.name}`}
               >
-                <div className="rounded-md overflow-hidden aspect-[3/4] bg-muted relative group-hover:ring-2 group-hover:ring-primary/50 transition-all duration-300">
+                <div className="rounded-md overflow-hidden aspect-3/4 bg-muted relative group-hover:ring-2 group-hover:ring-primary/50 transition-all duration-300">
                   <PersonCollage
                     knownFor={person.known_for}
                     profilePath={person.profile_path}
@@ -512,16 +512,16 @@ function SearchResultCard({ item }: { item: MediaItem }) {
           <Image
             src={backdropUrl}
             alt={title || "Media backdrop"}
-            layout="fill"
-            objectFit="cover"
-            className="blur-sm scale-110"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="scale-110 object-cover blur-xs"
           />
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-r from-background/95 via-background/70 to-transparent pointer-events-none" />
       <div className="relative flex gap-6 p-4 md:p-6 h-full">
-        <div className="flex-shrink-0 w-24 sm:w-28 md:w-32 lg:w-36">
-          <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-white/10 group-hover:ring-primary/30 transition-all duration-500">
+        <div className="shrink-0 w-24 sm:w-28 md:w-32 lg:w-36">
+          <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-white/10 group-hover:ring-primary/30 transition-all duration-500">
             <Poster
               posterPath={posterPath}
               title={title || "Media poster"}
@@ -818,7 +818,7 @@ export default function SearchResults({ query }: { query: string }) {
 
           {!genresLoading && parsedGenresForFilter.length > 0 && (
             <div
-              className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-4"
+              className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg p-4"
               data-testid="genre-filter"
             >
               <h4 className="text-sm font-medium text-foreground mb-3">
