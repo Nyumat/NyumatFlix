@@ -34,7 +34,7 @@ export const MovieCard: React.FC<MovieCardProps> = (props) => {
   }
 
   const cardInner = (
-    <MediaCard.Root className="group">
+    <MediaCard.Root className="group border-0 bg-transparent">
       <MediaPoster image={poster_path} alt={title} />
 
       <MediaCard.Content>

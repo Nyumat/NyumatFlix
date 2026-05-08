@@ -34,7 +34,6 @@ export async function hydrateTvShowDetailQueries(
   const numId = Number.parseInt(id, 10);
   queryClient.setQueryData(queryKeys.tvDetails(numId), details);
   queryClient.setQueryData(queryKeys.tvAllSeasons(id), allSeasonDetails);
-  await prefetchTvShowTabQueries(queryClient, id);
 }
 
 async function prefetchMovieTabQueries(queryClient: QueryClient, id: string) {
@@ -66,5 +65,4 @@ export async function hydrateMovieDetailQueries(
 ) {
   const numId = Number.parseInt(id, 10);
   queryClient.setQueryData(queryKeys.movieDetails(numId), movie);
-  await prefetchMovieTabQueries(queryClient, id);
 }

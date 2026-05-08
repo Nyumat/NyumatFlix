@@ -51,8 +51,8 @@ export const ProviderLogo: React.FC<ProviderLogoProps> = ({
       src={src}
       alt={alt}
       priority={priority}
-      unoptimized
       fill
+      sizes="32px"
     />
   );
 };

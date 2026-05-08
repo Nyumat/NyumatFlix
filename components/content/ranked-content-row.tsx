@@ -29,7 +29,7 @@ export function RankedContentRow({
 
   if (isMobile) {
     return (
-      <div className="mx-4 md:mx-8">
+      <div>
         <ContentRowHeader title={title} href={href} />
         <div className="relative">
           <Carousel
@@ -51,8 +51,8 @@ export function RankedContentRow({
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="absolute -left-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
-            <CarouselNext className="absolute -right-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
+            <CarouselPrevious className="absolute -left-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 shadow-lg shadow-black/20 transition-all duration-200" />
+            <CarouselNext className="absolute -right-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 shadow-lg shadow-black/20 transition-all duration-200" />
           </Carousel>
         </div>
       </div>
@@ -60,7 +60,7 @@ export function RankedContentRow({
   }
 
   return (
-    <div className="mx-4 md:mx-8">
+    <div>
       <ContentRowHeader title={title} href={href} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">

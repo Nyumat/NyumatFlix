@@ -1,4 +1,4 @@
-import { enrichMediaItemsWithLogos } from "@/app/actions";
+import { enrichAboveFoldMediaItemsWithLogos } from "@/app/actions";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
@@ -38,6 +38,7 @@ import type { MediaItem } from "@/utils/typings";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
+const ABOVE_FOLD_LOGO_COUNT = 8;
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -212,19 +213,21 @@ export default async function MoviesCatalogPage(props: PageProps) {
 
     const [hubTrendingCarouselEnriched, hubPopularCarouselEnriched] =
       await Promise.all([
-        enrichMediaItemsWithLogos(
+        enrichAboveFoldMediaItemsWithLogos(
           hubTrendingCarousel.map((m) => ({
             ...m,
             media_type: "movie" as const,
           })),
           "movie",
+          ABOVE_FOLD_LOGO_COUNT,
         ),
-        enrichMediaItemsWithLogos(
+        enrichAboveFoldMediaItemsWithLogos(
           hubPopularCarousel.map((m) => ({
             ...m,
             media_type: "movie" as const,
           })),
           "movie",
+          ABOVE_FOLD_LOGO_COUNT,
         ),
       ]);
 

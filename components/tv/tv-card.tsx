@@ -34,7 +34,7 @@ export const TvCard: React.FC<TvCardProps> = (props) => {
   }
 
   const cardInner = (
-    <MediaCard.Root>
+    <MediaCard.Root className="border-0 bg-transparent">
       <MediaPoster image={poster_path} alt={name} />
 
       <MediaCard.Content>

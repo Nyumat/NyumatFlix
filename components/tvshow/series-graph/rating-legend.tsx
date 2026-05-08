@@ -12,7 +12,7 @@ export function RatingLegend() {
           style={{ cursor: "default" }}
         >
           <span
-            className="w-3 h-3 rounded-sm"
+            className="w-3 h-3 rounded-xs"
             style={{ backgroundColor: RATING_COLORS[key] }}
           />
           <span className="text-xs sm:text-sm text-muted-foreground">

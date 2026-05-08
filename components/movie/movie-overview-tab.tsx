@@ -109,17 +109,17 @@ export const MovieOverviewTab = ({ details }: MovieOverviewTabProps) => {
 
       <div
         className={cn(
-          "overflow-hidden rounded-xl border border-white/15 bg-black/45 shadow-2xl backdrop-blur-xl supports-[backdrop-filter]:bg-black/35",
+          "overflow-hidden rounded-xl border border-white/15 bg-black/45 shadow-2xl backdrop-blur-xl supports-backdrop-filter:bg-black/35",
         )}
       >
-        <div className="border-b border-white/10 bg-white/[0.03] px-5 py-4">
+        <div className="border-b border-white/10 bg-white/3 px-5 py-4">
           <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-white/70">
             At a glance
           </h2>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-3">
           {(hasRuntime || !isUpcoming) && (
-            <div className="flex items-start gap-3 rounded-lg bg-white/[0.04] p-3 ring-1 ring-white/10">
+            <div className="flex items-start gap-3 rounded-lg bg-white/4 p-3 ring-1 ring-white/10">
               <Clock
                 className="mt-0.5 size-5 shrink-0 text-sky-400/90"
                 aria-hidden
@@ -139,7 +139,7 @@ export const MovieOverviewTab = ({ details }: MovieOverviewTabProps) => {
               </div>
             </div>
           )}
-          <div className="flex items-start gap-3 rounded-lg bg-white/[0.04] p-3 ring-1 ring-white/10">
+          <div className="flex items-start gap-3 rounded-lg bg-white/4 p-3 ring-1 ring-white/10">
             <Calendar
               className="mt-0.5 size-5 shrink-0 text-sky-400/90"
               aria-hidden
@@ -159,7 +159,7 @@ export const MovieOverviewTab = ({ details }: MovieOverviewTabProps) => {
             </div>
           </div>
           {((vote_count && vote_count > 0) || !isUpcoming) && (
-            <div className="flex items-start gap-3 rounded-lg bg-white/[0.04] p-3 ring-1 ring-white/10">
+            <div className="flex items-start gap-3 rounded-lg bg-white/4 p-3 ring-1 ring-white/10">
               <Star
                 className="mt-0.5 size-5 shrink-0 text-amber-400/90"
                 aria-hidden
@@ -199,7 +199,7 @@ export const MovieOverviewTab = ({ details }: MovieOverviewTabProps) => {
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {budget > 0 ? (
-                <div className="rounded-lg bg-white/[0.04] px-4 py-3 ring-1 ring-white/10">
+                <div className="rounded-lg bg-white/4 px-4 py-3 ring-1 ring-white/10">
                   <p className="text-xs text-gray-400">Budget</p>
                   <p className="text-sm font-medium text-white">
                     ${budget.toLocaleString()}
@@ -207,7 +207,7 @@ export const MovieOverviewTab = ({ details }: MovieOverviewTabProps) => {
                 </div>
               ) : null}
               {revenue > 0 ? (
-                <div className="rounded-lg bg-white/[0.04] px-4 py-3 ring-1 ring-white/10">
+                <div className="rounded-lg bg-white/4 px-4 py-3 ring-1 ring-white/10">
                   <p className="text-xs text-gray-400">Revenue</p>
                   <p className="text-sm font-medium text-white">
                     ${revenue.toLocaleString()}

@@ -20,7 +20,7 @@ export function CarouselNavigation({
         <button
           onClick={() => emblaApi?.scrollPrev()}
           disabled={!emblaApi?.canScrollPrev()}
-          className="absolute -left-4 md:-left-6 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 backdrop-blur-sm p-1.5 rounded-full text-foreground disabled:opacity-30 z-10 flex border border-border"
+          className="absolute -left-4 md:-left-6 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 backdrop-blur-xs p-1.5 rounded-full text-foreground disabled:opacity-30 z-10 flex border border-border"
           aria-label="Previous items"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
@@ -36,7 +36,7 @@ export function CarouselNavigation({
         <button
           onClick={() => emblaApi?.scrollNext()}
           disabled={!emblaApi?.canScrollNext()}
-          className="absolute -right-4 md:-right-6 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 backdrop-blur-sm p-1.5 rounded-full text-foreground disabled:opacity-30 z-10 flex border border-border"
+          className="absolute -right-4 md:-right-6 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 backdrop-blur-xs p-1.5 rounded-full text-foreground disabled:opacity-30 z-10 flex border border-border"
           aria-label="Next items"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
@@ -58,7 +58,7 @@ export function CarouselNavigation({
       <button
         onClick={() => emblaApi?.scrollPrev()}
         disabled={!emblaApi?.canScrollPrev()}
-        className="absolute left-0 md:-left-3 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 backdrop-blur-sm p-2 rounded-full text-foreground disabled:opacity-30 z-10 transition-all scale-90 md:scale-100 border border-border"
+        className="absolute left-0 md:-left-3 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 backdrop-blur-xs p-2 rounded-full text-foreground disabled:opacity-30 z-10 transition-all scale-90 md:scale-100 border border-border"
         aria-label="Previous items"
       >
         <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
@@ -74,7 +74,7 @@ export function CarouselNavigation({
       <button
         onClick={() => emblaApi?.scrollNext()}
         disabled={!emblaApi?.canScrollNext()}
-        className="absolute right-0 md:-right-3 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 backdrop-blur-sm p-2 rounded-full text-foreground disabled:opacity-30 z-10 transition-all scale-90 md:scale-100 border border-border"
+        className="absolute right-0 md:-right-3 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 backdrop-blur-xs p-2 rounded-full text-foreground disabled:opacity-30 z-10 transition-all scale-90 md:scale-100 border border-border"
         aria-label="Next items"
       >
         <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">

@@ -13,7 +13,7 @@ export const MediaReviewCard = ({ review }: MediaReviewCardProps) => {
   const rating = author_details?.rating;
 
   return (
-    <article className="space-y-3 rounded-lg border border-border/60 bg-card/40 p-4 shadow-sm backdrop-blur-sm">
+    <article className="space-y-3 rounded-lg border border-border/60 bg-card/40 p-4 shadow-xs backdrop-blur-xs">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-muted">
           {avatar ? (
@@ -24,8 +24,8 @@ export const MediaReviewCard = ({ review }: MediaReviewCardProps) => {
               )}
               alt=""
               fill
+              sizes="40px"
               className="object-cover"
-              unoptimized
             />
           ) : (
             <div className="flex size-full items-center justify-center text-xs text-muted-foreground">

@@ -63,7 +63,7 @@ export const TopRatedFeaturedCarousel = ({
 
   return (
     <div className="space-y-5 md:space-y-6">
-      <div className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-b from-muted/30 to-muted/5 p-4 shadow-inner shadow-black/20 md:p-5">
+      <div className="relative overflow-hidden rounded-xl border border-white/6 bg-linear-to-b from-muted/30 to-muted/5 p-4 shadow-inner shadow-black/20 md:p-5">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.35]"
           aria-hidden

@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" />
 
       {/* Content area - positioned to scroll over the fixed background */}
-      <div className="relative z-10 min-h-[100dvh] w-full">
+      <div className="relative z-10 min-h-dvh w-full">
         <ContentContainer className="w-full flex flex-col items-center">
           <LegalPage title="Privacy Policy">
             <section className="mb-8">

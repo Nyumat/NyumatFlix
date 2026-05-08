@@ -1,4 +1,4 @@
-import { enrichMediaItemsWithLogos } from "@/app/actions";
+import { enrichAboveFoldMediaItemsWithLogos } from "@/app/actions";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { TrendCarousel, TrendingSpotlight } from "@/components/trend";
@@ -15,6 +15,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 export const revalidate = 3600;
+const ABOVE_FOLD_LOGO_COUNT = 8;
 
 export const metadata: Metadata = {
   title: "Trending | NyumatFlix",
@@ -47,8 +48,8 @@ export default async function TrendingHub() {
   const tvShows = filterReleasedTvShows(tvShowsRaw);
 
   const [moviesForTrendCarousel, tvShowsForTrendCarousel] = await Promise.all([
-    enrichMediaItemsWithLogos(movies, "movie"),
-    enrichMediaItemsWithLogos(tvShows, "tv"),
+    enrichAboveFoldMediaItemsWithLogos(movies, "movie", ABOVE_FOLD_LOGO_COUNT),
+    enrichAboveFoldMediaItemsWithLogos(tvShows, "tv", ABOVE_FOLD_LOGO_COUNT),
   ]);
 
   const featured = movies.find((m) => Boolean(m.poster_path)) ?? movies[0];

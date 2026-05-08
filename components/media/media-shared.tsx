@@ -53,7 +53,7 @@ export const MediaBackdrop: React.FC<MediaBackdropProps> = ({
     return (
       <div
         className={cn(
-          "relative min-h-[12rem] w-full rounded-md border bg-muted text-muted-foreground md:min-h-0 md:h-full",
+          "relative min-h-48 w-full rounded-md border bg-muted text-muted-foreground md:min-h-0 md:h-full",
           className,
         )}
         {...props}
@@ -68,7 +68,7 @@ export const MediaBackdrop: React.FC<MediaBackdropProps> = ({
   return (
     <div
       className={cn(
-        "relative h-full min-h-[12rem] w-full overflow-hidden rounded-md border bg-muted md:min-h-0",
+        "relative h-full min-h-48 w-full overflow-hidden rounded-md border bg-muted md:min-h-0",
         className,
       )}
       {...props}
@@ -77,7 +77,6 @@ export const MediaBackdrop: React.FC<MediaBackdropProps> = ({
         src={src}
         alt={alt}
         priority={priority}
-        unoptimized
         fill
         sizes="100vw"
         className="object-cover"
@@ -255,7 +254,7 @@ export const MediaPreview: React.FC<Movie | TvShow> = (props) => {
         : null;
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg border border-white/15 bg-card/30 shadow-2xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/25">
+    <div className="relative w-full overflow-hidden rounded-lg border border-white/15 bg-card/30 shadow-2xl backdrop-blur-xl supports-backdrop-filter:bg-card/25">
       {bgSrc ? (
         <>
           <div className="pointer-events-none absolute inset-0">
@@ -264,7 +263,6 @@ export const MediaPreview: React.FC<Movie | TvShow> = (props) => {
               alt=""
               fill
               sizes="384px"
-              unoptimized
               className="scale-110 object-cover blur-2xl saturate-125"
               aria-hidden
             />
@@ -274,7 +272,7 @@ export const MediaPreview: React.FC<Movie | TvShow> = (props) => {
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-background/75 via-background/35 to-background/85"
+            className="pointer-events-none absolute inset-0 bg-linear-to-br from-background/75 via-background/35 to-background/85"
             aria-hidden
           />
         </>
@@ -287,7 +285,7 @@ export const MediaPreview: React.FC<Movie | TvShow> = (props) => {
 
       <div className="relative flex gap-3 p-3 sm:gap-4 sm:p-4">
         {hasPosterPath({ poster_path }) ? (
-          <div className="flex w-[4.75rem] shrink-0 flex-col justify-center sm:w-24">
+          <div className="flex w-19 shrink-0 flex-col justify-center sm:w-24">
             <div className="relative aspect-poster w-full overflow-hidden rounded-md border border-white/15 shadow-lg ring-1 ring-black/20">
               <MediaPoster image={poster_path} alt={title} size="w342" />
             </div>
@@ -339,7 +337,7 @@ export const MediaPreview: React.FC<Movie | TvShow> = (props) => {
             }
             className={cn(
               buttonVariants({ size: "sm", variant: "outline" }),
-              "mt-3 border-white/20 bg-background/35 backdrop-blur-sm hover:bg-background/50",
+              "mt-3 border-white/20 bg-background/35 backdrop-blur-xs hover:bg-background/50",
             )}
           >
             Watch Now

@@ -1,15 +1,15 @@
+import { getGenreNames } from "@/components/content/genre-helpers";
 import {
   isPremieredTvByDate,
   isReleasedMovieByDate,
 } from "@/lib/released-media";
-import { NextResponse } from "next/server";
-import { getGenreNames } from "@/components/content/genre-helpers";
 import {
   Movie,
   TmdbResponse,
   TmdbResponseSchema,
   TvShow,
 } from "@/utils/typings";
+import { NextResponse } from "next/server";
 
 type PreviewResult = {
   id: number;
@@ -88,7 +88,15 @@ export async function GET(request: Request) {
             : undefined,
         })) || [];
 
-    return NextResponse.json({ results: filteredResults });
+    return NextResponse.json(
+      { results: filteredResults },
+      {
+        headers: {
+          "Cache-Control":
+            "public, s-maxage=3600, stale-while-revalidate=86400",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error in search preview API route:", error);
     return NextResponse.json(

@@ -54,7 +54,7 @@ export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
       }}
       role="button"
       tabIndex={0}
-      className="group relative overflow-hidden rounded-lg bg-black/40 backdrop-blur-md ring-1 ring-white/[0.08] shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-primary/5 hover:ring-primary/30 transition-all duration-300 cursor-pointer aspect-video"
+      className="group relative overflow-hidden rounded-lg bg-black/40 backdrop-blur-md ring-1 ring-white/8 shadow-lg shadow-black/10 hover:shadow-xl transition-all duration-300 cursor-pointer aspect-video"
       aria-label={`View details for ${displayTitle}`}
     >
       {backdropUrl ? (
@@ -66,17 +66,18 @@ export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
           sizes="(max-width: 768px) 100vw, 33vw"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
+        <div className="absolute inset-0 bg-linear-to-br from-primary/20 to-primary/5" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+      <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+      <div className="absolute inset-0 bg-linear-to-r from-black/60 to-transparent" />
+      <div className="absolute inset-0 bg-black/25 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
       <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 z-10">
         <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
           <span
             className={cn(
               "text-4xl sm:text-5xl md:text-6xl font-black tabular-nums tracking-tighter w-8 sm:w-10 shrink-0",
-              "bg-gradient-to-b bg-clip-text text-transparent",
+              "bg-linear-to-b bg-clip-text text-transparent",
               rank === 1
                 ? "from-amber-300 to-amber-600"
                 : "from-slate-200 to-slate-500",
@@ -90,7 +91,7 @@ export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
               title={displayTitle}
               align="left"
               className="mb-1 sm:mb-2"
-              fallbackClassName="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 sm:mb-2 line-clamp-2"
+              fallbackClassName="text-base sm:text-md font-bold text-white mb-1 sm:mb-2 line-clamp-2"
             />
             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-white/80">
               {year && <span>{year}</span>}

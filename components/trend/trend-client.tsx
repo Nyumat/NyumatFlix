@@ -43,8 +43,7 @@ interface TrendCarouselProps {
 
 const carouselItemBasis = {
   default: "basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5",
-  compact:
-    "basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-[14.285%]",
+  compact: "basis-[44%] sm:basis-1/4 md:basis-1/5 lg:basis-1/5 xl:basis-1/5",
 } as const;
 
 export const TrendCarousel: React.FC<TrendCarouselProps> = ({
@@ -112,11 +111,13 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
       setApi={setApi}
     >
       {showToolbar ? (
-        <div className="mb-4 flex items-center justify-between gap-4 rounded-md p-2 pr-4 md:justify-start">
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-md p-2 pr-3 md:justify-start md:gap-4 md:pr-4">
           {icon ? <div className="shrink-0">{icon}</div> : null}
 
-          <div className="mr-32 w-full shrink truncate">
-            <h2 className="font-xl">{title}</h2>
+          <div className="min-w-0 flex-1 md:mr-32">
+            <h2 className="truncate text-lg font-medium md:text-base">
+              {title}
+            </h2>
             {description ? (
               <p className="hidden truncate text-sm text-muted-foreground xl:block">
                 {description}

@@ -166,7 +166,7 @@ export const TvShowOverviewTab = ({ details, id }: TvShowOverviewTabProps) => {
 
       <MediaDetailFactsPanel title="Series details" rows={detailRows}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="flex items-start gap-3 rounded-lg bg-white/[0.04] p-3 ring-1 ring-white/10">
+          <div className="flex items-start gap-3 rounded-lg bg-white/4 p-3 ring-1 ring-white/10">
             <Tv
               className="mt-0.5 size-5 shrink-0 text-sky-400/90"
               aria-hidden
@@ -180,7 +180,7 @@ export const TvShowOverviewTab = ({ details, id }: TvShowOverviewTabProps) => {
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3 rounded-lg bg-white/[0.04] p-3 ring-1 ring-white/10">
+          <div className="flex items-start gap-3 rounded-lg bg-white/4 p-3 ring-1 ring-white/10">
             <ListVideo
               className="mt-0.5 size-5 shrink-0 text-sky-400/90"
               aria-hidden
@@ -194,7 +194,7 @@ export const TvShowOverviewTab = ({ details, id }: TvShowOverviewTabProps) => {
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3 rounded-lg bg-white/[0.04] p-3 ring-1 ring-white/10">
+          <div className="flex items-start gap-3 rounded-lg bg-white/4 p-3 ring-1 ring-white/10">
             <Calendar
               className="mt-0.5 size-5 shrink-0 text-sky-400/90"
               aria-hidden
@@ -206,7 +206,7 @@ export const TvShowOverviewTab = ({ details, id }: TvShowOverviewTabProps) => {
               <p className="text-sm font-medium text-white">{firstAirDate}</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 rounded-lg bg-white/[0.04] p-3 ring-1 ring-white/10">
+          <div className="flex items-start gap-3 rounded-lg bg-white/4 p-3 ring-1 ring-white/10">
             <Star
               className="mt-0.5 size-5 shrink-0 text-amber-400/90"
               aria-hidden
@@ -230,7 +230,7 @@ export const TvShowOverviewTab = ({ details, id }: TvShowOverviewTabProps) => {
           </div>
         </div>
         {contentRating ? (
-          <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+          <div className="mt-4 rounded-lg border border-white/10 bg-white/3 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
                 Content rating (US)

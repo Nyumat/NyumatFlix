@@ -37,7 +37,7 @@ const multiSelectVariants = cva("m-1 transition ease-in-out", {
   variants: {
     variant: {
       default:
-        "border border-primary/30 bg-primary/12 text-primary backdrop-blur-md shadow-sm hover:bg-primary/22 dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20",
+        "border border-primary/30 bg-primary/12 text-primary backdrop-blur-md shadow-xs hover:bg-primary/22 dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20",
       secondary:
         "border border-border/60 bg-secondary/35 text-secondary-foreground backdrop-blur-md hover:bg-secondary/55 dark:border-white/25 dark:bg-white/10 dark:text-white",
       destructive:
@@ -278,7 +278,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                 >
                   <div
                     className={cn(
-                      "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                      "mr-2 flex h-4 w-4 items-center justify-center rounded-xs border border-primary",
                       selectedValues.length === options.length
                         ? "bg-primary text-primary-foreground"
                         : "opacity-50 [&_svg]:invisible",
@@ -298,7 +298,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                     >
                       <div
                         className={cn(
-                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                          "mr-2 flex h-4 w-4 items-center justify-center rounded-xs border border-primary",
                           isSelected
                             ? "bg-primary text-primary-foreground"
                             : "opacity-50 [&_svg]:invisible",

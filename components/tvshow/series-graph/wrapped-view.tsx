@@ -72,7 +72,7 @@ function EpisodeCell({
           type="button"
           className={cn(
             "relative w-11 h-11 sm:w-12 sm:h-12 rounded-md flex flex-col items-center justify-center transition-all",
-            "hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
+            "hover:scale-105 hover:shadow-lg focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-1",
           )}
           style={{ backgroundColor: bgColor }}
           aria-label={`S${seasonNumber} E${episode.episodeNumber}: ${episode.name} - ${rating.toFixed(1)}`}

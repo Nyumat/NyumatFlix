@@ -8,6 +8,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { hasPosterPath } from "@/lib/media-poster-path";
+import { tmdbImage } from "@/tmdb/utils";
 
 interface ContentCardProps {
   item: MediaItem;
@@ -77,11 +78,12 @@ export function ContentCard({
               src={backdropUrl}
               alt=""
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover blur-[2px]"
             />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/40 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-r from-background/90 via-background/40 to-transparent pointer-events-none" />
 
         <span
           className={cn(
@@ -100,14 +102,13 @@ export function ContentCard({
         <div className="relative flex items-center gap-4 flex-1 min-w-0">
           <div
             className={cn(
-              "relative w-16 lg:w-20 aspect-[2/3] flex-shrink-0 overflow-hidden rounded-[18px] shadow-2xl ring-1 ring-white/10",
+              "relative aspect-poster w-16 shrink-0 overflow-hidden rounded-[18px] shadow-2xl ring-1 ring-white/10 lg:w-20",
               isInteractive && "transition-all duration-500",
             )}
           >
             <Poster
               posterPath={item.poster_path ?? undefined}
               size="small"
-              framed={false}
               className={cn(
                 "h-full w-full rounded-[inherit]",
                 isInteractive &&
@@ -165,7 +166,7 @@ export function ContentCard({
               {item.content_rating && (
                 <>
                   <span className="opacity-40">•</span>
-                  <span className="px-1 py-0 bg-white/5 border border-white/10 rounded-sm text-[8px] uppercase font-bold">
+                  <span className="px-1 py-0 bg-white/5 border border-white/10 rounded-xs text-[8px] uppercase font-bold">
                     {item.content_rating}
                   </span>
                 </>
@@ -184,9 +185,10 @@ export function ContentCard({
   return (
     <div
       className={cn(
-        "group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[28px] border border-white/12 bg-card/40 shadow-xl backdrop-blur-md md:aspect-[2/3]",
+        "group relative cursor-pointer overflow-hidden rounded-[28px] border border-white/12 bg-card/40 shadow-xl backdrop-blur-md",
         isInteractive && "transition-all duration-300 hover:border-primary/50",
       )}
+      style={{ aspectRatio: "2 / 3" }}
       onClick={navigate}
       onMouseEnter={prefetch}
       onKeyDown={handleKeyDown}
@@ -206,51 +208,51 @@ export function ContentCard({
             src={backdropUrl}
             alt=""
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover blur-[2px]"
           />
         </div>
       )}
       <div
         className={cn(
-          "absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-background/95 via-background/40 to-transparent",
+          "absolute inset-0 z-10 pointer-events-none rounded-[28px] bg-linear-to-t from-background/95 via-background/40 to-transparent",
           isInteractive
             ? "transition-opacity duration-500 md:opacity-0 md:group-hover:opacity-100"
             : "opacity-0",
         )}
       />
 
-      <div className="relative flex-shrink-0 aspect-[2/3] overflow-hidden rounded-[inherit]">
-        <Poster
-          posterPath={item.poster_path ?? undefined}
-          title={title || "Poster"}
-          size="medium"
-          framed={false}
-          className={cn(
-            "h-full w-full rounded-[inherit]",
-            isInteractive &&
-              "transition-transform duration-500 group-hover:scale-[1.05]",
-          )}
+      <Image
+        src={tmdbImage.poster(item.poster_path ?? "", "w342")}
+        alt={title || "Poster"}
+        fill
+        sizes="(max-width: 768px) 45vw, (max-width: 1200px) 24vw, 200px"
+        className={cn(
+          "absolute inset-0 z-0 rounded-[28px] object-cover",
+          isInteractive &&
+            "transition-transform duration-500 group-hover:scale-[1.05]",
+        )}
+      />
+
+      <div
+        className={cn(
+          "absolute inset-0 z-20 flex items-center justify-center pointer-events-none",
+          isInteractive
+            ? "opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            : "hidden",
+        )}
+      >
+        <Icons.play
+          className="w-8 h-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+          strokeWidth={1.5}
         />
-        <div
-          className={cn(
-            "absolute inset-0 z-20 flex items-center justify-center pointer-events-none",
-            isInteractive
-              ? "opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-              : "hidden",
-          )}
-        >
-          <Icons.play
-            className="w-8 h-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-            strokeWidth={1.5}
-          />
-        </div>
       </div>
 
       <div
         className={cn(
-          "relative z-30 flex flex-grow flex-col items-center p-3 text-center",
+          "absolute inset-x-0 bottom-0 z-30 flex flex-col items-center p-3 text-center",
           isInteractive &&
-            "transition-all duration-500 md:absolute md:bottom-0 md:left-0 md:right-0 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:bg-gradient-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]",
+            "transition-all duration-500 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:bg-linear-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]",
         )}
       >
         <MediaLogo
@@ -280,7 +282,7 @@ export function ContentCard({
             {item.content_rating && (
               <>
                 <span className="opacity-40">•</span>
-                <span className="px-1 py-0 bg-white/5 border border-white/10 rounded-sm text-[8px] font-bold text-white/70 uppercase">
+                <span className="px-1 py-0 bg-white/5 border border-white/10 rounded-xs text-[8px] font-bold text-white/70 uppercase">
                   {item.content_rating}
                 </span>
               </>

@@ -22,11 +22,11 @@ export const MediaDetailFactsPanel = ({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-white/15 bg-black/45 shadow-2xl backdrop-blur-xl supports-[backdrop-filter]:bg-black/35",
+        "overflow-hidden rounded-xl border border-white/15 bg-black/45 shadow-2xl backdrop-blur-xl supports-backdrop-filter:bg-black/35",
         className,
       )}
     >
-      <div className="border-b border-white/10 bg-white/[0.03] px-5 py-4">
+      <div className="border-b border-white/10 bg-white/3 px-5 py-4">
         <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-white/70">
           {title}
         </h2>

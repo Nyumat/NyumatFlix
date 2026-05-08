@@ -35,9 +35,8 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
   return (
     <div
       className={cn(
-        "group relative isolate overflow-hidden rounded-2xl border border-white/10",
+        "group relative isolate overflow-hidden rounded-2xl",
         "bg-card/40 backdrop-blur-xl shadow-2xl transition-all duration-500",
-        "hover:border-primary/50",
       )}
     >
       {backdropUrl ? (
@@ -48,28 +47,28 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
             fill
             priority={priority}
             sizes="(max-width: 768px) 100vw, min(1400px, 100vw)"
-            className="scale-110 object-cover blur-sm"
+            className="scale-110 object-cover blur-xs"
             aria-hidden
           />
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/95 via-background/55 to-background/25" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-background/30" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-background/95 via-background/55 to-background/25" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/80 via-transparent to-background/30" />
 
-      <div className="relative flex h-full min-h-[min(22rem,70vw)] flex-col gap-8 p-4 sm:p-6 md:min-h-[20rem] md:flex-row md:items-stretch md:gap-8 md:p-8 lg:gap-12 lg:p-10">
+      <div className="relative flex h-full min-h-[min(22rem,70vw)] flex-col gap-8 p-4 sm:p-6 md:min-h-80 md:flex-row md:items-stretch md:gap-8 md:p-8 lg:gap-12 lg:p-10">
         <Link
           href={`${pages.movie.root.link}/${item.id}`}
           className="mx-auto shrink-0 md:mx-0"
           aria-describedby="trending-spotlight-copy"
         >
-          <div className="relative w-[min(72vw,14rem)] overflow-hidden rounded-xl bg-muted shadow-2xl ring-1 ring-white/10 transition-all duration-500 group-hover:ring-primary/30 sm:w-56 md:w-64 lg:w-72">
+          <div className="relative w-[min(72vw,14rem)] overflow-hidden rounded-xl bg-muted shadow-2xl transition-all duration-500 sm:w-56 md:w-64 lg:w-72">
             <MediaPoster
               image={item.poster_path}
               alt={item.title}
               priority={priority}
               size="w780"
-              className="!aspect-poster w-full"
+              className="aspect-poster! w-full"
             />
           </div>
         </Link>
@@ -91,7 +90,6 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
                 alt=""
                 height={logo.height}
                 width={logo.width}
-                unoptimized
                 priority={priority}
                 aria-hidden
               />

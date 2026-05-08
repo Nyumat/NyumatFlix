@@ -9,7 +9,10 @@ import { type ComponentProps, type CSSProperties, useMemo } from "react";
 const Root: React.FC<ComponentProps<"div">> = ({ className, ...props }) => {
   return (
     <div
-      className={cn("group relative w-full overflow-hidden", className)}
+      className={cn(
+        "group relative w-full overflow-hidden rounded-[28px]",
+        className,
+      )}
       {...props}
     />
   );
@@ -21,8 +24,8 @@ const Content: React.FC<ComponentProps<"div">> = ({
   ...props
 }) => {
   return (
-    <div className={cn("overlay", className)} {...props}>
-      <div className="p-2 md:p-6">{children}</div>
+    <div className={cn("mt-2", className)} {...props}>
+      <div className="space-y-1 p-1.5 md:p-2">{children}</div>
     </div>
   );
 };
@@ -30,7 +33,7 @@ const Content: React.FC<ComponentProps<"div">> = ({
 const Title: React.FC<ComponentProps<"h2">> = ({ className, ...props }) => {
   return (
     <h2
-      className={cn("line-clamp-1 text-sm font-medium md:text-lg", className)}
+      className={cn("line-clamp-3 text-sm font-medium", className)}
       {...props}
     />
   );
@@ -68,7 +71,6 @@ interface MediaPosterProps extends ComponentProps<"div"> {
   alt: string;
   priority?: boolean;
   monochrome?: boolean;
-  framed?: boolean;
   imageClassName?: string;
 }
 
@@ -85,7 +87,6 @@ type PosterCompatProps = {
   title?: string;
   size?: LegacyPosterSize | PosterSize;
   className?: string;
-  framed?: boolean;
   imageClassName?: string;
 };
 
@@ -94,7 +95,6 @@ export function Poster({
   title = "",
   size = "w342",
   className,
-  framed = true,
   imageClassName,
 }: PosterCompatProps) {
   const resolved: PosterSize =
@@ -108,7 +108,6 @@ export function Poster({
       alt={title}
       size={resolved}
       className={className}
-      framed={framed}
       imageClassName={imageClassName}
     />
   );
@@ -121,7 +120,6 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
   className,
   priority,
   monochrome,
-  framed = true,
   imageClassName,
   ...props
 }) => {
@@ -134,10 +132,7 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
   return (
     <div
       className={cn(
-        "relative isolate aspect-poster w-full overflow-hidden",
-        framed
-          ? "rounded-md border bg-muted"
-          : "rounded-[inherit] border-0 bg-transparent",
+        "relative isolate aspect-poster w-full overflow-hidden rounded-[inherit]",
         className,
       )}
       {...props}
@@ -146,12 +141,10 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
         src={src}
         alt={alt}
         priority={priority}
-        unoptimized
         fill
-        sizes="(max-width: 768px) 40vw, (max-width: 1200px) 20vw, 200px"
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         className={cn(
-          "object-cover [transform:translateZ(0)]",
-          framed ? "rounded-md" : "rounded-[inherit]",
+          "rounded-[inherit] object-cover transform-[translateZ(0)]",
           monochrome && "grayscale",
           imageClassName,
         )}
@@ -227,8 +220,8 @@ export function MediaLogo({
       },
       large: {
         ultraWide:
-          "h-10 max-w-80 sm:h-14 sm:max-w-[28rem] md:h-16 md:max-w-[32rem] lg:h-20 lg:max-w-[38rem]",
-        wide: "h-16 max-w-64 sm:h-20 sm:max-w-80 md:h-24 md:max-w-96 lg:h-28 lg:max-w-[28rem]",
+          "h-10 max-w-80 sm:h-14 sm:max-w-md md:h-16 md:max-w-lg lg:h-20 lg:max-w-152",
+        wide: "h-16 max-w-64 sm:h-20 sm:max-w-80 md:h-24 md:max-w-96 lg:h-28 lg:max-w-md",
         standard:
           "h-20 max-w-48 sm:h-24 sm:max-w-56 md:h-28 md:max-w-64 lg:h-32 lg:max-w-72",
         squareish: "h-28 max-w-28 sm:h-32 sm:max-w-32 md:h-36 md:max-w-36",
@@ -236,21 +229,21 @@ export function MediaLogo({
       },
       xlarge: {
         ultraWide:
-          "h-14 max-w-[32rem] sm:h-16 sm:max-w-[40rem] md:h-20 md:max-w-[50rem] lg:h-24 lg:max-w-[60rem]",
-        wide: "h-24 max-w-[22rem] sm:h-28 sm:max-w-[28rem] md:h-32 md:max-w-[32rem] lg:h-36 lg:max-w-[38rem]",
+          "h-14 max-w-lg sm:h-16 sm:max-w-160 md:h-20 md:max-w-200 lg:h-24 lg:max-w-240",
+        wide: "h-24 max-w-88 sm:h-28 sm:max-w-md md:h-32 md:max-w-lg lg:h-36 lg:max-w-152",
         standard:
-          "h-32 max-w-72 sm:h-36 sm:max-w-80 md:h-40 md:max-w-96 lg:h-48 lg:max-w-[30rem]",
+          "h-32 max-w-72 sm:h-36 sm:max-w-80 md:h-40 md:max-w-96 lg:h-48 lg:max-w-120",
         squareish: "h-36 max-w-36 sm:h-40 sm:max-w-40 md:h-48 md:max-w-48",
         tall: "h-48 max-w-56 sm:h-56 sm:max-w-64 md:h-64 md:max-w-72 lg:h-72 lg:max-w-80",
       },
       "2xxl": {
         ultraWide:
-          "h-16 max-w-[40rem] sm:h-20 sm:max-w-[48rem] md:h-24 md:max-w-[60rem] lg:h-32 lg:max-w-[80rem]",
-        wide: "h-28 max-w-[32rem] sm:h-32 sm:max-w-[38rem] md:h-36 md:max-w-[44rem] lg:h-40 lg:max-w-[50rem]",
+          "h-16 max-w-160 sm:h-20 sm:max-w-3xl md:h-24 md:max-w-240 lg:h-32 lg:max-w-7xl",
+        wide: "h-28 max-w-lg sm:h-32 sm:max-w-152 md:h-36 md:max-w-176 lg:h-40 lg:max-w-200",
         standard:
-          "h-40 max-w-96 sm:h-48 sm:max-w-[30rem] md:h-56 md:max-w-[38rem] lg:h-64 lg:max-w-[46rem]",
+          "h-40 max-w-96 sm:h-48 sm:max-w-120 md:h-56 md:max-w-152 lg:h-64 lg:max-w-184",
         squareish: "h-48 max-w-48 sm:h-56 sm:max-w-56 md:h-64 md:max-w-64",
-        tall: "h-64 max-w-80 sm:h-72 sm:max-w-96 md:h-80 md:max-w-[30rem] lg:h-[30rem] lg:max-w-[36rem]",
+        tall: "h-64 max-w-80 sm:h-72 sm:max-w-96 md:h-80 md:max-w-120 lg:h-120 lg:max-w-xl",
       },
     };
 
