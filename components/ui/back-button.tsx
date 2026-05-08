@@ -12,17 +12,13 @@ interface BackButtonProps {
 
 const HIDE_BACK_BUTTON_ROUTES = [
   "/",
-  "/home",
   "/movies",
   "/tvshows",
   "/search",
   "/watchlist",
 ];
 
-export function BackButton({
-  className,
-  fallbackUrl = "/home",
-}: BackButtonProps) {
+export function BackButton({ className, fallbackUrl = "/" }: BackButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
@@ -58,7 +54,7 @@ export function BackButton({
       onClick={handleBack}
       onMouseEnter={handleMouseEnter}
       className={cn(
-        "h-8 w-8 rounded-full backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40 transition-all shrink-0 flex items-center justify-center shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent",
+        "h-8 w-8 rounded-full backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40 transition-all shrink-0 flex items-center justify-center shadow-lg hover:shadow-xl focus:outline-hidden focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent",
         className,
       )}
       aria-label="Go back"
