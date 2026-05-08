@@ -3,6 +3,11 @@ const nextConfig = {
   redirects: async () => {
     return [
       {
+        source: "/home",
+        destination: "/",
+        permanent: true,
+      },
+      {
         source: "/movie",
         destination: "/movies",
         permanent: true,
@@ -26,8 +31,7 @@ const nextConfig = {
     "three",
   ],
   images: {
-    unoptimized: true,
-    // minimumCacheTTL: 2678400,
+    // minimumCacheTTL: 60 * 60 * 24 * 30, // 1 week
     remotePatterns: [
       {
         protocol: "https",
