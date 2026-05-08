@@ -8,7 +8,7 @@ export const FooterSection = () => {
   return (
     <footer
       id="footer"
-      className="relative z-10 w-full bg-card/50 backdrop-blur-sm border-t border-border/50 mt-auto"
+      className="relative z-10 w-full bg-card/50 backdrop-blur-xs border-t border-border/50 mt-auto"
       role="contentinfo"
       aria-label="Site footer"
     >
@@ -76,7 +76,7 @@ export const FooterSection = () => {
             <ul className="space-y-3" role="list">
               <li>
                 <Link
-                  href="/home"
+                  href="/"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                 >
                   Home

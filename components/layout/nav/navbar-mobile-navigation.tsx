@@ -111,7 +111,7 @@ export const NavbarMobileNavigation = ({
             "shadow-2xl shadow-black/50",
           )}
         >
-          <SheetHeader className="px-6 py-5 border-b border-white/10 bg-black/20 backdrop-blur-sm">
+          <SheetHeader className="px-6 py-5 border-b border-white/10 bg-black/20 backdrop-blur-xs">
             <div className="flex items-center gap-3">
               <Link href="/" onClick={handleLinkClick} className="shrink-0">
                 <Image
@@ -139,8 +139,8 @@ export const NavbarMobileNavigation = ({
                   className={cn(
                     "block w-full px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200",
                     "text-white/90 hover:text-white",
-                    "hover:bg-white/10 hover:backdrop-blur-sm",
-                    "focus:bg-white/10 focus:text-white focus:outline-none",
+                    "hover:bg-white/10 hover:backdrop-blur-xs",
+                    "focus:bg-white/10 focus:text-white focus:outline-hidden",
                     "active:bg-white/15",
                   )}
                 >
@@ -156,10 +156,10 @@ export const NavbarMobileNavigation = ({
           </div>
 
           {/* Profile Section at Bottom */}
-          <div className="border-t border-white/10 bg-black/40 backdrop-blur-sm">
+          <div className="border-t border-white/10 bg-black/40 backdrop-blur-xs">
             {session ? (
               <div className="p-5 space-y-4">
-                <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
+                <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/5 backdrop-blur-xs border border-white/10">
                   <Avatar className="h-12 w-12 ring-2 ring-primary/30 shadow-lg border-2 border-white/20">
                     <AvatarImage
                       src={userImage || ""}
@@ -188,8 +188,8 @@ export const NavbarMobileNavigation = ({
                     className={cn(
                       "flex items-center gap-3 w-full px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200",
                       "text-white/90 hover:text-white",
-                      "hover:bg-white/10 hover:backdrop-blur-sm",
-                      "focus:bg-white/10 focus:text-white focus:outline-none",
+                      "hover:bg-white/10 hover:backdrop-blur-xs",
+                      "focus:bg-white/10 focus:text-white focus:outline-hidden",
                       "active:bg-white/15",
                     )}
                   >
@@ -202,8 +202,8 @@ export const NavbarMobileNavigation = ({
                     className={cn(
                       "flex items-center gap-3 w-full px-4 py-3.5 text-base font-medium rounded-xl transition-all duration-200",
                       "text-red-400 hover:text-red-300",
-                      "hover:bg-red-500/10 hover:backdrop-blur-sm",
-                      "focus:bg-red-500/10 focus:text-red-300 focus:outline-none",
+                      "hover:bg-red-500/10 hover:backdrop-blur-xs",
+                      "focus:bg-red-500/10 focus:text-red-300 focus:outline-hidden",
                       "active:bg-red-500/15",
                     )}
                   >
@@ -221,7 +221,7 @@ export const NavbarMobileNavigation = ({
                     "flex items-center justify-center gap-2 w-full px-4 py-3.5 text-base font-semibold rounded-xl transition-all duration-200",
                     "bg-primary text-white shadow-lg shadow-primary/30",
                     "hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/40",
-                    "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black",
+                    "focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black",
                     "active:scale-[0.98]",
                   )}
                 >

@@ -10,13 +10,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 1,
     },
-    // Home page
-    {
-      url: "https://nyumatflix.com/home",
-      lastModified: lastModifiedDate,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
     {
       url: "https://nyumatflix.com/movies",
       lastModified: lastModifiedDate,

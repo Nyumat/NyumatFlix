@@ -8,7 +8,6 @@ import { NavbarAuth } from "./navbar-auth";
 import { NavbarMobileNavigation } from "./navbar-mobile-navigation";
 
 const MOBILE_LINKS = [
-  { label: "Home", href: "/home" },
   { label: "Movies", href: "/movies" },
   { label: "TV Shows", href: "/tvshows" },
   { label: "Search", href: "/search" },

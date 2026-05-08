@@ -6,12 +6,7 @@ export const siteConfig = {
   name: "NyumatFlix",
   description:
     "Nyumatflix is an open-source, no-cost, and ad-free movie and TV stream aggregator.",
-  mainNav: [
-    {
-      title: "Home",
-      href: "/",
-    },
-  ],
+  mainNav: [],
   links: {
     github: "https://github.com/Nyumat/NyumatFlix",
     tmdb: "https://www.themoviedb.org",
@@ -27,11 +22,6 @@ export type NavItem = {
   href: string;
   description?: string;
   items?: NavItem[];
-};
-
-const home: NavItem = {
-  title: "Home",
-  href: pages.home.link,
 };
 
 const movies: NavItem = {
@@ -127,7 +117,7 @@ const trending: NavItem = {
 };
 
 export const navigation = {
-  items: [home, movies, tvShows, people, trending] as NavItem[],
+  items: [movies, tvShows, people, trending] as NavItem[],
 };
 
 export const availableParams = [

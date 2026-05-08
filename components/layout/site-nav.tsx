@@ -17,7 +17,7 @@ const SiteNavDesktop = dynamic(
         {navigation.items.map((item) => (
           <div
             key={item.title}
-            className="h-10 min-w-[3.25rem] animate-pulse rounded-full bg-muted/25"
+            className="h-10 min-w-13 animate-pulse rounded-full bg-muted/25"
           />
         ))}
       </div>
