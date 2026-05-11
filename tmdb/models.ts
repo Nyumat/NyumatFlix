@@ -413,6 +413,8 @@ export type Video = {
   site: string;
   size: number;
   type: string;
+  official?: boolean;
+  published_at?: string;
 };
 
 export type GetVideosResponse = {
