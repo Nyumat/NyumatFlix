@@ -84,7 +84,8 @@ export const VideoSchema = z.object({
   type: z.string(),
   iso_639_1: z.string(),
   iso_3166_1: z.string(),
-  official: z.boolean(),
+  official: z.boolean().optional(),
+  published_at: z.string().optional(),
 });
 
 export const MovieSchema = z
@@ -372,6 +373,79 @@ export type UpcomingMoviesResponse = z.infer<
 export type ReleaseDate = z.infer<typeof ReleaseDateSchema>;
 export type ReleaseInfo = z.infer<typeof ReleaseInfoSchema>;
 export type ReleaseDatesResponse = z.infer<typeof ReleaseDatesResponseSchema>;
+
+export type CanonicalCardMediaType = "movie" | "tv" | "person";
+
+export type CanonicalCardLogo = Pick<Logo, "file_path" | "height" | "width"> &
+  Partial<Logo>;
+
+export type CanonicalCardGenre = {
+  id: number;
+  name?: string;
+};
+
+type CanonicalCardBase = {
+  id: number;
+  media_type: CanonicalCardMediaType;
+  title: string;
+  href: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  profile_path?: string | null;
+  overview?: string;
+  date?: string;
+  year?: string;
+  vote_average?: number;
+  vote_count?: number;
+  popularity?: number;
+  logo?: CanonicalCardLogo;
+  content_rating?: string | null;
+  genre_ids?: number[];
+  genres?: CanonicalCardGenre[];
+  runtime?: number;
+  country_codes?: string[];
+  watchlistItem?: unknown;
+  episodeInfo?: unknown;
+};
+
+export type CanonicalMovieCard = CanonicalCardBase &
+  Partial<Movie> & {
+    media_type: "movie";
+    title: string;
+    href: `/movies/${number}`;
+    release_date?: string;
+  };
+
+export type CanonicalTvCard = CanonicalCardBase &
+  Partial<TvShow> & {
+    media_type: "tv";
+    title: string;
+    name?: string;
+    href: `/tvshows/${number}`;
+    first_air_date?: string;
+  };
+
+export type CanonicalPersonKnownFor = Pick<
+  CanonicalMovieCard | CanonicalTvCard,
+  "id" | "media_type" | "title" | "poster_path" | "href"
+>;
+
+export type CanonicalPersonCard = CanonicalCardBase & {
+  media_type: "person";
+  name: string;
+  title: string;
+  href: `/person/${number}`;
+  profile_path?: string | null;
+  known_for_department?: string;
+  known_for?: CanonicalPersonKnownFor[];
+  deathday?: string | null;
+};
+
+export type CanonicalMediaCard = CanonicalMovieCard | CanonicalTvCard;
+export type CanonicalCard =
+  | CanonicalMovieCard
+  | CanonicalTvCard
+  | CanonicalPersonCard;
 
 const moviePattern = {
   title: P.string,
