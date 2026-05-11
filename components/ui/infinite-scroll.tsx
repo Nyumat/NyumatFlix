@@ -1,6 +1,6 @@
 "use client";
 
-import { ContentGrid } from "@/components/content/media-content-grid";
+import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadMoreSpinner } from "@/components/ui/loading-spinner";
 import type { MediaItem } from "@/utils/typings";
 import React, { useMemo, useRef, useState, useTransition } from "react";
@@ -161,7 +161,7 @@ export function InfiniteScroll<T extends { id?: number | string }>(
   const content = useMemo(() => {
     if (isUnified && gridType) {
       return (
-        <ContentGrid
+        <MediaContentGrid
           items={allItems}
           type={gridType}
           itemsPerRow={gridItemsPerRow}

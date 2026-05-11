@@ -10,13 +10,7 @@ interface BackButtonProps {
   fallbackUrl?: string;
 }
 
-const HIDE_BACK_BUTTON_ROUTES = [
-  "/",
-  "/movies",
-  "/tvshows",
-  "/search",
-  "/watchlist",
-];
+const PERSON_DETAIL_ROUTE = /^\/person\/[^/]+$/;
 
 export function BackButton({ className, fallbackUrl = "/" }: BackButtonProps) {
   const router = useRouter();
@@ -43,7 +37,7 @@ export function BackButton({ className, fallbackUrl = "/" }: BackButtonProps) {
     return <div className="h-8 w-8 shrink-0" aria-hidden />;
   }
 
-  if (HIDE_BACK_BUTTON_ROUTES.includes(pathname)) {
+  if (!PERSON_DETAIL_ROUTE.test(pathname)) {
     return null;
   }
 
