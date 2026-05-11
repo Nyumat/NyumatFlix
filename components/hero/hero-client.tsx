@@ -25,8 +25,12 @@ import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import { useServerStore } from "@/lib/stores/server-store";
 import { Icons } from "@/lib/icons";
+import {
+  extractVideoRowsFromMediaVideos,
+  selectPrimaryTrailerKey,
+} from "@/lib/select-primary-trailer-video";
 import { cn, logger } from "@/lib/utils";
-import { Episode, MediaItem, Movie, TvShow } from "@/utils/typings";
+import { Episode, Genre, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { isMovie } from "@/utils/typings";
 import Fade from "embla-carousel-fade";
 import { format } from "date-fns";
@@ -1105,27 +1109,8 @@ export function HeroBackground({
   const { getEmbedUrl } = useEpisodeStore();
   const { selectedServer, vidnestContentType, animePreference } =
     useServerStore();
-  let currentItemVideos: { type: string; key: string }[] = [];
-
-  if (media.videos) {
-    if (Array.isArray(media.videos)) {
-      currentItemVideos = media.videos as { type: string; key: string }[];
-    } else if (typeof media.videos === "object" && media.videos !== null) {
-      const videosObj = media.videos as { results?: unknown };
-      if (videosObj.results && Array.isArray(videosObj.results)) {
-        currentItemVideos = videosObj.results as {
-          type: string;
-          key: string;
-        }[];
-      }
-    }
-  }
-
-  const acceptableVideoTypes = ["Trailer", "Teaser", "Clip", "Featurette"];
-  const trailerVideo = currentItemVideos.find((video: { type: string }) =>
-    acceptableVideoTypes.includes(video.type),
-  );
-  const trailerKey = trailerVideo?.key;
+  const currentItemVideos = extractVideoRowsFromMediaVideos(media.videos);
+  const trailerKey = selectPrimaryTrailerKey(currentItemVideos);
 
   const getMediaType = (): "movie" | "tv" => {
     if (mediaType) {
@@ -1659,7 +1644,9 @@ export function HeroContent({
                         )}
                         {!isUpcoming && (
                           <HeroGenres
-                            genres={(media as Movie).genres}
+                            genres={
+                              (media as Movie & { genres?: Genre[] }).genres
+                            }
                             mediaType={mediaType}
                           />
                         )}

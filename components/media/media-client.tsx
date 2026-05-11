@@ -2,6 +2,7 @@
 
 import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 import type { WatchlistItem } from "@/app/watchlist/actions";
+import { PosterCard } from "@/components/cards";
 import { Icons as LibIcons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,7 +92,7 @@ export const MediaImages: React.FC<MediaImagesProps> = ({
                 src={tmdbImage.url(file_path, "original")}
                 alt={file_path}
                 className="rounded-md border bg-muted"
-                sizes="100vw"
+                sizes="(min-width: 1280px) 80vw, 90vw"
                 fill
               />
             </div>
@@ -541,56 +542,7 @@ interface MediaCardProps {
 }
 
 export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
-  const router = useRouter();
-  const href = (() => {
-    const itemId = item.id;
-    if (isMovie(item)) {
-      return `/movies/${itemId}`;
-    }
-    return `/tvshows/${itemId}`;
-  })();
-  const title = getTitle(item);
-  const posterPath = item.poster_path ?? undefined;
-  const backdropUrl = item.backdrop_path
-    ? `https://image.tmdb.org/t/p/w342${item.backdrop_path}`
-    : undefined;
-
-  const handleMouseEnter = () => {
-    router.prefetch(href);
-  };
-  return (
-    <Card
-      className="group relative overflow-hidden border-0 bg-card/40 backdrop-blur-md transition-all duration-300 shadow-xl cursor-pointer aspect-2/3"
-      onClick={() => router.push(href)}
-      onMouseEnter={handleMouseEnter}
-    >
-      {backdropUrl && (
-        <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
-          <Image
-            src={backdropUrl}
-            alt=""
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover blur-[2px]"
-          />
-        </div>
-      )}
-      <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-      <div className="relative h-full">
-        <Poster
-          posterPath={posterPath}
-          title={title}
-          className="rounded-none h-full transition-transform duration-500 group-hover:scale-[1.05]"
-        />
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-          <LibIcons.play
-            className="text-primary-foreground w-10 h-10 scale-75 group-hover:scale-100 transition-transform duration-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-            strokeWidth={1.5}
-          />
-        </div>
-      </div>
-    </Card>
-  );
+  return <PosterCard item={item} minimal />;
 };
 
 export const MediaShowcaseCard = ({

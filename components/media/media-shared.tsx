@@ -37,6 +37,7 @@ interface MediaBackdropProps extends ComponentProps<"div"> {
   size?: BackdropSize;
   alt: string;
   priority?: boolean;
+  sizes?: string;
 }
 
 export const MediaBackdrop: React.FC<MediaBackdropProps> = ({
@@ -45,6 +46,7 @@ export const MediaBackdrop: React.FC<MediaBackdropProps> = ({
   alt,
   className,
   priority,
+  sizes = "(min-width: 1280px) 1200px, (min-width: 768px) 90vw, 100vw",
   ...props
 }) => {
   const src = image ? tmdbImage.backdrop(image, size) : null;
@@ -78,7 +80,7 @@ export const MediaBackdrop: React.FC<MediaBackdropProps> = ({
         alt={alt}
         priority={priority}
         fill
-        sizes="100vw"
+        sizes={sizes}
         className="object-cover"
       />
     </div>
