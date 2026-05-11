@@ -3,7 +3,10 @@ import { tmdb } from "@/tmdb/api";
 import type { MediaItem, SeasonDetails, TvShowDetails } from "@/utils/typings";
 import type { QueryClient } from "@tanstack/react-query";
 
-async function prefetchTvShowTabQueries(queryClient: QueryClient, id: string) {
+export async function prefetchTvShowTabQueries(
+  queryClient: QueryClient,
+  id: string,
+) {
   const [credits, images, videos, reviews, recommendations, similar] =
     await Promise.all([
       tmdb.tv.credits({ id }),
@@ -36,7 +39,10 @@ export async function hydrateTvShowDetailQueries(
   queryClient.setQueryData(queryKeys.tvAllSeasons(id), allSeasonDetails);
 }
 
-async function prefetchMovieTabQueries(queryClient: QueryClient, id: string) {
+export async function prefetchMovieTabQueries(
+  queryClient: QueryClient,
+  id: string,
+) {
   const [credits, images, videos, reviews, recommendations, similar] =
     await Promise.all([
       tmdb.movie.credits({ id }),
