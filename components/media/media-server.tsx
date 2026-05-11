@@ -8,6 +8,7 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { selectPrimaryTrailerVideo } from "@/lib/select-primary-trailer-video";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/tmdb/models";
 import { yt } from "@/tmdb/utils";
@@ -170,7 +171,7 @@ interface MediaTrailerDialogProps {
 export const MediaTrailerDialog: React.FC<MediaTrailerDialogProps> = ({
   videos,
 }) => {
-  const trailer = videos?.find((video) => video.type === "Trailer");
+  const trailer = selectPrimaryTrailerVideo(videos ?? []);
 
   return (
     <Dialog modal>

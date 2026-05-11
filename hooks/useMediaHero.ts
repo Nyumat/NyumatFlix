@@ -1,6 +1,10 @@
 "use client";
 
 import type { YouTubePlayer } from "@/components/hero/youtube-types";
+import {
+  extractVideoRowsFromMediaVideos,
+  selectPrimaryTrailerKey,
+} from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import type { MediaItem } from "@/utils/typings";
 import { getFirstRegularSeason, isTVShow } from "@/utils/typings";
@@ -153,32 +157,8 @@ export const useMediaHero = ({
   ]);
 
   const handlePlayTrailer = useCallback(() => {
-    let currentItemVideos: { type: string; key: string }[] = [];
-    if (currentItem?.videos) {
-      if (Array.isArray(currentItem.videos)) {
-        currentItemVideos = currentItem.videos as {
-          type: string;
-          key: string;
-        }[];
-      } else if (
-        typeof currentItem.videos === "object" &&
-        currentItem.videos !== null
-      ) {
-        const videosObj = currentItem.videos as { results?: unknown };
-        if (Array.isArray(videosObj.results)) {
-          currentItemVideos = videosObj.results as {
-            type: string;
-            key: string;
-          }[];
-        }
-      }
-    }
-    const acceptableVideoTypes = ["Trailer", "Teaser", "Clip", "Featurette"];
-    const trailerVideo = currentItemVideos.find((v) =>
-      acceptableVideoTypes.includes(v.type),
-    );
-
-    if (!trailerVideo?.key) {
+    const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);
+    if (!selectPrimaryTrailerKey(rows)) {
       return;
     }
 

@@ -7,6 +7,22 @@ import {
 } from "@/lib/stores/media-detail-tab-store";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import {
+  fetchMovieCredits,
+  fetchMovieImages,
+  fetchMovieRecommendationsPage,
+  fetchMovieReviewsPage,
+  fetchMovieSimilarPage,
+  fetchMovieVideos,
+  fetchTvCredits,
+  fetchTvImages,
+  fetchTvRecommendationsPage,
+  fetchTvReviewsPage,
+  fetchTvSimilarPage,
+  fetchTvVideos,
+} from "@/app/actions/media-detail-tab-data";
 
 type MediaDetailRouteTabsProps = {
   mediaType: "movie" | "tv";
@@ -50,6 +66,7 @@ const MediaDetailTabButton = ({
   mediaType: "movie" | "tv";
 }) => {
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const setMediaDetailTab = useMediaDetailTabStore((s) => s.setMediaDetailTab);
   const owner = mediaType === "movie" ? "movie" : "tv";
   const stored = useMediaDetailTabStore(
@@ -73,6 +90,88 @@ const MediaDetailTabButton = ({
     setMediaDetailTab(owner, id, segment);
   };
 
+  const handleMouseEnter = () => {
+    if (mediaType === "movie") {
+      switch (segment) {
+        case "credits":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.movieTabCredits(id),
+            queryFn: () => fetchMovieCredits(id),
+          });
+          break;
+        case "images":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.movieTabImages(id),
+            queryFn: () => fetchMovieImages(id),
+          });
+          break;
+        case "videos":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.movieTabVideos(id),
+            queryFn: () => fetchMovieVideos(id),
+          });
+          break;
+        case "reviews":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.movieTabReviews(id, "1"),
+            queryFn: () => fetchMovieReviewsPage(id, "1"),
+          });
+          break;
+        case "recommendations":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.movieTabRecommendations(id, "1"),
+            queryFn: () => fetchMovieRecommendationsPage(id, "1"),
+          });
+          break;
+        case "similar":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.movieTabSimilar(id, "1"),
+            queryFn: () => fetchMovieSimilarPage(id, "1"),
+          });
+          break;
+      }
+    } else {
+      switch (segment) {
+        case "credits":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.tvTabCredits(id),
+            queryFn: () => fetchTvCredits(id),
+          });
+          break;
+        case "images":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.tvTabImages(id),
+            queryFn: () => fetchTvImages(id),
+          });
+          break;
+        case "videos":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.tvTabVideos(id),
+            queryFn: () => fetchTvVideos(id),
+          });
+          break;
+        case "reviews":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.tvTabReviews(id, "1"),
+            queryFn: () => fetchTvReviewsPage(id, "1"),
+          });
+          break;
+        case "recommendations":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.tvTabRecommendations(id, "1"),
+            queryFn: () => fetchTvRecommendationsPage(id, "1"),
+          });
+          break;
+        case "similar":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.tvTabSimilar(id, "1"),
+            queryFn: () => fetchTvSimilarPage(id, "1"),
+          });
+          break;
+      }
+    }
+  };
+
   return (
     <button
       type="button"
@@ -80,9 +179,10 @@ const MediaDetailTabButton = ({
       aria-selected={isActive}
       tabIndex={0}
       onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
       data-state={isActive ? "active" : "inactive"}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-xs px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs",
+        "inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
       )}
     >
       {label}

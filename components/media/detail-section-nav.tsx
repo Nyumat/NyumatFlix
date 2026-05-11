@@ -85,7 +85,7 @@ export const DetailSectionNav = ({
                 aria-controls={id}
                 onClick={() => handleNavigate(id)}
                 className={cn(
-                  "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-xs px-3 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "inline-flex cursor-pointer shrink-0 items-center justify-center whitespace-nowrap rounded-sm px-3 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   isActive
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground",
