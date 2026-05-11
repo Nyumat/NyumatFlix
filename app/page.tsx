@@ -11,6 +11,7 @@ import { TMDB_WATCH_REGION } from "@/lib/constants";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
+  getTodayIsoDateUtc,
 } from "@/lib/released-media";
 import { tmdb } from "@/tmdb/api";
 import type { Metadata } from "next";
@@ -37,34 +38,88 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function Home() {
-  const { results: moviesRaw } = await tmdb.trending.movie({
-    time: "day",
-    page: "1",
+const dedupeById = <T extends { id: number }>(items: T[]): T[] => {
+  const seen = new Set<number>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
   });
-  const movies = filterReleasedMovies(moviesRaw);
+};
 
-  const { results: popularMoviesRaw } = await tmdb.movie.list({
-    list: "popular",
-    page: "1",
-    region: TMDB_WATCH_REGION,
-  });
-  const popularMovies = filterReleasedMovies(popularMoviesRaw).filter(
+export default async function Home() {
+  const today = getTodayIsoDateUtc();
+  const baseMovieDiscover = {
+    watch_region: TMDB_WATCH_REGION,
+    with_origin_country: "US",
+    "primary_release_date.lte": today,
+  };
+  const baseTvDiscover = {
+    watch_region: TMDB_WATCH_REGION,
+    with_origin_country: "US",
+    "first_air_date.lte": today,
+  };
+  const [
+    { results: moviesRaw },
+    popularMoviePages,
+    { results: tvShowsRaw },
+    popularTvPages,
+  ] = await Promise.all([
+    tmdb.discover.movie({
+      ...baseMovieDiscover,
+      page: "1",
+      sort_by: "popularity.desc",
+    }),
+    Promise.all(
+      ["1", "2", "3", "4"].map((page) =>
+        tmdb.discover.movie({
+          ...baseMovieDiscover,
+          page,
+          sort_by: "vote_count.desc",
+        }),
+      ),
+    ),
+    tmdb.discover.tv({
+      ...baseTvDiscover,
+      page: "1",
+      sort_by: "popularity.desc",
+    }),
+    Promise.all(
+      ["1", "2", "3", "4"].map((page) =>
+        tmdb.discover.tv({
+          ...baseTvDiscover,
+          page,
+          sort_by: "vote_count.desc",
+        }),
+      ),
+    ),
+  ]);
+
+  const movies = filterReleasedMovies(moviesRaw).map((movie) => ({
+    ...movie,
+    media_type: "movie" as const,
+  }));
+
+  const popularMoviesRaw = popularMoviePages.flatMap(
+    (response) => response.results ?? [],
+  );
+  const popularMoviesDeduped = dedupeById(
+    filterReleasedMovies(popularMoviesRaw),
+  );
+  const popularMovies = popularMoviesDeduped.filter(
     (pm) => !movies.some((m) => m.id === pm.id),
   );
 
-  const { results: tvShowsRaw } = await tmdb.trending.tv({
-    time: "day",
-    page: "1",
-  });
-  const tvShows = filterReleasedTvShows(tvShowsRaw);
+  const tvShows = filterReleasedTvShows(tvShowsRaw).map((show) => ({
+    ...show,
+    media_type: "tv" as const,
+  }));
 
-  const { results: popularTvRaw } = await tmdb.tv.list({
-    list: "popular",
-    page: "1",
-    region: TMDB_WATCH_REGION,
-  });
-  const popularTv = filterReleasedTvShows(popularTvRaw).filter(
+  const popularTvRaw = popularTvPages.flatMap(
+    (response) => response.results ?? [],
+  );
+  const popularTvDeduped = dedupeById(filterReleasedTvShows(popularTvRaw));
+  const popularTv = popularTvDeduped.filter(
     (pt) => !tvShows.some((t) => t.id === pt.id),
   );
 
@@ -87,7 +142,7 @@ export default async function Home() {
     ),
     enrichAboveFoldMediaItemsWithLogos(
       popularMovies
-        .slice(2)
+        .slice(2, 22)
         .map((m) => ({ ...m, media_type: "movie" as const })),
       "movie",
       ABOVE_FOLD_LOGO_COUNT,
@@ -98,7 +153,7 @@ export default async function Home() {
       ABOVE_FOLD_LOGO_COUNT,
     ),
     enrichAboveFoldMediaItemsWithLogos(
-      popularTv.slice(2).map((s) => ({ ...s, media_type: "tv" as const })),
+      popularTv.slice(2, 22).map((s) => ({ ...s, media_type: "tv" as const })),
       "tv",
       ABOVE_FOLD_LOGO_COUNT,
     ),

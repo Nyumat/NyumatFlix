@@ -1,6 +1,6 @@
 "use client";
 
-import { ContentGrid } from "@/components/content/media-content-grid";
+import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import { MediaItem } from "@/utils/typings";
 import { getFilmographyListNodes } from "./actions";
@@ -28,7 +28,7 @@ export function PersonFilmography({
 
         const { items, nextOffset } = result;
         return [
-          <ContentGrid
+          <MediaContentGrid
             items={items}
             key={offset}
             type="multi"
