@@ -1,6 +1,6 @@
 "use client";
 
-import { ContentGrid } from "@/components/content/media-content-grid";
+import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { MediaItem } from "@/utils/typings";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -87,7 +87,7 @@ export default function BrowseCountryClient({
 
   return (
     <div className="space-y-6">
-      <ContentGrid items={items} type={mediaType} />
+      <MediaContentGrid items={items} type={mediaType} />
       {currentPage < totalPages ? (
         <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
       ) : null}

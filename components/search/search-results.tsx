@@ -1,13 +1,7 @@
 "use client";
 
 import { MultiSelect } from "@/components/multi-select";
-import { MediaLogo, Poster } from "@/components/media/media-display";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { CountryBadge } from "@/components/ui/country-badge";
-import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
-import { Input } from "@/components/ui/input";
+import { HorizontalCard } from "@/components/cards";
 import {
   Pagination,
   PaginationContent,
@@ -19,30 +13,14 @@ import {
 } from "@/components/ui/pagination";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useSearchPreview } from "@/hooks/use-search-preview";
 import { useSearchResults } from "@/hooks/useSearchResults";
-import { Icons } from "@/lib/icons";
+import { getStableCardKey } from "@/lib/cards";
 import { cn } from "@/lib/utils";
-import type {
-  Genre,
-  MediaItem,
-  Movie,
-  ProductionCountry,
-  TvShow,
-} from "@/utils/typings";
-import { getAirDate, getTitle, isMovie } from "@/utils/typings";
-import { ArrowRight, Clock, Search, Star, User } from "lucide-react";
+import type { MediaItem } from "@/utils/typings";
+import { User } from "lucide-react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 
 interface KnownForItem {
@@ -364,7 +342,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3">
             {people.map((person) => (
               <button
-                key={`person-${person.id}-${crypto.randomUUID()}`}
+                key={`person-${person.id}`}
                 onClick={() => handlePersonClick(person.id)}
                 className="group text-left w-full focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-md"
                 aria-label={`View ${person.name}`}
@@ -416,205 +394,12 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
   );
 }
 
-const isValidMediaItem = (item: Movie | TvShow): boolean => {
+const isValidMediaItem = (item: {
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+}): boolean => {
   return Boolean(item.poster_path || item.backdrop_path);
 };
-
-function SearchResultCard({ item }: { item: MediaItem }) {
-  const router = useRouter();
-
-  if (!item?.id) {
-    return <div>No content ID found</div>;
-  }
-
-  const title = getTitle(item);
-  const posterPath = item.poster_path ?? undefined;
-  const backdropPath = item.backdrop_path ?? undefined;
-  const releaseDate = getAirDate(item);
-  const voteAverage = item.vote_average;
-  const overview = item.overview || "";
-  const type = item.media_type;
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "TBA";
-    try {
-      return new Date(dateString).getFullYear().toString();
-    } catch {
-      return "TBA";
-    }
-  };
-
-  const formatRuntime = (minutes?: number) => {
-    if (!minutes) return null;
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return hours > 0
-      ? `${hours}h ${remainingMinutes}m`
-      : `${remainingMinutes}m`;
-  };
-
-  const runtime =
-    type === "movie" && "runtime" in item
-      ? (item as MediaItem & { runtime?: number }).runtime
-      : undefined;
-
-  const country = (() => {
-    if (
-      type === "tv" &&
-      "origin_country" in item &&
-      item.origin_country?.length
-    ) {
-      return item.origin_country;
-    }
-    if (
-      type === "movie" &&
-      "production_countries" in item &&
-      (item as Movie & { production_countries?: ProductionCountry[] })
-        .production_countries?.length
-    ) {
-      return (
-        (item as Movie & { production_countries?: ProductionCountry[] })
-          .production_countries as ProductionCountry[]
-      ).map((pc) => pc.iso_3166_1);
-    }
-    if ("origin_country" in item && item.origin_country?.length) {
-      return item.origin_country;
-    }
-    return undefined;
-  })();
-
-  const itemGenres =
-    "genres" in item && Array.isArray(item.genres)
-      ? (item.genres as Genre[])
-      : undefined;
-
-  const href = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
-
-  const backdropUrl = backdropPath
-    ? `https://image.tmdb.org/t/p/w1280${backdropPath}`
-    : undefined;
-
-  const handleMouseEnter = () => {
-    router.prefetch(href);
-  };
-
-  return (
-    <Card
-      className="group relative overflow-hidden bg-card/40 backdrop-blur-xl border border-white/10 hover:border-primary/50 transition-all duration-500 cursor-pointer shadow-2xl h-full"
-      onClick={() => router.push(href)}
-      onMouseEnter={handleMouseEnter}
-      data-testid={`search-result-card-${item.id}`}
-      data-media-type={item.media_type}
-      data-content-id={item.id}
-    >
-      {backdropUrl && (
-        <div className="absolute inset-0 opacity-15 group-hover:opacity-25 transition-opacity duration-700">
-          <Image
-            src={backdropUrl}
-            alt={title || "Media backdrop"}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="scale-110 object-cover blur-xs"
-          />
-        </div>
-      )}
-      <div className="absolute inset-0 bg-linear-to-r from-background/95 via-background/70 to-transparent pointer-events-none" />
-      <div className="relative flex gap-6 p-4 md:p-6 h-full">
-        <div className="shrink-0 w-24 sm:w-28 md:w-32 lg:w-36">
-          <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-white/10 group-hover:ring-primary/30 transition-all duration-500">
-            <Poster
-              posterPath={posterPath}
-              title={title || "Media poster"}
-              size="medium"
-              className="transition-transform duration-700 group-hover:scale-[1.05]"
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 flex items-center justify-center">
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 scale-75 group-hover:scale-100 transition-transform">
-                <Icons.play
-                  className="text-primary-foreground w-12 h-12 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-                  strokeWidth={1.5}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center py-2 space-y-3">
-          <div className="space-y-1">
-            <MediaLogo
-              logo={item.logo}
-              title={title}
-              align="left"
-              className="mb-1 max-w-[240px]"
-              fallbackClassName="text-xl sm:text-2xl md:text-3xl font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300 leading-tight tracking-tight"
-            />
-            <div className="flex items-center gap-3 text-sm text-muted-foreground/80 font-medium flex-wrap">
-              <span>{formatDate(releaseDate)}</span>
-
-              {voteAverage && voteAverage > 0 && (
-                <>
-                  <span className="opacity-40">•</span>
-                  <div className="flex items-center gap-1.5">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-foreground font-semibold">
-                      {voteAverage.toFixed(1)}
-                    </span>
-                  </div>
-                </>
-              )}
-
-              {runtime && (
-                <>
-                  <span className="opacity-40">•</span>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" />
-                    <span>{formatRuntime(runtime)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge
-              variant="secondary"
-              className="text-[10px] font-semibold uppercase tracking-widest bg-primary/15 border-primary/20 text-primary px-2 py-0.5 rounded-md"
-            >
-              {type === "movie" ? "Movie" : "TV Show"}
-            </Badge>
-
-            {country && country.length > 0 && (
-              <CountryBadge
-                country={{ iso_3166_1: country[0], name: country[0] }}
-                variant="outline"
-                className="text-[10px] bg-white/5 border-white/10 text-white/60 font-semibold uppercase tracking-wider h-5"
-                size="sm"
-                showName={false}
-                mediaType={type as "movie" | "tv"}
-              />
-            )}
-
-            {itemGenres && itemGenres.length > 0 && (
-              <SmartGenreBadgeGroup
-                genreIds={itemGenres.map((g) => g.id)}
-                mediaType={type as "movie" | "tv"}
-                maxVisible={3}
-                className="flex gap-2"
-                badgeClassName="text-[10px] bg-white/5 text-white/60 border-white/10 font-semibold uppercase tracking-wider h-5 hover:bg-primary/20 hover:text-primary transition-all"
-                variant="outline"
-              />
-            )}
-          </div>
-
-          {overview && (
-            <p className="text-sm text-muted-foreground/90 leading-relaxed line-clamp-2 md:line-clamp-3 max-w-2xl font-normal">
-              {overview}
-            </p>
-          )}
-        </div>
-      </div>
-    </Card>
-  );
-}
 
 interface EnhancedPaginationProps {
   currentPage: number;
@@ -690,11 +475,7 @@ function EnhancedPagination({
 
         {pageNumbers.map((page, index) => (
           <PaginationItem
-            key={
-              page === "ellipsis"
-                ? crypto.randomUUID()
-                : `page-${page}-${crypto.randomUUID()}`
-            }
+            key={page === "ellipsis" ? `ellipsis-${index}` : `page-${page}`}
           >
             {page === "ellipsis" ? (
               <PaginationEllipsis className="h-8 w-8" />
@@ -870,22 +651,20 @@ export default function SearchResults({ query }: { query: string }) {
             <div className="space-y-4" data-testid="search-results-list">
               {filteredItems
                 .filter((item) => isValidMediaItem(item))
-                .map((item) => {
-                  const mediaType = "title" in item ? "movie" : "tv";
-                  const enhancedItem: MediaItem = {
-                    ...item,
-                    genres: item.genre_ids
-                      ?.map((id) => ({ id, name: allGenres[id] }))
-                      .filter((g) => g.name && g.id),
-                    media_type: mediaType,
-                  };
-                  return (
-                    <SearchResultCard
-                      key={`${enhancedItem.id}-${mediaType}-${crypto.randomUUID()}`}
-                      item={enhancedItem}
-                    />
-                  );
-                })}
+                .map((item) => (
+                  <HorizontalCard
+                    key={getStableCardKey(item)}
+                    item={{
+                      ...item,
+                      genres:
+                        item.genres ??
+                        item.genre_ids
+                          ?.map((id) => ({ id, name: allGenres[id] }))
+                          .filter((genre) => genre.name && genre.id),
+                    }}
+                    testIdPrefix="search-result-card"
+                  />
+                ))}
             </div>
           </div>
           <ScrollToTop />

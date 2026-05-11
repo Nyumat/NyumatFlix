@@ -28,6 +28,8 @@ export interface TopRatedFeaturedCarouselProps {
   type: "movie" | "tv";
 }
 
+// Cleanup note: no import sites currently reference this presenter. Keep it in
+// place for now and remove in a later dead-code cleanup pass.
 export const TopRatedFeaturedCarousel = ({
   title,
   description,

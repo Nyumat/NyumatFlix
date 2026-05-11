@@ -1,14 +1,10 @@
 "use client";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { getHref } from "@/lib/cards";
 import { hasPosterPath } from "@/lib/media-poster-path";
-import {
-  isMovie,
-  type MediaItem,
-  type Movie,
-  type TvShow,
-} from "@/utils/typings";
-import { useCallback, useEffect, useState } from "react";
+import { type MediaItem } from "@/utils/typings";
+import { useEffect, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 
@@ -42,14 +38,6 @@ export function VirtualizedContentRow({
     }
   }, [initialItems, items]);
 
-  const getItemLink = useCallback((item: MediaItem): string => {
-    const movieItem = isMovie(item) ? (item as unknown as Movie) : null;
-    const tvShowItem = !isMovie(item) ? (item as unknown as TvShow) : null;
-    if (movieItem) return `/movies/${item.id}`;
-    if (tvShowItem) return `/tvshows/${item.id}`;
-    return `#invalid-item-${item.id}`;
-  }, []);
-
   return (
     <div className="mx-4 md:mx-8">
       <ContentRowHeader title={title} href={href} />
@@ -62,7 +50,7 @@ export function VirtualizedContentRow({
               item={item}
               isMobile={false}
               rating={item.content_rating || undefined}
-              href={getItemLink(item)}
+              href={getHref(item)}
             />
           ))}
         </div>

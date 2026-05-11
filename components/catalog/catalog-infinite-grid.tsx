@@ -1,7 +1,7 @@
 "use client";
 
 import { fetchCatalogNextPage } from "@/app/actions/fetch-catalog-next-page";
-import { ContentGrid } from "@/components/content/media-content-grid";
+import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
@@ -76,7 +76,9 @@ export const CatalogInfiniteGrid = ({
       setIsLoading(true);
       const nextPage = currentPage + 1;
       const data = await fetchCatalogNextPage(mediaType, queryParams, nextPage);
-      const raw = filterWithPosterPath(data.results ?? []);
+      const raw = filterWithPosterPath(
+        (data.results ?? []) as unknown as MediaItem[],
+      );
 
       setStore((prev) => {
         const nextMap = new Map(prev.entityMap);
@@ -127,7 +129,7 @@ export const CatalogInfiniteGrid = ({
 
   return (
     <div className="space-y-6">
-      <ContentGrid
+      <MediaContentGrid
         items={items}
         type={mediaType}
         showViewModeControls

@@ -7,7 +7,7 @@ import {
   TVShowCategory,
   UnifiedCategory,
 } from "@/utils/typings";
-import { ContentGrid } from "../content/media-content-grid";
+import { MediaContentGrid } from "../content/media-content-grid";
 
 export const getTvShowListNodes = async (
   offset: number,
@@ -34,7 +34,7 @@ export const getTvShowListNodes = async (
     const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
 
     return [
-      <ContentGrid
+      <MediaContentGrid
         items={processedShows}
         key={offset}
         type="tv"
@@ -76,7 +76,7 @@ export const getMovieListNodes = async (
     const nextOffset = offset < (response.total_pages || 0) ? offset + 1 : null;
 
     return [
-      <ContentGrid
+      <MediaContentGrid
         items={processedMovies}
         key={offset}
         type="movie"
