@@ -1,4 +1,5 @@
 import { getGenreNames } from "@/components/content/genre-helpers";
+import { mapMediaListToCanonicalCardsValue } from "@/lib/cards";
 import {
   isPremieredTvByDate,
   isReleasedMovieByDate,
@@ -10,17 +11,6 @@ import {
   TvShow,
 } from "@/utils/typings";
 import { NextResponse } from "next/server";
-
-type PreviewResult = {
-  id: number;
-  title?: string;
-  name?: string;
-  poster_path: string | null;
-  media_type: string;
-  release_date?: string;
-  first_air_date?: string;
-  genre_names?: string[];
-};
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -60,7 +50,7 @@ export async function GET(request: Request) {
     const data: TmdbResponse<Movie | TvShow> = result.success
       ? result.data
       : rawData;
-    const filteredResults: PreviewResult[] =
+    const filteredResults =
       data.results
         ?.filter((item: Movie | TvShow) => {
           if (!item.poster_path) return false;
@@ -72,24 +62,20 @@ export async function GET(request: Request) {
         })
         .slice(0, 8)
         .map((item: Movie | TvShow) => ({
-          id: item.id,
-          title: "title" in item ? item.title : undefined,
-          name: "name" in item ? item.name : undefined,
-          poster_path: item.poster_path,
-          media_type: item.media_type,
-          release_date: "release_date" in item ? item.release_date : undefined,
-          first_air_date:
-            "first_air_date" in item ? item.first_air_date : undefined,
-          genre_names: item.genre_ids
+          ...item,
+          genres: item.genre_ids
             ? getGenreNames(
                 item.genre_ids,
                 item.media_type === "tv" ? "tv" : "movie",
-              )
+              ).map((name, index) => ({
+                id: item.genre_ids?.[index] ?? index,
+                name,
+              }))
             : undefined,
         })) || [];
 
     return NextResponse.json(
-      { results: filteredResults },
+      { results: mapMediaListToCanonicalCardsValue(filteredResults) },
       {
         headers: {
           "Cache-Control":

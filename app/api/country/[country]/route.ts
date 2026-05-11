@@ -3,6 +3,7 @@ import {
   fetchAndEnrichMediaItems,
   fetchTMDBData,
 } from "@/app/actions";
+import { mapMediaListToCanonicalCardsValue } from "@/lib/cards";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
@@ -94,7 +95,7 @@ export async function GET(
       page: data.page,
       total_pages: data.total_pages,
       total_results: data.total_results,
-      results: releasedOnly,
+      results: mapMediaListToCanonicalCardsValue(releasedOnly, mediaType),
       type: mediaType,
       countryCode,
       sortBy,

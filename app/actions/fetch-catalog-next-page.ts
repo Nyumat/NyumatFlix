@@ -1,6 +1,7 @@
 "use server";
 
 import { buildCatalogDiscoverUrlMerge } from "@/lib/discover-merge";
+import { mapMediaListToCanonicalCardsValue } from "@/lib/cards";
 import {
   parseMovieView,
   parseTvView,
@@ -17,7 +18,7 @@ import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterDiscoverParams, getUserTimezone } from "@/lib/utils";
 import { tmdb } from "@/tmdb/api";
 import type { SortByTypeMovie, SortByTypeTv } from "@/tmdb/api";
-import type { MediaItem } from "@/utils/typings";
+import type { CanonicalMediaCard } from "@/utils/typings";
 
 const toSearchParams = (queryParams: Record<string, string>) => {
   const sp: Record<string, string> = { ...queryParams };
@@ -28,7 +29,7 @@ export const fetchCatalogNextPage = async (
   mediaType: "movie" | "tv",
   queryParams: Record<string, string>,
   page: number,
-): Promise<{ results: MediaItem[]; page: number }> => {
+): Promise<{ results: CanonicalMediaCard[]; page: number }> => {
   const region = TMDB_WATCH_REGION;
   const sp = toSearchParams(queryParams);
   const pageStr = String(page);
@@ -53,10 +54,10 @@ export const fetchCatalogNextPage = async (
         ),
       });
       return {
-        results: filterReleasedMovies(data.results).map((m) => ({
-          ...m,
-          media_type: "movie" as const,
-        })),
+        results: mapMediaListToCanonicalCardsValue(
+          filterReleasedMovies(data.results),
+          "movie",
+        ),
         page: data.page,
       };
     }
@@ -65,10 +66,10 @@ export const fetchCatalogNextPage = async (
       const time = parseTrendingTime(sp.trending_time);
       const data = await tmdb.trending.movie({ time, page: pageStr });
       return {
-        results: filterReleasedMovies(data.results).map((m) => ({
-          ...m,
-          media_type: "movie" as const,
-        })),
+        results: mapMediaListToCanonicalCardsValue(
+          filterReleasedMovies(data.results),
+          "movie",
+        ),
         page: data.page,
       };
     }
@@ -79,10 +80,10 @@ export const fetchCatalogNextPage = async (
       page: pageStr,
     });
     return {
-      results: filterReleasedMovies(data.results).map((m) => ({
-        ...m,
-        media_type: "movie" as const,
-      })),
+      results: mapMediaListToCanonicalCardsValue(
+        filterReleasedMovies(data.results),
+        "movie",
+      ),
       page: data.page,
     };
   }
@@ -106,10 +107,10 @@ export const fetchCatalogNextPage = async (
       ),
     });
     return {
-      results: filterReleasedTvShows(data.results).map((s) => ({
-        ...s,
-        media_type: "tv" as const,
-      })),
+      results: mapMediaListToCanonicalCardsValue(
+        filterReleasedTvShows(data.results),
+        "tv",
+      ),
       page: data.page,
     };
   }
@@ -118,10 +119,10 @@ export const fetchCatalogNextPage = async (
     const time = parseTrendingTime(sp.trending_time);
     const data = await tmdb.trending.tv({ time, page: pageStr });
     return {
-      results: filterReleasedTvShows(data.results).map((s) => ({
-        ...s,
-        media_type: "tv" as const,
-      })),
+      results: mapMediaListToCanonicalCardsValue(
+        filterReleasedTvShows(data.results),
+        "tv",
+      ),
       page: data.page,
     };
   }
@@ -133,10 +134,10 @@ export const fetchCatalogNextPage = async (
     timezone,
   });
   return {
-    results: filterReleasedTvShows(data.results).map((s) => ({
-      ...s,
-      media_type: "tv" as const,
-    })),
+    results: mapMediaListToCanonicalCardsValue(
+      filterReleasedTvShows(data.results),
+      "tv",
+    ),
     page: data.page,
   };
 };

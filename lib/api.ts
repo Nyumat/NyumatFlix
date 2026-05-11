@@ -1,15 +1,10 @@
-import type { Genre, MediaItem } from "@/utils/typings";
+import type {
+  CanonicalMediaCard,
+  CanonicalPersonCard,
+  Genre,
+} from "@/utils/typings";
 
-export interface SearchPreviewResult {
-  id: number;
-  title?: string;
-  name?: string;
-  poster_path: string | null;
-  media_type: string;
-  release_date?: string;
-  first_air_date?: string;
-  genre_names?: string[];
-}
+export type SearchPreviewResult = CanonicalMediaCard;
 
 export interface SearchPreviewResponse {
   results: SearchPreviewResult[];
@@ -37,13 +32,8 @@ export async function fetchSearchPreview(
 }
 
 export interface SearchResult {
-  media: MediaItem[];
-  people: Array<{
-    id: number;
-    name: string;
-    profile_path?: string | null;
-    popularity?: number;
-  }>;
+  media: CanonicalMediaCard[];
+  people: CanonicalPersonCard[];
   page: number;
   totalPages: number;
   totalResults: number;
