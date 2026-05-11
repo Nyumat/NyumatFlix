@@ -106,7 +106,7 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
       opts={{
         align: "start",
         slidesToScroll: "auto",
-        dragFree: false,
+        dragFree: true,
       }}
       setApi={setApi}
     >
