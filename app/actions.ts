@@ -3,10 +3,23 @@ import { filterZeroRevenueMovies } from "@/lib/movie-revenue-filter";
 import { addRomanceFiltering, filterRomanceContent } from "@/lib/romance-media";
 import { logger } from "@/lib/utils";
 import {
+  mapItemsToCanonicalCardsValue,
+  mapMediaListToCanonicalCardsValue,
+  mapMediaToCanonicalCardValue,
+  mapMovieToCanonicalCardValue,
+  mapPersonToCanonicalCardValue,
+  mapTvShowToCanonicalCardValue,
+  type MappableMediaItem,
+} from "@/lib/cards/mappers";
+import {
   Genre,
   GenreSchema,
   Logo,
   LogoSchema,
+  CanonicalMediaCard,
+  CanonicalMovieCard,
+  CanonicalPersonCard,
+  CanonicalTvCard,
   MediaItem,
   MediaItemSchema,
   MovieCategory,
@@ -85,27 +98,17 @@ export async function buildItemsWithCategories<
       item.genre_ids?.includes(genre.id),
     );
     const categories = itemGenres.map((genre) => genre.name);
-
-    // Combine the item with categories
     const enrichedItem = { ...item, categories };
-
-    // Use the MediaItemSchema to validate and transform
     const result = MediaItemSchema.safeParse(enrichedItem);
 
     if (result.success) {
       return result.data;
-    } else {
-      // If validation fails, we'll still return the item as is
-      // but with proper type assertion to MediaItem
-      logger.warn(
-        `Validation failed for item ${item.id}:`,
-        result.error.message,
-      );
-      return enrichedItem as unknown as MediaItem;
     }
+
+    logger.warn(`Validation failed for item ${item.id}:`, result.error.message);
+    return enrichedItem as unknown as MediaItem;
   });
 
-  // Apply content filtering as a final step
   return filterRomanceContent(filterZeroRevenueMovies(processedItems));
 }
 
@@ -116,6 +119,45 @@ export async function buildMaybeItemsWithCategories<
     return [];
   }
   return buildItemsWithCategories(items, type);
+}
+
+export async function mapMovieToCanonicalCard(
+  movie: MappableMediaItem,
+): Promise<CanonicalMovieCard> {
+  return mapMovieToCanonicalCardValue(movie);
+}
+
+export async function mapTvShowToCanonicalCard(
+  show: MappableMediaItem,
+): Promise<CanonicalTvCard> {
+  return mapTvShowToCanonicalCardValue(show);
+}
+
+export async function mapPersonToCanonicalCard(
+  person: MappableMediaItem,
+): Promise<CanonicalPersonCard> {
+  return mapPersonToCanonicalCardValue(person);
+}
+
+export async function mapMediaToCanonicalCard(
+  item: MappableMediaItem,
+  fallbackType?: "movie" | "tv",
+): Promise<CanonicalMediaCard> {
+  return mapMediaToCanonicalCardValue(item, fallbackType);
+}
+
+export async function mapMediaListToCanonicalCards(
+  items: MappableMediaItem[],
+  fallbackType?: "movie" | "tv",
+): Promise<CanonicalMediaCard[]> {
+  return mapMediaListToCanonicalCardsValue(items, fallbackType);
+}
+
+export async function mapItemsToCanonicalCards(
+  items: MappableMediaItem[],
+  fallbackType?: "movie" | "tv",
+) {
+  return mapItemsToCanonicalCardsValue(items, fallbackType);
 }
 
 export const getCategories = cache(async function getCategories(
