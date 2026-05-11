@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/carousel";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
-import { isMovie, isTVShow, MediaItem } from "@/utils/typings";
+import { getHref } from "@/lib/cards";
+import { MediaItem } from "@/utils/typings";
 import { useEffect, useRef, useState } from "react";
 import { hasPosterPath } from "@/lib/media-poster-path";
 import { ContentCard } from "./content-card";
@@ -107,15 +108,6 @@ export function StandardContentRow({
     </div>
   );
 
-  const getItemLink = (item: MediaItem): string => {
-    if (isMovie(item)) {
-      return `/movies/${(item as MediaItem).id}`;
-    } else if (isTVShow(item)) {
-      return `/tvshows/${(item as MediaItem).id}`;
-    }
-    return `/movies/${(item as MediaItem).id}`;
-  };
-
   return (
     <div className="mx-4 md:mx-8 mb-8">
       <ContentRowHeader title={title} href={href} />
@@ -141,7 +133,7 @@ export function StandardContentRow({
                   item={item}
                   isMobile={!!isMobile}
                   rating={getContentRating(item)}
-                  href={getItemLink(item)}
+                  href={getHref(item)}
                 />
               </CarouselItem>
             ))}

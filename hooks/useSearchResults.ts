@@ -2,12 +2,12 @@
 
 import { fetchCombinedGenres, fetchSearchResults } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { Movie, TvShow } from "@/utils/typings";
+import type { CanonicalMediaCard } from "@/utils/typings";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
 export interface UseSearchResultsState {
-  items: Array<Movie | TvShow>;
+  items: CanonicalMediaCard[];
   currentPage: number;
   totalPages: number;
   isLoading: boolean;
@@ -19,7 +19,7 @@ export interface UseSearchResultsState {
 }
 
 export interface UseSearchResultsComputed {
-  filteredItems: Array<Movie | TvShow>;
+  filteredItems: CanonicalMediaCard[];
   genreOptions: Array<{ label: string; value: string }>;
 }
 

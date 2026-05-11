@@ -64,7 +64,7 @@ export interface ContentItem {
 
 export type ViewMode = "grid" | "list";
 
-export interface ContentGridProps {
+export interface BaseContentGridProps {
   items: ContentItem[];
   renderCard: (item: ContentItem, viewMode: ViewMode) => React.ReactNode;
   defaultViewMode?: ViewMode;
@@ -78,7 +78,7 @@ export interface ContentGridProps {
   itemsPerRow?: number;
 }
 
-export function ContentGrid({
+export function BaseContentGrid({
   items,
   renderCard,
   defaultViewMode = "grid",
@@ -89,7 +89,7 @@ export function ContentGrid({
   showViewModeControls = true,
   showDock = false,
   itemsPerRow = 4,
-}: ContentGridProps) {
+}: BaseContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
   const [isLoading, setIsLoading] = useState(true);
   const isFirstMount = useRef(true);
