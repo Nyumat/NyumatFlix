@@ -61,6 +61,28 @@ describe("selectPrimaryTrailerVideo", () => {
     expect(selectPrimaryTrailerVideo(rows)?.key).toBe("official");
   });
 
+  it("prefers final trailer by name over newer official trailers", () => {
+    const rows = [
+      {
+        type: "Trailer",
+        name: "Official Trailer",
+        key: "official",
+        site: "YouTube",
+        official: true,
+        published_at: "2026-05-01T00:00:00.000Z",
+      },
+      {
+        type: "Trailer",
+        name: "Final Trailer",
+        key: "final",
+        site: "YouTube",
+        official: true,
+        published_at: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    expect(selectPrimaryTrailerVideo(rows)?.key).toBe("final");
+  });
+
   it("falls back to teaser when no trailer", () => {
     const rows = [
       {

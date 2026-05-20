@@ -33,4 +33,5 @@ export interface CarouselDetailsProps {
 
 export interface BackgroundImageProps extends HeroProps {
   isFullPage: boolean;
+  overlayClassName?: string;
 }
