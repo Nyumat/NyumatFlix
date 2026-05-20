@@ -25,7 +25,15 @@ export const metadata: Metadata = {
     url: "https://nyumatflix.com/trending",
     title: "Trending | NyumatFlix",
     description: siteConfig.description,
-    images: [{ url: "https://nyumatflix.com/og.webp", alt: "NyumatFlix" }],
+    images: [
+      {
+        url: "https://nyumatflix.com/og.webp",
+        width: 1200,
+        height: 630,
+        type: "image/webp",
+        alt: "NyumatFlix",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

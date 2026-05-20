@@ -29,6 +29,14 @@ export const metadata: Metadata = {
   title: "NyumatFlix | Watch Movies and TV Shows",
   icons: {
     icon: "/favicon.ico",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      {
+        url: "/apple-touch-icon-120x120.png",
+        sizes: "120x120",
+        type: "image/png",
+      },
+    ],
   },
   description:
     "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
@@ -41,6 +49,9 @@ export const metadata: Metadata = {
     images: [
       {
         url: "https://nyumatflix.com/og.webp",
+        width: 1200,
+        height: 630,
+        type: "image/webp",
         alt: "NyumatFlix | Watch Movies and TV Shows",
       },
     ],
