@@ -1,4 +1,5 @@
 import { NavbarServer } from "@/components/layout/nav/navbar-server";
+import { RouteScrollReset } from "@/components/layout/route-scroll-reset";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { OnboardingProvider } from "@/components/providers/onboarding-provider";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
@@ -64,7 +65,6 @@ export default function RootLayout({
       lang="en"
       className={cn(manrope.variable, "dark")}
       suppressHydrationWarning
-      data-scroll-behavior="smooth"
     >
       <head>
         {process.env.NODE_ENV === "production" && (
@@ -77,6 +77,7 @@ export default function RootLayout({
         )}
       </head>
       <body className={cn("min-h-screen bg-background font-sans")}>
+        <RouteScrollReset />
         <QueryProvider>
           <AuthSessionProvider>
             <OnboardingProvider>

@@ -63,7 +63,7 @@ export default async function TrendingHub() {
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
       <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-        <section className="min-h-screen w-full pb-16 pt-6">
+        <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
           <div className="container space-y-10">
             <header className="space-y-1 text-center md:text-left">
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">

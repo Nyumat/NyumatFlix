@@ -1,6 +1,7 @@
 import { PageContainer } from "@/components/layout/page-container";
 import { ContentContainer } from "@/components/layout/content-container";
 import { StaticHero } from "@/components/hero";
+import { MediaDetailScrollReset } from "@/components/media/media-detail-scroll-reset";
 import { MovieCard } from "@/components/movie/movie-card";
 import { BackButton } from "@/components/ui/back-button";
 import { tmdb } from "@/tmdb/api";
@@ -31,6 +32,7 @@ export default async function CollectionPage(props: Props) {
 
   return (
     <PageContainer className="pb-16">
+      <MediaDetailScrollReset restoreKey={`collection-${id}`} />
       <StaticHero
         imageUrl={backdropImage}
         title={collection.name}
