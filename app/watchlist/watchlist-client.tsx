@@ -1,6 +1,7 @@
 "use client";
 
 import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -11,11 +12,16 @@ import {
   type TypeTab,
 } from "@/components/watchlist";
 import { getTitle, MediaItem } from "@/utils/typings";
-import { Bookmark, BookmarkCheck } from "lucide-react";
+import { Bookmark, BookmarkCheck, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { WatchlistItem } from "./actions";
+
+const toTimestamp = (value: Date | string | null | undefined) => {
+  if (!value) return 0;
+  return value instanceof Date ? value.getTime() : new Date(value).getTime();
+};
 
 const DummyWatchlistButton = () => {
   const [isInWatchlist, setIsInWatchlist] = useState(false);
@@ -102,15 +108,6 @@ export function WatchlistClient({
     fetchEpisodeData();
   }, []);
 
-  // Create maps for quick lookup
-  const watchlistItemsMap = useMemo(() => {
-    const map = new Map<number, WatchlistItem>();
-    watchlistItems.forEach((item) => {
-      map.set(item.contentId, item);
-    });
-    return map;
-  }, [watchlistItems]);
-
   const episodeInfoMap = useMemo(() => {
     const map = new Map<number, EpisodeInfo | null>();
     Object.entries(episodeData).forEach(([contentId, info]) => {
@@ -158,7 +155,7 @@ export function WatchlistClient({
             a.watchlistItem.lastWatchedAt || a.watchlistItem.createdAt;
           const bDate =
             b.watchlistItem.lastWatchedAt || b.watchlistItem.createdAt;
-          return bDate.getTime() - aDate.getTime();
+          return toTimestamp(bDate) - toTimestamp(aDate);
         }
         case "new-episodes": {
           // Sort by new episodes first, then by episode air date
@@ -181,12 +178,12 @@ export function WatchlistClient({
             a.watchlistItem.lastWatchedAt || a.watchlistItem.createdAt;
           const bDate =
             b.watchlistItem.lastWatchedAt || b.watchlistItem.createdAt;
-          return bDate.getTime() - aDate.getTime();
+          return toTimestamp(bDate) - toTimestamp(aDate);
         }
         case "recently-added": {
           return (
-            b.watchlistItem.createdAt.getTime() -
-            a.watchlistItem.createdAt.getTime()
+            toTimestamp(b.watchlistItem.createdAt) -
+            toTimestamp(a.watchlistItem.createdAt)
           );
         }
         default:
@@ -228,8 +225,28 @@ export function WatchlistClient({
       (i) => i.mediaType === "movie",
     ).length;
     const tvCount = watchlistItems.filter((i) => i.mediaType === "tv").length;
-    return { movieCount, tvCount, total: watchlistItems.length };
-  }, [watchlistItems]);
+    const watchingCount = watchlistItems.filter(
+      (i) => i.status === "watching",
+    ).length;
+    const waitingCount = watchlistItems.filter(
+      (i) => i.status === "waiting",
+    ).length;
+    const finishedCount = watchlistItems.filter(
+      (i) => i.status === "finished",
+    ).length;
+    const visibleCount = allItems.length;
+    const unavailableCount = Math.max(watchlistItems.length - visibleCount, 0);
+    return {
+      movieCount,
+      tvCount,
+      total: watchlistItems.length,
+      watchingCount,
+      waitingCount,
+      finishedCount,
+      visibleCount,
+      unavailableCount,
+    };
+  }, [allItems.length, watchlistItems]);
 
   const handleStatusChange = async (
     itemId: string,
@@ -342,56 +359,119 @@ export function WatchlistClient({
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 pt-24 pb-8 space-y-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold text-foreground">My Watchlist</h1>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <span>{stats.total} items</span>
-            <span>•</span>
-            <span>{stats.movieCount} movies</span>
-            <span>•</span>
-            <span>{stats.tvCount} TV shows</span>
+    <div className="relative w-full max-w-7xl mx-auto min-h-[calc(100vh-7rem)] px-4 pt-10 pb-14 space-y-5">
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[70vh] bg-linear-to-b from-black/80 via-black/70 to-transparent" />
+      <div className="rounded-2xl border border-white/10 bg-background/82 p-4 shadow-xl shadow-black/20 backdrop-blur-xl md:p-5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <Badge
+              variant="outline"
+              className="w-fit border-white/15 bg-white/[0.03] px-2 py-0 text-[11px] font-medium text-muted-foreground"
+            >
+              Watchlist
+            </Badge>
+            <div className="space-y-1.5">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+                My Watchlist
+              </h1>
+              <p className="max-w-xl text-sm leading-5 text-zinc-300">
+                Track what you&apos;re watching and what&apos;s next.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2 lg:min-w-[360px]">
+            <StatTile label="Saved" value={stats.total} />
+            <StatTile label="Watching" value={stats.watchingCount} />
+            <StatTile label="Waiting" value={stats.waitingCount} />
+            <StatTile label="Finished" value={stats.finishedCount} />
           </div>
         </div>
       </div>
 
-      {/* Controls */}
-      <WatchlistControls
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        sortOption={sortOption}
-        onSortChange={setSortOption}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        typeTab={typeTab}
-        onTypeTabChange={setTypeTab}
-      />
+      <div className="rounded-xl border border-white/10 bg-card/28 p-3 shadow-lg shadow-black/10 backdrop-blur-md">
+        <WatchlistControls
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortOption={sortOption}
+          onSortChange={setSortOption}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          typeTab={typeTab}
+          onTypeTabChange={setTypeTab}
+        />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/8 pt-3">
+          <div className="flex flex-wrap gap-2 text-xs text-zinc-300">
+            {stats.movieCount > 0 && (
+              <span>
+                {stats.movieCount} {stats.movieCount === 1 ? "movie" : "movies"}
+              </span>
+            )}
+            {stats.movieCount > 0 && stats.tvCount > 0 && (
+              <span className="text-zinc-600">/</span>
+            )}
+            {stats.tvCount > 0 && (
+              <span>
+                {stats.tvCount} {stats.tvCount === 1 ? "TV show" : "TV shows"}
+              </span>
+            )}
+            {stats.unavailableCount > 0 && (
+              <>
+                {(stats.movieCount > 0 || stats.tvCount > 0) && (
+                  <span className="text-zinc-600">/</span>
+                )}
+                <span className="text-amber-300">
+                  {stats.unavailableCount} unavailable
+                </span>
+              </>
+            )}
+          </div>
+          <Button asChild size="sm" className="h-8 gap-1.5 px-3">
+            <Link href="/search">
+              <Plus className="h-3.5 w-3.5" />
+              Add item
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {stats.unavailableCount > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          {stats.unavailableCount} saved{" "}
+          {stats.unavailableCount === 1 ? "title is" : "titles are"} not visible
+          because TMDB did not return usable media details.
+        </div>
+      )}
 
       {/* Sections */}
-      <div className="space-y-12">
+      <div className="space-y-4">
         <WatchlistSection
           title="Watching"
+          description="Currently in progress"
+          tone="watching"
           items={watchingItems}
-          watchlistItemsMap={watchlistItemsMap}
           episodeInfoMap={episodeInfoMap}
           onStatusChange={handleStatusChange}
         />
 
         <WatchlistSection
-          title="Waiting for New Episodes"
+          title="Waiting"
+          description="Caught up"
+          tone="waiting"
           items={waitingItems}
-          watchlistItemsMap={watchlistItemsMap}
           episodeInfoMap={episodeInfoMap}
           onStatusChange={handleStatusChange}
+          emptyDescription="No shows waiting for new episodes."
         />
 
         <WatchlistSection
           title="Finished"
+          description="Completed movies and shows"
+          tone="finished"
           items={finishedItems}
-          watchlistItemsMap={watchlistItemsMap}
           episodeInfoMap={episodeInfoMap}
           onStatusChange={handleStatusChange}
+          emptyDescription="No finished titles yet."
         />
 
         {/* Empty Search/Filter State */}
@@ -410,6 +490,19 @@ export function WatchlistClient({
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
+      <div className="text-xl font-semibold tabular-nums leading-none text-foreground">
+        {value}
+      </div>
+      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-zinc-300">
+        {label}
       </div>
     </div>
   );
