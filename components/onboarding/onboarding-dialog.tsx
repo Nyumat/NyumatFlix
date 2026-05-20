@@ -1,11 +1,10 @@
-import { Loader2, User } from "lucide-react";
+import { Info, Loader2, User, X } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -13,6 +12,38 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOnboardingForm } from "@/hooks/useOnboardingForm";
+
+const showOnboardingSkipToast = () => {
+  toast.custom(
+    (id) => (
+      <div className="relative flex w-[calc(100vw-2rem)] max-w-[380px] overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+        <div className="w-1 bg-sky-300" />
+        <div className="flex min-w-0 flex-1 gap-3 px-4 py-3.5">
+          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl border border-sky-300/25 bg-sky-300/12 text-sky-200">
+            <Info className="size-4" />
+          </div>
+          <div className="min-w-0 flex-1 pr-7">
+            <p className="text-sm font-semibold leading-5 text-zinc-50">
+              Skipped for now
+            </p>
+            <p className="mt-1 text-sm leading-5 text-zinc-400">
+              The next time you open NyumatFlix, we'll ask you again.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Dismiss notification"
+            onClick={() => toast.dismiss(id)}
+            className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/8 hover:text-zinc-100"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      </div>
+    ),
+    { duration: 4200 },
+  );
+};
 
 interface OnboardingDialogProps {
   open: boolean;
@@ -29,30 +60,30 @@ export const OnboardingDialog = ({
   return (
     <Dialog open={open}>
       <DialogContent
-        className="sm:max-w-md bg-card/80 backdrop-blur-md border-border/50 shadow-2xl"
+        aria-describedby={undefined}
+        className="w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-2xl border-white/12 bg-zinc-950/92 p-0 text-white shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:max-w-md"
         hideCloseButton
       >
-        <DialogHeader className="text-center space-y-6">
-          <div className="mx-auto">
-            <div className="w-20 h-20 bg-black/20 backdrop-blur-xs rounded-2xl flex items-center justify-center mx-auto shadow-lg border border-black/30">
-              <Image
-                src="/logo.svg"
-                alt="NyumatFlix"
-                width={40}
-                height={40}
-                className="w-10 h-10"
-              />
+        <div className="border-b border-white/10 bg-white/[0.03] px-6 py-6 sm:px-8">
+          <DialogHeader className="space-y-5 text-center">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl border border-white/12 bg-black/35">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-white/8">
+                <Image
+                  src="/logo.svg"
+                  alt="NyumatFlix"
+                  width={30}
+                  height={30}
+                  className="size-[30px]"
+                />
+              </div>
             </div>
-          </div>
-          <div className="space-y-2 max-w-sm mx-auto">
-            <DialogTitle className="text-3xl font-light text-foreground text-center">
-              Welcome to NyumatFlix
-            </DialogTitle>
-            <DialogDescription className=" max-w-64 mx-auto text-muted-foreground font-light text-center">
-              Let's personalize your experience. What should we call you?
-            </DialogDescription>
-          </div>
-        </DialogHeader>
+            <div className="mx-auto max-w-sm space-y-3">
+              <DialogTitle className="text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
+                Welcome to NyumatFlix
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+        </div>
 
         <form
           onSubmit={async (e) => {
@@ -62,7 +93,7 @@ export const OnboardingDialog = ({
             }
             try {
               await handleSubmit(e, () => {
-                toast.success("Welcome to NyumatFlix! 🎉");
+                toast.success("Welcome to NyumatFlix!");
                 onComplete();
               });
             } catch (error) {
@@ -74,55 +105,57 @@ export const OnboardingDialog = ({
               );
             }
           }}
-          className="space-y-6"
+          className="space-y-6 px-6 py-6 sm:px-8"
         >
-          <div className="space-y-2">
+          <div>
             <Label
               htmlFor="name"
-              className="text-sm font-medium text-foreground"
+              className="mb-3 block text-sm font-medium text-zinc-200"
             >
-              Your Name
+              Display name
             </Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <div className="relative flex h-12 items-center rounded-xl border border-white/12 bg-black/30 px-3 transition-colors focus-within:border-sky-300/45 focus-within:ring-2 focus-within:ring-sky-300/20">
+              <User className="mr-2.5 size-4 shrink-0 text-zinc-500" />
               <Input
                 id="name"
                 type="text"
-                placeholder="Enter your name"
+                placeholder="What should we call you?"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="pl-10"
+                className="h-full flex-1 rounded-none border-0 bg-transparent px-0 py-0 text-base text-white shadow-none outline-none placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 dark:border-0 dark:bg-transparent"
                 maxLength={100}
                 disabled={isLoading}
                 autoFocus
               />
             </div>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">
+              This can't be changed later, so choose wisely.
+            </p>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-4 pt-6">
+          <DialogFooter className="gap-3 pt-1 sm:flex-row sm:justify-between sm:space-x-0">
             <Button
               type="button"
               onClick={() => {
                 handleSkip(() => {
-                  toast.info(
-                    "The next time you open NyumatFlix, we'll ask you again.",
-                  );
+                  showOnboardingSkipToast();
                   onComplete();
                 });
               }}
               disabled={isLoading}
-              className="w-full sm:w-auto backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition-all duration-200 shadow-lg font-medium"
+              variant="ghost"
+              className="h-11 w-full rounded-xl px-5 text-zinc-300 shadow-none hover:bg-white/8 hover:text-white sm:w-auto"
             >
               Skip for now
             </Button>
             <Button
               type="submit"
               disabled={isLoading || !name.trim()}
-              className="w-full sm:w-auto backdrop-blur-md bg-white/20 border border-white/30 text-white hover:bg-white/30 hover:border-white/40 hover:shadow-xl transition-all duration-200 shadow-lg font-bold"
+              className="h-11 w-full rounded-xl border-sky-300/20 bg-sky-300/15 px-5 text-sm font-semibold text-sky-50 shadow-none hover:border-sky-300/35 hover:bg-sky-300/22 sm:w-auto"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin" />
                   Saving...
                 </>
               ) : (

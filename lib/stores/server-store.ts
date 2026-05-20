@@ -133,15 +133,15 @@ export const videoServers: VideoServer[] = [
       return `https://player.videasy.net/anime/${anilistId}/${episode}${dubParam}`;
     },
   },
-  {
-    id: "vixsrc",
-    name: "VixSrc",
-    baseUrl: "https://vixsrc.to",
-    getMovieUrl: (tmdbId) => `https://vixsrc.to/movie/${tmdbId}?autoplay=true`,
-    getTvUrl: (tmdbId) => `https://vixsrc.to/tv/${tmdbId}/1/1`,
-    getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://vixsrc.to/tv/${tmdbId}/${season}/${episode}?autoplay=true`,
-  },
+  // {
+  //   id: "vixsrc",
+  //   name: "VixSrc",
+  //   baseUrl: "https://vixsrc.to",
+  //   getMovieUrl: (tmdbId) => `https://vixsrc.to/movie/${tmdbId}?autoplay=true`,
+  //   getTvUrl: (tmdbId) => `https://vixsrc.to/tv/${tmdbId}/1/1`,
+  //   getEpisodeUrl: (tmdbId, season, episode) =>
+  //     `https://vixsrc.to/tv/${tmdbId}/${season}/${episode}?autoplay=true`,
+  // },
   {
     id: "vidking",
     name: "VidKing",

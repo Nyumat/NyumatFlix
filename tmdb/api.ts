@@ -315,6 +315,21 @@ type FetcherOptions = {
 
 type Fetcher = <T>(options: FetcherOptions, init?: RequestInit) => Promise<T>;
 
+const emptyListResponse = {
+  page: 1,
+  results: [],
+  total_pages: 0,
+  total_results: 0,
+};
+
+const isNetworkFetchError = (error: unknown): boolean => {
+  if (!(error instanceof TypeError)) {
+    return false;
+  }
+
+  return error.message === "fetch failed";
+};
+
 const sanitizeParams = (params?: Record<string, string | undefined>) => {
   return Object.fromEntries(
     Object.entries(params ?? {}).filter(([, value]) => value !== undefined),
@@ -349,7 +364,15 @@ const fetcher: Fetcher = async ({ endpoint, params }, init) => {
   };
 
   const url = `${apiConfig.baseUrl}/${endpoint}?${_params}`;
-  const response = await fetch(url, _init);
+  let response: Response;
+  try {
+    response = await fetch(url, _init);
+  } catch (error) {
+    if (isNetworkFetchError(error)) {
+      return emptyListResponse;
+    }
+    throw error;
+  }
 
   return await response.json();
 };
