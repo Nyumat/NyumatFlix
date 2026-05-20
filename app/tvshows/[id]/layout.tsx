@@ -1,12 +1,12 @@
-import { fetchAllSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { TvShowDetailShell } from "@/components/tvshow/tvshow-detail-shell";
 import { hydrateTvShowDetailQueries } from "@/lib/prefetch-media-detail-queries";
-import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
+import { getCachedTvAboveFoldDetail } from "@/lib/media-above-fold-server";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import type { TvShowDetails } from "@/utils/typings";
 
 export const revalidate = 3600;
 
@@ -20,7 +20,7 @@ export default async function TVShowDetailLayout({ children, params }: Props) {
 
   let details;
   try {
-    details = await getCachedTvShowDetail(id);
+    details = await getCachedTvAboveFoldDetail(id);
   } catch {
     notFound();
   }
@@ -29,22 +29,19 @@ export default async function TVShowDetailLayout({ children, params }: Props) {
     notFound();
   }
 
-  const [anilistId, allSeasonDetails] = await Promise.all([
-    getAnilistIdForMedia(details),
-    fetchAllSeasonDetails(id, details.seasons),
-  ]);
+  const detailMedia = details as TvShowDetails;
+  const anilistId = await getAnilistIdForMedia(detailMedia);
 
   const queryClient = new QueryClient();
-  await hydrateTvShowDetailQueries(queryClient, id, details, allSeasonDetails);
+  await hydrateTvShowDetailQueries(queryClient, id, details);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <Suspense fallback={null}>
         <TvShowDetailShell
-          details={details}
+          details={detailMedia}
           tvId={id}
           anilistId={anilistId}
-          allSeasonDetails={allSeasonDetails}
         >
           {children}
         </TvShowDetailShell>

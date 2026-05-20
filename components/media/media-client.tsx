@@ -20,6 +20,7 @@ import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { EpisodeIndicator } from "@/components/watchlist/watchlist";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { sortWithProfilePathFirst } from "@/lib/media-poster-path";
 import { cn } from "@/lib/utils";
 import type { Genre, MediaItem, ProductionCountry } from "@/utils/typings";
 import { Actor, Movie, TvShow, Video } from "@/utils/typings";
@@ -28,6 +29,7 @@ import { Image as TmdbImage } from "@/tmdb/models";
 import { tmdbImage } from "@/tmdb/utils";
 import { Clock, Download, Expand, Link, Star, User } from "lucide-react";
 import Image from "next/image";
+import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -313,6 +315,7 @@ type CastCarouselProps = {
 export function CastCarousel({ cast }: CastCarouselProps) {
   const router = useRouter();
   if (!cast.length) return null;
+  const castWithImagesFirst = sortWithProfilePathFirst(cast);
 
   const handlePersonMouseEnter = (person: Actor) => {
     router.prefetch(`/person/${person.id}`);
@@ -330,7 +333,7 @@ export function CastCarousel({ cast }: CastCarouselProps) {
           className="w-full"
         >
           <CarouselContent>
-            {cast.slice(0, 20).map((person: Actor) => (
+            {castWithImagesFirst.slice(0, 20).map((person: Actor) => (
               <CarouselItem
                 key={person.id}
                 className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8"
@@ -484,9 +487,6 @@ export function RecommendationsCarousel({
               <CarouselItem
                 key={item.id}
                 className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8 w-full shrink-0 hover:opacity-80 transition block"
-                onClick={() => {
-                  router.push(getHref(item));
-                }}
                 onMouseEnter={() => handleItemMouseEnter(item)}
               >
                 <MediaShowcaseCard
@@ -554,15 +554,16 @@ export const MediaShowcaseCard = ({
   onStatusChange,
   episodeInfo,
 }: MediaCardProps) => {
-  const router = useRouter();
   if (item.id === undefined) return <div>No content ID found</div>;
   const title = getTitle(item);
   const posterPath = item.poster_path ?? undefined;
   const backdropUrl = item.backdrop_path
-    ? `https://image.tmdb.org/t/p/w780${item.backdrop_path}`
+    ? tmdbImage.backdrop(item.backdrop_path, "w780")
     : undefined;
   const releaseDate = getAirDate(item);
   const voteAverage = item.vote_average;
+  const isAnimeItem =
+    "sourceAnilistId" in item && typeof item.sourceAnilistId === "number";
   const runtime = match([type, item])
     .with(
       ["movie", P.not(P.nullish)],
@@ -593,21 +594,20 @@ export const MediaShowcaseCard = ({
     .otherwise(() => undefined);
 
   const itemGenres = (() => {
+    if (isAnimeItem) return undefined;
     if ("genres" in item && Array.isArray(item.genres)) return item.genres;
     return undefined;
   })();
 
   const href = (() => {
+    if ("href" in item && typeof item.href === "string") return item.href;
     const itemId = item.id;
     if (isMovie(item)) {
       return `/movies/${itemId}`;
     }
     return `/tvshows/${itemId}`;
   })();
-
-  const handleMouseEnter = () => {
-    router.prefetch(href);
-  };
+  const isExternalHref = !href.startsWith("/");
 
   const handleStatusChange = (newStatus: string) => {
     if (
@@ -625,14 +625,23 @@ export const MediaShowcaseCard = ({
     return <MinimalMediaCard item={item} />;
   }
 
+  const isWatchlistCard = Boolean(watchlistItem);
+
   return (
     <Card
-      className="group relative overflow-hidden border-0 bg-card/40 backdrop-blur-md transition-all duration-300 shadow-xl cursor-pointer h-full flex flex-col"
-      onMouseEnter={handleMouseEnter}
-      onClick={() => {
-        router.push(href);
-      }}
+      className={cn(
+        "group relative flex h-full cursor-pointer flex-col overflow-hidden bg-card/40 shadow-xl backdrop-blur-md transition-all duration-300",
+        isWatchlistCard
+          ? "rounded-2xl border border-white/12 shadow-black/25 hover:border-white/25"
+          : "border-0",
+      )}
     >
+      <NextLink
+        href={href}
+        className="absolute inset-0 z-20"
+        aria-label={`View ${title}`}
+      />
+
       {backdropUrl && (
         <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
           <Image
@@ -664,7 +673,12 @@ export const MediaShowcaseCard = ({
           {/* Status Toggle Overlay */}
           {watchlistItem && onStatusChange && (
             <div
-              className="absolute top-3 right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className={cn(
+                "absolute z-30 transition-opacity duration-300",
+                isWatchlistCard
+                  ? "bottom-2 left-2 right-2 opacity-100"
+                  : "top-3 right-3 opacity-0 group-hover:opacity-100",
+              )}
               onClick={(e) => {
                 e.stopPropagation();
               }}
@@ -673,14 +687,18 @@ export const MediaShowcaseCard = ({
                 type="single"
                 value={watchlistItem.status}
                 onValueChange={handleStatusChange}
-                className="bg-black/60 backdrop-blur-xl rounded-lg p-1 shadow-2xl"
+                className={cn(
+                  "rounded-lg bg-black/60 p-1 shadow-2xl backdrop-blur-xl",
+                  isWatchlistCard && "w-full justify-between rounded-full",
+                )}
               >
                 <ToggleGroupItem
                   value="watching"
                   aria-label="Watching"
                   size="sm"
                   className={cn(
-                    "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
+                    "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
+                    isWatchlistCard && "h-7 flex-1 rounded-full",
                     watchlistItem.status === "watching" &&
                       "bg-primary text-primary-foreground shadow-lg",
                   )}
@@ -692,7 +710,8 @@ export const MediaShowcaseCard = ({
                   aria-label="Waiting"
                   size="sm"
                   className={cn(
-                    "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
+                    "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
+                    isWatchlistCard && "h-7 flex-1 rounded-full",
                     watchlistItem.status === "waiting" &&
                       "bg-primary text-primary-foreground shadow-lg",
                   )}
@@ -704,7 +723,8 @@ export const MediaShowcaseCard = ({
                   aria-label="Finished"
                   size="sm"
                   className={cn(
-                    "px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
+                    "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
+                    isWatchlistCard && "h-7 flex-1 rounded-full",
                     watchlistItem.status === "finished" &&
                       "bg-primary text-primary-foreground shadow-lg",
                   )}
@@ -717,7 +737,14 @@ export const MediaShowcaseCard = ({
         </div>
       </div>
 
-      <CardContent className="p-4 relative grow flex flex-col justify-start transition-all duration-500 md:absolute md:bottom-0 md:left-0 md:right-0 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 z-30 md:bg-linear-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]">
+      <CardContent
+        className={cn(
+          "relative z-30 flex grow flex-col justify-start transition-all duration-500",
+          isWatchlistCard
+            ? "pointer-events-none min-h-[7.25rem] bg-black/60 p-3"
+            : "pointer-events-none p-4 md:absolute md:bottom-0 md:left-0 md:right-0 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:bg-linear-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]",
+        )}
+      >
         <Info
           title={title}
           logo={item.logo}
@@ -731,7 +758,7 @@ export const MediaShowcaseCard = ({
           align="center"
         />
         {/* Episode Indicator */}
-        {type === "tv" && item.id && (
+        {type === "tv" && item.id && !isExternalHref && (
           <div className="mt-2">
             <EpisodeIndicator
               contentId={item.id}

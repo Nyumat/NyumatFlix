@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import type { PosterSize } from "@/tmdb/utils";
 import { tmdbImage } from "@/tmdb/utils";
+import { User } from "lucide-react";
 import Image from "next/image";
 import { type ComponentProps, type CSSProperties, useMemo } from "react";
 
@@ -59,10 +60,10 @@ export const MediaCard = {
 };
 
 export {
-  Root as MediaCardRoot,
   Content as MediaCardContent,
-  Title as MediaCardTitle,
   Excerpt as MediaCardExcerpt,
+  Root as MediaCardRoot,
+  Title as MediaCardTitle,
 };
 
 interface MediaPosterProps extends ComponentProps<"div"> {
@@ -72,6 +73,7 @@ interface MediaPosterProps extends ComponentProps<"div"> {
   priority?: boolean;
   monochrome?: boolean;
   imageClassName?: string;
+  missingImagePlaceholder?: "person";
 }
 
 type LegacyPosterSize = "small" | "medium" | "large";
@@ -121,12 +123,33 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
   priority,
   monochrome,
   imageClassName,
+  missingImagePlaceholder,
   ...props
 }) => {
   const src = image ? tmdbImage.poster(image, size) : null;
 
   if (!src) {
-    return null;
+    if (missingImagePlaceholder !== "person") {
+      return null;
+    }
+
+    return (
+      <div
+        role="img"
+        aria-label={alt}
+        className={cn(
+          "relative isolate flex aspect-poster w-full items-center justify-center overflow-hidden rounded-[inherit] bg-muted text-muted-foreground",
+          monochrome && "grayscale",
+          className,
+        )}
+        {...props}
+      >
+        <User
+          className="size-[min(32%,5rem)] shrink-0 opacity-70"
+          aria-hidden
+        />
+      </div>
+    );
   }
 
   return (
@@ -163,7 +186,7 @@ interface MediaLogoProps {
   title?: string;
   className?: string;
   fallbackClassName?: string;
-  size?: "small" | "medium" | "large" | "xlarge" | "2xxl";
+  size?: "default" | "small" | "medium" | "large" | "xlarge" | "2xxl";
   maxHeight?: string;
   maxWidth?: string;
   align?: "left" | "center" | "right";
@@ -203,6 +226,11 @@ export function MediaLogo({
       align === "center" && "justify-center",
       align === "right" && "justify-end",
     );
+
+    if (size === "default") {
+      return cn(base, className);
+    }
+
     const sizeVariants = {
       small: {
         ultraWide: "h-4 max-w-28 sm:h-5 sm:max-w-36 md:h-6 md:max-w-48",
@@ -282,6 +310,28 @@ export function MediaLogo({
     const style: CSSProperties = {};
     if (maxHeight) style.maxHeight = maxHeight;
     if (maxWidth) style.maxWidth = maxWidth;
+
+    if (size === "default") {
+      const intrinsicWidth = logo.width ?? 500;
+      const intrinsicHeight =
+        logo.height ??
+        (logo.aspect_ratio
+          ? Math.max(1, Math.round(intrinsicWidth / logo.aspect_ratio))
+          : 281);
+
+      return (
+        <div className={containerClasses} style={style}>
+          <Image
+            src={`https://image.tmdb.org/t/p/w500${logo.file_path}`}
+            alt={title || "Logo"}
+            width={intrinsicWidth}
+            height={intrinsicHeight}
+            className="h-auto w-auto max-h-full max-w-full object-contain"
+            priority={false}
+          />
+        </div>
+      );
+    }
 
     return (
       <div className={containerClasses} style={style}>

@@ -10,19 +10,19 @@ import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import {
-  fetchMovieCredits,
-  fetchMovieImages,
-  fetchMovieRecommendationsPage,
-  fetchMovieReviewsPage,
-  fetchMovieSimilarPage,
-  fetchMovieVideos,
-  fetchTvCredits,
-  fetchTvImages,
-  fetchTvRecommendationsPage,
-  fetchTvReviewsPage,
-  fetchTvSimilarPage,
-  fetchTvVideos,
-} from "@/app/actions/media-detail-tab-data";
+  fetchMovieCreditsClient,
+  fetchMovieImagesClient,
+  fetchMovieRecommendationsPageClient,
+  fetchMovieReviewsPageClient,
+  fetchMovieSimilarPageClient,
+  fetchMovieVideosClient,
+  fetchTvCreditsClient,
+  fetchTvImagesClient,
+  fetchTvRecommendationsPageClient,
+  fetchTvReviewsPageClient,
+  fetchTvSimilarPageClient,
+  fetchTvVideosClient,
+} from "@/lib/media-detail-tab-client";
 
 type MediaDetailRouteTabsProps = {
   mediaType: "movie" | "tv";
@@ -96,37 +96,37 @@ const MediaDetailTabButton = ({
         case "credits":
           queryClient.prefetchQuery({
             queryKey: queryKeys.movieTabCredits(id),
-            queryFn: () => fetchMovieCredits(id),
+            queryFn: () => fetchMovieCreditsClient(id),
           });
           break;
         case "images":
           queryClient.prefetchQuery({
             queryKey: queryKeys.movieTabImages(id),
-            queryFn: () => fetchMovieImages(id),
+            queryFn: () => fetchMovieImagesClient(id),
           });
           break;
         case "videos":
           queryClient.prefetchQuery({
             queryKey: queryKeys.movieTabVideos(id),
-            queryFn: () => fetchMovieVideos(id),
+            queryFn: () => fetchMovieVideosClient(id),
           });
           break;
         case "reviews":
           queryClient.prefetchQuery({
             queryKey: queryKeys.movieTabReviews(id, "1"),
-            queryFn: () => fetchMovieReviewsPage(id, "1"),
+            queryFn: () => fetchMovieReviewsPageClient(id, "1"),
           });
           break;
         case "recommendations":
           queryClient.prefetchQuery({
             queryKey: queryKeys.movieTabRecommendations(id, "1"),
-            queryFn: () => fetchMovieRecommendationsPage(id, "1"),
+            queryFn: () => fetchMovieRecommendationsPageClient(id, "1"),
           });
           break;
         case "similar":
           queryClient.prefetchQuery({
             queryKey: queryKeys.movieTabSimilar(id, "1"),
-            queryFn: () => fetchMovieSimilarPage(id, "1"),
+            queryFn: () => fetchMovieSimilarPageClient(id, "1"),
           });
           break;
       }
@@ -135,37 +135,37 @@ const MediaDetailTabButton = ({
         case "credits":
           queryClient.prefetchQuery({
             queryKey: queryKeys.tvTabCredits(id),
-            queryFn: () => fetchTvCredits(id),
+            queryFn: () => fetchTvCreditsClient(id),
           });
           break;
         case "images":
           queryClient.prefetchQuery({
             queryKey: queryKeys.tvTabImages(id),
-            queryFn: () => fetchTvImages(id),
+            queryFn: () => fetchTvImagesClient(id),
           });
           break;
         case "videos":
           queryClient.prefetchQuery({
             queryKey: queryKeys.tvTabVideos(id),
-            queryFn: () => fetchTvVideos(id),
+            queryFn: () => fetchTvVideosClient(id),
           });
           break;
         case "reviews":
           queryClient.prefetchQuery({
             queryKey: queryKeys.tvTabReviews(id, "1"),
-            queryFn: () => fetchTvReviewsPage(id, "1"),
+            queryFn: () => fetchTvReviewsPageClient(id, "1"),
           });
           break;
         case "recommendations":
           queryClient.prefetchQuery({
             queryKey: queryKeys.tvTabRecommendations(id, "1"),
-            queryFn: () => fetchTvRecommendationsPage(id, "1"),
+            queryFn: () => fetchTvRecommendationsPageClient(id, "1"),
           });
           break;
         case "similar":
           queryClient.prefetchQuery({
             queryKey: queryKeys.tvTabSimilar(id, "1"),
-            queryFn: () => fetchTvSimilarPage(id, "1"),
+            queryFn: () => fetchTvSimilarPageClient(id, "1"),
           });
           break;
       }

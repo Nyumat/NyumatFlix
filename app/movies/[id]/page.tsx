@@ -4,7 +4,6 @@ import { getCachedMovieDetail } from "@/lib/media-detail-cache";
 import { generateMediaMetadata } from "@/utils/media-metadata-helpers";
 import { MediaItem } from "@/utils/typings";
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 export const dynamicParams = true;
 
@@ -36,11 +35,6 @@ export async function generateStaticParams() {
 
 export default async function MovieDetailPage(props: Props) {
   const { id } = await props.params;
-
-  const raw = await getCachedMovieDetail(id);
-  if (!raw || !("title" in raw)) {
-    notFound();
-  }
 
   return <MovieDetailTabPanels movieId={id} />;
 }

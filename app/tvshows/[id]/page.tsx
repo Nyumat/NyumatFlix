@@ -2,7 +2,6 @@ import { TvShowDetailTabPanels } from "@/components/tvshow/tv-show-detail-tab-pa
 import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
 import { generateMediaMetadata } from "@/utils/media-metadata-helpers";
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 export const dynamicParams = true;
 
@@ -12,11 +11,6 @@ type Props = {
 
 export default async function TvShowDetailPage(props: Props) {
   const { id } = await props.params;
-
-  const details = await getCachedTvShowDetail(id).catch(() => null);
-  if (!details) {
-    notFound();
-  }
 
   return <TvShowDetailTabPanels tvId={id} />;
 }

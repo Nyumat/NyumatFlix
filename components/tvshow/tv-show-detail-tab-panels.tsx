@@ -1,184 +1,212 @@
 "use client";
 
-import {
-  fetchTvCredits,
-  fetchTvImages,
-  fetchTvRecommendationsPage,
-  fetchTvReviewsPage,
-  fetchTvSimilarPage,
-  fetchTvVideos,
-  getTvAllSeasonsForQuery,
-  getTvShowDetailsForQuery,
-} from "@/app/actions/media-detail-tab-data";
 import { HeroTvEpisodePanel } from "@/components/hero/hero-tv-episode-panel";
-import { MediaImages } from "@/components/media/media-client";
-import { MediaCreditsList } from "@/components/media/media-shared";
-import { MediaVideos } from "@/components/media/media-videos";
-import { MediaReviewCard } from "@/components/media/media-review-card";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { TvShowOverviewTab } from "@/components/tvshow/tv-show-overview-tab";
-import { TvShowRootRedirect } from "@/components/tvshow/tv-show-root-redirect";
-import { TvShowSeasonsPage } from "@/components/tvshow/tvshow-seasons-page";
+import { ExpandableCastGrid } from "@/components/media/expandable-cast-grid";
 import { TvCard } from "@/components/tv/tv-card";
-import { useMediaDetailTab } from "@/lib/stores/media-detail-tab-store";
+import { TvShowSeasonsPage } from "@/components/tvshow/tvshow-seasons-page";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import {
+  fetchTvAllSeasonsClient,
+  fetchTvCreditsClient,
+  fetchTvDetailsClient,
+  fetchTvRecommendationsPageClient,
+} from "@/lib/media-detail-tab-client";
 import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 import type { TvShowDetails } from "@/utils/typings";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
+import { Suspense, type ReactNode } from "react";
+import { useInView } from "react-intersection-observer";
 
 type TvShowDetailTabPanelsProps = {
   tvId: string;
 };
 
-export const TvShowDetailTabPanels = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const searchParams = useSearchParams();
-  const activeTab = useMediaDetailTab("tv", tvId);
-  const listPage = searchParams.get("page") ?? "1";
+type DetailSectionProps = {
+  title: string;
+  id?: string;
+  children: ReactNode;
+  headingClassName?: string;
+};
+
+const DetailSection = ({
+  title,
+  id,
+  children,
+  headingClassName,
+}: DetailSectionProps) => (
+  <section id={id} className="scroll-mt-24">
+    <h2
+      className={cn(
+        "mb-5 flex items-center gap-3 text-2xl font-semibold text-foreground sm:text-3xl",
+        headingClassName,
+      )}
+    >
+      <span className="h-8 w-1 rounded-full bg-primary" aria-hidden />
+      {title}
+    </h2>
+    {children}
+  </section>
+);
+
+const EpisodesFallback = () => (
+  <DetailSection id="seasons-episodes-panel" title="Seasons & Episodes">
+    <div className="flex h-[min(680px,72vh)] w-full flex-col gap-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="h-12 w-full rounded-lg bg-card/50 sm:w-56" />
+        <div className="h-12 min-w-0 flex-1 rounded-lg bg-card/50" />
+        <div className="h-12 w-12 shrink-0 rounded-lg bg-card/50" />
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-28 rounded-xl border border-border/70 bg-card/25"
+          />
+        ))}
+      </div>
+    </div>
+  </DetailSection>
+);
+
+const SeriesGraphFallback = () => (
+  <DetailSection title="Series Graph" headingClassName="mb-3">
+    <div className="h-64 rounded-xl border border-white/10 bg-black/10" />
+  </DetailSection>
+);
+
+const GridSectionFallback = ({ title }: { title: string }) => (
+  <DetailSection title={title}>
+    <div className="grid-list">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div
+          key={index}
+          className="aspect-poster rounded-lg border border-border/60 bg-card/25"
+        />
+      ))}
+    </div>
+  </DetailSection>
+);
+
+const EpisodesSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
   const numId = Number.parseInt(tvId, 10);
+  const isHydrated = useIsHydrated();
 
   const { data: details } = useQuery({
     queryKey: queryKeys.tvDetails(numId),
     queryFn: async () => {
-      const d = await getTvShowDetailsForQuery(tvId);
+      const d = await fetchTvDetailsClient(tvId);
       if (!d) throw new Error("TV show not found");
       return d;
     },
+    enabled: isHydrated,
   });
 
+  if (!isHydrated || !details) return <EpisodesFallback />;
+
+  return (
+    <DetailSection id="seasons-episodes-panel" title="Seasons & Episodes">
+      <HeroTvEpisodePanel tvId={tvId} details={details as TvShowDetails} />
+    </DetailSection>
+  );
+};
+
+const SeriesGraphSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
+  const isHydrated = useIsHydrated();
   const { data: allSeasonDetails } = useQuery({
     queryKey: queryKeys.tvAllSeasons(tvId),
-    queryFn: () => getTvAllSeasonsForQuery(tvId),
+    queryFn: () => fetchTvAllSeasonsClient(tvId),
+    enabled: isHydrated,
   });
 
+  if (!isHydrated || !allSeasonDetails) return <SeriesGraphFallback />;
+
+  return <TvShowSeasonsPage allSeasonDetails={allSeasonDetails} />;
+};
+
+const LazySeriesGraphSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
+  const { ref, inView } = useInView({
+    rootMargin: "600px 0px",
+    triggerOnce: true,
+  });
+
+  return (
+    <div ref={ref}>
+      {inView ? (
+        <Suspense fallback={<SeriesGraphFallback />}>
+          <SeriesGraphSection tvId={tvId} />
+        </Suspense>
+      ) : (
+        <SeriesGraphFallback />
+      )}
+    </div>
+  );
+};
+
+const CastSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
+  const isHydrated = useIsHydrated();
   const { data: credits } = useQuery({
     queryKey: queryKeys.tvTabCredits(tvId),
-    queryFn: () => fetchTvCredits(tvId),
-    enabled: activeTab === "credits",
+    queryFn: () => fetchTvCreditsClient(tvId),
+    enabled: isHydrated,
   });
 
-  const { data: images } = useQuery({
-    queryKey: queryKeys.tvTabImages(tvId),
-    queryFn: () => fetchTvImages(tvId),
-    enabled: activeTab === "images",
-  });
+  if (!isHydrated || !credits) return <GridSectionFallback title="Cast" />;
 
-  const { data: videos } = useQuery({
-    queryKey: queryKeys.tvTabVideos(tvId),
-    queryFn: () => fetchTvVideos(tvId),
-    enabled: activeTab === "videos",
-  });
+  return (
+    <DetailSection title="Cast">
+      {credits.cast?.length ? (
+        <ExpandableCastGrid cast={credits.cast} />
+      ) : (
+        <div className="empty-box">No cast information available</div>
+      )}
+    </DetailSection>
+  );
+};
 
-  const { data: reviewsData } = useQuery({
-    queryKey: queryKeys.tvTabReviews(tvId, listPage),
-    queryFn: () => fetchTvReviewsPage(tvId, listPage),
-    enabled: activeTab === "reviews",
-  });
-
+const RecommendationsSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
+  const isHydrated = useIsHydrated();
   const { data: recommendationsData } = useQuery({
-    queryKey: queryKeys.tvTabRecommendations(tvId, listPage),
-    queryFn: () => fetchTvRecommendationsPage(tvId, listPage),
-    enabled: activeTab === "recommendations",
+    queryKey: queryKeys.tvTabRecommendations(tvId, "1"),
+    queryFn: () => fetchTvRecommendationsPageClient(tvId, "1"),
+    enabled: isHydrated,
   });
 
-  const { data: similarData } = useQuery({
-    queryKey: queryKeys.tvTabSimilar(tvId, listPage),
-    queryFn: () => fetchTvSimilarPage(tvId, listPage),
-    enabled: activeTab === "similar",
-  });
-
-  const resolvedDetails = details as TvShowDetails | undefined;
-
-  if (!activeTab) {
-    return <TvShowRootRedirect id={tvId} />;
+  if (!isHydrated || !recommendationsData) {
+    return <GridSectionFallback title="You Might Like" />;
   }
 
-  switch (activeTab) {
-    case "overview":
-      return resolvedDetails ? (
-        <TvShowOverviewTab details={resolvedDetails} id={tvId} />
-      ) : null;
-    case "seasons-episodes":
-      if (!resolvedDetails || !allSeasonDetails) return null;
-      return (
-        <section
-          id="seasons-episodes-panel"
-          data-episode-browser
-          className="scroll-mt-24"
-        >
-          <HeroTvEpisodePanel
-            tvId={tvId}
-            details={resolvedDetails}
-            allSeasonDetails={allSeasonDetails}
-          />
-        </section>
-      );
-    case "credits":
-      return credits ? (
-        <MediaCreditsList cast={credits.cast} crew={credits.crew} />
-      ) : null;
-    case "reviews":
-      if (!reviewsData) return null;
-      if (!reviewsData.results.length) {
-        return <div className="empty-box">No reviews</div>;
-      }
-      return (
-        <section className="space-y-8">
-          {reviewsData.results.map((review) => (
-            <MediaReviewCard key={review.id} review={review} />
+  return (
+    <DetailSection title="You Might Like">
+      {recommendationsData.results?.length ? (
+        <section className="grid-list">
+          {recommendationsData.results.map((show) => (
+            <TvCard key={show.id} {...show} variant="linkOnly" />
           ))}
-          <ListPagination
-            currentPage={reviewsData.page}
-            totalPages={reviewsData.total_pages}
-          />
         </section>
-      );
-    case "series-graph":
-      return allSeasonDetails ? (
-        <TvShowSeasonsPage allSeasonDetails={allSeasonDetails} />
-      ) : null;
-    case "images":
-      return images ? (
-        <MediaImages posters={images.posters} backdrops={images.backdrops} />
-      ) : null;
-    case "videos":
-      return videos ? <MediaVideos videos={videos.results} /> : null;
-    case "recommendations":
-      if (!recommendationsData) return null;
-      if (!recommendationsData.results?.length) {
-        return <div className="empty-box">No recommendations</div>;
-      }
-      return (
-        <div className="space-y-4">
-          <section className="grid-list">
-            {recommendationsData.results.map((show) => (
-              <TvCard key={show.id} {...show} variant="linkOnly" />
-            ))}
-          </section>
-          <ListPagination
-            currentPage={recommendationsData.page}
-            totalPages={recommendationsData.total_pages}
-          />
-        </div>
-      );
-    case "similar":
-      if (!similarData) return null;
-      if (!similarData.results?.length) {
-        return <div className="empty-box">No similar titles</div>;
-      }
-      return (
-        <div className="space-y-4">
-          <section className="grid-list">
-            {similarData.results.map((show) => (
-              <TvCard key={show.id} {...show} variant="linkOnly" />
-            ))}
-          </section>
-          <ListPagination
-            currentPage={similarData.page}
-            totalPages={similarData.total_pages}
-          />
-        </div>
-      );
-    default:
-      return null;
-  }
+      ) : (
+        <div className="empty-box">No recommendations available</div>
+      )}
+    </DetailSection>
+  );
+};
+
+export const TvShowDetailTabPanels = ({ tvId }: TvShowDetailTabPanelsProps) => {
+  return (
+    <div className="space-y-8">
+      <Suspense fallback={<EpisodesFallback />}>
+        <EpisodesSection tvId={tvId} />
+      </Suspense>
+
+      <Suspense fallback={<GridSectionFallback title="Cast" />}>
+        <CastSection tvId={tvId} />
+      </Suspense>
+
+      <Suspense fallback={<GridSectionFallback title="You Might Like" />}>
+        <RecommendationsSection tvId={tvId} />
+      </Suspense>
+
+      <LazySeriesGraphSection tvId={tvId} />
+    </div>
+  );
 };
