@@ -18,6 +18,41 @@ type WatchlistMediaResponse = MediaItem & {
   watchlistItem: WatchlistItem;
 };
 
+type TmdbDetailGenre = {
+  id: number;
+  name?: string;
+};
+
+function getWatchlistKey(item: Pick<WatchlistItem, "contentId" | "mediaType">) {
+  return `${item.mediaType}:${item.contentId}`;
+}
+
+function normalizeTmdbDetailForWatchlist(
+  data: unknown,
+  item: WatchlistItem,
+): unknown {
+  if (!data || typeof data !== "object") {
+    return data;
+  }
+
+  const detail = data as {
+    genres?: TmdbDetailGenre[];
+    genre_ids?: number[];
+    media_type?: "movie" | "tv";
+  };
+
+  return {
+    ...detail,
+    media_type: item.mediaType,
+    genre_ids:
+      detail.genre_ids ??
+      detail.genres
+        ?.map((genre) => genre.id)
+        .filter((id): id is number => typeof id === "number") ??
+      [],
+  };
+}
+
 export default async function WatchlistPage() {
   const session = await auth();
 
@@ -46,9 +81,16 @@ export default async function WatchlistPage() {
             return null;
           }
 
-          const data: unknown = await response.json();
+          const data = normalizeTmdbDetailForWatchlist(
+            await response.json(),
+            item,
+          );
           const parsed = MediaItemSchema.safeParse(data);
           if (!parsed.success) {
+            console.error(
+              `Invalid watchlist media payload for ${item.mediaType} ${item.contentId}:`,
+              parsed.error.message,
+            );
             return null;
           }
 
@@ -89,16 +131,21 @@ export default async function WatchlistPage() {
 
   // Create a map for quick lookup
   const watchlistMap = new Map(
-    watchlistItems.map((item) => [item.contentId, item]),
+    watchlistItems.map((item) => [getWatchlistKey(item), item]),
   );
 
   // Combine enriched items with watchlist data
-  const itemsWithWatchlist = enrichedItems.map((item) => {
-    const watchlistItem = watchlistMap.get(item.id);
+  const itemsWithWatchlist = enrichedItems.flatMap((item) => {
+    const mediaType = item.media_type === "tv" ? "tv" : "movie";
+    const watchlistItem = watchlistMap.get(`${mediaType}:${item.id}`);
+    if (!watchlistItem) {
+      return [];
+    }
+
     return {
       ...item,
-      media_type: watchlistItem?.mediaType || item.media_type || "movie",
-      watchlistItem: watchlistItem!,
+      media_type: watchlistItem.mediaType,
+      watchlistItem,
     };
   });
 
