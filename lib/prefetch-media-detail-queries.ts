@@ -1,13 +1,18 @@
+import { fetchAllSeasonDetails } from "@/components/tvshow/tvshow-api";
+import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
 import { queryKeys } from "@/lib/query-keys";
 import { tmdb } from "@/tmdb/api";
-import type { MediaItem, SeasonDetails, TvShowDetails } from "@/utils/typings";
+import type { MediaItem, TvShowDetails } from "@/utils/typings";
 import type { QueryClient } from "@tanstack/react-query";
 
 export async function prefetchTvShowTabQueries(
   queryClient: QueryClient,
   id: string,
 ) {
-  const [credits, images, videos, reviews, recommendations, similar] =
+  const existingDetails = queryClient.getQueryData<TvShowDetails>(
+    queryKeys.tvDetails(Number.parseInt(id, 10)),
+  );
+  const [credits, images, videos, reviews, recommendations, similar, seasons] =
     await Promise.all([
       tmdb.tv.credits({ id }),
       tmdb.tv.images({ id, langs: "en,null" }),
@@ -15,6 +20,9 @@ export async function prefetchTvShowTabQueries(
       tmdb.tv.reviews({ id, page: "1" }),
       tmdb.tv.recommendations({ id, page: "1" }),
       tmdb.tv.similar({ id, page: "1" }),
+      existingDetails
+        ? fetchAllSeasonDetails(id, existingDetails.seasons)
+        : Promise.resolve({}),
     ]);
 
   queryClient.setQueryData(queryKeys.tvTabCredits(id), credits);
@@ -26,17 +34,16 @@ export async function prefetchTvShowTabQueries(
     recommendations,
   );
   queryClient.setQueryData(queryKeys.tvTabSimilar(id, "1"), similar);
+  queryClient.setQueryData(queryKeys.tvAllSeasons(id), seasons);
 }
 
 export async function hydrateTvShowDetailQueries(
   queryClient: QueryClient,
   id: string,
-  details: TvShowDetails,
-  allSeasonDetails: Record<number, SeasonDetails>,
+  details: TvShowDetails | MediaAboveFoldDetail,
 ) {
   const numId = Number.parseInt(id, 10);
   queryClient.setQueryData(queryKeys.tvDetails(numId), details);
-  queryClient.setQueryData(queryKeys.tvAllSeasons(id), allSeasonDetails);
 }
 
 export async function prefetchMovieTabQueries(
@@ -67,7 +74,7 @@ export async function prefetchMovieTabQueries(
 export async function hydrateMovieDetailQueries(
   queryClient: QueryClient,
   id: string,
-  movie: MediaItem,
+  movie: MediaItem | MediaAboveFoldDetail,
 ) {
   const numId = Number.parseInt(id, 10);
   queryClient.setQueryData(queryKeys.movieDetails(numId), movie);
