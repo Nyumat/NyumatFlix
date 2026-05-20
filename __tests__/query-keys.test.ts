@@ -92,6 +92,16 @@ describe("queryKeys", () => {
         1399,
       ]);
     });
+
+    test("mediaAboveFold returns media-specific above-fold key", () => {
+      expect(queryKeys.mediaAboveFold("movie", "550")).toEqual([
+        "nyumatflix",
+        "media",
+        "movie",
+        "550",
+        "above-fold",
+      ]);
+    });
   });
 
   describe("key uniqueness", () => {
