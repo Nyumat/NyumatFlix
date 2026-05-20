@@ -11,10 +11,20 @@ import { queryKeys } from "@/lib/query-keys";
 import type { CanonicalMediaCard, MediaItem } from "@/utils/typings";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 const warmed = new Set<string>();
 const pending = new Map<string, Promise<MediaAboveFoldDetail | null>>();
+const MAX_WARMED_ITEMS = 250;
+
+function rememberWarmed(cacheKey: string) {
+  if (warmed.has(cacheKey)) return;
+  warmed.add(cacheKey);
+
+  if (warmed.size <= MAX_WARMED_ITEMS) return;
+  const oldest = warmed.values().next().value;
+  if (oldest) warmed.delete(oldest);
+}
 
 function getMediaType(
   item: CanonicalMediaCard | MediaItem,
@@ -56,7 +66,10 @@ async function fetchAboveFold(
       if (!response.ok) return null;
       return (await response.json()) as MediaAboveFoldDetail;
     })
-    .catch(() => null);
+    .catch(() => null)
+    .finally(() => {
+      pending.delete(cacheKey);
+    });
 
   pending.set(cacheKey, promise);
   return promise;
@@ -80,7 +93,7 @@ export function useMediaCardPrefetch(
     router.prefetch(link);
 
     if (warmed.has(cacheKey)) return;
-    warmed.add(cacheKey);
+    rememberWarmed(cacheKey);
 
     void fetchAboveFold(mediaType, item.id).then((detail) => {
       if (!detail) return;
@@ -113,6 +126,8 @@ export function useMediaCardPrefetch(
     clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
   }, []);
+
+  useEffect(() => cancelPrefetch, [cancelPrefetch]);
 
   return {
     prefetch,

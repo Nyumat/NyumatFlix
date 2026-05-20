@@ -12,7 +12,7 @@ import type { MediaItem } from "@/utils/typings";
 import { getFirstRegularSeason, isTVShow } from "@/utils/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const readImdbIdFromMediaItem = (
   item: MediaItem | undefined,
@@ -85,7 +85,6 @@ export const useMediaHero = ({
   const [youtubePlayer, setYoutubePlayer] = useState<YouTubePlayer>(null);
   const [historyLength, setHistoryLength] = useState<number>(2);
   const controls = useAnimation();
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -98,13 +97,6 @@ export const useMediaHero = ({
     setIsPlayingVideo(false);
     setIsPlayingTrailer(false);
   }, [media.length]);
-
-  useEffect(() => {
-    const ref = timeoutRef.current;
-    return () => {
-      if (ref) clearTimeout(ref);
-    };
-  }, []);
 
   useEffect(() => {
     if (!isPlayingVideo && !noSlide && !isWatch && !isPlayingTrailer) {
