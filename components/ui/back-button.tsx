@@ -33,12 +33,8 @@ export function BackButton({ className, fallbackUrl = "/" }: BackButtonProps) {
     router.prefetch(fallbackUrl);
   };
 
-  if (!mounted) {
+  if (!mounted || !PERSON_DETAIL_ROUTE.test(pathname)) {
     return <div className="h-8 w-8 shrink-0" aria-hidden />;
-  }
-
-  if (!PERSON_DETAIL_ROUTE.test(pathname)) {
-    return null;
   }
 
   return (
