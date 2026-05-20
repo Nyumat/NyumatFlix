@@ -6,7 +6,7 @@ export const getCachedMovieDetail = cache(
   async (id: string): Promise<MediaItem | null> => {
     try {
       const response = await fetch(
-        `https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US&append_to_response=videos,images,credits,recommendations,similar,keywords,reviews`,
+        `https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US&append_to_response=videos,images,credits,recommendations,similar,keywords,reviews,external_ids`,
       );
       if (!response.ok) {
         return null;
