@@ -1,6 +1,6 @@
 "use client";
 import { Download } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 // Modified HackerButton component
@@ -18,30 +18,37 @@ function HackerButton({
   const [displayText, setDisplayText] = useState(label);
   const charset = "abcdefghijklmnopqrstuvwxyz";
 
-  const randomChars = (length: number) => {
+  const randomChars = useCallback((length: number) => {
     return Array.from(
       { length },
       () => charset[Math.floor(Math.random() * charset.length)],
     ).join("");
-  };
+  }, []);
 
-  const scramble = async (input: string) => {
-    let prefix = "";
-    for (let index = 0; index < input.length; index++) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      prefix += input.charAt(index);
-      setDisplayText(prefix + randomChars(input.length - prefix.length));
-    }
-  };
+  const scramble = useCallback(
+    async (input: string, signal: AbortSignal) => {
+      let prefix = "";
+      for (let index = 0; index < input.length; index++) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        if (signal.aborted) return;
+        prefix += input.charAt(index);
+        setDisplayText(prefix + randomChars(input.length - prefix.length));
+      }
+    },
+    [randomChars],
+  );
 
   useEffect(() => {
+    const controller = new AbortController();
+
     if (triggerScramble) {
-      scramble(label);
+      void scramble(label, controller.signal);
     } else {
       setDisplayText(label);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [triggerScramble, label]);
+
+    return () => controller.abort();
+  }, [triggerScramble, label, scramble]);
 
   return (
     <span

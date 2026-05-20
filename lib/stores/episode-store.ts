@@ -25,7 +25,7 @@ interface EpisodeState {
   ) => void;
   clearSelectedEpisode: () => void;
   getEmbedUrl: () => string | null;
-  setWatchCallback: (callback: () => void) => void;
+  setWatchCallback: (callback: (() => void) | null) => void;
 }
 
 export const useEpisodeStore = create<EpisodeState>((set, get) => ({

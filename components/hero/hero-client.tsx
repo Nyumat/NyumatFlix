@@ -1718,6 +1718,10 @@ export function HeroContent({
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
     }
+
+    return () => {
+      setWatchCallback(null);
+    };
   }, [handleWatch, mediaType, setWatchCallback]);
 
   // Clear selected episode when switching to a different TV show or to a movie
