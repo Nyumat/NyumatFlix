@@ -12,8 +12,21 @@ interface ContentCardProps {
   isMobile: boolean;
   rating?: string;
   href?: string;
+  hideTitleFallback?: boolean;
 }
 
-export function ContentCard({ item, isMobile, href }: ContentCardProps) {
-  return <PosterCard item={item} isMobile={isMobile} href={href} />;
+export function ContentCard({
+  item,
+  isMobile,
+  href,
+  hideTitleFallback,
+}: ContentCardProps) {
+  return (
+    <PosterCard
+      item={item}
+      isMobile={isMobile}
+      href={href}
+      hideTitleFallback={hideTitleFallback}
+    />
+  );
 }

@@ -10,10 +10,12 @@ import {
 } from "@/components/content-grid";
 import MediaShowcaseCard from "@/components/media/media-client";
 import { useGlobalDock } from "@/components/ui/global-dock";
+import useMedia from "@/hooks/useMedia";
 import { hasPosterPath } from "@/lib/media-poster-path";
 import { useViewModeStore } from "@/lib/stores/view-mode-store";
 import type { MediaItem } from "@/utils/typings";
 import { useEffect } from "react";
+import { ContentCard } from "./content-card";
 
 function ListViewCard(props: {
   item: MediaItem;
@@ -54,6 +56,8 @@ interface MediaContentGridProps {
   "data-testid"?: string;
   /** Items per row for grid layout */
   itemsPerRow?: number;
+  /** Optional CSS width for auto-fill grid tracks */
+  gridMinItemWidth?: string;
   /** Optional map of watchlist items by contentId */
   watchlistItemsMap?: Map<number, WatchlistItem>;
   /** Optional callback for status change */
@@ -77,6 +81,7 @@ export function MediaContentGrid({
   dockPosition = "bottom-right",
   "data-testid": testId,
   itemsPerRow = 4,
+  gridMinItemWidth,
   type,
   watchlistItemsMap,
   onStatusChange,
@@ -93,6 +98,7 @@ export function MediaContentGrid({
     setViewMode: setGlobalViewMode,
     setShowDock,
   } = useGlobalDock();
+  const isMobile = useMedia("(max-width: 768px)", false);
 
   const effectiveViewMode = showDock
     ? globalViewMode
@@ -124,9 +130,13 @@ export function MediaContentGrid({
   const renderMediaCard = (item: ContentItem, viewMode: ViewMode) => {
     const mediaItem = item as MediaItem;
     const watchlistItem =
-      mediaItem.id && watchlistItemsMap
-        ? watchlistItemsMap.get(mediaItem.id)
-        : undefined;
+      "watchlistItem" in mediaItem &&
+      mediaItem.watchlistItem &&
+      typeof mediaItem.watchlistItem === "object"
+        ? (mediaItem.watchlistItem as WatchlistItem)
+        : mediaItem.id && watchlistItemsMap
+          ? watchlistItemsMap.get(mediaItem.id)
+          : undefined;
     const episodeInfo =
       mediaItem.id && episodeInfoMap
         ? episodeInfoMap.get(mediaItem.id)
@@ -138,6 +148,24 @@ export function MediaContentGrid({
           key={`${mediaItem.id}`}
           item={mediaItem}
           type={mediaItem.media_type}
+        />
+      );
+    }
+
+    if (
+      "sourceAnilistId" in mediaItem &&
+      typeof mediaItem.sourceAnilistId === "number"
+    ) {
+      const isAniListFallback =
+        "isAniListFallback" in mediaItem &&
+        mediaItem.isAniListFallback === true;
+
+      return (
+        <ContentCard
+          key={`${mediaItem.id}`}
+          item={mediaItem}
+          isMobile={!!isMobile}
+          hideTitleFallback={!isAniListFallback}
         />
       );
     }
@@ -181,6 +209,7 @@ export function MediaContentGrid({
         dockPosition={dockPosition}
         data-testid={testId ? `${testId}-grid` : "media-content-grid"}
         itemsPerRow={itemsPerRow}
+        gridMinItemWidth={gridMinItemWidth}
       />
     </div>
   );

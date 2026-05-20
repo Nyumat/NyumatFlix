@@ -32,11 +32,13 @@ export function CardMeta({
   maxGenres = 2,
   className,
 }: CardMetaProps) {
+  const isAnimeItem =
+    "sourceAnilistId" in item && typeof item.sourceAnilistId === "number";
   const rating = getRatingDisplay(item);
   const runtime = getRuntimeText(item);
   const contentRating = getContentRatingDisplay(item);
   const countryCodes = getCountryCodes(item);
-  const genreIds = getGenreIds(item);
+  const genreIds = isAnimeItem ? [] : getGenreIds(item);
   const year = getDisplayYear(item);
 
   return (
