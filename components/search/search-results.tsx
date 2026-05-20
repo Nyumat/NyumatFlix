@@ -520,7 +520,15 @@ function EnhancedPagination({
   );
 }
 
-export default function SearchResults({ query }: { query: string }) {
+export default function SearchResults({
+  query,
+  hideTitle = false,
+  hidePaginationInfo = false,
+}: {
+  query: string;
+  hideTitle?: boolean;
+  hidePaginationInfo?: boolean;
+}) {
   const {
     items,
     currentPage,
@@ -622,22 +630,29 @@ export default function SearchResults({ query }: { query: string }) {
 
         <div className="lg:col-span-9 flex flex-col">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-            <h2
-              className="text-lg md:text-xl font-medium text-primary-foreground"
-              data-testid="search-results-title"
-            >
-              Results for "{query}"
-            </h2>
-            <div
-              className="text-xs text-muted-foreground"
-              data-testid="pagination-info"
-            >
-              {totalPages > 1 && (
-                <span>
-                  Page {currentPage} of {totalPages}
-                </span>
-              )}
-            </div>
+            {!hideTitle && (
+              <h2
+                className="text-lg md:text-xl font-medium text-primary-foreground"
+                data-testid="search-results-title"
+              >
+                Results for "{query}"
+              </h2>
+            )}
+            {!hidePaginationInfo && (
+              <div
+                className={cn(
+                  "text-xs text-muted-foreground",
+                  hideTitle && "sm:ml-auto",
+                )}
+                data-testid="pagination-info"
+              >
+                {totalPages > 1 && (
+                  <span>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <EnhancedPagination

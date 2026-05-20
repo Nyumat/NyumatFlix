@@ -2,11 +2,19 @@
 
 import { Poster } from "@/components/media/media-display";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchPreview } from "@/hooks/use-search-preview";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Search } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, Clock3, Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import SearchResults from "./search-results";
@@ -14,6 +22,22 @@ import SearchResults from "./search-results";
 interface SearchComponentProps {
   onSearch?: (query: string) => void;
 }
+
+interface SearchExperienceProps {
+  initialQuery?: string;
+  onSubmit?: (query: string) => void;
+  inputClassName?: string;
+  formClassName?: string;
+  iconClassName?: string;
+  submitButtonClassName?: string;
+  submitIconClassName?: string;
+  placeholder?: string;
+  autoFocus?: boolean;
+  variant?: "page" | "dialog";
+}
+
+const SEARCH_RECENTS_KEY = "nyumatflix.search.recents";
+const MAX_RECENT_SEARCHES = 3;
 
 export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   const [query, setQuery] = useState("");
@@ -123,25 +147,119 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
 export function SearchPageClient() {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") || "";
-
-  const [query, setQuery] = useState(urlQuery);
-  const [searchQuery, setSearchQuery] = useState(urlQuery);
-  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const newQuery = searchParams.get("q") || "";
-    setQuery(newQuery);
-    setSearchQuery(newQuery);
-  }, [searchParams]);
+  return (
+    <SearchExperience
+      initialQuery={urlQuery}
+      onSubmit={(trimmedQuery) => {
+        router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+      }}
+      formClassName="relative max-w-sm md:max-w-lg mx-auto md:scale-150"
+      inputClassName="bg-black/30 backdrop-blur-md border-white/20 focus:border-primary focus:bg-black/40 shadow-xl"
+    />
+  );
+}
+
+function SearchExperience({
+  initialQuery = "",
+  onSubmit,
+  inputClassName,
+  formClassName,
+  iconClassName,
+  submitButtonClassName,
+  submitIconClassName,
+  placeholder = "Search movies and TV shows...",
+  autoFocus = false,
+  variant = "page",
+}: SearchExperienceProps) {
+  const [query, setQuery] = useState(initialQuery);
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isDialog = variant === "dialog";
+  const hasSearched = Boolean(searchQuery.trim());
+
+  const saveRecentSearch = useCallback((trimmedQuery: string) => {
+    setRecentSearches((currentRecentSearches) => {
+      const nextRecentSearches = [
+        trimmedQuery,
+        ...currentRecentSearches.filter(
+          (recentSearch) =>
+            recentSearch.toLowerCase() !== trimmedQuery.toLowerCase(),
+        ),
+      ].slice(0, MAX_RECENT_SEARCHES);
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          SEARCH_RECENTS_KEY,
+          JSON.stringify(nextRecentSearches),
+        );
+      }
+
+      return nextRecentSearches;
+    });
+  }, []);
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
       const trimmedQuery = query.trim();
       setSearchQuery(trimmedQuery);
-      router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+      if (isDialog) {
+        saveRecentSearch(trimmedQuery);
+      }
+      onSubmit?.(trimmedQuery);
     }
-  }, [query, router]);
+  }, [query, isDialog, onSubmit, saveRecentSearch]);
+
+  const handleRecentSearch = useCallback(
+    (recentSearch: string) => {
+      setQuery(recentSearch);
+      setSearchQuery(recentSearch);
+      saveRecentSearch(recentSearch);
+      onSubmit?.(recentSearch);
+    },
+    [onSubmit, saveRecentSearch],
+  );
+
+  const clearRecentSearches = useCallback(() => {
+    setRecentSearches([]);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(SEARCH_RECENTS_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+    setSearchQuery(initialQuery);
+  }, [initialQuery]);
+
+  useEffect(() => {
+    if (!isDialog || typeof window === "undefined") return;
+
+    const storedRecentSearches =
+      window.localStorage.getItem(SEARCH_RECENTS_KEY);
+    if (!storedRecentSearches) return;
+
+    try {
+      const parsedRecentSearches = JSON.parse(storedRecentSearches);
+      if (Array.isArray(parsedRecentSearches)) {
+        setRecentSearches(
+          parsedRecentSearches
+            .filter((recentSearch) => typeof recentSearch === "string")
+            .slice(0, MAX_RECENT_SEARCHES),
+        );
+      }
+    } catch {
+      window.localStorage.removeItem(SEARCH_RECENTS_KEY);
+    }
+  }, [isDialog]);
+
+  useEffect(() => {
+    if (autoFocus) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [autoFocus]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -156,19 +274,74 @@ export function SearchPageClient() {
   }, []);
 
   return (
-    <div className="w-full flex flex-col gap-8">
+    <motion.div
+      className={cn(
+        "w-full flex flex-col",
+        isDialog ? "min-h-[44vh] gap-5" : "gap-8",
+      )}
+      animate={
+        isDialog
+          ? {
+              justifyContent: hasSearched ? "flex-start" : "center",
+              gap: hasSearched ? 18 : 20,
+            }
+          : undefined
+      }
+      transition={{ type: "spring", stiffness: 300, damping: 32 }}
+    >
+      {isDialog && (
+        <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-4">
+          {hasSearched ? (
+            <motion.p
+              layout
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="px-1 text-sm text-muted-foreground"
+            >
+              Results for{" "}
+              <span className="font-medium text-foreground">
+                &quot;{searchQuery}&quot;
+              </span>
+            </motion.p>
+          ) : (
+            <DialogTitle className="text-2xl font-semibold tracking-tight text-white">
+              Search
+            </DialogTitle>
+          )}
+          <DialogClose className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-muted-foreground transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white focus:outline-hidden focus:ring-1 focus:ring-white/25">
+            <X className="size-5" />
+            <span className="sr-only">Close search</span>
+          </DialogClose>
+        </div>
+      )}
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
           handleSearch();
         }}
       >
-        <div className="relative max-w-sm md:max-w-lg mx-auto md:scale-150">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+        <motion.div
+          layout
+          className={cn(
+            isDialog
+              ? "relative mx-auto w-full max-w-xl"
+              : "relative mx-auto max-w-sm md:max-w-lg",
+            formClassName,
+          )}
+          transition={{ type: "spring", stiffness: 320, damping: 30 }}
+        >
+          <Search
+            className={cn(
+              "absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground",
+              iconClassName,
+            )}
+          />
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Search movies and TV shows..."
+            placeholder={placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -177,24 +350,112 @@ export function SearchPageClient() {
                 handleSearch();
               }
             }}
-            className="pl-10 pr-12 md:pr-16 py-3 text-base w-full rounded-xl bg-black/30 backdrop-blur-md border border-white/20 focus:border-primary focus:bg-black/40 transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground shadow-xl"
+            className={cn(
+              "pl-10 pr-12 md:pr-16 py-3 text-base w-full rounded-xl border transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground",
+              inputClassName,
+            )}
           />
-          <div className="absolute md:scale-50 right-1.5 md:right-2 top-1/2 transform -translate-y-1/2">
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 md:right-2 md:scale-50">
             <Button
               type="submit"
               variant="ghost"
               size="icon"
-              className="size-7 md:size-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+              className={cn(
+                "size-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 md:size-10",
+                submitButtonClassName,
+              )}
               disabled={!query.trim()}
             >
-              <ArrowRight className="h-4 w-4 md:h-5 md:w-5" />
+              <ArrowRight
+                className={cn("h-4 w-4 md:h-5 md:w-5", submitIconClassName)}
+              />
             </Button>
           </div>
-        </div>
+        </motion.div>
       </form>
 
-      {searchQuery && <SearchResults query={searchQuery} />}
-    </div>
+      {isDialog && !hasSearched && recentSearches.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.16, ease: "easeOut" }}
+          className="mx-auto w-full max-w-xl"
+        >
+          <div className="mb-3 flex items-center justify-between px-1.5">
+            <p className="text-sm font-medium text-muted-foreground">Recent</p>
+            <button
+              type="button"
+              onClick={clearRecentSearches}
+              className="text-sm text-muted-foreground transition-colors hover:text-white"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="space-y-1.5">
+            {recentSearches.map((recentSearch) => (
+              <button
+                type="button"
+                key={recentSearch}
+                onClick={() => handleRecentSearch(recentSearch)}
+                className="flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left text-base text-foreground/90 transition-colors hover:bg-white/10"
+              >
+                <Clock3 className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{recentSearch}</span>
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      <AnimatePresence mode="wait">
+        {hasSearched && (
+          <motion.div
+            key={searchQuery}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+            <SearchResults
+              query={searchQuery}
+              hideTitle={isDialog}
+              hidePaginationInfo={isDialog}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+export function SearchDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        hideCloseButton
+        className="max-h-[88vh] max-w-5xl overflow-y-auto border-0 bg-transparent p-5 shadow-none duration-100 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[50%] data-[state=closed]:zoom-out-100 sm:p-7"
+      >
+        <DialogDescription className="sr-only">
+          Search movies and TV shows without leaving the current page.
+        </DialogDescription>
+        <SearchExperience
+          autoFocus={open}
+          variant="dialog"
+          formClassName="max-w-xl md:max-w-xl"
+          iconClassName="left-4 size-5 text-muted-foreground"
+          inputClassName="h-14 rounded-2xl border-white/10 bg-black/55 pl-12 pr-16 text-lg shadow-none backdrop-blur-xl placeholder:text-muted-foreground/75 focus-visible:border-white/20 focus-visible:bg-black/65 focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0"
+          placeholder="Type here to search..."
+          submitButtonClassName="right-2 size-8 bg-white/10 text-muted-foreground hover:bg-white/15 hover:text-white md:size-8"
+          submitIconClassName="size-5 md:size-5"
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
 
