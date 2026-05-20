@@ -1,6 +1,8 @@
 "use client";
 
 import type { YouTubePlayer } from "@/components/hero/youtube-types";
+import type { VideasyTrailerStreamStatus } from "@/hooks/use-videasy-trailer-stream";
+import { useVideasyTrailerStream } from "@/hooks/use-videasy-trailer-stream";
 import {
   extractVideoRowsFromMediaVideos,
   selectPrimaryTrailerKey,
@@ -11,6 +13,24 @@ import { getFirstRegularSeason, isTVShow } from "@/utils/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const readImdbIdFromMediaItem = (
+  item: MediaItem | undefined,
+): string | undefined => {
+  if (!item) {
+    return undefined;
+  }
+  const fromExternal = (item as { external_ids?: { imdb_id?: string } })
+    .external_ids?.imdb_id;
+  if (typeof fromExternal === "string" && fromExternal.startsWith("tt")) {
+    return fromExternal;
+  }
+  const fromRoot = (item as { imdb_id?: string }).imdb_id;
+  if (typeof fromRoot === "string" && fromRoot.startsWith("tt")) {
+    return fromRoot;
+  }
+  return undefined;
+};
 
 export interface UseMediaHeroState {
   currentItemIndex: number;
@@ -39,18 +59,25 @@ export interface UseMediaHeroOptions {
   noSlide?: boolean;
   isWatch?: boolean;
   passedMediaType?: "tv" | "movie";
+  anilistId?: number | null | undefined;
 }
 
 export interface UseMediaHeroReturn
   extends UseMediaHeroState,
     UseMediaHeroComputed,
-    UseMediaHeroActions {}
+    UseMediaHeroActions {
+  videasyTrailerUrl: string | null;
+  videasyTrailerHlsUrl: string | null;
+  videasyTrailerStatus: VideasyTrailerStreamStatus;
+  canPlayTrailer: boolean;
+}
 
 export const useMediaHero = ({
   media,
   noSlide,
   isWatch = false,
   passedMediaType,
+  anilistId,
 }: UseMediaHeroOptions): UseMediaHeroReturn => {
   const [currentItemIndex, setCurrentItemIndex] = useState<number>(0);
   const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(false);
@@ -93,6 +120,40 @@ export const useMediaHero = ({
     [media, currentItemIndex],
   );
 
+  const imdbId = useMemo(
+    () => readImdbIdFromMediaItem(currentItem),
+    [currentItem],
+  );
+
+  const mediaType = useMemo((): "tv" | "movie" | undefined => {
+    if (passedMediaType) return passedMediaType;
+    if (pathname.includes("/tvshows/")) return "tv";
+    if (pathname.includes("/movies/")) return "movie";
+    if (pathname.includes("/watch/")) {
+      const currentMedia = media[currentItemIndex];
+      if (currentMedia) {
+        return isTVShow(currentMedia) ? "tv" : "movie";
+      }
+    }
+    return undefined;
+  }, [passedMediaType, pathname, media, currentItemIndex]);
+
+  const videasyEnabled =
+    (mediaType === "movie" || mediaType === "tv") &&
+    !isPlayingVideo &&
+    Boolean(imdbId);
+
+  const {
+    mp4Url: videasyTrailerUrl,
+    hlsUrl: videasyTrailerHlsUrl,
+    status: videasyTrailerStatus,
+  } = useVideasyTrailerStream(imdbId, videasyEnabled);
+
+  const canPlayTrailer = useMemo(() => {
+    const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);
+    return Boolean(selectPrimaryTrailerKey(rows));
+  }, [currentItem]);
+
   const handleWatch = useCallback(() => {
     setIsPlayingTrailer(false);
     setIsPlayingVideo(true);
@@ -117,13 +178,18 @@ export const useMediaHero = ({
               seasonData.episodes.length > 0
             ) {
               const firstEpisode = seasonData.episodes[0];
-              useEpisodeStore
-                .getState()
-                .setSelectedEpisode(
-                  firstEpisode,
-                  currentItem.id.toString(),
-                  firstSeason.season_number,
-                );
+              useEpisodeStore.getState().setSelectedEpisode(
+                firstEpisode,
+                currentItem.id.toString(),
+                firstSeason.season_number,
+                anilistId
+                  ? {
+                      anilistId,
+                      startEpisode: firstEpisode.episode_number,
+                      endEpisode: firstEpisode.episode_number,
+                    }
+                  : undefined,
+              );
             }
           } catch {
             // we could log this, but failure shouldn't block autoplay
@@ -153,12 +219,14 @@ export const useMediaHero = ({
     pathname,
     passedMediaType,
     currentItem,
+    anilistId,
     handleWatch,
   ]);
 
   const handlePlayTrailer = useCallback(() => {
     const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);
-    if (!selectPrimaryTrailerKey(rows)) {
+    const ytKey = selectPrimaryTrailerKey(rows);
+    if (!ytKey) {
       return;
     }
 
@@ -170,19 +238,6 @@ export const useMediaHero = ({
       setHistoryLength(window.history.length);
     }
   }, []);
-
-  const mediaType = useMemo((): "tv" | "movie" | undefined => {
-    if (passedMediaType) return passedMediaType;
-    if (pathname.includes("/tvshows/")) return "tv";
-    if (pathname.includes("/movies/")) return "movie";
-    if (pathname.includes("/watch/")) {
-      const currentMedia = media[currentItemIndex];
-      if (currentMedia) {
-        return isTVShow(currentMedia) ? "tv" : "movie";
-      }
-    }
-    return undefined;
-  }, [passedMediaType, pathname, media, currentItemIndex]);
 
   return {
     currentItemIndex,
@@ -201,6 +256,10 @@ export const useMediaHero = ({
       setIsPlayingVideo(false);
     },
     setYoutubePlayer,
+    videasyTrailerUrl,
+    videasyTrailerHlsUrl,
+    videasyTrailerStatus,
+    canPlayTrailer,
   };
 };
 

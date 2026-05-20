@@ -2,6 +2,7 @@ export type TrailerPickRow = {
   type: string;
   key: string;
   site?: string;
+  name?: string;
   official?: boolean;
   published_at?: string;
 };
@@ -16,6 +17,11 @@ const sortByOfficialThenDate = <T extends TrailerPickRow>(
   a: T,
   b: T,
 ): number => {
+  const finalTrailerRank = (v: T) =>
+    /\bfinal\s+trailer\b/i.test(v.name ?? "") ? 1 : 0;
+  const finalTrailerDiff = finalTrailerRank(b) - finalTrailerRank(a);
+  if (finalTrailerDiff !== 0) return finalTrailerDiff;
+
   const officialRank = (v: T) => (v.official === true ? 1 : 0);
   const diff = officialRank(b) - officialRank(a);
   if (diff !== 0) return diff;
