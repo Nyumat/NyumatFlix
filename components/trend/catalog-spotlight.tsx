@@ -1,12 +1,11 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { Info, Play } from "lucide-react";
 
-import { MediaPoster } from "@/components/media";
-import { MediaRating } from "@/components/media/media-shared";
+import { MediaLogo, MediaPoster } from "@/components/media";
+import { mediaMetaBadgeClass } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { pages } from "@/config/pages";
 import { cn } from "@/lib/utils";
 import { tmdb, type WithImages } from "@/tmdb/api";
@@ -25,8 +24,6 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
   mediaType,
   id,
   priority,
-  hubLink,
-  hubButtonLabel,
   badgeLabel = "Featured",
 }) => {
   if (mediaType === "movie") {
@@ -92,14 +89,13 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
             {logo ? (
               <>
                 <h2 className="sr-only">{item.title}</h2>
-                <Image
-                  src={tmdbImage.logo(logo.file_path, "w500")}
-                  className="mx-auto h-auto max-h-24 w-full max-w-md object-contain md:mx-0 md:max-h-28"
-                  alt=""
-                  height={logo.height}
-                  width={logo.width}
-                  priority={priority}
-                  aria-hidden
+                <MediaLogo
+                  logo={logo}
+                  title={item.title}
+                  size="large"
+                  maxHeight="112px"
+                  maxWidth="448px"
+                  className="mx-auto my-2 md:mx-0"
                 />
               </>
             ) : (
@@ -109,38 +105,42 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
             )}
 
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-              <MediaRating
-                average={item.vote_average}
-                count={item.vote_count}
-              />
               {item.genres.slice(0, 4).map((genre) => (
                 <Link
                   href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                   key={genre.id}
                 >
-                  <Badge variant="secondary" className="select-none">
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      mediaMetaBadgeClass,
+                      "select-none font-medium",
+                    )}
+                  >
                     {genre.name}
                   </Badge>
                 </Link>
               ))}
             </div>
 
-            <p className="line-clamp-4 text-pretty text-sm text-muted-foreground sm:text-base">
+            <p className="line-clamp-4 text-pretty text-sm text-muted-foreground sm:text-base max-w-xl">
               {item.overview}
             </p>
 
             <div className="flex flex-col items-center gap-3 pt-2 sm:flex-row md:justify-start">
               <Link
-                href={`${pages.movie.root.link}/${item.id}`}
-                className={buttonVariants({ size: "lg", variant: "default" })}
+                href={`${pages.movie.root.link}/${item.id}?autoplay=true`}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/60 bg-white px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
               >
-                Watch Now <ArrowRight className="ml-2 size-4" aria-hidden />
+                <Play className="mr-2 size-4 fill-black text-black" />
+                Play
               </Link>
               <Link
-                href={hubLink}
-                className={buttonVariants({ size: "lg", variant: "outline" })}
+                href={`${pages.movie.root.link}/${item.id}`}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-md transition hover:border-white/40 hover:bg-white/20 hover:shadow-xl"
               >
-                {hubButtonLabel}
+                <Info className="mr-2 size-4" />
+                See More
               </Link>
             </div>
           </div>
@@ -211,14 +211,13 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
           {logo ? (
             <>
               <h2 className="sr-only">{item.name}</h2>
-              <Image
-                src={tmdbImage.logo(logo.file_path, "w500")}
-                className="mx-auto h-auto max-h-24 w-full max-w-md object-contain md:mx-0 md:max-h-28"
-                alt=""
-                height={logo.height}
-                width={logo.width}
-                priority={priority}
-                aria-hidden
+              <MediaLogo
+                logo={logo}
+                title={item.name}
+                size="large"
+                maxHeight="112px"
+                maxWidth="448px"
+                className="mx-auto my-2 md:mx-0"
               />
             </>
           ) : (
@@ -228,13 +227,15 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-            <MediaRating average={item.vote_average} count={item.vote_count} />
             {item.genres.slice(0, 4).map((genre) => (
               <Link
                 href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                 key={genre.id}
               >
-                <Badge variant="secondary" className="select-none">
+                <Badge
+                  variant="secondary"
+                  className={cn(mediaMetaBadgeClass, "select-none font-medium")}
+                >
                   {genre.name}
                 </Badge>
               </Link>
@@ -247,16 +248,18 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
 
           <div className="flex flex-col items-center gap-3 pt-2 sm:flex-row md:justify-start">
             <Link
-              href={`${pages.tv.root.link}/${item.id}`}
-              className={buttonVariants({ size: "lg", variant: "default" })}
+              href={`${pages.tv.root.link}/${item.id}?autoplay=true`}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/60 bg-white px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
             >
-              Watch Now <ArrowRight className="ml-2 size-4" aria-hidden />
+              <Play className="mr-2 size-4 fill-black text-black" />
+              Play
             </Link>
             <Link
-              href={hubLink}
-              className={buttonVariants({ size: "lg", variant: "outline" })}
+              href={`${pages.tv.root.link}/${item.id}`}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-md transition hover:border-white/40 hover:bg-white/20 hover:shadow-xl"
             >
-              {hubButtonLabel}
+              <Info className="mr-2 size-4" />
+              See More
             </Link>
           </div>
         </div>
