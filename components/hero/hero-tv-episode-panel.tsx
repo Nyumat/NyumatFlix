@@ -11,21 +11,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import {
   matchesEpisodeSearch,
   parseEpisodeSearchQuery,
 } from "@/lib/parse-episode-search-query";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { buildEpisodeIndex, type IndexedEpisode } from "@/lib/tv-episode-index";
 import { cn } from "@/lib/utils";
 import { Episode, SeasonDetails, TvShowDetails } from "@/utils/typings";
-import { ChevronLeft, ChevronRight, Search, Tv } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowDownAZ, ArrowUpZA, Search, Tv } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type HeroTvEpisodePanelProps = {
   tvId: string;
   details: TvShowDetails;
-  allSeasonDetails: Record<number, SeasonDetails>;
+  allSeasonDetails?: Record<number, SeasonDetails>;
 };
 
 export function HeroTvEpisodePanel({
@@ -33,6 +36,7 @@ export function HeroTvEpisodePanel({
   details,
   allSeasonDetails,
 }: HeroTvEpisodePanelProps) {
+  const isHydrated = useIsHydrated();
   const seasonNumbers = useMemo(
     () =>
       (details.seasons ?? [])
@@ -40,11 +44,6 @@ export function HeroTvEpisodePanel({
         .map((s) => s.season_number)
         .sort((a, b) => a - b),
     [details.seasons],
-  );
-
-  const episodeIndex = useMemo(
-    () => buildEpisodeIndex(allSeasonDetails),
-    [allSeasonDetails],
   );
 
   const {
@@ -66,6 +65,15 @@ export function HeroTvEpisodePanel({
   });
 
   const [query, setQuery] = useState("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [loadedSeasonDetails, setLoadedSeasonDetails] = useState<
+    Record<number, SeasonDetails>
+  >(() => allSeasonDetails ?? {});
+
+  const episodeIndex = useMemo(
+    () => buildEpisodeIndex(loadedSeasonDetails),
+    [loadedSeasonDetails],
+  );
 
   const parsedQuery = useMemo(() => parseEpisodeSearchQuery(query), [query]);
 
@@ -75,44 +83,69 @@ export function HeroTvEpisodePanel({
     }
   }, [storeSeason, seasonNumbers]);
 
-  const seasonIndex = seasonNumbers.indexOf(selectedSeason);
-  const canPrev = seasonIndex > 0;
-  const canNext = seasonIndex >= 0 && seasonIndex < seasonNumbers.length - 1;
+  const selectedSeasonQuery = useQuery({
+    queryKey: [
+      "nyumatflix",
+      "media",
+      "tv",
+      Number(tvId),
+      "season",
+      selectedSeason,
+    ],
+    queryFn: () => fetchSeasonDetails(tvId, selectedSeason),
+    enabled:
+      isHydrated &&
+      seasonNumbers.includes(selectedSeason) &&
+      !loadedSeasonDetails[selectedSeason],
+    staleTime: 60 * 60 * 1000,
+  });
 
-  const handlePrev = useCallback(() => {
-    if (!canPrev) return;
-    setSelectedSeason(seasonNumbers[seasonIndex - 1]!);
-  }, [canPrev, seasonIndex, seasonNumbers]);
-
-  const handleNext = useCallback(() => {
-    if (!canNext) return;
-    setSelectedSeason(seasonNumbers[seasonIndex + 1]!);
-  }, [canNext, seasonIndex, seasonNumbers]);
+  useEffect(() => {
+    const seasonDetail = selectedSeasonQuery.data;
+    if (!seasonDetail) return;
+    setLoadedSeasonDetails((current) => ({
+      ...current,
+      [seasonDetail.season_number]: seasonDetail,
+    }));
+  }, [selectedSeasonQuery.data]);
 
   const seasonEpisodes = useMemo(() => {
-    return allSeasonDetails[selectedSeason]?.episodes ?? [];
-  }, [allSeasonDetails, selectedSeason]);
+    return loadedSeasonDetails[selectedSeason]?.episodes ?? [];
+  }, [loadedSeasonDetails, selectedSeason]);
 
   const searchActive = query.trim().length > 0;
 
   const displayedList: IndexedEpisode[] = useMemo(() => {
-    if (!query.trim()) {
-      return seasonEpisodes.map((episode) => ({
-        episode,
-        seasonNumber: selectedSeason,
-      }));
-    }
-    return episodeIndex.filter(({ episode, seasonNumber }) => {
-      const titleLower = (episode.name || "").toLowerCase();
-      return matchesEpisodeSearch(
-        episode,
-        seasonNumber,
-        titleLower,
-        parsedQuery,
-        query.trim(),
-      );
+    const source = !query.trim()
+      ? seasonEpisodes.map((episode) => ({
+          episode,
+          seasonNumber: selectedSeason,
+        }))
+      : episodeIndex.filter(({ episode, seasonNumber }) => {
+          const titleLower = (episode.name || "").toLowerCase();
+          return matchesEpisodeSearch(
+            episode,
+            seasonNumber,
+            titleLower,
+            parsedQuery,
+            query.trim(),
+          );
+        });
+
+    return [...source].sort((a, b) => {
+      const seasonDelta = a.seasonNumber - b.seasonNumber;
+      const episodeDelta = a.episode.episode_number - b.episode.episode_number;
+      const delta = seasonDelta || episodeDelta;
+      return sortDirection === "asc" ? delta : -delta;
     });
-  }, [episodeIndex, parsedQuery, query, seasonEpisodes, selectedSeason]);
+  }, [
+    episodeIndex,
+    parsedQuery,
+    query,
+    seasonEpisodes,
+    selectedSeason,
+    sortDirection,
+  ]);
 
   const handleEpisodeClick = useCallback(
     (episode: Episode, episodeSeason: number) => {
@@ -134,30 +167,35 @@ export function HeroTvEpisodePanel({
     return null;
   }
 
+  if (!isHydrated) {
+    return (
+      <div className="flex h-[min(680px,72vh)] w-full flex-col gap-5">
+        <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="h-12 w-full rounded-lg border border-border/80 bg-card/50 sm:w-56" />
+            <div className="h-12 min-w-0 flex-1 rounded-lg border border-border/80 bg-card/50" />
+            <div className="h-12 w-12 shrink-0 rounded-lg border border-border/80 bg-card/50" />
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 pr-1">
+          <div className="space-y-3 pb-1 pt-0.5">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-28 rounded-xl border border-border/70 bg-card/25"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={cn(
-        "flex w-full flex-col gap-2 rounded-xl border border-white/15 bg-black/45 p-3 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-4",
-        "h-[min(420px,50vh)] ring-1 ring-white/5 lg:h-[min(520px,calc(75vh-9rem))]",
-      )}
-    >
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-        Episodes
-      </p>
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={!canPrev}
-          onClick={handlePrev}
-          aria-label="Previous season"
-          className="h-9 shrink-0 border border-white/10 bg-white/6 px-2 text-foreground hover:bg-white/10 dark:border-white/15"
-        >
-          <ChevronLeft className="h-4 w-4 sm:mr-0.5" aria-hidden />
-          <span className="hidden text-xs sm:inline">Prev</span>
-        </Button>
-        <div className="relative min-w-0 flex-1">
+    <div className={cn("flex h-[min(680px,72vh)] w-full flex-col gap-5")}>
+      <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Select
             value={String(selectedSeason)}
             onValueChange={(value) => setSelectedSeason(Number(value))}
@@ -165,13 +203,13 @@ export function HeroTvEpisodePanel({
             <SelectTrigger
               aria-label="Select season"
               className={cn(
-                "h-9 w-full cursor-pointer rounded-md border border-white/15 bg-white/8 py-2 shadow-none dark:border-white/20 dark:bg-white/8",
+                "h-12 w-full cursor-pointer rounded-lg border-border/80 bg-card/50 px-4 text-base shadow-none sm:w-56",
                 "focus:ring-offset-background",
               )}
             >
               <SelectValue placeholder="Season" />
             </SelectTrigger>
-            <SelectContent className="border-white/15 bg-popover/95 dark:border-white/20">
+            <SelectContent className="border-border bg-popover/95">
               {seasonNumbers.map((num) => (
                 <SelectItem key={num} value={String(num)}>
                   Season {num}
@@ -179,35 +217,46 @@ export function HeroTvEpisodePanel({
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={!canNext}
-          onClick={handleNext}
-          aria-label="Next season"
-          className="h-9 shrink-0 border border-white/10 bg-white/6 px-2 text-foreground hover:bg-white/10 dark:border-white/15"
-        >
-          <span className="hidden text-xs sm:inline">Next</span>
-          <ChevronRight className="h-4 w-4 sm:ml-0.5" aria-hidden />
-        </Button>
-      </div>
 
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <Input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search all episodes"
-          aria-label="Search episodes across all seasons"
-          suppressHydrationWarning
-          className="h-10 rounded-full border-white/20 bg-white/6 pl-9 text-sm placeholder:text-muted-foreground/80 dark:border-white/15 dark:bg-white/6"
-        />
+          <div className="relative min-w-0 flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search episode..."
+              aria-label="Search episodes across all seasons"
+              suppressHydrationWarning
+              className="h-12 rounded-lg border-border/80 bg-card/50 pl-9 text-base placeholder:text-muted-foreground/80"
+            />
+          </div>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              setSortDirection((current) =>
+                current === "asc" ? "desc" : "asc",
+              )
+            }
+            aria-label={
+              sortDirection === "asc"
+                ? "Sort newest episodes first"
+                : "Sort oldest episodes first"
+            }
+            className="h-12 w-12 shrink-0 rounded-lg border border-border/80 bg-card/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          >
+            {sortDirection === "asc" ? (
+              <ArrowDownAZ className="h-5 w-5" aria-hidden />
+            ) : (
+              <ArrowUpZA className="h-5 w-5" aria-hidden />
+            )}
+          </Button>
+        </div>
       </div>
 
       {searchActive ? (
@@ -217,8 +266,15 @@ export function HeroTvEpisodePanel({
       ) : null}
 
       <ScrollArea className="min-h-0 flex-1 pr-1">
-        <div className="space-y-2 pb-1 pt-0.5">
-          {displayedList.length === 0 ? (
+        <div className="space-y-3 pb-1 pt-0.5">
+          {selectedSeasonQuery.isLoading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-28 rounded-xl border border-border/70 bg-card/25"
+              />
+            ))
+          ) : displayedList.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {!searchActive && seasonEpisodes.length === 0
                 ? "No episodes for this season."
@@ -234,13 +290,13 @@ export function HeroTvEpisodePanel({
                   onClick={() => handleEpisodeClick(episode, epSeason)}
                   aria-current={active ? "true" : undefined}
                   className={cn(
-                    "flex w-full gap-3 rounded-lg border p-2 text-left transition-colors",
-                    "border-transparent bg-white/4 hover:border-white/15 hover:bg-white/[0.07]",
+                    "group flex w-full gap-4 rounded-xl border p-3 text-left transition-colors sm:gap-5 sm:p-4",
+                    "border-border/80 bg-card/35 hover:border-primary/35 hover:bg-card/70",
                     active &&
-                      "border-primary/50 bg-primary/15 ring-1 ring-primary/30",
+                      "border-primary/70 bg-primary/10 ring-1 ring-primary/25",
                   )}
                 >
-                  <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-md bg-muted ring-1 ring-white/10 sm:h-16 sm:w-28">
+                  <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border sm:h-24 sm:w-44">
                     {episode.still_path ? (
                       <Image
                         src={`https://image.tmdb.org/t/p/w300${episode.still_path}`}
@@ -257,26 +313,44 @@ export function HeroTvEpisodePanel({
                         />
                       </div>
                     )}
+                    <span className="absolute bottom-2 left-2 flex h-7 min-w-7 items-center justify-center rounded-md bg-background/85 px-2 text-sm font-semibold text-foreground ring-1 ring-border backdrop-blur">
+                      {episode.episode_number}
+                    </span>
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 self-center">
                     {searchActive || epSeason !== selectedSeason ? (
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-primary/90">
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-primary">
                         Season {epSeason}
                       </p>
                     ) : null}
-                    <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
-                      {episode.episode_number}. {episode.name}
+                    <p
+                      className={cn(
+                        "line-clamp-2 text-base font-semibold leading-snug text-foreground sm:text-lg",
+                        active && "text-primary",
+                      )}
+                    >
+                      {episode.name}
                     </p>
-                    {episode.air_date ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {new Date(episode.air_date).toLocaleDateString(
-                          "en-US",
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          },
-                        )}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                      {episode.runtime ? (
+                        <span>{episode.runtime} min</span>
+                      ) : null}
+                      {episode.air_date ? (
+                        <span>
+                          {new Date(episode.air_date).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )}
+                        </span>
+                      ) : null}
+                    </div>
+                    {episode.overview ? (
+                      <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
+                        {episode.overview}
                       </p>
                     ) : null}
                   </div>
