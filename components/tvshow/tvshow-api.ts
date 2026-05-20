@@ -6,7 +6,7 @@ import { Season, SeasonDetails, TvShowDetails } from "@/utils/typings";
 export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
   try {
     const response = await fetch(
-      `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US&append_to_response=videos,images,credits,recommendations,similar,keywords,reviews,content_ratings,aggregate_credits,images`,
+      `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US&append_to_response=videos,images,credits,recommendations,similar,keywords,reviews,content_ratings,aggregate_credits,external_ids`,
     );
     if (!response.ok) {
       throw new Error(`Failed to fetch TV show details: ${response.status}`);

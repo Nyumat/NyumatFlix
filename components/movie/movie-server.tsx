@@ -7,7 +7,7 @@ import { Movie } from "@/tmdb/models";
 import { tmdb } from "@/tmdb/api";
 import { MovieListType, WithImages } from "@/tmdb/api";
 import { format, tmdbImage } from "@/tmdb/utils";
-import { ArrowRight } from "lucide-react";
+import { Info, Play } from "lucide-react";
 
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
@@ -15,7 +15,10 @@ import { cn, formatValue, getRandomItems } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { MediaPoster } from "@/components/media";
-import { MediaBackdrop, MediaRating } from "@/components/media/media-shared";
+import {
+  MediaBackdrop,
+  mediaMetaBadgeClass,
+} from "@/components/media/media-shared";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { MovieCard } from "./movie-card";
 
@@ -173,7 +176,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
           {logo ? (
             <Image
               src={tmdbImage.logo(logo.file_path, "w500")}
-              className="mx-auto my-6 w-[min(58%,15rem)] md:my-8 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
+              className="mx-auto my-2 w-[min(58%,15rem)] md:my-2 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
               alt={item.title}
               height={logo.height}
               width={logo.width}
@@ -184,33 +187,41 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
             </h1>
           )}
 
-          <div>
-            <MediaRating average={item.vote_average} count={item.vote_count} />
+          <div className="flex flex-wrap items-center justify-center gap-2">
             {item.genres.map((genre) => (
               <Link
                 href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                 key={genre.id}
               >
-                <Badge variant="secondary" className="ml-2 select-none">
+                <Badge
+                  variant="secondary"
+                  className={cn(mediaMetaBadgeClass, "select-none font-medium")}
+                >
                   {genre.name}
                 </Badge>
               </Link>
             ))}
           </div>
 
-          <p className="line-clamp-3 text-sm text-muted-foreground md:text-lg">
+          <p className="line-clamp-3 text-sm text-muted-foreground md:text-lg max-w-xl">
             {item.overview}
           </p>
 
-          <div className="flex flex-col items-center justify-center gap-4 md:flex-row">
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href={`${pages.movie.root.link}/${item.id}?autoplay=true`}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/60 bg-white px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
+            >
+              <Play className="mr-2 size-4 fill-black text-black" />
+              Play
+            </Link>
+
             <Link
               href={`${pages.movie.root.link}/${item.id}`}
-              className={buttonVariants({
-                size: "lg",
-                variant: "default",
-              })}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-md transition hover:border-white/40 hover:bg-white/20 hover:shadow-xl"
             >
-              Watch Now <ArrowRight className="ml-2 size-4" />
+              <Info className="mr-2 size-4" />
+              See More
             </Link>
           </div>
         </div>

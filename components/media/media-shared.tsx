@@ -9,7 +9,10 @@ import {
 } from "@/components/ui/tooltip";
 import { Icons } from "@/components/icons";
 import { pages } from "@/config";
-import { hasPosterPath } from "@/lib/media-poster-path";
+import {
+  hasPosterPath,
+  sortWithProfilePathFirst,
+} from "@/lib/media-poster-path";
 import { cn, formatValue } from "@/lib/utils";
 import {
   type Cast,
@@ -20,7 +23,7 @@ import {
 } from "@/tmdb/models";
 import type { BackdropSize } from "@/tmdb/utils";
 import { format, tmdbImage } from "@/tmdb/utils";
-import { User } from "lucide-react";
+import { Star, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import React, { type ComponentProps } from "react";
@@ -94,7 +97,10 @@ interface MediaRatingProps extends BadgeProps {
 }
 
 const ratingBadgeClass =
-  "inline-flex w-fit min-w-12 shrink-0 justify-center tabular-nums";
+  "inline-flex w-fit shrink-0 justify-center tabular-nums";
+
+export const mediaMetaBadgeClass =
+  "h-6 rounded-full border-white/25 bg-white/12 px-2.5 py-0 text-xs font-semibold leading-none text-white shadow-sm shadow-black/20 backdrop-blur-md hover:border-white/35 hover:bg-white/18";
 
 export const MediaRating: React.FC<MediaRatingProps> = ({
   average,
@@ -105,10 +111,22 @@ export const MediaRating: React.FC<MediaRatingProps> = ({
 }) => {
   const badge = (
     <Badge
-      className={cn("items-center gap-1", ratingBadgeClass, className)}
+      variant="secondary"
+      className={cn(
+        mediaMetaBadgeClass,
+        "items-center gap-1.5",
+        ratingBadgeClass,
+        className,
+      )}
       {...props}
     >
-      {average ? average.toFixed(1) : "N/A"}
+      <Star
+        className="size-3 fill-pink-500 text-pink-500 drop-shadow-[0_0_5px_rgba(236,72,153,0.55)]"
+        aria-hidden
+      />
+      <span className="leading-none">
+        {average ? average.toFixed(1) : "N/A"}
+      </span>
     </Badge>
   );
 
@@ -136,6 +154,9 @@ type MediaCastCardProps = {
   character: string;
 };
 
+export const mediaCastGridClass =
+  "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5";
+
 export const MediaCastCard: React.FC<MediaCastCardProps> = ({
   id,
   name,
@@ -143,11 +164,20 @@ export const MediaCastCard: React.FC<MediaCastCardProps> = ({
   character,
 }) => (
   <Link href={`${pages.person.detail.link}/${id}`} prefetch={false}>
-    <MediaCardRoot>
-      <MediaPoster image={profile_path ?? undefined} alt={name} />
-      <MediaCardContent>
-        <MediaCardTitle>{name}</MediaCardTitle>
-        <MediaCardExcerpt>{character}</MediaCardExcerpt>
+    <MediaCardRoot className="rounded-xl">
+      <MediaPoster
+        image={profile_path ?? undefined}
+        alt={name}
+        size="w342"
+        missingImagePlaceholder="person"
+      />
+      <MediaCardContent className="mt-1.5">
+        <MediaCardTitle className="line-clamp-2 text-sm leading-snug">
+          {name}
+        </MediaCardTitle>
+        <MediaCardExcerpt className="line-clamp-2 text-xs leading-snug md:text-xs">
+          {character}
+        </MediaCardExcerpt>
       </MediaCardContent>
     </MediaCardRoot>
   </Link>
@@ -161,7 +191,11 @@ export const MediaCrewCard: React.FC<Crew> = ({
 }) => (
   <Link href={`${pages.person.detail.link}/${id}`} prefetch={false}>
     <MediaCardRoot>
-      <MediaPoster image={profile_path ?? undefined} alt={name} />
+      <MediaPoster
+        image={profile_path ?? undefined}
+        alt={name}
+        missingImagePlaceholder="person"
+      />
       <MediaCardContent>
         <MediaCardTitle>{name}</MediaCardTitle>
         <MediaCardExcerpt>{job}</MediaCardExcerpt>
@@ -185,8 +219,8 @@ export const MediaCreditsList = ({
     <section className="space-y-12">
       <div>
         {cast.length > 0 ? (
-          <div className="grid-list">
-            {cast.map((castMember) => (
+          <div className={mediaCastGridClass}>
+            {sortWithProfilePathFirst(cast).map((castMember) => (
               <MediaCastCard key={castMember.credit_id} {...castMember} />
             ))}
           </div>
@@ -202,8 +236,8 @@ export const MediaCreditsList = ({
           </Badge>
 
           {guestStars.length > 0 ? (
-            <div className="grid-list">
-              {guestStars.map((guestStar) => (
+            <div className={mediaCastGridClass}>
+              {sortWithProfilePathFirst(guestStars).map((guestStar) => (
                 <MediaCastCard key={guestStar.credit_id} {...guestStar} />
               ))}
             </div>

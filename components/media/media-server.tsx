@@ -4,6 +4,7 @@ import type { TvHeroEpisodeData } from "@/components/hero/types";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
+import { MediaDetailScrollReset } from "@/components/media/media-detail-scroll-reset";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -280,8 +281,15 @@ export function MediaDetailLayout({
   initialSeasonNumber,
   tvHeroEpisodeData,
 }: MediaDetailLayoutProps) {
+  const primary = media[0];
+  const scrollKey =
+    primary && "id" in primary
+      ? `${mediaType}-${String(primary.id)}`
+      : mediaType;
+
   return (
     <PageContainer className="pb-16">
+      <MediaDetailScrollReset restoreKey={scrollKey} />
       <MediaDetailHero
         media={media}
         noSlide
@@ -301,7 +309,7 @@ export function MediaDetailLayout({
           <ContentContainer
             className={
               contentContainerClassName ||
-              "container mx-auto px-3 sm:px-4 lg:px-4 pt-2! sm:pt-4! lg:pt-6! mt-0!"
+              "container mx-auto px-3 sm:px-4 lg:px-4 pt-10! sm:pt-12! lg:pt-16! mt-0!"
             }
           >
             {sectionNav}
