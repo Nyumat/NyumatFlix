@@ -126,6 +126,37 @@ const trending = {
   },
 };
 
+const anime = {
+  root: {
+    title: "Anime",
+    link: "/anime",
+  },
+  trendingAnime: {
+    title: "Trending Anime",
+    link: "/anime/browse",
+  },
+  popularAnime: {
+    title: "Popular Anime",
+    link: "/anime/browse?sort=POPULARITY_DESC",
+  },
+  topAnime: {
+    title: "Top Rated Anime",
+    link: "/anime/browse?sort=SCORE_DESC",
+  },
+  releasingAnime: {
+    title: "Releasing Anime",
+    link: "/anime/browse?sort=POPULARITY_DESC&status=RELEASING",
+  },
+  actionAnime: {
+    title: "Action Anime",
+    link: "/anime/browse?sort=POPULARITY_DESC&genres=Action",
+  },
+  romanceAnime: {
+    title: "Romance Anime",
+    link: "/anime/browse?sort=POPULARITY_DESC&genres=Romance",
+  },
+};
+
 const collection = {
   root: {
     title: "Collections",
@@ -150,6 +181,7 @@ export const pages = {
   tv,
   people,
   trending,
+  anime,
   collection,
   search,
   person,
