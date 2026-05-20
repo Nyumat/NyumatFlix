@@ -2,6 +2,7 @@
 
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { Card } from "@/components/ui/card";
+import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
 import { Icons } from "@/lib/icons";
 import {
   getBackdropPath,
@@ -9,9 +10,10 @@ import {
   getHref,
   getPosterPath,
 } from "@/lib/cards";
+import { tmdbImage } from "@/tmdb/utils";
 import type { CanonicalMediaCard, MediaItem } from "@/utils/typings";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { CardMeta } from "./card-meta";
 
 type HorizontalCardProps = {
@@ -25,23 +27,28 @@ export function HorizontalCard({
   testIdPrefix = "horizontal-card",
   overviewLines = "line-clamp-2 md:line-clamp-3",
 }: HorizontalCardProps) {
-  const router = useRouter();
   const title = getDisplayTitle(item);
   const href = getHref(item);
   const posterPath = getPosterPath(item) ?? undefined;
   const backdropPath = getBackdropPath(item);
   const backdropUrl = backdropPath
-    ? `https://image.tmdb.org/t/p/w1280${backdropPath}`
+    ? tmdbImage.backdrop(backdropPath, "w780")
     : undefined;
+  const { prefetch, schedulePrefetch, cancelPrefetch } = useMediaCardPrefetch(
+    item,
+    href,
+  );
 
   return (
     <Card
       className="group relative overflow-hidden bg-card/40 backdrop-blur-xl border border-white/10 hover:border-primary/50 transition-all duration-500 cursor-pointer shadow-2xl h-full"
-      onClick={() => router.push(href)}
-      onMouseEnter={() => router.prefetch(href)}
       data-testid={`${testIdPrefix}-${item.id}`}
       data-media-type={item.media_type}
       data-content-id={item.id}
+      onPointerEnter={schedulePrefetch}
+      onPointerLeave={cancelPrefetch}
+      onFocus={schedulePrefetch}
+      onTouchStart={prefetch}
     >
       {backdropUrl && (
         <div className="absolute inset-0 opacity-15 group-hover:opacity-25 transition-opacity duration-700">
@@ -95,6 +102,11 @@ export function HorizontalCard({
           )}
         </div>
       </div>
+      <Link
+        href={href}
+        className="absolute inset-0 z-40"
+        aria-label={`View ${title}`}
+      />
     </Card>
   );
 }

@@ -76,6 +76,7 @@ export interface BaseContentGridProps {
   showDock?: boolean;
   dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   itemsPerRow?: number;
+  gridMinItemWidth?: string;
 }
 
 export function BaseContentGrid({
@@ -89,6 +90,7 @@ export function BaseContentGrid({
   showViewModeControls = true,
   showDock = false,
   itemsPerRow = 4,
+  gridMinItemWidth,
 }: BaseContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
   const [isLoading, setIsLoading] = useState(true);
@@ -137,6 +139,10 @@ export function BaseContentGrid({
   const getGridClasses = () => {
     if (viewMode !== "grid") return "";
 
+    if (gridMinItemWidth) {
+      return "grid gap-4 transition-all duration-200 [grid-template-columns:repeat(auto-fill,minmax(var(--grid-min-item-width),1fr))]";
+    }
+
     const baseClasses = "flex flex-wrap gap-4 transition-all duration-200";
 
     if (gridColumns === "auto") {
@@ -148,6 +154,10 @@ export function BaseContentGrid({
 
   const getItemClasses = () => {
     if (viewMode !== "grid") return "";
+
+    if (gridMinItemWidth) {
+      return "min-w-0";
+    }
 
     if (gridColumns === "auto") {
       return "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]";
@@ -228,6 +238,13 @@ export function BaseContentGrid({
       )}
 
       <div
+        style={
+          gridMinItemWidth
+            ? ({
+                "--grid-min-item-width": gridMinItemWidth,
+              } as React.CSSProperties)
+            : undefined
+        }
         className={cn(
           viewMode === "grid" ? getGridClasses() : getListClasses(),
         )}

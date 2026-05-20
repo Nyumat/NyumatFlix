@@ -3,10 +3,11 @@
 import { MediaLogo } from "@/components/media/media-display";
 import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { tmdbImage } from "@/tmdb/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export interface RankedBackdropCardProps {
   item: MediaItem;
@@ -14,8 +15,6 @@ export interface RankedBackdropCardProps {
 }
 
 export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
-  const router = useRouter();
-
   const movieItem = isMovie(item) ? (item as Movie) : null;
   const tvShowItem = !isMovie(item) ? (item as TvShow) : null;
 
@@ -28,34 +27,21 @@ export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
     movieItem?.release_date?.substring(0, 4) ||
     tvShowItem?.first_air_date?.substring(0, 4);
 
-  const handleItemClick = () => {
-    const itemHref = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
-    router.push(itemHref);
-  };
-
-  const handleItemMouseEnter = () => {
-    const itemHref = `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
-    router.prefetch(itemHref);
-  };
+  const itemHref =
+    "href" in item && typeof item.href === "string"
+      ? item.href
+      : `/${isMovie(item) ? "movies" : "tvshows"}/${item.id}`;
 
   const backdropUrl = item.backdrop_path
-    ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
+    ? tmdbImage.backdrop(item.backdrop_path, "w1280")
     : undefined;
 
   return (
     <div
-      onClick={handleItemClick}
-      onMouseEnter={handleItemMouseEnter}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handleItemClick();
-        }
-      }}
-      role="button"
-      tabIndex={0}
       className="group relative overflow-hidden rounded-lg bg-black/40 backdrop-blur-md ring-1 ring-white/8 shadow-lg shadow-black/10 hover:shadow-xl transition-all duration-300 cursor-pointer aspect-video"
       aria-label={`View details for ${displayTitle}`}
+      role="button"
+      tabIndex={0}
     >
       {backdropUrl ? (
         <Image
@@ -115,6 +101,11 @@ export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
         <Icons.play className="w-10 h-10 sm:w-12 sm:h-12 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" />
       </div>
+      <Link
+        href={itemHref}
+        className="absolute inset-0 z-40"
+        aria-label={`View details for ${displayTitle}`}
+      />
     </div>
   );
 };

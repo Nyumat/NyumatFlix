@@ -2,8 +2,10 @@
 
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { Card } from "@/components/ui/card";
+import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
 import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { tmdbImage } from "@/tmdb/utils";
 import {
   getBackdropPath,
   getContentRatingDisplay,
@@ -16,13 +18,15 @@ import {
 import type { CanonicalMediaCard, MediaItem } from "@/utils/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useState } from "react";
 
 type PosterCardProps = {
   item: CanonicalMediaCard | MediaItem;
   isMobile?: boolean;
   href?: string;
   minimal?: boolean;
+  hideTitleFallback?: boolean;
 };
 
 export function PosterCard({
@@ -30,30 +34,33 @@ export function PosterCard({
   isMobile = false,
   href,
   minimal = false,
+  hideTitleFallback = false,
 }: PosterCardProps) {
-  const router = useRouter();
   const title = getDisplayTitle(item);
   const link = href || getHref(item);
   const isInteractive = !isMobile;
   const posterPath = getPosterPath(item) ?? undefined;
   const backdropPath = getBackdropPath(item);
   const backdropUrl = backdropPath
-    ? `https://image.tmdb.org/t/p/w342${backdropPath}`
+    ? tmdbImage.backdrop(backdropPath, "w300")
     : undefined;
   const rating = getRatingDisplay(item);
   const contentRating = getContentRatingDisplay(item);
   const year = getDisplayYear(item);
+  const [showBackdrop, setShowBackdrop] = useState(minimal);
+  const { prefetch, schedulePrefetch, cancelPrefetch } = useMediaCardPrefetch(
+    item,
+    link,
+  );
 
-  const navigate = () => router.push(link);
-  const prefetch = () => router.prefetch(link);
+  const handleIntent = () => {
+    setShowBackdrop(true);
+    schedulePrefetch();
+  };
 
   if (minimal) {
     return (
-      <Card
-        className="group relative overflow-hidden border-0 bg-card/40 backdrop-blur-md transition-all duration-300 shadow-xl cursor-pointer aspect-2/3"
-        onClick={navigate}
-        onMouseEnter={prefetch}
-      >
+      <Card className="group relative overflow-hidden border-0 bg-card/40 backdrop-blur-md transition-all duration-300 shadow-xl cursor-pointer aspect-2/3">
         {backdropUrl && (
           <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
             <Image
@@ -79,6 +86,11 @@ export function PosterCard({
             />
           </div>
         </div>
+        <Link
+          href={link}
+          className="absolute inset-0 z-40"
+          aria-label={`View ${title}`}
+        />
       </Card>
     );
   }
@@ -90,19 +102,15 @@ export function PosterCard({
         isInteractive && "transition-all duration-300 hover:border-primary/50",
       )}
       style={{ aspectRatio: "2 / 3" }}
-      onClick={navigate}
-      onMouseEnter={prefetch}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          navigate();
-        }
-      }}
       tabIndex={0}
       role="button"
       aria-label={`View ${title}`}
+      onPointerEnter={handleIntent}
+      onPointerLeave={cancelPrefetch}
+      onFocus={handleIntent}
+      onTouchStart={prefetch}
     >
-      {backdropUrl && (
+      {backdropUrl && showBackdrop && (
         <div
           className={cn(
             "absolute inset-0 pointer-events-none opacity-10",
@@ -159,13 +167,15 @@ export function PosterCard({
             "transition-all duration-500 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:bg-linear-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]",
         )}
       >
-        <MediaLogo
-          logo={item.logo}
-          align="center"
-          className="w-full max-h-10 mx-auto mb-2"
-          title={title}
-          fallbackClassName="text-sm font-semibold leading-tight line-clamp-2 mb-2"
-        />
+        {item.logo?.file_path || !hideTitleFallback ? (
+          <MediaLogo
+            logo={item.logo}
+            align="center"
+            className="w-full max-h-10 mx-auto mb-2"
+            title={title}
+            fallbackClassName="text-sm font-semibold leading-tight line-clamp-2 mb-2"
+          />
+        ) : null}
 
         <div className="flex flex-col items-center gap-2 w-full mt-auto">
           <div className="flex justify-center items-center gap-3 text-[10px] font-medium text-muted-foreground/80">
@@ -192,6 +202,11 @@ export function PosterCard({
           </div>
         </div>
       </div>
+      <Link
+        href={link}
+        className="absolute inset-0 z-40"
+        aria-label={`View ${title}`}
+      />
     </div>
   );
 }
