@@ -66,6 +66,21 @@ interface TmdbCreditsResponse {
   }>;
 }
 
+const emptyTmdbResponse = <T>(): TmdbResponse<T> => ({
+  page: 1,
+  results: [],
+  total_pages: 0,
+  total_results: 0,
+});
+
+const isNetworkFetchError = (error: unknown): boolean => {
+  if (!(error instanceof TypeError)) {
+    return false;
+  }
+
+  return error.message === "fetch failed";
+};
+
 export interface Movie {
   adult: boolean;
   backdrop_path: string;
@@ -408,7 +423,7 @@ export async function fetchTMDBData<T = MediaItem>(
 
   const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
   // Only append videos and images for detail endpoints (e.g. /movie/123 or /tv/123)
-  const appendItems = ["videos", "images"];
+  const appendItems = ["videos", "images", "external_ids"];
 
   const isDetailEndpoint = /\/(?:movie|tv)\/\d+(?:\/|$)/.test(endpoint);
   if (isDetailEndpoint) {
@@ -428,9 +443,17 @@ export async function fetchTMDBData<T = MediaItem>(
     }
   }
 
-  const response = await fetch(url.toString(), {
-    next: { revalidate: 3600 }, // cache tmdb responses for 1 hour
-  });
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      next: { revalidate: 3600 }, // cache tmdb responses for 1 hour
+    });
+  } catch (error) {
+    if (isNetworkFetchError(error)) {
+      return emptyTmdbResponse<T>();
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     logger.error(
@@ -952,6 +975,9 @@ export async function enrichMediaItemsWithLogos<
           }
           return { ...item, logo } as T;
         } catch (error) {
+          if (isNetworkFetchError(error)) {
+            return item;
+          }
           logger.error(
             `enrichMediaItemsWithLogos failed for ${mediaType} ${item.id}:`,
             error,
