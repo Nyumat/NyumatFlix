@@ -165,7 +165,7 @@ export default async function Home() {
         <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
         <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-          <section className="min-h-screen w-full pb-16 pt-6">
+          <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
             <div className="container space-y-10">
               <MovieHero
                 movies={mainFeaturedMovie}

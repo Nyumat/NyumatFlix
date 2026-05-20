@@ -2,6 +2,13 @@ import { enrichAboveFoldMediaItemsWithLogos } from "@/app/actions";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
+import { QueryPageHeader } from "@/components/catalog/query-page-header";
+import {
+  CatalogGridFallback,
+  CatalogHeroPairFallback,
+  CatalogRowFallback,
+  CatalogSpotlightFallback,
+} from "@/components/catalog/catalog-suspense-fallbacks";
 import { ContentRow } from "@/components/content/content-row";
 import { DiscoverHubToolbarDynamic } from "@/components/discover";
 import { StaticHero } from "@/components/hero";
@@ -36,6 +43,7 @@ import { tmdb } from "@/tmdb/api";
 import type { MovieWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/utils/typings";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 export const revalidate = 3600;
 const ABOVE_FOLD_LOGO_COUNT = 8;
@@ -80,6 +88,8 @@ export default async function MoviesCatalogPage(props: PageProps) {
   const { title, description } =
     getDiscoverCatalogCopy(sp, "movie") ?? getMovieCatalogListCopy(view);
   const catalogQueryParams = toCatalogQueryParams(sp);
+  const indexHref =
+    Object.keys(sp).length > 0 ? pages.movie.root.link : undefined;
 
   if (view === "discover") {
     const today = getTodayIsoDateUtc();
@@ -152,7 +162,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
           />
 
           <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-            <section className="min-h-screen w-full pb-16 pt-6">
+            <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
               <div className="container space-y-10">
                 <CatalogResultsLayout
                   mediaType="movie"
@@ -169,6 +179,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
                   queryParams={catalogQueryParams}
                   emptyTitle="No movies found for the selected filters."
                   emptyDescription="Try removing some filters or sorting differently."
+                  indexHref={indexHref}
                 />
               </div>
             </section>
@@ -240,16 +251,13 @@ export default async function MoviesCatalogPage(props: PageProps) {
         <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
         <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-          <section className="min-h-screen w-full pb-16 pt-6">
+          <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
             <div className="container space-y-10">
-              <header className="space-y-1 text-center md:text-left">
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-                  {title}
-                </h1>
-                {description ? (
-                  <p className="text-muted-foreground">{description}</p>
-                ) : null}
-              </header>
+              <QueryPageHeader
+                title={title}
+                description={description}
+                backHref={indexHref}
+              />
 
               <DiscoverHubToolbarDynamic
                 type="movie"
@@ -259,66 +267,78 @@ export default async function MoviesCatalogPage(props: PageProps) {
               />
 
               {heroFeaturedId != null ? (
-                <CatalogSpotlight
-                  mediaType="movie"
-                  id={heroFeaturedId}
-                  priority
-                  hubLink={pages.movie.catalog.resultsLink}
-                  hubButtonLabel="Browse all movies"
-                  badgeLabel="Trending today"
-                />
+                <Suspense fallback={<CatalogSpotlightFallback />}>
+                  <CatalogSpotlight
+                    mediaType="movie"
+                    id={heroFeaturedId}
+                    priority
+                    hubLink={pages.movie.catalog.resultsLink}
+                    hubButtonLabel="Browse all movies"
+                    badgeLabel="Trending today"
+                  />
+                </Suspense>
               ) : null}
 
               {hubTrendingCarousel.length > 0 ? (
-                <TrendCarousel
-                  type="movie"
-                  title={pages.trending.movie.title}
-                  link={pages.trending.movie.link}
-                  items={hubTrendingCarouselEnriched as MovieWithMediaType[]}
-                />
+                <Suspense fallback={<CatalogRowFallback />}>
+                  <TrendCarousel
+                    type="movie"
+                    title={pages.trending.movie.title}
+                    link={pages.trending.movie.link}
+                    items={hubTrendingCarouselEnriched as MovieWithMediaType[]}
+                  />
+                </Suspense>
               ) : null}
 
               {hubTrendingHeroPair.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <MovieHero
-                    movies={hubTrendingHeroPair}
-                    label="Trending now"
-                    count={2}
-                    pick="first"
-                  />
-                </div>
+                <Suspense fallback={<CatalogHeroPairFallback />}>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <MovieHero
+                      movies={hubTrendingHeroPair}
+                      label="Trending now"
+                      count={2}
+                      pick="first"
+                    />
+                  </div>
+                </Suspense>
               ) : null}
 
               {hubTopPicksRow.length > 0 ? (
-                <ContentRow
-                  variant="ranked"
-                  title={pages.movie.topRated.title}
-                  items={hubTopPicksRow.map((m) => ({
-                    ...m,
-                    media_type: "movie" as const,
-                  }))}
-                  href={pages.movie.topRated.link}
-                />
+                <Suspense fallback={<CatalogRowFallback />}>
+                  <ContentRow
+                    variant="ranked"
+                    title={pages.movie.topRated.title}
+                    items={hubTopPicksRow.map((m) => ({
+                      ...m,
+                      media_type: "movie" as const,
+                    }))}
+                    href={pages.movie.topRated.link}
+                  />
+                </Suspense>
               ) : null}
 
               {hubPopularCarousel.length > 0 ? (
-                <TrendCarousel
-                  type="movie"
-                  title="Popular"
-                  link={pages.movie.popular.discoverHubLink}
-                  items={hubPopularCarouselEnriched as MovieWithMediaType[]}
-                />
+                <Suspense fallback={<CatalogRowFallback />}>
+                  <TrendCarousel
+                    type="movie"
+                    title="Popular"
+                    link={pages.movie.popular.discoverHubLink}
+                    items={hubPopularCarouselEnriched as MovieWithMediaType[]}
+                  />
+                </Suspense>
               ) : null}
 
               {hubPopularHeroPair.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <MovieHero
-                    movies={hubPopularHeroPair}
-                    label="Popular now"
-                    count={2}
-                    pick="first"
-                  />
-                </div>
+                <Suspense fallback={<CatalogHeroPairFallback />}>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <MovieHero
+                      movies={hubPopularHeroPair}
+                      label="Popular now"
+                      count={2}
+                      pick="first"
+                    />
+                  </div>
+                </Suspense>
               ) : null}
 
               <CatalogCategoryShowcase
@@ -326,13 +346,15 @@ export default async function MoviesCatalogPage(props: PageProps) {
                 pageKey="movies"
               />
 
-              <CatalogInfiniteGrid
-                mediaType="movie"
-                initialItems={hubGridItems}
-                initialPage={currentPage}
-                totalPages={totalPages}
-                queryParams={catalogQueryParams}
-              />
+              <Suspense fallback={<CatalogGridFallback />}>
+                <CatalogInfiniteGrid
+                  mediaType="movie"
+                  initialItems={hubGridItems}
+                  initialPage={currentPage}
+                  totalPages={totalPages}
+                  queryParams={catalogQueryParams}
+                />
+              </Suspense>
             </div>
           </section>
         </ContentContainer>
@@ -376,7 +398,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
       <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-        <section className="min-h-screen w-full pb-16 pt-6">
+        <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
           <div className="container space-y-10">
             <CatalogResultsLayout
               mediaType="movie"
@@ -389,6 +411,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
               totalPages={totalPages}
               queryParams={catalogQueryParams}
               emptyTitle="No movies found for this list."
+              indexHref={indexHref}
             />
           </div>
         </section>

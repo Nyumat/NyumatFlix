@@ -2,6 +2,13 @@ import { enrichAboveFoldMediaItemsWithLogos } from "@/app/actions";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
+import { QueryPageHeader } from "@/components/catalog/query-page-header";
+import {
+  CatalogGridFallback,
+  CatalogHeroPairFallback,
+  CatalogRowFallback,
+  CatalogSpotlightFallback,
+} from "@/components/catalog/catalog-suspense-fallbacks";
 import { ContentRow } from "@/components/content/content-row";
 import { DiscoverHubToolbarDynamic } from "@/components/discover";
 import { StaticHero } from "@/components/hero";
@@ -40,6 +47,7 @@ import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/utils/typings";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 export const revalidate = 3600;
 const ABOVE_FOLD_LOGO_COUNT = 8;
@@ -85,6 +93,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     getDiscoverCatalogCopy(sp, "tv") ?? getTvCatalogListCopy(view);
   const timezone = getUserTimezone();
   const catalogQueryParams = toCatalogQueryParams(sp);
+  const indexHref = Object.keys(sp).length > 0 ? pages.tv.root.link : undefined;
 
   if (view === "discover") {
     const today = getTodayIsoDateUtc();
@@ -157,7 +166,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
           />
 
           <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-            <section className="min-h-screen w-full pb-16 pt-6">
+            <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
               <div className="container space-y-10">
                 <CatalogResultsLayout
                   mediaType="tv"
@@ -174,6 +183,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                   queryParams={catalogQueryParams}
                   emptyTitle="No TV shows found for the selected filters."
                   emptyDescription="Try removing some filters or sorting differently."
+                  indexHref={indexHref}
                 />
               </div>
             </section>
@@ -241,16 +251,13 @@ export default async function TvShowsCatalogPage(props: PageProps) {
         <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
         <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-          <section className="min-h-screen w-full pb-16 pt-6">
+          <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
             <div className="container space-y-10">
-              <header className="space-y-1 text-center md:text-left">
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-                  {title}
-                </h1>
-                {description ? (
-                  <p className="text-muted-foreground">{description}</p>
-                ) : null}
-              </header>
+              <QueryPageHeader
+                title={title}
+                description={description}
+                backHref={indexHref}
+              />
 
               <DiscoverHubToolbarDynamic
                 type="tv"
@@ -260,66 +267,78 @@ export default async function TvShowsCatalogPage(props: PageProps) {
               />
 
               {heroFeaturedId != null ? (
-                <CatalogSpotlight
-                  mediaType="tv"
-                  id={heroFeaturedId}
-                  priority
-                  hubLink={pages.tv.catalog.resultsLink}
-                  hubButtonLabel="Browse all TV shows"
-                  badgeLabel="Trending today"
-                />
+                <Suspense fallback={<CatalogSpotlightFallback />}>
+                  <CatalogSpotlight
+                    mediaType="tv"
+                    id={heroFeaturedId}
+                    priority
+                    hubLink={pages.tv.catalog.resultsLink}
+                    hubButtonLabel="Browse all TV shows"
+                    badgeLabel="Trending today"
+                  />
+                </Suspense>
               ) : null}
 
               {hubTrendingCarousel.length > 0 ? (
-                <TrendCarousel
-                  type="tv"
-                  title={pages.trending.tv.title}
-                  link={pages.trending.tv.link}
-                  items={hubTrendingCarouselEnriched as TvShowWithMediaType[]}
-                />
+                <Suspense fallback={<CatalogRowFallback />}>
+                  <TrendCarousel
+                    type="tv"
+                    title={pages.trending.tv.title}
+                    link={pages.trending.tv.link}
+                    items={hubTrendingCarouselEnriched as TvShowWithMediaType[]}
+                  />
+                </Suspense>
               ) : null}
 
               {hubTrendingHeroPair.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <TvHero
-                    tvShows={hubTrendingHeroPair}
-                    label="Trending now"
-                    count={2}
-                    pick="first"
-                  />
-                </div>
+                <Suspense fallback={<CatalogHeroPairFallback />}>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <TvHero
+                      tvShows={hubTrendingHeroPair}
+                      label="Trending now"
+                      count={2}
+                      pick="first"
+                    />
+                  </div>
+                </Suspense>
               ) : null}
 
               {hubTopPicksRow.length > 0 ? (
-                <ContentRow
-                  variant="ranked"
-                  title={pages.tv.topRated.title}
-                  items={hubTopPicksRow.map((s) => ({
-                    ...s,
-                    media_type: "tv" as const,
-                  }))}
-                  href={pages.tv.topRated.link}
-                />
+                <Suspense fallback={<CatalogRowFallback />}>
+                  <ContentRow
+                    variant="ranked"
+                    title={pages.tv.topRated.title}
+                    items={hubTopPicksRow.map((s) => ({
+                      ...s,
+                      media_type: "tv" as const,
+                    }))}
+                    href={pages.tv.topRated.link}
+                  />
+                </Suspense>
               ) : null}
 
               {hubPopularCarousel.length > 0 ? (
-                <TrendCarousel
-                  type="tv"
-                  title="Popular"
-                  link={pages.tv.popular.discoverHubLink}
-                  items={hubPopularCarouselEnriched as TvShowWithMediaType[]}
-                />
+                <Suspense fallback={<CatalogRowFallback />}>
+                  <TrendCarousel
+                    type="tv"
+                    title="Popular"
+                    link={pages.tv.popular.discoverHubLink}
+                    items={hubPopularCarouselEnriched as TvShowWithMediaType[]}
+                  />
+                </Suspense>
               ) : null}
 
               {hubPopularHeroPair.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <TvHero
-                    tvShows={hubPopularHeroPair}
-                    label="Popular now"
-                    count={2}
-                    pick="first"
-                  />
-                </div>
+                <Suspense fallback={<CatalogHeroPairFallback />}>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <TvHero
+                      tvShows={hubPopularHeroPair}
+                      label="Popular now"
+                      count={2}
+                      pick="first"
+                    />
+                  </div>
+                </Suspense>
               ) : null}
 
               <CatalogCategoryShowcase
@@ -327,13 +346,15 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                 pageKey="tv"
               />
 
-              <CatalogInfiniteGrid
-                mediaType="tv"
-                initialItems={hubGridItems}
-                initialPage={currentPage}
-                totalPages={totalPages}
-                queryParams={catalogQueryParams}
-              />
+              <Suspense fallback={<CatalogGridFallback />}>
+                <CatalogInfiniteGrid
+                  mediaType="tv"
+                  initialItems={hubGridItems}
+                  initialPage={currentPage}
+                  totalPages={totalPages}
+                  queryParams={catalogQueryParams}
+                />
+              </Suspense>
             </div>
           </section>
         </ContentContainer>
@@ -378,7 +399,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
       <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-        <section className="min-h-screen w-full pb-16 pt-6">
+        <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
           <div className="container space-y-10">
             <CatalogResultsLayout
               mediaType="tv"
@@ -391,6 +412,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
               totalPages={totalPages}
               queryParams={catalogQueryParams}
               emptyTitle="No TV shows found for this list."
+              indexHref={indexHref}
             />
           </div>
         </section>

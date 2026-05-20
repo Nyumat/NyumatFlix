@@ -127,10 +127,15 @@
       transform: translateX(calc(-50% - 1rem));
     }
   }
+
+  @keyframes auth-poster-marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
 }
 
 html {
-  scroll-behavior: smooth;
   overflow-x: hidden;
   color-scheme: dark;
 }
