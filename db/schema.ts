@@ -13,7 +13,7 @@ import postgres from "postgres";
 
 const connectionString =
   process.env.NODE_ENV === "production"
-    ? process.env.PROD_DATABASE_URL
+    ? process.env.PROD_DATABASE_URL || process.env.DATABASE_URL
     : process.env.DATABASE_URL;
 
 if (!connectionString) {
