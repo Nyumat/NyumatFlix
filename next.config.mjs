@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   redirects: async () => {
     return [
       {
@@ -69,7 +70,7 @@ const nextConfig = {
   },
   experimental: {
     taint: true,
-    browserDebugInfoInTerminal: true,
+    browserDebugInfoInTerminal: process.env.NODE_ENV !== "production",
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
