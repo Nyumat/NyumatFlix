@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { MediaPoster } from "@/components/media";
-import { MediaRating } from "@/components/media/media-shared";
+import { mediaMetaBadgeClass } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { pages } from "@/config/pages";
@@ -86,7 +86,7 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
               <h2 className="sr-only">{item.title}</h2>
               <Image
                 src={tmdbImage.logo(logo.file_path, "w500")}
-                className="mx-auto h-auto max-h-24 w-full max-w-md object-contain md:mx-0 md:max-h-28"
+                className="mx-auto my-2 h-auto max-h-24 w-full max-w-md object-contain md:mx-0 md:max-h-28"
                 alt=""
                 height={logo.height}
                 width={logo.width}
@@ -101,20 +101,22 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-            <MediaRating average={item.vote_average} count={item.vote_count} />
             {item.genres.slice(0, 4).map((genre) => (
               <Link
                 href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                 key={genre.id}
               >
-                <Badge variant="secondary" className="select-none">
+                <Badge
+                  variant="secondary"
+                  className={cn(mediaMetaBadgeClass, "select-none font-medium")}
+                >
                   {genre.name}
                 </Badge>
               </Link>
             ))}
           </div>
 
-          <p className="line-clamp-4 text-pretty text-sm text-muted-foreground sm:text-base">
+          <p className="line-clamp-4 text-pretty text-sm text-muted-foreground sm:text-base max-w-xl">
             {item.overview}
           </p>
 

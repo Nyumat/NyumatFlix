@@ -61,7 +61,7 @@ export const TrendList: React.FC<TrendListProps> = async ({
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
       <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-        <div className="container max-w-7xl space-y-8 px-2 pb-12 sm:px-4">
+        <div className="container max-w-7xl space-y-8 px-2 pb-12 pt-14 sm:px-4 md:pt-16">
           <div className="text-center">
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
               {title}
