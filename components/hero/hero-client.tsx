@@ -3,7 +3,6 @@
 import { WatchlistItem } from "@/app/watchlist/actions";
 import { getGenreNames } from "@/components/content/genre-helpers";
 import { MediaLogo, Poster } from "@/components/media/media-display";
-import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,22 +17,36 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import { GenreBadge, PrimaryGenreBadge } from "@/components/ui/genre-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
-import { useServerStore } from "@/lib/stores/server-store";
+import { ServerSelector } from "@/components/ui/server-selector";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { WatchlistButton } from "@/components/watchlist/watchlist";
+import { pages } from "@/config";
+import type { VideasyTrailerStreamStatus } from "@/hooks/use-videasy-trailer-stream";
+import { useMediaHero } from "@/hooks/useMediaHero";
 import { Icons } from "@/lib/icons";
 import {
   extractVideoRowsFromMediaVideos,
   selectPrimaryTrailerKey,
+  selectPrimaryTrailerVideo,
+  type TrailerPickRow,
 } from "@/lib/select-primary-trailer-video";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
+import { useServerStore } from "@/lib/stores/server-store";
 import { cn, logger } from "@/lib/utils";
-import { Episode, Genre, MediaItem, Movie, TvShow } from "@/utils/typings";
-import { isMovie } from "@/utils/typings";
+import {
+  getCountryFlagEmoji,
+  getFriendlyCountryName,
+} from "@/utils/country-helpers";
+import { Episode, isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
 import Fade from "embla-carousel-fade";
-import { format } from "date-fns";
 import {
   AnimatePresence,
   LegacyAnimationControls,
@@ -46,27 +59,19 @@ import {
   Globe,
   Info,
   Star,
+  ChevronDown,
+  ChevronUp,
+  Volume2,
+  VolumeX,
   X,
   Youtube,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import Script from "next/script";
-import { pages } from "@/config";
 import { usePathname, useRouter } from "next/navigation";
-import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import Script from "next/script";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { match, P } from "ts-pattern";
-import { toast } from "sonner";
-import { useMediaHero } from "@/hooks/useMediaHero";
-import { GenreBadge } from "@/components/ui/genre-badge";
-import { ServerSelector } from "@/components/ui/server-selector";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { WatchlistButton } from "@/components/watchlist/watchlist";
-import { HeroTvEpisodePanel } from "./hero-tv-episode-panel";
 import {
   BackgroundImageProps,
   CarouselDetailsProps,
@@ -75,50 +80,15 @@ import {
   MediaInfoDialogProps,
   type TvHeroEpisodeData,
 } from "./types";
-import type { YouTubePlayer } from "./youtube-types";
-
-// --- toast-utils.tsx ---
-export const showToast = {
-  info: (message: string) => {
-    toast.info(message, {
-      duration: 3000,
-      position: "top-center",
-      icon: <Info className="text-secondary" size={18} />,
-    });
-  },
-
-  error: (message: string) => {
-    toast.error(message, {
-      position: "top-center",
-      duration: 3000,
-    });
-  },
-};
+import { VideasyStreamVideo } from "./videasy-stream-video";
+import {
+  HERO_YOUTUBE_CHROMELESS_BASE,
+  type YouTubePlayer,
+} from "./youtube-types";
 
 // --- hero-gradients.tsx ---
 export function HeroGradients() {
-  return (
-    <>
-      <motion.div
-        className="absolute inset-0 bg-linear-to-r from-black via-black/20 to-transparent z-10"
-        initial={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.5 }}
-      />
-      <motion.div
-        className="absolute inset-0 bg-linear-to-l from-black via-black/20 to-transparent z-10"
-        initial={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.5 }}
-      />
-      <motion.div
-        className="absolute inset-0 bg-linear-to-t from-black via-black/50 to-transparent z-10"
-        initial={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.5 }}
-      />
-    </>
-  );
+  return null;
 }
 
 // --- hero-details.tsx ---
@@ -285,6 +255,7 @@ interface HeroButtonsProps {
   watchlistItem?: WatchlistItem | null;
   initialEpisode?: Episode | null;
   initialSeasonNumber?: number | null;
+  canPlayTrailer: boolean;
 }
 
 export function HeroButtons({
@@ -296,10 +267,46 @@ export function HeroButtons({
   watchlistItem,
   initialEpisode,
   initialSeasonNumber,
+  canPlayTrailer,
 }: HeroButtonsProps) {
   const { selectedEpisode, setSelectedEpisode } = useEpisodeStore();
   const router = useRouter();
   const pathname = usePathname();
+
+  const showEpisodeList = () => {
+    const id = String(contentId);
+    const basePath = `${pages.tv.root.link}/${id}`;
+
+    useMediaDetailTabStore
+      .getState()
+      .setMediaDetailTab("tv", id, "seasons-episodes");
+
+    const scrollToEpisodePanel = (attempt = 0) => {
+      const tabPanel =
+        document.querySelector("[data-episode-browser]") ||
+        document.getElementById("seasons-episodes-panel");
+
+      if (tabPanel) {
+        tabPanel.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return;
+      }
+
+      if (attempt < 8) {
+        window.setTimeout(() => scrollToEpisodePanel(attempt + 1), 100);
+      }
+    };
+
+    if (pathname !== basePath) {
+      router.push(basePath);
+      window.setTimeout(scrollToEpisodePanel, 100);
+      return;
+    }
+
+    requestAnimationFrame(scrollToEpisodePanel);
+  };
 
   const handleWatchClick = () => {
     // For TV shows, require episode selection
@@ -307,54 +314,7 @@ export function HeroButtons({
       const episodeToUse = selectedEpisode || initialEpisode;
 
       if (!episodeToUse) {
-        toast.error(
-          "Select an episode in the Seasons & Episodes tab, or use the desktop browser on the right.",
-          {
-            duration: 4000,
-            action: {
-              label: "Show episode list",
-              onClick: () => {
-                const id = String(contentId);
-                const basePath = `${pages.tv.root.link}/${id}`;
-                useMediaDetailTabStore
-                  .getState()
-                  .setMediaDetailTab("tv", id, "seasons-episodes");
-                const heroPanel = document.querySelector(
-                  "[data-hero-episode-browser]",
-                );
-                if (heroPanel) {
-                  heroPanel.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                  });
-                  return;
-                }
-                const tabPanel =
-                  document.querySelector("[data-episode-browser]") ||
-                  document.getElementById("seasons-episodes-panel");
-                if (tabPanel) {
-                  tabPanel.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                  });
-                  return;
-                }
-                if (pathname !== basePath) {
-                  router.push(basePath);
-                  return;
-                }
-                requestAnimationFrame(() => {
-                  document
-                    .getElementById("seasons-episodes-panel")
-                    ?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "center",
-                    });
-                });
-              },
-            },
-          },
-        );
+        showEpisodeList();
         return;
       }
 
@@ -390,38 +350,55 @@ export function HeroButtons({
       ) {
         return `Watch S${watchlistItem.lastWatchedSeason}E${watchlistItem.lastWatchedEpisode}`;
       }
-      return "Select Episode to Watch";
+      return "Episodes";
     }
-    return "Watch Now";
+    return "Play";
   };
 
-  const isWatchDisabled =
-    isUpcoming ||
-    (mediaType === "tv" &&
-      !selectedEpisode &&
-      !watchlistItem?.lastWatchedEpisode);
+  const isWatchDisabled = isUpcoming;
 
   const getDisabledTooltip = () => {
     if (isUpcoming) {
       return "This content is not yet available for streaming";
     }
-    return "Select an episode in the browser panel";
+    return "";
   };
 
   const disabledTooltip = getDisabledTooltip();
+
+  const TrailerButton = (
+    <button
+      type="button"
+      className={cn(
+        "backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
+        canPlayTrailer
+          ? "hover:bg-white/20 hover:border-white/40 hover:shadow-xl"
+          : "opacity-50 cursor-not-allowed",
+      )}
+      onClick={handlePlayTrailer}
+      disabled={!canPlayTrailer}
+      aria-disabled={!canPlayTrailer}
+      aria-label={
+        canPlayTrailer ? "Play trailer" : "Trailer not available for this title"
+      }
+    >
+      <Youtube className="mr-2 h-4 w-4" />
+      <span className="text-sm">Trailer</span>
+    </button>
+  );
 
   const WatchButton = (
     <button
       onClick={handleWatchClick}
       disabled={isWatchDisabled}
       className={cn(
-        "opacity-75 backdrop-blur-md bg-white/20 border border-white/30 text-white py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
+        "backdrop-blur-md bg-white border border-white/60 text-black py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
         isWatchDisabled
-          ? "bg-white/10 border-white/20 text-white/60 cursor-not-allowed opacity-60"
-          : "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
+          ? "bg-white/60 border-white/50 text-black/50 cursor-not-allowed"
+          : "cursor-pointer hover:bg-white/90 hover:border-white/70 hover:shadow-xl",
       )}
     >
-      <Icons.play className="mr-2 h-4 w-4" />
+      <Icons.play className="mr-2 h-4 w-4 text-black fill-black stroke-black" />
       <span className="text-sm">{getWatchButtonText()}</span>
     </button>
   );
@@ -447,13 +424,16 @@ export function HeroButtons({
         className="backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40"
       />
 
-      <button
-        className="backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg whitespace-nowrap"
-        onClick={handlePlayTrailer}
-      >
-        <Youtube className="mr-2 h-4 w-4" />
-        <span className="text-sm">Play Trailer</span>
-      </button>
+      {!canPlayTrailer ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{TrailerButton}</TooltipTrigger>
+          <TooltipContent>
+            <p>No trailer is available for this title yet.</p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        TrailerButton
+      )}
     </div>
   );
 }
@@ -465,6 +445,7 @@ export function BackgroundImage({
   title,
   logo,
   hideTitle = false,
+  overlayClassName,
 }: BackgroundImageProps) {
   const backgroundImage = imageUrl;
 
@@ -484,10 +465,13 @@ export function BackgroundImage({
         className={`${isFullPage ? "" : "rounded-lg"} object-cover w-full h-full`}
         priority
       />
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/50 to-transparent opacity-70" />
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-black/70 via-black/50 to-transparent opacity-70" />
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-l from-black/70 via-black/50 to-transparent opacity-70" />
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-black/70 via-black/50 to-transparent opacity-70" />
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 bg-black/70",
+          overlayClassName,
+        )}
+      />
+
       {!hideTitle && (isFullPage || logo) && title && (
         <div className="absolute inset-0 flex items-center justify-center">
           {logo && typeof logo === "object" && "file_path" in logo ? (
@@ -540,6 +524,7 @@ export function StaticHero({
     pathname === "/" ||
     pathname === "/movies" ||
     pathname === "/tvshows" ||
+    pathname.startsWith("/anime") ||
     pathname.startsWith("/people") ||
     pathname.startsWith("/trending") ||
     pathname.startsWith("/collection") ||
@@ -565,14 +550,13 @@ export function StaticHero({
         title={route || title}
         logo={logo}
         hideTitle={hideTitle}
-      />
-      <div
-        className={cn(
-          "pointer-events-none fixed inset-0 z-1",
-          isCatalogPage
-            ? "bg-linear-to-b from-background/65 via-background/30 to-background/95 backdrop-blur-xs"
-            : "absolute inset-0 -z-10 bg-black/50 opacity-70 dark:bg-black/70",
-        )}
+        overlayClassName={
+          isWatchlistPage
+            ? "bg-black/90"
+            : isCatalogPage
+              ? "bg-black/80"
+              : undefined
+        }
       />
     </>
   );
@@ -1087,6 +1071,11 @@ interface HeroBackgroundProps {
   setYoutubePlayer(player: YouTubePlayer): void;
   /** Anilist ID for anime content */
   anilistId?: number | null | undefined;
+  videasyTrailerUrl: string | null;
+  videasyTrailerHlsUrl: string | null;
+  videasyTrailerStatus: VideasyTrailerStreamStatus;
+  isAmbientMuted: boolean;
+  onAmbientAutoplayBlocked(): void;
 }
 
 /**
@@ -1105,12 +1094,40 @@ export function HeroBackground({
   youtubePlayer,
   setYoutubePlayer,
   anilistId,
+  videasyTrailerUrl,
+  videasyTrailerHlsUrl,
+  videasyTrailerStatus,
+  isAmbientMuted,
+  onAmbientAutoplayBlocked,
 }: HeroBackgroundProps) {
   const { getEmbedUrl } = useEpisodeStore();
   const { selectedServer, vidnestContentType, animePreference } =
     useServerStore();
-  const currentItemVideos = extractVideoRowsFromMediaVideos(media.videos);
-  const trailerKey = selectPrimaryTrailerKey(currentItemVideos);
+  const initialTrailerVideos = useMemo(() => {
+    const rows = extractVideoRowsFromMediaVideos(media.videos).filter(
+      (video) =>
+        (!video.site || video.site === "YouTube") && Boolean(video.key),
+    );
+    const primary = selectPrimaryTrailerVideo(rows);
+    if (!primary) return rows;
+    return [
+      primary,
+      ...rows.filter((video) => video.key !== primary.key),
+    ] as TrailerPickRow[];
+  }, [media.videos]);
+  const [trailerVideos, setTrailerVideos] =
+    useState<TrailerPickRow[]>(initialTrailerVideos);
+  const [selectedTrailerIndex, setSelectedTrailerIndex] = useState(0);
+  const hasVideasySource =
+    videasyTrailerStatus === "ready" &&
+    (Boolean(videasyTrailerUrl?.length) ||
+      Boolean(videasyTrailerHlsUrl?.length));
+
+  const videasyBackdropReady =
+    hasVideasySource && !isPlayingTrailer && !isPlayingVideo;
+  const selectedTrailer =
+    trailerVideos[selectedTrailerIndex] ?? initialTrailerVideos[0];
+  const canSwitchTrailers = trailerVideos.length > 1;
 
   const getMediaType = (): "movie" | "tv" => {
     if (mediaType) {
@@ -1234,105 +1251,140 @@ export function HeroBackground({
     return selectedServer.getMovieUrl(media.id);
   };
 
-  // I'm using a timeout to detect long pauses (>1s).
-  const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isAmbientVideoReady, setIsAmbientVideoReady] = useState(false);
+  const backdropSrc = `https://image.tmdb.org/t/p/original${
+    media.backdrop_path ?? media.poster_path
+  }`;
+  const ambientVideoKey = hasVideasySource
+    ? `${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`
+    : media.backdrop_path;
+  const shouldShowAmbientVideo = videasyBackdropReady;
 
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (isPlayingTrailer && (e.key === "x" || e.key === "X")) {
-        if (youtubePlayer) {
-          youtubePlayer.destroy();
-          setYoutubePlayer(null);
+    setTrailerVideos(initialTrailerVideos);
+    setSelectedTrailerIndex(0);
+  }, [initialTrailerVideos]);
+
+  useEffect(() => {
+    setIsAmbientVideoReady(false);
+  }, [ambientVideoKey, media.backdrop_path, media.poster_path]);
+
+  useEffect(() => {
+    if (!isPlayingTrailer) return;
+
+    let cancelled = false;
+    const loadVideos = async () => {
+      try {
+        const response = await fetch(
+          `/api/media/${getMediaType()}/${media.id}/videos`,
+        );
+        if (!response.ok) return;
+        const data: unknown = await response.json();
+        if (cancelled) return;
+        const rows = extractVideoRowsFromMediaVideos(data).filter(
+          (video) =>
+            (!video.site || video.site === "YouTube") && Boolean(video.key),
+        );
+        const primary = selectPrimaryTrailerVideo(rows);
+        const sorted = primary
+          ? [primary, ...rows.filter((video) => video.key !== primary.key)]
+          : rows;
+        if (sorted.length > 0) {
+          setTrailerVideos(sorted);
+          setSelectedTrailerIndex(0);
         }
-        onTrailerEnded();
+      } catch {
+        // Keep the videos already embedded in the media payload.
       }
     };
 
-    if (isPlayingTrailer) {
-      window.addEventListener("keydown", handleKeyPress);
-    }
-
+    void loadVideos();
     return () => {
-      window.removeEventListener("keydown", handleKeyPress);
+      cancelled = true;
     };
-  }, [isPlayingTrailer, youtubePlayer, onTrailerEnded, setYoutubePlayer]);
+  }, [isPlayingTrailer, media.id]);
 
   useEffect(() => {
-    if (
-      isPlayingTrailer &&
-      trailerKey &&
-      typeof window !== "undefined" &&
-      window.YT
-    ) {
-      if (!youtubePlayer) {
-        try {
-          const player = new window.YT.Player("trailer-player", {
-            videoId: trailerKey,
-            playerVars: {
-              autoplay: 1,
-              controls: 1,
-              rel: 0,
+    if (!isPlayingTrailer || !selectedTrailer?.key) {
+      if (youtubePlayer?.destroy) {
+        youtubePlayer.destroy();
+        setYoutubePlayer(null);
+      }
+      return;
+    }
+
+    let intervalId: number | null = null;
+    let cancelled = false;
+
+    const initPlayer = () => {
+      if (cancelled || youtubePlayer || !window.YT?.Player) return;
+
+      try {
+        const player = new window.YT.Player("trailer-player", {
+          videoId: selectedTrailer.key,
+          playerVars: {
+            ...HERO_YOUTUBE_CHROMELESS_BASE,
+            autoplay: 1,
+          },
+          events: {
+            onStateChange: (event: { data: number }) => {
+              if (event.data === 0) {
+                onTrailerEnded();
+              }
             },
-            events: {
-              onStateChange: (event: { data: number }) => {
-                if (event.data === 0) {
-                  onTrailerEnded();
-                  return;
-                }
+          },
+        });
+        setYoutubePlayer(player);
+      } catch (error) {
+        logger.error("Error initializing YouTube player", error);
+      }
+    };
 
-                // I'm only treating a pause as the end of the trailer if it's paused for more than a second.
-                if (event.data === 2) {
-                  if (pauseTimeoutRef.current) {
-                    clearTimeout(pauseTimeoutRef.current);
-                  }
-
-                  pauseTimeoutRef.current = setTimeout(() => {
-                    try {
-                      const playerState = (
-                        player as YouTubePlayer
-                      )?.getPlayerState?.();
-                      if (playerState === 2) {
-                        onTrailerEnded();
-                      }
-                    } catch {
-                      // I'm silently handling player state errors here.
-                    }
-                  }, 1000);
-                  return;
-                }
-
-                if (pauseTimeoutRef.current) {
-                  clearTimeout(pauseTimeoutRef.current);
-                  pauseTimeoutRef.current = null;
-                }
-              },
-            },
-          });
-          setYoutubePlayer(player);
-        } catch (error) {
-          logger.error("Error initializing YouTube player", error);
-        }
+    if (typeof window !== "undefined") {
+      if (window.YT?.Player) {
+        initPlayer();
+      } else {
+        intervalId = window.setInterval(() => {
+          if (window.YT?.Player) {
+            if (intervalId) {
+              window.clearInterval(intervalId);
+              intervalId = null;
+            }
+            initPlayer();
+          }
+        }, 200);
       }
     }
 
     return () => {
-      if (pauseTimeoutRef.current) {
-        clearTimeout(pauseTimeoutRef.current);
-        pauseTimeoutRef.current = null;
+      cancelled = true;
+      if (intervalId) {
+        window.clearInterval(intervalId);
       }
-
-      if (youtubePlayer && youtubePlayer.destroy) {
+      if (youtubePlayer?.destroy) {
         youtubePlayer.destroy();
         setYoutubePlayer(null);
       }
     };
   }, [
     isPlayingTrailer,
-    trailerKey,
+    selectedTrailer?.key,
     onTrailerEnded,
     youtubePlayer,
     setYoutubePlayer,
   ]);
+
+  const switchTrailer = (direction: "next" | "previous") => {
+    if (!canSwitchTrailers) return;
+    if (youtubePlayer?.destroy) {
+      youtubePlayer.destroy();
+      setYoutubePlayer(null);
+    }
+    setSelectedTrailerIndex((current) => {
+      const delta = direction === "next" ? 1 : -1;
+      return (current + delta + trailerVideos.length) % trailerVideos.length;
+    });
+  };
 
   return (
     <div className="absolute inset-0 z-0">
@@ -1342,19 +1394,40 @@ export function HeroBackground({
           className="relative h-full w-full"
           animate={controls}
         >
-          <motion.img
-            src={`https://image.tmdb.org/t/p/original${
-              media.backdrop_path ?? media.poster_path
-            }`}
-            fetchPriority="high"
-            alt={(media.title || media.name) as string}
-            className="w-full h-full object-cover absolute inset-0 z-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0.5 }}
-            transition={{ duration: 1.5, ease: "easeInOut" }}
-          />
-          <div className="absolute inset-0 z-0 bg-linear-to-t from-black/50 via-black/20 to-transparent"></div>
+          {!isPlayingTrailer && !isPlayingVideo && (
+            <motion.img
+              src={backdropSrc}
+              fetchPriority="high"
+              alt={(media.title || media.name) as string}
+              className="w-full h-full object-cover absolute inset-0 z-0"
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: shouldShowAmbientVideo && isAmbientVideoReady ? 0 : 1,
+              }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.4, ease: "easeInOut" }}
+            />
+          )}
+
+          {videasyBackdropReady ? (
+            <motion.div
+              className="absolute inset-0 z-0 overflow-hidden bg-black/20 pointer-events-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isAmbientVideoReady ? 1 : 0 }}
+              transition={{ duration: 1.2, ease: "easeInOut" }}
+            >
+              <VideasyStreamVideo
+                key={`${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`}
+                mp4Url={videasyTrailerUrl}
+                hlsUrl={videasyTrailerHlsUrl}
+                playback="ambient"
+                isMuted={isAmbientMuted}
+                onAutoplayBlocked={onAmbientAutoplayBlocked}
+                onCanPlay={() => setIsAmbientVideoReady(true)}
+                className="absolute top-1/2 left-1/2 aspect-video h-[calc(100%+14rem)] min-w-[calc(100%+14rem)] -translate-x-1/2 -translate-y-[calc(50%+25px)] scale-[1.015] object-cover"
+              />
+            </motion.div>
+          ) : null}
 
           {isPlayingTrailer && (
             <motion.div
@@ -1365,10 +1438,39 @@ export function HeroBackground({
               style={{ top: "5rem", height: "calc(100% - 11rem)" }}
             >
               <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full">
-                <div
-                  id="trailer-player"
-                  className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20"
-                ></div>
+                {selectedTrailer?.key ? (
+                  <div className="relative h-full w-full rounded-lg border border-border/20 bg-black shadow-2xl">
+                    <div
+                      id="trailer-player"
+                      key={selectedTrailer.key}
+                      className="h-full w-full overflow-hidden rounded-lg"
+                    />
+                    {canSwitchTrailers ? (
+                      <div className="absolute right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
+                        <button
+                          type="button"
+                          aria-label="Previous trailer"
+                          onClick={() => switchTrailer("previous")}
+                          className="flex size-10 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
+                        >
+                          <ChevronUp className="size-5" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Next trailer"
+                          onClick={() => switchTrailer("next")}
+                          className="flex size-10 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
+                        >
+                          <ChevronDown className="size-5" aria-hidden />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-lg border border-border/20 bg-black text-sm text-muted-foreground shadow-2xl">
+                    Loading trailer...
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -1430,7 +1532,12 @@ interface HeroContentProps {
   watchlistItem?: WatchlistItem | null;
   initialEpisode?: Episode | null;
   initialSeasonNumber?: number | null;
-  tvHeroEpisodeData?: TvHeroEpisodeData | null;
+  canPlayTrailer: boolean;
+  showAmbientMuteButton: boolean;
+  showAmbientAudioHint: boolean;
+  isAmbientMuted: boolean;
+  isHeroHovered: boolean;
+  onToggleAmbientMute(): void;
 }
 
 export function HeroContent({
@@ -1448,7 +1555,12 @@ export function HeroContent({
   watchlistItem,
   initialEpisode,
   initialSeasonNumber,
-  tvHeroEpisodeData,
+  canPlayTrailer,
+  showAmbientMuteButton,
+  showAmbientAudioHint,
+  isAmbientMuted,
+  isHeroHovered,
+  onToggleAmbientMute,
 }: HeroContentProps) {
   const {
     selectedEpisode,
@@ -1459,6 +1571,115 @@ export function HeroContent({
     setSelectedEpisode,
   } = useEpisodeStore();
   const title = media.title || media.name;
+
+  const year =
+    media.release_date?.substring(0, 4) ||
+    media.first_air_date?.substring(0, 4);
+  const isTv = mediaType === "tv";
+  let durationStr: string | null = null;
+  if (isTv) {
+    if ((media as TvShow).number_of_seasons) {
+      const s = (media as TvShow).number_of_seasons;
+      durationStr = `${s} Season${s !== 1 ? "s" : ""}`;
+    }
+  } else {
+    const r = (media as Movie).runtime;
+    if (r) {
+      const h = Math.floor(r / 60);
+      const mins = r % 60;
+      durationStr = h > 0 ? `${h}h ${mins}m` : `${mins}m`;
+    }
+  }
+  const ratingRaw = media.vote_average;
+  const parsedRating = ratingRaw
+    ? parseFloat(ratingRaw.toFixed(1)).toString()
+    : null;
+  const genresArray =
+    (media as MediaItem & { genres?: Array<{ name: string }> }).genres
+      ?.slice(0, 3)
+      .map((genre) => genre.name) || [];
+  const primaryProductionCountry =
+    !isTv && "production_countries" in media
+      ? media.production_countries?.[0]
+      : undefined;
+  const productionCountryCode = primaryProductionCountry?.iso_3166_1;
+  const productionCountryFlag = productionCountryCode
+    ? getCountryFlagEmoji(productionCountryCode)
+    : null;
+  const productionCountryName = primaryProductionCountry
+    ? getFriendlyCountryName(
+        primaryProductionCountry.iso_3166_1,
+        primaryProductionCountry.name,
+      )
+    : null;
+
+  const metaElements: React.ReactNode[] = [];
+  if (parsedRating) {
+    metaElements.push(
+      <div
+        key="rating"
+        className="inline-flex h-6 items-center gap-1 text-pink-500"
+      >
+        <Star className="w-4 h-4 fill-current border-none outline-none focus:outline-none" />
+        <span className="text-white/90 text-sm sm:text-base font-medium leading-none tracking-wide">
+          {parsedRating}
+        </span>
+      </div>,
+    );
+  }
+  if (productionCountryCode && productionCountryFlag) {
+    metaElements.push(
+      <Link
+        key="production-country"
+        href={`/browse/country/${productionCountryCode.toLowerCase()}?type=movie`}
+        className="inline-flex h-6 items-center text-base leading-none transition hover:scale-110 sm:text-lg"
+        aria-label={
+          productionCountryName
+            ? `Browse ${productionCountryName} movies`
+            : "Browse movies from this country"
+        }
+        title={productionCountryName ?? undefined}
+      >
+        {productionCountryFlag}
+      </Link>,
+    );
+  }
+  if (year)
+    metaElements.push(
+      <span key="year" className="inline-flex h-6 items-center leading-none">
+        {year}
+      </span>,
+    );
+  if (durationStr)
+    metaElements.push(
+      <span
+        key="duration"
+        className="inline-flex h-6 items-center leading-none"
+      >
+        {durationStr}
+      </span>,
+    );
+  genresArray.forEach((g: string) =>
+    metaElements.push(
+      <span key={g} className="inline-flex h-6 items-center leading-none">
+        {g}
+      </span>,
+    ),
+  );
+
+  const metaRow = metaElements.reduce<React.ReactNode[]>((acc, curr, i) => {
+    if (i === 0) return [curr];
+    return [
+      ...acc,
+      <span
+        key={`dot-${i}`}
+        className="inline-flex h-6 items-center text-white/50 mx-2 text-sm sm:text-base font-bold leading-none"
+      >
+        &middot;
+      </span>,
+      curr,
+    ];
+  }, [] as React.ReactNode[]);
 
   // Initialize episode from server-rendered data
   useEffect(() => {
@@ -1506,16 +1727,6 @@ export function HeroContent({
     }
   }, [media.id, mediaType, tvShowId, clearSelectedEpisode]);
 
-  const formattedDate = useMemo(() => {
-    if (media?.release_date) {
-      return format(new Date(media.release_date), "MMMM dd, yyyy");
-    }
-    if (media?.first_air_date) {
-      return format(new Date(media.first_air_date), "MMMM dd, yyyy");
-    }
-    return "";
-  }, [media?.release_date, media?.first_air_date]);
-
   return (
     <div>
       {(isPlayingVideo || isPlayingTrailer) && (
@@ -1528,7 +1739,20 @@ export function HeroContent({
           style={{ top: "calc(100% - 6rem)", left: 0, right: 0 }}
         >
           <div className="md:max-w-7xl lg:max-w-8xl mx-auto flex items-center justify-end gap-3 sm:gap-4">
-            <ServerSelector media={media} mediaType={mediaType} />
+            <ServerSelector
+              media={media}
+              mediaType={mediaType}
+              onServerSelect={() => {
+                if (isPlayingTrailer && youtubePlayer?.destroy) {
+                  youtubePlayer.destroy();
+                  setYoutubePlayer(null);
+                }
+                if (isPlayingTrailer) {
+                  handleTrailerEnded();
+                  handleWatch();
+                }
+              }}
+            />
             <button
               onClick={() => {
                 if (isPlayingTrailer && youtubePlayer) {
@@ -1553,10 +1777,8 @@ export function HeroContent({
       <AnimatePresence>
         {!isPlayingVideo && !isPlayingTrailer && (
           <div>
-            <HeroGradients />
-
             <motion.div
-              className="absolute inset-0 z-20 flex items-center px-4 sm:px-6 lg:px-8"
+              className="absolute inset-0 z-20 pointer-events-none flex items-end pb-0 px-4 sm:px-6 lg:px-8"
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
@@ -1577,100 +1799,164 @@ export function HeroContent({
                 <div
                   className={cn(
                     "flex w-full flex-col gap-8 py-12 sm:py-16 lg:gap-8 xl:gap-10",
-                    tvHeroEpisodeData &&
-                      mediaType === "tv" &&
-                      "lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:justify-between",
-                    (!tvHeroEpisodeData || mediaType !== "tv") &&
-                      "lg:flex-row lg:items-start",
+                    "lg:flex-row lg:items-start",
                   )}
                 >
-                  <div
+                  <motion.div
                     className={cn(
-                      isWatch ? "max-w-3xl" : "max-w-2xl translate-y-36",
-                      "min-w-0 w-full flex-1",
-                      tvHeroEpisodeData &&
-                        mediaType === "tv" &&
-                        "lg:max-w-none",
+                      "min-w-0 w-full flex-1 flex flex-col pointer-events-auto rounded-xl",
+                      isWatch ? "max-w-3xl" : "max-w-2xl",
                     )}
+                    layout
                   >
-                    {media.logo ? (
-                      <MediaLogo
-                        logo={media.logo}
-                        title={(title as string) || "Logo"}
-                        size="large"
-                        maxHeight="300px"
-                        className="mb-4"
-                      />
-                    ) : (
-                      <h1 className="text-4xl font-bold text-foreground mb-4">
-                        {title as string}
-                      </h1>
-                    )}
+                    <motion.div layout>
+                      {media.logo ? (
+                        <MediaLogo
+                          logo={media.logo}
+                          title={(title as string) || "Logo"}
+                          size="default"
+                          className={cn(
+                            "mb-3 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:mb-4",
+                            isHeroHovered ? "size-2/6" : "size-1/4",
+                          )}
+                        />
+                      ) : (
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3 drop-shadow-xl tracking-tight">
+                          {title as string}
+                        </h1>
+                      )}
+                    </motion.div>
 
-                    {/* Episode Selection Display */}
-                    {displayEpisode &&
-                      displaySeasonNumber &&
-                      mediaType === "tv" && (
+                    <AnimatePresence>
+                      {isHeroHovered && (
                         <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between lg:w-full w-fit"
+                          initial="hidden"
+                          animate="visible"
+                          exit="exit"
+                          variants={{
+                            hidden: { opacity: 0, height: 0 },
+                            visible: {
+                              opacity: 1,
+                              height: "auto",
+                              transition: {
+                                duration: 0.4,
+                                ease: [0.19, 1, 0.22, 1], // fluid ease-out
+                                staggerChildren: 0.05,
+                                delayChildren: 0.05,
+                              },
+                            },
+                            exit: {
+                              opacity: 0,
+                              height: 0,
+                              transition: {
+                                duration: 0.3,
+                                ease: [0.4, 0, 1, 1], // tight ease-in
+                                staggerChildren: 0.03,
+                                staggerDirection: -1,
+                              },
+                            },
+                          }}
+                          className="overflow-hidden flex flex-col"
                         >
-                          <div>
-                            <p className="text-primary font-medium">
-                              Selected: Season {displaySeasonNumber}, Episode{" "}
-                              {displayEpisode.episode_number}
-                            </p>
-                            <p className="text-primary/80 text-sm">
-                              {displayEpisode.name}
-                            </p>
-                          </div>
-                          <button
-                            onClick={clearSelectedEpisode}
-                            className="ml-4 p-1 hover:bg-primary/20 rounded-full transition-colors"
-                            aria-label="Clear episode selection"
+                          {/* Episode Selection Display */}
+                          {displayEpisode &&
+                            displaySeasonNumber &&
+                            mediaType === "tv" && (
+                              <motion.div
+                                variants={{
+                                  hidden: { opacity: 0, y: 15, scale: 0.98 },
+                                  visible: {
+                                    opacity: 1,
+                                    y: 0,
+                                    scale: 1,
+                                    transition: {
+                                      duration: 0.4,
+                                      ease: [0.19, 1, 0.22, 1],
+                                    },
+                                  },
+                                  exit: {
+                                    opacity: 0,
+                                    y: -5,
+                                    scale: 0.98,
+                                    transition: { duration: 0.2 },
+                                  },
+                                }}
+                                className="mb-4 p-3 bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-lg flex items-center justify-between lg:w-full w-fit"
+                              >
+                                <div>
+                                  <p className="text-primary-foreground font-semibold">
+                                    Selected: Season {displaySeasonNumber},
+                                    Episode {displayEpisode.episode_number}
+                                  </p>
+                                  <p className="text-primary-foreground/80 text-sm">
+                                    {displayEpisode.name}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={clearSelectedEpisode}
+                                  className="ml-4 p-1.5 hover:bg-primary/30 rounded-full transition-colors"
+                                  aria-label="Clear episode selection"
+                                >
+                                  <X
+                                    size={16}
+                                    className="text-primary-foreground"
+                                  />
+                                </button>
+                              </motion.div>
+                            )}
+
+                          <motion.div
+                            variants={{
+                              hidden: { opacity: 0, x: -10 },
+                              visible: {
+                                opacity: 1,
+                                x: 0,
+                                transition: {
+                                  duration: 0.4,
+                                  ease: [0.19, 1, 0.22, 1],
+                                },
+                              },
+                              exit: {
+                                opacity: 0,
+                                x: -5,
+                                transition: { duration: 0.2 },
+                              },
+                            }}
+                            className="flex items-center flex-wrap text-sm sm:text-base font-medium text-white/90 tracking-wide mb-4 drop-shadow-md"
                           >
-                            <X size={16} className="text-primary" />
-                          </button>
+                            {metaRow}
+                          </motion.div>
+
+                          {media.overview && (
+                            <motion.p
+                              variants={{
+                                hidden: { opacity: 0, y: 15 },
+                                visible: {
+                                  opacity: 1,
+                                  y: 0,
+                                  transition: {
+                                    duration: 0.4,
+                                    ease: [0.19, 1, 0.22, 1],
+                                  },
+                                },
+                                exit: {
+                                  opacity: 0,
+                                  transition: { duration: 0.2 },
+                                },
+                              }}
+                              className="text-white/80 text-sm sm:text-base max-w-2xl leading-relaxed mb-1 line-clamp-3 drop-shadow-md"
+                            >
+                              {media.overview}
+                            </motion.p>
+                          )}
                         </motion.div>
                       )}
+                    </AnimatePresence>
 
-                    {isWatch && (
-                      <>
-                        {media.tagline && (
-                          <p className="text-xl text-muted-foreground mb-4">
-                            {(media as Movie).tagline}
-                          </p>
-                        )}
-                        {!isUpcoming && (
-                          <HeroGenres
-                            genres={
-                              (media as Movie & { genres?: Genre[] }).genres
-                            }
-                            mediaType={mediaType}
-                          />
-                        )}
-                      </>
-                    )}
-                    <HeroDetails
-                      formattedDate={formattedDate}
-                      runtime={(media as Movie).runtime}
-                      budget={(media as Movie).budget}
-                      voteAverage={media.vote_average}
-                      isWatch={isWatch}
-                      seasons={(media as TvShow).number_of_seasons}
-                      episodes={(media as TvShow).number_of_episodes}
-                      isUpcoming={isUpcoming}
-                      hideSeasonEpisodeCounts={
-                        !!tvHeroEpisodeData && mediaType === "tv"
-                      }
-                    />
-                    {media.overview && !isWatch && (
-                      <p className="text-foreground/80 mb-6">
-                        {media.overview}
-                      </p>
-                    )}
-                    <div className="flex items-center flex-wrap gap-4 mb-6">
+                    <motion.div
+                      layout
+                      className="flex items-center flex-wrap gap-3 pt-2"
+                    >
                       <HeroButtons
                         handleWatch={handleWatch}
                         handlePlayTrailer={handlePlayTrailer}
@@ -1680,22 +1966,66 @@ export function HeroContent({
                         watchlistItem={watchlistItem}
                         initialEpisode={initialEpisode}
                         initialSeasonNumber={initialSeasonNumber}
+                        canPlayTrailer={canPlayTrailer}
                       />
-                    </div>
-                  </div>
-                  {tvHeroEpisodeData && mediaType === "tv" ? (
-                    <div
-                      id="hero-episode-browser"
-                      data-hero-episode-browser
-                      className="hidden w-full shrink-0 self-stretch lg:block lg:w-full lg:max-w-[380px] lg:justify-self-end"
-                    >
-                      <HeroTvEpisodePanel
-                        tvId={tvHeroEpisodeData.tvId}
-                        details={tvHeroEpisodeData.details}
-                        allSeasonDetails={tvHeroEpisodeData.allSeasonDetails}
-                      />
-                    </div>
-                  ) : null}
+
+                      {showAmbientMuteButton && (
+                        <div className="relative">
+                          <Button
+                            variant="chrome"
+                            size="icon"
+                            onClick={onToggleAmbientMute}
+                            className="rounded-full w-10 h-10"
+                            aria-label={
+                              isAmbientMuted ? "Unmute trailer" : "Mute trailer"
+                            }
+                          >
+                            {isAmbientMuted ? (
+                              <VolumeX className="w-4 h-4" />
+                            ) : (
+                              <Volume2 className="w-4 h-4" />
+                            )}
+                          </Button>
+
+                          <AnimatePresence>
+                            {showAmbientAudioHint && isAmbientMuted && (
+                              <motion.div
+                                initial={{
+                                  opacity: 0,
+                                  scale: 0.94,
+                                  x: -6,
+                                  filter: "blur(8px)",
+                                }}
+                                animate={{
+                                  opacity: 1,
+                                  scale: 1,
+                                  x: 0,
+                                  filter: "blur(0px)",
+                                  transition: {
+                                    duration: 0.55,
+                                    ease: [0.16, 1, 0.3, 1],
+                                  },
+                                }}
+                                exit={{
+                                  opacity: 0,
+                                  scale: 0.98,
+                                  x: 6,
+                                  filter: "blur(6px)",
+                                  transition: { duration: 0.24 },
+                                }}
+                                className="pointer-events-none absolute left-full top-1/2 ml-3 flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/20 bg-black/80 px-3 py-1.5 text-xs font-medium text-white shadow-xl shadow-black/40 backdrop-blur-md"
+                              >
+                                <span className="text-white/80" aria-hidden>
+                                  &larr;
+                                </span>
+                                <span>Click for audio</span>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </motion.div>
+                  </motion.div>
                 </div>
               </div>
             </motion.div>
@@ -2014,6 +2344,24 @@ export function MediaDetailHero({
   initialSeasonNumber,
   tvHeroEpisodeData,
 }: MediaDetailHeroProps) {
+  const [isAmbientMuted, setIsAmbientMuted] = useState(false);
+  const [showAmbientAudioHint, setShowAmbientAudioHint] = useState(false);
+  const [isHeroHovered, setIsHeroHovered] = useState(false);
+  const [supportsExpandedHero, setSupportsExpandedHero] = useState(false);
+  const hoverCollapseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!showAmbientAudioHint) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setShowAmbientAudioHint(false);
+    }, 7000);
+    return () => window.clearTimeout(timeout);
+  }, [showAmbientAudioHint]);
+
   const {
     currentItemIndex,
     isPlayingVideo,
@@ -2026,10 +2374,66 @@ export function MediaDetailHero({
     handlePlayTrailer,
     handleTrailerEnded,
     setYoutubePlayer,
-  } = useMediaHero({ media, noSlide, isWatch, passedMediaType });
+    videasyTrailerUrl,
+    videasyTrailerHlsUrl,
+    videasyTrailerStatus,
+    canPlayTrailer,
+  } = useMediaHero({ media, noSlide, isWatch, passedMediaType, anilistId });
+
+  const hasVideasyAmbientSource =
+    videasyTrailerStatus === "ready" &&
+    (Boolean(videasyTrailerUrl?.length) ||
+      Boolean(videasyTrailerHlsUrl?.length));
+  const showAmbientMuteButton =
+    !isPlayingTrailer && !isPlayingVideo && hasVideasyAmbientSource;
+
+  const handleHeroMouseEnter = () => {
+    if (hoverCollapseTimeoutRef.current) {
+      clearTimeout(hoverCollapseTimeoutRef.current);
+      hoverCollapseTimeoutRef.current = null;
+    }
+    setIsHeroHovered(true);
+  };
+
+  const handleHeroMouseLeave = () => {
+    if (hoverCollapseTimeoutRef.current) {
+      clearTimeout(hoverCollapseTimeoutRef.current);
+    }
+    hoverCollapseTimeoutRef.current = setTimeout(() => {
+      setIsHeroHovered(false);
+      hoverCollapseTimeoutRef.current = null;
+    }, 5000);
+  };
+
+  useEffect(() => {
+    const heroExpansionQuery = window.matchMedia("(min-width: 768px)");
+    const syncHeroExpansionSupport = () => {
+      setSupportsExpandedHero(heroExpansionQuery.matches);
+      if (!heroExpansionQuery.matches) {
+        setIsHeroHovered(false);
+      }
+    };
+
+    syncHeroExpansionSupport();
+    heroExpansionQuery.addEventListener("change", syncHeroExpansionSupport);
+
+    return () => {
+      if (hoverCollapseTimeoutRef.current) {
+        clearTimeout(hoverCollapseTimeoutRef.current);
+      }
+      heroExpansionQuery.removeEventListener(
+        "change",
+        syncHeroExpansionSupport,
+      );
+    };
+  }, []);
 
   return (
-    <div className={`relative ${isWatch ? "h-[75vh]" : "h-[82vh]"}`}>
+    <div
+      className="relative h-[100svh] min-h-[34rem] overflow-hidden"
+      onMouseEnter={handleHeroMouseEnter}
+      onMouseLeave={handleHeroMouseLeave}
+    >
       <Script src="https://www.youtube.com/iframe_api" strategy="lazyOnload" />
 
       <HeroBackground
@@ -2042,6 +2446,14 @@ export function MediaDetailHero({
         youtubePlayer={youtubePlayer}
         setYoutubePlayer={setYoutubePlayer}
         anilistId={anilistId}
+        videasyTrailerUrl={videasyTrailerUrl}
+        videasyTrailerHlsUrl={videasyTrailerHlsUrl}
+        videasyTrailerStatus={videasyTrailerStatus}
+        isAmbientMuted={isAmbientMuted}
+        onAmbientAutoplayBlocked={() => {
+          setIsAmbientMuted(true);
+          setShowAmbientAudioHint(true);
+        }}
       />
 
       <HeroContent
@@ -2051,13 +2463,7 @@ export function MediaDetailHero({
         isPlayingVideo={isPlayingVideo}
         isPlayingTrailer={isPlayingTrailer}
         handleWatch={handleWatch}
-        handlePlayTrailer={() => {
-          const before = isPlayingTrailer;
-          handlePlayTrailer();
-          if (!before) {
-            showToast.info("Press X key or pause to stop trailer");
-          }
-        }}
+        handlePlayTrailer={handlePlayTrailer}
         handleTrailerEnded={handleTrailerEnded}
         youtubePlayer={youtubePlayer}
         setYoutubePlayer={setYoutubePlayer}
@@ -2065,7 +2471,20 @@ export function MediaDetailHero({
         watchlistItem={watchlistItem}
         initialEpisode={initialEpisode}
         initialSeasonNumber={initialSeasonNumber}
-        tvHeroEpisodeData={tvHeroEpisodeData}
+        canPlayTrailer={canPlayTrailer}
+        showAmbientMuteButton={showAmbientMuteButton}
+        showAmbientAudioHint={showAmbientAudioHint}
+        isAmbientMuted={isAmbientMuted}
+        isHeroHovered={supportsExpandedHero && isHeroHovered}
+        onToggleAmbientMute={() => {
+          setShowAmbientAudioHint(false);
+          setIsAmbientMuted((prev) => !prev);
+        }}
+      />
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-52 bg-linear-to-b from-transparent via-background/75 to-background sm:h-64 lg:h-80"
       />
 
       {!noSlide && !isPlayingVideo && !isWatch && media.length > 1 && (
