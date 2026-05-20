@@ -12,6 +12,10 @@ type Props = {
 };
 
 export async function generateStaticParams() {
+  if (!process.env.TMDB_API_KEY) {
+    return [];
+  }
+
   const [popular, topRated, nowPlaying] = await Promise.all([
     fetchTMDBData("/movie/popular", { language: "en-US", region: "US" }),
     fetchTMDBData("/movie/top_rated", { language: "en-US", region: "US" }),
