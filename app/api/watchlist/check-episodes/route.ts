@@ -8,6 +8,7 @@ import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
 // In-memory cache following pattern from app/api/map/route.ts
 const cache = new Map<string, { data: EpisodeInfo; timestamp: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_CACHE_ENTRIES = 500;
 
 type WatchlistRow = typeof watchlist.$inferSelect;
 
@@ -22,6 +23,10 @@ function getCached(key: string): EpisodeInfo | null {
 
 function setCached(key: string, data: EpisodeInfo) {
   cache.set(key, { data, timestamp: Date.now() });
+
+  if (cache.size <= MAX_CACHE_ENTRIES) return;
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey) cache.delete(oldestKey);
 }
 
 /**
