@@ -104,6 +104,7 @@ const cache = new Map<
   { data: TmdbShow | TmdbSeason | AnilistMediaExtended[]; timestamp: number }
 >();
 const CACHE_TTL = 60 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 250;
 
 function getCached(key: string) {
   const cached = cache.get(key);
@@ -119,6 +120,10 @@ function setCached(
   data: TmdbShow | TmdbSeason | AnilistMediaExtended[],
 ) {
   cache.set(key, { data, timestamp: Date.now() });
+
+  if (cache.size <= MAX_CACHE_ENTRIES) return;
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey) cache.delete(oldestKey);
 }
 
 async function fetchTmdbShow(showId: number): Promise<TmdbShow | null> {
