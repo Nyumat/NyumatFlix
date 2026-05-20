@@ -11,6 +11,7 @@ interface ErrorBoundaryProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  resetKeys?: unknown[];
 }
 
 /**
@@ -39,6 +40,21 @@ export class ErrorBoundary extends React.Component<
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     // Update state so the next render will show the fallback UI
     return { hasError: true, error };
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+    if (!this.state.hasError) return;
+    if (!this.props.resetKeys || !prevProps.resetKeys) return;
+
+    const hasResetKeyChanged =
+      this.props.resetKeys.length !== prevProps.resetKeys.length ||
+      this.props.resetKeys.some(
+        (key, index) => key !== prevProps.resetKeys?.[index],
+      );
+
+    if (hasResetKeyChanged) {
+      this.setState({ hasError: false, error: undefined });
+    }
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
