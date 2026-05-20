@@ -12,10 +12,9 @@ import { Label } from "@/components/ui/label";
 import { getDevMagicLink } from "@/lib/dev-magic-link-store";
 import { ArrowRight, Mail } from "lucide-react";
 import { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { NeuralNetworkBackground } from "./neural-network-client";
+import { AuthShell } from "./auth-shell";
 
 export const metadata: Metadata = {
   title: "Login | NyumatFlix",
@@ -88,91 +87,73 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden pt-12">
-      <div className="absolute inset-0 z-0">
-        <div
-          className="w-screen h-screen flex flex-col relative opacity-30"
-          suppressHydrationWarning
-        >
-          <NeuralNetworkBackground />
-        </div>
-      </div>
-      <div className="relative z-20 my-16 flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center space-y-4">
-            <Link href="/" className="inline-block">
-              <Image
-                src="/logo.svg"
-                alt="NyumatFlix Logo"
-                width={80}
-                height={80}
-                className="mx-auto"
+    <AuthShell
+      eyebrow="Sign in to keep everything synced."
+      title="Make NyumatFlix yours."
+      description="Unlock watchlists, progress, and direct feature requests."
+    >
+      <Card className="overflow-hidden rounded-2xl border-white/12 bg-zinc-950/72 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+        <CardHeader className="space-y-3 px-6 pb-4 pt-6 sm:px-8 sm:pt-8">
+          <div className="flex size-11 items-center justify-center rounded-xl border border-sky-300/15 bg-sky-300/10 text-sky-200">
+            <Mail className="size-5" />
+          </div>
+          <div className="space-y-2">
+            <CardTitle className="text-2xl font-semibold leading-tight tracking-tight text-white">
+              Sign in
+            </CardTitle>
+            <CardDescription className="text-sm leading-6 text-zinc-400">
+              Enter your email and we will send a private magic link. No
+              password needed.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
+          <form action={handleLogin} className="space-y-5">
+            <div className="space-y-2.5">
+              <Label
+                htmlFor="email"
+                className="text-sm font-medium text-zinc-200"
+              >
+                Email address
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+                className="h-12 rounded-xl border-white/12 bg-black/35 px-4 text-base text-white shadow-none placeholder:text-zinc-600 focus-visible:ring-sky-300/80 focus-visible:ring-offset-0 dark:border-white/12 dark:bg-black/35"
               />
-            </Link>
-            <div>
-              <h1 className="text-3xl font-light text-foreground">
-                Welcome to NyumatFlix
-              </h1>
-              <p className="text-muted-foreground mt-2 font-light">
-                Movies and TV Shows for everyone
-              </p>
             </div>
-          </div>
-          <div className="relative">
-            <Card className="bg-card/80 backdrop-blur-md border-border/50 shadow-2xl">
-              <CardHeader className="space-y-1 text-center pb-0">
-                <CardTitle className="text-xl font-medium text-foreground">
-                  Sign in to NyumatFlix
-                </CardTitle>
-                <CardDescription className="text-muted-foreground font-light">
-                  Enter your email to get started
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form action={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="email"
-                      className="text-sm font-medium text-foreground"
-                    >
-                      Email Address
-                    </Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      placeholder="your@email.com"
-                      required
-                    />
-                  </div>
-                  <Button type="submit" size="lg" variant="chrome">
-                    <Mail className="w-4 h-4 mr-2" />
-                    Continue with Email
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover/arrow:translate-x-1 transition-transform" />
-                  </Button>
-                </form>
-                <div className="mt-6 text-center">
-                  <p className="text-sm text-muted-foreground font-light">
-                    We'll send you a magic link to sign in!
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground font-light">
-              By continuing, you agree to our{" "}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
-              </Link>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+            <Button
+              type="submit"
+              size="lg"
+              className="h-12 w-full rounded-xl border-sky-300/20 bg-sky-300/15 px-5 text-sm font-semibold text-sky-50 shadow-none hover:border-sky-300/35 hover:bg-sky-300/22"
+            >
+              <Mail className="mr-2 size-4" />
+              Continue with email
+              <ArrowRight className="ml-2 size-4 transition-transform group-hover/arrow:translate-x-0.5" />
+            </Button>
+          </form>
+          <p className="mt-5 text-center text-xs leading-5 text-zinc-500">
+            By continuing, you agree to the{" "}
+            <Link
+              href="/terms"
+              className="font-medium text-zinc-300 underline-offset-4 hover:text-white hover:underline"
+            >
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              className="font-medium text-zinc-300 underline-offset-4 hover:text-white hover:underline"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </CardContent>
+      </Card>
+    </AuthShell>
   );
 }
