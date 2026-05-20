@@ -31,7 +31,8 @@ const nextConfig = {
     "three",
   ],
   images: {
-    // minimumCacheTTL: 60 * 60 * 24 * 30, // 1 week
+    unoptimized: true,
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
       {
         protocol: "https",
@@ -59,10 +60,14 @@ const nextConfig = {
         hostname: "img.youtube.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "s4.anilist.co",
+        pathname: "/**",
+      },
     ],
   },
   experimental: {
-    scrollRestoration: true,
     taint: true,
     browserDebugInfoInTerminal: true,
   },
