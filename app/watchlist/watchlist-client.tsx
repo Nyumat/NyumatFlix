@@ -10,7 +10,7 @@ import {
   type SortOption,
   type StatusFilter,
   type TypeTab,
-} from "@/components/watchlist";
+} from "@/components/watchlist/watchlist";
 import { getTitle, MediaItem } from "@/lib/domain/typings";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { Bookmark, BookmarkCheck, Plus } from "lucide-react";

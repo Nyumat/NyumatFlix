@@ -1,6 +1,6 @@
 import { PageContainer } from "@/components/layout/page-container";
 import { ContentContainer } from "@/components/layout/content-container";
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { MediaDetailScrollReset } from "@/components/media/media-detail-scroll-reset";
 import { MovieCard } from "@/components/movie/movie-card";
 import { BackButton } from "@/components/ui/back-button";

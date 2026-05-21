@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import { Movie } from "@/tmdb/models";
 import { tmdb } from "@/tmdb/api";
 import { MovieListType, WithImages } from "@/tmdb/api";
@@ -14,7 +14,7 @@ import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { cn, formatValue, getRandomItems } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MediaPoster } from "@/components/media";
+import { MediaPoster } from "@/components/media/media-display";
 import {
   MediaBackdrop,
   mediaMetaBadgeClass,

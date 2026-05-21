@@ -11,7 +11,7 @@ import {
   getMediaLabel,
   getRatingDisplay,
   getRuntimeText,
-} from "@/lib/cards";
+} from "@/lib/cards/selectors";
 import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import { Clock, Star } from "lucide-react";
 

@@ -6,12 +6,12 @@ import { notFound } from "next/navigation";
 import { tmdb } from "@/tmdb/api";
 import type { Movie, TvShow } from "@/tmdb/models";
 
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
-import { MovieCard } from "@/components/movie";
-import { PersonCard } from "@/components/person";
+import { MovieCard } from "@/components/movie/movie-card";
+import { PersonCard } from "@/components/person/person-card";
 import { ListPagination } from "@/components/shared/list-pagination";
-import { TvCard } from "@/components/tv";
+import { TvCard } from "@/components/tv/tv-card";
 
 interface TrendListProps {
   type: "movie" | "tv" | "people";

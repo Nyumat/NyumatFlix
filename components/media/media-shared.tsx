@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Icons } from "@/components/icons";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import {
   hasPosterPath,
   sortWithProfilePathFirst,

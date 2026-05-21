@@ -1,7 +1,7 @@
 "use client";
 
-import { PosterCard } from "@/components/cards";
-import { formatYear } from "@/lib/cards";
+import { PosterCard } from "@/components/cards/poster-card";
+import { formatYear } from "@/lib/cards/formatters";
 import { hasPosterPath } from "@/lib/media-poster-path";
 import { type TvShow } from "@/tmdb/models";
 

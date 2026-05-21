@@ -1,10 +1,10 @@
 import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
-import { MovieHero } from "@/components/movie";
-import { TrendCarousel } from "@/components/trend";
-import { TvHero } from "@/components/tv";
+import { MovieHero } from "@/components/movie/movie-server";
+import { TrendCarousel } from "@/components/trend/trend-client";
+import { TvHero } from "@/components/tv/tv-server";
 import { pages } from "@/config/pages";
 import { siteConfig } from "@/config/site";
 import { TMDB_WATCH_REGION } from "@/lib/constants";

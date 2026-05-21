@@ -1,5 +1,5 @@
 import { WatchlistItem } from "@/lib/domain/watchlist";
-import { MediaDetailHero } from "@/components/hero/index";
+import { MediaDetailHero } from "@/components/hero/media-detail-hero";
 import type { TvHeroEpisodeData } from "@/components/hero/types";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";

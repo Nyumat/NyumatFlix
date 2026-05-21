@@ -9,7 +9,7 @@ import {
   getDisplayTitle,
   getHref,
   getPosterPath,
-} from "@/lib/cards";
+} from "@/lib/cards/selectors";
 import { tmdbImage } from "@/tmdb/utils";
 import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import Image from "next/image";

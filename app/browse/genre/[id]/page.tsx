@@ -1,5 +1,5 @@
 import { getCategories } from "@/lib/server/actions";
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import BrowseGenreClient from "./browse-client";

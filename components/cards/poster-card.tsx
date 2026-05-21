@@ -14,7 +14,7 @@ import {
   getHref,
   getPosterPath,
   getRatingDisplay,
-} from "@/lib/cards";
+} from "@/lib/cards/selectors";
 import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";

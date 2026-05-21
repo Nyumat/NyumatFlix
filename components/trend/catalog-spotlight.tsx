@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Info, Play } from "lucide-react";
 
-import { MediaLogo, MediaPoster } from "@/components/media";
+import { MediaLogo, MediaPoster } from "@/components/media/media-display";
 import { mediaMetaBadgeClass } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
 import { pages } from "@/config/pages";

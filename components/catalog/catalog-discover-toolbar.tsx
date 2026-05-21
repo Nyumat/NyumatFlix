@@ -3,7 +3,7 @@
 import { DiscoverFilters, DiscoverSort } from "@/components/discover/discover";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { languages } from "@/lib";
+import { languages } from "@/lib/languages";
 import { cn, pluralize } from "@/lib/utils";
 import type { Genre, WatchProvider } from "@/tmdb/models";
 import { X } from "lucide-react";

@@ -1,4 +1,4 @@
-import { PersonList } from "@/components/person";
+import { PersonList } from "@/components/person/person-server";
 import { pages } from "@/config/pages";
 import {
   isPeopleDepartmentValue,

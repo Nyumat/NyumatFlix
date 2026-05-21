@@ -1,4 +1,4 @@
-import { TrendList } from "@/components/trend";
+import { TrendList } from "@/components/trend/trend-server";
 import { pages } from "@/config/pages";
 import type { Metadata } from "next";
 

@@ -3,7 +3,7 @@ import {
   fetchAndEnrichMediaItems,
   fetchTMDBData,
 } from "@/lib/server/actions";
-import { mapMediaListToCanonicalCardsValue } from "@/lib/cards";
+import { mapMediaListToCanonicalCardsValue } from "@/lib/cards/mappers";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,

@@ -8,7 +8,7 @@ import {
   type PeopleGenderFilter,
 } from "@/lib/person-popular";
 
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { PersonCard } from "./person-card";

@@ -1,6 +1,6 @@
 "use client";
 
-import { MediaCard, MediaPoster } from "@/components/media";
+import { MediaCard, MediaPoster } from "@/components/media/media-display";
 import { hasProfilePath } from "@/lib/media-poster-path";
 import { isDeceasedAsOfToday } from "@/lib/utils";
 import type { CanonicalPersonCard } from "@/lib/domain/typings";

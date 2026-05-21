@@ -1,6 +1,6 @@
 "use client";
 
-import { SeriesGraph } from "@/components/tvshow/series-graph";
+import { SeriesGraph } from "@/components/tvshow/series-graph/series-graph";
 import { SeasonDetails } from "@/lib/domain/typings";
 
 type TvSeriesGraphTabProps = {
