@@ -36,16 +36,25 @@ export const videoServers: VideoServer[] = [
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://vsembed.ru/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
   },
-  // {
-  //   id: "superembed",
-  //   name: "SuperEmbed",
-  //   baseUrl: "https://multiembed.mov",
-  //   getMovieUrl: (tmdbId) =>
-  //     `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
-  //   getTvUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
-  //   getEpisodeUrl: (tmdbId, season, episode) =>
-  //     `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
-  // },
+  {
+    id: "superembed",
+    name: "SuperEmbed",
+    baseUrl: "https://multiembed.mov",
+    getMovieUrl: (tmdbId) =>
+      `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
+    getTvUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
+  },
+  {
+    id: "2embed",
+    name: "2Embed",
+    baseUrl: "https://www.2embed.cc",
+    getMovieUrl: (tmdbId) => `https://www.2embed.cc/embed/${tmdbId}`,
+    getTvUrl: (tmdbId) => `https://www.2embed.cc/embedtvfull/${tmdbId}`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`,
+  },
   // {
   //   id: "autoembed",
   //   name: "AutoEmbed",
