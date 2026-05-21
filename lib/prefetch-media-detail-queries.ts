@@ -1,8 +1,8 @@
-import { fetchAllSeasonDetails } from "@/components/tvshow/tvshow-api";
+import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
 import { queryKeys } from "@/lib/query-keys";
 import { tmdb } from "@/tmdb/api";
-import type { MediaItem, TvShowDetails } from "@/utils/typings";
+import type { MediaItem, TvShowDetails } from "@/lib/domain/typings";
 import type { QueryClient } from "@tanstack/react-query";
 
 export async function prefetchTvShowTabQueries(

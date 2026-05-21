@@ -2,7 +2,7 @@ import type {
   CanonicalMediaCard,
   CanonicalPersonCard,
   Genre,
-} from "@/utils/typings";
+} from "@/lib/domain/typings";
 
 export type SearchPreviewResult = CanonicalMediaCard;
 

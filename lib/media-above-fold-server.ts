@@ -4,7 +4,7 @@ import {
 } from "@/lib/media-above-fold";
 import { selectPrimaryTrailerVideo } from "@/lib/select-primary-trailer-video";
 import type { GetImagesResponse, GetVideosResponse } from "@/tmdb/models";
-import type { Logo } from "@/utils/typings";
+import type { Logo } from "@/lib/domain/typings";
 import { cache } from "react";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";

@@ -5,7 +5,7 @@ import type {
   CanonicalPersonCard,
   CanonicalTvCard,
   MediaItem,
-} from "@/utils/typings";
+} from "@/lib/domain/typings";
 import { formatYear } from "./formatters";
 
 export type MappableMediaItem = Partial<MediaItem> & {

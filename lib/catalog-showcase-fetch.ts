@@ -6,7 +6,7 @@ import {
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { tmdb } from "@/tmdb/api";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 
 const MIN_PER_ROW = 20;
 const MAX_FETCH_PAGES = 5;

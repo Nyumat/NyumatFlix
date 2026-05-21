@@ -1,4 +1,4 @@
-import { Episode, SeasonDetails } from "@/utils/typings";
+import { Episode, SeasonDetails } from "@/lib/domain/typings";
 
 export type IndexedEpisode = {
   episode: Episode;

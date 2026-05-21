@@ -1,4 +1,4 @@
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { unstable_cache } from "next/cache";
 
 export const ANILIST_ENDPOINT = "https://graphql.anilist.co";
