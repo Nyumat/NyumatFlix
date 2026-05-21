@@ -8,8 +8,8 @@ import {
   selectPrimaryTrailerKey,
 } from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import type { MediaItem } from "@/utils/typings";
-import { getFirstRegularSeason, isTVShow } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
+import { getFirstRegularSeason, isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";

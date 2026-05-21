@@ -8,10 +8,10 @@ import {
 } from "@/lib/media-above-fold";
 import { getHref } from "@/lib/cards";
 import { queryKeys } from "@/lib/query-keys";
-import type { CanonicalMediaCard, MediaItem } from "@/utils/typings";
-import { useQueryClient } from "@tanstack/react-query";
+import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
+import { QueryClientContext } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useContext, useEffect, useRef } from "react";
 
 const warmed = new Set<string>();
 const pending = new Map<string, Promise<MediaAboveFoldDetail | null>>();
@@ -80,7 +80,7 @@ export function useMediaCardPrefetch(
   href?: string,
 ) {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const queryClient = useContext(QueryClientContext);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const prefetch = useCallback(() => {
@@ -91,6 +91,8 @@ export function useMediaCardPrefetch(
     if (!isInternalHref(link)) return;
     const cacheKey = `${mediaType}:${item.id}`;
     router.prefetch(link);
+
+    if (!queryClient) return;
 
     if (warmed.has(cacheKey)) return;
     rememberWarmed(cacheKey);

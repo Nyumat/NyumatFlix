@@ -3,7 +3,7 @@
 import useEmblaCarousel from "embla-carousel-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "@/lib/utils";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 
 interface UseContentCarouselOptions {
   initialItems: MediaItem[];
