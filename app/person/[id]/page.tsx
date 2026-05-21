@@ -2,7 +2,7 @@ import {
   buildItemsWithCategories,
   fetchPersonFilmography,
   getPersonDetails,
-} from "@/app/actions";
+} from "@/lib/server/actions";
 import { cn, isDeceasedAsOfToday } from "@/lib/utils";
 import { DetailSectionNav } from "@/components/media/detail-section-nav";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -10,7 +10,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
 import { BiographyReadMore } from "@/components/person";
 import type { PersonDetails } from "@/tmdb/models";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";

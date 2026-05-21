@@ -1,8 +1,9 @@
-import { getCategories } from "@/app/actions";
+import { getCategories } from "@/lib/server/actions";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import BrowseGenreClient from "./browse-client";
+import { getAppOrigin } from "@/lib/server/app-url";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -24,8 +25,9 @@ export default async function BrowseGenrePage(props: PageProps) {
   const genreName = matchedGenre ? matchedGenre.name : "Unknown Genre";
 
   // Fetch initial content from the new API endpoint with enriched data
+  const appOrigin = await getAppOrigin();
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/genre/${genreId}?type=${mediaType}&page=1`,
+    `${appOrigin}/api/genre/${genreId}?type=${mediaType}&page=1`,
   );
 
   if (!response.ok) {

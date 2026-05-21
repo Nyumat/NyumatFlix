@@ -1,4 +1,4 @@
-import { enrichAboveFoldMediaItemsWithLogos } from "@/app/actions";
+import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";

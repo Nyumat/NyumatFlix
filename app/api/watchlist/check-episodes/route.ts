@@ -2,8 +2,8 @@ import { auth } from "@/auth";
 import { db, watchlist } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { checkEpisodesForShow } from "@/app/watchlist/episode-check-service";
-import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
+import { checkEpisodesForShow } from "@/lib/server/episode-check-service";
+import type { EpisodeInfo } from "@/lib/domain/episodes";
 
 // In-memory cache following pattern from app/api/map/route.ts
 const cache = new Map<string, { data: EpisodeInfo; timestamp: number }>();

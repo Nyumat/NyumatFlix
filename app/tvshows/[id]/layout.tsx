@@ -6,7 +6,7 @@ import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import type { TvShowDetails } from "@/utils/typings";
+import type { TvShowDetails } from "@/lib/domain/typings";
 
 export const revalidate = 3600;
 

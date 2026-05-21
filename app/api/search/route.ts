@@ -12,7 +12,7 @@ import {
   Movie,
   TmdbResponse,
   TvShow,
-} from "@/utils/typings";
+} from "@/lib/domain/typings";
 import { NextResponse } from "next/server";
 
 interface Person {

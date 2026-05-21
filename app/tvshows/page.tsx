@@ -1,4 +1,4 @@
-import { enrichAboveFoldMediaItemsWithLogos } from "@/app/actions";
+import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
@@ -45,7 +45,7 @@ import {
 import type { SortByTypeTv } from "@/tmdb/api";
 import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 

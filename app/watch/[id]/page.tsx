@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { determineMediaType } from "@/app/actions";
+import { determineMediaType } from "@/lib/server/actions";
 
 export default async function Watch(props: {
   params: Promise<{ id: string }>;

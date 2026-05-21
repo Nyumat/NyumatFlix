@@ -15,7 +15,7 @@ import { buildAniListUrl, fetchAniListPage } from "@/lib/anilist";
 import { enrichAniListMediaItemsWithTmdb } from "@/lib/anilist-tmdb";
 import { normalizeRouteSearchParams } from "@/lib/utils";
 import type { TvShowWithMediaType } from "@/tmdb/models";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";

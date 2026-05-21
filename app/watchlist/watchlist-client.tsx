@@ -1,6 +1,6 @@
 "use client";
 
-import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
+import type { EpisodeInfo } from "@/lib/domain/episodes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,12 +11,12 @@ import {
   type StatusFilter,
   type TypeTab,
 } from "@/components/watchlist";
-import { getTitle, MediaItem } from "@/utils/typings";
+import { getTitle, MediaItem } from "@/lib/domain/typings";
+import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { Bookmark, BookmarkCheck, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { WatchlistItem } from "./actions";
 
 const toTimestamp = (value: Date | string | null | undefined) => {
   if (!value) return 0;

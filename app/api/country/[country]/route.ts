@@ -2,14 +2,14 @@ import {
   buildItemsWithCategories,
   fetchAndEnrichMediaItems,
   fetchTMDBData,
-} from "@/app/actions";
+} from "@/lib/server/actions";
 import { mapMediaListToCanonicalCardsValue } from "@/lib/cards";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -38,7 +38,6 @@ export async function GET(
       language: "en-US",
       include_adult: "false",
       sort_by: sortBy,
-      page: page.toString(),
     };
 
     const today = getTodayIsoDateUtc();
@@ -59,7 +58,7 @@ export async function GET(
 
     // Add quality filters
     queryParams["vote_count.gte"] = "10"; // Minimum vote count
-    if (sortBy.includes("rating")) {
+    if (sortBy.startsWith("vote_average.")) {
       queryParams["vote_average.gte"] = "6.0"; // Minimum rating for rating sorts
     }
 

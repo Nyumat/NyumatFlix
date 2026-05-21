@@ -1,5 +1,5 @@
 import { AdblockerAlert } from "@/components/content/adblocker-alert";
-import { GlobalDockProvider } from "@/components/ui/global-dock";
+import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
 import React from "react";

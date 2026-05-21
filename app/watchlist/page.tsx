@@ -1,11 +1,12 @@
 import { auth } from "@/auth";
 import { StaticHero } from "@/components/hero";
 import { ContentContainer } from "@/components/layout/content-container";
-import { MediaItemSchema, type MediaItem } from "@/utils/typings";
+import { MediaItemSchema, type MediaItem } from "@/lib/domain/typings";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchAndEnrichMediaItems } from "../actions";
-import { getUserWatchlist, type WatchlistItem } from "./actions";
+import type { WatchlistItem } from "@/lib/domain/watchlist";
+import { getUserWatchlist } from "./actions";
 import { WatchlistClient } from "./watchlist-client";
 
 export const metadata: Metadata = {
