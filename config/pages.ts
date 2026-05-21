@@ -1,4 +1,5 @@
 import { buildCatalogCtaUrl } from "@/lib/catalog-query";
+import { buildAniListUrl } from "@/lib/anilist";
 
 const movie = {
   root: {
@@ -133,27 +134,39 @@ const anime = {
   },
   trendingAnime: {
     title: "Trending Anime",
-    link: "/anime/browse",
+    link: buildAniListUrl({}),
   },
   popularAnime: {
     title: "Popular Anime",
-    link: "/anime/browse?sort=POPULARITY_DESC",
+    link: buildAniListUrl({ medium: "ANIME", sort: "POPULARITY_DESC" }),
   },
   topAnime: {
     title: "Top Rated Anime",
-    link: "/anime/browse?sort=SCORE_DESC",
+    link: buildAniListUrl({ medium: "ANIME", sort: "SCORE_DESC" }),
   },
   releasingAnime: {
     title: "Releasing Anime",
-    link: "/anime/browse?sort=POPULARITY_DESC&status=RELEASING",
+    link: buildAniListUrl({
+      medium: "ANIME",
+      sort: "POPULARITY_DESC",
+      status: "RELEASING",
+    }),
   },
   actionAnime: {
     title: "Action Anime",
-    link: "/anime/browse?sort=POPULARITY_DESC&genres=Action",
+    link: buildAniListUrl({
+      medium: "ANIME",
+      sort: "POPULARITY_DESC",
+      genres: ["Action"],
+    }),
   },
   romanceAnime: {
     title: "Romance Anime",
-    link: "/anime/browse?sort=POPULARITY_DESC&genres=Romance",
+    link: buildAniListUrl({
+      medium: "ANIME",
+      sort: "POPULARITY_DESC",
+      genres: ["Romance"],
+    }),
   },
 };
 
