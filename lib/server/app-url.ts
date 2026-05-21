@@ -20,7 +20,7 @@ function railwayPublicOrigin() {
 
 export async function getAppOrigin() {
   const configuredOrigin =
-    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
     process.env.AUTH_URL ||
     process.env.NEXTAUTH_URL ||
     railwayPublicOrigin();
@@ -30,7 +30,8 @@ export async function getAppOrigin() {
   }
 
   const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
+  const host =
+    requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
 
   if (host) {
     const proto = requestHeaders.get("x-forwarded-proto") || "http";
