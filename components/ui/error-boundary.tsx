@@ -1,5 +1,6 @@
 "use client";
 
+import { OnboardingSuppression } from "@/components/providers/onboarding-suppression";
 import React from "react";
 
 interface ErrorBoundaryState {
@@ -70,7 +71,12 @@ export class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       // Render custom fallback UI or default
-      return this.props.fallback;
+      return (
+        <>
+          <OnboardingSuppression />
+          {this.props.fallback}
+        </>
+      );
     }
 
     return this.props.children;
