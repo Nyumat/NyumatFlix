@@ -1,4 +1,4 @@
-import type { Episode } from "@/utils/typings";
+import type { Episode } from "@/lib/domain/typings";
 
 export type ParsedEpisodeSearchQuery = {
   season?: number;

@@ -1,6 +1,6 @@
 import type { GetVideosResponse, Video } from "@/tmdb/models";
 import { tmdbImage } from "@/tmdb/utils";
-import type { Logo, MediaItem } from "@/utils/typings";
+import type { Logo, MediaItem } from "@/lib/domain/typings";
 
 export type MediaAboveFoldType = "movie" | "tv";
 

@@ -1,5 +1,5 @@
-import { fetchTVShowDetails } from "@/components/tvshow/tvshow-api";
-import type { MediaItem } from "@/utils/typings";
+import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
+import type { MediaItem } from "@/lib/domain/typings";
 import { cache } from "react";
 
 export const getCachedMovieDetail = cache(
@@ -12,7 +12,7 @@ export const getCachedMovieDetail = cache(
         return null;
       }
       const data = await response.json();
-      const { fetchAndEnrichMediaItems } = await import("@/app/actions");
+      const { fetchAndEnrichMediaItems } = await import("@/lib/server/actions");
       const enrichedData = await fetchAndEnrichMediaItems([data], "movie");
       return enrichedData[0] ?? null;
     } catch {

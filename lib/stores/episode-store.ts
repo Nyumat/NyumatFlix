@@ -1,4 +1,4 @@
-import { Episode } from "@/utils/typings";
+import { Episode } from "@/lib/domain/typings";
 import { getSession } from "next-auth/react";
 import { create } from "zustand";
 import { useServerStore } from "./server-store";

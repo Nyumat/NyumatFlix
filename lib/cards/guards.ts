@@ -4,7 +4,7 @@ import type {
   CanonicalMovieCard,
   CanonicalPersonCard,
   CanonicalTvCard,
-} from "@/utils/typings";
+} from "@/lib/domain/typings";
 
 export function isCanonicalMovieCard(
   item: CanonicalCard,

@@ -1,4 +1,8 @@
-import type { CanonicalCard, CanonicalMediaCard, Genre } from "@/utils/typings";
+import type {
+  CanonicalCard,
+  CanonicalMediaCard,
+  Genre,
+} from "@/lib/domain/typings";
 import { formatRating, formatRuntime, formatYear } from "./formatters";
 import { isCanonicalPersonCard } from "./guards";
 

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { MediaItem } from "./typings";
+import { MediaItem } from "@/lib/domain/typings";
 
 type GenerateMediaMetadataOptions = {
   media: MediaItem | null;

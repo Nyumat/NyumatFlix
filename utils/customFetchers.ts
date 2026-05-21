@@ -1,4 +1,4 @@
-import { MediaItem } from "./typings";
+import { MediaItem } from "@/lib/domain/typings";
 
 const DIRECTOR_IDS = {
   nolan: 525, // Christopher Nolan

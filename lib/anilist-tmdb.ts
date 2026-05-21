@@ -13,7 +13,7 @@ import type {
   TvShowDetails,
   TvShowWithMediaType,
 } from "@/tmdb/models";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { unstable_cache } from "next/cache";
 
 type TmdbFindResponse = {
