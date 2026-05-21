@@ -12,6 +12,23 @@ type ListNodesResponse = readonly [
   MediaItem[] | undefined,
 ];
 
+function getSeenItemKey(item: {
+  id?: number | string;
+  media_type?: unknown;
+  title?: unknown;
+  name?: unknown;
+}) {
+  const mediaType =
+    typeof item.media_type === "string"
+      ? item.media_type
+      : typeof item.title === "string"
+        ? "movie"
+        : typeof item.name === "string"
+          ? "tv"
+          : "content";
+  return `${mediaType}-${String(item.id)}`;
+}
+
 type UnifiedGridProps = {
   unifiedGrid: true;
   gridType: "movie" | "tv" | "multi";
@@ -19,10 +36,10 @@ type UnifiedGridProps = {
   initialItems: MediaItem[];
   initialOffset?: number | null;
   className?: string;
-  initialSeenIds?: number[];
+  initialSeenIds?: string[];
   getListNodes: (
     offset: number,
-    seenIds?: number[],
+    seenIds?: string[],
   ) => Promise<ListNodesResponse | null>;
   children?: never;
   renderContent?: never;
@@ -37,10 +54,10 @@ type GenericInfiniteScrollProps<T extends { id?: number | string }> = {
   initialOffset?: number | null;
   itemsPerRow?: number;
   className?: string;
-  initialSeenIds?: number[];
+  initialSeenIds?: string[];
   getListNodes: (
     offset: number,
-    seenIds?: number[],
+    seenIds?: string[],
   ) => Promise<
     readonly [React.JSX.Element, number | null, T[] | undefined] | null
   >;
@@ -91,7 +108,7 @@ export function InfiniteScroll<T extends { id?: number | string }>(
   const [isPending, startTransition] = useTransition();
   const offsetRef = useRef<number | null>(initialOffset);
   const [hasReachedEnd, setHasReachedEnd] = useState(false);
-  const seenIdsRef = useRef<Set<number>>(new Set(initialSeenIds || []));
+  const seenIdsRef = useRef<Set<string>>(new Set(initialSeenIds || []));
 
   const [allItems, setAllItems] = useState<MediaItem[]>(() => {
     previousResetKeyRef.current = resetKey;
@@ -121,8 +138,8 @@ export function InfiniteScroll<T extends { id?: number | string }>(
 
           if (items) {
             items.forEach((item) => {
-              if (typeof item.id === "number") {
-                seenIdsRef.current.add(item.id);
+              if (item.id !== undefined) {
+                seenIdsRef.current.add(getSeenItemKey(item));
               }
             });
             setAllItems((prev) => [...prev, ...items]);
@@ -142,8 +159,8 @@ export function InfiniteScroll<T extends { id?: number | string }>(
 
           if (items) {
             items.forEach((item) => {
-              if (item.id && typeof item.id === "number") {
-                seenIdsRef.current.add(item.id);
+              if (item.id !== undefined) {
+                seenIdsRef.current.add(getSeenItemKey(item));
               }
             });
           }

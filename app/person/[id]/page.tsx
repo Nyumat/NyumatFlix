@@ -4,7 +4,6 @@ import {
   getPersonDetails,
 } from "@/lib/server/actions";
 import { cn, isDeceasedAsOfToday } from "@/lib/utils";
-import { DetailSectionNav } from "@/components/media/detail-section-nav";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
@@ -110,13 +109,6 @@ export default async function PersonPage(props: PersonPageProps) {
             className="mx-auto px-4 mt-6 relative z-10 max-w-7xl"
             topSpacing={false}
           >
-            <DetailSectionNav
-              sections={[
-                { id: "section-bio", label: "Profile" },
-                { id: "section-filmography", label: "Filmography" },
-              ]}
-            />
-
             <div
               id="section-bio"
               className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8"
@@ -129,6 +121,7 @@ export default async function PersonPage(props: PersonPageProps) {
                       alt={person.name || "Person"}
                       width={500}
                       height={750}
+                      priority
                       className={cn(
                         "h-auto w-full",
                         isDeceasedAsOfToday(deathday) && "grayscale",

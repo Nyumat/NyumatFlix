@@ -31,6 +31,13 @@ function ListViewCard(props: {
   );
 }
 
+function getMediaItemKey(item: MediaItem) {
+  const mediaType =
+    item.media_type ??
+    ("title" in item ? "movie" : "name" in item ? "tv" : "media");
+  return `${mediaType}-${String(item.id)}`;
+}
+
 interface MediaContentGridProps {
   /** Optional title to display above the grid */
   title?: string;
@@ -119,10 +126,20 @@ export function MediaContentGrid({
       item && item.id !== null && item.id !== undefined && hasPosterPath(item),
   );
 
-  const processedItems = validItems.map((item) => ({
-    ...item,
-    media_type: type || item.media_type,
-  }));
+  const seenMediaKeys = new Set<string>();
+  const processedItems = validItems
+    .map((item) => ({
+      ...item,
+      media_type: type && type !== "multi" ? type : item.media_type,
+    }))
+    .filter((item) => {
+      const key = getMediaItemKey(item);
+      if (seenMediaKeys.has(key)) {
+        return false;
+      }
+      seenMediaKeys.add(key);
+      return true;
+    });
 
   const renderMediaCard = (item: ContentItem, viewMode: ViewMode) => {
     const mediaItem = item as MediaItem;
@@ -142,7 +159,7 @@ export function MediaContentGrid({
     if (viewMode === "list") {
       return (
         <ListViewCard
-          key={`${mediaItem.id}`}
+          key={getMediaItemKey(mediaItem)}
           item={mediaItem}
           type={mediaItem.media_type}
         />
@@ -159,7 +176,7 @@ export function MediaContentGrid({
 
       return (
         <ContentCard
-          key={`${mediaItem.id}`}
+          key={getMediaItemKey(mediaItem)}
           item={mediaItem}
           isMobile={!!isMobile}
           hideTitleFallback={!isAniListFallback}
@@ -168,7 +185,7 @@ export function MediaContentGrid({
     }
 
     return (
-      <div key={`${mediaItem.id}`} className="w-full">
+      <div key={getMediaItemKey(mediaItem)} className="w-full">
         <MediaShowcaseCard
           item={mediaItem}
           type={mediaItem.media_type}
