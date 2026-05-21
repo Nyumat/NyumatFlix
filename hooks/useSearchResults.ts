@@ -2,7 +2,7 @@
 
 import { fetchCombinedGenres, fetchSearchResults } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { CanonicalMediaCard } from "@/utils/typings";
+import type { CanonicalMediaCard } from "@/lib/domain/typings";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
