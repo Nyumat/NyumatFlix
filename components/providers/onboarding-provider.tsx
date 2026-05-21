@@ -25,7 +25,7 @@ export const OnboardingProvider = ({ children }: OnboardingProviderProps) => {
     }
 
     setHasChecked(true);
-  }, [status]);
+  }, [hasChecked, session, status]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);

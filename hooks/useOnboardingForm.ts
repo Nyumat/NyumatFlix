@@ -43,7 +43,7 @@ export const useOnboardingForm = (): UseOnboardingFormReturn => {
           const error = await response.json();
           throw new Error(error.error || "Failed to update name");
         }
-        await update({ name: name.trim() });
+        await update();
         onComplete();
       } finally {
         setIsLoading(false);

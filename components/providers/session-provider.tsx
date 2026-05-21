@@ -9,7 +9,7 @@ interface AuthSessionProviderProps {
 
 export const AuthSessionProvider = ({ children }: AuthSessionProviderProps) => {
   return (
-    <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
+    <SessionProvider refetchOnWindowFocus refetchInterval={0}>
       {children}
     </SessionProvider>
   );
