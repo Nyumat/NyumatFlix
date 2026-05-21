@@ -285,7 +285,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
                 <Suspense fallback={<CatalogRowFallback />}>
                   <TrendCarousel
                     type="movie"
-                    title={pages.trending.movie.title}
+                    title="Trending"
                     link={pages.trending.movie.link}
                     items={hubTrendingCarouselEnriched as MovieWithMediaType[]}
                   />
@@ -309,7 +309,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
                 <Suspense fallback={<CatalogRowFallback />}>
                   <ContentRow
                     variant="ranked"
-                    title={pages.movie.topRated.title}
+                    title="Top Rated"
                     items={hubTopPicksRow.map((m) => ({
                       ...m,
                       media_type: "movie" as const,

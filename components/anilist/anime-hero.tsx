@@ -1,10 +1,6 @@
-import {
-  MediaBackdrop,
-  mediaMetaBadgeClass,
-} from "@/components/media/media-shared";
+import { MediaBackdrop } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
 import { pages } from "@/config/pages";
-import { cn } from "@/lib/utils";
 import { tmdbImage } from "@/tmdb/utils";
 import type { MediaItem } from "@/lib/domain/typings";
 import { Info, Play } from "lucide-react";
@@ -20,7 +16,6 @@ type AnimeHeroProps = {
 
 type AnimeHeroItem = MediaItem & {
   href?: string;
-  genres?: Array<{ id: number; name?: string }>;
   sourceAnilistId?: number;
 };
 
@@ -63,11 +58,13 @@ export const AnimeHero = ({
     const detailHref = getHref(heroItem);
     const hasDetailHref = isInternalDetailHref(detailHref);
     const playHref = getPlayHref(heroItem);
-    const genres = Array.isArray(heroItem.genres) ? heroItem.genres : [];
     const logo = heroItem.logo;
 
     return (
-      <div className="h-hero relative isolate" key={item.id}>
+      <div
+        className="relative isolate h-[min(58vh,31rem)] min-h-[27rem] overflow-hidden rounded-3xl md:h-hero md:min-h-0"
+        key={item.id}
+      >
         <div className="absolute inset-0">
           <MediaBackdrop
             image={
@@ -83,13 +80,13 @@ export const AnimeHero = ({
         </div>
 
         <div className="overlay">
-          <div className="mx-auto max-w-3xl space-y-3 p-4 pb-6 text-center md:space-y-4 md:p-8 md:pb-8 lg:p-10">
+          <div className="mx-auto max-w-3xl space-y-2 p-4 pb-5 text-center md:space-y-4 md:p-8 md:pb-8 lg:p-10">
             <Badge className="select-none">{label}</Badge>
 
             {logo ? (
               <Image
                 src={tmdbImage.logo(logo.file_path, "w500")}
-                className="mx-auto my-2 w-[min(58%,15rem)] md:my-2 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
+                className="mx-auto my-1 w-[min(54%,11rem)] md:my-2 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
                 alt={title}
                 height={logo.height}
                 width={logo.width}
@@ -101,23 +98,11 @@ export const AnimeHero = ({
               </h2>
             )}
 
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {genres.slice(0, 3).map((genre) => (
-                <Badge
-                  variant="secondary"
-                  className={cn(mediaMetaBadgeClass, "select-none font-medium")}
-                  key={genre.id}
-                >
-                  {genre.name}
-                </Badge>
-              ))}
-            </div>
-
-            <p className="mx-auto line-clamp-3 max-w-xl text-sm text-muted-foreground md:text-lg">
+            <p className="mx-auto line-clamp-2 max-w-xl text-xs text-muted-foreground md:line-clamp-3 md:text-lg">
               {getString(item.overview)}
             </p>
 
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-2 md:gap-3">
               {playHref ? (
                 <Link
                   href={playHref}

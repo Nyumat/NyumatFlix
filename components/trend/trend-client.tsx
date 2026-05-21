@@ -46,6 +46,20 @@ const carouselItemBasis = {
   compact: "basis-[44%] sm:basis-1/4 md:basis-1/5 lg:basis-1/5 xl:basis-1/5",
 } as const;
 
+const getTrendItemKey = (
+  item: MovieWithMediaType | TvShowWithMediaType | PersonWithMediaType,
+  index: number,
+) => {
+  const animeId =
+    "sourceAnilistId" in item && typeof item.sourceAnilistId === "number"
+      ? item.sourceAnilistId
+      : undefined;
+
+  return animeId
+    ? `anilist-${animeId}`
+    : `${item.media_type}-${item.id}-${index}`;
+};
+
 export const TrendCarousel: React.FC<TrendCarouselProps> = ({
   title,
   description,
@@ -179,9 +193,9 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
       ) : null}
 
       <CarouselContent>
-        {visibleItems.map((item) => (
+        {visibleItems.map((item, index) => (
           <CarouselItem
-            key={item.id}
+            key={getTrendItemKey(item, index)}
             className={
               compact ? carouselItemBasis.compact : carouselItemBasis.default
             }
