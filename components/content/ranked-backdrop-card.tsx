@@ -4,7 +4,7 @@ import { MediaLogo } from "@/components/media/media-display";
 import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { tmdbImage } from "@/tmdb/utils";
-import { isMovie, MediaItem, Movie, TvShow } from "@/utils/typings";
+import { isMovie, MediaItem, Movie, TvShow } from "@/lib/domain/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";

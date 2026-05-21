@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/carousel";
 import useMedia from "@/hooks/useMedia";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { ContentRowHeader } from "./content-row-header";
 import { RankedBackdropCard } from "./ranked-backdrop-card";
 

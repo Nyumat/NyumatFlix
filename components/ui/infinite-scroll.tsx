@@ -2,7 +2,7 @@
 
 import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadMoreSpinner } from "@/components/ui/loading-spinner";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import React, { useMemo, useRef, useState, useTransition } from "react";
 import { InView } from "react-intersection-observer";
 

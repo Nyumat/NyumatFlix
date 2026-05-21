@@ -11,7 +11,7 @@ import {
   getPosterPath,
 } from "@/lib/cards";
 import { tmdbImage } from "@/tmdb/utils";
-import type { CanonicalMediaCard, MediaItem } from "@/utils/typings";
+import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import Image from "next/image";
 import Link from "next/link";
 import { CardMeta } from "./card-meta";

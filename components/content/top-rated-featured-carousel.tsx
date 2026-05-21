@@ -14,7 +14,7 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { RankedBackdropCard } from "./ranked-backdrop-card";
 
 const carouselItemBasis = "basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5";

@@ -1,11 +1,11 @@
 "use client";
 
-import { WatchlistItem } from "@/app/watchlist/actions";
+import { WatchlistItem } from "@/lib/domain/watchlist";
 import { MediaDetailLayout } from "@/components/media/media-server";
 import { useWatchlistItem } from "@/hooks/useWatchlistItem";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
 import { useDetailRouteStore } from "@/lib/stores/detail-route-store";
-import { TvShowDetails } from "@/utils/typings";
+import { TvShowDetails } from "@/lib/domain/typings";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 

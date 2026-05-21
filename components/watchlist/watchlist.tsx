@@ -1,7 +1,8 @@
 "use client";
 
-import { getWatchlistItem, type WatchlistItem } from "@/app/watchlist/actions";
-import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
+import { getWatchlistItem } from "@/app/watchlist/actions";
+import type { EpisodeInfo } from "@/lib/domain/episodes";
+import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatCountdown } from "@/lib/utils/countdown";
 import { tmdbImage } from "@/tmdb/utils";
-import { getAirDate, getTitle, MediaItem } from "@/utils/typings";
+import { getAirDate, getTitle, MediaItem } from "@/lib/domain/typings";
 import {
   Bookmark,
   BookmarkCheck,

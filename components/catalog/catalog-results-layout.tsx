@@ -4,7 +4,7 @@ import { CatalogGridFallback } from "@/components/catalog/catalog-suspense-fallb
 import { QueryPageHeader } from "@/components/catalog/query-page-header";
 import { filterDiscoverParams } from "@/lib/utils";
 import type { Genre, WatchProvider } from "@/tmdb/models";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { Suspense } from "react";
 
 type CatalogResultsLayoutProps = {

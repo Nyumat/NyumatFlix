@@ -1,6 +1,6 @@
 "use client";
 
-import { SeasonDetails } from "@/utils/typings";
+import { SeasonDetails } from "@/lib/domain/typings";
 import dynamic from "next/dynamic";
 
 const TvSeriesGraphTab = dynamic(

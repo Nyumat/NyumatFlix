@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { pages } from "@/config";
 import { cn } from "@/lib/utils";
 import { tmdbImage } from "@/tmdb/utils";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { Info, Play } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
