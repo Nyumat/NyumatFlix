@@ -51,9 +51,9 @@ TMDB_API_KEY=
 ID_MOE_API_KEY=
 AUTH_SECRET=
 AUTH_RESEND_KEY=
+APP_URL=
 AUTH_URL=
 NEXTAUTH_URL=
-NEXT_PUBLIC_APP_URL=
 RESEND_FROM_EMAIL=
 DATABASE_URL=
 ```
@@ -63,7 +63,7 @@ You can get your own instance of the API keys by creating an account on [TMDb](h
 > [!TIP]
 > For the database, you can use any PostgreSQL database you want. I recommend using [Neon](https://neon.tech/) for production and [Local Postgres](https://www.postgresql.org/) for development.
 
-For local development, set `AUTH_URL`, `NEXTAUTH_URL`, and `NEXT_PUBLIC_APP_URL` to `http://localhost:3000`.
+For local development, set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to `http://localhost:3000`.
 
 3. Install dependencies
 
@@ -101,25 +101,39 @@ bun run dev
 
 ## 🐳 Run with Docker
 
-For our Docker friends, keep your variables in `.env.local`, then run:
+Docker uses the same image shape for local and production. Build-time secrets are not used. Copy the example env file and fill in the values:
 
 ```bash
-docker compose up --build
+cp .env.example .env
+```
+
+For local Docker, use `APP_URL=http://localhost:8080`, then run:
+
+```bash
+docker compose --env-file .env up --build
 ```
 
 The app will be available at [http://localhost:8080](http://localhost:8080). To use a different port:
 
 ```bash
-APP_PORT=3001 docker compose up --build
+APP_PORT=3001 docker compose --env-file .env up --build
 ```
 
-To use a different env file:
+For production, build and publish the image without secrets:
 
 ```bash
-APP_ENV_FILE=.env.production docker compose up --build
+docker build -t registry.example.com/nyumatflix:latest .
 ```
 
-The `docker-compose.yml` sets `AUTH_URL`, `NEXTAUTH_URL`, and `NEXT_PUBLIC_APP_URL` to the local Docker URL by default. Override `APP_AUTH_URL`, `APP_NEXTAUTH_URL`, or `APP_PUBLIC_URL` if you need a different callback/public URL.
+Then inject runtime variables through your host or platform. For plain Docker Compose on a VPS, keep the real env file outside git and pass it explicitly:
+
+```bash
+docker compose \
+  --env-file /etc/nyumatflix/env \
+  up -d
+```
+
+Set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to your public origin in production. `AUTH_URL` and `NEXTAUTH_URL` default to `APP_URL` in Docker Compose, so most deployments can set all three to the same value. Server-only values such as `DATABASE_URL`, `AUTH_SECRET`, `TMDB_API_KEY`, and `AUTH_RESEND_KEY` are runtime secrets and should never be copied into the Docker image.
 
 ## FAQ
 
