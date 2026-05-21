@@ -98,7 +98,7 @@ bun run dev
 
 7. Finally, open [http://localhost:3000](http://localhost:3000) in your browser to see the project in action!
 
-
+<!-- 
 ## 🐳 Run with Docker
 
 Docker uses the same image shape for local and production. Build-time secrets are not used. Copy the example env file and fill in the values:
@@ -133,7 +133,7 @@ docker compose \
   up -d
 ```
 
-Set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to your public origin in production. `AUTH_URL` and `NEXTAUTH_URL` default to `APP_URL` in Docker Compose, so most deployments can set all three to the same value. Server-only values such as `DATABASE_URL`, `AUTH_SECRET`, `TMDB_API_KEY`, and `AUTH_RESEND_KEY` are runtime secrets and should never be copied into the Docker image.
+Set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to your public origin in production. `AUTH_URL` and `NEXTAUTH_URL` default to `APP_URL` in Docker Compose, so most deployments can set all three to the same value. Server-only values such as `DATABASE_URL`, `AUTH_SECRET`, `TMDB_API_KEY`, and `AUTH_RESEND_KEY` are runtime secrets and should never be copied into the Docker image. -->
 
 ## FAQ
 
