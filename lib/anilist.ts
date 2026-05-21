@@ -1,4 +1,5 @@
 import type { MediaItem } from "@/lib/domain/typings";
+import { fetchTmdbAnimeFallbackPage } from "@/lib/anime-tmdb-fallback";
 import { unstable_cache } from "next/cache";
 
 export const ANILIST_ENDPOINT = "https://graphql.anilist.co";
@@ -92,6 +93,10 @@ export type AniListMedia = {
     day?: number | null;
   } | null;
   siteUrl?: string | null;
+  tmdbFallback?: {
+    id: number;
+    type: "movie" | "tv";
+  };
 };
 
 export type AniListPageInfo = {
@@ -271,23 +276,43 @@ const fetchAniListPageUncached = async ({
     search: params.query,
   });
 
-  const response = await fetch(ANILIST_ENDPOINT, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ query: ANILIST_PAGE_QUERY, variables }),
-    next: { revalidate: ANILIST_REVALIDATE_SECONDS },
-  });
+  let response: Response;
+  try {
+    response = await fetch(ANILIST_ENDPOINT, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ query: ANILIST_PAGE_QUERY, variables }),
+      next: { revalidate: ANILIST_REVALIDATE_SECONDS },
+    });
+  } catch (error) {
+    return fetchTmdbAnimeFallbackPage({
+      page,
+      perPage,
+      params,
+      reason: error instanceof Error ? error.message : "network error",
+    });
+  }
 
   if (!response.ok) {
-    throw new Error(`AniList request failed with status ${response.status}`);
+    return fetchTmdbAnimeFallbackPage({
+      page,
+      perPage,
+      params,
+      reason: `status ${response.status}`,
+    });
   }
 
   const payload = (await response.json()) as AniListResponse;
   if (payload.errors?.length) {
-    throw new Error(payload.errors.map((error) => error.message).join("; "));
+    return fetchTmdbAnimeFallbackPage({
+      page,
+      perPage,
+      params,
+      reason: payload.errors.map((error) => error.message).join("; "),
+    });
   }
 
   return (
@@ -342,8 +367,9 @@ export const buildAniListUrl = (
   if (params.season) search.set("season", params.season);
   if (params.year) search.set("year", String(params.year));
   if (params.page && params.page > 1) search.set("page", String(params.page));
+  search.set("mode", "results");
   const query = search.toString();
-  return query ? `/anime/browse?${query}` : "/anime/browse";
+  return query ? `/anime?${query}` : "/anime";
 };
 
 const toAniListDate = (item: AniListMedia) => {
