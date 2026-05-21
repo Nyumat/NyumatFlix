@@ -36,7 +36,7 @@ const MOVIE_ROW_LOOKUP_COUNT = 14;
 const GENRE_ROW_FETCH_COUNT = 36;
 const GENRE_ROW_LOOKUP_COUNT = 10;
 
-export const revalidate = ANIME_HOME_REVALIDATE_SECONDS;
+export const revalidate = 3600;
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
