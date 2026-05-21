@@ -18,7 +18,23 @@ function railwayPublicOrigin() {
   );
 }
 
+const isLocalOrigin = (origin: string) => {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+};
+
 export async function getAppOrigin() {
+  const requestHeaders = await headers();
+  const host =
+    requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
+  const requestOrigin = host
+    ? `${requestHeaders.get("x-forwarded-proto") || "http"}://${host}`
+    : undefined;
+
   const configuredOrigin =
     process.env.APP_URL ||
     process.env.AUTH_URL ||
@@ -26,16 +42,14 @@ export async function getAppOrigin() {
     railwayPublicOrigin();
 
   if (configuredOrigin) {
-    return normalizeOrigin(configuredOrigin);
+    const normalizedOrigin = normalizeOrigin(configuredOrigin);
+    return requestOrigin && isLocalOrigin(normalizedOrigin)
+      ? requestOrigin
+      : normalizedOrigin;
   }
 
-  const requestHeaders = await headers();
-  const host =
-    requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
-
-  if (host) {
-    const proto = requestHeaders.get("x-forwarded-proto") || "http";
-    return `${proto}://${host}`;
+  if (requestOrigin) {
+    return requestOrigin;
   }
 
   return `http://localhost:${process.env.PORT || "3000"}`;
