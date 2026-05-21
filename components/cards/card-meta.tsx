@@ -1,8 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { CountryBadge } from "@/components/ui/country-badge";
-import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
+import { CountryBadge } from "@/components/media/controls/country-badge";
+import { SmartGenreBadgeGroup } from "@/components/media/controls/genre-badge";
 import {
   getContentRatingDisplay,
   getCountryCodes,
@@ -12,7 +12,7 @@ import {
   getRatingDisplay,
   getRuntimeText,
 } from "@/lib/cards";
-import type { CanonicalMediaCard, MediaItem } from "@/utils/typings";
+import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import { Clock, Star } from "lucide-react";
 
 type CardMetaProps = {

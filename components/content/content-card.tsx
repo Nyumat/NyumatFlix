@@ -1,7 +1,7 @@
 "use client";
 
 import { PosterCard } from "@/components/cards";
-import type { CanonicalMediaCard, MediaItem } from "@/utils/typings";
+import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 
 interface ContentCardProps {
   item: MediaItem | CanonicalMediaCard;

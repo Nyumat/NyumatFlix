@@ -11,7 +11,7 @@ import {
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
 import { getHref } from "@/lib/cards";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { useEffect, useRef, useState } from "react";
 import { hasPosterPath } from "@/lib/media-poster-path";
 import { ContentCard } from "./content-card";

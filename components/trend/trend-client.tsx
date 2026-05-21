@@ -16,7 +16,7 @@ import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
 import { PersonCard } from "@/components/person/person-card";
 import { TvCard } from "@/components/tv/tv-card";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Carousel,

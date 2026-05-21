@@ -1,7 +1,7 @@
 "use client";
 
-import type { WatchlistItem } from "@/app/watchlist/actions";
-import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
+import type { WatchlistItem } from "@/lib/domain/watchlist";
+import type { EpisodeInfo } from "@/lib/domain/episodes";
 import { HorizontalCard } from "@/components/cards";
 import {
   BaseContentGrid,
@@ -9,11 +9,11 @@ import {
   type ViewMode,
 } from "@/components/content-grid";
 import MediaShowcaseCard from "@/components/media/media-client";
-import { useGlobalDock } from "@/components/ui/global-dock";
+import { useOptionalGlobalDock } from "@/components/layout/dock/global-dock";
 import useMedia from "@/hooks/useMedia";
 import { hasPosterPath } from "@/lib/media-poster-path";
 import { useViewModeStore } from "@/lib/stores/view-mode-store";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { useEffect } from "react";
 import { ContentCard } from "./content-card";
 
@@ -93,20 +93,17 @@ export function MediaContentGrid({
     getResponsiveDefault,
   } = useViewModeStore();
 
-  const {
-    viewMode: globalViewMode,
-    setViewMode: setGlobalViewMode,
-    setShowDock,
-  } = useGlobalDock();
+  const globalDock = useOptionalGlobalDock();
   const isMobile = useMedia("(max-width: 768px)", false);
+  const shouldUseDock = showDock && Boolean(globalDock);
 
-  const effectiveViewMode = showDock
-    ? globalViewMode
+  const effectiveViewMode = shouldUseDock
+    ? globalDock!.viewMode
     : storedViewMode || defaultViewMode || getResponsiveDefault();
 
   const handleViewModeChange = (mode: ViewMode) => {
-    if (showDock) {
-      setGlobalViewMode(mode);
+    if (shouldUseDock) {
+      globalDock!.setViewMode(mode);
     } else {
       setStoredViewMode(mode);
     }
@@ -114,8 +111,8 @@ export function MediaContentGrid({
   };
 
   useEffect(() => {
-    setShowDock(showDock);
-  }, [showDock, setShowDock]);
+    globalDock?.setShowDock(showDock);
+  }, [globalDock, showDock]);
 
   const validItems = items.filter(
     (item) =>

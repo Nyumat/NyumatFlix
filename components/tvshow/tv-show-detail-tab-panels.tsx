@@ -13,7 +13,7 @@ import {
 } from "@/lib/media-detail-tab-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import type { TvShowDetails } from "@/utils/typings";
+import type { TvShowDetails } from "@/lib/domain/typings";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, type ReactNode } from "react";
 import { useInView } from "react-intersection-observer";

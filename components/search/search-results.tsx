@@ -16,7 +16,7 @@ import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { useSearchResults } from "@/hooks/useSearchResults";
 import { getStableCardKey } from "@/lib/cards";
 import { cn } from "@/lib/utils";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { User } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";

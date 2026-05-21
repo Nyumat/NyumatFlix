@@ -4,7 +4,7 @@ import { MediaDetailFactsPanel } from "@/components/media/media-detail-facts-pan
 import { MediaBackdrop } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { PrimaryGenreBadge } from "@/components/ui/genre-badge";
+import { PrimaryGenreBadge } from "@/components/media/controls/genre-badge";
 import { pages } from "@/config";
 import {
   buildNetworkCatalogUrl,
@@ -13,7 +13,7 @@ import {
 import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import { cn, formatValue, joiner, pad } from "@/lib/utils";
 import { format } from "@/tmdb/utils";
-import { Creator, Genre, TvShowDetails } from "@/utils/typings";
+import { Creator, Genre, TvShowDetails } from "@/lib/domain/typings";
 import { Calendar, ListVideo, Star, Tv } from "lucide-react";
 import Link from "next/link";
 

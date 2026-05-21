@@ -3,7 +3,7 @@
 import { MediaCard, MediaPoster } from "@/components/media";
 import { hasProfilePath } from "@/lib/media-poster-path";
 import { isDeceasedAsOfToday } from "@/lib/utils";
-import type { CanonicalPersonCard } from "@/utils/typings";
+import type { CanonicalPersonCard } from "@/lib/domain/typings";
 import Link from "next/link";
 
 export function PersonCardPresenter({

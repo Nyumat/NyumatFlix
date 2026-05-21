@@ -1,9 +1,9 @@
 "use client";
 
-import { WatchlistItem } from "@/app/watchlist/actions";
+import { WatchlistItem } from "@/lib/domain/watchlist";
 import { EpisodeProgressIndicator } from "@/components/watchlist/watchlist";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { Episode, SeasonDetails } from "@/utils/typings";
+import { Episode, SeasonDetails } from "@/lib/domain/typings";
 import { Tv } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect } from "react";

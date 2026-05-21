@@ -10,7 +10,7 @@ import {
 import { LARGE_SERIES_GRAPH_NODE_THRESHOLD } from "@/lib/constants";
 import { useTvDetailIsDesktop } from "@/hooks/useTvDetailDesktop";
 import { cn } from "@/lib/utils";
-import { SeasonDetails } from "@/utils/typings";
+import { SeasonDetails } from "@/lib/domain/typings";
 import { ArrowDownUp, ArrowLeftRight, LayoutGrid, Network } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";

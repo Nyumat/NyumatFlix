@@ -4,7 +4,7 @@ import { TrendCarousel } from "@/components/trend/trend-client";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { fetchCatalogShowcaseRows } from "@/lib/catalog-showcase-fetch";
 import type { MovieWithMediaType, TvShowWithMediaType } from "@/tmdb/models";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 
 const toMovieWithType = (items: MediaItem[]): MovieWithMediaType[] =>
   items.map((item) => ({

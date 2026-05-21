@@ -1,5 +1,5 @@
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 
 type CatalogTvListProps = {
   initialItems: MediaItem[];

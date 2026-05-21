@@ -3,7 +3,7 @@
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { getHref } from "@/lib/cards";
 import { hasPosterPath } from "@/lib/media-poster-path";
-import { type MediaItem } from "@/utils/typings";
+import { type MediaItem } from "@/lib/domain/typings";
 import { useEffect, useState } from "react";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
