@@ -78,6 +78,12 @@ export function MediaDetailHero({
   const showAmbientMuteButton =
     !isPlayingTrailer && !isPlayingVideo && hasVideasyAmbientSource;
 
+  useEffect(() => {
+    if (!showAmbientMuteButton) {
+      setShowAmbientAudioHint(false);
+    }
+  }, [showAmbientMuteButton]);
+
   const handleDetailsMouseEnter = () => {
     if (hoverCollapseTimeoutRef.current) {
       clearTimeout(hoverCollapseTimeoutRef.current);
@@ -138,6 +144,9 @@ export function MediaDetailHero({
         videasyTrailerStatus={videasyTrailerStatus}
         isAmbientMuted={isAmbientMuted}
         onAmbientAutoplayBlocked={() => {
+          if (!hasVideasyAmbientSource) {
+            return;
+          }
           setIsAmbientMuted(true);
           setShowAmbientAudioHint(true);
         }}
@@ -160,7 +169,7 @@ export function MediaDetailHero({
         initialSeasonNumber={initialSeasonNumber}
         canPlayTrailer={canPlayTrailer}
         showAmbientMuteButton={showAmbientMuteButton}
-        showAmbientAudioHint={showAmbientAudioHint}
+        showAmbientAudioHint={showAmbientMuteButton && showAmbientAudioHint}
         isAmbientMuted={isAmbientMuted}
         isHeroHovered={supportsExpandedHero && isHeroHovered}
         onDetailsMouseEnter={handleDetailsMouseEnter}
