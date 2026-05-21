@@ -112,7 +112,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
 
         <div className="min-w-0 flex-1" />
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-3">
           <SiteNavDesktop triggerClassName={navbarActionButtonClassName} />
           <Button
             variant="ghost"
@@ -208,7 +208,7 @@ const DetailPageActions = ({
           <ChevronLeft className="size-6" strokeWidth={2.5} />
         </Button>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-3">
           <SiteNavDesktop
             triggerClassName={cn(
               navbarActionButtonClassName,

@@ -113,7 +113,7 @@ export const FooterSection = () => {
             you and me.
           </p>
           <p className="ml-auto max-w-xl self-end text-right text-xs text-muted-foreground">
-            Metadata from{" "}
+            Just another{" "}
             <a
               href="https://www.themoviedb.org"
               target="_blank"
@@ -121,7 +121,7 @@ export const FooterSection = () => {
               className="text-foreground underline underline-offset-4 hover:text-primary"
             >
               {" "}
-              TMDb{" "}
+              TMDB{" "}
             </a>{" "}
             and{" "}
             <a
@@ -133,7 +133,7 @@ export const FooterSection = () => {
               {" "}
               AniList{" "}
             </a>{" "}
-            . No media hosted.
+            wrapper.
           </p>
         </div>
       </div>

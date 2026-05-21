@@ -333,7 +333,7 @@ export function WatchlistClient({
   // Global Empty State
   if (watchlistItems.length === 0) {
     return (
-      <div className="w-full flex flex-col items-center justify-center min-h-[60vh] py-24 animate-in fade-in duration-700">
+      <div className="flex min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-center py-24 animate-in fade-in duration-700">
         <Card className="max-w-2xl w-full shadow-lg backdrop-blur-md bg-black/30 border border-white/20">
           <CardContent className="flex flex-col items-center justify-center text-center p-12">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-4">

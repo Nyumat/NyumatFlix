@@ -17,8 +17,7 @@ export const MAGIC_LINK_RESEND_FROM =
   process.env.NODE_ENV === "production"
     ? "Nyumatflix <login@auth.nyumatflix.com>"
     : process.env.RESEND_FROM_EMAIL || "Nyumatflix <delivered@resend.dev>";
-export const MAGIC_LINK_RESEND_SUBJECT =
-  "Here's your magic link to sign in";
+export const MAGIC_LINK_RESEND_SUBJECT = "Here's your magic link to sign in";
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 /** Series graph total nodes (seasons + episodes) above which mobile defaults to canvas */

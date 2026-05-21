@@ -87,7 +87,7 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={cn("min-h-screen bg-background font-sans")}>
+      <body className={cn("flex min-h-dvh flex-col bg-background font-sans")}>
         <RouteScrollReset />
         <QueryProvider>
           <AuthSessionProvider>
@@ -95,7 +95,9 @@ export default function RootLayout({
               <TooltipProvider>
                 <GlobalDockProvider>
                   <NavbarServer />
-                  <main className="flex-1">{children}</main>
+                  <main className="flex min-h-0 flex-1 flex-col">
+                    {children}
+                  </main>
                   <FooterSection />
                   <Toaster richColors closeButton />
                 </GlobalDockProvider>
