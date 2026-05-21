@@ -62,6 +62,18 @@ export interface ContentItem {
   [key: string]: unknown;
 }
 
+function getContentItemKey(item: ContentItem, index: number) {
+  const mediaType =
+    typeof item.media_type === "string"
+      ? item.media_type
+      : typeof item.title === "string"
+        ? "movie"
+        : typeof item.name === "string"
+          ? "tv"
+          : "content";
+  return `${mediaType}-${String(item.id)}-${index}`;
+}
+
 export type ViewMode = "grid" | "list";
 
 export interface BaseContentGridProps {
@@ -249,11 +261,14 @@ export function BaseContentGrid({
           viewMode === "grid" ? getGridClasses() : getListClasses(),
         )}
       >
-        {itemsToDisplay.map((item) => {
+        {itemsToDisplay.map((item, index) => {
           const card = renderCard(item, viewMode);
           if (viewMode === "grid") {
             return (
-              <div key={item.id} className={getItemClasses()}>
+              <div
+                key={getContentItemKey(item, index)}
+                className={getItemClasses()}
+              >
                 {card}
               </div>
             );

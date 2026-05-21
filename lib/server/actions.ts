@@ -574,15 +574,27 @@ export async function getTVGenreList() {
 
 // Type for combined credits items (cast or crew)
 interface CreditItem {
+  id?: number | string;
+  media_type?: string;
+  genre_ids?: number[];
   order?: number;
   character?: string;
   job?: string;
   department?: string;
   popularity?: number;
   vote_average?: number;
+  vote_count?: number;
   release_date?: string;
   first_air_date?: string;
   [key: string]: unknown;
+}
+
+const NOISY_TV_GENRE_IDS = new Set([10763, 10764, 10767]);
+
+function getCreditItemKey(item: CreditItem) {
+  const mediaType =
+    item.media_type ?? (typeof item.title === "string" ? "movie" : "tv");
+  return `${mediaType}-${String(item.id)}`;
 }
 
 /**
@@ -697,6 +709,29 @@ function calculateRoleImportanceScore(item: CreditItem): number {
   return score;
 }
 
+function calculateFilmographyPopularityScore(item: CreditItem): number {
+  const popularity = item.popularity || 0;
+  const voteCount = item.vote_count || 0;
+  const voteConfidence = Math.log10(voteCount + 1) * 25;
+  const isNoisyTvFormat =
+    item.media_type === "tv" &&
+    item.genre_ids?.some((genreId) => NOISY_TV_GENRE_IDS.has(genreId));
+
+  let score = popularity + voteConfidence;
+
+  if (voteCount < 25) {
+    score *= 0.55;
+  } else if (voteCount < 100) {
+    score *= 0.75;
+  }
+
+  if (isNoisyTvFormat) {
+    score *= 0.35;
+  }
+
+  return score;
+}
+
 // New function to fetch person filmography (movies and TV) - following your existing pattern
 export async function fetchPersonFilmography(
   personId: number,
@@ -720,10 +755,13 @@ export async function fetchPersonFilmography(
       (item) => item.poster_path && item.id,
     );
 
-    // Deduplicate by media ID to avoid showing the same movie/show multiple times
+    // Deduplicate by media type and ID to avoid showing the same title multiple times.
     const deduplicatedCredits = uniqueCredits.reduce(
       (acc, current) => {
-        const existingIndex = acc.findIndex((item) => item.id === current.id);
+        const currentKey = getCreditItemKey(current);
+        const existingIndex = acc.findIndex(
+          (item) => getCreditItemKey(item) === currentKey,
+        );
         if (existingIndex === -1) {
           acc.push(current);
         } else {
@@ -741,12 +779,16 @@ export async function fetchPersonFilmography(
       [] as typeof uniqueCredits,
     );
 
-    // Sort by role importance
+    // Sort by durable popularity before pagination.
     const results = deduplicatedCredits.sort((a, b) => {
-      // Calculate role importance score for each item
-      const scoreA = calculateRoleImportanceScore(a);
-      const scoreB = calculateRoleImportanceScore(b);
-      return scoreB - scoreA; // Higher score = more important role
+      const scoreA = calculateFilmographyPopularityScore(a);
+      const scoreB = calculateFilmographyPopularityScore(b);
+
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+
+      return (b.vote_count || 0) - (a.vote_count || 0);
     });
 
     // Paginate results (20 per page)

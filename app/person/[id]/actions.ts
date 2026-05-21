@@ -20,7 +20,7 @@ function isValidMediaData(
 export async function getFilmographyListNodes(
   personId: number,
   offset: number,
-  seenIds?: number[],
+  seenIds?: string[],
 ): Promise<{ items: MediaItem[]; nextOffset: number | null } | null> {
   try {
     const seenIdsSet = new Set(seenIds || []);
@@ -53,7 +53,11 @@ export async function getFilmographyListNodes(
 
     const uniqueFilmography = processedFilmography.filter((item) => {
       if (typeof item.id !== "number") return true;
-      if (seenIdsSet.has(item.id)) return false;
+      const mediaType =
+        item.media_type ??
+        ("title" in item ? "movie" : "name" in item ? "tv" : "content");
+      const itemKey = `${mediaType}-${String(item.id)}`;
+      if (seenIdsSet.has(itemKey)) return false;
       return true;
     });
 

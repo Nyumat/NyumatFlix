@@ -17,12 +17,17 @@ export function PersonFilmography({
   const initialOffset = 2;
 
   const initialSeenIds = initialFilmography
-    .map((item) => item.id)
-    .filter((id): id is number => typeof id === "number");
+    .filter((item) => typeof item.id === "number")
+    .map((item) => {
+      const mediaType =
+        item.media_type ??
+        ("title" in item ? "movie" : "name" in item ? "tv" : "content");
+      return `${mediaType}-${String(item.id)}`;
+    });
 
   return (
     <InfiniteScroll
-      getListNodes={async (offset: number, seenIds?: number[]) => {
+      getListNodes={async (offset: number, seenIds?: string[]) => {
         const result = await getFilmographyListNodes(personId, offset, seenIds);
         if (!result) return null;
 
