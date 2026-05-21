@@ -1,5 +1,5 @@
 import { getGenreNames } from "@/components/content/genre-helpers";
-import { mapMediaListToCanonicalCardsValue } from "@/lib/cards";
+import { mapMediaListToCanonicalCardsValue } from "@/lib/cards/mappers";
 import {
   isPremieredTvByDate,
   isReleasedMovieByDate,

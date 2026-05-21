@@ -1,4 +1,4 @@
-// import { HeaderHero } from "@/components/hero"; // Removed for search page
+// import { HeaderHero } from "@/components/hero/hero-static"; // Removed for search page
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function SearchPageLayout({

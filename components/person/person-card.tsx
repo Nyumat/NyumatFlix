@@ -1,6 +1,6 @@
 "use client";
 
-import { PersonCardPresenter } from "@/components/cards";
+import { PersonCardPresenter } from "@/components/cards/person-card";
 import { type Person } from "@/tmdb/models";
 
 export const PersonCard: React.FC<Person> = (person) => {

@@ -2,7 +2,7 @@
 
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
-import { PosterCard } from "@/components/cards";
+import { PosterCard } from "@/components/cards/poster-card";
 import { Icons as LibIcons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

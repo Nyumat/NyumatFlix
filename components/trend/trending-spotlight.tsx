@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { MediaPoster } from "@/components/media";
+import { MediaPoster } from "@/components/media/media-display";
 import { mediaMetaBadgeClass } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";

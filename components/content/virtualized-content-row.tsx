@@ -1,7 +1,7 @@
 "use client";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { getHref } from "@/lib/cards";
+import { getHref } from "@/lib/cards/selectors";
 import { hasPosterPath } from "@/lib/media-poster-path";
 import { type MediaItem } from "@/lib/domain/typings";
 import { useEffect, useState } from "react";

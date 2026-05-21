@@ -3,7 +3,7 @@ import {
   mediaMetaBadgeClass,
 } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import { cn } from "@/lib/utils";
 import { tmdbImage } from "@/tmdb/utils";
 import type { MediaItem } from "@/lib/domain/typings";

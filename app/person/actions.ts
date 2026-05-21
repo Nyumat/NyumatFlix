@@ -1,7 +1,10 @@
 "use server";
 
 import { MediaItem } from "@/lib/domain/typings";
-import { buildItemsWithCategories, fetchPersonFilmography } from "../actions";
+import {
+  buildItemsWithCategories,
+  fetchPersonFilmography,
+} from "@/lib/server/actions";
 
 // Type guard to validate that raw TMDB data has required fields
 function isValidMediaData(

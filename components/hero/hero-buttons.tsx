@@ -1,7 +1,7 @@
 "use client";
 
 import { WatchlistButton } from "@/components/watchlist/watchlist";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import { cn } from "@/lib/utils";

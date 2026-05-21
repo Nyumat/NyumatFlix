@@ -1,8 +1,8 @@
 "use client";
 
-import { PosterCard } from "@/components/cards";
+import { PosterCard } from "@/components/cards/poster-card";
 import { hasPosterPath } from "@/lib/media-poster-path";
-import { formatYear } from "@/lib/cards";
+import { formatYear } from "@/lib/cards/formatters";
 import { type Movie } from "@/tmdb/models";
 
 export type MovieCardProps = Movie & {

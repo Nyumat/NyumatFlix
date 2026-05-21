@@ -6,7 +6,7 @@ import {
   type MediaAboveFoldDetail,
   type MediaAboveFoldType,
 } from "@/lib/media-above-fold";
-import { getHref } from "@/lib/cards";
+import { getHref } from "@/lib/cards/selectors";
 import { queryKeys } from "@/lib/query-keys";
 import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import { QueryClientContext } from "@tanstack/react-query";

@@ -1,5 +1,5 @@
 import { useRouter, useSearchParams } from "next/navigation";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import {
   CalendarArrowDown,
   CalendarArrowUp,

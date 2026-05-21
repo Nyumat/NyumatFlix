@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/carousel";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
-import { getHref } from "@/lib/cards";
+import { getHref } from "@/lib/cards/selectors";
 import { MediaItem } from "@/lib/domain/typings";
 import { useEffect, useRef, useState } from "react";
 import { hasPosterPath } from "@/lib/media-poster-path";

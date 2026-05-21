@@ -1,7 +1,7 @@
 "use client";
 
 import { MultiSelect } from "@/components/multi-select";
-import { HorizontalCard } from "@/components/cards";
+import { HorizontalCard } from "@/components/cards/horizontal-card";
 import {
   Pagination,
   PaginationContent,
@@ -14,7 +14,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { useSearchResults } from "@/hooks/useSearchResults";
-import { getStableCardKey } from "@/lib/cards";
+import { getStableCardKey } from "@/lib/cards/selectors";
 import { cn } from "@/lib/utils";
 import type { MediaItem } from "@/lib/domain/typings";
 import { User } from "lucide-react";

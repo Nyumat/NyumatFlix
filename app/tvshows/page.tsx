@@ -10,14 +10,14 @@ import {
   CatalogSpotlightFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import { ContentRow } from "@/components/content/content-row";
-import { DiscoverHubToolbarDynamic } from "@/components/discover";
-import { StaticHero } from "@/components/hero";
+import { DiscoverHubToolbarDynamic } from "@/components/discover/discover-hub-toolbar-dynamic";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { CatalogSpotlight } from "@/components/trend/catalog-spotlight";
 import { TrendCarousel } from "@/components/trend/trend-client";
-import { TvHero } from "@/components/tv";
+import { TvHero } from "@/components/tv/tv-server";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import {
   filterUnseenById,
   takeUniqueByIdInOrder,

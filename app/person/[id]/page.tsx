@@ -7,7 +7,7 @@ import { cn, isDeceasedAsOfToday } from "@/lib/utils";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
-import { BiographyReadMore } from "@/components/person";
+import { BiographyReadMore } from "@/components/person/person-client";
 import type { PersonDetails } from "@/tmdb/models";
 import { MediaItem } from "@/lib/domain/typings";
 import { Calendar, MapPin, User } from "lucide-react";

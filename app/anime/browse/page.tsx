@@ -2,7 +2,7 @@ import { AniListFiltersDynamic } from "@/components/anilist/anilist-filters-dyna
 import { AnimeInfiniteGrid } from "@/components/anilist/anime-infinite-grid";
 import { CatalogGridFallback } from "@/components/catalog/catalog-suspense-fallbacks";
 import { QueryPageHeader } from "@/components/catalog/query-page-header";
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { Button } from "@/components/ui/button";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";

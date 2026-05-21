@@ -5,7 +5,7 @@ import {
 import {
   mapMediaListToCanonicalCardsValue,
   mapPersonToCanonicalCardValue,
-} from "@/lib/cards";
+} from "@/lib/cards/mappers";
 import {
   CanonicalMediaCard,
   CanonicalPersonCard,

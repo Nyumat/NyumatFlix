@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Fragment } from "react";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import { Episode, SeasonDetails, TvShow, TvShowDetails } from "@/tmdb/models";
 import { tmdb } from "@/tmdb/api";
 import { TvListType, WithCredits, WithImages, WithVideos } from "@/tmdb/api";
@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { TabsProps } from "@radix-ui/react-tabs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MediaImages } from "@/components/media";
+import { MediaImages } from "@/components/media/media-client";
 import {
   MediaBackdrop,
   MediaCreditsList,

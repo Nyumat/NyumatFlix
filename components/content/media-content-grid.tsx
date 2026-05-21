@@ -2,7 +2,7 @@
 
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
-import { HorizontalCard } from "@/components/cards";
+import { HorizontalCard } from "@/components/cards/horizontal-card";
 import {
   BaseContentGrid,
   type ContentItem,

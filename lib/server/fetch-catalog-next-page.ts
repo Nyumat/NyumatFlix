@@ -1,7 +1,7 @@
 import "server-only";
 
 import { buildCatalogDiscoverUrlMerge } from "@/lib/discover-merge";
-import { mapMediaListToCanonicalCardsValue } from "@/lib/cards";
+import { mapMediaListToCanonicalCardsValue } from "@/lib/cards/mappers";
 import {
   parseMovieView,
   parseTvView,

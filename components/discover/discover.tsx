@@ -11,9 +11,10 @@ import {
   ChevronsUpDown,
   SlidersHorizontal,
 } from "lucide-react";
-import { useFilters, useSort } from "@/hooks";
 import { useDiscoverMultiSelect } from "@/hooks/useDiscoverMultiSelect";
-import { languages } from "@/lib";
+import { useFilters } from "@/hooks/useFilters";
+import { useSort } from "@/hooks/useSort";
+import { languages } from "@/lib/languages";
 import { cn, joiner } from "@/lib/utils";
 import type { Genre } from "@/tmdb/models";
 import { WatchProvider } from "@/tmdb/models";
@@ -55,7 +56,7 @@ import {
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ProviderLogo } from "@/components/provider";
+import { ProviderLogo } from "@/components/provider/provider";
 import { InfoTooltip } from "@/components/shared/info-tooltip";
 
 // --- discover-filter-date.tsx ---

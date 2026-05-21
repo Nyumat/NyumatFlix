@@ -6,9 +6,9 @@ import {
   CatalogSpotlightFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import { ContentRow } from "@/components/content/content-row";
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
-import { TrendCarousel } from "@/components/trend";
+import { TrendCarousel } from "@/components/trend/trend-client";
 import { Button } from "@/components/ui/button";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { buildAniListUrl, fetchAniListPage } from "@/lib/anilist";
