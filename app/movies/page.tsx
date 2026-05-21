@@ -141,6 +141,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
       results: moviesRaw,
       page: currentPage,
       total_pages: totalPages,
+      total_results: totalResults,
     } = catalogResponse;
     const movies = filterReleasedMovies(moviesRaw);
 
@@ -177,6 +178,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
                   currentPage={currentPage}
                   totalPages={totalPages}
                   queryParams={catalogQueryParams}
+                  resultCount={totalResults ?? movies.length}
                   emptyTitle="No movies found for the selected filters."
                   emptyDescription="Try removing some filters or sorting differently."
                   indexHref={indexHref}
@@ -383,6 +385,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
     results: moviesRaw,
     page: currentPage,
     total_pages: totalPages,
+    total_results: totalResults,
   } = catalogResponse;
 
   const movies = filterReleasedMovies(moviesRaw);
@@ -410,6 +413,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
               currentPage={currentPage}
               totalPages={totalPages}
               queryParams={catalogQueryParams}
+              resultCount={totalResults ?? movieItems.length}
               emptyTitle="No movies found for this list."
               indexHref={indexHref}
             />

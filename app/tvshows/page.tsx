@@ -145,6 +145,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
       results: showsRaw,
       page: currentPage,
       total_pages: totalPages,
+      total_results: totalResults,
     } = catalogResponse;
     const shows = filterReleasedTvShows(showsRaw);
 
@@ -181,6 +182,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                   currentPage={currentPage}
                   totalPages={totalPages}
                   queryParams={catalogQueryParams}
+                  resultCount={totalResults ?? shows.length}
                   emptyTitle="No TV shows found for the selected filters."
                   emptyDescription="Try removing some filters or sorting differently."
                   indexHref={indexHref}
@@ -384,6 +386,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     results: showsRaw,
     page: currentPage,
     total_pages: totalPages,
+    total_results: totalResults,
   } = catalogResponse;
 
   const shows = filterReleasedTvShows(showsRaw);
@@ -411,6 +414,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
               currentPage={currentPage}
               totalPages={totalPages}
               queryParams={catalogQueryParams}
+              resultCount={totalResults ?? tvItems.length}
               emptyTitle="No TV shows found for this list."
               indexHref={indexHref}
             />

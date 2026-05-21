@@ -17,6 +17,7 @@ type CatalogResultsLayoutProps = {
   currentPage: number;
   totalPages: number;
   queryParams: Record<string, string>;
+  resultCount: number;
   emptyTitle: string;
   emptyDescription?: string;
   indexHref?: string;
@@ -32,6 +33,7 @@ export const CatalogResultsLayout = ({
   currentPage,
   totalPages,
   queryParams,
+  resultCount,
   emptyTitle,
   emptyDescription,
   indexHref,
@@ -51,6 +53,7 @@ export const CatalogResultsLayout = ({
         genres={genres}
         providers={providers}
         serverDiscoverFilters={serverDiscoverFilters}
+        resultCount={resultCount}
       />
 
       <Suspense fallback={<CatalogGridFallback />}>
@@ -77,6 +80,7 @@ export const CatalogResultsLayout = ({
         genres={genres}
         providers={providers}
         serverDiscoverFilters={serverDiscoverFilters}
+        resultCount={resultCount}
       />
 
       <div className="rounded-lg border border-dashed p-12 text-center">

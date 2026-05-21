@@ -27,6 +27,7 @@ type CatalogDiscoverToolbarDynamicProps = {
   genres: Genre[];
   providers: WatchProvider[];
   serverDiscoverFilters: Record<string, string>;
+  resultCount: number;
 };
 
 export const CatalogDiscoverToolbarDynamic = ({
@@ -34,11 +35,13 @@ export const CatalogDiscoverToolbarDynamic = ({
   genres,
   providers,
   serverDiscoverFilters,
+  resultCount,
 }: CatalogDiscoverToolbarDynamicProps) => (
   <CatalogDiscoverToolbarInner
     mediaType={mediaType}
     genres={genres}
     providers={providers}
     serverDiscoverFilters={serverDiscoverFilters}
+    resultCount={resultCount}
   />
 );
