@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 
-const sql = neon(process.env.PROD_DATABASE_URL!);
+const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);
 
 const main = async () => {

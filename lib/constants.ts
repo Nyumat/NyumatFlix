@@ -8,7 +8,6 @@ export const requiredEnvVars = [
   "AUTH_SECRET",
   "AUTH_URL",
   "DATABASE_URL",
-  "PROD_DATABASE_URL",
 ];
 export const LOGGER_TITLE = "Nyumatflix 3.0";
 // For development, you can set RESEND_FROM_EMAIL in .env.local
