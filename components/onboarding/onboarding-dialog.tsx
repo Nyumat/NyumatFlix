@@ -1,5 +1,6 @@
 import { Info, Loader2, User, X } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOnboardingForm } from "@/hooks/useOnboardingForm";
 
@@ -54,8 +54,14 @@ export const OnboardingDialog = ({
   open,
   onComplete,
 }: OnboardingDialogProps) => {
+  const router = useRouter();
   const { name, isLoading, setName, handleSubmit, handleSkip } =
     useOnboardingForm();
+
+  const completeAndRedirect = () => {
+    onComplete();
+    router.push("/watchlist");
+  };
 
   return (
     <Dialog open={open}>
@@ -87,14 +93,17 @@ export const OnboardingDialog = ({
 
         <form
           onSubmit={async (e) => {
+            e.preventDefault();
+
             if (!name.trim()) {
               toast.error("Please enter your name");
               return;
             }
+
             try {
               await handleSubmit(e, () => {
                 toast.success("Welcome to NyumatFlix!");
-                onComplete();
+                completeAndRedirect();
               });
             } catch (error) {
               console.error("Error updating name:", error);
@@ -116,13 +125,13 @@ export const OnboardingDialog = ({
             </Label>
             <div className="relative flex h-12 items-center rounded-xl border border-white/12 bg-black/30 px-3 transition-colors focus-within:border-sky-300/45 focus-within:ring-2 focus-within:ring-sky-300/20">
               <User className="mr-2.5 size-4 shrink-0 text-zinc-500" />
-              <Input
+              <input
                 id="name"
                 type="text"
                 placeholder="What should we call you?"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="h-full flex-1 rounded-none border-0 bg-transparent px-0 py-0 text-base text-white shadow-none outline-none placeholder:text-zinc-600 focus-visible:ring-0 focus-visible:ring-offset-0 dark:border-0 dark:bg-transparent"
+                className="h-full min-w-0 flex-1 appearance-none border-0 bg-transparent px-0 py-0 text-base text-white shadow-none outline-none ring-0 placeholder:text-zinc-600 focus:border-0 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
                 maxLength={100}
                 disabled={isLoading}
                 autoFocus
@@ -139,7 +148,7 @@ export const OnboardingDialog = ({
               onClick={() => {
                 handleSkip(() => {
                   showOnboardingSkipToast();
-                  onComplete();
+                  completeAndRedirect();
                 });
               }}
               disabled={isLoading}
