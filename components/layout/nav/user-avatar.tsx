@@ -2,7 +2,7 @@
 
 import { List, Loader2, LogOut, Trash2 } from "lucide-react";
 import { Session } from "next-auth";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -35,8 +35,10 @@ interface UserAvatarProps {
 }
 
 export const UserAvatar = ({ session, triggerClassName }: UserAvatarProps) => {
+  const { data: clientSession } = useSession();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const activeSession = clientSession ?? session;
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/" });
@@ -74,9 +76,9 @@ export const UserAvatar = ({ session, triggerClassName }: UserAvatarProps) => {
     return email.slice(0, 2).toUpperCase();
   };
 
-  const userEmail = session.user?.email || "";
-  const userName = session.user?.name;
-  const userImage = session.user?.image;
+  const userEmail = activeSession.user?.email || "";
+  const userName = activeSession.user?.name;
+  const userImage = activeSession.user?.image;
 
   return (
     <>
