@@ -28,11 +28,19 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://nyumatflix.com/"),
   title: "NyumatFlix | Watch Movies and TV Shows",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico?v=2", type: "image/x-icon" },
+      { url: "/icon.png?v=2", sizes: "256x256", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico?v=2",
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
       {
-        url: "/apple-touch-icon-120x120.png",
+        url: "/apple-touch-icon.png?v=2",
+        sizes: "180x180",
+        type: "image/png",
+      },
+      {
+        url: "/apple-touch-icon-120x120.png?v=2",
         sizes: "120x120",
         type: "image/png",
       },
