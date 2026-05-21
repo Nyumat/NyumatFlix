@@ -218,6 +218,16 @@ const enrichOneUncached = async (item: AniListMedia): Promise<MediaItem> => {
     sourceAnilistId: item.id,
     isAniListFallback: true,
   } as MediaItem;
+
+  if (item.tmdbFallback) {
+    return fetchTmdbMappedItem(
+      item.tmdbFallback.id,
+      item.tmdbFallback.type,
+      fallback,
+      item.id,
+    );
+  }
+
   const mapping = await fetchIdsMoeMappingByAniListId(item.id);
 
   try {
