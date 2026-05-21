@@ -5,6 +5,7 @@ import { ServerSelector } from "@/components/media/controls/server-selector";
 import { Button } from "@/components/ui/button";
 import { WatchlistItem } from "@/lib/domain/watchlist";
 import { Episode, MediaItem, Movie, TvShow } from "@/lib/domain/typings";
+import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import { Icons } from "@/lib/icons";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ interface HeroContentProps {
   watchlistItem?: WatchlistItem | null;
   initialEpisode?: Episode | null;
   initialSeasonNumber?: number | null;
+  anilistId?: number | null | undefined;
   canPlayTrailer: boolean;
   showAmbientMuteButton: boolean;
   showAmbientAudioHint: boolean;
@@ -59,6 +61,7 @@ export function HeroContent({
   watchlistItem,
   initialEpisode,
   initialSeasonNumber,
+  anilistId,
   canPlayTrailer,
   showAmbientMuteButton,
   showAmbientAudioHint,
@@ -101,9 +104,10 @@ export function HeroContent({
     ? parseFloat(ratingRaw.toFixed(1)).toString()
     : null;
   const genresArray =
-    (media as MediaItem & { genres?: Array<{ name: string }> }).genres
-      ?.slice(0, 3)
-      .map((genre) => genre.name) || [];
+    (
+      media as MediaItem & { genres?: Array<{ id: number; name: string }> }
+    ).genres?.slice(0, 3) || [];
+  const isAnime = typeof anilistId === "number";
   const primaryProductionCountry =
     !isTv && "production_countries" in media
       ? media.production_countries?.[0]
@@ -165,11 +169,16 @@ export function HeroContent({
         {durationStr}
       </span>,
     );
-  genresArray.forEach((g: string) =>
+  genresArray.forEach((genre) =>
     metaElements.push(
-      <span key={g} className="inline-flex h-6 items-center leading-none">
-        {g}
-      </span>,
+      <Link
+        key={genre.id}
+        href={buildGenreBrowseUrl(genre, isTv ? "tv" : "movie", isAnime)}
+        className="inline-flex h-6 items-center leading-none transition hover:text-primary"
+        aria-label={`Browse ${genre.name} ${isAnime ? "anime" : isTv ? "TV shows" : "movies"}`}
+      >
+        {genre.name}
+      </Link>,
     ),
   );
 

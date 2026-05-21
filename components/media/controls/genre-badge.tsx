@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { getGenreName } from "@/components/content/genre-helpers";
 import { Badge } from "@/components/ui/badge";
-import { buildCatalogCtaUrl } from "@/lib/catalog-query";
+import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +24,7 @@ interface GenreBadgeProps {
     | "stylish";
   className?: string;
   clickable?: boolean;
+  isAnime?: boolean;
 }
 
 export function GenreBadge({
@@ -33,14 +34,17 @@ export function GenreBadge({
   variant = "chrome",
   className,
   clickable = true,
+  isAnime = false,
 }: GenreBadgeProps) {
   const catalogMediaType = mediaType === "movie" ? "movie" : "tv";
-  const href = buildCatalogCtaUrl(catalogMediaType, {
-    view: "discover",
-    mode: "results",
-    extra: { with_genres: genreId.toString() },
-  });
-  const tooltipText = `Browse ${genreName} ${catalogMediaType === "movie" ? "movies" : "TV shows"}`;
+  const href = buildGenreBrowseUrl(
+    { id: genreId, name: genreName },
+    catalogMediaType,
+    isAnime,
+  );
+  const tooltipText = `Browse ${genreName} ${
+    isAnime ? "anime" : catalogMediaType === "movie" ? "movies" : "TV shows"
+  }`;
 
   if (!clickable) {
     return (
