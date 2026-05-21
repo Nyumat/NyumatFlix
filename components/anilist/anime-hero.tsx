@@ -93,6 +93,7 @@ export const AnimeHero = ({
                 alt={title}
                 height={logo.height}
                 width={logo.width}
+                priority={priority}
               />
             ) : (
               <h2 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-3xl lg:text-4xl">

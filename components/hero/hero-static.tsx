@@ -212,6 +212,7 @@ export function BackgroundImage({
                 title={title}
                 size="large"
                 maxWidth={isFullPage ? "500px" : "300px"}
+                priority
               />
             </div>
           ) : (

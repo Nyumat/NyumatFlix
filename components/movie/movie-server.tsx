@@ -180,6 +180,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
               alt={item.title}
               height={logo.height}
               width={logo.width}
+              priority={priority}
             />
           ) : (
             <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-3xl lg:text-4xl">
