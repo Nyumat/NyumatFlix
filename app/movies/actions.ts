@@ -1,6 +1,6 @@
 "use server";
 
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { buildItemsWithCategories, fetchTMDBData } from "../actions";
 
 export async function getMoreMoviesForRow(

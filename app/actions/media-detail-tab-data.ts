@@ -1,76 +1,84 @@
 "use server";
 
-import { fetchAllSeasonDetails } from "@/components/tvshow/tvshow-api";
 import {
-  getCachedMovieDetail,
-  getCachedTvShowDetail,
-} from "@/lib/media-detail-cache";
-import { tmdb } from "@/tmdb/api";
+  fetchCollectionDetails as fetchCollectionDetailsImpl,
+  fetchMovieCredits as fetchMovieCreditsImpl,
+  fetchMovieImages as fetchMovieImagesImpl,
+  fetchMovieRecommendationsPage as fetchMovieRecommendationsPageImpl,
+  fetchMovieReviewsPage as fetchMovieReviewsPageImpl,
+  fetchMovieSimilarPage as fetchMovieSimilarPageImpl,
+  fetchMovieVideos as fetchMovieVideosImpl,
+  fetchTvCredits as fetchTvCreditsImpl,
+  fetchTvImages as fetchTvImagesImpl,
+  fetchTvRecommendationsPage as fetchTvRecommendationsPageImpl,
+  fetchTvReviewsPage as fetchTvReviewsPageImpl,
+  fetchTvSimilarPage as fetchTvSimilarPageImpl,
+  fetchTvVideos as fetchTvVideosImpl,
+  getMovieDetailsForQuery as getMovieDetailsForQueryImpl,
+  getTvAllSeasonsForQuery as getTvAllSeasonsForQueryImpl,
+  getTvShowDetailsForQuery as getTvShowDetailsForQueryImpl,
+} from "@/lib/server/media-detail-tab-data";
 
 export async function fetchCollectionDetails(collectionId: number) {
-  return tmdb.collection.details({ id: collectionId });
+  return fetchCollectionDetailsImpl(collectionId);
 }
 
 export async function getTvShowDetailsForQuery(id: string) {
-  return getCachedTvShowDetail(id);
+  return getTvShowDetailsForQueryImpl(id);
 }
 
 export async function getTvAllSeasonsForQuery(id: string) {
-  const details = await getCachedTvShowDetail(id);
-  if (!details) {
-    return {};
-  }
-  return fetchAllSeasonDetails(id, details.seasons);
+  return getTvAllSeasonsForQueryImpl(id);
 }
 
 export async function getMovieDetailsForQuery(id: string) {
-  return getCachedMovieDetail(id);
+  return getMovieDetailsForQueryImpl(id);
 }
 
 export async function fetchTvReviewsPage(id: string, page: string) {
-  return tmdb.tv.reviews({ id, page });
+  return fetchTvReviewsPageImpl(id, page);
 }
 
 export async function fetchTvRecommendationsPage(id: string, page: string) {
-  return tmdb.tv.recommendations({ id, page });
+  return fetchTvRecommendationsPageImpl(id, page);
 }
 
 export async function fetchTvSimilarPage(id: string, page: string) {
-  return tmdb.tv.similar({ id, page });
+  return fetchTvSimilarPageImpl(id, page);
 }
 
 export async function fetchTvCredits(id: string) {
-  return tmdb.tv.credits({ id });
+  return fetchTvCreditsImpl(id);
 }
 
 export async function fetchTvImages(id: string) {
-  return tmdb.tv.images({ id, langs: "en,null" });
+  return fetchTvImagesImpl(id);
 }
 
 export async function fetchTvVideos(id: string) {
-  return tmdb.tv.videos({ id });
+  return fetchTvVideosImpl(id);
 }
 
 export async function fetchMovieReviewsPage(id: string, page: string) {
-  return tmdb.movie.reviews({ id, page });
+  return fetchMovieReviewsPageImpl(id, page);
 }
 
 export async function fetchMovieRecommendationsPage(id: string, page: string) {
-  return tmdb.movie.recommendations({ id, page });
+  return fetchMovieRecommendationsPageImpl(id, page);
 }
 
 export async function fetchMovieSimilarPage(id: string, page: string) {
-  return tmdb.movie.similar({ id, page });
+  return fetchMovieSimilarPageImpl(id, page);
 }
 
 export async function fetchMovieCredits(id: string) {
-  return tmdb.movie.credits({ id });
+  return fetchMovieCreditsImpl(id);
 }
 
 export async function fetchMovieImages(id: string) {
-  return tmdb.movie.images({ id, langs: "en,null" });
+  return fetchMovieImagesImpl(id);
 }
 
 export async function fetchMovieVideos(id: string) {
-  return tmdb.movie.videos({ id });
+  return fetchMovieVideosImpl(id);
 }

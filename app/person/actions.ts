@@ -1,6 +1,6 @@
 "use server";
 
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { buildItemsWithCategories, fetchPersonFilmography } from "../actions";
 
 // Type guard to validate that raw TMDB data has required fields
