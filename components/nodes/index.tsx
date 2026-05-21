@@ -1,12 +1,14 @@
-"use server";
-
-import { buildItemsWithCategories, getMovies, getTVShows } from "@/app/actions";
+import {
+  buildItemsWithCategories,
+  getMovies,
+  getTVShows,
+} from "@/lib/server/actions";
 import {
   MediaItem,
   MovieCategory,
   TVShowCategory,
   UnifiedCategory,
-} from "@/utils/typings";
+} from "@/lib/domain/typings";
 import { MediaContentGrid } from "../content/media-content-grid";
 
 export const getTvShowListNodes = async (

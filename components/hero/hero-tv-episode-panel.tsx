@@ -10,8 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
 import {
   matchesEpisodeSearch,
   parseEpisodeSearchQuery,
@@ -19,7 +19,7 @@ import {
 import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { buildEpisodeIndex, type IndexedEpisode } from "@/lib/tv-episode-index";
 import { cn } from "@/lib/utils";
-import { Episode, SeasonDetails, TvShowDetails } from "@/utils/typings";
+import { Episode, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDownAZ, ArrowUpZA, Search, Tv } from "lucide-react";
 import Image from "next/image";

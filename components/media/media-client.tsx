@@ -1,7 +1,7 @@
 "use client";
 
-import type { EpisodeInfo } from "@/app/watchlist/episode-check-service";
-import type { WatchlistItem } from "@/app/watchlist/actions";
+import type { EpisodeInfo } from "@/lib/domain/episodes";
+import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { PosterCard } from "@/components/cards";
 import { Icons as LibIcons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
@@ -14,17 +14,17 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { CountryBadge } from "@/components/ui/country-badge";
+import { CountryBadge } from "@/components/media/controls/country-badge";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { SmartGenreBadgeGroup } from "@/components/ui/genre-badge";
+import { SmartGenreBadgeGroup } from "@/components/media/controls/genre-badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { EpisodeIndicator } from "@/components/watchlist/watchlist";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { sortWithProfilePathFirst } from "@/lib/media-poster-path";
 import { cn } from "@/lib/utils";
-import type { Genre, MediaItem, ProductionCountry } from "@/utils/typings";
-import { Actor, Movie, TvShow, Video } from "@/utils/typings";
-import { getAirDate, getTitle, isMovie } from "@/utils/typings";
+import type { Genre, MediaItem, ProductionCountry } from "@/lib/domain/typings";
+import { Actor, Movie, TvShow, Video } from "@/lib/domain/typings";
+import { getAirDate, getTitle, isMovie } from "@/lib/domain/typings";
 import { Image as TmdbImage } from "@/tmdb/models";
 import { tmdbImage } from "@/tmdb/utils";
 import { Clock, Download, Expand, Link, Star, User } from "lucide-react";
