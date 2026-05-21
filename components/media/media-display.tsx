@@ -90,6 +90,7 @@ type PosterCompatProps = {
   size?: LegacyPosterSize | PosterSize;
   className?: string;
   imageClassName?: string;
+  priority?: boolean;
 };
 
 export function Poster({
@@ -98,6 +99,7 @@ export function Poster({
   size = "w342",
   className,
   imageClassName,
+  priority,
 }: PosterCompatProps) {
   const resolved: PosterSize =
     size === "small" || size === "medium" || size === "large"
@@ -111,6 +113,7 @@ export function Poster({
       size={resolved}
       className={className}
       imageClassName={imageClassName}
+      priority={priority}
     />
   );
 }
@@ -190,6 +193,7 @@ interface MediaLogoProps {
   maxHeight?: string;
   maxWidth?: string;
   align?: "left" | "center" | "right";
+  priority?: boolean;
 }
 
 export function MediaLogo({
@@ -201,6 +205,7 @@ export function MediaLogo({
   maxHeight,
   maxWidth,
   align = "left",
+  priority,
 }: MediaLogoProps) {
   const aspectRatio = useMemo(() => {
     if (!logo) return null;
@@ -327,7 +332,7 @@ export function MediaLogo({
             width={intrinsicWidth}
             height={intrinsicHeight}
             className="h-auto w-auto max-h-full max-w-full object-contain"
-            priority={false}
+            priority={priority}
           />
         </div>
       );
@@ -347,7 +352,7 @@ export function MediaLogo({
               align === "right" && "object-right",
             )}
             sizes={imageSizes}
-            priority={false}
+            priority={priority}
           />
         </div>
       </div>

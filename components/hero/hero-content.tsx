@@ -39,6 +39,8 @@ interface HeroContentProps {
   showAmbientAudioHint: boolean;
   isAmbientMuted: boolean;
   isHeroHovered: boolean;
+  onDetailsMouseEnter(): void;
+  onDetailsMouseLeave(): void;
   onToggleAmbientMute(): void;
 }
 
@@ -62,6 +64,8 @@ export function HeroContent({
   showAmbientAudioHint,
   isAmbientMuted,
   isHeroHovered,
+  onDetailsMouseEnter,
+  onDetailsMouseLeave,
   onToggleAmbientMute,
 }: HeroContentProps) {
   const {
@@ -298,6 +302,7 @@ export function HeroContent({
                         title={(title as string) || "Poster"}
                         size="small"
                         className="rounded-lg"
+                        priority
                       />
                     </div>
                   </div>
@@ -313,6 +318,8 @@ export function HeroContent({
                       "min-w-0 w-full flex-1 flex flex-col pointer-events-auto rounded-xl",
                       isWatch ? "max-w-3xl" : "max-w-2xl",
                     )}
+                    onMouseEnter={onDetailsMouseEnter}
+                    onMouseLeave={onDetailsMouseLeave}
                     layout
                   >
                     <motion.div layout>
@@ -321,6 +328,7 @@ export function HeroContent({
                           logo={media.logo}
                           title={(title as string) || "Logo"}
                           size="default"
+                          priority
                           className={cn(
                             "mb-3 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:mb-4",
                             isHeroHovered ? "size-2/6" : "size-1/4",

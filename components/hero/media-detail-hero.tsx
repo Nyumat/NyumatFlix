@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { WatchlistItem } from "@/lib/domain/watchlist";
 import { Episode, MediaItem } from "@/lib/domain/typings";
 import { useMediaHero } from "@/hooks/useMediaHero";
@@ -79,7 +78,7 @@ export function MediaDetailHero({
   const showAmbientMuteButton =
     !isPlayingTrailer && !isPlayingVideo && hasVideasyAmbientSource;
 
-  const handleHeroMouseEnter = () => {
+  const handleDetailsMouseEnter = () => {
     if (hoverCollapseTimeoutRef.current) {
       clearTimeout(hoverCollapseTimeoutRef.current);
       hoverCollapseTimeoutRef.current = null;
@@ -87,14 +86,14 @@ export function MediaDetailHero({
     setIsHeroHovered(true);
   };
 
-  const handleHeroMouseLeave = () => {
+  const handleDetailsMouseLeave = () => {
     if (hoverCollapseTimeoutRef.current) {
       clearTimeout(hoverCollapseTimeoutRef.current);
     }
     hoverCollapseTimeoutRef.current = setTimeout(() => {
       setIsHeroHovered(false);
       hoverCollapseTimeoutRef.current = null;
-    }, 5000);
+    }, 3000);
   };
 
   useEffect(() => {
@@ -121,11 +120,7 @@ export function MediaDetailHero({
   }, []);
 
   return (
-    <div
-      className="relative h-[100svh] min-h-[34rem] overflow-hidden"
-      onMouseEnter={handleHeroMouseEnter}
-      onMouseLeave={handleHeroMouseLeave}
-    >
+    <div className="relative h-[100svh] min-h-[34rem] overflow-hidden">
       <Script src="https://www.youtube.com/iframe_api" strategy="lazyOnload" />
 
       <HeroBackground
@@ -168,6 +163,8 @@ export function MediaDetailHero({
         showAmbientAudioHint={showAmbientAudioHint}
         isAmbientMuted={isAmbientMuted}
         isHeroHovered={supportsExpandedHero && isHeroHovered}
+        onDetailsMouseEnter={handleDetailsMouseEnter}
+        onDetailsMouseLeave={handleDetailsMouseLeave}
         onToggleAmbientMute={() => {
           setShowAmbientAudioHint(false);
           setIsAmbientMuted((prev) => !prev);
