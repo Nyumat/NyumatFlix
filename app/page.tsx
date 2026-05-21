@@ -184,7 +184,7 @@ export default async function Home() {
 
               <TrendCarousel
                 type="movie"
-                title="Trending movies"
+                title="Trending Movies"
                 link={pages.trending.movie.link}
                 items={moviesForTrendCarousel}
               />
@@ -200,7 +200,7 @@ export default async function Home() {
 
               <TrendCarousel
                 type="movie"
-                title="Popular movies"
+                title="Popular Movies"
                 link={pages.movie.popular.link}
                 items={popularMoviesForTrendCarousel}
               />
@@ -216,7 +216,7 @@ export default async function Home() {
 
               <TrendCarousel
                 type="tv"
-                title="Trending TV shows"
+                title="Trending TV"
                 link={pages.trending.tv.link}
                 items={tvShowsForTrendCarousel}
               />

@@ -285,7 +285,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                 <Suspense fallback={<CatalogRowFallback />}>
                   <TrendCarousel
                     type="tv"
-                    title={pages.trending.tv.title}
+                    title="Trending"
                     link={pages.trending.tv.link}
                     items={hubTrendingCarouselEnriched as TvShowWithMediaType[]}
                   />
@@ -309,7 +309,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                 <Suspense fallback={<CatalogRowFallback />}>
                   <ContentRow
                     variant="ranked"
-                    title={pages.tv.topRated.title}
+                    title="Top Rated"
                     items={hubTopPicksRow.map((s) => ({
                       ...s,
                       media_type: "tv" as const,
