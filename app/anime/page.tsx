@@ -12,6 +12,7 @@ import { ContentRow } from "@/components/content/content-row";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { Button } from "@/components/ui/button";
 import {
+  type AniListMedia,
   buildAniListUrl,
   fetchAniListPage,
   hasActiveAniListFilters,
@@ -27,6 +28,13 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 const ANIME_HOME_REVALIDATE_SECONDS = 3600;
+const ANIME_ROW_PAGE_SIZE = 30;
+const CORE_ROW_FETCH_COUNT = 48;
+const CORE_ROW_LOOKUP_COUNT = 18;
+const MOVIE_ROW_FETCH_COUNT = 36;
+const MOVIE_ROW_LOOKUP_COUNT = 14;
+const GENRE_ROW_FETCH_COUNT = 36;
+const GENRE_ROW_LOOKUP_COUNT = 10;
 
 export const revalidate = ANIME_HOME_REVALIDATE_SECONDS;
 
@@ -64,7 +72,7 @@ const hasInternalDetailItem = (item: MediaItem) => {
 };
 
 const withAnimePageHref = (item: MediaItem): MediaItem =>
-  hasInternalDetailItem(item)
+  (item as AnimeHubItem).isAniListFallback || hasInternalDetailItem(item)
     ? item
     : ({ ...item, href: "/tvshows" } as MediaItem);
 
@@ -77,8 +85,8 @@ const getItemTitle = (item: MediaItem) => {
   return title || name || "Untitled";
 };
 
-const getTitleKey = (item: MediaItem) =>
-  getItemTitle(item)
+const normalizeAnimeTitle = (title: string) =>
+  title
     .toLowerCase()
     .replace(/\([^)]*\)/g, " ")
     .replace(/\b(the\s+)?final\s+season\b/g, " ")
@@ -90,6 +98,15 @@ const getTitleKey = (item: MediaItem) =>
     .split(/[:\-–—]/)[0]
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+
+const getTitleKey = (item: MediaItem) =>
+  normalizeAnimeTitle(getItemTitle(item));
+
+const getAniListMediaTitle = (item: AniListMedia) =>
+  item.title.english || item.title.romaji || item.title.native || "Untitled";
+
+const getAniListTitleKey = (item: AniListMedia) =>
+  normalizeAnimeTitle(getAniListMediaTitle(item));
 
 const dedupeMediaItems = (items: MediaItem[]) => {
   const seen = new Set<string>();
@@ -129,26 +146,42 @@ const takeFreshItems = (
   return fresh;
 };
 
-const fetchAniListMediaPages = async ({
-  pages = 1,
+const fetchFreshAniListMedia = async ({
+  maxPages,
   perPage,
   params,
+  seenTitles,
+  targetCount,
 }: {
-  pages?: number;
+  maxPages: number;
   perPage: number;
   params: Parameters<typeof fetchAniListPage>[0]["params"];
+  seenTitles: Set<string>;
+  targetCount: number;
 }) => {
-  const rows = await Promise.all(
-    Array.from({ length: pages }, (_, index) =>
-      fetchAniListPage({
-        page: index + 1,
-        perPage,
-        params,
-      }),
-    ),
-  );
+  const fresh: AniListMedia[] = [];
+  const seenIds = new Set<number>();
 
-  return rows.flatMap((row) => row.media);
+  for (let page = 1; page <= maxPages && fresh.length < targetCount; page++) {
+    const row = await fetchAniListPage({ page, perPage, params });
+
+    for (const item of row.media) {
+      const titleKey = getAniListTitleKey(item);
+      if (seenIds.has(item.id) || (titleKey && seenTitles.has(titleKey))) {
+        continue;
+      }
+
+      seenIds.add(item.id);
+      if (titleKey) seenTitles.add(titleKey);
+      fresh.push(item);
+
+      if (fresh.length >= targetCount) break;
+    }
+
+    if (!row.pageInfo.hasNextPage) break;
+  }
+
+  return fresh;
 };
 
 const toPageNumber = (value: string | undefined) => {
@@ -221,48 +254,60 @@ type AnimeGenreHubData = {
 };
 
 const fetchAnimeCoreHubDataUncached = async (): Promise<AnimeHubData> => {
-  const rows = await Promise.all([
-    fetchAniListMediaPages({
-      pages: 3,
-      perPage: 24,
-      params: { medium: "ANIME", sort: "TRENDING_DESC", genres: [] },
-    }),
-    fetchAniListMediaPages({
-      pages: 3,
-      perPage: 24,
-      params: { medium: "ANIME", sort: "POPULARITY_DESC", genres: [] },
-    }),
-    fetchAniListMediaPages({
-      pages: 3,
-      perPage: 20,
-      params: { medium: "ANIME", sort: "SCORE_DESC", genres: [] },
-    }),
-    fetchAniListMediaPages({
-      pages: 3,
-      perPage: 24,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        status: "RELEASING",
-        genres: [],
-      },
-    }),
-    fetchAniListMediaPages({
-      pages: 3,
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        format: "MOVIE",
-        genres: [],
-      },
-    }),
-  ]);
+  const seenTitles = new Set<string>();
+  const trendingRow = await fetchFreshAniListMedia({
+    maxPages: 4,
+    perPage: ANIME_ROW_PAGE_SIZE,
+    targetCount: CORE_ROW_FETCH_COUNT,
+    seenTitles,
+    params: { medium: "ANIME", sort: "TRENDING_DESC", genres: [] },
+  });
+  const popularRow = await fetchFreshAniListMedia({
+    maxPages: 4,
+    perPage: ANIME_ROW_PAGE_SIZE,
+    targetCount: CORE_ROW_FETCH_COUNT,
+    seenTitles,
+    params: { medium: "ANIME", sort: "POPULARITY_DESC", genres: [] },
+  });
+  const topRow = await fetchFreshAniListMedia({
+    maxPages: 4,
+    perPage: ANIME_ROW_PAGE_SIZE,
+    targetCount: CORE_ROW_FETCH_COUNT,
+    seenTitles,
+    params: { medium: "ANIME", sort: "SCORE_DESC", genres: [] },
+  });
+  const airingRow = await fetchFreshAniListMedia({
+    maxPages: 4,
+    perPage: ANIME_ROW_PAGE_SIZE,
+    targetCount: CORE_ROW_FETCH_COUNT,
+    seenTitles,
+    params: {
+      medium: "ANIME",
+      sort: "POPULARITY_DESC",
+      status: "RELEASING",
+      genres: [],
+    },
+  });
+  const movieRow = await fetchFreshAniListMedia({
+    maxPages: 4,
+    perPage: ANIME_ROW_PAGE_SIZE,
+    targetCount: MOVIE_ROW_FETCH_COUNT,
+    seenTitles,
+    params: {
+      medium: "ANIME",
+      sort: "POPULARITY_DESC",
+      format: "MOVIE",
+      genres: [],
+    },
+  });
+
+  const rows = [trendingRow, popularRow, topRow, airingRow, movieRow];
 
   const [trendingItems, popularItems, topItems, airingItems, movieItems] =
     await Promise.all(
       rows.map((row, index) => {
-        const maxLookups = index < 4 ? 18 : 14;
+        const maxLookups =
+          index < 4 ? CORE_ROW_LOOKUP_COUNT : MOVIE_ROW_LOOKUP_COUNT;
         return enrichAniListMediaItemsWithTmdb(row, maxLookups).then(
           withAnimePageHrefs,
         );
@@ -279,72 +324,34 @@ const fetchAnimeCoreHubDataUncached = async (): Promise<AnimeHubData> => {
 };
 
 const fetchAnimeGenreHubDataUncached = async (): Promise<AnimeGenreHubData> => {
-  const rows = await Promise.all([
-    fetchAniListPage({
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        genres: ["Action"],
-      },
-    }),
-    fetchAniListPage({
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        genres: ["Adventure"],
-      },
-    }),
-    fetchAniListPage({
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        genres: ["Comedy"],
-      },
-    }),
-    fetchAniListPage({
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        genres: ["Fantasy"],
-      },
-    }),
-    fetchAniListPage({
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        genres: ["Romance"],
-      },
-    }),
-    fetchAniListPage({
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        genres: ["Sci-Fi"],
-      },
-    }),
-    fetchAniListPage({
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        genres: ["Slice of Life"],
-      },
-    }),
-    fetchAniListPage({
-      perPage: 18,
-      params: {
-        medium: "ANIME",
-        sort: "POPULARITY_DESC",
-        genres: ["Supernatural"],
-      },
-    }),
-  ]);
+  const seenTitles = new Set<string>();
+  const genreParams = [
+    ["Action"],
+    ["Adventure"],
+    ["Comedy"],
+    ["Fantasy"],
+    ["Romance"],
+    ["Sci-Fi"],
+    ["Slice of Life"],
+    ["Supernatural"],
+  ];
+  const rows: AniListMedia[][] = [];
+
+  for (const genres of genreParams) {
+    rows.push(
+      await fetchFreshAniListMedia({
+        maxPages: 4,
+        perPage: ANIME_ROW_PAGE_SIZE,
+        targetCount: GENRE_ROW_FETCH_COUNT,
+        seenTitles,
+        params: {
+          medium: "ANIME",
+          sort: "POPULARITY_DESC",
+          genres,
+        },
+      }),
+    );
+  }
 
   const [
     actionItems,
@@ -357,7 +364,9 @@ const fetchAnimeGenreHubDataUncached = async (): Promise<AnimeGenreHubData> => {
     supernaturalItems,
   ] = await Promise.all(
     rows.map((row) =>
-      enrichAniListMediaItemsWithTmdb(row.media, 6).then(withAnimePageHrefs),
+      enrichAniListMediaItemsWithTmdb(row, GENRE_ROW_LOOKUP_COUNT).then(
+        withAnimePageHrefs,
+      ),
     ),
   );
 
@@ -375,7 +384,7 @@ const fetchAnimeGenreHubDataUncached = async (): Promise<AnimeGenreHubData> => {
 
 const fetchAnimeCoreHubData = unstable_cache(
   fetchAnimeCoreHubDataUncached,
-  ["anime-home-core-hub-data"],
+  ["anime-home-core-hub-data-deep-deduped"],
   { revalidate: ANIME_HOME_REVALIDATE_SECONDS },
 );
 
@@ -385,30 +394,22 @@ const AnimeCoreHubSections = async () => {
   const seenSectionTitles = new Set<string>();
 
   const playableTrendingItems = takeFreshItems(
-    trendingItems.filter(hasInternalDetailItem),
-    36,
-    seenSectionTitles,
-  );
-  const playablePopularItems = takeFreshItems(
-    popularItems.filter(hasInternalDetailItem),
+    trendingItems,
     30,
     seenSectionTitles,
   );
-  const playableTopItems = takeFreshItems(
-    topItems.filter(hasInternalDetailItem),
-    20,
+  const playablePopularItems = takeFreshItems(
+    popularItems,
+    30,
     seenSectionTitles,
   );
+  const playableTopItems = takeFreshItems(topItems, 30, seenSectionTitles);
   const playableAiringItems = takeFreshItems(
-    airingItems.filter(hasInternalDetailItem),
-    24,
+    airingItems,
+    30,
     seenSectionTitles,
   );
-  const playableMovieItems = takeFreshItems(
-    movieItems.filter(hasInternalDetailItem),
-    12,
-    seenSectionTitles,
-  );
+  const playableMovieItems = takeFreshItems(movieItems, 24, seenSectionTitles);
 
   const featuredAnime = playableTrendingItems.slice(0, 1);
   const trendingRow = playableTrendingItems.slice(1);
@@ -428,7 +429,7 @@ const AnimeCoreHubSections = async () => {
 
       <TrendCarousel
         type="tv"
-        title="Trending Anime"
+        title="Trending"
         link={buildAniListUrl({
           medium: "ANIME",
           sort: "TRENDING_DESC",
@@ -442,7 +443,7 @@ const AnimeCoreHubSections = async () => {
 
       <TrendCarousel
         type="tv"
-        title="Popular Anime"
+        title="Popular"
         link={buildAniListUrl({
           medium: "ANIME",
           sort: "POPULARITY_DESC",
@@ -477,7 +478,7 @@ const AnimeCoreHubSections = async () => {
 
       <TrendCarousel
         type="tv"
-        title="Anime Movies"
+        title="Movies"
         link={buildAniListUrl({
           medium: "ANIME",
           sort: "POPULARITY_DESC",
@@ -501,22 +502,18 @@ const AnimeGenreHubSections = async () => {
     supernaturalItems,
   } = await fetchAnimeGenreHubDataUncached();
 
-  const playableActionItems = actionItems.filter(hasInternalDetailItem);
-  const playableAdventureItems = adventureItems.filter(hasInternalDetailItem);
-  const playableComedyItems = comedyItems.filter(hasInternalDetailItem);
-  const playableFantasyItems = fantasyItems.filter(hasInternalDetailItem);
-  const playableRomanceItems = romanceItems.filter(hasInternalDetailItem);
-  const playableSciFiItems = sciFiItems.filter(hasInternalDetailItem);
-  const playableSliceOfLifeItems = sliceOfLifeItems.filter(
-    hasInternalDetailItem,
-  );
-  const playableSupernaturalItems = supernaturalItems.filter(
-    hasInternalDetailItem,
-  );
+  const playableActionItems = actionItems;
+  const playableAdventureItems = adventureItems;
+  const playableComedyItems = comedyItems;
+  const playableFantasyItems = fantasyItems;
+  const playableRomanceItems = romanceItems;
+  const playableSciFiItems = sciFiItems;
+  const playableSliceOfLifeItems = sliceOfLifeItems;
+  const playableSupernaturalItems = supernaturalItems;
   const genreSeenTitles = new Set<string>();
   const genreRows = [
     {
-      title: "Action Anime",
+      title: "Action",
       href: buildAniListUrl({
         medium: "ANIME",
         sort: "POPULARITY_DESC",
@@ -525,7 +522,7 @@ const AnimeGenreHubSections = async () => {
       items: playableActionItems,
     },
     {
-      title: "Adventure Anime",
+      title: "Adventure",
       href: buildAniListUrl({
         medium: "ANIME",
         sort: "POPULARITY_DESC",
@@ -534,7 +531,7 @@ const AnimeGenreHubSections = async () => {
       items: playableAdventureItems,
     },
     {
-      title: "Comedy Anime",
+      title: "Comedy",
       href: buildAniListUrl({
         medium: "ANIME",
         sort: "POPULARITY_DESC",
@@ -543,7 +540,7 @@ const AnimeGenreHubSections = async () => {
       items: playableComedyItems,
     },
     {
-      title: "Fantasy Anime",
+      title: "Fantasy",
       href: buildAniListUrl({
         medium: "ANIME",
         sort: "POPULARITY_DESC",
@@ -552,7 +549,7 @@ const AnimeGenreHubSections = async () => {
       items: playableFantasyItems,
     },
     {
-      title: "Romance Anime",
+      title: "Romance",
       href: buildAniListUrl({
         medium: "ANIME",
         sort: "POPULARITY_DESC",
@@ -561,7 +558,7 @@ const AnimeGenreHubSections = async () => {
       items: playableRomanceItems,
     },
     {
-      title: "Sci-Fi Anime",
+      title: "Sci-Fi",
       href: buildAniListUrl({
         medium: "ANIME",
         sort: "POPULARITY_DESC",
@@ -570,7 +567,7 @@ const AnimeGenreHubSections = async () => {
       items: playableSciFiItems,
     },
     {
-      title: "Slice of Life Anime",
+      title: "Slice of Life",
       href: buildAniListUrl({
         medium: "ANIME",
         sort: "POPULARITY_DESC",
@@ -579,7 +576,7 @@ const AnimeGenreHubSections = async () => {
       items: playableSliceOfLifeItems,
     },
     {
-      title: "Supernatural Anime",
+      title: "Supernatural",
       href: buildAniListUrl({
         medium: "ANIME",
         sort: "POPULARITY_DESC",
@@ -597,7 +594,7 @@ const AnimeGenreHubSections = async () => {
           type="tv"
           title={row.title}
           link={row.href}
-          items={asTvItems(takeFreshItems(row.items, 14, genreSeenTitles))}
+          items={asTvItems(takeFreshItems(row.items, 22, genreSeenTitles))}
         />
       ))}
     </>
