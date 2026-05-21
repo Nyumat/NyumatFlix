@@ -167,6 +167,7 @@ export function MediaDetailHero({
         watchlistItem={watchlistItem}
         initialEpisode={initialEpisode}
         initialSeasonNumber={initialSeasonNumber}
+        anilistId={anilistId}
         canPlayTrailer={canPlayTrailer}
         showAmbientMuteButton={showAmbientMuteButton}
         showAmbientAudioHint={showAmbientMuteButton && showAmbientAudioHint}
