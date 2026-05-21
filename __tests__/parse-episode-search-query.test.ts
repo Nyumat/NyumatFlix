@@ -3,7 +3,7 @@ import {
   matchesEpisodeSearch,
   parseEpisodeSearchQuery,
 } from "@/lib/parse-episode-search-query";
-import type { Episode } from "@/utils/typings";
+import type { Episode } from "@/lib/domain/typings";
 
 const ep = (
   n: number,

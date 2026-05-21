@@ -2,7 +2,7 @@
 
 import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const SORT = "vote_average.desc";

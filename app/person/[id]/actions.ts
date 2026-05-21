@@ -3,8 +3,8 @@
 import {
   buildItemsWithCategories,
   fetchPersonFilmography,
-} from "@/app/actions";
-import { MediaItem } from "@/utils/typings";
+} from "@/lib/server/actions";
+import { MediaItem } from "@/lib/domain/typings";
 
 function isValidMediaData(
   item: unknown,

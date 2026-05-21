@@ -2,14 +2,14 @@ import {
   buildItemsWithCategories,
   fetchAndEnrichMediaItems,
   fetchTMDBData,
-} from "@/app/actions";
+} from "@/lib/server/actions";
 import { mapMediaListToCanonicalCardsValue } from "@/lib/cards";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(

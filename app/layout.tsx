@@ -3,7 +3,7 @@ import { RouteScrollReset } from "@/components/layout/route-scroll-reset";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { OnboardingProvider } from "@/components/providers/onboarding-provider";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
-import { GlobalDockProvider } from "@/components/ui/global-dock";
+import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/lib/query-client";

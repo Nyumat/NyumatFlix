@@ -9,7 +9,7 @@ import {
   TmdbResponse,
   TmdbResponseSchema,
   TvShow,
-} from "@/utils/typings";
+} from "@/lib/domain/typings";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {

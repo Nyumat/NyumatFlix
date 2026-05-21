@@ -1,6 +1,6 @@
 "use client";
 
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import NextDynamic from "next/dynamic";
 import { use } from "react";
 

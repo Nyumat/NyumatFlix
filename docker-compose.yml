@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nyumatflix:local
+    restart: unless-stopped
+    env_file:
+      - ${APP_ENV_FILE:-.env.local}
+    environment:
+      AUTH_URL: ${APP_AUTH_URL:-http://localhost:${APP_PORT:-8080}}
+      NEXTAUTH_URL: ${APP_NEXTAUTH_URL:-http://localhost:${APP_PORT:-8080}}
+      NEXT_PUBLIC_APP_URL: ${APP_PUBLIC_URL:-http://localhost:${APP_PORT:-8080}}
+      HOSTNAME: 0.0.0.0
+      PORT: 8080
+    ports:
+      - "${APP_PORT:-8080}:8080"

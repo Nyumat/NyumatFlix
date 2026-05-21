@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { fetchAniListPage, parseAniListSearchParams } from "@/lib/anilist";
 import { enrichAniListMediaItemsWithTmdb } from "@/lib/anilist-tmdb";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { normalizeRouteSearchParams } from "@/lib/utils";
 import type { Metadata } from "next";
 import Link from "next/link";

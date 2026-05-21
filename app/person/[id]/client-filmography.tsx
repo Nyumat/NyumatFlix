@@ -2,7 +2,7 @@
 
 import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { InfiniteScroll } from "@/components/ui/infinite-scroll";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { getFilmographyListNodes } from "./actions";
 
 interface PersonFilmographyProps {

@@ -1,4 +1,4 @@
-import { fetchAllSeasonDetails } from "@/components/tvshow/tvshow-api";
+import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
 import {
   getCachedMovieDetail,
   getCachedTvShowDetail,

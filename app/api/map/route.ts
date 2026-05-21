@@ -3,7 +3,7 @@ import {
   getSearchTitle,
   isAnime,
 } from "@/utils/anilist-helpers";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_TMDB_SHOW_IDS = [1429]; // Attack on Titan
