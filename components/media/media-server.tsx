@@ -1,4 +1,4 @@
-import { WatchlistItem } from "@/app/watchlist/actions";
+import { WatchlistItem } from "@/lib/domain/watchlist";
 import { MediaDetailHero } from "@/components/hero/index";
 import type { TvHeroEpisodeData } from "@/components/hero/types";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -13,7 +13,7 @@ import { selectPrimaryTrailerVideo } from "@/lib/select-primary-trailer-video";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/tmdb/models";
 import { yt } from "@/tmdb/utils";
-import { Episode, MediaItem } from "@/utils/typings";
+import { Episode, MediaItem } from "@/lib/domain/typings";
 import { Play } from "lucide-react";
 import Link from "next/link";
 import React, { type ComponentProps } from "react";

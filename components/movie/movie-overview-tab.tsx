@@ -1,7 +1,7 @@
 "use client";
 
 import { MovieCollectionClient } from "@/components/movie/movie-collection-client";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/media/controls/status-badge";
 import { buildProductionCompanyCatalogUrl } from "@/lib/catalog-query";
 import { formatValue } from "@/lib/utils";
 import { format } from "@/tmdb/utils";

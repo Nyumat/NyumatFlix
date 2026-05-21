@@ -2,8 +2,14 @@
 
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
-import { CountryBadge, CountryBadgeList } from "@/components/ui/country-badge";
-import { GenreBadge, PrimaryGenreBadge } from "@/components/ui/genre-badge";
+import {
+  CountryBadge,
+  CountryBadgeList,
+} from "@/components/media/controls/country-badge";
+import {
+  GenreBadge,
+  PrimaryGenreBadge,
+} from "@/components/media/controls/genre-badge";
 
 export default function PlaygroundPage() {
   // Sample countries for testing

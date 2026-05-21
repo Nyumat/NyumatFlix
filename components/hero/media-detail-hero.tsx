@@ -1,0 +1,187 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { WatchlistItem } from "@/lib/domain/watchlist";
+import { Episode, MediaItem } from "@/lib/domain/typings";
+import { useMediaHero } from "@/hooks/useMediaHero";
+import Script from "next/script";
+import { useEffect, useRef, useState } from "react";
+import { HeroBackground } from "./hero-background";
+import { HeroContent } from "./hero-content";
+import { HeroPagination } from "./hero-static";
+import type { TvHeroEpisodeData } from "./types";
+
+interface MediaDetailHeroProps {
+  media: MediaItem[];
+  noSlide?: boolean;
+  isWatch?: boolean;
+  mediaType?: "tv" | "movie";
+  isUpcoming?: boolean;
+  anilistId?: number | null | undefined;
+  watchlistItem?: WatchlistItem | null;
+  initialEpisode?: Episode | null;
+  initialSeasonNumber?: number | null;
+  tvHeroEpisodeData?: TvHeroEpisodeData | null;
+}
+
+export function MediaDetailHero({
+  media,
+  noSlide,
+  isWatch = false,
+  mediaType: passedMediaType,
+  isUpcoming = false,
+  anilistId,
+  watchlistItem,
+  initialEpisode,
+  initialSeasonNumber,
+  tvHeroEpisodeData,
+}: MediaDetailHeroProps) {
+  const [isAmbientMuted, setIsAmbientMuted] = useState(false);
+  const [showAmbientAudioHint, setShowAmbientAudioHint] = useState(false);
+  const [isHeroHovered, setIsHeroHovered] = useState(false);
+  const [supportsExpandedHero, setSupportsExpandedHero] = useState(false);
+  const hoverCollapseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!showAmbientAudioHint) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setShowAmbientAudioHint(false);
+    }, 7000);
+    return () => window.clearTimeout(timeout);
+  }, [showAmbientAudioHint]);
+
+  const {
+    currentItemIndex,
+    isPlayingVideo,
+    isPlayingTrailer,
+    youtubePlayer,
+    currentItem,
+    controls,
+    mediaType,
+    handleWatch,
+    handlePlayTrailer,
+    handleTrailerEnded,
+    setYoutubePlayer,
+    videasyTrailerUrl,
+    videasyTrailerHlsUrl,
+    videasyTrailerStatus,
+    canPlayTrailer,
+  } = useMediaHero({ media, noSlide, isWatch, passedMediaType, anilistId });
+
+  const hasVideasyAmbientSource =
+    videasyTrailerStatus === "ready" &&
+    (Boolean(videasyTrailerUrl?.length) ||
+      Boolean(videasyTrailerHlsUrl?.length));
+  const showAmbientMuteButton =
+    !isPlayingTrailer && !isPlayingVideo && hasVideasyAmbientSource;
+
+  const handleHeroMouseEnter = () => {
+    if (hoverCollapseTimeoutRef.current) {
+      clearTimeout(hoverCollapseTimeoutRef.current);
+      hoverCollapseTimeoutRef.current = null;
+    }
+    setIsHeroHovered(true);
+  };
+
+  const handleHeroMouseLeave = () => {
+    if (hoverCollapseTimeoutRef.current) {
+      clearTimeout(hoverCollapseTimeoutRef.current);
+    }
+    hoverCollapseTimeoutRef.current = setTimeout(() => {
+      setIsHeroHovered(false);
+      hoverCollapseTimeoutRef.current = null;
+    }, 5000);
+  };
+
+  useEffect(() => {
+    const heroExpansionQuery = window.matchMedia("(min-width: 768px)");
+    const syncHeroExpansionSupport = () => {
+      setSupportsExpandedHero(heroExpansionQuery.matches);
+      if (!heroExpansionQuery.matches) {
+        setIsHeroHovered(false);
+      }
+    };
+
+    syncHeroExpansionSupport();
+    heroExpansionQuery.addEventListener("change", syncHeroExpansionSupport);
+
+    return () => {
+      if (hoverCollapseTimeoutRef.current) {
+        clearTimeout(hoverCollapseTimeoutRef.current);
+      }
+      heroExpansionQuery.removeEventListener(
+        "change",
+        syncHeroExpansionSupport,
+      );
+    };
+  }, []);
+
+  return (
+    <div
+      className="relative h-[100svh] min-h-[34rem] overflow-hidden"
+      onMouseEnter={handleHeroMouseEnter}
+      onMouseLeave={handleHeroMouseLeave}
+    >
+      <Script src="https://www.youtube.com/iframe_api" strategy="lazyOnload" />
+
+      <HeroBackground
+        media={currentItem as MediaItem}
+        mediaType={mediaType}
+        isPlayingVideo={isPlayingVideo}
+        isPlayingTrailer={isPlayingTrailer}
+        controls={controls}
+        onTrailerEnded={handleTrailerEnded}
+        youtubePlayer={youtubePlayer}
+        setYoutubePlayer={setYoutubePlayer}
+        anilistId={anilistId}
+        videasyTrailerUrl={videasyTrailerUrl}
+        videasyTrailerHlsUrl={videasyTrailerHlsUrl}
+        videasyTrailerStatus={videasyTrailerStatus}
+        isAmbientMuted={isAmbientMuted}
+        onAmbientAutoplayBlocked={() => {
+          setIsAmbientMuted(true);
+          setShowAmbientAudioHint(true);
+        }}
+      />
+
+      <HeroContent
+        media={currentItem as MediaItem}
+        mediaType={mediaType}
+        isWatch={isWatch}
+        isPlayingVideo={isPlayingVideo}
+        isPlayingTrailer={isPlayingTrailer}
+        handleWatch={handleWatch}
+        handlePlayTrailer={handlePlayTrailer}
+        handleTrailerEnded={handleTrailerEnded}
+        youtubePlayer={youtubePlayer}
+        setYoutubePlayer={setYoutubePlayer}
+        isUpcoming={isUpcoming}
+        watchlistItem={watchlistItem}
+        initialEpisode={initialEpisode}
+        initialSeasonNumber={initialSeasonNumber}
+        canPlayTrailer={canPlayTrailer}
+        showAmbientMuteButton={showAmbientMuteButton}
+        showAmbientAudioHint={showAmbientAudioHint}
+        isAmbientMuted={isAmbientMuted}
+        isHeroHovered={supportsExpandedHero && isHeroHovered}
+        onToggleAmbientMute={() => {
+          setShowAmbientAudioHint(false);
+          setIsAmbientMuted((prev) => !prev);
+        }}
+      />
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-52 bg-linear-to-b from-transparent via-background/75 to-background sm:h-64 lg:h-80"
+      />
+
+      {!noSlide && !isPlayingVideo && !isWatch && media.length > 1 && (
+        <HeroPagination items={media} currentIndex={currentItemIndex} />
+      )}
+    </div>
+  );
+}

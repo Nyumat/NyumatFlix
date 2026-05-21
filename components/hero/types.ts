@@ -1,4 +1,9 @@
-import { Logo, MediaItem, SeasonDetails, TvShowDetails } from "@/utils/typings";
+import {
+  Logo,
+  MediaItem,
+  SeasonDetails,
+  TvShowDetails,
+} from "@/lib/domain/typings";
 
 export type TvHeroEpisodeData = {
   tvId: string;
