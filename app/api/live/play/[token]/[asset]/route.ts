@@ -6,6 +6,11 @@ import {
   liveUpstreamHeaders,
   rewriteLivePlaylist,
 } from "@/lib/live/playback";
+import {
+  fetchLivePlayFromPreview,
+  proxyLivePlayResponse,
+  shouldUseLivePreviewUpstream,
+} from "@/lib/live/preview-upstream";
 
 export const maxDuration = 60;
 
@@ -49,7 +54,28 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, context: RouteContext) {
-  const { token } = await context.params;
+  const { token, asset } = await context.params;
+  const rangeHeader = request.headers.get("range");
+
+  if (shouldUseLivePreviewUpstream()) {
+    try {
+      const preview = await fetchLivePlayFromPreview(token, asset, rangeHeader);
+
+      if (!preview.ok) {
+        return new NextResponse(null, { status: preview.status });
+      }
+
+      return proxyLivePlayResponse(preview);
+    } catch (error) {
+      console.error("Error proxying live stream via preview:", error);
+
+      return NextResponse.json(
+        { error: "Failed to proxy live stream" },
+        { status: 502 },
+      );
+    }
+  }
+
   const upstreamUrl = decodeLiveStreamToken(token);
 
   if (!upstreamUrl) {
@@ -57,10 +83,7 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   try {
-    const upstream = await fetchUpstream(
-      upstreamUrl,
-      request.headers.get("range"),
-    );
+    const upstream = await fetchUpstream(upstreamUrl, rangeHeader);
 
     if (!upstream.ok) {
       return new NextResponse(null, { status: upstream.status });
