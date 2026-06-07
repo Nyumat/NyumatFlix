@@ -51,6 +51,7 @@ export const MovieOverviewTab = ({
 
   const releaseDate = details.release_date
     ? new Date(details.release_date).toLocaleDateString("en-US", {
+        timeZone: "UTC",
         year: "numeric",
         month: "long",
         day: "numeric",

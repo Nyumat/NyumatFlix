@@ -9,6 +9,7 @@ import {
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -63,13 +64,16 @@ export async function GET(
         ? filterReleasedMovies(enrichedResults)
         : filterReleasedTvShows(enrichedResults);
 
-    return NextResponse.json({
-      page: data.page,
-      total_pages: data.total_pages,
-      results: mapMediaListToCanonicalCardsValue(releasedOnly, mediaType),
-      type: mediaType,
-      genreId,
-    });
+    return NextResponse.json(
+      {
+        page: data.page,
+        total_pages: data.total_pages,
+        results: mapMediaListToCanonicalCardsValue(releasedOnly, mediaType),
+        type: mediaType,
+        genreId,
+      },
+      { headers: catalogCacheHeaders() },
+    );
   } catch (error) {
     console.error("[api/genre] Error fetching genre items", error);
     return NextResponse.json(

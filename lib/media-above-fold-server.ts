@@ -1,3 +1,4 @@
+import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
 import {
   type MediaAboveFoldDetail,
   type MediaAboveFoldType,
@@ -8,7 +9,6 @@ import type { Logo } from "@/lib/domain/typings";
 import { cache } from "react";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const REVALIDATE_SECONDS = 3600;
 
 type RawAboveFoldDetail = Record<string, unknown> & {
   id: number;
@@ -121,7 +121,7 @@ export const getCachedMediaAboveFoldDetail = cache(
     url.searchParams.set("append_to_response", append);
 
     const response = await fetch(url, {
-      next: { revalidate: REVALIDATE_SECONDS },
+      next: { revalidate: CACHE_REVALIDATE_SECONDS },
     });
     if (!response.ok) {
       return null;

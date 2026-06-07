@@ -1,3 +1,4 @@
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextRequest } from "next/server";
 import { getMovies } from "@/lib/server/actions";
 import { MovieCategory } from "@/lib/domain/typings";
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest) {
   return new Response(JSON.stringify(movies), {
     headers: {
       "Content-Type": "application/json",
+      ...catalogCacheHeaders(),
     },
   });
 }

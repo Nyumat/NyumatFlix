@@ -3,6 +3,7 @@ import {
   getSearchTitle,
   isAnime,
 } from "@/utils/anilist-helpers";
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -198,21 +199,12 @@ async function fetchAniListCandidates(
   genreIds?: number[],
   genres?: { id: number }[],
 ): Promise<AnilistMediaExtended[]> {
-  console.log(
-    "fetchAniListCandidates called with title:",
-    title,
-    "genreIds:",
-    genreIds,
-    "genres:",
-    genres,
-  );
   const cacheKey = `anilist_candidates_${title}`;
   const cached = getCached(cacheKey);
   if (cached && Array.isArray(cached)) return cached as AnilistMediaExtended[];
 
   // Only fetch AniList data if the content is anime
   const genreData = genreIds || genres;
-  console.log("Is anime check result:", !genreData || !isAnime(genreData));
   if (!genreData || !isAnime(genreData)) {
     return [];
   }
@@ -536,7 +528,7 @@ export async function GET(request: NextRequest) {
       response.debug = debugInfo;
     }
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers: catalogCacheHeaders() });
   } catch (error) {
     console.error("Error in /api/map:", error);
     return NextResponse.json(

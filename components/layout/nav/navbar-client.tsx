@@ -11,7 +11,7 @@ import { ChevronLeft, Search, UserRound } from "lucide-react";
 import Link from "next/link";
 import type { Session } from "next-auth";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { BackButton } from "../../ui/back-button";
 import {
   navbarActionButtonClassName,
@@ -113,7 +113,9 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
         <div className="min-w-0 flex-1" />
 
         <div className="ml-auto flex items-center gap-3">
-          <SiteNavDesktop triggerClassName={navbarActionButtonClassName} />
+          <Suspense fallback={null}>
+            <SiteNavDesktop triggerClassName={navbarActionButtonClassName} />
+          </Suspense>
           <Button
             variant="ghost"
             size="icon"
@@ -123,7 +125,9 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
           >
             <Search className={navbarActionIconClassName} strokeWidth={1.75} />
           </Button>
-          <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+          <Suspense fallback={null}>
+            <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+          </Suspense>
 
           <div className="hidden md:flex">
             <NavbarAuth session={session} />
@@ -209,12 +213,14 @@ const DetailPageActions = ({
         </Button>
 
         <div className="ml-auto flex items-center gap-3">
-          <SiteNavDesktop
-            triggerClassName={cn(
-              navbarActionButtonClassName,
-              detailNavbarActionButtonClassName,
-            )}
-          />
+          <Suspense fallback={null}>
+            <SiteNavDesktop
+              triggerClassName={cn(
+                navbarActionButtonClassName,
+                detailNavbarActionButtonClassName,
+              )}
+            />
+          </Suspense>
           <Button
             variant="ghost"
             size="icon"
@@ -227,7 +233,9 @@ const DetailPageActions = ({
           >
             <Search className={navbarActionIconClassName} strokeWidth={1.75} />
           </Button>
-          <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+          <Suspense fallback={null}>
+            <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+          </Suspense>
 
           {session ? (
             <UserAvatar

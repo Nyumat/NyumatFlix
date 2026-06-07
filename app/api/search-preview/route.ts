@@ -10,6 +10,7 @@ import {
   TmdbResponseSchema,
   TvShow,
 } from "@/lib/domain/typings";
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -76,12 +77,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       { results: mapMediaListToCanonicalCardsValue(filteredResults) },
-      {
-        headers: {
-          "Cache-Control":
-            "public, s-maxage=3600, stale-while-revalidate=86400",
-        },
-      },
+      { headers: catalogCacheHeaders() },
     );
   } catch (error) {
     console.error("Error in search preview API route:", error);

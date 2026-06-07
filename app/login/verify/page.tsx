@@ -116,6 +116,7 @@ export default async function VerifyRequestPage({
             <Link
               href="https://github.com/Nyumat/NyumatFlix"
               target="_blank"
+              rel="noopener noreferrer"
               className="font-medium text-zinc-300 underline-offset-4 hover:text-white hover:underline"
             >
               Open an issue on GitHub

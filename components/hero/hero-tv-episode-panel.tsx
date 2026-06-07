@@ -340,6 +340,7 @@ export function HeroTvEpisodePanel({
                           {new Date(episode.air_date).toLocaleDateString(
                             "en-US",
                             {
+                              timeZone: "UTC",
                               year: "numeric",
                               month: "short",
                               day: "numeric",

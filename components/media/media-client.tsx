@@ -116,6 +116,7 @@ export const MediaImages: React.FC<MediaImagesProps> = ({
                   href={tmdbImage.url(file_path, "original")}
                   download
                   target="_blank"
+                  rel="noopener noreferrer"
                 >
                   <Download className="size-4" />
                   <span className="sr-only md:not-sr-only md:ml-2">Save</span>

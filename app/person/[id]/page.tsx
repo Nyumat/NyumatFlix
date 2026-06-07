@@ -16,6 +16,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { PersonFilmography } from "./client-filmography";
 
+export const revalidate = 3600;
+
 interface PersonPageProps {
   params: Promise<{
     id: string;
@@ -146,7 +148,11 @@ export default async function PersonPage(props: PersonPageProps) {
                       <div className="flex items-center space-x-3">
                         <Calendar size={18} className="text-gray-400" />
                         <span className="text-white">
-                          Born: {new Date(person.birthday).toLocaleDateString()}
+                          Born:{" "}
+                          {new Date(person.birthday).toLocaleDateString(
+                            "en-US",
+                            { timeZone: "UTC" },
+                          )}
                         </span>
                       </div>
                     )}
@@ -156,9 +162,9 @@ export default async function PersonPage(props: PersonPageProps) {
                         <Calendar size={18} className="text-gray-400" />
                         <span className="text-white">
                           Died:{" "}
-                          {new Date(
-                            `${deathday}T12:00:00`,
-                          ).toLocaleDateString()}
+                          {new Date(deathday).toLocaleDateString("en-US", {
+                            timeZone: "UTC",
+                          })}
                         </span>
                       </div>
                     )}

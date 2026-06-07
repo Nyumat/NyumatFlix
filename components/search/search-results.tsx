@@ -315,7 +315,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
   if (error) {
     return (
       <div className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-foreground mb-3">People</h4>
+        <h3 className="text-sm font-medium text-foreground mb-3">People</h3>
         <div className="text-xs text-destructive">{error}</div>
       </div>
     );
@@ -324,7 +324,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
   if (people.length === 0 && isLoading) {
     return (
       <div className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-foreground mb-3">People</h4>
+        <h3 className="text-sm font-medium text-foreground mb-3">People</h3>
         <div className="text-xs text-muted-foreground">Loading...</div>
       </div>
     );
@@ -335,7 +335,7 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
   return (
     <div className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg overflow-hidden">
       <div className="p-4 pb-2 border-b border-border/50">
-        <h4 className="text-sm font-medium text-foreground">People</h4>
+        <h3 className="text-sm font-medium text-foreground">People</h3>
       </div>
       <ScrollArea className="h-[400px]">
         <div className="p-4 pt-2">
@@ -610,9 +610,9 @@ export default function SearchResults({
               className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg p-4"
               data-testid="genre-filter"
             >
-              <h4 className="text-sm font-medium text-foreground mb-3">
+              <h3 className="text-sm font-medium text-foreground mb-3">
                 Filter by Genre
-              </h4>
+              </h3>
               <MultiSelect
                 options={parsedGenresForFilter}
                 maxCount={3}

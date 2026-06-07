@@ -44,7 +44,7 @@ export default function CookiePolicyPage() {
                   <a
                     href="https://umami.is"
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-foreground underline underline-offset-4 hover:text-primary"
                   >
                     Umami
@@ -98,7 +98,7 @@ export default function CookiePolicyPage() {
                 <a
                   href={githubUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-foreground underline underline-offset-4 hover:text-primary"
                 >
                   GitHub
