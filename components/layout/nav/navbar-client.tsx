@@ -25,6 +25,7 @@ const MOBILE_LINKS = [
   { label: "Movies", href: "/movies" },
   { label: "TV Shows", href: "/tvshows" },
   { label: "Anime", href: "/anime" },
+  { label: "Live", href: "/live" },
   { label: "Search", href: "/search" },
 ];
 
@@ -56,6 +57,7 @@ const CATALOG_ROUTE_PATTERNS = [
   /^\/movies(?:\/(?:browse|now-playing|popular|top-rated|upcoming))?$/,
   /^\/tvshows(?:\/(?:airing-today|browse|on-the-air|popular|top-rated))?$/,
   /^\/anime$/,
+  /^\/live$/,
   /^\/trending(?:\/(?:movie|people|tv))?$/,
   /^\/browse\/(?:country|genre)\/[^/]+$/,
   /^\/people\/popular$/,
