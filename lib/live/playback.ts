@@ -1,5 +1,6 @@
 import {
   getOpenStreamPlaybackConfig,
+  isAllowedOpenStreamHost,
   isAllowedOpenStreamUrl,
 } from "@/lib/live/open-stream-registry";
 
@@ -107,7 +108,17 @@ export const liveUpstreamHeaders = (
       headers.Referer = openConfig.referer;
     }
   } else {
-    headers.Referer = DULO_REFERER;
+    try {
+      const hostname = new URL(upstreamUrl).hostname;
+
+      if (isAllowedOpenStreamHost(hostname)) {
+        headers["User-Agent"] = DEFAULT_OPEN_STREAM_USER_AGENT;
+      } else {
+        headers.Referer = DULO_REFERER;
+      }
+    } catch {
+      headers.Referer = DULO_REFERER;
+    }
   }
 
   if (rangeHeader) {
