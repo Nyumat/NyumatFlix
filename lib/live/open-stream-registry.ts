@@ -3,8 +3,63 @@ export type OpenStreamPlaybackConfig = {
   referer?: string;
 };
 
-const streamConfigs = new Map<string, OpenStreamPlaybackConfig>();
-const allowedHosts = new Set<string>();
+type RegistryState = {
+  streamConfigs: Map<string, OpenStreamPlaybackConfig>;
+  allowedHosts: Set<string>;
+};
+
+const REGISTRY_KEY = "__nyumatflixOpenStreamRegistry";
+
+const getRegistryState = (): RegistryState => {
+  const globalStore = globalThis as typeof globalThis & {
+    [REGISTRY_KEY]?: RegistryState;
+  };
+
+  if (!globalStore[REGISTRY_KEY]) {
+    globalStore[REGISTRY_KEY] = {
+      streamConfigs: new Map(),
+      allowedHosts: new Set(),
+    };
+  }
+
+  return globalStore[REGISTRY_KEY]!;
+};
+
+const { streamConfigs, allowedHosts } = getRegistryState();
+
+const TRUSTED_OPEN_STREAM_SOURCE_HOSTS = new Set(["jmp2.uk"]);
+
+const OPEN_STREAM_REDIRECT_SUFFIXES: Record<string, string[]> = {
+  "jmp2.uk": ["pluto.tv", "plutotv.net"],
+};
+
+const hostMatchesSuffix = (hostname: string, suffix: string) =>
+  hostname === suffix || hostname.endsWith(`.${suffix}`);
+
+const isStreamAssetPath = (pathname: string, search: string) =>
+  /\.(?:m3u8|ts)(?:[?#].*|$)/i.test(`${pathname}${search}`);
+
+const isTrustedOpenStreamSourceHost = (hostname: string) =>
+  TRUSTED_OPEN_STREAM_SOURCE_HOSTS.has(hostname);
+
+const sourceHostIsActive = (hostname: string) =>
+  allowedHosts.has(hostname) || isTrustedOpenStreamSourceHost(hostname);
+
+const isOpenStreamRedirectHost = (hostname: string) => {
+  for (const [sourceHost, suffixes] of Object.entries(
+    OPEN_STREAM_REDIRECT_SUFFIXES,
+  )) {
+    if (!sourceHostIsActive(sourceHost)) {
+      continue;
+    }
+
+    if (suffixes.some((suffix) => hostMatchesSuffix(hostname, suffix))) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 const normalizeUrl = (url: string) => {
   try {
@@ -54,7 +109,9 @@ export const isRegisteredOpenStreamUrl = (url: string) =>
   streamConfigs.has(url);
 
 export const isAllowedOpenStreamHost = (hostname: string) =>
-  allowedHosts.has(hostname);
+  allowedHosts.has(hostname) ||
+  isTrustedOpenStreamSourceHost(hostname) ||
+  isOpenStreamRedirectHost(hostname);
 
 export const isAllowedOpenStreamUrl = (url: string) => {
   const normalized = normalizeUrl(url);
@@ -74,13 +131,21 @@ export const isAllowedOpenStreamUrl = (url: string) => {
       return false;
     }
 
-    if (!allowedHosts.has(parsed.hostname)) {
+    if (
+      isTrustedOpenStreamSourceHost(parsed.hostname) &&
+      isStreamAssetPath(parsed.pathname, parsed.search)
+    ) {
+      return true;
+    }
+
+    if (
+      !allowedHosts.has(parsed.hostname) &&
+      !isOpenStreamRedirectHost(parsed.hostname)
+    ) {
       return false;
     }
 
-    return /\.(?:m3u8|ts)(?:[?#].*|$)/i.test(
-      `${parsed.pathname}${parsed.search}`,
-    );
+    return isStreamAssetPath(parsed.pathname, parsed.search);
   } catch {
     return false;
   }

@@ -90,11 +90,12 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     const contentType = upstream.headers.get("content-type");
+    const manifestUrl = upstream.url || upstreamUrl;
 
-    if (isPlaylistResponse(upstreamUrl, contentType)) {
+    if (isPlaylistResponse(manifestUrl, contentType)) {
       const text = await upstream.text();
 
-      return new NextResponse(rewriteLivePlaylist(text, upstreamUrl), {
+      return new NextResponse(rewriteLivePlaylist(text, manifestUrl), {
         status: 200,
         headers: {
           "Cache-Control": "no-store",
