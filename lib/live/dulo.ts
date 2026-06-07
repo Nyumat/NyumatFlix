@@ -1,5 +1,8 @@
+import { cache } from "react";
 import { z } from "zod";
 
+import { EMPTY_LIVE_GUIDE } from "@/lib/live/empty-guide";
+import { loadLiveChannelsFromOpenPlaylists } from "@/lib/live/open-playlists";
 import { buildLivePlayUrl, isAllowedLiveStreamUrl } from "@/lib/live/playback";
 import {
   fetchLiveGuideFromPreview,
@@ -8,8 +11,7 @@ import {
 import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
 
 const DULO_API_BASE = "https://dulo.tv/api";
-const DULO_FETCH_TIMEOUT_MS = 20_000;
-const DULO_FETCH_RETRIES = 3;
+const DULO_PROBE_TIMEOUT_MS = 2_000;
 const LIVE_CACHE_TTL_MS = 1000 * 60 * 5;
 const LIVE_STALE_TTL_MS = 1000 * 60 * 60 * 6;
 
@@ -63,8 +65,12 @@ type CacheEntry = {
 
 let cachedLiveChannels: CacheEntry | null = null;
 let inFlightLiveChannels: Promise<LiveChannelsResponse> | null = null;
+let inFlightBootstrapChannels: Promise<LiveChannelsResponse> | null = null;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const isAbortError = (error: unknown) =>
+  error instanceof Error &&
+  (error.name === "AbortError" ||
+    error.message === "This operation was aborted");
 
 const titleCase = (value: string) =>
   value
@@ -117,40 +123,28 @@ const jsonFromDuloApi = async <T>(
   schema: { parse: (value: unknown) => T },
 ): Promise<T> => {
   const url = `${DULO_API_BASE}${path}`;
-  let lastError: unknown;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DULO_PROBE_TIMEOUT_MS);
 
-  for (let attempt = 0; attempt < DULO_FETCH_RETRIES; attempt += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), DULO_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
 
-    try {
-      const response = await fetch(url, {
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-        },
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error(`dulo ${path} returned ${response.status}`);
-      }
-
-      return schema.parse(await response.json());
-    } catch (error) {
-      lastError = error;
-
-      if (attempt < DULO_FETCH_RETRIES - 1) {
-        await sleep(400 * (attempt + 1));
-      }
-    } finally {
-      clearTimeout(timeout);
+    if (!response.ok) {
+      throw new Error(`dulo ${path} returned ${response.status}`);
     }
-  }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(`dulo ${path} failed`);
+    return schema.parse(await response.json());
+  } catch (error) {
+    throw isAbortError(error) ? new Error(`dulo ${path} timed out`) : error;
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 const normalizeChannel = (channel: DuloChannelRecord): LiveChannel => {
@@ -275,42 +269,167 @@ const loadLiveChannelsFromDulo = async (): Promise<LiveChannelsResponse> => {
   };
 };
 
-const loadLiveChannels = async (): Promise<LiveChannelsResponse> => {
-  if (shouldUseLivePreviewUpstream()) {
-    return fetchLiveGuideFromPreview();
-  }
+const hasReadyChannels = (guide: LiveChannelsResponse) =>
+  guide.channels.some((channel) => channel.availability === "ready");
 
-  return loadLiveChannelsFromDulo();
+const probeDuloGuide = async (): Promise<LiveChannelsResponse | null> => {
+  try {
+    const duloGuide = await loadLiveChannelsFromDulo();
+
+    if (!hasReadyChannels(duloGuide)) {
+      return null;
+    }
+
+    return {
+      ...duloGuide,
+      guidePhase: "full",
+      guideComplete: true,
+    };
+  } catch (error) {
+    console.error("Dulo probe failed, switching to open playlists:", error);
+    return null;
+  }
 };
 
-export const getLiveChannels = async (): Promise<LiveChannelsResponse> => {
-  const now = Date.now();
+const loadOpenGuide = async (
+  mode: "bootstrap" | "supplemental" | "full",
+): Promise<LiveChannelsResponse> => {
+  const openGuide = await loadLiveChannelsFromOpenPlaylists({
+    bootstrap: mode === "bootstrap",
+    supplemental: mode === "supplemental",
+    resetRegistry: mode !== "supplemental",
+  });
 
+  if (!hasReadyChannels(openGuide)) {
+    throw new Error(`No ${mode} live channels available`);
+  }
+
+  return openGuide;
+};
+
+const loadLiveChannels = async (
+  mode: "bootstrap" | "supplemental" | "full" = "full",
+): Promise<LiveChannelsResponse> => {
+  if (shouldUseLivePreviewUpstream()) {
+    const guide = await fetchLiveGuideFromPreview();
+    return {
+      ...guide,
+      guidePhase: "full",
+      guideComplete: true,
+    };
+  }
+
+  if (mode === "supplemental") {
+    return loadOpenGuide("supplemental");
+  }
+
+  const duloGuide = await probeDuloGuide();
+
+  if (duloGuide) {
+    return duloGuide;
+  }
+
+  return loadOpenGuide(mode === "bootstrap" ? "bootstrap" : "full");
+};
+
+const readCachedLiveChannels = (now = Date.now()) => {
   if (cachedLiveChannels && cachedLiveChannels.expiresAt > now) {
     return cachedLiveChannels.response;
   }
 
-  if (!inFlightLiveChannels) {
-    inFlightLiveChannels = loadLiveChannels()
-      .then((response) => {
-        cachedLiveChannels = {
-          response,
-          expiresAt: Date.now() + LIVE_CACHE_TTL_MS,
-          staleUntil: Date.now() + LIVE_STALE_TTL_MS,
-        };
-        return response;
-      })
-      .catch((error) => {
-        if (cachedLiveChannels && cachedLiveChannels.staleUntil > Date.now()) {
-          return cachedLiveChannels.response;
-        }
+  return null;
+};
 
-        throw error;
-      })
-      .finally(() => {
-        inFlightLiveChannels = null;
-      });
+const readStaleLiveChannels = (now = Date.now()) => {
+  if (cachedLiveChannels && cachedLiveChannels.staleUntil > now) {
+    return cachedLiveChannels.response;
   }
 
-  return inFlightLiveChannels;
+  return null;
 };
+
+const resolveLiveChannelsFallback = () =>
+  readStaleLiveChannels() ?? EMPTY_LIVE_GUIDE;
+
+type LiveGuideMode = "bootstrap" | "supplemental" | "full";
+
+const fetchAndCacheLiveChannels = async (
+  mode: LiveGuideMode = "full",
+): Promise<LiveChannelsResponse> => {
+  try {
+    const response = await loadLiveChannels(mode);
+
+    if (mode === "full" && response.guideComplete !== false) {
+      cachedLiveChannels = {
+        response,
+        expiresAt: Date.now() + LIVE_CACHE_TTL_MS,
+        staleUntil: Date.now() + LIVE_STALE_TTL_MS,
+      };
+    }
+
+    return response;
+  } catch (error) {
+    console.error("Failed to load live channels:", error);
+
+    if (mode === "bootstrap" || mode === "supplemental") {
+      throw error;
+    }
+
+    return resolveLiveChannelsFallback();
+  }
+};
+
+let inFlightSupplementalChannels: Promise<LiveChannelsResponse> | null = null;
+
+export const getLiveChannels = cache(
+  async (mode: LiveGuideMode = "full"): Promise<LiveChannelsResponse> => {
+    if (mode === "full") {
+      const fresh = readCachedLiveChannels();
+
+      if (fresh) {
+        return {
+          ...fresh,
+          guidePhase: "full",
+          guideComplete: true,
+        };
+      }
+    }
+
+    if (mode === "bootstrap") {
+      if (!inFlightBootstrapChannels) {
+        inFlightBootstrapChannels = fetchAndCacheLiveChannels(
+          "bootstrap",
+        ).finally(() => {
+          inFlightBootstrapChannels = null;
+        });
+      }
+
+      return inFlightBootstrapChannels;
+    }
+
+    if (mode === "supplemental") {
+      if (!inFlightSupplementalChannels) {
+        inFlightSupplementalChannels = fetchAndCacheLiveChannels(
+          "supplemental",
+        ).finally(() => {
+          inFlightSupplementalChannels = null;
+        });
+      }
+
+      return inFlightSupplementalChannels;
+    }
+
+    if (!inFlightLiveChannels) {
+      inFlightLiveChannels = fetchAndCacheLiveChannels("full").finally(() => {
+        inFlightLiveChannels = null;
+      });
+    }
+
+    try {
+      return await inFlightLiveChannels;
+    } catch (error) {
+      console.error("Live channel request failed:", error);
+      return resolveLiveChannelsFallback();
+    }
+  },
+);

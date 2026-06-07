@@ -20,6 +20,7 @@ import {
   GoogleCastErrorListener,
   LiveGoogleCastButton,
 } from "@/components/live/live-google-cast-handler";
+import { LiveShareChannelButton } from "@/components/live/live-share-channel-button";
 import { useLiveTvGuide } from "@/components/live/live-tv-guide-context";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +39,12 @@ const liveLayoutSlots = {
   endTime: null,
   timeSlider: null,
   downloadButton: <ChannelGuideButton />,
-  googleCastButton: <LiveGoogleCastButton />,
+  googleCastButton: (
+    <>
+      <LiveShareChannelButton />
+      <LiveGoogleCastButton />
+    </>
+  ),
   smallLayout: {
     seekBackwardButton: null,
     seekForwardButton: null,
@@ -50,7 +56,12 @@ const liveLayoutSlots = {
     endTime: null,
     timeSlider: null,
     downloadButton: <ChannelGuideButton />,
-    googleCastButton: <LiveGoogleCastButton />,
+    googleCastButton: (
+      <>
+        <LiveShareChannelButton />
+        <LiveGoogleCastButton />
+      </>
+    ),
   },
 } as const;
 

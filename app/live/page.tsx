@@ -4,54 +4,31 @@ import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { LiveTvPage } from "@/components/live/live-tv-page";
-import { getLiveChannels } from "@/lib/live/dulo";
+import {
+  buildDefaultLiveMetadata,
+  buildLiveChannelMetadataFromSlug,
+} from "@/lib/live/live-metadata";
 
 export const dynamic = "force-dynamic";
 
-const LIVE_DESCRIPTION = "Watch live TV channels and events on NyumatFlix.";
-
-export const metadata: Metadata = {
-  title: "Live TV | NyumatFlix",
-  description: LIVE_DESCRIPTION,
-  keywords: [
-    "live tv",
-    "live television",
-    "live streaming",
-    "watch live channels",
-    "live sports",
-    "live news",
-    "free live tv",
-    "NyumatFlix",
-  ],
-  alternates: {
-    canonical: "https://nyumatflix.com/live",
-  },
-  openGraph: {
-    type: "website",
-    url: "https://nyumatflix.com/live",
-    title: "Live TV | NyumatFlix",
-    description: LIVE_DESCRIPTION,
-    images: [
-      {
-        url: "https://nyumatflix.com/og.webp",
-        width: 1200,
-        height: 630,
-        type: "image/webp",
-        alt: "NyumatFlix Live TV",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "https://nyumatflix.com",
-    title: "Live TV | NyumatFlix",
-    description: LIVE_DESCRIPTION,
-    images: ["https://nyumatflix.com/og.webp"],
-  },
+type LivePageProps = {
+  searchParams: Promise<{ ch?: string }>;
 };
 
-export default async function LivePage() {
-  const guide = await getLiveChannels();
+export async function generateMetadata({
+  searchParams,
+}: LivePageProps): Promise<Metadata> {
+  const { ch } = await searchParams;
+
+  if (!ch?.trim()) {
+    return buildDefaultLiveMetadata();
+  }
+
+  return buildLiveChannelMetadataFromSlug(ch);
+}
+
+export default async function LivePage({ searchParams }: LivePageProps) {
+  const { ch } = await searchParams;
 
   return (
     <PageContainer>
@@ -60,7 +37,7 @@ export default async function LivePage() {
 
         <ContentContainer className="relative z-10 flex w-full flex-col items-center">
           <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
-            <LiveTvPage initialGuide={guide} />
+            <LiveTvPage initialChannelSlug={ch ?? null} />
           </section>
         </ContentContainer>
       </div>
