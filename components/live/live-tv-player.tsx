@@ -14,8 +14,9 @@ import { useCallback, useState } from "react";
 import { LiveChannelSidebar } from "@/components/live/live-channel-sidebar";
 import { LiveTvGuideProvider } from "@/components/live/live-tv-guide-context";
 import { LiveVideoLayout } from "@/components/live/live-video-layout";
-import { cn } from "@/lib/utils";
+import { buildLiveChannelShareUrl } from "@/lib/live/channel-slugs";
 import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
+import { cn } from "@/lib/utils";
 
 import "./live-hls-player.css";
 
@@ -24,6 +25,7 @@ type LiveGuideCategory = LiveChannelsResponse["categories"][number];
 type LiveTvPlayerProps = {
   categories: LiveGuideCategory[];
   channels: LiveChannel[];
+  loadingMoreChannels?: boolean;
   onCategoryChange: (categoryId: string) => void;
   onRefresh: () => void;
   onQueryChange: (query: string) => void;
@@ -53,6 +55,7 @@ const configureHlsProvider = (provider: MediaProviderAdapter | null) => {
 export function LiveTvPlayer({
   categories,
   channels,
+  loadingMoreChannels = false,
   onCategoryChange,
   onRefresh,
   onQueryChange,
@@ -84,9 +87,16 @@ export function LiveTvPlayer({
         .filter(Boolean)
         .join(" · ")
     : undefined;
+  const shareUrl = selectedChannel
+    ? buildLiveChannelShareUrl(selectedChannel)
+    : null;
 
   return (
-    <LiveTvGuideProvider guideOpen={guideOpen} setGuideOpen={setGuideOpen}>
+    <LiveTvGuideProvider
+      guideOpen={guideOpen}
+      setGuideOpen={setGuideOpen}
+      shareUrl={shareUrl}
+    >
       <div className="overflow-hidden rounded-[8px] border border-border bg-card/40 shadow-2xl shadow-black/35 backdrop-blur-md">
         <div className="relative">
           <div className="relative min-w-0 bg-black xl:pr-[320px]">
@@ -129,6 +139,7 @@ export function LiveTvPlayer({
           <LiveChannelSidebar
             categories={categories}
             channels={channels}
+            loadingMore={loadingMoreChannels}
             className={cn(
               "absolute inset-y-0 right-0 z-30 border-l max-xl:w-[min(300px,82vw)] max-xl:shadow-2xl max-xl:shadow-black/50 xl:w-[320px]",
               guideOpen ? "flex" : "max-xl:hidden xl:flex",

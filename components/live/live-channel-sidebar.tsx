@@ -38,6 +38,7 @@ type LiveChannelSidebarProps = {
   onQueryChange: (query: string) => void;
   onSelectChannel: (channel: LiveChannel) => void;
   query: string;
+  loadingMore?: boolean;
   refreshing: boolean;
   selectedCategory: string;
   selectedChannelId: string | null;
@@ -55,6 +56,7 @@ export function LiveChannelSidebar({
   onQueryChange,
   onSelectChannel,
   query,
+  loadingMore = false,
   refreshing,
   selectedCategory,
   selectedChannelId,
@@ -135,6 +137,12 @@ export function LiveChannelSidebar({
           ))}
         </div>
       </div>
+
+      {loadingMore ? (
+        <p className="border-b border-border px-3 py-2 text-[11px] text-muted-foreground">
+          Loading more channels...
+        </p>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {channels.length > 0 ? (

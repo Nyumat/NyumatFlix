@@ -31,7 +31,7 @@ const fetchUpstream = async (
   try {
     const response = await fetch(upstreamUrl, {
       cache: "no-store",
-      headers: liveUpstreamHeaders(rangeHeader),
+      headers: liveUpstreamHeaders(upstreamUrl, rangeHeader),
       redirect: "follow",
       signal: controller.signal,
     });

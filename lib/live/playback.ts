@@ -1,4 +1,11 @@
+import {
+  getOpenStreamPlaybackConfig,
+  isAllowedOpenStreamUrl,
+} from "@/lib/live/open-stream-registry";
+
 export const DULO_REFERER = "https://dulo.tv/";
+const DEFAULT_OPEN_STREAM_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 const DULO_STREAM_HOSTS = new Set([
   "images.dulo.tv",
@@ -8,7 +15,7 @@ const DULO_STREAM_HOSTS = new Set([
 
 const MAX_ENCODED_URL_LENGTH = 4096;
 
-export const isAllowedLiveStreamUrl = (value: string) => {
+export const isAllowedDuloStreamUrl = (value: string) => {
   try {
     const parsed = new URL(value);
     const isAllowedPath = /^\/memfs\/.+\.(?:m3u8|ts)$/i.test(parsed.pathname);
@@ -22,6 +29,9 @@ export const isAllowedLiveStreamUrl = (value: string) => {
     return false;
   }
 };
+
+export const isAllowedLiveStreamUrl = (value: string) =>
+  isAllowedDuloStreamUrl(value) || isAllowedOpenStreamUrl(value);
 
 export const encodeLiveStreamUrl = (url: string) =>
   Buffer.from(url, "utf8").toString("base64url");
@@ -82,10 +92,23 @@ export const rewriteLivePlaylist = (content: string, manifestUrl: string) =>
     })
     .join("\n");
 
-export const liveUpstreamHeaders = (rangeHeader: string | null) => {
-  const headers: Record<string, string> = {
-    Referer: DULO_REFERER,
-  };
+export const liveUpstreamHeaders = (
+  upstreamUrl: string,
+  rangeHeader: string | null,
+) => {
+  const openConfig = getOpenStreamPlaybackConfig(upstreamUrl);
+  const headers: Record<string, string> = {};
+
+  if (openConfig) {
+    headers["User-Agent"] =
+      openConfig.userAgent ?? DEFAULT_OPEN_STREAM_USER_AGENT;
+
+    if (openConfig.referer) {
+      headers.Referer = openConfig.referer;
+    }
+  } else {
+    headers.Referer = DULO_REFERER;
+  }
 
   if (rangeHeader) {
     headers.Range = rangeHeader;

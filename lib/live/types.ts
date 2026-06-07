@@ -32,4 +32,6 @@ export type LiveChannelsResponse = {
     ready: number;
     unsupported: number;
   };
+  guidePhase?: "bootstrap" | "supplemental" | "full";
+  guideComplete?: boolean;
 };
