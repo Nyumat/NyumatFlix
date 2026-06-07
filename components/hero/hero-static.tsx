@@ -255,6 +255,7 @@ export function StaticHero({
     pathname === "/" ||
     pathname === "/movies" ||
     pathname === "/tvshows" ||
+    pathname === "/live" ||
     pathname.startsWith("/anime") ||
     pathname.startsWith("/people") ||
     pathname.startsWith("/trending") ||

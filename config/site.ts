@@ -152,6 +152,11 @@ const anime: NavItem = {
   ],
 };
 
+const liveTv: NavItem = {
+  title: "Live TV",
+  href: "/live",
+};
+
 export const navigation = {
-  items: [movies, tvShows, anime, people, trending] as NavItem[],
+  items: [movies, tvShows, anime, liveTv, people, trending] as NavItem[],
 };

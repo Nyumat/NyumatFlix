@@ -22,6 +22,7 @@ import {
   Clapperboard,
   Flame,
   LayoutGrid,
+  RadioTower,
   Tv,
   Users,
   type LucideIcon,
@@ -37,6 +38,7 @@ const parentIcons: Record<string, LucideIcon> = {
   Movies: Clapperboard,
   "TV Shows": Tv,
   Anime: BookOpen,
+  "Live TV": RadioTower,
   People: Users,
   Trending: Flame,
 };
@@ -72,6 +74,8 @@ const getBrowseLinkLabel = (item: NavItem, child: BrowseLink) => {
 
   return toTitleCase(child.title);
 };
+
+const hasBrowseSubmenu = (item: NavItem) => (item.items?.length ?? 0) > 0;
 
 const getBrowseLinks = (item: NavItem): BrowseLink[] => {
   const children = item.items ?? [];
@@ -163,6 +167,7 @@ const isInNavGroup = (
   if (item.href === "/people/popular") return pathname.startsWith("/people");
   if (item.href === "/trending") return pathname.startsWith("/trending");
   if (item.href === "/anime") return pathname.startsWith("/anime");
+  if (item.href === "/live") return pathname.startsWith("/live");
 
   return false;
 };
@@ -253,6 +258,34 @@ const BrowseRootMenu = ({
         {navigation.items.map((item) => {
           const Icon = getNavIcon(item);
           const isActive = item.title === activeTitle;
+          const tileClassName = cn(
+            "group flex h-[72px] cursor-pointer flex-col items-start justify-between rounded-md border border-white/10 bg-card/55 p-3 text-left text-white outline-hidden transition-all",
+            "hover:border-white/25 hover:bg-white/8 focus:border-primary/35 focus:bg-primary/10",
+            isActive &&
+              "border-primary/35 bg-primary/10 text-primary ring-1 ring-primary/25",
+          );
+
+          if (!hasBrowseSubmenu(item)) {
+            return (
+              <DropdownMenuItem
+                key={item.title}
+                asChild
+                className="rounded-md p-0 focus:bg-transparent"
+              >
+                <Link href={item.href} className={tileClassName}>
+                  <div className="flex w-full items-center justify-between">
+                    <Icon className="size-5" strokeWidth={1.65} />
+                    {isActive && (
+                      <Check className="size-4" strokeWidth={1.75} />
+                    )}
+                  </div>
+                  <span className="text-sm font-normal text-white">
+                    {toTitleCase(item.title)}
+                  </span>
+                </Link>
+              </DropdownMenuItem>
+            );
+          }
 
           return (
             <DropdownMenuItem
@@ -261,12 +294,7 @@ const BrowseRootMenu = ({
                 event.preventDefault();
                 setMenuValue(item.title);
               }}
-              className={cn(
-                "group flex h-[72px] cursor-pointer flex-col items-start justify-between rounded-md border border-white/10 bg-card/55 p-3 text-left text-white outline-hidden transition-all",
-                "hover:border-white/25 hover:bg-white/8 focus:border-primary/35 focus:bg-primary/10",
-                isActive &&
-                  "border-primary/35 bg-primary/10 text-primary ring-1 ring-primary/25",
-              )}
+              className={tileClassName}
             >
               <div className="flex w-full items-center justify-between">
                 <Icon className="size-5" strokeWidth={1.65} />
