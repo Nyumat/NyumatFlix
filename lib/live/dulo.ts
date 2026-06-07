@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import { buildLivePlayUrl, isAllowedLiveStreamUrl } from "@/lib/live/playback";
+import {
+  fetchLiveGuideFromPreview,
+  shouldUseLivePreviewUpstream,
+} from "@/lib/live/preview-upstream";
 import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
 
 const DULO_API_BASE = "https://dulo.tv/api";
@@ -229,7 +233,7 @@ const buildCategoryOptions = (channels: LiveChannel[]) => {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 };
 
-const loadLiveChannels = async (): Promise<LiveChannelsResponse> => {
+const loadLiveChannelsFromDulo = async (): Promise<LiveChannelsResponse> => {
   const [channelsPayload, eventsPayload] = await Promise.all([
     jsonFromDuloApi<DuloChannelsPayload>(
       "/live-tv/channels",
@@ -269,6 +273,14 @@ const loadLiveChannels = async (): Promise<LiveChannelsResponse> => {
       unsupported: allChannels.length - ready,
     },
   };
+};
+
+const loadLiveChannels = async (): Promise<LiveChannelsResponse> => {
+  if (shouldUseLivePreviewUpstream()) {
+    return fetchLiveGuideFromPreview();
+  }
+
+  return loadLiveChannelsFromDulo();
 };
 
 export const getLiveChannels = async (): Promise<LiveChannelsResponse> => {
