@@ -1,3 +1,4 @@
+import { catalogCacheHeaders, seasonCacheHeaders } from "@/lib/http-cache";
 import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
 import {
   getCachedMovieDetail,
@@ -31,6 +32,17 @@ const resources = new Set<Resource>([
   "recommendations",
   "similar",
 ]);
+
+const jsonCached = (data: unknown, resource: Resource, init?: ResponseInit) =>
+  NextResponse.json(data, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      ...(resource === "all-seasons"
+        ? seasonCacheHeaders()
+        : catalogCacheHeaders()),
+    },
+  });
 
 export async function GET(
   request: Request,
@@ -75,18 +87,14 @@ export async function GET(
             { status: 404 },
           );
         }
-        return NextResponse.json(detail, {
-          headers: {
-            "Cache-Control":
-              "public, s-maxage=3600, stale-while-revalidate=86400",
-          },
-        });
+        return jsonCached(detail, "above-fold");
       }
       case "details":
-        return NextResponse.json(
+        return jsonCached(
           mediaType === "movie"
             ? await getCachedMovieDetail(id)
             : await getCachedTvShowDetail(id),
+          "details",
         );
       case "all-seasons": {
         if (mediaType !== "tv") {
@@ -98,27 +106,32 @@ export async function GET(
 
         const details = await getCachedTvShowDetail(id);
         if (!details) {
-          return NextResponse.json({});
+          return jsonCached({}, "all-seasons");
         }
 
-        return NextResponse.json(
+        return jsonCached(
           await fetchAllSeasonDetails(id, details.seasons),
+          "all-seasons",
         );
       }
       case "credits":
-        return NextResponse.json(await mediaApi.credits({ id }));
+        return jsonCached(await mediaApi.credits({ id }), "credits");
       case "images":
-        return NextResponse.json(
+        return jsonCached(
           await mediaApi.images({ id, langs: "en,null" }),
+          "images",
         );
       case "videos":
-        return NextResponse.json(await mediaApi.videos({ id }));
+        return jsonCached(await mediaApi.videos({ id }), "videos");
       case "reviews":
-        return NextResponse.json(await mediaApi.reviews({ id, page }));
+        return jsonCached(await mediaApi.reviews({ id, page }), "reviews");
       case "recommendations":
-        return NextResponse.json(await mediaApi.recommendations({ id, page }));
+        return jsonCached(
+          await mediaApi.recommendations({ id, page }),
+          "recommendations",
+        );
       case "similar":
-        return NextResponse.json(await mediaApi.similar({ id, page }));
+        return jsonCached(await mediaApi.similar({ id, page }), "similar");
     }
   } catch (error) {
     console.error(

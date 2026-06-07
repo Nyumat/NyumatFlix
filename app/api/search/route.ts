@@ -13,6 +13,7 @@ import {
   TmdbResponse,
   TvShow,
 } from "@/lib/domain/typings";
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextResponse } from "next/server";
 
 interface Person {
@@ -175,11 +176,7 @@ export async function GET(request: Request) {
       totalResults,
     };
 
-    return NextResponse.json(result, {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
-      },
-    });
+    return NextResponse.json(result, { headers: catalogCacheHeaders() });
   } catch (error) {
     console.error("Error in main search API route:", error);
     return NextResponse.json(

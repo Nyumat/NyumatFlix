@@ -52,7 +52,7 @@ export default function DMCAPage() {
                 <a
                   href={githubUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-foreground underline underline-offset-4 hover:text-primary"
                 >
                   GitHub
@@ -104,7 +104,7 @@ export default function DMCAPage() {
                 <a
                   href={githubUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-foreground underline underline-offset-4 hover:text-primary"
                 >
                   GitHub

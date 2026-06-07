@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  CACHE_REVALIDATE_SECONDS,
+  CACHE_SEASON_REVALIDATE_SECONDS,
+} from "@/lib/http-cache";
 import { Season, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
 
 /**
@@ -9,6 +13,7 @@ export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
   try {
     const response = await fetch(
       `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US&append_to_response=videos,images,credits,recommendations,similar,keywords,reviews,content_ratings,aggregate_credits,external_ids`,
+      { next: { revalidate: CACHE_REVALIDATE_SECONDS } },
     );
     if (!response.ok) {
       throw new Error(`Failed to fetch TV show details: ${response.status}`);
@@ -36,6 +41,7 @@ export async function fetchSeasonDetailsServer(
   try {
     const response = await fetch(
       `https://api.themoviedb.org/3/tv/${tvId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+      { next: { revalidate: CACHE_SEASON_REVALIDATE_SECONDS } },
     );
     if (!response.ok) {
       throw new Error(`Failed to fetch season details: ${response.status}`);

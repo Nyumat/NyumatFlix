@@ -48,7 +48,7 @@ export default function PrivacyPage() {
                   <a
                     href={umamiUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-foreground underline underline-offset-4 hover:text-primary"
                   >
                     Umami
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
                   <a
                     href={tmdbUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-foreground underline underline-offset-4 hover:text-primary"
                   >
                     TMDb
@@ -99,7 +99,7 @@ export default function PrivacyPage() {
                   <a
                     href={anilistUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-foreground underline underline-offset-4 hover:text-primary"
                   >
                     AniList
@@ -110,7 +110,7 @@ export default function PrivacyPage() {
                   <a
                     href={resendUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-foreground underline underline-offset-4 hover:text-primary"
                   >
                     Resend

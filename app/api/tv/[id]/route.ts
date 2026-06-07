@@ -1,3 +1,4 @@
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextResponse } from "next/server";
 import { movieDb } from "@/lib/constants";
 
@@ -22,7 +23,7 @@ export async function GET(
       return NextResponse.json({ error: "TV show not found" }, { status: 404 });
     }
 
-    return NextResponse.json(tvDetails);
+    return NextResponse.json(tvDetails, { headers: catalogCacheHeaders() });
   } catch (error) {
     console.error(`Error fetching TV show details for ID ${id}:`, error);
     return NextResponse.json(

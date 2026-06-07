@@ -3,8 +3,6 @@ import { getCachedMovieDetail } from "@/lib/media-detail-cache";
 import { generateMediaMetadata } from "@/utils/media-metadata-helpers";
 import { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
-
 type Props = {
   params: Promise<{ id: string }>;
 };

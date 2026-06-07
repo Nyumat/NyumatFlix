@@ -1,3 +1,7 @@
+import {
+  CACHE_SEASON_REVALIDATE_SECONDS,
+  seasonCacheHeaders,
+} from "@/lib/http-cache";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -10,6 +14,7 @@ export async function GET(
 
     const response = await fetch(
       `https://api.themoviedb.org/3/tv/${id}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+      { next: { revalidate: CACHE_SEASON_REVALIDATE_SECONDS } },
     );
 
     if (!response.ok) {
@@ -17,7 +22,7 @@ export async function GET(
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: seasonCacheHeaders() });
   } catch (error) {
     console.error("Error fetching season details:", error);
     return NextResponse.json(

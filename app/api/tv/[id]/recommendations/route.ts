@@ -1,3 +1,4 @@
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextResponse } from "next/server";
 import { movieDb } from "@/lib/constants";
 
@@ -19,10 +20,15 @@ export async function GET(
     const recommendations = await movieDb.tvRecommendations({ id });
 
     if (!recommendations || !recommendations.results) {
-      return NextResponse.json({ results: [] }, { status: 200 });
+      return NextResponse.json(
+        { results: [] },
+        { status: 200, headers: catalogCacheHeaders() },
+      );
     }
 
-    return NextResponse.json(recommendations);
+    return NextResponse.json(recommendations, {
+      headers: catalogCacheHeaders(),
+    });
   } catch (error) {
     console.error(
       `Error fetching TV show recommendations for ID ${id}:`,

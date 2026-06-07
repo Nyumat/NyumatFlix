@@ -1,3 +1,4 @@
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextResponse } from "next/server";
 import {
   pickBestVideasyHlsStream,
@@ -75,12 +76,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       { url: url ?? null, hlsUrl: hlsUrl ?? null },
-      {
-        headers: {
-          "Cache-Control":
-            "public, s-maxage=3600, stale-while-revalidate=86400",
-        },
-      },
+      { headers: catalogCacheHeaders() },
     );
   } catch {
     if (process.env.NODE_ENV === "production") {
