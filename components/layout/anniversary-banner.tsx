@@ -46,7 +46,7 @@ export function AnniversaryBanner({ className }: AnniversaryBannerProps) {
           exit={{ height: 0, opacity: 0, y: -12 }}
           transition={{ duration: 0.28, ease: "easeInOut" }}
         >
-          <div className="mx-auto grid min-h-11 max-w-[1400px] grid-cols-[2.5rem_1fr_2.5rem] items-center px-3 sm:px-6 lg:px-8">
+          <div className="site-container grid min-h-11 grid-cols-[2.5rem_1fr_2.5rem] items-center">
             <span aria-hidden />
             <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center text-sm font-semibold leading-snug text-zinc-100 sm:text-base">
               <span className="text-zinc-200">Live TV is in beta</span>
