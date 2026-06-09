@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/seo/constants";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -6,29 +7,9 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: "/login/verify/",
-      },
-      {
-        userAgent: "*",
-        allow: "/",
-        disallow: "/terms/",
-      },
-      {
-        userAgent: "*",
-        allow: "/",
-        disallow: "/dmca/",
-      },
-      {
-        userAgent: "*",
-        allow: "/",
-        disallow: "/cookie-policy/",
-      },
-      {
-        userAgent: "*",
-        allow: "/",
-        disallow: "/privacy/",
+        disallow: ["/login/", "/watchlist", "/api/", "/dev/"],
       },
     ],
-    sitemap: "https://nyumatflix.com/sitemap.xml",
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

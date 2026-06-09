@@ -42,6 +42,7 @@ import type { SortByTypeMovie } from "@/tmdb/api";
 import { tmdb } from "@/tmdb/api";
 import type { MovieWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/lib/domain/typings";
+import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -61,16 +62,11 @@ export async function generateMetadata({
   const { title, description } =
     getDiscoverCatalogCopy(sp, "movie") ?? getMovieCatalogListCopy(view);
 
-  return {
-    title: `${title} | NyumatFlix`,
+  return buildCatalogMetadata({
+    title,
     description: description || undefined,
-    openGraph: {
-      title: `${title} | NyumatFlix`,
-      description: description || undefined,
-      type: "website",
-      siteName: "NyumatFlix",
-    },
-  };
+    path: pages.movie.catalog.link,
+  });
 }
 
 const toCatalogQueryParams = (

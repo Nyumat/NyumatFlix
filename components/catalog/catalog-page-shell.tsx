@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 
 type CatalogPageShellProps = {
   title: string;
-  description?: string;
   toolbar?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
@@ -15,7 +14,6 @@ type CatalogPageShellProps = {
 
 export const CatalogPageShell = ({
   title,
-  description,
   toolbar,
   action,
   children,
@@ -33,9 +31,6 @@ export const CatalogPageShell = ({
                 <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
                   {title}
                 </h1>
-                {description ? (
-                  <p className="text-muted-foreground">{description}</p>
-                ) : null}
               </div>
               {action ? (
                 <div className="flex justify-center md:justify-end">

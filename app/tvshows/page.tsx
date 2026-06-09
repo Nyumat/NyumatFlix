@@ -46,6 +46,7 @@ import type { SortByTypeTv } from "@/tmdb/api";
 import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/lib/domain/typings";
+import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -65,16 +66,11 @@ export async function generateMetadata({
   const { title, description } =
     getDiscoverCatalogCopy(sp, "tv") ?? getTvCatalogListCopy(view);
 
-  return {
-    title: `${title} | NyumatFlix`,
+  return buildCatalogMetadata({
+    title,
     description: description || undefined,
-    openGraph: {
-      title: `${title} | NyumatFlix`,
-      description: description || undefined,
-      type: "website",
-      siteName: "NyumatFlix",
-    },
-  };
+    path: pages.tv.catalog.link,
+  });
 }
 
 const toCatalogQueryParams = (

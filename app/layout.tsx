@@ -1,3 +1,5 @@
+import { JsonLdScript } from "@/components/seo/json-ld-script";
+import { buildWebsiteStructuredData } from "@/lib/seo/structured-data";
 import { NavbarServer } from "@/components/layout/nav/navbar-server";
 import { RouteScrollReset } from "@/components/layout/route-scroll-reset";
 import { FooterSection } from "@/components/layout/sections/footer";
@@ -12,6 +14,13 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_OG_IMAGE,
+  OG_IMAGE_SIZE,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/seo/constants";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -25,8 +34,9 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nyumatflix.com/"),
-  title: "NyumatFlix | Watch Movies and TV Shows",
+  metadataBase: new URL(`${SITE_URL}/`),
+  title: `${SITE_NAME} | Watch Movies and TV Shows`,
+  description: DEFAULT_DESCRIPTION,
   icons: {
     icon: [
       { url: "/favicon.ico?v=2", type: "image/x-icon" },
@@ -46,31 +56,27 @@ export const metadata: Metadata = {
       },
     ],
   },
-  description:
-    "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
   openGraph: {
     type: "website",
-    url: "https://nyumatflix.com",
-    title: "NyumatFlix | Watch Movies and TV Shows",
-    description:
-      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} | Watch Movies and TV Shows`,
+    description: DEFAULT_DESCRIPTION,
     images: [
       {
-        url: "https://nyumatflix.com/og.webp",
-        width: 1200,
-        height: 630,
+        url: DEFAULT_OG_IMAGE,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
         type: "image/webp",
-        alt: "NyumatFlix | Watch Movies and TV Shows",
+        alt: `${SITE_NAME} | Watch Movies and TV Shows`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "https://nyumatflix.com",
-    title: "NyumatFlix | Watch Movies and TV Shows",
-    description:
-      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
-    images: ["https://nyumatflix.com/og.webp"],
+    title: `${SITE_NAME} | Watch Movies and TV Shows`,
+    description: DEFAULT_DESCRIPTION,
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 
@@ -96,6 +102,7 @@ export default function RootLayout({
         )}
       </head>
       <body className={cn("flex min-h-dvh flex-col bg-background font-sans")}>
+        <JsonLdScript data={buildWebsiteStructuredData()} />
         <RouteScrollReset />
         <QueryProvider>
           <AuthSessionProvider>
