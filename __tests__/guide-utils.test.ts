@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildLiveChannelsResponse,
   dedupeLiveChannels,
+  filterPlayableLiveChannels,
   mergeLiveChannelGuides,
+  toPlayableLiveGuide,
 } from "@/lib/live/guide-utils";
 import type { LiveChannel } from "@/lib/live/types";
 
@@ -73,5 +75,25 @@ describe("guide utils", () => {
     expect(merged.channels).toHaveLength(2);
     expect(merged.guideComplete).toBe(true);
     expect(merged.guidePhase).toBe("full");
+  });
+
+  it("filters unsupported channels from playable guides", () => {
+    const guide = buildLiveChannelsResponse([
+      channel({ id: "a", name: "Alpha" }),
+      channel({
+        id: "b",
+        name: "Broken",
+        playUrl: null,
+        availability: "unsupported",
+        unavailableReason: "Device-specific stream URL",
+      }),
+    ]);
+
+    const playable = toPlayableLiveGuide(guide);
+
+    expect(filterPlayableLiveChannels(guide.channels)).toHaveLength(1);
+    expect(playable.channels).toHaveLength(1);
+    expect(playable.channels[0]?.name).toBe("Alpha");
+    expect(playable.totals.ready).toBe(1);
   });
 });

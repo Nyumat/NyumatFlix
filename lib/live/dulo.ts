@@ -3,7 +3,8 @@ import { z } from "zod";
 
 import { EMPTY_LIVE_GUIDE } from "@/lib/live/empty-guide";
 import { loadLiveChannelsFromOpenPlaylists } from "@/lib/live/open-playlists";
-import { buildLivePlayUrl, isAllowedLiveStreamUrl } from "@/lib/live/playback";
+import { getUnavailableReason } from "@/lib/live/availability";
+import { buildLivePlayUrl } from "@/lib/live/playback";
 import {
   fetchLiveGuideFromPreview,
   shouldUseLivePreviewUpstream,
@@ -100,22 +101,6 @@ const getSourceHost = (sourceUrl: string | null) => {
   } catch {
     return null;
   }
-};
-
-const getUnavailableReason = (sourceUrl: string | null) => {
-  if (!sourceUrl) {
-    return "No stream source";
-  }
-
-  if (sourceUrl.includes("cdn.dulo.tv")) {
-    return "Unsupported backup source";
-  }
-
-  if (!isAllowedLiveStreamUrl(sourceUrl)) {
-    return "Unsupported stream source";
-  }
-
-  return null;
 };
 
 const jsonFromDuloApi = async <T>(

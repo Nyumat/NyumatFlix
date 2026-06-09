@@ -28,6 +28,20 @@ const preferChannel = (left: LiveChannel, right: LiveChannel) => {
   return left;
 };
 
+export const isPlayableLiveChannel = (channel: LiveChannel) =>
+  channel.availability === "ready" && Boolean(channel.playUrl);
+
+export const filterPlayableLiveChannels = (channels: LiveChannel[]) =>
+  channels.filter(isPlayableLiveChannel);
+
+export const toPlayableLiveGuide = (
+  guide: LiveChannelsResponse,
+): LiveChannelsResponse =>
+  buildLiveChannelsResponse(filterPlayableLiveChannels(guide.channels), {
+    guidePhase: guide.guidePhase,
+    guideComplete: guide.guideComplete,
+  });
+
 export const dedupeLiveChannels = (channels: LiveChannel[]) => {
   const bySourceUrl = new Map<string, LiveChannel>();
   const byId = new Map<string, LiveChannel>();

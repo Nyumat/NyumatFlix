@@ -4,6 +4,7 @@ import {
   registerOpenStreamUrl,
   resetOpenStreamRegistry,
 } from "@/lib/live/open-stream-registry";
+import { getUnavailableReason } from "@/lib/live/availability";
 import {
   buildLiveChannelsResponse,
   dedupeLiveChannels,
@@ -282,10 +283,14 @@ const normalizeOpenPlaylistEntry = (
     ? `open-${slugify(source.id)}-${slugify(entry.tvgId)}`
     : `open-${slugify(`${source.id}-${entry.name}-${entry.url}`)}`;
 
-  registerOpenStreamUrl(entry.url, {
-    userAgent: entry.userAgent ?? undefined,
-    referer: entry.referer ?? undefined,
-  });
+  const unavailableReason = getUnavailableReason(entry.url);
+
+  if (!unavailableReason) {
+    registerOpenStreamUrl(entry.url, {
+      userAgent: entry.userAgent ?? undefined,
+      referer: entry.referer ?? undefined,
+    });
+  }
 
   const groupLabel = entry.groupTitle?.split(";")[0]?.trim() ?? null;
   const label =
@@ -298,11 +303,11 @@ const normalizeOpenPlaylistEntry = (
     categoryName,
     country: entry.country?.toUpperCase() ?? source.country,
     logoUrl: entry.tvgLogo,
-    playUrl: buildLivePlayUrl(entry.url),
+    playUrl: unavailableReason ? null : buildLivePlayUrl(entry.url),
     sourceUrl: entry.url,
     sourceHost: new URL(entry.url).hostname,
-    availability: "ready",
-    unavailableReason: null,
+    availability: unavailableReason ? "unsupported" : "ready",
+    unavailableReason,
     kind: "channel",
     startsAt: null,
     label,
