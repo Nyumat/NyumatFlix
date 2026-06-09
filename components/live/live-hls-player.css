@@ -44,6 +44,19 @@
   min-width: 0;
 }
 
+.nyumat-live-player .vds-video-layout[data-lg] {
+  --video-volume-gap: 12px;
+}
+
+.nyumat-live-player .vds-video-layout[data-lg] .vds-mute-button {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.nyumat-live-player .vds-live-channel-meta {
+  margin-inline-start: 12px;
+}
+
 .nyumat-live-player .vds-live-channel-meta .vds-live-button {
   margin-left: 0;
 }
