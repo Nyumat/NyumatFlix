@@ -34,6 +34,8 @@ import {
   TVShowCategory,
   TvShowSchema,
 } from "@/lib/domain/typings";
+import type { PersonDetails } from "@/tmdb/models";
+import type { Person as TmdbPerson } from "moviedb-promise/dist/request-types";
 import { cache } from "react";
 
 interface Params {
@@ -809,12 +811,38 @@ export async function fetchPersonFilmography(
 }
 
 // Get person details
-export async function getPersonDetails(personId: number) {
+const toPersonDetails = (person: TmdbPerson): PersonDetails | null => {
+  if (person.id == null || !person.name) {
+    return null;
+  }
+
+  return {
+    adult: person.adult ?? false,
+    also_known_as: person.also_known_as ?? [],
+    birthday: person.birthday ?? "",
+    biography: person.biography ?? "",
+    ...(person.deathday ? { deathday: person.deathday } : {}),
+    gender: person.gender ?? 0,
+    ...(person.homepage ? { homepage: person.homepage } : {}),
+    id: person.id,
+    imdb_id: person.imdb_id ?? "",
+    known_for_department: person.known_for_department ?? "",
+    name: person.name,
+    place_of_birth: person.place_of_birth ?? "",
+    popularity: person.popularity ?? 0,
+    profile_path: person.profile_path ?? "",
+  };
+};
+
+export async function getPersonDetails(
+  personId: number,
+): Promise<PersonDetails | null> {
   try {
-    return await movieDb.personInfo({
+    const person = await movieDb.personInfo({
       id: personId,
       language: "en-US",
     });
+    return toPersonDetails(person);
   } catch (error) {
     logger.error(`Error fetching person details for ${personId}:`, error);
     return null;
