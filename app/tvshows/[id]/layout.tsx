@@ -1,3 +1,4 @@
+import { DetailPageLoading } from "@/components/layout/page-loading/detail-page-loading";
 import { TvShowDetailShell } from "@/components/tvshow/tvshow-detail-shell";
 import { hydrateTvShowDetailQueries } from "@/lib/prefetch-media-detail-queries";
 import { getCachedTvAboveFoldDetail } from "@/lib/media-above-fold-server";
@@ -15,7 +16,7 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export default async function TVShowDetailLayout({ children, params }: Props) {
+async function TvShowDetailLayoutContent({ children, params }: Props) {
   const { id } = await params;
 
   let details;
@@ -37,15 +38,19 @@ export default async function TVShowDetailLayout({ children, params }: Props) {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <Suspense fallback={null}>
-        <TvShowDetailShell
-          details={detailMedia}
-          tvId={id}
-          anilistId={anilistId}
-        >
-          {children}
-        </TvShowDetailShell>
-      </Suspense>
+      <TvShowDetailShell details={detailMedia} tvId={id} anilistId={anilistId}>
+        {children}
+      </TvShowDetailShell>
     </HydrationBoundary>
+  );
+}
+
+export default function TVShowDetailLayout({ children, params }: Props) {
+  return (
+    <Suspense fallback={<DetailPageLoading />}>
+      <TvShowDetailLayoutContent params={params}>
+        {children}
+      </TvShowDetailLayoutContent>
+    </Suspense>
   );
 }

@@ -46,6 +46,16 @@
   --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
   --animate-slide: slide var(--speed) ease-in-out infinite alternate;
   --animate-border-beam: border-beam calc(var(--duration) * 1s) infinite linear;
+  --animate-shimmer: shimmer 2.2s ease-in-out infinite;
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
 
   @keyframes accordion-down {
     from {
