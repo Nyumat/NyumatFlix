@@ -2,6 +2,7 @@ import {
   filterReleasedMovies,
   filterReleasedTvShows,
 } from "@/lib/released-media";
+import { enrichPeopleWithDeathday } from "@/lib/server/person-enrichment";
 import { notFound } from "next/navigation";
 import { tmdb } from "@/tmdb/api";
 import type { Movie, TvShow } from "@/tmdb/models";
@@ -48,13 +49,12 @@ export const TrendList: React.FC<TrendListProps> = async ({
     return notFound();
   }
 
-  const trendsWithDeathday = await Promise.all(
-    trends.map(async (item) => {
-      if (item.media_type !== "person") return item;
-      const detail = await tmdb.person.detail({ id: item.id });
-      return { ...item, deathday: detail.deathday ?? null };
-    }),
-  );
+  const trendsWithDeathday =
+    type === "people"
+      ? await enrichPeopleWithDeathday(
+          trends as Array<{ id: number; media_type?: string }>,
+        )
+      : trends;
 
   return (
     <div className="flex w-full flex-col">
