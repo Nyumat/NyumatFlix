@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  navBrowseMenuClassName,
   navbarActionButtonClassName,
   navbarActionIconClassName,
 } from "@/components/layout/nav/navbar-action-button";
@@ -62,7 +63,7 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
           className={cn(
             navbarActionButtonClassName,
             triggerClassName,
-            "hidden lg:inline-flex",
+            navBrowseMenuClassName,
             "focus-visible:outline-hidden focus-visible:ring-2",
             "data-[state=open]:border-white/25 data-[state=open]:bg-white/10 data-[state=open]:text-white data-[state=open]:ring-white/20",
           )}

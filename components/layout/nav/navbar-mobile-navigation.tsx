@@ -58,6 +58,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
+  navMobileMenuClassName,
   navbarActionButtonClassName,
   navbarActionIconClassName,
 } from "./navbar-action-button";
@@ -162,7 +163,7 @@ export const NavbarMobileNavigation = ({
 
   if (!isMounted) {
     return (
-      <div className="md:hidden">
+      <div className={navMobileMenuClassName}>
         <Button
           variant="ghost"
           size="icon"
@@ -176,7 +177,7 @@ export const NavbarMobileNavigation = ({
   }
 
   return (
-    <div className="md:hidden">
+    <div className={navMobileMenuClassName}>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <Button

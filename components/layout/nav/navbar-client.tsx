@@ -14,6 +14,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { BackButton } from "../../ui/back-button";
 import {
+  navMobileMenuClassName,
   navbarActionButtonClassName,
   navbarActionIconClassName,
 } from "./navbar-action-button";
@@ -125,7 +126,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
           <div className="hidden md:flex">
             <NavbarAuth session={session} />
           </div>
-          <div className="flex md:hidden">
+          <div className={cn("flex shrink-0", navMobileMenuClassName)}>
             <NavbarMobileNavigation session={session}>
               <NavbarSearchClient />
             </NavbarMobileNavigation>
@@ -229,6 +230,15 @@ const DetailPageActions = ({
           <Suspense fallback={null}>
             <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
           </Suspense>
+
+          <div className={cn("flex shrink-0", navMobileMenuClassName)}>
+            <NavbarMobileNavigation
+              session={session}
+              triggerClassName={detailNavbarActionButtonClassName}
+            >
+              <NavbarSearchClient />
+            </NavbarMobileNavigation>
+          </div>
 
           {session ? (
             <UserAvatar
