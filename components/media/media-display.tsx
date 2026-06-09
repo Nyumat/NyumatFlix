@@ -67,7 +67,7 @@ export {
 };
 
 interface MediaPosterProps extends ComponentProps<"div"> {
-  image?: string;
+  image?: string | null;
   size?: PosterSize;
   alt: string;
   priority?: boolean;
@@ -108,7 +108,7 @@ export function Poster({
 
   return (
     <MediaPoster
-      image={posterPath ?? undefined}
+      image={posterPath}
       alt={title}
       size={resolved}
       className={className}
