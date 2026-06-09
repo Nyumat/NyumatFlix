@@ -24,16 +24,20 @@ export const fetchIdsMoeMappingByAniListId = async (
   const url = new URL(`/ids/${anilistId}`, IDS_MOE_BASE_URL);
   url.searchParams.set("platform", "anilist");
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: "application/json",
-    },
-    next: { revalidate: 60 * 60 * 24 },
-  });
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        accept: "application/json",
+      },
+      next: { revalidate: 60 * 60 * 24 },
+    });
 
-  if (response.status === 404) return null;
-  if (!response.ok) return null;
+    if (response.status === 404) return null;
+    if (!response.ok) return null;
 
-  return (await response.json()) as IdsMoeMapping;
+    return (await response.json()) as IdsMoeMapping;
+  } catch {
+    return null;
+  }
 };

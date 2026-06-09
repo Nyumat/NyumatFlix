@@ -48,10 +48,6 @@ export const getBrowseLinkLabel = (
     return "All";
   }
 
-  if (child.title === "On The Air") {
-    return "Actively Releasing";
-  }
-
   return toTitleCase(child.title);
 };
 
