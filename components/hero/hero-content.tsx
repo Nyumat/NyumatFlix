@@ -17,6 +17,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Star, Volume2, VolumeX, X } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect } from "react";
+import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
+import { resolveTvWatchTarget } from "@/lib/tv-watch-target";
 import { HeroButtons } from "./hero-buttons";
 import type { YouTubePlayer } from "./youtube-types";
 
@@ -196,33 +198,96 @@ export function HeroContent({
     ];
   }, [] as React.ReactNode[]);
 
-  // Initialize episode from server-rendered data
+  // Hydrate the resume episode so the label and player stay in sync.
   useEffect(() => {
-    if (initialEpisode && initialSeasonNumber && mediaType === "tv") {
-      const currentSelected = useEpisodeStore.getState().selectedEpisode;
-      const currentTvShowId = useEpisodeStore.getState().tvShowId;
-
-      if (!currentSelected || currentTvShowId !== media.id.toString()) {
-        setSelectedEpisode(
-          initialEpisode,
-          media.id.toString(),
-          initialSeasonNumber,
-          undefined,
-          true,
-        );
-      }
+    if (mediaType !== "tv") {
+      return;
     }
+
+    const contentIdStr = media.id.toString();
+    const storeState = useEpisodeStore.getState();
+    const target = resolveTvWatchTarget(
+      media.id,
+      {
+        selectedEpisode: storeState.selectedEpisode,
+        tvShowId: storeState.tvShowId,
+        seasonNumber: storeState.seasonNumber,
+      },
+      watchlistItem,
+      initialEpisode,
+      initialSeasonNumber,
+    );
+
+    if (!target) {
+      return;
+    }
+
+    if (
+      target.source !== "watchlist" &&
+      storeState.selectedEpisode &&
+      storeState.tvShowId === contentIdStr
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateEpisode = async () => {
+      let episode = target.source === "watchlist" ? null : target.episode;
+      const seasonNumber = target.seasonNumber;
+
+      if (target.source === "watchlist") {
+        const seasonData = await fetchSeasonDetails(
+          contentIdStr,
+          target.seasonNumber,
+        );
+        episode =
+          seasonData?.episodes?.find(
+            (item) => item.episode_number === target.episodeNumber,
+          ) ?? null;
+      }
+
+      if (cancelled || !episode) {
+        return;
+      }
+
+      const latestState = useEpisodeStore.getState();
+      if (
+        latestState.selectedEpisode &&
+        latestState.tvShowId === contentIdStr &&
+        latestState.seasonNumber === seasonNumber &&
+        latestState.selectedEpisode.episode_number === episode.episode_number
+      ) {
+        return;
+      }
+
+      setSelectedEpisode(episode, contentIdStr, seasonNumber, undefined, true);
+    };
+
+    void hydrateEpisode();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     initialEpisode,
     initialSeasonNumber,
-    mediaType,
     media.id,
+    mediaType,
     setSelectedEpisode,
+    watchlistItem,
   ]);
 
   // Use server-rendered episode if available, otherwise use store
   const displayEpisode = selectedEpisode || initialEpisode;
   const displaySeasonNumber = seasonNumber || initialSeasonNumber;
+  const isLastWatchedEpisode =
+    displayEpisode != null &&
+    displaySeasonNumber != null &&
+    watchlistItem?.lastWatchedSeason != null &&
+    watchlistItem?.lastWatchedEpisode != null &&
+    displaySeasonNumber === watchlistItem.lastWatchedSeason &&
+    displayEpisode.episode_number === watchlistItem.lastWatchedEpisode;
 
   // Set the watch callback in the episode store
   useEffect(() => {
@@ -239,9 +304,16 @@ export function HeroContent({
     };
   }, [handleWatch, mediaType, setWatchCallback]);
 
-  // Clear selected episode when switching to a different TV show or to a movie
+  // Clear stale episode state when leaving TV pages or switching shows.
   useEffect(() => {
-    if (mediaType !== "tv" || (tvShowId && tvShowId !== media.id.toString())) {
+    const contentIdStr = media.id.toString();
+
+    if (mediaType !== "tv") {
+      clearSelectedEpisode();
+      return;
+    }
+
+    if (tvShowId && tvShowId !== contentIdStr) {
       clearSelectedEpisode();
     }
   }, [media.id, mediaType, tvShowId, clearSelectedEpisode]);
@@ -404,26 +476,29 @@ export function HeroContent({
                                     transition: { duration: 0.2 },
                                   },
                                 }}
-                                className="mb-4 p-3 bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-lg flex items-center justify-between lg:w-full w-fit"
+                                className="mb-3 inline-flex w-fit max-w-full items-center gap-2 rounded-md border border-white/15 bg-white/10 px-2.5 py-1.5 backdrop-blur-sm"
                               >
-                                <div>
-                                  <p className="text-primary-foreground font-semibold">
-                                    Selected: Season {displaySeasonNumber},
-                                    Episode {displayEpisode.episode_number}
-                                  </p>
-                                  <p className="text-primary-foreground/80 text-sm">
-                                    {displayEpisode.name}
+                                <div className="min-w-0">
+                                  <p className="truncate text-xs font-medium text-white/90 sm:text-sm">
+                                    {isLastWatchedEpisode
+                                      ? "Continue"
+                                      : "Up next"}{" "}
+                                    from S{displaySeasonNumber}E
+                                    {displayEpisode.episode_number}
+                                    {displayEpisode.name ? (
+                                      <span className="font-normal text-white/65">
+                                        {" "}
+                                        · {displayEpisode.name}
+                                      </span>
+                                    ) : null}
                                   </p>
                                 </div>
                                 <button
                                   onClick={clearSelectedEpisode}
-                                  className="ml-4 p-1.5 hover:bg-primary/30 rounded-full transition-colors"
+                                  className="shrink-0 rounded-full p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                                   aria-label="Clear episode selection"
                                 >
-                                  <X
-                                    size={16}
-                                    className="text-primary-foreground"
-                                  />
+                                  <X size={14} />
                                 </button>
                               </motion.div>
                             )}
