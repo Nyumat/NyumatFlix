@@ -1,3 +1,4 @@
+import { DetailPageLoading } from "@/components/layout/page-loading/detail-page-loading";
 import { MediaDetailLayout } from "@/components/media/media-server";
 import { hydrateMovieDetailQueries } from "@/lib/prefetch-media-detail-queries";
 import { getCachedMovieAboveFoldDetail } from "@/lib/media-above-fold-server";
@@ -16,7 +17,7 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export default async function MovieDetailLayout({ children, params }: Props) {
+async function MovieDetailLayoutContent({ children, params }: Props) {
   const { id } = await params;
   const details = await getCachedMovieAboveFoldDetail(id);
   if (!details || !("title" in details)) {
@@ -35,17 +36,25 @@ export default async function MovieDetailLayout({ children, params }: Props) {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <Suspense fallback={null}>
-        <MediaDetailLayout
-          media={[detailMedia]}
-          mediaType="movie"
-          isUpcoming={isUpcoming}
-          anilistId={anilistId}
-          contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl pt-4! sm:pt-6! lg:pt-8!"
-        >
-          <div className="mt-4">{children}</div>
-        </MediaDetailLayout>
-      </Suspense>
+      <MediaDetailLayout
+        media={[detailMedia]}
+        mediaType="movie"
+        isUpcoming={isUpcoming}
+        anilistId={anilistId}
+        contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl pt-4! sm:pt-6! lg:pt-8!"
+      >
+        <div className="mt-4">{children}</div>
+      </MediaDetailLayout>
     </HydrationBoundary>
+  );
+}
+
+export default function MovieDetailLayout({ children, params }: Props) {
+  return (
+    <Suspense fallback={<DetailPageLoading />}>
+      <MovieDetailLayoutContent params={params}>
+        {children}
+      </MovieDetailLayoutContent>
+    </Suspense>
   );
 }
