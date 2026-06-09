@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Captions,
-  LiveButton,
-  Title,
-  Tooltip,
-  useMediaState,
-} from "@vidstack/react";
+import { Captions, LiveButton, Title, useMediaState } from "@vidstack/react";
 import {
   DefaultBufferingIndicator,
   DefaultKeyboardDisplay,
@@ -14,15 +8,11 @@ import {
   defaultLayoutIcons,
   DefaultVideoLayout,
 } from "@vidstack/react/player/layouts/default";
-import { QueueListIcon } from "@vidstack/react/icons";
-
 import {
   GoogleCastErrorListener,
   LiveGoogleCastButton,
 } from "@/components/live/live-google-cast-handler";
 import { LiveShareChannelButton } from "@/components/live/live-share-channel-button";
-import { useLiveTvGuide } from "@/components/live/live-tv-guide-context";
-import { cn } from "@/lib/utils";
 
 const controlsSpacer = (
   <div className="vds-controls-spacer" aria-hidden="true" />
@@ -38,7 +28,7 @@ const liveLayoutSlots = {
   startDuration: null,
   endTime: null,
   timeSlider: null,
-  downloadButton: <ChannelGuideButton />,
+  downloadButton: null,
   googleCastButton: (
     <>
       <LiveShareChannelButton />
@@ -55,7 +45,7 @@ const liveLayoutSlots = {
     startDuration: null,
     endTime: null,
     timeSlider: null,
-    downloadButton: <ChannelGuideButton />,
+    downloadButton: null,
     googleCastButton: (
       <>
         <LiveShareChannelButton />
@@ -105,31 +95,5 @@ function LiveChannelMeta() {
         <Title className="vds-chapter-title min-w-0 max-w-[min(38vw,320px)] truncate font-semibold" />
       ) : null}
     </div>
-  );
-}
-
-function ChannelGuideButton() {
-  const { guideOpen, setGuideOpen } = useLiveTvGuide();
-
-  return (
-    <Tooltip.Root>
-      <Tooltip.Trigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "vds-button xl:hidden",
-            guideOpen && "vds-button-active",
-          )}
-          aria-label={guideOpen ? "Close channels" : "Open channels"}
-          aria-expanded={guideOpen}
-          onClick={() => setGuideOpen(!guideOpen)}
-        >
-          <QueueListIcon className="vds-icon" />
-        </button>
-      </Tooltip.Trigger>
-      <Tooltip.Content className="vds-tooltip-content" placement="top">
-        Channels
-      </Tooltip.Content>
-    </Tooltip.Root>
   );
 }

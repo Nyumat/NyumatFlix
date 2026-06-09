@@ -1,7 +1,5 @@
 "use client";
 
-import { QueueListIcon } from "@vidstack/react/icons";
-import { CalendarClock, Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LiveTvPlayer } from "@/components/live/live-tv-player";
@@ -11,32 +9,17 @@ import {
 } from "@/lib/live/channel-slugs";
 import { pickDefaultLiveChannel } from "@/lib/live/defaults";
 import { EMPTY_LIVE_GUIDE } from "@/lib/live/empty-guide";
-import { mergeLiveChannelGuides } from "@/lib/live/guide-utils";
+import {
+  mergeLiveChannelGuides,
+  toPlayableLiveGuide,
+} from "@/lib/live/guide-utils";
 import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
-import { cn } from "@/lib/utils";
 
 const ALL_CATEGORIES = "all";
 const DEFAULT_DOCUMENT_TITLE = "Live TV | NyumatFlix";
 
 type LiveTvPageProps = {
   initialChannelSlug?: string | null;
-};
-
-const formatEventTime = (value: string | null) => {
-  if (!value) {
-    return "Live";
-  }
-
-  const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    return "Live";
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(timestamp);
 };
 
 const resolveInitialChannelId = (
@@ -97,17 +80,20 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
   const [refreshing, setRefreshing] = useState(false);
   const fullGuideLoadedRef = useRef(false);
 
+  const playableGuide = useMemo(() => toPlayableLiveGuide(guide), [guide]);
+
   const selectedChannel = useMemo(
     () =>
-      guide.channels.find((channel) => channel.id === selectedChannelId) ??
-      pickDefaultLiveChannel(guide.channels),
-    [guide.channels, selectedChannelId],
+      playableGuide.channels.find(
+        (channel) => channel.id === selectedChannelId,
+      ) ?? pickDefaultLiveChannel(playableGuide.channels),
+    [playableGuide.channels, selectedChannelId],
   );
 
   const filteredChannels = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return guide.channels.filter((channel) => {
+    return playableGuide.channels.filter((channel) => {
       const matchesCategory =
         category === ALL_CATEGORIES || channel.category === category;
       const matchesQuery =
@@ -116,13 +102,7 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
 
       return matchesCategory && matchesQuery;
     });
-  }, [category, guide.channels, query]);
-
-  const liveEvents = useMemo(
-    () =>
-      guide.channels.filter((channel) => channel.kind === "event").slice(0, 4),
-    [guide.channels],
-  );
+  }, [category, playableGuide.channels, query]);
 
   useEffect(() => {
     document.title = selectedChannel
@@ -262,16 +242,14 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
   };
 
   return (
-    <div className="container space-y-10">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-          Live Television
-        </h1>
-        <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground sm:text-base">
-          Tap the
-          <QueueListIcon className="inline-block size-4 text-foreground" />
-          channels icon to browse everything.
-        </p>
+    <div className="site-container space-y-8 md:space-y-10">
+      <header className="flex items-start gap-2 lg:gap-3">
+        <div aria-hidden className="size-8 shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+            Live Television
+          </h1>
+        </div>
       </header>
 
       {loadingGuide ? (
@@ -280,7 +258,7 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
         <LiveGuideErrorState onRetry={refreshGuide} retrying={refreshing} />
       ) : (
         <LiveTvPlayer
-          categories={guide.categories}
+          categories={playableGuide.categories}
           channels={filteredChannels}
           loadingMoreChannels={loadingMoreChannels}
           onCategoryChange={setCategory}
@@ -296,8 +274,6 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
           selectedChannelId={selectedChannelId}
         />
       )}
-
-      <UpNextStrip events={liveEvents} />
     </div>
   );
 }
@@ -333,52 +309,5 @@ function LiveGuideErrorState({
         {retrying ? "Retrying..." : "Try again"}
       </button>
     </div>
-  );
-}
-
-function UpNextStrip({ events }: { events: LiveChannel[] }) {
-  const visibleEvents = events.slice(0, 4);
-
-  if (visibleEvents.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="rounded-[8px] border border-[#263544] bg-[#080d12]/95 p-4">
-      <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)] lg:items-center">
-        <h2 className="text-lg font-bold text-white">Up next</h2>
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {visibleEvents.map((event, index) => (
-            <div
-              key={event.id}
-              className="rounded-[8px] border border-[#263544] bg-[#101820] px-4 py-3"
-            >
-              <div className="flex items-start gap-3">
-                <span
-                  className={cn(
-                    "mt-1 size-2 rounded-full",
-                    index === 0 ? "bg-red-400" : "bg-cyan-400",
-                  )}
-                />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-white">
-                    {event.name}
-                  </p>
-                  <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-                    {event.startsAt ? (
-                      <Clock className="size-3" />
-                    ) : (
-                      <CalendarClock className="size-3" />
-                    )}
-                    {index === 0 ? "Live" : formatEventTime(event.startsAt)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
