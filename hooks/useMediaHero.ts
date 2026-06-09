@@ -170,18 +170,13 @@ export const useMediaHero = ({
               seasonData.episodes.length > 0
             ) {
               const firstEpisode = seasonData.episodes[0];
-              useEpisodeStore.getState().setSelectedEpisode(
-                firstEpisode,
-                currentItem.id.toString(),
-                firstSeason.season_number,
-                anilistId
-                  ? {
-                      anilistId,
-                      startEpisode: firstEpisode.episode_number,
-                      endEpisode: firstEpisode.episode_number,
-                    }
-                  : undefined,
-              );
+              useEpisodeStore
+                .getState()
+                .setSelectedEpisode(
+                  firstEpisode,
+                  currentItem.id.toString(),
+                  firstSeason.season_number,
+                );
             }
           } catch {
             // we could log this, but failure shouldn't block autoplay

@@ -1,9 +1,15 @@
 "use client";
 
+import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { WatchlistButton } from "@/components/watchlist/watchlist";
 import { pages } from "@/config/pages";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
+import {
+  formatTvWatchLabel,
+  isSameTvWatchTarget,
+  resolveTvWatchTarget,
+} from "@/lib/tv-watch-target";
 import { cn } from "@/lib/utils";
 import { WatchlistItem } from "@/lib/domain/watchlist";
 import { Episode } from "@/lib/domain/typings";
@@ -39,9 +45,21 @@ export function HeroButtons({
   initialSeasonNumber,
   canPlayTrailer,
 }: HeroButtonsProps) {
-  const { selectedEpisode, setSelectedEpisode } = useEpisodeStore();
+  const { selectedEpisode, seasonNumber, tvShowId, setSelectedEpisode } =
+    useEpisodeStore();
   const router = useRouter();
   const pathname = usePathname();
+
+  const watchTarget =
+    mediaType === "tv"
+      ? resolveTvWatchTarget(
+          contentId,
+          { selectedEpisode, tvShowId, seasonNumber },
+          watchlistItem,
+          initialEpisode,
+          initialSeasonNumber,
+        )
+      : null;
 
   const showEpisodeList = () => {
     const id = String(contentId);
@@ -78,32 +96,57 @@ export function HeroButtons({
     requestAnimationFrame(scrollToEpisodePanel);
   };
 
-  const handleWatchClick = () => {
-    // For TV shows, require episode selection
-    if (mediaType === "tv") {
-      const episodeToUse = selectedEpisode || initialEpisode;
+  const handleWatchClick = async () => {
+    if (mediaType !== "tv") {
+      handleWatch();
+      return;
+    }
 
-      if (!episodeToUse) {
+    if (!watchTarget) {
+      showEpisodeList();
+      return;
+    }
+
+    let episode: Episode;
+    let targetSeasonNumber: number;
+
+    if (watchTarget.source === "watchlist") {
+      const seasonData = await fetchSeasonDetails(
+        String(contentId),
+        watchTarget.seasonNumber,
+      );
+      const resolvedEpisode = seasonData?.episodes?.find(
+        (item) => item.episode_number === watchTarget.episodeNumber,
+      );
+
+      if (!resolvedEpisode) {
         showEpisodeList();
         return;
       }
 
-      if (!selectedEpisode && initialEpisode && initialSeasonNumber) {
-        // If we're using initialEpisode but it's not in the store yet, set it
-        setSelectedEpisode(
-          initialEpisode,
-          contentId.toString(),
-          initialSeasonNumber,
-          undefined,
-          false, // Don't skip callback - we want to watch
-        );
-        // The callback will be triggered, which calls handleWatch
-        return;
-      }
+      episode = resolvedEpisode;
+      targetSeasonNumber = watchTarget.seasonNumber;
+    } else {
+      episode = watchTarget.episode;
+      targetSeasonNumber = watchTarget.seasonNumber;
     }
 
-    // Proceed with watch
-    handleWatch();
+    const storeState = useEpisodeStore.getState();
+    if (
+      isSameTvWatchTarget(watchTarget, storeState, contentId) &&
+      storeState.selectedEpisode?.id === episode.id
+    ) {
+      handleWatch();
+      return;
+    }
+
+    setSelectedEpisode(
+      episode,
+      String(contentId),
+      targetSeasonNumber,
+      undefined,
+      false,
+    );
   };
 
   const getWatchButtonText = () => {
@@ -111,14 +154,8 @@ export function HeroButtons({
       return "Coming Soon";
     }
     if (mediaType === "tv") {
-      if (selectedEpisode) {
-        return `Watch S${useEpisodeStore.getState().seasonNumber}E${selectedEpisode.episode_number}`;
-      }
-      if (
-        watchlistItem?.lastWatchedSeason &&
-        watchlistItem?.lastWatchedEpisode
-      ) {
-        return `Watch S${watchlistItem.lastWatchedSeason}E${watchlistItem.lastWatchedEpisode}`;
+      if (watchTarget) {
+        return formatTvWatchLabel(watchTarget);
       }
       return "Episodes";
     }
