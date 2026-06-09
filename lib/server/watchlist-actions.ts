@@ -9,17 +9,20 @@ import { and, eq } from "drizzle-orm";
 /**
  * Get user's watchlist items
  */
-export async function getUserWatchlist(): Promise<WatchlistItem[]> {
-  const session = await auth();
+export async function getUserWatchlist(
+  userId?: string,
+): Promise<WatchlistItem[]> {
+  const resolvedUserId =
+    userId ?? (await auth().then((session) => session?.user?.id ?? undefined));
 
-  if (!session?.user?.id) {
+  if (!resolvedUserId) {
     return [];
   }
 
   const items = await db
     .select()
     .from(watchlist)
-    .where(eq(watchlist.userId, session.user.id))
+    .where(eq(watchlist.userId, resolvedUserId))
     .orderBy(watchlist.updatedAt);
 
   return items as WatchlistItem[];

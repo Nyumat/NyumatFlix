@@ -8,8 +8,10 @@ import {
   getWatchlistItem as getWatchlistItemImpl,
 } from "@/lib/server/watchlist-actions";
 
-export async function getUserWatchlist(): Promise<WatchlistItem[]> {
-  return getUserWatchlistImpl();
+export async function getUserWatchlist(
+  userId?: string,
+): Promise<WatchlistItem[]> {
+  return getUserWatchlistImpl(userId);
 }
 
 export async function getWatchlistItem(

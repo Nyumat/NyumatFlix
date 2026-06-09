@@ -1,9 +1,8 @@
 import "server-only";
 
 import type { EpisodeInfo } from "@/lib/domain/episodes";
-import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
-import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
 import { formatCountdown } from "@/lib/utils/countdown";
+import { tmdb } from "@/tmdb/api";
 
 /**
  * Check for new episodes and upcoming episodes for a TV show
@@ -18,8 +17,7 @@ export async function checkEpisodesForShow(
   lastWatchedEpisode: number | null,
 ): Promise<EpisodeInfo | null> {
   try {
-    // Fetch TV show details
-    const tvShowDetails = await fetchTVShowDetails(contentId.toString());
+    const tvShowDetails = await tmdb.tv.detail({ id: String(contentId) });
 
     if (!tvShowDetails || tvShowDetails.status === "Ended") {
       return null;
@@ -28,8 +26,7 @@ export async function checkEpisodesForShow(
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Get all seasons sorted by season number
-    const seasons = tvShowDetails.seasons
+    const seasons = (tvShowDetails.seasons ?? [])
       .filter((s) => s.season_number > 0)
       .sort((a, b) => b.season_number - a.season_number);
 
@@ -41,18 +38,16 @@ export async function checkEpisodesForShow(
     let latestEpisodeAirDate: Date | null = null;
     let nextEpisodeDate: Date | null = null;
 
-    // Check each season from latest to earliest
     for (const season of seasons) {
-      const seasonDetails = await fetchSeasonDetailsServer(
-        contentId.toString(),
-        season.season_number,
-      );
+      const seasonDetails = await tmdb.tvSeasons.details({
+        id: String(contentId),
+        season: season.season_number,
+      });
 
-      if (!seasonDetails || !seasonDetails.episodes) {
+      if (!seasonDetails?.episodes) {
         continue;
       }
 
-      // Get all aired episodes (air_date <= today)
       const airedEpisodes = seasonDetails.episodes
         .filter(
           (ep) =>
@@ -67,7 +62,6 @@ export async function checkEpisodesForShow(
           );
         });
 
-      // Get upcoming episodes (air_date > today)
       const upcomingEpisodes = seasonDetails.episodes
         .filter(
           (ep) =>
@@ -82,7 +76,6 @@ export async function checkEpisodesForShow(
           );
         });
 
-      // Check for new episodes in this season
       for (const episode of airedEpisodes) {
         if (!episode.air_date) continue;
 
@@ -103,7 +96,6 @@ export async function checkEpisodesForShow(
         }
       }
 
-      // Find next episode (only if we haven't found one yet)
       if (!nextEpisodeDate && upcomingEpisodes.length > 0) {
         const nextEpisode = upcomingEpisodes[0];
         if (nextEpisode.air_date) {
@@ -111,13 +103,11 @@ export async function checkEpisodesForShow(
         }
       }
 
-      // If we found new episodes and next episode, we can stop checking older seasons
       if (newEpisodeCount > 0 && nextEpisodeDate) {
         break;
       }
     }
 
-    // Calculate countdown if there's a next episode
     let countdown: string | null = null;
     if (nextEpisodeDate) {
       countdown = formatCountdown(nextEpisodeDate);
