@@ -1,10 +1,10 @@
+import { fetchImdbTrailerStreams } from "@/lib/imdb-trailer";
 import { catalogCacheHeaders } from "@/lib/http-cache";
-import { NextResponse } from "next/server";
 import {
   pickBestVideasyHlsStream,
   pickBestVideasyMp4Stream,
-  VideasyTrailerPayloadSchema,
 } from "@/lib/videasy-trailer";
+import { NextResponse } from "next/server";
 
 const IMDB_ID_PATTERN = /^tt\d+$/;
 
@@ -19,41 +19,8 @@ export async function GET(request: Request) {
     );
   }
 
-  let upstreamStatus: number | undefined;
   try {
-    const upstream = await fetch(
-      `https://trailers.videasy.net/getOldestTrailer?id=${encodeURIComponent(imdbId)}`,
-      { next: { revalidate: 3600 } },
-    );
-    upstreamStatus = upstream.status;
-
-    if (!upstream.ok) {
-      if (process.env.NODE_ENV === "production") {
-        console.warn(
-          "[videasy] upstream error",
-          imdbId,
-          "status",
-          upstream.status,
-        );
-      } else {
-        console.warn("[videasy] upstream error", imdbId, upstream.status);
-      }
-      return NextResponse.json(
-        { url: null, hlsUrl: null, error: "upstream_error" },
-        { status: 502 },
-      );
-    }
-
-    const raw: unknown = await upstream.json();
-    const parsed = VideasyTrailerPayloadSchema.safeParse(raw);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { url: null, hlsUrl: null, error: "invalid_payload" },
-        { status: 502 },
-      );
-    }
-
-    const streams = parsed.data.trailer?.streams ?? [];
+    const streams = await fetchImdbTrailerStreams(imdbId);
     const url = pickBestVideasyMp4Stream(streams);
     const hlsUrl = pickBestVideasyHlsStream(streams);
     if (!url && !hlsUrl) {
@@ -80,7 +47,7 @@ export async function GET(request: Request) {
     );
   } catch {
     if (process.env.NODE_ENV === "production") {
-      console.warn("[videasy] fetch failed", imdbId, "status", upstreamStatus);
+      console.warn("[videasy] fetch failed", imdbId);
     }
     return NextResponse.json(
       { url: null, hlsUrl: null, error: "fetch_failed" },
