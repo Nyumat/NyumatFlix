@@ -100,9 +100,8 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
       <div className="site-container flex min-h-14 items-center gap-2 py-2.5 lg:gap-3">
         <div className="flex shrink-0 items-center gap-1 lg:gap-2">
           <BackButton />
+          <SiteNav />
         </div>
-
-        <SiteNav />
 
         <div className="min-w-0 flex-1" />
 

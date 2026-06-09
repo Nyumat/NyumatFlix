@@ -8,7 +8,7 @@ const SiteNav = () => {
     <div className="flex items-center gap-3">
       <Link
         href="/"
-        className="flex size-7 shrink-0 items-center justify-center"
+        className="inline-flex size-10 shrink-0 items-center justify-center"
       >
         <Image
           src="/logo.svg"
