@@ -13,164 +13,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { navigation, type NavItem } from "@/config/site";
-import { cn } from "@/lib/utils";
 import {
-  Check,
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  Clapperboard,
-  Flame,
-  LayoutGrid,
-  RadioTower,
-  Tv,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+  getBrowseLinkLabel,
+  getBrowseLinks,
+  getNavIcon,
+  hasBrowseSubmenu,
+  isCurrentHref,
+  isInNavGroup,
+  toTitleCase,
+} from "@/lib/nav/browse";
+import { cn } from "@/lib/utils";
+import { Check, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 type SetMenuValue = (value: string | null) => void;
-type BrowseLink = Pick<NavItem, "href" | "title">;
-
-const parentIcons: Record<string, LucideIcon> = {
-  Movies: Clapperboard,
-  "TV Shows": Tv,
-  Anime: BookOpen,
-  "Live TV": RadioTower,
-  People: Users,
-  Trending: Flame,
-};
-
-const getNavIcon = (item: NavItem) => parentIcons[item.title] ?? LayoutGrid;
-
-const toTitleCase = (label: string) =>
-  label.replace(/\w\S*/g, (word) =>
-    word === word.toUpperCase()
-      ? word
-      : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-  );
-
-const getSearchValue = (searchParams: URLSearchParams, key: string) =>
-  searchParams.get(key) ?? undefined;
-
-const getHrefParts = (href: string) => {
-  const [path, query = ""] = href.split("?");
-  return {
-    path,
-    params: new URLSearchParams(query),
-  };
-};
-
-const getBrowseLinkLabel = (item: NavItem, child: BrowseLink) => {
-  if (child.href === item.href || child.title === "Discover") {
-    return "All";
-  }
-
-  if (child.title === "On The Air") {
-    return "Actively Releasing";
-  }
-
-  return toTitleCase(child.title);
-};
-
-const hasBrowseSubmenu = (item: NavItem) => (item.items?.length ?? 0) > 0;
-
-const getBrowseLinks = (item: NavItem): BrowseLink[] => {
-  const children = item.items ?? [];
-  const hasRootLink = children.some((child) => child.href === item.href);
-
-  if (hasRootLink) {
-    return children;
-  }
-
-  return [{ href: item.href, title: "All" }, ...children];
-};
-
-const isCurrentHref = (
-  pathname: string,
-  searchParams: URLSearchParams,
-  href: string,
-) => {
-  const { path, params } = getHrefParts(href);
-
-  if (pathname !== path) return false;
-
-  const expectedView = params.get("view");
-  const currentView = searchParams.get("view");
-  const expectedDepartment = params.get("department");
-  const expectedGender = params.get("gender");
-
-  if (expectedView) {
-    return currentView === expectedView;
-  }
-
-  if (expectedDepartment) {
-    return (
-      searchParams.get("department") === expectedDepartment &&
-      searchParams.get("gender") === expectedGender
-    );
-  }
-
-  if (params.size > 0) {
-    for (const [key, value] of params.entries()) {
-      if (searchParams.get(key) !== value) return false;
-    }
-    return true;
-  }
-
-  if (path === "/movies" || path === "/tvshows") {
-    return !currentView || currentView === "discover";
-  }
-
-  if (path === "/people/popular") {
-    return (
-      !getSearchValue(searchParams, "department") &&
-      !getSearchValue(searchParams, "gender")
-    );
-  }
-
-  return true;
-};
-
-const isInNavGroup = (
-  pathname: string,
-  searchParams: URLSearchParams,
-  item: NavItem,
-) => {
-  if (
-    item.items?.some((child) =>
-      isCurrentHref(pathname, searchParams, child.href),
-    )
-  ) {
-    return true;
-  }
-
-  if (isCurrentHref(pathname, searchParams, item.href)) {
-    return true;
-  }
-
-  if (item.href === "/movies") {
-    return (
-      pathname.startsWith("/movies") &&
-      (!searchParams.get("view") || searchParams.get("view") === "discover")
-    );
-  }
-
-  if (item.href === "/tvshows") {
-    return (
-      pathname.startsWith("/tvshows") &&
-      (!searchParams.get("view") || searchParams.get("view") === "discover")
-    );
-  }
-  if (item.href === "/people/popular") return pathname.startsWith("/people");
-  if (item.href === "/trending") return pathname.startsWith("/trending");
-  if (item.href === "/anime") return pathname.startsWith("/anime");
-  if (item.href === "/live") return pathname.startsWith("/live");
-
-  return false;
-};
 
 interface SiteNavDesktopProps {
   triggerClassName?: string;
