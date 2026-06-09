@@ -7,6 +7,7 @@ import {
   type PeopleDepartmentValue,
   type PeopleGenderFilter,
 } from "@/lib/person-popular";
+import { enrichPeopleWithDeathday } from "@/lib/server/person-enrichment";
 
 import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -47,12 +48,7 @@ export const PersonList: React.FC<PersonListProps> = async ({
     return notFound();
   }
 
-  const peopleWithDeathday = await Promise.all(
-    people.map(async (p) => {
-      const detail = await tmdb.person.detail({ id: p.id });
-      return { ...p, deathday: detail.deathday ?? null };
-    }),
-  );
+  const peopleWithDeathday = await enrichPeopleWithDeathday(people);
 
   return (
     <div className="flex w-full flex-col">
