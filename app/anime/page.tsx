@@ -17,10 +17,7 @@ import {
   parseAniListSearchParams,
 } from "@/lib/anilist";
 import { enrichAniListMediaItemsLightweight } from "@/lib/anilist-tmdb";
-import {
-  ANIME_HOME_REVALIDATE_SECONDS,
-  fetchAnimeHubLayout,
-} from "@/lib/server/anime-hub-data";
+import { fetchAnimeHubLayout } from "@/lib/server/anime-hub-data";
 import { normalizeRouteSearchParams } from "@/lib/utils";
 import type { MediaItem } from "@/lib/domain/typings";
 import type { TvShowWithMediaType } from "@/tmdb/models";
@@ -28,7 +25,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
-export const revalidate = ANIME_HOME_REVALIDATE_SECONDS;
+export const revalidate = 3600;
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
