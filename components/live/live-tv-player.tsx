@@ -9,11 +9,13 @@ import {
   type MediaProviderAdapter,
 } from "@vidstack/react";
 import Hls from "hls.js";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import { LiveChannelSidebar } from "@/components/live/live-channel-sidebar";
 import { LiveTvGuideProvider } from "@/components/live/live-tv-guide-context";
 import { LiveVideoLayout } from "@/components/live/live-video-layout";
+import { useAdaptiveLiveHls } from "@/hooks/use-adaptive-live-hls";
+import { buildLiveHlsConfig } from "@/lib/live/adaptive-hls";
 import { buildLiveChannelShareUrl } from "@/lib/live/channel-slugs";
 import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
 import { cn } from "@/lib/utils";
@@ -39,17 +41,16 @@ type LiveTvPlayerProps = {
   selectedChannelId: string | null;
 };
 
-const configureHlsProvider = (provider: MediaProviderAdapter | null) => {
+const configureHlsProvider = (
+  provider: MediaProviderAdapter | null,
+  config: ReturnType<typeof buildLiveHlsConfig>,
+) => {
   if (!provider || !isHLSProvider(provider)) {
     return;
   }
 
   provider.library = Hls;
-  provider.config = {
-    enableWorker: true,
-    lowLatencyMode: true,
-    maxBufferLength: 24,
-  };
+  provider.config = config;
 };
 
 export function LiveTvPlayer({
@@ -68,19 +69,15 @@ export function LiveTvPlayer({
   selectedChannel,
   selectedChannelId,
 }: LiveTvPlayerProps) {
-  const [guideOpen, setGuideOpen] = useState(false);
+  const { hlsConfig, playerKey, onHlsError, onPlaying } =
+    useAdaptiveLiveHls(playUrl);
 
   const handleProviderChange = useCallback(
     (provider: MediaProviderAdapter | null) => {
-      configureHlsProvider(provider);
+      configureHlsProvider(provider, hlsConfig);
     },
-    [],
+    [hlsConfig],
   );
-
-  const handleSelectChannel = (channel: LiveChannel) => {
-    onSelectChannel(channel);
-    setGuideOpen(false);
-  };
 
   const channelSubtitle = selectedChannel
     ? [selectedChannel.categoryName, selectedChannel.label]
@@ -92,18 +89,14 @@ export function LiveTvPlayer({
     : null;
 
   return (
-    <LiveTvGuideProvider
-      guideOpen={guideOpen}
-      setGuideOpen={setGuideOpen}
-      shareUrl={shareUrl}
-    >
+    <LiveTvGuideProvider shareUrl={shareUrl}>
       <div className="overflow-hidden rounded-[8px] border border-border bg-card/40 shadow-2xl shadow-black/35 backdrop-blur-md">
-        <div className="relative">
+        <div className="flex flex-col xl:relative">
           <div className="relative min-w-0 bg-black xl:pr-[320px]">
             <div className="aspect-video w-full">
               {playUrl ? (
                 <MediaPlayer
-                  key={playUrl}
+                  key={playerKey}
                   className="nyumat-live-player h-full w-full"
                   src={playUrl}
                   title={selectedChannel?.name}
@@ -112,6 +105,8 @@ export function LiveTvPlayer({
                   autoPlay
                   playsInline
                   load="eager"
+                  onHlsError={onHlsError}
+                  onPlaying={onPlaying}
                   onProviderChange={handleProviderChange}
                 >
                   <MediaProvider />
@@ -127,33 +122,22 @@ export function LiveTvPlayer({
             </div>
           </div>
 
-          {guideOpen ? (
-            <button
-              type="button"
-              className="absolute inset-0 z-20 bg-black/45 xl:hidden"
-              aria-label="Close channel guide"
-              onClick={() => setGuideOpen(false)}
-            />
-          ) : null}
-
           <LiveChannelSidebar
             categories={categories}
             channels={channels}
             loadingMore={loadingMoreChannels}
             className={cn(
-              "absolute inset-y-0 right-0 z-30 border-l max-xl:w-[min(300px,82vw)] max-xl:shadow-2xl max-xl:shadow-black/50 xl:w-[320px]",
-              guideOpen ? "flex" : "max-xl:hidden xl:flex",
+              "max-xl:max-h-[min(50vh,28rem)] max-xl:w-full max-xl:border-t max-xl:border-l-0",
+              "xl:absolute xl:inset-y-0 xl:right-0 xl:z-30 xl:flex xl:w-[320px] xl:max-h-none xl:border-l xl:border-t-0",
             )}
             onCategoryChange={onCategoryChange}
-            onClose={() => setGuideOpen(false)}
             onRefresh={onRefresh}
             onQueryChange={onQueryChange}
-            onSelectChannel={handleSelectChannel}
+            onSelectChannel={onSelectChannel}
             query={query}
             refreshing={refreshing}
             selectedCategory={selectedCategory}
             selectedChannelId={selectedChannelId}
-            showClose
             subtitle={channelSubtitle}
           />
         </div>
