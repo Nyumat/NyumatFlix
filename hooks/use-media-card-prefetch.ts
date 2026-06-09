@@ -103,12 +103,6 @@ export function useMediaCardPrefetch(
         queryKeys.mediaAboveFold(mediaType, String(item.id)),
         detail,
       );
-      queryClient.setQueryData(
-        mediaType === "movie"
-          ? queryKeys.movieDetails(Number(item.id))
-          : queryKeys.tvDetails(Number(item.id)),
-        detail,
-      );
       for (const url of getMediaAboveFoldImageUrls(detail)) {
         preloadImage(url);
       }
