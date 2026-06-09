@@ -243,13 +243,10 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
 
   return (
     <div className="site-container space-y-8 md:space-y-10">
-      <header className="flex items-start gap-2 lg:gap-3">
-        <div aria-hidden className="size-8 shrink-0" />
-        <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            Live Television
-          </h1>
-        </div>
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+          Live Television
+        </h1>
       </header>
 
       {loadingGuide ? (

@@ -34,7 +34,7 @@ export function BackButton({ className, fallbackUrl = "/" }: BackButtonProps) {
   };
 
   if (!mounted || !PERSON_DETAIL_ROUTE.test(pathname)) {
-    return <div className="h-8 w-8 shrink-0" aria-hidden />;
+    return null;
   }
 
   return (
