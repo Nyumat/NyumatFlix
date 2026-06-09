@@ -121,7 +121,7 @@ export function LiveChannelSidebar({
           />
         </div>
 
-        <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5 scrollbar-hidden">
+        <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5 max-xl:scrollbar-hidden">
           <CategoryButton
             active={selectedCategory === "all"}
             label="All"

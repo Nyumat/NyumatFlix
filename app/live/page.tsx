@@ -35,8 +35,11 @@ export default async function LivePage({ searchParams }: LivePageProps) {
       <div className="flex w-full flex-col">
         <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
-        <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-          <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
+        <ContentContainer
+          topSpacing={false}
+          className="relative z-10 flex w-full flex-col items-center"
+        >
+          <section className="min-h-screen w-full pb-16 pt-[4.75rem] md:pt-20">
             <LiveTvPage initialChannelSlug={ch ?? null} />
           </section>
         </ContentContainer>
