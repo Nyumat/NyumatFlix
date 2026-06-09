@@ -21,14 +21,6 @@ import { NavbarAuth } from "./navbar-auth";
 import { NavbarMobileNavigation } from "./navbar-mobile-navigation";
 import { UserAvatar } from "./user-avatar";
 
-const MOBILE_LINKS = [
-  { label: "Movies", href: "/movies" },
-  { label: "TV Shows", href: "/tvshows" },
-  { label: "Anime", href: "/anime" },
-  { label: "Live", href: "/live" },
-  { label: "Search", href: "/search" },
-];
-
 interface NavbarClientProps {
   session: Session | null;
 }
@@ -104,8 +96,8 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
         "top-0 z-50 w-full bg-transparent",
       )}
     >
-      {!isAuthRoute(pathname) && <AnniversaryBanner />}
-      <div className="mx-auto flex min-h-14 max-w-[1400px] items-center gap-2 px-4 py-2.5 sm:px-6 lg:gap-3 lg:px-8">
+      {!isAuthRoute(pathname) && pathname !== "/live" && <AnniversaryBanner />}
+      <div className="site-container flex min-h-14 items-center gap-2 py-2.5 lg:gap-3">
         <div className="flex shrink-0 items-center gap-1 lg:gap-2">
           <BackButton />
         </div>
@@ -135,7 +127,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
             <NavbarAuth session={session} />
           </div>
           <div className="flex md:hidden">
-            <NavbarMobileNavigation links={MOBILE_LINKS} session={session}>
+            <NavbarMobileNavigation session={session}>
               <NavbarSearchClient />
             </NavbarMobileNavigation>
           </div>

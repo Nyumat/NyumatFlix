@@ -57,6 +57,9 @@ export const queryKeys = {
     [...queryKeys.media(), "movie", movieId, "tab", "similar", page] as const,
   movieCollection: (collectionId: number) =>
     [...queryKeys.media(), "collection", collectionId] as const,
+
+  watchlist: () => [...queryKeys.all, "watchlist"] as const,
+  watchlistSummary: () => [...queryKeys.watchlist(), "summary"] as const,
 } as const;
 
 export type QueryKeys = typeof queryKeys;
