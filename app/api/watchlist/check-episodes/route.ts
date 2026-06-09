@@ -3,6 +3,7 @@ import { db, watchlist } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { checkEpisodesForShow } from "@/lib/server/episode-check-service";
+import { runInChunks } from "@/lib/server/chunked-parallel";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 
 // In-memory cache following pattern from app/api/map/route.ts
@@ -52,7 +53,8 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session?.user?.id) {
+    const userId = session?.user?.id;
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -60,24 +62,12 @@ export async function GET(request: NextRequest) {
     const tvShows = await db
       .select()
       .from(watchlist)
-      .where(
-        and(
-          eq(watchlist.userId, session.user.id),
-          eq(watchlist.mediaType, "tv"),
-        ),
-      );
+      .where(and(eq(watchlist.userId, userId), eq(watchlist.mediaType, "tv")));
 
     const episodeData: Record<number, EpisodeInfo> = {};
 
-    // Manual verification:
-    // 1. POST /api/watchlist/progress with the latest aired episode.
-    // 2. Hit this endpoint and confirm countdown info is present.
-    // 3. Repeat with an older episode to confirm the cache busts and new-episode data returns.
-
-    // Check episodes for each TV show using progress-aware caching so countdowns
-    // start immediately after catching up on the latest aired episode.
-    for (const item of tvShows) {
-      const cacheKey = makeCacheKey(session.user.id, item);
+    const resolved = await runInChunks(tvShows, async (item) => {
+      const cacheKey = makeCacheKey(userId, item);
       let episodeInfo = getCached(cacheKey);
 
       if (!episodeInfo) {
@@ -92,8 +82,12 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      if (episodeInfo) {
-        episodeData[item.contentId] = episodeInfo;
+      return episodeInfo ? { contentId: item.contentId, episodeInfo } : null;
+    });
+
+    for (const entry of resolved) {
+      if (entry) {
+        episodeData[entry.contentId] = entry.episodeInfo;
       }
     }
 
