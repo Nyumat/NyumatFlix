@@ -59,21 +59,12 @@ const LOGO_DATA_URI =
 
 const loadManrope = async (): Promise<ArrayBuffer> => {
   const fontUrl = new URL("./fonts/manrope-bold.ttf", import.meta.url);
-
-  if (fontUrl.protocol === "file:") {
-    const { readFile } = await import("node:fs/promises");
-    const { fileURLToPath } = await import("node:url");
-    const buffer = await readFile(fileURLToPath(fontUrl));
-    return buffer.buffer.slice(
-      buffer.byteOffset,
-      buffer.byteOffset + buffer.byteLength,
-    );
-  }
-
   const response = await fetch(fontUrl);
+
   if (!response.ok) {
     throw new Error(`Failed to load OG font: ${response.status}`);
   }
+
   return response.arrayBuffer();
 };
 
