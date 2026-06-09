@@ -23,4 +23,15 @@ describe("middleware", () => {
       ),
     ).toBe("http://localhost:3000/movies/123?autoplay=true");
   });
+
+  test("redirects dev routes to home outside development", () => {
+    expect(getRedirectLocation("http://localhost:3000/dev/og-preview")).toBe(
+      "http://localhost:3000/",
+    );
+    expect(
+      getRedirectLocation(
+        "http://localhost:3000/dev/og-preview/movie/550/image",
+      ),
+    ).toBe("http://localhost:3000/");
+  });
 });

@@ -13,6 +13,10 @@ const LEGACY_TAB_QUERY = "tab";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname.startsWith("/dev") && process.env.NODE_ENV !== "development") {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   const detailOnly = pathname.match(/^\/(tvshows|movies)\/([^/]+)$/);
   if (
     detailOnly &&
