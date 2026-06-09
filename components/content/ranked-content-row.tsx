@@ -17,20 +17,25 @@ export interface RankedContentRowProps {
   title: string;
   items: MediaItem[];
   href: string;
+  showHeader?: boolean;
 }
 
 export function RankedContentRow({
   title,
   items: initialItems,
   href,
+  showHeader = true,
 }: RankedContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
   const items = filterWithPosterPath(initialItems).slice(0, 3);
+  const header = showHeader ? (
+    <ContentRowHeader title={title} href={href} />
+  ) : null;
 
   if (isMobile) {
     return (
       <div>
-        <ContentRowHeader title={title} href={href} />
+        {header}
         <div className="relative">
           <Carousel
             opts={{
@@ -61,7 +66,7 @@ export function RankedContentRow({
 
   return (
     <div>
-      <ContentRowHeader title={title} href={href} />
+      {header}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {items.map((item, index) => (
