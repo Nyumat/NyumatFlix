@@ -1,5 +1,7 @@
+import { JsonLdScript } from "@/components/seo/json-ld-script";
 import { TvShowDetailTabPanels } from "@/components/tvshow/tv-show-detail-tab-panels";
 import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
+import { buildTvStructuredData } from "@/lib/seo/structured-data";
 import { generateMediaMetadata } from "@/utils/media-metadata-helpers";
 import { Metadata } from "next";
 
@@ -11,8 +13,16 @@ type Props = {
 
 export default async function TvShowDetailPage(props: Props) {
   const { id } = await props.params;
+  const tvShow = await getCachedTvShowDetail(id).catch(() => null);
 
-  return <TvShowDetailTabPanels tvId={id} />;
+  return (
+    <>
+      {tvShow ? (
+        <JsonLdScript data={buildTvStructuredData(tvShow, id)} />
+      ) : null}
+      <TvShowDetailTabPanels tvId={id} />
+    </>
+  );
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {

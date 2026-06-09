@@ -1,3 +1,10 @@
+import { JsonLdScript } from "@/components/seo/json-ld-script";
+import { buildPersonStructuredData } from "@/lib/seo/structured-data";
+import {
+  buildNotFoundMetadata,
+  buildPageMetadata,
+  truncateDescription,
+} from "@/lib/seo/metadata";
 import {
   buildItemsWithCategories,
   fetchPersonFilmography,
@@ -8,7 +15,6 @@ import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
 import { BiographyReadMore } from "@/components/person/person-client";
-import type { PersonDetails } from "@/tmdb/models";
 import { MediaItem } from "@/lib/domain/typings";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
@@ -28,41 +34,41 @@ export async function generateMetadata(
   props: PersonPageProps,
 ): Promise<Metadata> {
   const params = await props.params;
-  const personId = parseInt(params.id);
+  const personId = Number.parseInt(params.id, 10);
 
-  if (isNaN(personId)) {
-    return {
-      title: "Person Not Found",
-    };
+  if (Number.isNaN(personId)) {
+    return buildNotFoundMetadata("Person Not Found");
   }
 
   try {
     const person = await getPersonDetails(personId);
 
     if (!person) {
-      return {
-        title: "Person Not Found",
-      };
+      return buildNotFoundMetadata("Person Not Found");
     }
 
-    return {
+    const description = person.biography
+      ? truncateDescription(person.biography)
+      : `Explore movies and TV shows featuring ${person.name} on NyumatFlix.`;
+
+    return buildPageMetadata({
       title: `${person.name} - Filmography`,
-      description: person.biography
-        ? person.biography.substring(0, 160)
-        : `View all movies and TV shows featuring ${person.name}`,
-    };
+      description,
+      path: `/person/${personId}`,
+      ogType: "profile",
+      imageAlt: `${person.name} on NyumatFlix`,
+      includeDefaultImage: false,
+    });
   } catch {
-    return {
-      title: "Person Not Found",
-    };
+    return buildNotFoundMetadata("Person Not Found");
   }
 }
 
 export default async function PersonPage(props: PersonPageProps) {
   const params = await props.params;
-  const personId = parseInt(params.id);
+  const personId = Number.parseInt(params.id, 10);
 
-  if (isNaN(personId)) {
+  if (Number.isNaN(personId)) {
     notFound();
   }
 
@@ -72,7 +78,7 @@ export default async function PersonPage(props: PersonPageProps) {
     notFound();
   }
 
-  const { deathday } = person as PersonDetails;
+  const { deathday } = person;
 
   // Fetch initial filmography for the client component
   const initialFilmographyResponse = await fetchPersonFilmography(personId, 1);
@@ -104,6 +110,7 @@ export default async function PersonPage(props: PersonPageProps) {
 
   return (
     <PageContainer className="pb-4 mb-4">
+      <JsonLdScript data={buildPersonStructuredData(person, personId)} />
       <div className="relative min-h-screen">
         <StableBackground />
         <div className="relative z-10">

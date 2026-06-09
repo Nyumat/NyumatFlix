@@ -1,3 +1,5 @@
+import { JsonLdScript } from "@/components/seo/json-ld-script";
+import { buildPageMetadata, truncateDescription } from "@/lib/seo/metadata";
 import { PageContainer } from "@/components/layout/page-container";
 import { ContentContainer } from "@/components/layout/content-container";
 import { StaticHero } from "@/components/hero/hero-static";
@@ -16,8 +18,22 @@ const tmdbBackdrop = (path: string | null | undefined) =>
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { id } = await props.params;
   const collection = await tmdb.collection.details({ id }).catch(() => null);
-  if (!collection) return { title: "Collection" };
-  return { title: `${collection.name} · Collection` };
+  if (!collection) {
+    return buildPageMetadata({
+      title: "Collection Not Found",
+      noIndex: true,
+    });
+  }
+
+  return buildPageMetadata({
+    title: `${collection.name} Collection`,
+    description: collection.overview
+      ? truncateDescription(collection.overview)
+      : `Browse the ${collection.name} movie collection on NyumatFlix.`,
+    path: `/collection/${id}`,
+    includeDefaultImage: false,
+    imageAlt: `${collection.name} on NyumatFlix`,
+  });
 }
 
 export default async function CollectionPage(props: Props) {
@@ -30,8 +46,18 @@ export default async function CollectionPage(props: Props) {
     tmdbBackdrop(collection.parts[0]?.backdrop_path) ??
     "/movie-banner.webp";
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: collection.name,
+    description: collection.overview,
+    url: `https://nyumatflix.com/collection/${id}`,
+    numberOfItems: collection.parts.length,
+  };
+
   return (
     <PageContainer className="pb-16">
+      <JsonLdScript data={structuredData} />
       <MediaDetailScrollReset restoreKey={`collection-${id}`} />
       <StaticHero
         imageUrl={backdropImage}
