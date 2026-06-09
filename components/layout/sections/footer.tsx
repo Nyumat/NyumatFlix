@@ -3,6 +3,14 @@ import { Cannabis, Globe, Heart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+const FOOTER_LINKS = [
+  { href: "/movies", label: "Movies" },
+  { href: "/tvshows", label: "TV Shows" },
+  { href: "/anime", label: "Anime" },
+  { href: "/live", label: "Live TV" },
+  { href: "/search", label: "Search" },
+] as const;
+
 export const FooterSection = () => {
   return (
     <footer
@@ -11,68 +19,39 @@ export const FooterSection = () => {
       role="contentinfo"
       aria-label="Site footer"
     >
-      <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <Link
-              href="/"
-              className="flex shrink-0 items-center space-x-2"
-              aria-label="NyumatFlix homepage"
-            >
-              <Image
-                src="/logo.svg"
-                alt="NyumatFlix Logo"
-                width={30}
-                height={30}
-                className="hover:scale-105 transition-transform duration-200"
-              />
-              <h3 className="text-base font-bold text-secondary">NyumatFlix</h3>
-            </Link>
-          </div>
+      <div className="container mx-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between lg:gap-3">
+          <Link
+            href="/"
+            className="flex shrink-0 items-center space-x-2"
+            aria-label="NyumatFlix homepage"
+          >
+            <Image
+              src="/logo.svg"
+              alt="NyumatFlix Logo"
+              width={30}
+              height={30}
+              className="hover:scale-105 transition-transform duration-200"
+            />
+            <h3 className="text-base font-bold text-secondary">NyumatFlix</h3>
+          </Link>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center md:justify-end">
-            <nav aria-label="Explore" className="hidden lg:block">
-              <ul className="flex flex-wrap gap-x-5 gap-y-2" role="list">
-                <li>
-                  <Link
-                    href="/"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/movies"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
-                    Movies
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/tvshows"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
-                    TV Shows
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/anime"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
-                    Anime
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/search"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
-                    Search
-                  </Link>
-                </li>
+          <div className="flex flex-wrap items-center justify-start gap-3 sm:justify-end sm:gap-4 lg:gap-5">
+            <nav aria-label="Explore" className="hidden sm:block">
+              <ul
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 md:gap-x-4 lg:gap-x-5"
+                role="list"
+              >
+                {FOOTER_LINKS.map(({ href, label }) => (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </nav>
 
@@ -105,14 +84,14 @@ export const FooterSection = () => {
           </div>
         </div>
 
-        <div className="mt-3 flex flex-col gap-2 border-t border-border/40 pt-3 md:flex-row md:items-center md:justify-between">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-4 flex flex-col items-start gap-2 border-t border-border/40 pt-4 sm:gap-2.5 lg:mt-3 lg:flex-row lg:items-center lg:justify-between lg:gap-3 lg:pt-3">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             Made with{" "}
             <Cannabis className="inline-block w-4 h-4 text-green-500 mb-1" />{" "}
             and <Heart className="inline-block w-4 h-4 text-red-500 mb-1" /> for
             you and me.
           </p>
-          <p className="ml-auto max-w-xl self-end text-right text-xs text-muted-foreground">
+          <p className="text-xs leading-relaxed text-muted-foreground lg:max-w-xl lg:shrink-0 lg:text-right">
             Just another{" "}
             <a
               href="https://www.themoviedb.org"
