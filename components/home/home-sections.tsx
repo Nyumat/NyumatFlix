@@ -25,6 +25,7 @@ export async function HomeFeaturedMovie() {
         label="Trending now"
         priority
         pick="first"
+        hideGenre
       />
     </ContentReveal>
   );
@@ -61,6 +62,7 @@ export async function HomeTrendingMovieHeroes() {
           label="Trending now"
           count={2}
           pick="first"
+          hideGenre
         />
       </div>
     </ContentReveal>
@@ -134,6 +136,7 @@ export async function HomeTrendingTvHeroes() {
           label="Trending now"
           count={2}
           pick="first"
+          hideGenre
         />
       </div>
     </ContentReveal>
@@ -171,6 +174,7 @@ export async function HomePopularMovieHeroes() {
           label="Popular now"
           count={2}
           pick="first"
+          hideGenre
         />
       </div>
     </ContentReveal>
@@ -208,6 +212,7 @@ export async function HomePopularTvHeroes() {
           label="Popular now"
           count={2}
           pick="first"
+          hideGenre
         />
       </div>
     </ContentReveal>

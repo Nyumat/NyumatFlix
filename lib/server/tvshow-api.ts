@@ -11,14 +11,41 @@ import { Season, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
  */
 export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
   try {
-    const response = await fetch(
-      `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US&append_to_response=videos,images,credits,recommendations,similar,keywords,reviews,content_ratings,aggregate_credits,external_ids`,
-      { next: { revalidate: CACHE_REVALIDATE_SECONDS } },
-    );
-    if (!response.ok) {
-      throw new Error(`Failed to fetch TV show details: ${response.status}`);
+    const baseUrl = `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US`;
+    const fetchOptions = { next: { revalidate: CACHE_REVALIDATE_SECONDS } };
+
+    const [res1, res2, res3] = await Promise.all([
+      fetch(
+        `${baseUrl}&append_to_response=content_ratings,keywords,external_ids`,
+        fetchOptions,
+      ),
+      fetch(
+        `${baseUrl}&append_to_response=videos,images,credits,aggregate_credits`,
+        fetchOptions,
+      ),
+      fetch(
+        `${baseUrl}&append_to_response=recommendations,similar,reviews`,
+        fetchOptions,
+      ),
+    ]);
+
+    if (!res1.ok || !res2.ok || !res3.ok) {
+      throw new Error(
+        `Failed to fetch TV show details: ${res1.status} ${res2.status} ${res3.status}`,
+      );
     }
-    const data = await response.json();
+
+    const [data1, data2, data3] = await Promise.all([
+      res1.json(),
+      res2.json(),
+      res3.json(),
+    ]);
+
+    const data = {
+      ...data1,
+      ...data2,
+      ...data3,
+    };
 
     // Enrich TV show data with logos
     const { fetchAndEnrichMediaItems } = await import("@/lib/server/actions");
