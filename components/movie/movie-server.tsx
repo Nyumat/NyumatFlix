@@ -138,12 +138,14 @@ interface MovieHeroItemProps {
   id: string;
   label?: string;
   priority?: boolean;
+  hideGenre?: boolean;
 }
 
 export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
   id,
   label,
   priority,
+  hideGenre,
 }) => {
   const item = await tmdb.movie.detail<WithImages>({ id, append: "images" });
   const logo = item.images.logos.find((logo) => logo.iso_639_1 === "en");
@@ -188,21 +190,26 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
             </h1>
           )}
 
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {item.genres.map((genre) => (
-              <Link
-                href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
-                key={genre.id}
-              >
-                <Badge
-                  variant="secondary"
-                  className={cn(mediaMetaBadgeClass, "select-none font-medium")}
+          {!hideGenre && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {item.genres.map((genre) => (
+                <Link
+                  href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
+                  key={genre.id}
                 >
-                  {genre.name}
-                </Badge>
-              </Link>
-            ))}
-          </div>
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      mediaMetaBadgeClass,
+                      "select-none font-medium",
+                    )}
+                  >
+                    {genre.name}
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          )}
 
           <p className="line-clamp-3 text-sm text-muted-foreground md:text-lg max-w-xl">
             {item.overview}
@@ -237,6 +244,7 @@ interface MovieHeroProps {
   count?: number;
   priority?: boolean;
   pick?: "random" | "first";
+  hideGenre?: boolean;
 }
 
 export const MovieHero: React.FC<MovieHeroProps> = ({
@@ -245,6 +253,7 @@ export const MovieHero: React.FC<MovieHeroProps> = ({
   count = 1,
   priority,
   pick = "random",
+  hideGenre,
 }) => {
   const items =
     pick === "first"
@@ -257,6 +266,7 @@ export const MovieHero: React.FC<MovieHeroProps> = ({
       id={item.id.toString()}
       label={label}
       priority={priority}
+      hideGenre={hideGenre}
     />
   ));
 };

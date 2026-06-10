@@ -6,14 +6,40 @@ import { cache } from "react";
 export const getCachedMovieDetail = cache(
   async (id: string): Promise<MediaItem | null> => {
     try {
-      const response = await fetch(
-        `https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US&append_to_response=videos,images,credits,recommendations,similar,keywords,reviews,external_ids`,
-        { next: { revalidate: CACHE_REVALIDATE_SECONDS } },
-      );
-      if (!response.ok) {
+      const baseUrl = `https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US`;
+      const fetchOptions = { next: { revalidate: CACHE_REVALIDATE_SECONDS } };
+
+      const [res1, res2, res3] = await Promise.all([
+        fetch(
+          `${baseUrl}&append_to_response=keywords,external_ids`,
+          fetchOptions,
+        ),
+        fetch(
+          `${baseUrl}&append_to_response=videos,images,credits`,
+          fetchOptions,
+        ),
+        fetch(
+          `${baseUrl}&append_to_response=recommendations,similar,reviews`,
+          fetchOptions,
+        ),
+      ]);
+
+      if (!res1.ok || !res2.ok || !res3.ok) {
         return null;
       }
-      const data = await response.json();
+
+      const [data1, data2, data3] = await Promise.all([
+        res1.json(),
+        res2.json(),
+        res3.json(),
+      ]);
+
+      const data = {
+        ...data1,
+        ...data2,
+        ...data3,
+      };
+
       const { fetchAndEnrichMediaItems } = await import("@/lib/server/actions");
       const enrichedData = await fetchAndEnrichMediaItems([data], "movie");
       return enrichedData[0] ?? null;
