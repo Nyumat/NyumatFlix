@@ -1,4 +1,3 @@
-import { getPersonDetails } from "@/lib/server/actions";
 import {
   createOgImageResponse,
   getPersonOgImageProps,
@@ -6,6 +5,7 @@ import {
   ogImageContentType,
   PersonOgImage,
 } from "@/lib/seo/og-image";
+import { tmdb } from "@/tmdb/api";
 
 export const runtime = "edge";
 export const alt = "Person on NyumatFlix";
@@ -24,7 +24,9 @@ export default async function Image({ params }: Props) {
     return createOgImageResponse(<PersonOgImage name="Person Not Found" />);
   }
 
-  const person = await getPersonDetails(personId);
+  const person = await tmdb.person
+    .detail({ id: String(personId) })
+    .catch(() => null);
 
   if (!person) {
     return createOgImageResponse(<PersonOgImage name="Person Not Found" />);
