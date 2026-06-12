@@ -116,6 +116,7 @@ const BOOTSTRAP_SOURCE_IDS = new Set([
 const BOOTSTRAP_LIMIT_PER_SOURCE = 120;
 
 const BOOTSTRAP_PRIORITY_QUERIES = [
+  "anime x hidive",
   "cartoon network",
   "cnn",
   "espn",

@@ -36,6 +36,18 @@ describe("channel slugs", () => {
     expect(slugifyChannelName("ESPN 2")).toBe("espn2");
   });
 
+  it("resolves ANIME x HIDIVE share slugs", () => {
+    const hidive = channel({ name: "ANIME x HIDIVE" });
+
+    expect(getChannelShareSlug(hidive)).toBe("hidive");
+    expect(buildLiveShareUrlFromSlug("hidive")).toBe(
+      "https://nyumatflix.com/live?ch=hidive",
+    );
+    expect(resolveChannelFromSlug("hidive", [hidive])?.name).toBe(
+      "ANIME x HIDIVE",
+    );
+  });
+
   it("uses short share slugs for known channels", () => {
     expect(getChannelShareSlug(channel({ name: "Cartoon Network" }))).toBe(
       "cn",

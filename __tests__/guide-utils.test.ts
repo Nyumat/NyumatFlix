@@ -29,6 +29,37 @@ const channel = (
 });
 
 describe("guide utils", () => {
+  it("keeps only the Pluto ANIME x HIDIVE entry", () => {
+    const channels = dedupeLiveChannels([
+      channel({
+        id: "open-roku-us-0b92deed3dd556cf91c911a36e948fde",
+        name: "Anime X HiDive",
+        sourceUrl: "https://jmp2.uk/rok-0b92deed3dd556cf91c911a36e948fde.m3u8",
+        label: "Roku · Animated",
+      }),
+      channel({
+        id: "open-pluto-us-6793eaa4bc03978b9bc63db1",
+        name: "ANIME x HIDIVE",
+        sourceUrl: "https://jmp2.uk/plu-6793eaa4bc03978b9bc63db1.m3u8",
+        label: "Pluto TV · Anime",
+      }),
+    ]);
+
+    expect(channels).toHaveLength(1);
+    expect(channels[0]?.id).toBe("open-pluto-us-6793eaa4bc03978b9bc63db1");
+    expect(channels[0]?.name).toBe("ANIME x HIDIVE");
+  });
+
+  it("pins featured channels ahead of alphabetical order", () => {
+    const channels = dedupeLiveChannels([
+      channel({ id: "a", name: "00s Replay" }),
+      channel({ id: "b", name: "ANIME x HIDIVE" }),
+      channel({ id: "c", name: "CNN" }),
+    ]);
+
+    expect(channels[0]?.name).toBe("ANIME x HIDIVE");
+  });
+
   it("dedupes channels by source url", () => {
     const channels = dedupeLiveChannels([
       channel({ id: "a", name: "Alpha" }),
