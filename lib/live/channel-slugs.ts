@@ -51,6 +51,8 @@ const INPUT_ALIASES: Record<string, string> = {
   nbatv: "nbatv",
   golf: "golfchannel",
   golfchannel: "golfchannel",
+  animexhidive: "animexhidive",
+  hidive: "animexhidive",
 };
 
 const SHARE_SLUGS: Record<string, string> = {
@@ -66,6 +68,7 @@ const SHARE_SLUGS: Record<string, string> = {
   nflnetwork: "nfl",
   nbatv: "nba",
   golfchannel: "golf",
+  animexhidive: "hidive",
 };
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -101,6 +104,7 @@ const DISPLAY_NAMES: Record<string, string> = {
   nflnetwork: "NFL Network",
   nbatv: "NBA TV",
   golfchannel: "Golf Channel",
+  animexhidive: "ANIME x HIDIVE",
 };
 
 const normalizeSlugInput = (slug: string) => slugifyChannelName(slug.trim());

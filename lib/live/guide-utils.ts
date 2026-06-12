@@ -1,4 +1,14 @@
+import { slugifyChannelName } from "@/lib/live/channel-slugs";
+import { sortFeaturedLiveChannelsFirst } from "@/lib/live/defaults";
 import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
+
+const ANIMEX_HIDIVE_SLUG = "animexhidive";
+
+const isAnimeXHidiveChannel = (channel: LiveChannel) =>
+  slugifyChannelName(channel.name) === ANIMEX_HIDIVE_SLUG;
+
+const isPlutoChannel = (channel: LiveChannel) =>
+  channel.id.startsWith("open-pluto-");
 
 const buildCategoryOptions = (channels: LiveChannel[]) => {
   const counts = new Map<string, { name: string; count: number }>();
@@ -63,7 +73,21 @@ export const dedupeLiveChannels = (channels: LiveChannel[]) => {
     );
   }
 
-  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const hidiveChannels = [...byId.values()].filter(isAnimeXHidiveChannel);
+  const preferredHidive =
+    hidiveChannels.find(isPlutoChannel) ?? hidiveChannels[0];
+
+  const dedupedChannels = [...byId.values()].filter((channel) => {
+    if (!isAnimeXHidiveChannel(channel)) {
+      return true;
+    }
+
+    return preferredHidive ? channel.id === preferredHidive.id : true;
+  });
+
+  return sortFeaturedLiveChannelsFirst(
+    dedupedChannels.sort((a, b) => a.name.localeCompare(b.name)),
+  );
 };
 
 export const buildLiveChannelsResponse = (
