@@ -79,11 +79,6 @@ export function LiveTvPlayer({
     [hlsConfig],
   );
 
-  const channelSubtitle = selectedChannel
-    ? [selectedChannel.categoryName, selectedChannel.label]
-        .filter(Boolean)
-        .join(" · ")
-    : undefined;
   const shareUrl = selectedChannel
     ? buildLiveChannelShareUrl(selectedChannel)
     : null;
@@ -138,7 +133,6 @@ export function LiveTvPlayer({
             refreshing={refreshing}
             selectedCategory={selectedCategory}
             selectedChannelId={selectedChannelId}
-            subtitle={channelSubtitle}
           />
         </div>
       </div>

@@ -43,7 +43,6 @@ type LiveChannelSidebarProps = {
   selectedCategory: string;
   selectedChannelId: string | null;
   showClose?: boolean;
-  subtitle?: string;
 };
 
 export function LiveChannelSidebar({
@@ -61,7 +60,6 @@ export function LiveChannelSidebar({
   selectedCategory,
   selectedChannelId,
   showClose = false,
-  subtitle,
 }: LiveChannelSidebarProps) {
   return (
     <aside
@@ -71,54 +69,41 @@ export function LiveChannelSidebar({
       )}
     >
       <div className="border-b border-border px-3 py-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-baseline gap-2">
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Channels
-            </h2>
-            {subtitle ? (
-              <p className="min-w-0 truncate text-[11px] text-muted-foreground/70">
-                {subtitle}
-              </p>
-            ) : null}
+        <div className="flex items-center gap-1.5">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white" />
+            <Input
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Search channels"
+              className="h-8 rounded-[7px] border-border bg-background/50 pl-8 text-sm"
+            />
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0 rounded-[7px] text-muted-foreground hover:text-foreground"
+            onClick={onRefresh}
+            disabled={refreshing}
+            aria-label="Refresh channels"
+          >
+            <RefreshCw
+              className={cn("size-3.5", refreshing && "animate-spin")}
+            />
+          </Button>
+          {showClose && onClose ? (
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 rounded-[7px] text-muted-foreground hover:text-foreground"
-              onClick={onRefresh}
-              disabled={refreshing}
-              aria-label="Refresh channels"
+              className="size-8 shrink-0 rounded-[7px] text-muted-foreground hover:text-foreground xl:hidden"
+              onClick={onClose}
+              aria-label="Close channels"
             >
-              <RefreshCw
-                className={cn("size-3.5", refreshing && "animate-spin")}
-              />
+              <X className="size-4" />
             </Button>
-            {showClose && onClose ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7 rounded-[7px] text-muted-foreground hover:text-foreground xl:hidden"
-                onClick={onClose}
-                aria-label="Close channels"
-              >
-                <X className="size-4" />
-              </Button>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="relative mt-2.5">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white" />
-          <Input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search channels"
-            className="h-8 rounded-[7px] border-border bg-background/50 pl-8 text-sm"
-          />
+          ) : null}
         </div>
 
         <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5 max-xl:scrollbar-hidden">
