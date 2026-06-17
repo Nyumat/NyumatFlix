@@ -9,6 +9,14 @@ type AnimePageItem = MediaItem & {
 const isExternalHref = (href: string) =>
   /^https?:\/\//i.test(href) || href.includes("anilist.co");
 
+const getFallbackSearchHref = (item: MediaItem) => {
+  const title =
+    ("title" in item && typeof item.title === "string" && item.title) ||
+    ("name" in item && typeof item.name === "string" && item.name) ||
+    "";
+  return title ? `/search?q=${encodeURIComponent(title)}` : "/search";
+};
+
 /** Keep anime hub/grid links on NyumatFlix — never outbound to AniList. */
 export const withAnimePageHref = (item: MediaItem): MediaItem => {
   const animeItem = item as AnimePageItem;
@@ -23,7 +31,7 @@ export const withAnimePageHref = (item: MediaItem): MediaItem => {
   }
 
   if (animeItem.isAniListFallback) {
-    return { ...item, href: "/tvshows" } as MediaItem;
+    return { ...item, href: getFallbackSearchHref(item) } as MediaItem;
   }
 
   const existingHref =

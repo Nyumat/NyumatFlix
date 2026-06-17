@@ -1,16 +1,18 @@
 import "server-only";
 
-import { filterAnimeBlocked, isAniListIdBlocked } from "@/lib/anime-blocklist";
+import { isAniListIdBlocked } from "@/lib/anime-blocklist";
 import { getAnimeSeasonContext } from "@/lib/anime-season";
 import {
   ANILIST_ENDPOINT,
   buildAniListUrl,
-  mapAniListMediaToMediaItem,
   type AniListMedia,
   type AniListSearchParams,
 } from "@/lib/anilist";
+import {
+  enrichAniListHubRow,
+  enrichAniListMediaItemsLightweight,
+} from "@/lib/anilist-tmdb";
 import type { MediaItem } from "@/lib/domain/typings";
-import { withAnimePageHrefs } from "@/lib/anilist-page-hrefs";
 import {
   buildAnimeHubLayout,
   type AnimeHubLayout,
@@ -40,19 +42,15 @@ export const ANIME_HUB_GENRES = [
   "Sports",
 ] as const;
 
-const toAniListOnlyItems = (items: AniListMedia[]) =>
-  filterAnimeBlocked(
-    withAnimePageHrefs(
-      items.filter(Boolean).map(
-        (item) =>
-          ({
-            ...mapAniListMediaToMediaItem(item),
-            sourceAnilistId: item.id,
-            isAniListFallback: true,
-          }) as MediaItem,
-      ),
-    ),
-  );
+const enrichHubRow = (items: AniListMedia[]) =>
+  enrichAniListMediaItemsLightweight(items, items.length);
+
+const enrichTrendingHubRow = (items: AniListMedia[]) =>
+  enrichAniListHubRow(items, {
+    fullEnrichCount: 1,
+    lightweightCount: items.length,
+    heroEnrichment: "fast",
+  });
 
 type AnimeHubRows = {
   trendingRaw: AniListMedia[];
@@ -196,16 +194,6 @@ const fetchAnimeHubLayoutUncached = async (): Promise<AnimeHubLayout> => {
     genreRaws,
   } = rows;
 
-  const enrichedRows = [
-    trendingRaw,
-    popularRaw,
-    seasonPopularRaw,
-    airingRaw,
-    topRatedRaw,
-    moviesRaw,
-    ...genreRaws,
-  ].map(toAniListOnlyItems);
-
   const [
     trending,
     popular,
@@ -214,7 +202,15 @@ const fetchAnimeHubLayoutUncached = async (): Promise<AnimeHubLayout> => {
     topRated,
     movies,
     ...genreItems
-  ] = enrichedRows as MediaItem[][];
+  ] = await Promise.all([
+    enrichTrendingHubRow(trendingRaw),
+    enrichHubRow(popularRaw),
+    enrichHubRow(seasonPopularRaw),
+    enrichHubRow(airingRaw),
+    enrichHubRow(topRatedRaw),
+    enrichHubRow(moviesRaw),
+    ...genreRaws.map(enrichHubRow),
+  ]);
 
   const genreRows = ANIME_HUB_GENRES.map((genre, index) => ({
     genre,
@@ -255,7 +251,7 @@ const fetchAnimeHubLayoutUncached = async (): Promise<AnimeHubLayout> => {
 
 const getCachedAnimeHubLayout = unstable_cache(
   fetchAnimeHubLayoutUncached,
-  ["anime-home-season-hub-v10"],
+  ["anime-home-season-hub-v13"],
   { revalidate: ANIME_HOME_REVALIDATE_SECONDS },
 );
 

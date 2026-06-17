@@ -107,9 +107,9 @@ export function CollectionShowcase({
     : null;
 
   return (
-    <article className="group relative isolate overflow-hidden rounded-2xl">
+    <article className="group/collection relative isolate overflow-hidden rounded-2xl">
       {backdropUrl ? (
-        <div className="pointer-events-none absolute inset-0 opacity-35 transition-opacity duration-700 group-hover:opacity-45">
+        <div className="pointer-events-none absolute inset-0 opacity-35 transition-opacity duration-700 group-hover/collection:opacity-45">
           <Image
             src={backdropUrl}
             alt=""
@@ -127,7 +127,7 @@ export function CollectionShowcase({
       <div className="relative space-y-3 p-3 sm:space-y-4 sm:p-4">
         <div className="flex items-start gap-3 sm:gap-4">
           <Link href={href} className="shrink-0">
-            <div className="relative w-20 overflow-hidden rounded-xl shadow-xl transition-transform duration-500 group-hover:scale-[1.02] sm:w-24">
+            <div className="relative w-20 overflow-hidden rounded-xl shadow-xl transition-transform duration-500 group-hover/collection:scale-[1.02] sm:w-24">
               <MediaPoster
                 image={
                   collection.poster_path ?? collection.parts[0]?.poster_path

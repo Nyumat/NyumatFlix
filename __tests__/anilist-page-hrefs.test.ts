@@ -13,15 +13,16 @@ describe("withAnimePageHref", () => {
     ).toBe("/tvshows/42");
   });
 
-  it("sends unmapped fallback items to the tv browse page", () => {
+  it("sends unmapped fallback items to internal search", () => {
     expect(
       withAnimePageHref({
         id: 1,
         media_type: "tv",
+        name: "Cowboy Bebop",
         isAniListFallback: true,
         href: "https://anilist.co/anime/1",
       } as unknown as MediaItem).href,
-    ).toBe("/tvshows");
+    ).toBe("/search?q=Cowboy%20Bebop");
   });
 
   it("preserves existing internal hrefs", () => {
