@@ -22,7 +22,10 @@ export const TvCard: React.FC<TvCardProps> = (props) => {
         ...show,
         media_type: "tv",
         title: show.name,
-        href: `/tvshows/${show.id}`,
+        href:
+          "href" in show && typeof show.href === "string"
+            ? show.href
+            : `/tvshows/${show.id}`,
         date: show.first_air_date,
         year: formatYear(show.first_air_date),
       }}

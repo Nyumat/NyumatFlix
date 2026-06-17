@@ -22,7 +22,10 @@ export const MovieCard: React.FC<MovieCardProps> = (props) => {
         ...movie,
         media_type: "movie",
         title: movie.title,
-        href: `/movies/${movie.id}`,
+        href:
+          "href" in movie && typeof movie.href === "string"
+            ? movie.href
+            : `/movies/${movie.id}`,
         date: movie.release_date,
         year: formatYear(movie.release_date),
       }}

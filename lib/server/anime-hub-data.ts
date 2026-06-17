@@ -23,6 +23,8 @@ import {
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
+import { runInChunks } from "@/lib/server/chunked-parallel";
+
 export const ANIME_HOME_REVALIDATE_SECONDS = 3600;
 const ANIME_ROW_PAGE_SIZE = 30;
 const SEASON_ROW_TARGET = 40;
@@ -165,23 +167,54 @@ const enrichHubRowsGlobally = async (
   });
 };
 
-const enrichPool = async (
-  media: AniListMedia[],
-  { fullEnrichCount = 0 }: { fullEnrichCount?: number } = {},
-): Promise<MediaItem[]> => {
-  const [row] = await enrichHubRowsGlobally([
-    {
-      media,
-      fullEnrichCount,
-      lightweightCount: media.length,
-    },
-  ]);
-  return row ?? [];
-};
-
 const fetchAnimeHubLayoutUncached = async (): Promise<AnimeHubLayout> => {
   const season = getAnimeSeasonContext();
   const base = { medium: "ANIME" as const, genres: [] as string[] };
+
+  const rawFetchTasks = [
+    () => fetchAniListRow({ ...base, sort: "TRENDING_DESC" }, 2),
+    () => fetchAniListRow({ ...base, sort: "POPULARITY_DESC" }, 2),
+    () =>
+      fetchAniListRow(
+        {
+          ...base,
+          sort: "POPULARITY_DESC",
+          season: season.featuredSeason,
+          year: season.featuredYear,
+        },
+        2,
+      ),
+    () =>
+      fetchAniListRow(
+        {
+          ...base,
+          sort: "POPULARITY_DESC",
+          status: "RELEASING",
+        },
+        2,
+      ),
+    () => fetchAniListRow({ ...base, sort: "SCORE_DESC" }),
+    () =>
+      fetchAniListRow({
+        ...base,
+        sort: "POPULARITY_DESC",
+        format: "MOVIE",
+      }),
+    ...ANIME_HUB_GENRES.map(
+      (genre) => () =>
+        fetchAniListRow(
+          {
+            ...base,
+            sort: "POPULARITY_DESC",
+            genres: [genre],
+          },
+          2,
+        ),
+    ),
+  ];
+
+  // Limit AniList concurrency to prevent 429 Rate Limits
+  const rawResults = await runInChunks(rawFetchTasks, (task) => task(), 4);
 
   const [
     trendingRaw,
@@ -191,43 +224,48 @@ const fetchAnimeHubLayoutUncached = async (): Promise<AnimeHubLayout> => {
     topRatedRaw,
     moviesRaw,
     ...genreRaws
-  ] = await Promise.all([
-    fetchAniListRow({ ...base, sort: "TRENDING_DESC" }, 2),
-    fetchAniListRow({ ...base, sort: "POPULARITY_DESC" }, 2),
-    fetchAniListRow(
-      {
-        ...base,
-        sort: "POPULARITY_DESC",
-        season: season.featuredSeason,
-        year: season.featuredYear,
-      },
-      2,
-    ),
-    fetchAniListRow(
-      {
-        ...base,
-        sort: "POPULARITY_DESC",
-        status: "RELEASING",
-      },
-      2,
-    ),
-    fetchAniListRow({ ...base, sort: "SCORE_DESC" }),
-    fetchAniListRow({
-      ...base,
-      sort: "POPULARITY_DESC",
-      format: "MOVIE",
-    }),
-    ...ANIME_HUB_GENRES.map((genre) =>
-      fetchAniListRow(
-        {
-          ...base,
-          sort: "POPULARITY_DESC",
-          genres: [genre],
-        },
-        2,
-      ),
-    ),
-  ]);
+  ] = rawResults as AniListMedia[][];
+
+  // Batch enrichment plans to process them globally and respect chunking limits
+  const enrichmentPlans = [
+    {
+      media: trendingRaw,
+      fullEnrichCount: 1,
+      lightweightCount: trendingRaw.length,
+    },
+    {
+      media: popularRaw,
+      fullEnrichCount: 0,
+      lightweightCount: popularRaw.length,
+    },
+    {
+      media: seasonPopularRaw,
+      fullEnrichCount: 0,
+      lightweightCount: seasonPopularRaw.length,
+    },
+    {
+      media: airingRaw,
+      fullEnrichCount: 0,
+      lightweightCount: airingRaw.length,
+    },
+    {
+      media: topRatedRaw,
+      fullEnrichCount: 0,
+      lightweightCount: topRatedRaw.length,
+    },
+    {
+      media: moviesRaw,
+      fullEnrichCount: 0,
+      lightweightCount: moviesRaw.length,
+    },
+    ...genreRaws.map((raw) => ({
+      media: raw,
+      fullEnrichCount: 0,
+      lightweightCount: raw.length,
+    })),
+  ];
+
+  const enrichedRows = await enrichHubRowsGlobally(enrichmentPlans);
 
   const [
     trending,
@@ -237,15 +275,7 @@ const fetchAnimeHubLayoutUncached = async (): Promise<AnimeHubLayout> => {
     topRated,
     movies,
     ...genreItems
-  ] = await Promise.all([
-    enrichPool(trendingRaw, { fullEnrichCount: 1 }),
-    enrichPool(popularRaw),
-    enrichPool(seasonPopularRaw),
-    enrichPool(airingRaw),
-    enrichPool(topRatedRaw),
-    enrichPool(moviesRaw),
-    ...genreRaws.map((raw) => enrichPool(raw)),
-  ]);
+  ] = enrichedRows as MediaItem[][];
 
   const genreRows = ANIME_HUB_GENRES.map((genre, index) => ({
     genre,
