@@ -3,16 +3,12 @@ import "server-only";
 import { filterAnimeBlocked, isAniListIdBlocked } from "@/lib/anime-blocklist";
 import { getAnimeSeasonContext } from "@/lib/anime-season";
 import {
+  ANILIST_ENDPOINT,
   buildAniListUrl,
-  fetchAniListPage,
   mapAniListMediaToMediaItem,
   type AniListMedia,
   type AniListSearchParams,
 } from "@/lib/anilist";
-import {
-  enrichAniListMediaItemsLightweight,
-  enrichAniListHubRow,
-} from "@/lib/anilist-tmdb";
 import type { MediaItem } from "@/lib/domain/typings";
 import { withAnimePageHrefs } from "@/lib/anilist-page-hrefs";
 import {
@@ -23,12 +19,10 @@ import {
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
-import { runInChunks } from "@/lib/server/chunked-parallel";
-
 export const ANIME_HOME_REVALIDATE_SECONDS = 3600;
-const ANIME_ROW_PAGE_SIZE = 30;
-const SEASON_ROW_TARGET = 40;
-const GLOBAL_ENRICH_CHUNK_SIZE = 8;
+const ANIME_ROW_PAGE_SIZE = 24;
+const SEASON_ROW_TARGET = 24;
+const ANIME_HUB_FETCH_TIMEOUT_MS = 8000;
 
 /** Genre rows on the anime hub — AniList genre names, display order. */
 export const ANIME_HUB_GENRES = [
@@ -60,212 +54,157 @@ const toAniListOnlyItems = (items: AniListMedia[]) =>
     ),
   );
 
-const fetchAniListRow = async (
-  params: AniListSearchParams,
-  pages = 1,
-): Promise<AniListMedia[]> => {
-  const collected: AniListMedia[] = [];
-
-  for (let page = 1; page <= pages; page++) {
-    const response = await fetchAniListPage({
-      page,
-      perPage: ANIME_ROW_PAGE_SIZE,
-      params,
-    });
-    collected.push(...response.media);
-    if (
-      !response.pageInfo.hasNextPage ||
-      collected.length >= SEASON_ROW_TARGET
-    ) {
-      break;
-    }
-  }
-
-  return collected
-    .filter((item) => !isAniListIdBlocked(item.id))
-    .slice(0, SEASON_ROW_TARGET);
+type AnimeHubRows = {
+  trendingRaw: AniListMedia[];
+  popularRaw: AniListMedia[];
+  seasonPopularRaw: AniListMedia[];
+  airingRaw: AniListMedia[];
+  topRatedRaw: AniListMedia[];
+  moviesRaw: AniListMedia[];
+  genreRaws: AniListMedia[][];
 };
 
-type RowEnrichmentPlan = {
-  media: AniListMedia[];
-  fullEnrichCount: number;
-  lightweightCount: number;
+type AnimeHubBatchResponse = {
+  data?: Record<string, { media?: AniListMedia[] } | undefined>;
+  errors?: Array<{ message: string }>;
 };
 
-const enrichHubRowsGlobally = async (
-  plans: RowEnrichmentPlan[],
-): Promise<MediaItem[][]> => {
-  const heroPlans = plans.filter((plan) => plan.fullEnrichCount > 0);
-  const heroEnrichedByPlan = new Map<RowEnrichmentPlan, MediaItem[]>();
+const ANILIST_HUB_MEDIA_FIELDS = `
+  id
+  title {
+    romaji
+    english
+    native
+  }
+  type
+  format
+  description(asHtml: false)
+  seasonYear
+  coverImage {
+    large
+    extraLarge
+  }
+  bannerImage
+  genres
+  averageScore
+  popularity
+  startDate {
+    year
+    month
+    day
+  }
+`;
 
-  await Promise.all(
-    heroPlans.map(async (plan) => {
-      const items = await enrichAniListHubRow(plan.media, {
-        fullEnrichCount: plan.fullEnrichCount,
-        lightweightCount: plan.fullEnrichCount,
-        chunkSize: GLOBAL_ENRICH_CHUNK_SIZE,
-        heroEnrichment: "fast",
-      });
-      heroEnrichedByPlan.set(plan, items);
-    }),
-  );
-
-  const carouselItems: AniListMedia[] = [];
-  const carouselSlots: Array<{ plan: RowEnrichmentPlan; index: number }> = [];
-
-  for (const plan of plans) {
-    for (
-      let index = plan.fullEnrichCount;
-      index < plan.lightweightCount;
-      index++
-    ) {
-      const item = plan.media[index];
-      if (!item) continue;
-      carouselItems.push(item);
-      carouselSlots.push({ plan, index });
+const hubPageField = (alias: string, args: string) => `
+  ${alias}: Page(page: 1, perPage: $perPage) {
+    media(type: ANIME, ${args}, isAdult: false) {
+      ${ANILIST_HUB_MEDIA_FIELDS}
     }
   }
+`;
 
-  const enrichedCarouselItems =
-    carouselItems.length > 0
-      ? await enrichAniListMediaItemsLightweight(
-          carouselItems,
-          carouselItems.length,
-          GLOBAL_ENRICH_CHUNK_SIZE,
-        )
-      : [];
+const fetchAnimeHubRowsBatched = async (): Promise<AnimeHubRows> => {
+  const season = getAnimeSeasonContext();
+  const genreVariables = ANIME_HUB_GENRES.map(
+    (genre, index) => `$genre${index}: [String]`,
+  ).join(",\n    ");
+  const genreFields = ANIME_HUB_GENRES.map((_, index) =>
+    hubPageField(
+      `genre${index}`,
+      `sort: POPULARITY_DESC, genre_in: $genre${index}`,
+    ),
+  ).join("\n");
 
-  const carouselByPlan = new Map<RowEnrichmentPlan, Map<number, MediaItem>>();
-  carouselSlots.forEach(({ plan, index }, slotIndex) => {
-    const item = enrichedCarouselItems[slotIndex];
-    if (!item) return;
-    const rowMap = carouselByPlan.get(plan) ?? new Map<number, MediaItem>();
-    rowMap.set(index, item);
-    carouselByPlan.set(plan, rowMap);
-  });
-
-  return plans.map((plan) => {
-    const heroItems = heroEnrichedByPlan.get(plan) ?? [];
-    const carouselMap =
-      carouselByPlan.get(plan) ?? new Map<number, MediaItem>();
-    const effectiveCount = Math.min(plan.lightweightCount, plan.media.length);
-
-    const merged: MediaItem[] = [];
-    for (let index = 0; index < effectiveCount; index++) {
-      const source = plan.media[index];
-      if (!source) continue;
-
-      if (index < plan.fullEnrichCount) {
-        merged.push(heroItems[index] ?? toAniListOnlyItems([source])[0]!);
-        continue;
-      }
-
-      merged.push(carouselMap.get(index) ?? toAniListOnlyItems([source])[0]!);
+  const query = `
+    query AnimeHubRows(
+      $perPage: Int!,
+      $season: MediaSeason!,
+      $seasonYear: Int!,
+      ${genreVariables}
+    ) {
+      ${hubPageField("trending", "sort: TRENDING_DESC")}
+      ${hubPageField("popular", "sort: POPULARITY_DESC")}
+      ${hubPageField(
+        "seasonPopular",
+        "sort: POPULARITY_DESC, season: $season, seasonYear: $seasonYear",
+      )}
+      ${hubPageField("airing", "sort: POPULARITY_DESC, status: RELEASING")}
+      ${hubPageField("topRated", "sort: SCORE_DESC")}
+      ${hubPageField("movies", "sort: POPULARITY_DESC, format: MOVIE")}
+      ${genreFields}
     }
+  `;
 
-    return merged;
+  const variables = {
+    perPage: ANIME_ROW_PAGE_SIZE,
+    season: season.featuredSeason,
+    seasonYear: season.featuredYear,
+    ...Object.fromEntries(
+      ANIME_HUB_GENRES.map((genre, index) => [`genre${index}`, [genre]]),
+    ),
+  };
+
+  const response = await fetch(ANILIST_ENDPOINT, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(ANIME_HUB_FETCH_TIMEOUT_MS),
+    next: { revalidate: ANIME_HOME_REVALIDATE_SECONDS },
   });
+
+  if (!response.ok) {
+    throw new Error(
+      `AniList hub request failed with status ${response.status}`,
+    );
+  }
+
+  const payload = (await response.json()) as AnimeHubBatchResponse;
+  if (payload.errors?.length) {
+    throw new Error(payload.errors.map((error) => error.message).join("; "));
+  }
+
+  const getRow = (name: string) =>
+    (payload.data?.[name]?.media ?? [])
+      .filter((item) => !isAniListIdBlocked(item.id))
+      .slice(0, SEASON_ROW_TARGET);
+
+  return {
+    trendingRaw: getRow("trending"),
+    popularRaw: getRow("popular"),
+    seasonPopularRaw: getRow("seasonPopular"),
+    airingRaw: getRow("airing"),
+    topRatedRaw: getRow("topRated"),
+    moviesRaw: getRow("movies"),
+    genreRaws: ANIME_HUB_GENRES.map((_, index) => getRow(`genre${index}`)),
+  };
 };
 
 const fetchAnimeHubLayoutUncached = async (): Promise<AnimeHubLayout> => {
   const season = getAnimeSeasonContext();
-  const base = { medium: "ANIME" as const, genres: [] as string[] };
+  const rows = await fetchAnimeHubRowsBatched();
 
-  const rawFetchTasks = [
-    () => fetchAniListRow({ ...base, sort: "TRENDING_DESC" }, 2),
-    () => fetchAniListRow({ ...base, sort: "POPULARITY_DESC" }, 2),
-    () =>
-      fetchAniListRow(
-        {
-          ...base,
-          sort: "POPULARITY_DESC",
-          season: season.featuredSeason,
-          year: season.featuredYear,
-        },
-        2,
-      ),
-    () =>
-      fetchAniListRow(
-        {
-          ...base,
-          sort: "POPULARITY_DESC",
-          status: "RELEASING",
-        },
-        2,
-      ),
-    () => fetchAniListRow({ ...base, sort: "SCORE_DESC" }),
-    () =>
-      fetchAniListRow({
-        ...base,
-        sort: "POPULARITY_DESC",
-        format: "MOVIE",
-      }),
-    ...ANIME_HUB_GENRES.map(
-      (genre) => () =>
-        fetchAniListRow(
-          {
-            ...base,
-            sort: "POPULARITY_DESC",
-            genres: [genre],
-          },
-          2,
-        ),
-    ),
-  ];
-
-  // Limit AniList concurrency to prevent 429 Rate Limits
-  const rawResults = await runInChunks(rawFetchTasks, (task) => task(), 4);
-
-  const [
+  const {
     trendingRaw,
     popularRaw,
     seasonPopularRaw,
     airingRaw,
     topRatedRaw,
     moviesRaw,
-    ...genreRaws
-  ] = rawResults as AniListMedia[][];
+    genreRaws,
+  } = rows;
 
-  // Batch enrichment plans to process them globally and respect chunking limits
-  const enrichmentPlans = [
-    {
-      media: trendingRaw,
-      fullEnrichCount: 1,
-      lightweightCount: trendingRaw.length,
-    },
-    {
-      media: popularRaw,
-      fullEnrichCount: 0,
-      lightweightCount: popularRaw.length,
-    },
-    {
-      media: seasonPopularRaw,
-      fullEnrichCount: 0,
-      lightweightCount: seasonPopularRaw.length,
-    },
-    {
-      media: airingRaw,
-      fullEnrichCount: 0,
-      lightweightCount: airingRaw.length,
-    },
-    {
-      media: topRatedRaw,
-      fullEnrichCount: 0,
-      lightweightCount: topRatedRaw.length,
-    },
-    {
-      media: moviesRaw,
-      fullEnrichCount: 0,
-      lightweightCount: moviesRaw.length,
-    },
-    ...genreRaws.map((raw) => ({
-      media: raw,
-      fullEnrichCount: 0,
-      lightweightCount: raw.length,
-    })),
-  ];
-
-  const enrichedRows = await enrichHubRowsGlobally(enrichmentPlans);
+  const enrichedRows = [
+    trendingRaw,
+    popularRaw,
+    seasonPopularRaw,
+    airingRaw,
+    topRatedRaw,
+    moviesRaw,
+    ...genreRaws,
+  ].map(toAniListOnlyItems);
 
   const [
     trending,
@@ -316,7 +255,7 @@ const fetchAnimeHubLayoutUncached = async (): Promise<AnimeHubLayout> => {
 
 const getCachedAnimeHubLayout = unstable_cache(
   fetchAnimeHubLayoutUncached,
-  ["anime-home-season-hub-v6"],
+  ["anime-home-season-hub-v10"],
   { revalidate: ANIME_HOME_REVALIDATE_SECONDS },
 );
 
