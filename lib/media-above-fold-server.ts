@@ -4,6 +4,7 @@ import {
   type MediaAboveFoldType,
 } from "@/lib/media-above-fold";
 import { selectPrimaryTrailerVideo } from "@/lib/select-primary-trailer-video";
+import { tmdbFetchInit } from "@/lib/tmdb-cache-policy";
 import type { GetImagesResponse, GetVideosResponse } from "@/tmdb/models";
 import type { Logo } from "@/lib/domain/typings";
 import { cache } from "react";
@@ -120,9 +121,14 @@ export const getCachedMediaAboveFoldDetail = cache(
     url.searchParams.set("language", "en-US");
     url.searchParams.set("append_to_response", append);
 
-    const response = await fetch(url, {
-      next: { revalidate: CACHE_REVALIDATE_SECONDS },
-    });
+    const response = await fetch(
+      url,
+      tmdbFetchInit({
+        endpoint: url.toString(),
+        params: url.searchParams,
+        revalidate: CACHE_REVALIDATE_SECONDS,
+      }),
+    );
     if (!response.ok) {
       return null;
     }
