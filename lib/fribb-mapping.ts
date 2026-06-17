@@ -10,11 +10,13 @@ export type FribbMappingItem = {
 
 const FRIBB_URL =
   "https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json";
+const FRIBB_FETCH_TIMEOUT_MS = 2500;
 
 export const getFribbMapping = unstable_cache(
   async () => {
     try {
       const res = await fetch(FRIBB_URL, {
+        signal: AbortSignal.timeout(FRIBB_FETCH_TIMEOUT_MS),
         next: { revalidate: 60 * 60 * 24 }, // Cache for 24 hours
       });
       if (!res.ok) return null;

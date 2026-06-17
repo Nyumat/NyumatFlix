@@ -3,6 +3,7 @@ import { fetchTmdbAnimeFallbackPage } from "@/lib/anime-tmdb-fallback";
 import { unstable_cache } from "next/cache";
 
 export const ANILIST_ENDPOINT = "https://graphql.anilist.co";
+const ANILIST_FETCH_TIMEOUT_MS = 8000;
 
 export const ANILIST_GENRES = [
   "Action",
@@ -285,6 +286,7 @@ const fetchAniListPageUncached = async ({
         "content-type": "application/json",
       },
       body: JSON.stringify({ query: ANILIST_PAGE_QUERY, variables }),
+      signal: AbortSignal.timeout(ANILIST_FETCH_TIMEOUT_MS),
       next: { revalidate: ANILIST_REVALIDATE_SECONDS },
     });
   } catch (error) {
