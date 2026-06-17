@@ -5,7 +5,7 @@ import {
   type AniListMedia,
 } from "@/lib/anilist";
 import { fetchIdsMoeMappingByAniListId } from "@/lib/ids-moe";
-import { getTmdbIdFromFribb } from "@/lib/fribb-mapping";
+import { getFribbMapping, getTmdbIdFromFribb } from "@/lib/fribb-mapping";
 import { api, tmdb, type WithImages } from "@/tmdb/api";
 import type {
   Image,
@@ -236,9 +236,10 @@ const applyTmdbMapping = (
     isAniListFallback: false,
   }) as MediaItem;
 
-const enrichOneLightweightUncached = async (
+const applyLightweightMappings = (
   item: AniListMedia,
-): Promise<MediaItem> => {
+  fribbMap: Record<number, { id: number; type: "movie" | "tv" }> | null,
+): MediaItem => {
   const fallback = toAniListFallbackMediaItem(item);
 
   if (item.tmdbFallback) {
@@ -249,32 +250,65 @@ const enrichOneLightweightUncached = async (
     );
   }
 
-  try {
-    const fribbMapping = await getTmdbIdFromFribb(item.id);
-    if (fribbMapping) {
-      return applyTmdbMapping(fallback, fribbMapping.id, fribbMapping.type);
-    }
-
-    const mapping = await fetchIdsMoeMappingByAniListId(item.id);
-    if (mapping?.themoviedb) {
-      return applyTmdbMapping(
-        fallback,
-        mapping.themoviedb,
-        mapping.themoviedb_type === "movie" ? "movie" : "tv",
-      );
-    }
-  } catch {
-    return fallback;
+  const fribbMapping = fribbMap?.[item.id];
+  if (fribbMapping) {
+    return applyTmdbMapping(fallback, fribbMapping.id, fribbMapping.type);
   }
 
   return fallback;
 };
 
-const enrichOneLightweight = unstable_cache(
-  enrichOneLightweightUncached,
-  ["anilist-tmdb-item-light"],
-  { revalidate: ANIME_ENRICHMENT_REVALIDATE_SECONDS },
-);
+const enrichBatchLightweight = async (
+  items: AniListMedia[],
+): Promise<MediaItem[]> => {
+  let fribbMap: Record<number, { id: number; type: "movie" | "tv" }> | null =
+    null;
+
+  try {
+    fribbMap = await getFribbMapping();
+  } catch (error) {
+    console.error("Failed to load Fribb mapping:", error);
+  }
+
+  const results: MediaItem[] = [];
+  const needsIdsMoe: Array<{ index: number; anilistId: number }> = [];
+
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index];
+    if (!item) continue;
+
+    const mapped = applyLightweightMappings(item, fribbMap);
+    results.push(mapped);
+    if (mapped.isAniListFallback) {
+      needsIdsMoe.push({ index, anilistId: item.id });
+    }
+  }
+
+  if (needsIdsMoe.length === 0) return results;
+
+  const idsMoeResults = await runInChunks(
+    needsIdsMoe,
+    async ({ anilistId }) => fetchIdsMoeMappingByAniListId(anilistId),
+    ENRICH_CHUNK_SIZE,
+  );
+
+  for (let i = 0; i < needsIdsMoe.length; i++) {
+    const mapping = idsMoeResults[i];
+    const targetIndex = needsIdsMoe[i]?.index;
+    if (targetIndex === undefined || !mapping?.themoviedb) continue;
+
+    const current = results[targetIndex];
+    if (!current?.isAniListFallback) continue;
+
+    results[targetIndex] = applyTmdbMapping(
+      current,
+      mapping.themoviedb,
+      mapping.themoviedb_type === "movie" ? "movie" : "tv",
+    );
+  }
+
+  return results;
+};
 
 const enrichOneHeroUncached = async (
   item: AniListMedia,
@@ -394,11 +428,10 @@ export const enrichAniListMediaItemsWithTmdb = async (
 export const enrichAniListMediaItemsLightweight = async (
   items: AniListMedia[],
   maxLookups = 24,
-  chunkSize = ENRICH_CHUNK_SIZE,
 ): Promise<MediaItem[]> => {
   const head = items.slice(0, maxLookups);
   const tail = items.slice(maxLookups).map(toAniListFallbackMediaItem);
-  const enrichedHead = await runInChunks(head, enrichOneLightweight, chunkSize);
+  const enrichedHead = await enrichBatchLightweight(head);
   return filterAnimeBlocked(withAnimePageHrefs([...enrichedHead, ...tail]));
 };
 
@@ -423,7 +456,7 @@ export const enrichAniListHubRow = async (
 
   const [fullResults, lightResults] = await Promise.all([
     runInChunks(fullSlice, enrichHero, chunkSize),
-    runInChunks(lightSlice, enrichOneLightweight, chunkSize),
+    enrichBatchLightweight(lightSlice),
   ]);
 
   return filterAnimeBlocked(

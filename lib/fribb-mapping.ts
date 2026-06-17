@@ -10,42 +10,39 @@ export type FribbMappingItem = {
 
 const FRIBB_URL =
   "https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json";
-const FRIBB_FETCH_TIMEOUT_MS = 2500;
+const FRIBB_FETCH_TIMEOUT_MS = 8000;
 
 export const getFribbMapping = unstable_cache(
   async () => {
-    try {
-      const res = await fetch(FRIBB_URL, {
-        signal: AbortSignal.timeout(FRIBB_FETCH_TIMEOUT_MS),
-        next: { revalidate: 60 * 60 * 24 }, // Cache for 24 hours
-      });
-      if (!res.ok) return null;
-
-      const data: FribbMappingItem[] = await res.json();
-
-      // Store as Record for JSON serialization in Next.js cache
-      const mapping: Record<number, { id: number; type: "movie" | "tv" }> = {};
-
-      for (const item of data) {
-        if (!item.anilist_id || !item.themoviedb_id) continue;
-
-        if (item.themoviedb_id.tv) {
-          mapping[item.anilist_id] = { id: item.themoviedb_id.tv, type: "tv" };
-        } else if (item.themoviedb_id.movie) {
-          mapping[item.anilist_id] = {
-            id: item.themoviedb_id.movie,
-            type: "movie",
-          };
-        }
-      }
-
-      return mapping;
-    } catch (e) {
-      console.error("Failed to fetch Fribb mapping:", e);
-      return null;
+    const res = await fetch(FRIBB_URL, {
+      signal: AbortSignal.timeout(FRIBB_FETCH_TIMEOUT_MS),
+      next: { revalidate: 60 * 60 * 24 },
+    });
+    if (!res.ok) {
+      throw new Error(`Fribb mapping fetch failed with status ${res.status}`);
     }
+
+    const data: FribbMappingItem[] = await res.json();
+
+    // Store as Record for JSON serialization in Next.js cache
+    const mapping: Record<number, { id: number; type: "movie" | "tv" }> = {};
+
+    for (const item of data) {
+      if (!item.anilist_id || !item.themoviedb_id) continue;
+
+      if (item.themoviedb_id.tv) {
+        mapping[item.anilist_id] = { id: item.themoviedb_id.tv, type: "tv" };
+      } else if (item.themoviedb_id.movie) {
+        mapping[item.anilist_id] = {
+          id: item.themoviedb_id.movie,
+          type: "movie",
+        };
+      }
+    }
+
+    return mapping;
   },
-  ["fribb-anime-mapping"],
+  ["fribb-anime-mapping-v2"],
   { revalidate: 60 * 60 * 24 },
 );
 
