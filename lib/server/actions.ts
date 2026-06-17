@@ -3,6 +3,7 @@ import "server-only";
 import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
 import { filterZeroRevenueMovies } from "@/lib/movie-revenue-filter";
 import { addRomanceFiltering, filterRomanceContent } from "@/lib/romance-media";
+import { redactTmdbUrl, tmdbFetchInit } from "@/lib/tmdb-cache-policy";
 import { logger } from "@/lib/utils";
 import {
   mapItemsToCanonicalCardsValue,
@@ -449,9 +450,14 @@ export async function fetchTMDBData<T = MediaItem>(
 
   let response: Response;
   try {
-    response = await fetch(url.toString(), {
-      next: { revalidate: 3600 }, // cache tmdb responses for 1 hour
-    });
+    response = await fetch(
+      url.toString(),
+      tmdbFetchInit({
+        endpoint: url.toString(),
+        params: url.searchParams,
+        revalidate: 3600,
+      }),
+    );
   } catch (error) {
     if (isNetworkFetchError(error)) {
       return emptyTmdbResponse<T>();
@@ -461,7 +467,7 @@ export async function fetchTMDBData<T = MediaItem>(
 
   if (!response.ok) {
     logger.error(
-      `TMDB API error: ${response.status} ${response.statusText} ${response.body} ${response.headers} ${response.url}`,
+      `TMDB API error: ${response.status} ${response.statusText} ${response.body} ${response.headers} ${redactTmdbUrl(response.url)}`,
     );
     throw new Error(
       `TMDB API error: ${response.status} ${response.statusText}`,

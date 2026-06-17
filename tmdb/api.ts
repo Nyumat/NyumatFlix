@@ -27,6 +27,7 @@ import {
   WatchProvider,
   WatchProviders,
 } from "@/tmdb/models";
+import { tmdbFetchInit } from "@/lib/tmdb-cache-policy";
 
 export type MovieListType =
   | "popular"
@@ -357,11 +358,15 @@ const fetcher: Fetcher = async ({ endpoint, params }, init) => {
   const _params = createSearchParams(sanitizedParams);
   const _headers = createHeaders(init);
 
-  const _init = {
-    ...init,
-    next: { revalidate: 3600, ...init?.next },
-    headers: _headers,
-  };
+  const _init = tmdbFetchInit({
+    endpoint,
+    params: sanitizedParams,
+    revalidate: 3600,
+    init: {
+      ...init,
+      headers: _headers,
+    },
+  });
 
   const url = `${apiConfig.baseUrl}/${endpoint}?${_params}`;
   let response: Response;

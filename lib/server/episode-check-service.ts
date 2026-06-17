@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { EpisodeInfo } from "@/lib/domain/episodes";
+import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
 import { formatCountdown } from "@/lib/utils/countdown";
 import { tmdb } from "@/tmdb/api";
 
@@ -39,10 +40,10 @@ export async function checkEpisodesForShow(
     let nextEpisodeDate: Date | null = null;
 
     for (const season of seasons) {
-      const seasonDetails = await tmdb.tvSeasons.details({
-        id: String(contentId),
-        season: season.season_number,
-      });
+      const seasonDetails = await fetchSeasonDetailsServer(
+        String(contentId),
+        season.season_number,
+      );
 
       if (!seasonDetails?.episodes) {
         continue;

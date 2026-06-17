@@ -127,6 +127,50 @@ function setCached(
   if (oldestKey) cache.delete(oldestKey);
 }
 
+function toSlimTmdbSeason(data: unknown): TmdbSeason | null {
+  if (typeof data !== "object" || data === null) {
+    return null;
+  }
+
+  const raw = data as {
+    air_date?: unknown;
+    episode_count?: unknown;
+    episodes?: unknown;
+    season_number?: unknown;
+  };
+  const seasonNumber =
+    typeof raw.season_number === "number" ? raw.season_number : null;
+  if (seasonNumber === null) {
+    return null;
+  }
+
+  const episodes = Array.isArray(raw.episodes)
+    ? raw.episodes
+        .filter((episode): episode is Record<string, unknown> => {
+          return typeof episode === "object" && episode !== null;
+        })
+        .map((episode, index) => ({
+          episode_number:
+            typeof episode.episode_number === "number"
+              ? episode.episode_number
+              : index + 1,
+          air_date:
+            typeof episode.air_date === "string" ? episode.air_date : "",
+          name: typeof episode.name === "string" ? episode.name : "",
+        }))
+    : [];
+
+  return {
+    season_number: seasonNumber,
+    episode_count:
+      typeof raw.episode_count === "number"
+        ? raw.episode_count
+        : episodes.length,
+    episodes,
+    air_date: typeof raw.air_date === "string" ? raw.air_date : "",
+  };
+}
+
 async function fetchTmdbShow(showId: number): Promise<TmdbShow | null> {
   const cacheKey = `tmdb_show_${showId}`;
   const cached = getCached(cacheKey);
@@ -175,13 +219,17 @@ async function fetchTmdbSeason(
   try {
     const response = await fetch(
       `https://api.themoviedb.org/3/tv/${showId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+      { cache: "no-store" },
     );
 
     if (!response.ok) {
       throw new Error(`TMDB API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = toSlimTmdbSeason(await response.json());
+    if (!data) {
+      throw new Error("Invalid TMDB season response");
+    }
     setCached(cacheKey, data);
     return data;
   } catch (error) {
