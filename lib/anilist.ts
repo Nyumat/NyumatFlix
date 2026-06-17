@@ -390,26 +390,23 @@ export const mapAniListMediaToMediaItem = (item: AniListMedia): MediaItem => {
   return {
     id: item.id,
     name: title,
+    original_language: "ja",
     original_name: item.title.romaji ?? title,
-    media_type: "tv",
+    title,
+    original_title: item.title.romaji ?? title,
+    overview: cleanAniListDescription(item.description),
     poster_path: poster,
     backdrop_path: item.bannerImage ?? poster,
-    first_air_date: date,
     release_date: date,
-    overview: cleanAniListDescription(item.description),
-    popularity: item.popularity ?? item.trending ?? 0,
+    first_air_date: date,
     vote_average: item.averageScore ? item.averageScore / 10 : 0,
-    vote_count: item.popularity ?? 0,
-    original_language: item.countryOfOrigin === "KR" ? "ko" : "ja",
-    origin_country: item.countryOfOrigin ? [item.countryOfOrigin] : [],
-    genre_ids: [],
-    genres: item.genres?.map((genre, index) => ({
-      id: index + 1,
-      name: genre,
-    })),
-    content_rating: item.format?.replace(/_/g, " ") ?? null,
+    vote_count: item.popularity,
+    popularity: item.popularity,
+    genre_ids: item.genres?.length ? [16] : [], // Map AniList genres to TMDB later if needed
+    media_type: item.format === "MOVIE" ? "movie" : "tv",
     href,
-  } as MediaItem;
+    tmdbFallback: item.tmdbFallback,
+  } as MediaItem & { tmdbFallback?: { id: number; type: "movie" | "tv" } };
 };
 
 export const mapAniListPageToMediaItems = (page: AniListPage): MediaItem[] =>

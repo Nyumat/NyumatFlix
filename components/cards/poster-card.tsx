@@ -21,6 +21,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
+const isExternalHref = (href: string) =>
+  /^https?:\/\//i.test(href) || href.includes("anilist.co");
+
 type PosterCardProps = {
   item: CanonicalMediaCard | MediaItem;
   isMobile?: boolean;
@@ -86,11 +89,21 @@ export function PosterCard({
             />
           </div>
         </div>
-        <Link
-          href={link}
-          className="absolute inset-0 z-40"
-          aria-label={`View ${title}`}
-        />
+        {isExternalHref(link) ? (
+          <a
+            href={link}
+            className="absolute inset-0 z-40"
+            aria-label={`View ${title}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          />
+        ) : (
+          <Link
+            href={link}
+            className="absolute inset-0 z-40"
+            aria-label={`View ${title}`}
+          />
+        )}
       </Card>
     );
   }
@@ -202,11 +215,21 @@ export function PosterCard({
           </div>
         </div>
       </div>
-      <Link
-        href={link}
-        className="absolute inset-0 z-40"
-        aria-label={`View ${title}`}
-      />
+      {isExternalHref(link) ? (
+        <a
+          href={link}
+          className="absolute inset-0 z-40"
+          aria-label={`View ${title}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        />
+      ) : (
+        <Link
+          href={link}
+          className="absolute inset-0 z-40"
+          aria-label={`View ${title}`}
+        />
+      )}
     </div>
   );
 }

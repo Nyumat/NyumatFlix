@@ -180,6 +180,11 @@ export function MediaContentGrid({
           item={mediaItem}
           isMobile={!!isMobile}
           hideTitleFallback={!isAniListFallback}
+          href={
+            "href" in mediaItem && typeof mediaItem.href === "string"
+              ? mediaItem.href
+              : undefined
+          }
         />
       );
     }

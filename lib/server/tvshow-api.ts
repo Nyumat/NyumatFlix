@@ -4,7 +4,44 @@ import {
   CACHE_REVALIDATE_SECONDS,
   CACHE_SEASON_REVALIDATE_SECONDS,
 } from "@/lib/http-cache";
-import { Season, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
+import {
+  LogoSchema,
+  Season,
+  SeasonDetails,
+  TvShowDetails,
+} from "@/lib/domain/typings";
+
+type TmdbLogo = {
+  iso_639_1?: string | null;
+};
+
+const pickEnglishLogo = (logos: unknown) => {
+  if (!Array.isArray(logos) || logos.length === 0) {
+    return undefined;
+  }
+
+  const selected =
+    logos.find((logo): logo is TmdbLogo => {
+      return (
+        typeof logo === "object" &&
+        logo !== null &&
+        "iso_639_1" in logo &&
+        logo.iso_639_1 === "en"
+      );
+    }) ?? logos[0];
+
+  const result = LogoSchema.safeParse(selected);
+  return result.success ? result.data : undefined;
+};
+
+const pickTvCertification = (
+  contentRatings: TvShowDetails["content_ratings"] | undefined,
+) => {
+  const usRating = contentRatings?.results.find(
+    (rating) => rating.iso_3166_1 === "US",
+  );
+  return usRating?.rating || null;
+};
 
 /**
  * Fetches details for a TV show by ID
@@ -19,10 +56,7 @@ export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
         `${baseUrl}&append_to_response=content_ratings,keywords,external_ids`,
         fetchOptions,
       ),
-      fetch(
-        `${baseUrl}&append_to_response=videos,images,credits,aggregate_credits`,
-        fetchOptions,
-      ),
+      fetch(`${baseUrl}&append_to_response=videos,images`, fetchOptions),
       fetch(
         `${baseUrl}&append_to_response=recommendations,similar,reviews`,
         fetchOptions,
@@ -41,17 +75,19 @@ export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
       res3.json(),
     ]);
 
-    const data = {
+    const data: TvShowDetails = {
       ...data1,
       ...data2,
       ...data3,
+      credits: {
+        cast: [],
+        crew: [],
+      },
+      content_rating: pickTvCertification(data1.content_ratings),
+      logo: pickEnglishLogo(data2.images?.logos),
     };
 
-    // Enrich TV show data with logos
-    const { fetchAndEnrichMediaItems } = await import("@/lib/server/actions");
-    const enrichedData = await fetchAndEnrichMediaItems([data], "tv");
-
-    return enrichedData[0];
+    return data;
   } catch (error) {
     console.error(error);
     throw new Error("Failed to fetch TV show details");

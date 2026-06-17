@@ -5,6 +5,7 @@ import {
   type AniListMedia,
 } from "@/lib/anilist";
 import { fetchIdsMoeMappingByAniListId } from "@/lib/ids-moe";
+import { getTmdbIdFromFribb } from "@/lib/fribb-mapping";
 import { api, tmdb, type WithImages } from "@/tmdb/api";
 import type {
   Image,
@@ -249,6 +250,11 @@ const enrichOneLightweightUncached = async (
   }
 
   try {
+    const fribbMapping = await getTmdbIdFromFribb(item.id);
+    if (fribbMapping) {
+      return applyTmdbMapping(fallback, fribbMapping.id, fribbMapping.type);
+    }
+
     const mapping = await fetchIdsMoeMappingByAniListId(item.id);
     if (mapping?.themoviedb) {
       return applyTmdbMapping(
@@ -285,6 +291,16 @@ const enrichOneHeroUncached = async (
   }
 
   try {
+    const fribbMapping = await getTmdbIdFromFribb(item.id);
+    if (fribbMapping) {
+      return fetchTmdbMappedItem(
+        fribbMapping.id,
+        fribbMapping.type,
+        fallback,
+        item.id,
+      );
+    }
+
     const mapping = await fetchIdsMoeMappingByAniListId(item.id);
     if (mapping?.themoviedb) {
       return fetchTmdbMappedItem(
@@ -322,6 +338,16 @@ const enrichOneUncached = async (item: AniListMedia): Promise<MediaItem> => {
   }
 
   try {
+    const fribbMapping = await getTmdbIdFromFribb(item.id);
+    if (fribbMapping) {
+      return await fetchTmdbMappedItem(
+        fribbMapping.id,
+        fribbMapping.type,
+        fallback,
+        item.id,
+      );
+    }
+
     const mapping = await fetchIdsMoeMappingByAniListId(item.id);
 
     if (mapping?.themoviedb) {
