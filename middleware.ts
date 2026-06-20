@@ -8,8 +8,6 @@ import { NextResponse } from "next/server";
 const LEGACY_TAB_QUERY = "tab";
 const LEGACY_ANILIST_ID_QUERY = "anilistId";
 
-const LEGACY_TAB_QUERY = "tab";
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
