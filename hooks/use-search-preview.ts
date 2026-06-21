@@ -9,6 +9,7 @@ export type PreviewResult = SearchPreviewResult;
 
 interface UseSearchPreviewReturn {
   results: PreviewResult[];
+  suggestions: string[];
   isLoading: boolean;
   error: string | null;
 }
@@ -32,7 +33,8 @@ export function useSearchPreview(
   }, [error]);
 
   return {
-    results: data ?? [],
+    results: data?.results ?? [],
+    suggestions: data?.suggestions ?? [],
     isLoading,
     error: errorMessage,
   };

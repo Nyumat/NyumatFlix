@@ -27,32 +27,36 @@ describe("API functions", () => {
   });
 
   describe("fetchSearchPreview", () => {
-    test("returns empty array for short queries", async () => {
+    test("returns empty preview data for short queries", async () => {
       const result = await fetchSearchPreview("a");
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(result).toEqual([]);
+      expect(result).toEqual({ results: [], suggestions: [] });
     });
 
-    test("returns empty array for empty queries", async () => {
+    test("returns empty preview data for empty queries", async () => {
       const result = await fetchSearchPreview("");
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(result).toEqual([]);
+      expect(result).toEqual({ results: [], suggestions: [] });
     });
 
-    test("returns empty array for whitespace-only queries", async () => {
+    test("returns empty preview data for whitespace-only queries", async () => {
       const result = await fetchSearchPreview("   ");
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(result).toEqual([]);
+      expect(result).toEqual({ results: [], suggestions: [] });
     });
 
     test("fetches search preview for valid queries", async () => {
       const mockResults = [{ id: 1, title: "Test", media_type: "movie" }];
+      const mockSuggestions = ["Test", "Christopher Nolan"];
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ results: mockResults }),
+        json: async () => ({
+          results: mockResults,
+          suggestions: mockSuggestions,
+        }),
       } as Response);
 
       const result = await fetchSearchPreview("test query");
@@ -61,13 +65,16 @@ describe("API functions", () => {
         "/api/search-preview?query=test%20query",
         { signal: undefined },
       );
-      expect(result).toEqual(mockResults);
+      expect(result).toEqual({
+        results: mockResults,
+        suggestions: mockSuggestions,
+      });
     });
 
     test("passes abort signal to fetch", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ results: [] }),
+        json: async () => ({ results: [], suggestions: [] }),
       } as Response);
 
       const controller = new AbortController();
@@ -89,7 +96,7 @@ describe("API functions", () => {
       );
     });
 
-    test("returns empty array when results are missing", async () => {
+    test("returns empty preview data when response fields are missing", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
@@ -97,7 +104,7 @@ describe("API functions", () => {
 
       const result = await fetchSearchPreview("test");
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({ results: [], suggestions: [] });
     });
   });
 

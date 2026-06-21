@@ -49,7 +49,7 @@ export function AnniversaryBanner({ className }: AnniversaryBannerProps) {
           <div className="site-container grid min-h-11 grid-cols-[2.5rem_1fr_2.5rem] items-center">
             <span aria-hidden />
             <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center text-sm font-semibold leading-snug text-zinc-100 sm:text-base">
-              <span className="text-zinc-200">Live TV is in beta</span>
+              <span className="text-zinc-200">Live TV is GA</span>
               <span
                 aria-hidden
                 className="hidden h-1.5 w-1.5 rounded-full bg-zinc-500 sm:block"
@@ -58,7 +58,7 @@ export function AnniversaryBanner({ className }: AnniversaryBannerProps) {
                 href="/live"
                 className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-950 ring-1 ring-zinc-300/70 transition hover:bg-white hover:text-black sm:text-sm"
               >
-                <span>Watch Live TV</span>
+                <span>Watch Now</span>
                 <ChevronRight className="size-3.5" strokeWidth={2.5} />
               </Link>
             </div>

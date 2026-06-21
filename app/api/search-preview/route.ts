@@ -1,16 +1,17 @@
 import { getGenreNames } from "@/components/content/genre-helpers";
 import { mapMediaListToCanonicalCardsValue } from "@/lib/cards/mappers";
 import {
-  isPremieredTvByDate,
-  isReleasedMovieByDate,
-} from "@/lib/released-media";
-import {
   Movie,
   TmdbResponse,
   TmdbResponseSchema,
   TvShow,
 } from "@/lib/domain/typings";
 import { catalogCacheHeaders } from "@/lib/http-cache";
+import {
+  isPremieredTvByDate,
+  isReleasedMovieByDate,
+} from "@/lib/released-media";
+import { buildSearchSuggestions } from "@/lib/search/suggestions";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   }
 
   if (!query || query.trim().length < 2) {
-    return NextResponse.json({ results: [] });
+    return NextResponse.json({ results: [], suggestions: [] });
   }
 
   try {
@@ -51,9 +52,12 @@ export async function GET(request: Request) {
     const data: TmdbResponse<Movie | TvShow> = result.success
       ? result.data
       : rawData;
+    const rawResults = data.results ?? [];
+    const suggestions = buildSearchSuggestions(rawResults);
+
     const filteredResults =
-      data.results
-        ?.filter((item: Movie | TvShow) => {
+      rawResults
+        .filter((item: Movie | TvShow) => {
           if (!item.poster_path) return false;
           if (item.media_type === "movie")
             return isReleasedMovieByDate(item.release_date);
@@ -76,7 +80,10 @@ export async function GET(request: Request) {
         })) || [];
 
     return NextResponse.json(
-      { results: mapMediaListToCanonicalCardsValue(filteredResults) },
+      {
+        results: mapMediaListToCanonicalCardsValue(filteredResults),
+        suggestions,
+      },
       { headers: catalogCacheHeaders() },
     );
   } catch (error) {
