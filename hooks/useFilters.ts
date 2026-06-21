@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import { parseMovieView, parseTvView } from "@/lib/catalog-query";
 import {
   countCatalogFilterBadge,

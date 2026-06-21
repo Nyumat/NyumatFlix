@@ -1,4 +1,4 @@
-import { PersonList } from "@/components/person";
+import { PersonList } from "@/components/person/person-server";
 import { pages } from "@/config/pages";
 import {
   isPeopleDepartmentValue,
@@ -7,6 +7,7 @@ import {
   type PeopleGenderFilter,
 } from "@/lib/person-popular";
 import { normalizeRouteSearchParams } from "@/lib/utils";
+import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 
 const resolvePopularPeopleMeta = (params: {
@@ -71,16 +72,13 @@ export async function generateMetadata({
     genderFilter,
   });
 
-  return {
-    title: `${title} | NyumatFlix`,
-    description: description ?? undefined,
-    openGraph: {
-      title: `${title} | NyumatFlix`,
-      description: description ?? undefined,
-      type: "website",
-      siteName: "NyumatFlix",
-    },
-  };
+  return buildCatalogMetadata({
+    title,
+    description:
+      description ??
+      "Browse popular actors, directors, and creators on NyumatFlix.",
+    path: pages.people.popular.link,
+  });
 }
 
 export default async function PopularPeople({

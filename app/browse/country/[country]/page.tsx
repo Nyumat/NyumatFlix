@@ -1,6 +1,7 @@
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
+import { getAppOrigin } from "@/lib/server/app-url";
 import { getFriendlyCountryName } from "@/utils/country-helpers";
 import { countries } from "country-data-list";
 import BrowseCountryClient from "./browse-client";
@@ -23,8 +24,9 @@ export default async function BrowseCountryPage(props: PageProps) {
   const countryName = getFriendlyCountryName(countryCode, countryData?.name);
   const countryEmoji = countryData?.emoji || "🌎";
 
+  const appOrigin = await getAppOrigin();
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/country/${countryCode}?type=${mediaType}&page=1&sortBy=vote_average.desc`,
+    `${appOrigin}/api/country/${countryCode}?type=${mediaType}&page=1&sortBy=vote_average.desc`,
   );
 
   if (!response.ok) {

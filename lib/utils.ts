@@ -1,4 +1,4 @@
-import { availableParams } from "@/config/site";
+import { availableParams } from "@/config/catalog";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { LOGGER_TITLE, requiredEnvVars } from "./constants";

@@ -9,13 +9,28 @@ const IDB_KEY = "nyumatflix-query-cache";
 export function createIDBPersister(): Persister {
   return {
     persistClient: async (client: PersistedClient) => {
-      await set(IDB_KEY, client);
+      try {
+        await set(IDB_KEY, client);
+      } catch (error) {
+        console.warn("Unable to persist query cache:", error);
+        throw error;
+      }
     },
     restoreClient: async () => {
-      return await get<PersistedClient>(IDB_KEY);
+      try {
+        return await get<PersistedClient>(IDB_KEY);
+      } catch (error) {
+        console.warn("Unable to restore query cache:", error);
+        throw error;
+      }
     },
     removeClient: async () => {
-      await del(IDB_KEY);
+      try {
+        await del(IDB_KEY);
+      } catch (error) {
+        console.warn("Unable to remove query cache:", error);
+        throw error;
+      }
     },
   };
 }

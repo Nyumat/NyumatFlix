@@ -2,13 +2,15 @@ import {
   buildItemsWithCategories,
   fetchAndEnrichMediaItems,
   fetchTMDBData,
-} from "@/app/actions";
+} from "@/lib/server/actions";
+import { mapMediaListToCanonicalCardsValue } from "@/lib/cards/mappers";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
-import { MediaItem } from "@/utils/typings";
+import { catalogCacheHeaders } from "@/lib/http-cache";
+import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -37,7 +39,6 @@ export async function GET(
       language: "en-US",
       include_adult: "false",
       sort_by: sortBy,
-      page: page.toString(),
     };
 
     const today = getTodayIsoDateUtc();
@@ -58,7 +59,7 @@ export async function GET(
 
     // Add quality filters
     queryParams["vote_count.gte"] = "10"; // Minimum vote count
-    if (sortBy.includes("rating")) {
+    if (sortBy.startsWith("vote_average.")) {
       queryParams["vote_average.gte"] = "6.0"; // Minimum rating for rating sorts
     }
 
@@ -90,15 +91,18 @@ export async function GET(
         ? filterReleasedMovies(enrichedResults)
         : filterReleasedTvShows(enrichedResults);
 
-    return NextResponse.json({
-      page: data.page,
-      total_pages: data.total_pages,
-      total_results: data.total_results,
-      results: releasedOnly,
-      type: mediaType,
-      countryCode,
-      sortBy,
-    });
+    return NextResponse.json(
+      {
+        page: data.page,
+        total_pages: data.total_pages,
+        total_results: data.total_results,
+        results: mapMediaListToCanonicalCardsValue(releasedOnly, mediaType),
+        type: mediaType,
+        countryCode,
+        sortBy,
+      },
+      { headers: catalogCacheHeaders() },
+    );
   } catch (error) {
     console.error("[api/country] Error fetching country content", error);
     return NextResponse.json(

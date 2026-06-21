@@ -1,4 +1,3 @@
-import { getGenreName } from "@/components/content/genre-helpers";
 import { pages } from "@/config/pages";
 import {
   getMovieCatalogListCopy,
@@ -14,10 +13,6 @@ import {
   getEffectiveDiscoverSort,
   hasActiveDiscoverFilters,
 } from "@/lib/discover-query-state";
-import {
-  getDiscoverSortTitle,
-  withDiscoverMediaSuffix,
-} from "@/lib/discover-sort-labels";
 import { parseMovieView, parseTvView } from "@/lib/catalog-query";
 
 const resolveCatalogFromCopy = (
@@ -34,21 +29,6 @@ const resolveCatalogFromCopy = (
   const v = parseTvView(raw);
   if (v === "discover") return null;
   return getTvCatalogListCopy(v);
-};
-
-const titleFromWithGenres = (
-  raw: string,
-  mediaType: "movie" | "tv",
-): string | null => {
-  const ids = raw
-    .split(",")
-    .map((part) => Number.parseInt(part.trim(), 10))
-    .filter((n) => !Number.isNaN(n));
-  const names = ids
-    .map((id) => getGenreName(id, mediaType))
-    .filter((n) => n !== "Unknown" && n !== "N/A");
-  if (names.length === 0) return null;
-  return names.join(" · ");
 };
 
 export const getDiscoverCatalogCopy = (
@@ -68,11 +48,6 @@ export const getDiscoverCatalogCopy = (
 
   const rootTitle =
     mediaType === "movie" ? pages.movie.root.title : pages.tv.root.title;
-  const discoverResultsTitle =
-    mediaType === "movie"
-      ? pages.movie.discoverResults.title
-      : pages.tv.discoverResults.title;
-
   if (typeParam) {
     const t = getDiscoverSlugTitle(typeParam);
     if (t) return { title: t };
@@ -124,28 +99,21 @@ export const getDiscoverCatalogCopy = (
 
   const withGenresRaw = sp.with_genres?.trim();
   if (withGenresRaw) {
-    const genreTitle = titleFromWithGenres(withGenresRaw, mediaType);
-    if (genreTitle) {
-      const fromCopy = resolveCatalogFromCopy(sp, mediaType);
-      if (fromCopy) return fromCopy;
-      return { title: genreTitle };
-    }
+    const fromCopy = resolveCatalogFromCopy(sp, mediaType);
+    if (fromCopy) return fromCopy;
+    return { title: rootTitle };
   }
 
   if (!layoutState.isHubLayout) {
     const fromCopy = resolveCatalogFromCopy(sp, mediaType);
     if (fromCopy) return fromCopy;
     if (getEffectiveDiscoverSort(sp.sort_by) !== DEFAULT_DISCOVER_SORT) {
-      return { title: getDiscoverSortTitle(sp.sort_by, mediaType) };
+      return { title: rootTitle };
     }
     if (hasActiveDiscoverFilters(sp)) {
-      return {
-        title: withDiscoverMediaSuffix("Filtered results", mediaType),
-      };
+      return { title: rootTitle };
     }
-    return {
-      title: withDiscoverMediaSuffix(discoverResultsTitle, mediaType),
-    };
+    return { title: rootTitle };
   }
 
   return null;

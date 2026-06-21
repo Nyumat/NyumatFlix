@@ -1,12 +1,13 @@
-import { fetchAllSeasonDetails } from "@/components/tvshow/tvshow-api";
+import { DetailPageLoading } from "@/components/layout/page-loading/detail-page-loading";
 import { TvShowDetailShell } from "@/components/tvshow/tvshow-detail-shell";
 import { hydrateTvShowDetailQueries } from "@/lib/prefetch-media-detail-queries";
-import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
+import { getCachedTvAboveFoldDetail } from "@/lib/media-above-fold-server";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import type { TvShowDetails } from "@/lib/domain/typings";
 
 export const revalidate = 3600;
 
@@ -15,12 +16,12 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export default async function TVShowDetailLayout({ children, params }: Props) {
+async function TvShowDetailLayoutContent({ children, params }: Props) {
   const { id } = await params;
 
   let details;
   try {
-    details = await getCachedTvShowDetail(id);
+    details = await getCachedTvAboveFoldDetail(id);
   } catch {
     notFound();
   }
@@ -29,26 +30,27 @@ export default async function TVShowDetailLayout({ children, params }: Props) {
     notFound();
   }
 
-  const [anilistId, allSeasonDetails] = await Promise.all([
-    getAnilistIdForMedia(details),
-    fetchAllSeasonDetails(id, details.seasons),
-  ]);
+  const detailMedia = details as TvShowDetails;
+  const anilistId = await getAnilistIdForMedia(detailMedia);
 
   const queryClient = new QueryClient();
-  await hydrateTvShowDetailQueries(queryClient, id, details, allSeasonDetails);
+  await hydrateTvShowDetailQueries(queryClient, id, details);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <Suspense fallback={null}>
-        <TvShowDetailShell
-          details={details}
-          tvId={id}
-          anilistId={anilistId}
-          allSeasonDetails={allSeasonDetails}
-        >
-          {children}
-        </TvShowDetailShell>
-      </Suspense>
+      <TvShowDetailShell details={detailMedia} tvId={id} anilistId={anilistId}>
+        {children}
+      </TvShowDetailShell>
     </HydrationBoundary>
+  );
+}
+
+export default function TVShowDetailLayout({ children, params }: Props) {
+  return (
+    <Suspense fallback={<DetailPageLoading />}>
+      <TvShowDetailLayoutContent params={params}>
+        {children}
+      </TvShowDetailLayoutContent>
+    </Suspense>
   );
 }

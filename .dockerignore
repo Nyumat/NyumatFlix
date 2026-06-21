@@ -1,0 +1,16 @@
+.git
+.github
+.husky
+.next
+.vercel
+.vscode
+coverage
+node_modules
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+.DS_Store
+.env
+.env.*
+certificates

@@ -1,12 +1,16 @@
 import { buildCatalogCtaUrl } from "@/lib/catalog-query";
 import { pages } from "@/config/pages";
+import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: `${pages.trending.tv.title} | NyumatFlix`,
-  };
+  return buildCatalogMetadata({
+    title: pages.trending.tv.title,
+    description:
+      "See what TV shows are trending today and this week on NyumatFlix.",
+    path: pages.trending.tv.link,
+  });
 }
 
 export default async function TrendingTv({

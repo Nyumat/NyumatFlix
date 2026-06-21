@@ -36,11 +36,10 @@ export const MediaVideosCard: React.FC<MediaVideosCardProps> = ({
       className="object-cover"
       src={yt.thumbnail(ytKey)}
       alt={name}
-      unoptimized
       fill
       sizes="(max-width: 768px) 100vw, 33vw"
     />
-    <div className="pointer-events-none absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/90 via-black/25 to-black/40 p-4 md:p-6">
+    <div className="pointer-events-none absolute inset-0 flex flex-col justify-between bg-linear-to-t from-black/90 via-black/25 to-black/40 p-4 md:p-6">
       <div className="flex flex-1 items-center justify-center">
         <Play
           className="size-10 text-white drop-shadow-md md:size-12"
@@ -69,7 +68,7 @@ export const MediaVideos: React.FC<MediaVideosProps> = ({ videos }) => {
             <MediaVideosCard name={name} ytKey={key} />
           </DialogTrigger>
 
-          <DialogContent className="max-w-screen-lg">
+          <DialogContent className="max-w-(--breakpoint-lg)">
             <DialogHeader>
               <DialogTitle>{name}</DialogTitle>
             </DialogHeader>

@@ -1,18 +1,21 @@
-import type { Genre, MediaItem } from "@/utils/typings";
+import type {
+  CanonicalMediaCard,
+  CanonicalPersonCard,
+  Genre,
+} from "@/lib/domain/typings";
 
-export interface SearchPreviewResult {
-  id: number;
-  title?: string;
-  name?: string;
-  poster_path: string | null;
-  media_type: string;
-  release_date?: string;
-  first_air_date?: string;
-  genre_names?: string[];
-}
+export type SearchPreviewResult = CanonicalMediaCard;
 
 export interface SearchPreviewResponse {
   results: SearchPreviewResult[];
+}
+
+async function readJsonOrNull<T>(response: Response): Promise<T | null> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchSearchPreview(
@@ -32,18 +35,13 @@ export async function fetchSearchPreview(
     throw new Error("Search preview failed");
   }
 
-  const data: SearchPreviewResponse = await response.json();
-  return data.results || [];
+  const data = await readJsonOrNull<SearchPreviewResponse>(response);
+  return data?.results || [];
 }
 
 export interface SearchResult {
-  media: MediaItem[];
-  people: Array<{
-    id: number;
-    name: string;
-    profile_path?: string | null;
-    popularity?: number;
-  }>;
+  media: CanonicalMediaCard[];
+  people: CanonicalPersonCard[];
   page: number;
   totalPages: number;
   totalResults: number;
@@ -70,14 +68,23 @@ export async function fetchSearchResults(
   const response = await fetch(url.toString());
 
   if (!response.ok) {
-    const errorData = (await response.json()) as { error?: string };
+    const errorData = await readJsonOrNull<{ error?: string }>(response);
     throw new Error(
-      errorData.error ||
+      errorData?.error ||
         `Failed to fetch search results: ${response.statusText}`,
     );
   }
 
-  return response.json();
+  const data = await readJsonOrNull<SearchResult>(response);
+  return (
+    data ?? {
+      media: [],
+      people: [],
+      page,
+      totalPages: 1,
+      totalResults: 0,
+    }
+  );
 }
 
 export async function fetchMovieGenres(): Promise<Genre[]> {
@@ -87,8 +94,8 @@ export async function fetchMovieGenres(): Promise<Genre[]> {
     throw new Error("Failed to fetch movie genres");
   }
 
-  const data = (await response.json()) as { genres?: Genre[] };
-  return data.genres || [];
+  const data = await readJsonOrNull<{ genres?: Genre[] }>(response);
+  return data?.genres || [];
 }
 
 export async function fetchTvGenres(): Promise<Genre[]> {
@@ -98,8 +105,8 @@ export async function fetchTvGenres(): Promise<Genre[]> {
     throw new Error("Failed to fetch TV genres");
   }
 
-  const data = (await response.json()) as { genres?: Genre[] };
-  return data.genres || [];
+  const data = await readJsonOrNull<{ genres?: Genre[] }>(response);
+  return data?.genres || [];
 }
 
 export async function fetchCombinedGenres(): Promise<Record<number, string>> {
@@ -148,5 +155,10 @@ export async function fetchTvSeason(
     throw new Error(`Failed to fetch season ${seasonNumber}`);
   }
 
-  return response.json();
+  const data = await readJsonOrNull<SeasonData>(response);
+  if (!data) {
+    throw new Error(`Invalid season ${seasonNumber} response`);
+  }
+
+  return data;
 }

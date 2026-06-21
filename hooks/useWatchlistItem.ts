@@ -1,4 +1,4 @@
-import { WatchlistItem } from "@/app/watchlist/actions";
+import { WatchlistItem } from "@/lib/domain/watchlist";
 import { useEffect, useState } from "react";
 
 type UseWatchlistItemResult = {

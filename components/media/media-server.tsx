@@ -1,17 +1,19 @@
-import { WatchlistItem } from "@/app/watchlist/actions";
-import { MediaDetailHero } from "@/components/hero/index";
+import { WatchlistItem } from "@/lib/domain/watchlist";
+import { MediaDetailHero } from "@/components/hero/media-detail-hero";
 import type { TvHeroEpisodeData } from "@/components/hero/types";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
+import { MediaDetailScrollReset } from "@/components/media/media-detail-scroll-reset";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { selectPrimaryTrailerVideo } from "@/lib/select-primary-trailer-video";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/tmdb/models";
 import { yt } from "@/tmdb/utils";
-import { Episode, MediaItem } from "@/utils/typings";
+import { Episode, MediaItem } from "@/lib/domain/typings";
 import { Play } from "lucide-react";
 import Link from "next/link";
 import React, { type ComponentProps } from "react";
@@ -47,7 +49,7 @@ const DetailHero: React.FC<ComponentProps<"div">> = ({
       className={cn("container md:mt-8 md:px-16 xl:mt-12 xl:px-32", className)}
       {...props}
     >
-      <div className="grid gap-4 md:grid-cols-[auto,1fr] md:gap-10 xl:gap-16">
+      <div className="grid gap-4 md:grid-cols-[auto_1fr] md:gap-10 xl:gap-16">
         {children}
       </div>
     </div>
@@ -170,7 +172,7 @@ interface MediaTrailerDialogProps {
 export const MediaTrailerDialog: React.FC<MediaTrailerDialogProps> = ({
   videos,
 }) => {
-  const trailer = videos?.find((video) => video.type === "Trailer");
+  const trailer = selectPrimaryTrailerVideo(videos ?? []);
 
   return (
     <Dialog modal>
@@ -179,7 +181,7 @@ export const MediaTrailerDialog: React.FC<MediaTrailerDialogProps> = ({
       </DialogTrigger>
 
       {trailer && (
-        <DialogContent className="max-w-screen-lg">
+        <DialogContent className="max-w-(--breakpoint-lg)">
           <iframe
             className="aspect-square size-full rounded-md sm:aspect-video"
             src={yt.video(trailer.key, true)}
@@ -279,8 +281,15 @@ export function MediaDetailLayout({
   initialSeasonNumber,
   tvHeroEpisodeData,
 }: MediaDetailLayoutProps) {
+  const primary = media[0];
+  const scrollKey =
+    primary && "id" in primary
+      ? `${mediaType}-${String(primary.id)}`
+      : mediaType;
+
   return (
     <PageContainer className="pb-16">
+      <MediaDetailScrollReset restoreKey={scrollKey} />
       <MediaDetailHero
         media={media}
         noSlide
@@ -300,7 +309,7 @@ export function MediaDetailLayout({
           <ContentContainer
             className={
               contentContainerClassName ||
-              "container mx-auto px-3 sm:px-4 lg:px-4 !pt-2 sm:!pt-4 lg:!pt-6 !mt-0"
+              "container mx-auto px-3 sm:px-4 lg:px-4 pt-10! sm:pt-12! lg:pt-16! mt-0!"
             }
           >
             {sectionNav}

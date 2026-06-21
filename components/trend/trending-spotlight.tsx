@@ -3,8 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { MediaPoster } from "@/components/media";
-import { MediaRating } from "@/components/media/media-shared";
+import { MediaPoster } from "@/components/media/media-display";
+import { mediaMetaBadgeClass } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { pages } from "@/config/pages";
@@ -35,9 +35,8 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
   return (
     <div
       className={cn(
-        "group relative isolate overflow-hidden rounded-2xl border border-white/10",
+        "group relative isolate overflow-hidden rounded-2xl",
         "bg-card/40 backdrop-blur-xl shadow-2xl transition-all duration-500",
-        "hover:border-primary/50",
       )}
     >
       {backdropUrl ? (
@@ -48,28 +47,28 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
             fill
             priority={priority}
             sizes="(max-width: 768px) 100vw, min(1400px, 100vw)"
-            className="scale-110 object-cover blur-sm"
+            className="scale-110 object-cover blur-xs"
             aria-hidden
           />
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/95 via-background/55 to-background/25" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-background/30" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-background/95 via-background/55 to-background/25" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/80 via-transparent to-background/30" />
 
-      <div className="relative flex h-full min-h-[min(22rem,70vw)] flex-col gap-8 p-4 sm:p-6 md:min-h-[20rem] md:flex-row md:items-stretch md:gap-8 md:p-8 lg:gap-12 lg:p-10">
+      <div className="relative flex h-full min-h-[min(22rem,70vw)] flex-col gap-8 p-4 sm:p-6 md:min-h-80 md:flex-row md:items-stretch md:gap-8 md:p-8 lg:gap-12 lg:p-10">
         <Link
           href={`${pages.movie.root.link}/${item.id}`}
           className="mx-auto shrink-0 md:mx-0"
           aria-describedby="trending-spotlight-copy"
         >
-          <div className="relative w-[min(72vw,14rem)] overflow-hidden rounded-xl bg-muted shadow-2xl ring-1 ring-white/10 transition-all duration-500 group-hover:ring-primary/30 sm:w-56 md:w-64 lg:w-72">
+          <div className="relative w-[min(72vw,14rem)] overflow-hidden rounded-xl bg-muted shadow-2xl transition-all duration-500 sm:w-56 md:w-64 lg:w-72">
             <MediaPoster
               image={item.poster_path}
               alt={item.title}
               priority={priority}
               size="w780"
-              className="!aspect-poster w-full"
+              className="aspect-poster! w-full"
             />
           </div>
         </Link>
@@ -87,11 +86,10 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
               <h2 className="sr-only">{item.title}</h2>
               <Image
                 src={tmdbImage.logo(logo.file_path, "w500")}
-                className="mx-auto h-auto max-h-24 w-full max-w-md object-contain md:mx-0 md:max-h-28"
+                className="mx-auto my-2 h-auto max-h-24 w-full max-w-md object-contain md:mx-0 md:max-h-28"
                 alt=""
                 height={logo.height}
                 width={logo.width}
-                unoptimized
                 priority={priority}
                 aria-hidden
               />
@@ -103,20 +101,22 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-            <MediaRating average={item.vote_average} count={item.vote_count} />
             {item.genres.slice(0, 4).map((genre) => (
               <Link
                 href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                 key={genre.id}
               >
-                <Badge variant="secondary" className="select-none">
+                <Badge
+                  variant="secondary"
+                  className={cn(mediaMetaBadgeClass, "select-none font-medium")}
+                >
                   {genre.name}
                 </Badge>
               </Link>
             ))}
           </div>
 
-          <p className="line-clamp-4 text-pretty text-sm text-muted-foreground sm:text-base">
+          <p className="line-clamp-4 text-pretty text-sm text-muted-foreground sm:text-base max-w-xl">
             {item.overview}
           </p>
 

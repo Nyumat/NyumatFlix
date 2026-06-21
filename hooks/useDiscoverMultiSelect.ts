@@ -26,10 +26,10 @@ export const useDiscoverMultiSelect = ({
   const selection = useMemo(() => {
     if (!effectiveValue) return [];
     return effectiveValue
-      .split(separator)
+      .split(/[|,]/)
       .map((part) => Number.parseInt(part, 10))
       .filter((n) => !Number.isNaN(n));
-  }, [separator, effectiveValue]);
+  }, [effectiveValue]);
 
   const toggleSelection = useCallback(
     (id: number) => {

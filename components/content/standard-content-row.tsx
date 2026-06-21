@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/carousel";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import useMedia from "@/hooks/useMedia";
-import { isMovie, isTVShow, MediaItem } from "@/utils/typings";
+import { getHref } from "@/lib/cards/selectors";
+import { MediaItem } from "@/lib/domain/typings";
 import { useEffect, useRef, useState } from "react";
 import { hasPosterPath } from "@/lib/media-poster-path";
 import { ContentCard } from "./content-card";
@@ -107,15 +108,6 @@ export function StandardContentRow({
     </div>
   );
 
-  const getItemLink = (item: MediaItem): string => {
-    if (isMovie(item)) {
-      return `/movies/${(item as MediaItem).id}`;
-    } else if (isTVShow(item)) {
-      return `/tvshows/${(item as MediaItem).id}`;
-    }
-    return `/movies/${(item as MediaItem).id}`;
-  };
-
   return (
     <div className="mx-4 md:mx-8 mb-8">
       <ContentRowHeader title={title} href={href} />
@@ -141,7 +133,7 @@ export function StandardContentRow({
                   item={item}
                   isMobile={!!isMobile}
                   rating={getContentRating(item)}
-                  href={getItemLink(item)}
+                  href={getHref(item)}
                 />
               </CarouselItem>
             ))}
@@ -153,8 +145,8 @@ export function StandardContentRow({
             )}
           </CarouselContent>
 
-          <CarouselPrevious className="hidden md:inline-flex absolute md:left-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
-          <CarouselNext className="hidden md:inline-flex absolute md:right-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 ring-1 ring-white/10 hover:ring-primary/40 shadow-lg shadow-black/20 transition-all duration-200" />
+          <CarouselPrevious className="hidden md:inline-flex absolute md:left-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 shadow-lg shadow-black/20 transition-all duration-200" />
+          <CarouselNext className="hidden md:inline-flex absolute md:right-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 shadow-lg shadow-black/20 transition-all duration-200" />
         </Carousel>
       </div>
     </div>

@@ -16,7 +16,7 @@ const GridSkeleton = ({ count = 8 }: { count?: number }) => (
         className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]"
       >
         <div className="bg-card/40 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-xl animate-pulse">
-          <Skeleton className="aspect-[2/3] w-full rounded-none" />
+          <Skeleton className="aspect-2/3 w-full rounded-none" />
           <div className="p-4 space-y-3">
             <Skeleton className="h-4 w-3/4 mx-auto bg-muted/20" />
             <div className="flex justify-center gap-2">
@@ -37,7 +37,7 @@ const ListSkeleton = ({ count = 8 }: { count?: number }) => (
         key={i}
         className="flex gap-6 p-6 bg-card/40 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl animate-pulse"
       >
-        <Skeleton className="w-24 sm:w-28 md:w-32 lg:w-36 aspect-[2/3] rounded-xl flex-shrink-0 bg-muted/20" />
+        <Skeleton className="w-24 sm:w-28 md:w-32 lg:w-36 aspect-2/3 rounded-xl shrink-0 bg-muted/20" />
         <div className="flex-1 space-y-4 py-2">
           <div className="space-y-2">
             <Skeleton className="h-8 w-1/2 bg-muted/20" />
@@ -62,9 +62,21 @@ export interface ContentItem {
   [key: string]: unknown;
 }
 
+function getContentItemKey(item: ContentItem, index: number) {
+  const mediaType =
+    typeof item.media_type === "string"
+      ? item.media_type
+      : typeof item.title === "string"
+        ? "movie"
+        : typeof item.name === "string"
+          ? "tv"
+          : "content";
+  return `${mediaType}-${String(item.id)}-${index}`;
+}
+
 export type ViewMode = "grid" | "list";
 
-export interface ContentGridProps {
+export interface BaseContentGridProps {
   items: ContentItem[];
   renderCard: (item: ContentItem, viewMode: ViewMode) => React.ReactNode;
   defaultViewMode?: ViewMode;
@@ -76,9 +88,10 @@ export interface ContentGridProps {
   showDock?: boolean;
   dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   itemsPerRow?: number;
+  gridMinItemWidth?: string;
 }
 
-export function ContentGrid({
+export function BaseContentGrid({
   items,
   renderCard,
   defaultViewMode = "grid",
@@ -89,7 +102,8 @@ export function ContentGrid({
   showViewModeControls = true,
   showDock = false,
   itemsPerRow = 4,
-}: ContentGridProps) {
+  gridMinItemWidth,
+}: BaseContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
   const [isLoading, setIsLoading] = useState(true);
   const isFirstMount = useRef(true);
@@ -137,6 +151,10 @@ export function ContentGrid({
   const getGridClasses = () => {
     if (viewMode !== "grid") return "";
 
+    if (gridMinItemWidth) {
+      return "grid gap-4 transition-all duration-200 [grid-template-columns:repeat(auto-fill,minmax(var(--grid-min-item-width),1fr))]";
+    }
+
     const baseClasses = "flex flex-wrap gap-4 transition-all duration-200";
 
     if (gridColumns === "auto") {
@@ -148,6 +166,10 @@ export function ContentGrid({
 
   const getItemClasses = () => {
     if (viewMode !== "grid") return "";
+
+    if (gridMinItemWidth) {
+      return "min-w-0";
+    }
 
     if (gridColumns === "auto") {
       return "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]";
@@ -228,15 +250,25 @@ export function ContentGrid({
       )}
 
       <div
+        style={
+          gridMinItemWidth
+            ? ({
+                "--grid-min-item-width": gridMinItemWidth,
+              } as React.CSSProperties)
+            : undefined
+        }
         className={cn(
           viewMode === "grid" ? getGridClasses() : getListClasses(),
         )}
       >
-        {itemsToDisplay.map((item) => {
+        {itemsToDisplay.map((item, index) => {
           const card = renderCard(item, viewMode);
           if (viewMode === "grid") {
             return (
-              <div key={item.id} className={getItemClasses()}>
+              <div
+                key={getContentItemKey(item, index)}
+                className={getItemClasses()}
+              >
                 {card}
               </div>
             );

@@ -1,8 +1,8 @@
 "use client";
 
-import { ContentGrid } from "@/components/content/media-content-grid";
+import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { InfiniteScroll } from "@/components/ui/infinite-scroll";
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import { getFilmographyListNodes } from "./actions";
 
 interface PersonFilmographyProps {
@@ -17,18 +17,23 @@ export function PersonFilmography({
   const initialOffset = 2;
 
   const initialSeenIds = initialFilmography
-    .map((item) => item.id)
-    .filter((id): id is number => typeof id === "number");
+    .filter((item) => typeof item.id === "number")
+    .map((item) => {
+      const mediaType =
+        item.media_type ??
+        ("title" in item ? "movie" : "name" in item ? "tv" : "content");
+      return `${mediaType}-${String(item.id)}`;
+    });
 
   return (
     <InfiniteScroll
-      getListNodes={async (offset: number, seenIds?: number[]) => {
+      getListNodes={async (offset: number, seenIds?: string[]) => {
         const result = await getFilmographyListNodes(personId, offset, seenIds);
         if (!result) return null;
 
         const { items, nextOffset } = result;
         return [
-          <ContentGrid
+          <MediaContentGrid
             items={items}
             key={offset}
             type="multi"

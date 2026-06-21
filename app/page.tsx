@@ -1,52 +1,109 @@
-import { FAQSectionClient } from "@/components/layout/sections/faq-client";
-import { HeroSection } from "@/components/layout/sections/hero";
+import { StaticHero } from "@/components/hero/hero-static";
+import {
+  CatalogCollectionsFallback,
+  CatalogHeroPairFallback,
+  CatalogRowFallback,
+  CatalogSpotlightFallback,
+} from "@/components/catalog/catalog-suspense-fallbacks";
+import {
+  HomeCollectionsSection,
+  HomeFeaturedMovie,
+  HomePopularMovieHeroes,
+  HomePopularMoviesCarousel,
+  HomePopularTvCarousel,
+  HomePopularTvHeroes,
+  HomeTrendingMovieHeroes,
+  HomeTrendingMoviesCarousel,
+  HomeTrendingTvCarousel,
+  HomeTrendingTvHeroes,
+} from "@/components/home/home-sections";
+import { ContentContainer } from "@/components/layout/content-container";
+import { PageContainer } from "@/components/layout/page-container";
+import { siteConfig } from "@/config/site";
 import type { Metadata } from "next";
+import { Suspense } from "react";
+
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "NyumatFlix | Watch Movies and TV Shows",
-  description:
-    "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
-  robots: {
-    index: true,
-    follow: true,
-    nocache: false,
-    googleBot: {
-      index: true,
-      follow: true,
-      noimageindex: false,
-      "max-video-preview": 0,
-      "max-image-preview": "large",
-      "max-snippet": 150,
-    },
-  },
+  title: "Home | NyumatFlix",
+  description: siteConfig.description,
   openGraph: {
     type: "website",
-    url: "/",
-    title: "NyumatFlix | Watch Movies and TV Shows",
-    description:
-      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
+    url: "https://nyumatflix.com/",
+    title: "Home | NyumatFlix",
+    description: siteConfig.description,
     images: [
       {
         url: "https://nyumatflix.com/og.webp",
-        alt: "NyumatFlix | Watch Movies and TV Shows",
+        width: 1200,
+        height: 630,
+        type: "image/webp",
+        alt: "NyumatFlix",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "/",
-    title: "NyumatFlix | Watch Movies and TV Shows",
-    description:
-      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
+    site: "https://nyumatflix.com",
+    title: "Home | NyumatFlix",
+    description: siteConfig.description,
     images: ["https://nyumatflix.com/og.webp"],
   },
 };
 
 export default function Home() {
   return (
-    <>
-      <HeroSection />
-      <FAQSectionClient />
-    </>
+    <PageContainer>
+      <div className="flex w-full flex-col">
+        <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
+
+        <ContentContainer className="relative z-10 flex w-full flex-col items-center">
+          <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
+            <div className="container space-y-10">
+              <Suspense fallback={<CatalogSpotlightFallback />}>
+                <HomeFeaturedMovie />
+              </Suspense>
+
+              <Suspense fallback={<CatalogRowFallback />}>
+                <HomeTrendingMoviesCarousel />
+              </Suspense>
+
+              <Suspense fallback={<CatalogHeroPairFallback />}>
+                <HomeTrendingMovieHeroes />
+              </Suspense>
+
+              <Suspense fallback={<CatalogCollectionsFallback />}>
+                <HomeCollectionsSection />
+              </Suspense>
+
+              <Suspense fallback={<CatalogRowFallback />}>
+                <HomePopularMoviesCarousel />
+              </Suspense>
+
+              <Suspense fallback={<CatalogHeroPairFallback />}>
+                <HomeTrendingTvHeroes />
+              </Suspense>
+
+              <Suspense fallback={<CatalogRowFallback />}>
+                <HomeTrendingTvCarousel />
+              </Suspense>
+
+              <Suspense fallback={<CatalogHeroPairFallback />}>
+                <HomePopularMovieHeroes />
+              </Suspense>
+
+              <Suspense fallback={<CatalogRowFallback />}>
+                <HomePopularTvCarousel />
+              </Suspense>
+
+              <Suspense fallback={<CatalogHeroPairFallback />}>
+                <HomePopularTvHeroes />
+              </Suspense>
+            </div>
+          </section>
+        </ContentContainer>
+      </div>
+    </PageContainer>
   );
 }

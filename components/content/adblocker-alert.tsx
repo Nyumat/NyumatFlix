@@ -33,7 +33,7 @@ export const AdblockerAlert = ({
     if (onProceed) {
       onProceed();
     } else {
-      router.push("/home");
+      router.push("/");
     }
   };
 

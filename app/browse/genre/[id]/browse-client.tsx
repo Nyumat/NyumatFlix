@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ContentGrid } from "@/components/content/media-content-grid";
+import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 
 interface BrowseClientProps {
   genreId: string;
@@ -72,7 +72,7 @@ export default function BrowseGenreClient({
 
   return (
     <div>
-      <ContentGrid items={items} type={mediaType} />
+      <MediaContentGrid items={items} type={mediaType} />
       {currentPage < totalPages && (
         <div ref={sentinelRef} className="h-1 w-full" />
       )}

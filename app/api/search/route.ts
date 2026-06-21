@@ -2,7 +2,18 @@ import {
   filterReleasedMovies,
   filterReleasedTvShows,
 } from "@/lib/released-media";
-import { Movie, TmdbResponse, TvShow } from "@/utils/typings";
+import {
+  mapMediaListToCanonicalCardsValue,
+  mapPersonToCanonicalCardValue,
+} from "@/lib/cards/mappers";
+import {
+  CanonicalMediaCard,
+  CanonicalPersonCard,
+  Movie,
+  TmdbResponse,
+  TvShow,
+} from "@/lib/domain/typings";
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextResponse } from "next/server";
 
 interface Person {
@@ -14,8 +25,8 @@ interface Person {
 }
 
 interface SearchResult {
-  media: Array<Movie | TvShow>;
-  people: Person[];
+  media: CanonicalMediaCard[];
+  people: CanonicalPersonCard[];
   page: number;
   totalPages: number;
   totalResults: number;
@@ -156,14 +167,16 @@ export async function GET(request: Request) {
 
     // return structured response
     const result: SearchResult = {
-      media: allMedia,
-      people: people.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)),
+      media: mapMediaListToCanonicalCardsValue(allMedia),
+      people: people
+        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+        .map((person) => mapPersonToCanonicalCardValue(person as never)),
       page: parseInt(page),
       totalPages,
       totalResults,
     };
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers: catalogCacheHeaders() });
   } catch (error) {
     console.error("Error in main search API route:", error);
     return NextResponse.json(

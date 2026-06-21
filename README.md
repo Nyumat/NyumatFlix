@@ -1,8 +1,14 @@
 ![NyumatFlix](/public/preview.webp)
 
-# [NyumatFlix](https://nyumatflix.com)
+<div align="center">
+  <h3 style="font-size: 3rem; font-weight: 600;"><a href="https://nyumatflix.com">NyumatFlix</a></h3>
+  <p><em>Yet another Anilist and TMDB metadata aggregator.</em></p>
+</div>
 
-NyumatFlix is a platform for streaming movies and TV shows. It is a open-source, no-cost, and ad-free movie and tv show stream aggregator. Streams are curated from some of the most popular API providers.
+
+
+
+<!-- NyumatFlix is a platform for streaming movies and TV shows. It is a open-source, no-cost, and ad-free movie and tv show stream aggregator. Streams are curated from some of the most popular API providers.
 
 ## ⚡️ Tech Stack
 
@@ -17,7 +23,7 @@ NyumatFlix is a platform for streaming movies and TV shows. It is a open-source,
 - [Jest](https://jestjs.io/)
 - [NextAuth.js](https://next-auth.js.org/)
 - [TMDb API](https://www.themoviedb.org/documentation/api)
-- [Biome](https://biomejs.dev/)
+- [Biome](https://biomejs.dev/) -->
 
 ## 🏃🏾‍♂️ Run NyumatFlix Locally
 
@@ -25,11 +31,9 @@ NyumatFlix is a platform for streaming movies and TV shows. It is a open-source,
 > Prerequisites:
 >
 > - [Bun](https://bun.sh/) installed on your machine.
-> - [Biome](https://biomejs.dev/) binary installed on your machine.
 > - A [PostgreSQL](https://www.postgresql.org/) database.
 > - A [TMDb](https://www.themoviedb.org/) API key.
 > - A [Resend](https://resend.com/) API key.
-> - A [GitHub OAuth App](https://docs.github.com/en/developers/apps/building-oauth-apps/creating-an-oauth-app) created.
 
 To run the project on your machine, follow the steps below:
 
@@ -44,22 +48,26 @@ cd NyumatFlix
 
 ```bash
 TMDB_API_KEY=
+ID_MOE_API_KEY=
 AUTH_SECRET=
 AUTH_RESEND_KEY=
+APP_URL=
 AUTH_URL=
-PROD_DATABASE_URL=
+NEXTAUTH_URL=
+RESEND_FROM_EMAIL=
 DATABASE_URL=
 ```
 
 You can get your own instance of the API keys by creating an account on [TMDb](https://www.themoviedb.org/) and [Resend](https://resend.com/).
 
-For the database, you can use any PostgreSQL database you want. I recommend using [Neon](https://neon.tech/) for production and [Local Postgres](https://www.postgresql.org/) for development.
+> [!TIP]
+> For the database, you can use any PostgreSQL database you want. I recommend using [Neon](https://neon.tech/) for production and [Local Postgres](https://www.postgresql.org/) for development.
 
-For the GitHub OAuth app, you can create one by following the instructions [here](https://docs.github.com/en/developers/apps/building-oauth-apps/creating-an-oauth-app)!
+For local development, set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to `http://localhost:3000`.
 
 3. Install dependencies
 
-NyumatFlix is primarily built using Bun, so you'll need to install it first. You can do so by following the instructions [here](https://bun.sh/docs/installation).
+Bun is the package manager of choice here, so you'll need to install it first. You can do so by following the instructions [here](https://bun.sh/docs/installation).
 
 ```bash
 bun install
@@ -69,17 +77,18 @@ bun install
 
 There's a few places in the codebase where I'm hardcoding some strings that you might want to change. You can find some of them in `lib/constants.ts`. Additionally, you might want to modify the email templates in `emails/` and `metadata` objects in `app/` and `layout/`.
 
-If you end up not changing the magic strings, that's fine too, but I'd appreciate credit if you re-deploy NyumatFlix without modifications!
+> [!NOTE]
+> If you end up not changing the magic strings, that's fine too, but I'd appreciate credit if you re-deploy the project without modifications!
 
 5. Set up the database
 
 ```bash
 bun run db:generate
 bun run db:push
-bun run db:studio # optional
+bun run db:studio # tbh this is optional
 ```
 
-These will generate the necessary migration files and push the schema to your PostgreSQL database. You can optionally use `bun run db:studio` to open Drizzle's database studio to visualize the DB internals.
+These will generate the necessary migration files and push the schema to your local (or remote) PostgreSQL database instance.
 
 6. Run the development server
 
@@ -87,17 +96,50 @@ These will generate the necessary migration files and push the schema to your Po
 bun run dev
 ```
 
-7. Finally, open [http://localhost:3000](http://localhost:3000) in your browser to see NyumatFlix in action!
+7. Finally, open [http://localhost:3000](http://localhost:3000) in your browser to see the project in action!
+
+<!-- 
+## 🐳 Run with Docker
+
+Docker uses the same image shape for local and production. Build-time secrets are not used. Copy the example env file and fill in the values:
+
+```bash
+cp .env.example .env
+```
+
+For local Docker, use `APP_URL=http://localhost:8080`, then run:
+
+```bash
+docker compose --env-file .env up --build
+```
+
+The app will be available at [http://localhost:8080](http://localhost:8080). To use a different port:
+
+```bash
+APP_PORT=3001 docker compose --env-file .env up --build
+```
+
+For production, build and publish the image without secrets:
+
+```bash
+docker build -t registry.example.com/nyumatflix:latest .
+```
+
+Then inject runtime variables through your host or platform. For plain Docker Compose on a VPS, keep the real env file outside git and pass it explicitly:
+
+```bash
+docker compose \
+  --env-file /etc/nyumatflix/env \
+  up -d
+```
+
+Set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to your public origin in production. `AUTH_URL` and `NEXTAUTH_URL` default to `APP_URL` in Docker Compose, so most deployments can set all three to the same value. Server-only values such as `DATABASE_URL`, `AUTH_SECRET`, `TMDB_API_KEY`, and `AUTH_RESEND_KEY` are runtime secrets and should never be copied into the Docker image. -->
 
 ## FAQ
 
-### What is the best way to watch movies and TV shows?
-
-NyumatFlix, duh! (But let's be real, there's 1000s of us aggregators - which makes this site's personal touch all the more special!)
-
 ### How do I add a new stream provider?
 
-Stream providers (also called video servers) are the services that actually serve the video content. To add a new stream provider, you need to add it to the `videoServers` array in `lib/stores/server-store.ts`.
+Stream providers (the HTTP APIs) are the services that actually serve the video content. To add a new stream provider, you need to add it to the `videoServers` array in `lib/stores/server-store.ts`.
 
 Each stream provider must implement the `VideoServer` interface, which includes:
 
@@ -152,10 +194,10 @@ When running the application in development mode (`NODE_ENV=development`), authe
    ============================================================
    ```
 
-5. **Automatic redirect** - In development mode, you'll be automatically redirected to the callback URL and signed in. The link is also logged to the terminal in case you need to manually access it or if the redirect doesn't work
+5. **Automatic redirect** - In development mode, there's a btn that will redirect you to the callback URL and sign you in. The link is also logged to the terminal in case you need to manually access it or if the redirect doesn't work.
 
 > [!NOTE]
-> In production, magic links are sent via email using Resend. The development mode bypasses email sending for convenience during local development.
+> In production, magic links are still sent via email using Resend. The development mode bypasses email sending for convenience during local development.
 
 ## 📝 Scripts
 
@@ -164,13 +206,14 @@ When running the application in development mode (`NODE_ENV=development`), authe
 | `dev`          | Run Next.js development server.                                      |
 | `build`        | Build the Next.js application.                                       |
 | `start`        | Start the Next.js production server.                                 |
-| `preview`      | Start the Next.js server on port 3001 for previewing.                |
-| `format`       | Format code using Prettier for specified file patterns.              |
-| `check-format` | Check if code is formatted correctly using Prettier.                 |
+| `format`       | Format code using Biome.                                             |
+| `check-format` | Check formatting using Biome.                                        |
 | `type-check`   | Run TypeScript type-checking using the `tsc` compiler.               |
-| `lint`         | Lint code using ESLint for TypeScript and TypeScript React files.    |
-| `lint:fix`     | Fix linting issues using ESLint for TypeScript and TypeScript React. |
-| `test-all`     | Run type-checking, linting, and code formatting checks.              |
+| `lint`         | Run Biome checks.                                                    |
+| `lint:fix`     | Fix Biome issues where possible.                                     |
+| `test-ci`      | Run the Vitest suite once.                                           |
+| `test`         | Run Vitest in watch mode.                                            |
+| `precommit`    | Run formatting, linting, and type-checking.                          |
 | `prepare`      | Install Husky Git hooks.                                             |
 | `db:generate`  | Generate a new migration file based on schema changes.               |
 | `db:push`      | Push the current schema to the database without a migration file.    |
@@ -179,8 +222,8 @@ When running the application in development mode (`NODE_ENV=development`), authe
 
 ## 🤝🏿 Contributing
 
-Contributions, feedback, and suggestions are always welcome. If you have any questions, feel free to open an issue. I can't guarantee I'll be able to address everything as a solo dev (on top of juggling other commitments), but I'll do my best!
+Contributions, feedback, and suggestions are always welcome here. Please, if you have any sort of inquiry, feel free to open an issue!
 
 ## 🙏🏿 Support the project
 
-If you find NyumatFlix useful, consider starring the repo! I appreciate all the support and feedback I've received from the community over the years developing this project.
+If you find the project useful, consider starring the repo! I appreciate all the support and feedback I've received from the community over the years developing this project.

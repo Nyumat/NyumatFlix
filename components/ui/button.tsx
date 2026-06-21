@@ -4,13 +4,13 @@ import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 backdrop-blur-md",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 backdrop-blur-md",
   {
     variants: {
       variant: {
         icon: "size-10 rounded-full shadow-md border border-border/70 bg-muted/50 text-foreground hover:bg-muted/75 hover:shadow-lg dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20",
         stylish:
-          "bg-gradient-to-r from-[#D247BF]/20 to-primary/20 text-foreground border border-primary/25 backdrop-blur-sm hover:from-[#D247BF]/30 hover:to-primary/30 hover:border-primary/40 transition-all duration-300 dark:text-white dark:border-white/20",
+          "bg-linear-to-r from-[#D247BF]/20 to-primary/20 text-foreground border border-primary/25 backdrop-blur-xs hover:from-[#D247BF]/30 hover:to-primary/30 hover:border-primary/40 transition-all duration-300 dark:text-white dark:border-white/20",
         default:
           "font-semibold shadow-lg border border-primary/30 bg-primary/12 text-primary hover:bg-primary/22 hover:border-primary/45 hover:shadow-xl dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:border-white/45",
         destructive:
@@ -20,7 +20,7 @@ const buttonVariants = cva(
         secondary:
           "shadow-md border border-border/60 bg-secondary/35 text-secondary-foreground hover:bg-secondary/55 hover:shadow-lg dark:bg-white/10 dark:border-white/25 dark:text-white dark:hover:bg-white/18",
         ghost:
-          "border border-transparent bg-transparent shadow-none backdrop-blur-sm text-foreground hover:bg-muted/50 hover:border-border/60 hover:shadow-md dark:text-white dark:hover:bg-white/10 dark:hover:border-white/25",
+          "border border-transparent bg-transparent shadow-none backdrop-blur-xs text-foreground hover:bg-muted/50 hover:border-border/60 hover:shadow-md dark:text-white dark:hover:bg-white/10 dark:hover:border-white/25",
         link: "border-transparent bg-transparent shadow-none backdrop-blur-none text-primary underline-offset-4 hover:underline dark:text-primary",
         chrome:
           "font-semibold shadow-lg group/arrow border border-border/80 bg-background/50 text-foreground hover:bg-muted/65 hover:border-border hover:shadow-xl dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:border-white/40",

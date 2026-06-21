@@ -1,7 +1,12 @@
-import { LogIn } from "lucide-react";
+import { LogIn, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Session } from "next-auth";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
+  navbarActionButtonClassName,
+  navbarActionIconClassName,
+} from "./navbar-action-button";
 import { UserAvatar } from "./user-avatar";
 
 interface NavbarAuthProps {
@@ -39,10 +44,16 @@ export const NavbarAuth = ({
       {session ? (
         <UserAvatar session={session} />
       ) : (
-        <Link href="/login">
-          <Button variant="ghost" size="sm" className="hidden md:flex">
-            <LogIn className="mr-2 h-4 w-4" />
-            Sign In
+        <Link href="/login" aria-label="Sign in">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(navbarActionButtonClassName, "hidden md:inline-flex")}
+          >
+            <UserRound
+              className={navbarActionIconClassName}
+              strokeWidth={1.75}
+            />
           </Button>
         </Link>
       )}

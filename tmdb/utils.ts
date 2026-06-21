@@ -49,7 +49,8 @@ const url = (path: string, type: ImageSize = "original") => {
     console.error("Invalid image path provided.");
     return "/placeholder.png";
   }
-  return `https://image.tmdb.org/t/p/${type}/${path}`;
+  if (/^https?:\/\//.test(path)) return path;
+  return `https://image.tmdb.org/t/p/${type}/${path.replace(/^\/+/, "")}`;
 };
 
 const poster = (path: string, size: PosterSize = "original") => {
