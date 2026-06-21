@@ -1,8 +1,6 @@
-export const SITE_URL = "https://nyumatflix.com";
-export const SITE_NAME = "NyumatFlix";
+import { SITE_URL } from "@/lib/constants";
+
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og.webp`;
-export const DEFAULT_DESCRIPTION =
-  "Nyumatflix is an open-source, no-cost, and ad-free movie and TV stream aggregator.";
 
 export const OG_IMAGE_SIZE = {
   width: 1200,

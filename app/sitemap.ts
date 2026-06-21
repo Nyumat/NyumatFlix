@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { pages } from "@/config/pages";
-import { SITE_URL } from "@/lib/seo/constants";
+import { SITE_URL } from "@/lib/constants";
 
 const staticRoutes: MetadataRoute.Sitemap = [
   {

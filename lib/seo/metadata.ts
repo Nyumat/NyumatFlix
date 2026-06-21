@@ -1,10 +1,9 @@
 import { siteConfig } from "@/config/site";
+import { DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/constants";
 import type { Metadata } from "next";
 import {
-  DEFAULT_DESCRIPTION,
   DEFAULT_OG_IMAGE,
   OG_IMAGE_SIZE,
-  SITE_NAME,
   buildCanonicalUrl,
 } from "./constants";
 
