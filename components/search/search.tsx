@@ -1,22 +1,42 @@
 "use client";
 
-import { Poster } from "@/components/media/media-display";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
+  DialogOverlay,
+  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useSearchAutocomplete,
+  shouldKeepSearchFocusWithinContainer,
+} from "@/hooks/use-search-autocomplete";
 import { useSearchPreview } from "@/hooks/use-search-preview";
 import { cn } from "@/lib/utils";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Clock3, Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import {
+  getSearchResultHref,
+  SearchAutocomplete,
+  type SearchAutocompleteFooter,
+  type SearchAutocompleteSelection,
+} from "./search-autocomplete";
 import SearchResults from "./search-results";
 
 interface SearchComponentProps {
@@ -26,6 +46,7 @@ interface SearchComponentProps {
 interface SearchExperienceProps {
   initialQuery?: string;
   onSubmit?: (query: string) => void;
+  onAfterNavigation?: () => void;
   inputClassName?: string;
   formClassName?: string;
   iconClassName?: string;
@@ -38,6 +59,18 @@ interface SearchExperienceProps {
 
 const SEARCH_RECENTS_KEY = "nyumatflix.search.recents";
 const MAX_RECENT_SEARCHES = 3;
+
+const SEARCH_FORM_CLASSNAME =
+  "relative max-w-sm md:max-w-lg mx-auto md:scale-150";
+const SEARCH_INPUT_CLASSNAME =
+  "bg-black/30 backdrop-blur-md border-white/20 focus:border-primary focus:bg-black/40 shadow-xl";
+
+const SEARCH_DIALOG_SPRING = {
+  type: "spring" as const,
+  stiffness: 320,
+  damping: 32,
+  mass: 0.9,
+};
 
 export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   const [query, setQuery] = useState("");
@@ -155,8 +188,8 @@ export function SearchPageClient() {
       onSubmit={(trimmedQuery) => {
         router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
       }}
-      formClassName="relative max-w-sm md:max-w-lg mx-auto md:scale-150"
-      inputClassName="bg-black/30 backdrop-blur-md border-white/20 focus:border-primary focus:bg-black/40 shadow-xl"
+      formClassName={SEARCH_FORM_CLASSNAME}
+      inputClassName={SEARCH_INPUT_CLASSNAME}
     />
   );
 }
@@ -164,6 +197,7 @@ export function SearchPageClient() {
 function SearchExperience({
   initialQuery = "",
   onSubmit,
+  onAfterNavigation,
   inputClassName,
   formClassName,
   iconClassName,
@@ -176,9 +210,22 @@ function SearchExperience({
   const [query, setQuery] = useState(initialQuery);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isClearRecentsDialogOpen, setIsClearRecentsDialogOpen] =
+    useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [_isMouseOverResults, setIsMouseOverResults] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const isDialog = variant === "dialog";
-  const hasSearched = Boolean(searchQuery.trim());
+  const autocompleteFooter: SearchAutocompleteFooter = isDialog
+    ? "view-all"
+    : "none";
+  const showCommittedResults =
+    Boolean(searchQuery.trim()) && query.trim() === searchQuery.trim();
+  const { results, suggestions, isLoading } = useSearchPreview(query);
+  const showAutocomplete =
+    isFocused && query.trim().length >= 2 && !showCommittedResults;
 
   const saveRecentSearch = useCallback((trimmedQuery: string) => {
     setRecentSearches((currentRecentSearches) => {
@@ -212,6 +259,58 @@ function SearchExperience({
     }
   }, [query, isDialog, onSubmit, saveRecentSearch]);
 
+  const handleAutocompleteSelect = useCallback(
+    (selection: SearchAutocompleteSelection) => {
+      if (selection.type === "suggestion") {
+        const trimmedQuery = selection.value.trim();
+        setQuery(trimmedQuery);
+        setSearchQuery(trimmedQuery);
+        if (isDialog) {
+          saveRecentSearch(trimmedQuery);
+        }
+        onSubmit?.(trimmedQuery);
+        return;
+      }
+
+      if (selection.type === "result") {
+        onAfterNavigation?.();
+        router.push(getSearchResultHref(selection.value));
+        return;
+      }
+
+      handleSearch();
+    },
+    [
+      handleSearch,
+      isDialog,
+      onAfterNavigation,
+      onSubmit,
+      router,
+      saveRecentSearch,
+    ],
+  );
+
+  const {
+    selectedIndex,
+    setSelectedIndex,
+    handleKeyDown: handleAutocompleteKeyDown,
+    handleOptionKeyDown,
+    handleInputFocus,
+    listboxId,
+    comboboxInputProps,
+  } = useSearchAutocomplete({
+    query,
+    results,
+    suggestions,
+    isOpen: showAutocomplete,
+    footer: autocompleteFooter,
+    ariaLabel: placeholder,
+    inputRef,
+    onSelect: handleAutocompleteSelect,
+    onClose: () => setIsFocused(false),
+    onBlurInput: () => inputRef.current?.blur(),
+  });
+
   const handleRecentSearch = useCallback(
     (recentSearch: string) => {
       setQuery(recentSearch);
@@ -228,6 +327,20 @@ function SearchExperience({
       window.localStorage.removeItem(SEARCH_RECENTS_KEY);
     }
   }, []);
+
+  useEffect(() => {
+    if (!showAutocomplete) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
+        setIsFocused(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showAutocomplete]);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -277,26 +390,18 @@ function SearchExperience({
     <motion.div
       className={cn(
         "w-full flex flex-col",
-        isDialog ? "min-h-[44vh] gap-5" : "gap-8",
+        isDialog ? "h-full min-h-0 max-h-full overflow-hidden gap-4" : "gap-8",
       )}
-      animate={
-        isDialog
-          ? {
-              justifyContent: hasSearched ? "flex-start" : "center",
-              gap: hasSearched ? 18 : 20,
-            }
-          : undefined
-      }
-      transition={{ type: "spring", stiffness: 300, damping: 32 }}
+      transition={{ type: "spring", stiffness: 260, damping: 30 }}
     >
       {isDialog && (
-        <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-4">
-          {hasSearched ? (
+        <div className="mx-auto flex w-full max-w-xl shrink-0 items-center justify-between gap-4">
+          {showCommittedResults ? (
             <motion.p
               layout
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.16, ease: "easeOut" }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               className="px-1 text-sm text-muted-foreground"
             >
               Results for{" "}
@@ -317,104 +422,211 @@ function SearchExperience({
       )}
 
       <form
+        className={cn(isDialog && "shrink-0")}
         onSubmit={(e) => {
           e.preventDefault();
           handleSearch();
         }}
       >
         <motion.div
-          layout
+          ref={containerRef}
           className={cn(
             isDialog
               ? "relative mx-auto w-full max-w-xl"
               : "relative mx-auto max-w-sm md:max-w-lg",
             formClassName,
           )}
-          transition={{ type: "spring", stiffness: 320, damping: 30 }}
         >
-          <Search
-            className={cn(
-              "absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground",
-              iconClassName,
-            )}
-          />
-          <Input
-            ref={inputRef}
-            type="text"
-            placeholder={placeholder}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleSearch();
-              }
-            }}
-            className={cn(
-              "pl-10 pr-12 md:pr-16 py-3 text-base w-full rounded-xl border transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground",
-              inputClassName,
-            )}
-          />
-          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 md:right-2 md:scale-50">
-            <Button
-              type="submit"
-              variant="ghost"
-              size="icon"
+          <div className="relative">
+            <Search
               className={cn(
-                "size-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 md:size-10",
-                submitButtonClassName,
+                "absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground",
+                iconClassName,
               )}
-              disabled={!query.trim()}
-            >
-              <ArrowRight
-                className={cn("h-4 w-4 md:h-5 md:w-5", submitIconClassName)}
-              />
-            </Button>
+            />
+            <Input
+              ref={inputRef}
+              type="search"
+              placeholder={placeholder}
+              value={query}
+              autoComplete="off"
+              {...comboboxInputProps}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => {
+                setIsFocused(true);
+                handleInputFocus();
+              }}
+              onBlur={(event) => {
+                if (
+                  shouldKeepSearchFocusWithinContainer(
+                    event,
+                    containerRef.current,
+                  )
+                ) {
+                  return;
+                }
+                setIsFocused(false);
+              }}
+              onKeyDown={(e) => {
+                if (handleAutocompleteKeyDown(e)) {
+                  return;
+                }
+
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+              className={cn(
+                "pl-10 pr-12 md:pr-16 py-3 text-base w-full rounded-xl border transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground",
+                inputClassName,
+              )}
+            />
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 md:right-2 md:scale-50">
+              <Button
+                type="submit"
+                variant="ghost"
+                size="icon"
+                aria-label="Search"
+                className={cn(
+                  "size-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 md:size-10",
+                  submitButtonClassName,
+                )}
+                disabled={!query.trim()}
+              >
+                <ArrowRight
+                  className={cn("h-4 w-4 md:h-5 md:w-5", submitIconClassName)}
+                />
+              </Button>
+            </div>
           </div>
+
+          {showAutocomplete && (
+            <AnimatePresence initial={false}>
+              <motion.div
+                key="search-autocomplete-panel"
+                initial={isDialog ? { opacity: 0, y: 8 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                exit={isDialog ? { opacity: 0, y: 6 } : undefined}
+                transition={
+                  isDialog
+                    ? SEARCH_DIALOG_SPRING
+                    : { duration: 0.15, ease: "easeOut" }
+                }
+              >
+                <SearchAutocomplete
+                  query={query}
+                  results={results}
+                  suggestions={suggestions}
+                  isLoading={isLoading}
+                  selectedIndex={selectedIndex}
+                  footer={autocompleteFooter}
+                  listboxId={listboxId}
+                  placement={isDialog ? "panel" : "popover"}
+                  onMouseEnter={() => setIsMouseOverResults(true)}
+                  onMouseLeave={() => setIsMouseOverResults(false)}
+                  onOptionHover={setSelectedIndex}
+                  onOptionKeyDown={handleOptionKeyDown}
+                  onSelectSuggestion={(suggestion) =>
+                    handleAutocompleteSelect({
+                      type: "suggestion",
+                      value: suggestion,
+                    })
+                  }
+                  onSelectResult={(result) =>
+                    handleAutocompleteSelect({ type: "result", value: result })
+                  }
+                  onFooterAction={handleSearch}
+                  onPrefetchResult={(href) => router.prefetch(href)}
+                />
+              </motion.div>
+            </AnimatePresence>
+          )}
         </motion.div>
       </form>
 
-      {isDialog && !hasSearched && recentSearches.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.16, ease: "easeOut" }}
-          className="mx-auto w-full max-w-xl"
-        >
-          <div className="mb-3 flex items-center justify-between px-1.5">
-            <p className="text-sm font-medium text-muted-foreground">Recent</p>
-            <button
-              type="button"
-              onClick={clearRecentSearches}
-              className="text-sm text-muted-foreground transition-colors hover:text-white"
-            >
-              Clear
-            </button>
-          </div>
-          <div className="space-y-1.5">
-            {recentSearches.map((recentSearch) => (
+      {isDialog &&
+        !showCommittedResults &&
+        !showAutocomplete &&
+        query.trim().length === 0 &&
+        recentSearches.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="mx-auto w-full max-w-xl shrink-0"
+          >
+            <div className="mb-3 flex items-center justify-between px-1.5">
+              <p className="text-sm font-medium text-muted-foreground">
+                Recent
+              </p>
               <button
                 type="button"
-                key={recentSearch}
-                onClick={() => handleRecentSearch(recentSearch)}
-                className="flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left text-base text-foreground/90 transition-colors hover:bg-white/10"
+                onClick={() => setIsClearRecentsDialogOpen(true)}
+                className="text-sm text-muted-foreground transition-colors hover:text-white"
               >
-                <Clock3 className="size-4 shrink-0 text-muted-foreground" />
-                <span className="truncate">{recentSearch}</span>
+                Clear
               </button>
-            ))}
-          </div>
-        </motion.div>
+            </div>
+            <div
+              className="space-y-1.5"
+              role="list"
+              aria-label="Recent searches"
+            >
+              {recentSearches.map((recentSearch) => (
+                <button
+                  type="button"
+                  role="listitem"
+                  key={recentSearch}
+                  onClick={() => handleRecentSearch(recentSearch)}
+                  className="flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left text-base text-foreground/90 transition-colors hover:bg-white/10"
+                >
+                  <Clock3 className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{recentSearch}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+      {isDialog && (
+        <AlertDialog
+          open={isClearRecentsDialogOpen}
+          onOpenChange={setIsClearRecentsDialogOpen}
+        >
+          <AlertDialogContent className="z-[60]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clear recent searches?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This removes your recent searches from this device. You
+                can&apos;t undo this action.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  clearRecentSearches();
+                }}
+              >
+                Clear
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       <AnimatePresence mode="wait">
-        {hasSearched && (
+        {showCommittedResults && (
           <motion.div
             key={searchQuery}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className={cn(
+              isDialog && "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+            )}
           >
             <SearchResults
               query={searchQuery}
@@ -437,24 +649,35 @@ export function SearchDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        hideCloseButton
-        className="max-h-[88vh] max-w-5xl overflow-y-auto border-0 bg-transparent p-5 shadow-none duration-100 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[50%] data-[state=closed]:zoom-out-100 sm:p-7"
-      >
-        <DialogDescription className="sr-only">
-          Search movies and TV shows without leaving the current page.
-        </DialogDescription>
-        <SearchExperience
-          autoFocus={open}
-          variant="dialog"
-          formClassName="max-w-xl md:max-w-xl"
-          iconClassName="left-4 size-5 text-muted-foreground"
-          inputClassName="h-14 rounded-2xl border-white/10 bg-black/55 pl-12 pr-16 text-lg shadow-none backdrop-blur-xl placeholder:text-muted-foreground/75 focus-visible:border-white/20 focus-visible:bg-black/65 focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0"
-          placeholder="Type here to search..."
-          submitButtonClassName="right-2 size-8 bg-white/10 text-muted-foreground hover:bg-white/15 hover:text-white md:size-8"
-          submitIconClassName="size-5 md:size-5"
-        />
-      </DialogContent>
+      <DialogPortal>
+        <DialogOverlay className="bg-black/70 backdrop-blur-sm" />
+        <DialogPrimitive.Content
+          className={cn(
+            "fixed left-1/2 top-[15vh] z-50 flex w-[min(100%-2rem,48rem)] max-h-[min(74vh,900px)] -translate-x-1/2 flex-col overflow-hidden border-0 bg-transparent p-5 shadow-none outline-none sm:p-7",
+            "duration-300 ease-out",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out",
+            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
+            "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
+            "data-[state=open]:slide-in-from-bottom-10 data-[state=closed]:slide-out-to-bottom-6",
+            "data-[state=open]:slide-in-from-left-1/2 data-[state=closed]:slide-out-to-left-1/2",
+          )}
+        >
+          <DialogDescription className="sr-only">
+            Search movies and TV shows without leaving the current page.
+          </DialogDescription>
+          <SearchExperience
+            autoFocus={open}
+            variant="dialog"
+            onAfterNavigation={() => onOpenChange(false)}
+            formClassName="max-w-xl md:max-w-xl"
+            iconClassName="left-4 size-5 text-muted-foreground"
+            inputClassName="h-14 rounded-2xl border-white/10 bg-black/55 pl-12 pr-16 text-lg shadow-none backdrop-blur-xl placeholder:text-muted-foreground/75 focus-visible:border-white/20 focus-visible:bg-black/65 focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0"
+            placeholder="Type here to search..."
+            submitButtonClassName="right-2 size-8 bg-white/10 text-muted-foreground hover:bg-white/15 hover:text-white md:size-8"
+            submitIconClassName="size-5 md:size-5"
+          />
+        </DialogPrimitive.Content>
+      </DialogPortal>
     </Dialog>
   );
 }
@@ -469,93 +692,84 @@ export const NavbarSearchClient = forwardRef<
   NavbarSearchClientProps
 >(({ className, onAfterNavigation }, ref) => {
   const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [showPreview, setShowPreview] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [isMouseOverResults, setIsMouseOverResults] = useState(false);
+  const [_isMouseOverResults, setIsMouseOverResults] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const innerRef = useRef<HTMLInputElement>(null);
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const inputRef = (ref as React.RefObject<HTMLInputElement>) || innerRef;
 
-  const { results, isLoading } = useSearchPreview(query);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const { results, suggestions, isLoading } = useSearchPreview(query);
+  const showAutocomplete = isFocused && query.trim().length >= 2;
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
       onAfterNavigation?.();
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-      setShowPreview(false);
     }
   }, [query, router, onAfterNavigation]);
 
+  const handleAutocompleteSelect = useCallback(
+    (selection: SearchAutocompleteSelection) => {
+      if (selection.type === "suggestion") {
+        const trimmedQuery = selection.value.trim();
+        setQuery(trimmedQuery);
+        onAfterNavigation?.();
+        router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+        return;
+      }
+
+      if (selection.type === "result") {
+        onAfterNavigation?.();
+        router.push(getSearchResultHref(selection.value));
+        return;
+      }
+
+      handleSearch();
+    },
+    [handleSearch, onAfterNavigation, router],
+  );
+
+  const {
+    selectedIndex,
+    setSelectedIndex,
+    handleKeyDown: handleAutocompleteKeyDown,
+    handleOptionKeyDown,
+    handleInputFocus,
+    listboxId,
+    comboboxInputProps,
+  } = useSearchAutocomplete({
+    query,
+    results,
+    suggestions,
+    isOpen: showAutocomplete,
+    footer: "go-to-search",
+    ariaLabel: "Search movies and TV shows",
+    inputRef,
+    onSelect: handleAutocompleteSelect,
+    onClose: () => setIsFocused(false),
+    onBlurInput: () => inputRef.current?.blur(),
+  });
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!showPreview || !results.length) return;
+    setIsMounted(true);
+  }, []);
 
-      const totalItems = results.length + 1;
+  useEffect(() => {
+    if (!showAutocomplete) return;
 
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          setSelectedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : prev));
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          setSelectedIndex((prev) => (prev > -1 ? prev - 1 : -1));
-          break;
-        case "Enter":
-          e.preventDefault();
-          if (selectedIndex >= 0 && selectedIndex < results.length) {
-            const selectedResult = results[selectedIndex];
-            if (selectedResult) {
-              const mediaType =
-                selectedResult.media_type === "movie" ? "movies" : "tvshows";
-              onAfterNavigation?.();
-              router.push(`/${mediaType}/${selectedResult.id}`);
-              setShowPreview(false);
-            }
-          } else {
-            handleSearch();
-          }
-          break;
-        case "Escape":
-          e.preventDefault();
-          setShowPreview(false);
-          setSelectedIndex(-1);
-          if (inputRef.current) {
-            inputRef.current.blur();
-          }
-          break;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
+        setIsFocused(false);
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [
-    showPreview,
-    results,
-    selectedIndex,
-    handleSearch,
-    router,
-    inputRef,
-    onAfterNavigation,
-  ]);
-
-  useEffect(() => {
-    setSelectedIndex(-1);
-  }, [results]);
-
-  useEffect(() => {
-    setShowPreview(
-      query.trim().length > 0 && isFocused && (results.length > 0 || isLoading),
-    );
-  }, [query, results, isLoading, isFocused]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showAutocomplete]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -571,58 +785,46 @@ export const NavbarSearchClient = forwardRef<
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
   }, [inputRef]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const searchContainer = (inputRef as React.RefObject<HTMLInputElement>)
-        ?.current?.parentElement?.parentElement;
-
-      if (searchContainer && !searchContainer.contains(target)) {
-        setShowPreview(false);
-      }
-    };
-
-    if (showPreview) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showPreview, inputRef]);
-
   return (
     <div
       className={cn("max-w-xl grow mx-auto md:max-w-2xl", className)}
       suppressHydrationWarning
     >
-      <div className="relative">
+      <div ref={containerRef} className="relative">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
           <Input
             ref={inputRef}
-            type="text"
+            type="search"
             placeholder="Search..."
+            autoComplete="off"
             suppressHydrationWarning
+            {...comboboxInputProps}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => {
               setIsFocused(true);
-              if (query.trim().length > 0) {
-                setShowPreview(true);
-              }
+              handleInputFocus();
             }}
-            onBlur={() => {
+            onBlur={(event) => {
+              if (
+                shouldKeepSearchFocusWithinContainer(
+                  event,
+                  containerRef.current,
+                )
+              ) {
+                return;
+              }
               setIsFocused(false);
-              setTimeout(() => {
-                if (!isMouseOverResults) {
-                  setShowPreview(false);
-                }
-              }, 100);
             }}
             onKeyDown={(e) => {
+              if (handleAutocompleteKeyDown(e)) {
+                return;
+              }
+
               if (e.key === "Enter") {
-                if (!showPreview || selectedIndex === -1) {
-                  handleSearch();
-                }
+                e.preventDefault();
+                handleSearch();
               }
             }}
             className="pl-8 pr-20 py-2 text-sm w-full rounded-full border border-border/30 bg-background/60 shadow-sm backdrop-blur-md transition-all hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:border-border/30 focus-visible:ring-0 focus-visible:ring-offset-0 dark:border-white/15 dark:bg-black/40 dark:hover:bg-white/15 dark:focus-visible:bg-white/15 placeholder:text-muted-foreground/55"
@@ -636,6 +838,7 @@ export const NavbarSearchClient = forwardRef<
             {query && (
               <button
                 type="button"
+                aria-label="Search"
                 onClick={handleSearch}
                 className="p-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 disabled={!query.trim()}
@@ -645,125 +848,31 @@ export const NavbarSearchClient = forwardRef<
             )}
           </div>
         </div>
-        {showPreview && (
-          <div
-            className="absolute top-full left-0 right-0 mt-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-lg shadow-xl z-50 max-h-80 overflow-hidden"
+        {showAutocomplete && (
+          <SearchAutocomplete
+            query={query}
+            results={results}
+            suggestions={suggestions}
+            isLoading={isLoading}
+            selectedIndex={selectedIndex}
+            footer="go-to-search"
+            listboxId={listboxId}
             onMouseEnter={() => setIsMouseOverResults(true)}
             onMouseLeave={() => setIsMouseOverResults(false)}
-          >
-            <div className="max-h-72 overflow-y-auto" ref={resultsRef}>
-              {isLoading ? (
-                <div className="p-3">
-                  <div className="space-y-2">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <Skeleton className="h-12 w-8 rounded" />
-                        <div className="space-y-1 flex-1">
-                          <Skeleton className="h-3 w-32" />
-                          <Skeleton className="h-2 w-24" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : query.trim().length > 0 && results.length > 0 ? (
-                <>
-                  <div className="py-1">
-                    {results.slice(0, 6).map((item, index) => {
-                      const title = item.title || item.name || "Unknown Title";
-                      const mediaType =
-                        item.media_type === "movie" ? "movies" : "tvshows";
-                      const href = `/${mediaType}/${item.id}`;
-
-                      return (
-                        <div
-                          key={`${item.id}-${item.media_type}`}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            onAfterNavigation?.();
-                            router.push(href);
-                            setShowPreview(false);
-                          }}
-                          onMouseEnter={() => {
-                            router.prefetch(href);
-                          }}
-                          className={`flex items-center gap-2 p-2 cursor-pointer transition-all duration-150 hover:bg-accent/50 ${
-                            index === selectedIndex ? "bg-accent/80" : ""
-                          }`}
-                        >
-                          <div className="relative w-8 h-12 shrink-0">
-                            {item.poster_path ? (
-                              <Poster
-                                posterPath={item.poster_path}
-                                title={title}
-                                size="small"
-                                className="rounded"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-muted rounded flex items-center justify-center">
-                                <Search className="w-2 h-2 text-muted-foreground" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate text-xs">
-                              {title}
-                            </p>
-                            <p className="text-xs text-muted-foreground capitalize">
-                              {item.media_type}
-                              {item.genre_names?.[0] &&
-                                ` • ${item.genre_names[0]}`}
-                              {(item.release_date || item.first_air_date) &&
-                                ` • ${(item.release_date || item.first_air_date)?.split("-")[0]}`}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="border-t border-border">
-                    <button
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleSearch();
-                      }}
-                      className={`w-full p-2 text-left transition-colors duration-150 flex items-center justify-between text-xs text-muted-foreground ${
-                        selectedIndex === results.length
-                          ? "bg-accent/80 border border-accent-foreground/20"
-                          : "hover:bg-accent/50"
-                      }`}
-                    >
-                      <span>Go to search page</span>
-                      <ArrowRight className="h-3 w-3" />
-                    </button>
-                  </div>
-                </>
-              ) : query.trim().length > 0 ? (
-                <div className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">
-                    No results found
-                  </p>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleSearch();
-                    }}
-                    className="mt-1 text-xs text-primary hover:underline"
-                  >
-                    Search anyway
-                  </button>
-                </div>
-              ) : (
-                <div className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">
-                    Start typing to search...
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+            onOptionHover={setSelectedIndex}
+            onOptionKeyDown={handleOptionKeyDown}
+            onSelectSuggestion={(suggestion) =>
+              handleAutocompleteSelect({
+                type: "suggestion",
+                value: suggestion,
+              })
+            }
+            onSelectResult={(result) =>
+              handleAutocompleteSelect({ type: "result", value: result })
+            }
+            onFooterAction={handleSearch}
+            onPrefetchResult={(href) => router.prefetch(href)}
+          />
         )}
       </div>
     </div>

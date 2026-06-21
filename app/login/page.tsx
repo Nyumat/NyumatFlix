@@ -111,8 +111,7 @@ export default function LoginPage() {
               Sign in
             </CardTitle>
             <CardDescription className="text-sm leading-6 text-zinc-400">
-              Enter your email and we will send a private magic link. No
-              password needed.
+              Enter your email and we will send a magic link to login.
             </CardDescription>
           </div>
         </CardHeader>

@@ -38,6 +38,7 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual([]);
+    expect(result.current.suggestions).toEqual([]);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -87,7 +88,10 @@ describe("useSearchPreview", () => {
 
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ results: mockResults }),
+      json: async () => ({
+        results: mockResults,
+        suggestions: ["Test Movie", "Test Show"],
+      }),
     } as Response);
 
     const { result } = renderHook(() => useSearchPreview("test"), {
@@ -99,6 +103,7 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual(mockResults);
+    expect(result.current.suggestions).toEqual(["Test Movie", "Test Show"]);
     expect(result.current.error).toBeNull();
   });
 
@@ -117,6 +122,7 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual([]);
+    expect(result.current.suggestions).toEqual([]);
     expect(result.current.error).toBe("Failed to load search suggestions");
   });
 
@@ -134,6 +140,7 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual([]);
+    expect(result.current.suggestions).toEqual([]);
     expect(result.current.error).toBe("Failed to load search suggestions");
   });
 
@@ -152,5 +159,6 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual([]);
+    expect(result.current.suggestions).toEqual([]);
   });
 });
