@@ -8,7 +8,18 @@ export type SearchPreviewResult = CanonicalMediaCard;
 
 export interface SearchPreviewResponse {
   results: SearchPreviewResult[];
+  suggestions: string[];
 }
+
+export interface SearchPreviewData {
+  results: SearchPreviewResult[];
+  suggestions: string[];
+}
+
+const EMPTY_SEARCH_PREVIEW: SearchPreviewData = {
+  results: [],
+  suggestions: [],
+};
 
 async function readJsonOrNull<T>(response: Response): Promise<T | null> {
   try {
@@ -21,9 +32,9 @@ async function readJsonOrNull<T>(response: Response): Promise<T | null> {
 export async function fetchSearchPreview(
   query: string,
   signal?: AbortSignal,
-): Promise<SearchPreviewResult[]> {
+): Promise<SearchPreviewData> {
   if (!query.trim() || query.length < 2) {
-    return [];
+    return EMPTY_SEARCH_PREVIEW;
   }
 
   const response = await fetch(
@@ -36,7 +47,10 @@ export async function fetchSearchPreview(
   }
 
   const data = await readJsonOrNull<SearchPreviewResponse>(response);
-  return data?.results || [];
+  return {
+    results: data?.results ?? [],
+    suggestions: data?.suggestions ?? [],
+  };
 }
 
 export interface SearchResult {
