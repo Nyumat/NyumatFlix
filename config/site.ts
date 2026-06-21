@@ -1,4 +1,5 @@
 import { pages } from "@/config/pages";
+export { availableParams, pageLimit } from "@/config/catalog";
 
 export type SiteConfig = typeof siteConfig;
 
@@ -6,12 +7,7 @@ export const siteConfig = {
   name: "NyumatFlix",
   description:
     "Nyumatflix is an open-source, no-cost, and ad-free movie and TV stream aggregator.",
-  mainNav: [
-    {
-      title: "Home",
-      href: "/",
-    },
-  ],
+  mainNav: [],
   links: {
     github: "https://github.com/Nyumat/NyumatFlix",
     tmdb: "https://www.themoviedb.org",
@@ -27,11 +23,6 @@ export type NavItem = {
   href: string;
   description?: string;
   items?: NavItem[];
-};
-
-const home: NavItem = {
-  title: "Home",
-  href: pages.home.link,
 };
 
 const movies: NavItem = {
@@ -126,24 +117,46 @@ const trending: NavItem = {
   ],
 };
 
-export const navigation = {
-  items: [home, movies, tvShows, people, trending] as NavItem[],
+const anime: NavItem = {
+  title: "Anime",
+  href: pages.anime.root.link,
+  items: [
+    {
+      title: "Hub",
+      href: pages.anime.root.link,
+    },
+    {
+      title: "Trending Anime",
+      href: pages.anime.trendingAnime.link,
+    },
+    {
+      title: "Popular Anime",
+      href: pages.anime.popularAnime.link,
+    },
+    {
+      title: "Top Rated Anime",
+      href: pages.anime.topAnime.link,
+    },
+    {
+      title: "Releasing Anime",
+      href: pages.anime.releasingAnime.link,
+    },
+    {
+      title: "Action Anime",
+      href: pages.anime.actionAnime.link,
+    },
+    {
+      title: "Romance Anime",
+      href: pages.anime.romanceAnime.link,
+    },
+  ],
 };
 
-export const availableParams = [
-  "with_genres",
-  "with_original_language",
-  "with_watch_providers",
-  "with_companies",
-  "with_networks",
-  "primary_release_date.gte",
-  "primary_release_date.lte",
-  "first_air_date.gte",
-  "first_air_date.lte",
-  "vote_average.gte",
-  "vote_average.lte",
-  "vote_count.gte",
-  "vote_count.lte",
-] as const;
+const liveTv: NavItem = {
+  title: "Live TV",
+  href: "/live",
+};
 
-export const pageLimit = 500;
+export const navigation = {
+  items: [movies, tvShows, anime, liveTv, people, trending] as NavItem[],
+};

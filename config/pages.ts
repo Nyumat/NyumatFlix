@@ -1,9 +1,5 @@
 import { buildCatalogCtaUrl } from "@/lib/catalog-query";
-
-const home = {
-  title: "Home",
-  link: "/home",
-};
+import { buildAniListUrl } from "@/lib/anilist";
 
 const movie = {
   root: {
@@ -131,6 +127,49 @@ const trending = {
   },
 };
 
+const anime = {
+  root: {
+    title: "Anime",
+    link: "/anime",
+  },
+  trendingAnime: {
+    title: "Trending Anime",
+    link: buildAniListUrl({}),
+  },
+  popularAnime: {
+    title: "Popular Anime",
+    link: buildAniListUrl({ medium: "ANIME", sort: "POPULARITY_DESC" }),
+  },
+  topAnime: {
+    title: "Top Rated Anime",
+    link: buildAniListUrl({ medium: "ANIME", sort: "SCORE_DESC" }),
+  },
+  releasingAnime: {
+    title: "Releasing Anime",
+    link: buildAniListUrl({
+      medium: "ANIME",
+      sort: "POPULARITY_DESC",
+      status: "RELEASING",
+    }),
+  },
+  actionAnime: {
+    title: "Action Anime",
+    link: buildAniListUrl({
+      medium: "ANIME",
+      sort: "POPULARITY_DESC",
+      genres: ["Action"],
+    }),
+  },
+  romanceAnime: {
+    title: "Romance Anime",
+    link: buildAniListUrl({
+      medium: "ANIME",
+      sort: "POPULARITY_DESC",
+      genres: ["Romance"],
+    }),
+  },
+};
+
 const collection = {
   root: {
     title: "Collections",
@@ -151,11 +190,11 @@ const person = {
 };
 
 export const pages = {
-  home,
   movie,
   tv,
   people,
   trending,
+  anime,
   collection,
   search,
   person,

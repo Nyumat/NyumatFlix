@@ -17,7 +17,7 @@ export const countDiscoverFilterSelections = (
     if (!isMeaningfulDiscoverValue(key, val)) continue;
     if (key === "with_genres") {
       total += val
-        .split(",")
+        .split(/[|,]/)
         .map((s) => s.trim())
         .filter(Boolean).length;
       continue;

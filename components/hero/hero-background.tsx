@@ -1,16 +1,27 @@
 "use client";
 
+import type { VideasyTrailerStreamStatus } from "@/hooks/use-videasy-trailer-stream";
+import {
+  extractVideoRowsFromMediaVideos,
+  selectPrimaryTrailerVideo,
+  type TrailerPickRow,
+} from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useServerStore } from "@/lib/stores/server-store";
 import { logger } from "@/lib/utils";
-import { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import {
   AnimatePresence,
-  LegacyAnimationControls,
+  type LegacyAnimationControls,
   motion,
 } from "framer-motion";
-import { useEffect, useRef } from "react";
-import { YouTubePlayer } from "./youtube-types";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { VideasyStreamVideo } from "./videasy-stream-video";
+import {
+  HERO_YOUTUBE_CHROMELESS_BASE,
+  type YouTubePlayer,
+} from "./youtube-types";
 
 /**
  * Props for the HeroBackground component
@@ -34,6 +45,11 @@ interface HeroBackgroundProps {
   setYoutubePlayer(player: YouTubePlayer): void;
   /** Anilist ID for anime content */
   anilistId?: number | null | undefined;
+  videasyTrailerUrl: string | null;
+  videasyTrailerHlsUrl: string | null;
+  videasyTrailerStatus: VideasyTrailerStreamStatus;
+  isAmbientMuted: boolean;
+  onAmbientAutoplayBlocked(): void;
 }
 
 /**
@@ -52,31 +68,40 @@ export function HeroBackground({
   youtubePlayer,
   setYoutubePlayer,
   anilistId,
+  videasyTrailerUrl,
+  videasyTrailerHlsUrl,
+  videasyTrailerStatus,
+  isAmbientMuted,
+  onAmbientAutoplayBlocked,
 }: HeroBackgroundProps) {
   const { getEmbedUrl } = useEpisodeStore();
   const { selectedServer, vidnestContentType, animePreference } =
     useServerStore();
-  let currentItemVideos: { type: string; key: string }[] = [];
+  const initialTrailerVideos = useMemo(() => {
+    const rows = extractVideoRowsFromMediaVideos(media.videos).filter(
+      (video) =>
+        (!video.site || video.site === "YouTube") && Boolean(video.key),
+    );
+    const primary = selectPrimaryTrailerVideo(rows);
+    if (!primary) return rows;
+    return [
+      primary,
+      ...rows.filter((video) => video.key !== primary.key),
+    ] as TrailerPickRow[];
+  }, [media.videos]);
+  const [trailerVideos, setTrailerVideos] =
+    useState<TrailerPickRow[]>(initialTrailerVideos);
+  const [selectedTrailerIndex, setSelectedTrailerIndex] = useState(0);
+  const hasVideasySource =
+    videasyTrailerStatus === "ready" &&
+    (Boolean(videasyTrailerUrl?.length) ||
+      Boolean(videasyTrailerHlsUrl?.length));
 
-  if (media.videos) {
-    if (Array.isArray(media.videos)) {
-      currentItemVideos = media.videos as { type: string; key: string }[];
-    } else if (typeof media.videos === "object" && media.videos !== null) {
-      const videosObj = media.videos as { results?: unknown };
-      if (videosObj.results && Array.isArray(videosObj.results)) {
-        currentItemVideos = videosObj.results as {
-          type: string;
-          key: string;
-        }[];
-      }
-    }
-  }
-
-  const acceptableVideoTypes = ["Trailer", "Teaser", "Clip", "Featurette"];
-  const trailerVideo = currentItemVideos.find((video: { type: string }) =>
-    acceptableVideoTypes.includes(video.type),
-  );
-  const trailerKey = trailerVideo?.key;
+  const videasyBackdropReady =
+    hasVideasySource && !isPlayingTrailer && !isPlayingVideo;
+  const selectedTrailer =
+    trailerVideos[selectedTrailerIndex] ?? initialTrailerVideos[0];
+  const canSwitchTrailers = trailerVideos.length > 1;
 
   const getMediaType = (): "movie" | "tv" => {
     if (mediaType) {
@@ -200,105 +225,140 @@ export function HeroBackground({
     return selectedServer.getMovieUrl(media.id);
   };
 
-  // I'm using a timeout to detect long pauses (>1s).
-  const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isAmbientVideoReady, setIsAmbientVideoReady] = useState(false);
+  const backdropSrc = `https://image.tmdb.org/t/p/original${
+    media.backdrop_path ?? media.poster_path
+  }`;
+  const ambientVideoKey = hasVideasySource
+    ? `${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`
+    : media.backdrop_path;
+  const shouldShowAmbientVideo = videasyBackdropReady;
 
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (isPlayingTrailer && (e.key === "x" || e.key === "X")) {
-        if (youtubePlayer) {
-          youtubePlayer.destroy();
-          setYoutubePlayer(null);
+    setTrailerVideos(initialTrailerVideos);
+    setSelectedTrailerIndex(0);
+  }, [initialTrailerVideos]);
+
+  useEffect(() => {
+    setIsAmbientVideoReady(false);
+  }, [ambientVideoKey, media.backdrop_path, media.poster_path]);
+
+  useEffect(() => {
+    if (!isPlayingTrailer) return;
+
+    let cancelled = false;
+    const loadVideos = async () => {
+      try {
+        const response = await fetch(
+          `/api/media/${getMediaType()}/${media.id}/videos`,
+        );
+        if (!response.ok) return;
+        const data: unknown = await response.json();
+        if (cancelled) return;
+        const rows = extractVideoRowsFromMediaVideos(data).filter(
+          (video) =>
+            (!video.site || video.site === "YouTube") && Boolean(video.key),
+        );
+        const primary = selectPrimaryTrailerVideo(rows);
+        const sorted = primary
+          ? [primary, ...rows.filter((video) => video.key !== primary.key)]
+          : rows;
+        if (sorted.length > 0) {
+          setTrailerVideos(sorted);
+          setSelectedTrailerIndex(0);
         }
-        onTrailerEnded();
+      } catch {
+        // Keep the videos already embedded in the media payload.
       }
     };
 
-    if (isPlayingTrailer) {
-      window.addEventListener("keydown", handleKeyPress);
-    }
-
+    void loadVideos();
     return () => {
-      window.removeEventListener("keydown", handleKeyPress);
+      cancelled = true;
     };
-  }, [isPlayingTrailer, youtubePlayer, onTrailerEnded, setYoutubePlayer]);
+  }, [isPlayingTrailer, media.id]);
 
   useEffect(() => {
-    if (
-      isPlayingTrailer &&
-      trailerKey &&
-      typeof window !== "undefined" &&
-      window.YT
-    ) {
-      if (!youtubePlayer) {
-        try {
-          const player = new window.YT.Player("trailer-player", {
-            videoId: trailerKey,
-            playerVars: {
-              autoplay: 1,
-              controls: 1,
-              rel: 0,
+    if (!isPlayingTrailer || !selectedTrailer?.key) {
+      if (youtubePlayer?.destroy) {
+        youtubePlayer.destroy();
+        setYoutubePlayer(null);
+      }
+      return;
+    }
+
+    let intervalId: number | null = null;
+    let cancelled = false;
+
+    const initPlayer = () => {
+      if (cancelled || youtubePlayer || !window.YT?.Player) return;
+
+      try {
+        const player = new window.YT.Player("trailer-player", {
+          videoId: selectedTrailer.key,
+          playerVars: {
+            ...HERO_YOUTUBE_CHROMELESS_BASE,
+            autoplay: 1,
+          },
+          events: {
+            onStateChange: (event: { data: number }) => {
+              if (event.data === 0) {
+                onTrailerEnded();
+              }
             },
-            events: {
-              onStateChange: (event: { data: number }) => {
-                if (event.data === 0) {
-                  onTrailerEnded();
-                  return;
-                }
+          },
+        });
+        setYoutubePlayer(player);
+      } catch (error) {
+        logger.error("Error initializing YouTube player", error);
+      }
+    };
 
-                // I'm only treating a pause as the end of the trailer if it's paused for more than a second.
-                if (event.data === 2) {
-                  if (pauseTimeoutRef.current) {
-                    clearTimeout(pauseTimeoutRef.current);
-                  }
-
-                  pauseTimeoutRef.current = setTimeout(() => {
-                    try {
-                      const playerState = (
-                        player as YouTubePlayer
-                      )?.getPlayerState?.();
-                      if (playerState === 2) {
-                        onTrailerEnded();
-                      }
-                    } catch {
-                      // I'm silently handling player state errors here.
-                    }
-                  }, 1000);
-                  return;
-                }
-
-                if (pauseTimeoutRef.current) {
-                  clearTimeout(pauseTimeoutRef.current);
-                  pauseTimeoutRef.current = null;
-                }
-              },
-            },
-          });
-          setYoutubePlayer(player);
-        } catch (error) {
-          logger.error("Error initializing YouTube player", error);
-        }
+    if (typeof window !== "undefined") {
+      if (window.YT?.Player) {
+        initPlayer();
+      } else {
+        intervalId = window.setInterval(() => {
+          if (window.YT?.Player) {
+            if (intervalId) {
+              window.clearInterval(intervalId);
+              intervalId = null;
+            }
+            initPlayer();
+          }
+        }, 200);
       }
     }
 
     return () => {
-      if (pauseTimeoutRef.current) {
-        clearTimeout(pauseTimeoutRef.current);
-        pauseTimeoutRef.current = null;
+      cancelled = true;
+      if (intervalId) {
+        window.clearInterval(intervalId);
       }
-
-      if (youtubePlayer && youtubePlayer.destroy) {
+      if (youtubePlayer?.destroy) {
         youtubePlayer.destroy();
         setYoutubePlayer(null);
       }
     };
   }, [
     isPlayingTrailer,
-    trailerKey,
+    selectedTrailer?.key,
     onTrailerEnded,
     youtubePlayer,
     setYoutubePlayer,
   ]);
+
+  const switchTrailer = (direction: "next" | "previous") => {
+    if (!canSwitchTrailers) return;
+    if (youtubePlayer?.destroy) {
+      youtubePlayer.destroy();
+      setYoutubePlayer(null);
+    }
+    setSelectedTrailerIndex((current) => {
+      const delta = direction === "next" ? 1 : -1;
+      return (current + delta + trailerVideos.length) % trailerVideos.length;
+    });
+  };
 
   return (
     <div className="absolute inset-0 z-0">
@@ -308,19 +368,40 @@ export function HeroBackground({
           className="relative h-full w-full"
           animate={controls}
         >
-          <motion.img
-            src={`https://image.tmdb.org/t/p/original${
-              media.backdrop_path ?? media.poster_path
-            }`}
-            fetchPriority="high"
-            alt={(media.title || media.name) as string}
-            className="w-full h-full object-cover absolute inset-0 z-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0.5 }}
-            transition={{ duration: 1.5, ease: "easeInOut" }}
-          />
-          <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent"></div>
+          {!isPlayingTrailer && !isPlayingVideo && (
+            <motion.img
+              src={backdropSrc}
+              fetchPriority="high"
+              alt={(media.title || media.name) as string}
+              className="w-full h-full object-cover absolute inset-0 z-0"
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: shouldShowAmbientVideo && isAmbientVideoReady ? 0 : 1,
+              }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.4, ease: "easeInOut" }}
+            />
+          )}
+
+          {videasyBackdropReady ? (
+            <motion.div
+              className="absolute inset-0 z-0 overflow-hidden bg-black/20 pointer-events-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isAmbientVideoReady ? 1 : 0 }}
+              transition={{ duration: 1.2, ease: "easeInOut" }}
+            >
+              <VideasyStreamVideo
+                key={`${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`}
+                mp4Url={videasyTrailerUrl}
+                hlsUrl={videasyTrailerHlsUrl}
+                playback="ambient"
+                isMuted={isAmbientMuted}
+                onAutoplayBlocked={onAmbientAutoplayBlocked}
+                onCanPlay={() => setIsAmbientVideoReady(true)}
+                className="absolute top-1/2 left-1/2 aspect-video h-[calc(100%+14rem)] min-w-[calc(100%+14rem)] -translate-x-1/2 -translate-y-[calc(50%+25px)] scale-[1.015] object-cover"
+              />
+            </motion.div>
+          ) : null}
 
           {isPlayingTrailer && (
             <motion.div
@@ -331,10 +412,39 @@ export function HeroBackground({
               style={{ top: "5rem", height: "calc(100% - 11rem)" }}
             >
               <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full">
-                <div
-                  id="trailer-player"
-                  className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20"
-                ></div>
+                {selectedTrailer?.key ? (
+                  <div className="relative h-full w-full rounded-lg border border-border/20 bg-black shadow-2xl">
+                    <div
+                      id="trailer-player"
+                      key={selectedTrailer.key}
+                      className="h-full w-full overflow-hidden rounded-lg"
+                    />
+                    {canSwitchTrailers ? (
+                      <div className="absolute right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
+                        <button
+                          type="button"
+                          aria-label="Previous trailer"
+                          onClick={() => switchTrailer("previous")}
+                          className="flex size-10 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
+                        >
+                          <ChevronUp className="size-5" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Next trailer"
+                          onClick={() => switchTrailer("next")}
+                          className="flex size-10 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white shadow-lg backdrop-blur-md transition hover:bg-black/75"
+                        >
+                          <ChevronDown className="size-5" aria-hidden />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-lg border border-border/20 bg-black text-sm text-muted-foreground shadow-2xl">
+                    Loading trailer...
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

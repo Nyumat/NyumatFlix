@@ -1,0 +1,66 @@
+@import "@vidstack/react/player/styles/base.css";
+@import "@vidstack/react/player/styles/default/theme.css";
+@import "@vidstack/react/player/styles/default/layouts/video.css";
+
+.nyumat-live-player {
+  --video-brand: hsl(var(--primary));
+  --video-focus-ring-color: hsl(var(--primary) / 0.45);
+  --video-bg: #000000;
+  --video-border-radius: 0px;
+  --video-border: 0px solid transparent;
+  --media-font-family:
+    var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --media-live-button-edge-bg: hsl(var(--destructive));
+  --media-slider-track-fill-live-bg: hsl(var(--destructive));
+}
+
+.nyumat-live-player[data-media-player] {
+  width: 100%;
+  height: 100%;
+  display: block;
+  aspect-ratio: unset;
+}
+
+.nyumat-live-player [data-media-provider] video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000000;
+}
+
+.nyumat-live-player .vds-controls > .vds-controls-group:empty {
+  display: none;
+}
+
+.nyumat-live-player .vds-controls > .vds-controls-group {
+  margin-bottom: 0;
+}
+
+.nyumat-live-player
+  .vds-video-layout[data-lg]
+  .vds-controls-group:last-child
+  .vds-controls-spacer {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.nyumat-live-player .vds-video-layout[data-lg] {
+  --video-volume-gap: 12px;
+}
+
+.nyumat-live-player .vds-video-layout[data-lg] .vds-mute-button {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.nyumat-live-player .vds-live-channel-meta {
+  margin-inline-start: 12px;
+}
+
+.nyumat-live-player .vds-live-channel-meta .vds-live-button {
+  margin-left: 0;
+}
+
+.nyumat-live-player .vds-live-channel-meta .vds-chapter-title {
+  margin-left: 0;
+}

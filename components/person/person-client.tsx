@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { pages } from "@/config";
+import { pages } from "@/config/pages";
 import {
   RawCombinedCredit,
   RawMovieCredit,

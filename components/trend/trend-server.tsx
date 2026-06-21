@@ -2,16 +2,17 @@ import {
   filterReleasedMovies,
   filterReleasedTvShows,
 } from "@/lib/released-media";
+import { enrichPeopleWithDeathday } from "@/lib/server/person-enrichment";
 import { notFound } from "next/navigation";
 import { tmdb } from "@/tmdb/api";
 import type { Movie, TvShow } from "@/tmdb/models";
 
-import { StaticHero } from "@/components/hero";
+import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
-import { MovieCard } from "@/components/movie";
-import { PersonCard } from "@/components/person";
+import { MovieCard } from "@/components/movie/movie-card";
+import { PersonCard } from "@/components/person/person-card";
 import { ListPagination } from "@/components/shared/list-pagination";
-import { TvCard } from "@/components/tv";
+import { TvCard } from "@/components/tv/tv-card";
 
 interface TrendListProps {
   type: "movie" | "tv" | "people";
@@ -48,20 +49,19 @@ export const TrendList: React.FC<TrendListProps> = async ({
     return notFound();
   }
 
-  const trendsWithDeathday = await Promise.all(
-    trends.map(async (item) => {
-      if (item.media_type !== "person") return item;
-      const detail = await tmdb.person.detail({ id: item.id });
-      return { ...item, deathday: detail.deathday ?? null };
-    }),
-  );
+  const trendsWithDeathday =
+    type === "people"
+      ? await enrichPeopleWithDeathday(
+          trends as Array<{ id: number; media_type?: string }>,
+        )
+      : trends;
 
   return (
     <div className="flex w-full flex-col">
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
       <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-        <div className="container max-w-7xl space-y-8 px-2 pb-12 sm:px-4">
+        <div className="container max-w-7xl space-y-8 px-2 pb-12 pt-14 sm:px-4 md:pt-16">
           <div className="text-center">
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
               {title}

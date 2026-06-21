@@ -1,21 +1,28 @@
+import { JsonLdScript } from "@/components/seo/json-ld-script";
+import { buildPersonStructuredData } from "@/lib/seo/structured-data";
+import {
+  buildNotFoundMetadata,
+  buildPageMetadata,
+  truncateDescription,
+} from "@/lib/seo/metadata";
 import {
   buildItemsWithCategories,
   fetchPersonFilmography,
   getPersonDetails,
-} from "@/app/actions";
+} from "@/lib/server/actions";
 import { cn, isDeceasedAsOfToday } from "@/lib/utils";
-import { DetailSectionNav } from "@/components/media/detail-section-nav";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
-import { BiographyReadMore } from "@/components/person";
-import type { PersonDetails } from "@/tmdb/models";
-import { MediaItem } from "@/utils/typings";
+import { BiographyReadMore } from "@/components/person/person-client";
+import { MediaItem } from "@/lib/domain/typings";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { PersonFilmography } from "./client-filmography";
+
+export const revalidate = 3600;
 
 interface PersonPageProps {
   params: Promise<{
@@ -27,41 +34,41 @@ export async function generateMetadata(
   props: PersonPageProps,
 ): Promise<Metadata> {
   const params = await props.params;
-  const personId = parseInt(params.id);
+  const personId = Number.parseInt(params.id, 10);
 
-  if (isNaN(personId)) {
-    return {
-      title: "Person Not Found",
-    };
+  if (Number.isNaN(personId)) {
+    return buildNotFoundMetadata("Person Not Found");
   }
 
   try {
     const person = await getPersonDetails(personId);
 
     if (!person) {
-      return {
-        title: "Person Not Found",
-      };
+      return buildNotFoundMetadata("Person Not Found");
     }
 
-    return {
+    const description = person.biography
+      ? truncateDescription(person.biography)
+      : `Explore movies and TV shows featuring ${person.name} on NyumatFlix.`;
+
+    return buildPageMetadata({
       title: `${person.name} - Filmography`,
-      description: person.biography
-        ? person.biography.substring(0, 160)
-        : `View all movies and TV shows featuring ${person.name}`,
-    };
+      description,
+      path: `/person/${personId}`,
+      ogType: "profile",
+      imageAlt: `${person.name} on NyumatFlix`,
+      includeDefaultImage: false,
+    });
   } catch {
-    return {
-      title: "Person Not Found",
-    };
+    return buildNotFoundMetadata("Person Not Found");
   }
 }
 
 export default async function PersonPage(props: PersonPageProps) {
   const params = await props.params;
-  const personId = parseInt(params.id);
+  const personId = Number.parseInt(params.id, 10);
 
-  if (isNaN(personId)) {
+  if (Number.isNaN(personId)) {
     notFound();
   }
 
@@ -71,7 +78,7 @@ export default async function PersonPage(props: PersonPageProps) {
     notFound();
   }
 
-  const { deathday } = person as PersonDetails;
+  const { deathday } = person;
 
   // Fetch initial filmography for the client component
   const initialFilmographyResponse = await fetchPersonFilmography(personId, 1);
@@ -103,6 +110,7 @@ export default async function PersonPage(props: PersonPageProps) {
 
   return (
     <PageContainer className="pb-4 mb-4">
+      <JsonLdScript data={buildPersonStructuredData(person, personId)} />
       <div className="relative min-h-screen">
         <StableBackground />
         <div className="relative z-10">
@@ -110,13 +118,6 @@ export default async function PersonPage(props: PersonPageProps) {
             className="mx-auto px-4 mt-6 relative z-10 max-w-7xl"
             topSpacing={false}
           >
-            <DetailSectionNav
-              sections={[
-                { id: "section-bio", label: "Profile" },
-                { id: "section-filmography", label: "Filmography" },
-              ]}
-            />
-
             <div
               id="section-bio"
               className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8"
@@ -129,13 +130,14 @@ export default async function PersonPage(props: PersonPageProps) {
                       alt={person.name || "Person"}
                       width={500}
                       height={750}
+                      priority
                       className={cn(
                         "h-auto w-full",
                         isDeceasedAsOfToday(deathday) && "grayscale",
                       )}
                     />
                   ) : (
-                    <div className="w-full aspect-[2/3] flex items-center justify-center bg-muted">
+                    <div className="w-full aspect-2/3 flex items-center justify-center bg-muted">
                       <User size={120} className="text-muted-foreground" />
                     </div>
                   )}
@@ -153,7 +155,11 @@ export default async function PersonPage(props: PersonPageProps) {
                       <div className="flex items-center space-x-3">
                         <Calendar size={18} className="text-gray-400" />
                         <span className="text-white">
-                          Born: {new Date(person.birthday).toLocaleDateString()}
+                          Born:{" "}
+                          {new Date(person.birthday).toLocaleDateString(
+                            "en-US",
+                            { timeZone: "UTC" },
+                          )}
                         </span>
                       </div>
                     )}
@@ -163,9 +169,9 @@ export default async function PersonPage(props: PersonPageProps) {
                         <Calendar size={18} className="text-gray-400" />
                         <span className="text-white">
                           Died:{" "}
-                          {new Date(
-                            `${deathday}T12:00:00`,
-                          ).toLocaleDateString()}
+                          {new Date(deathday).toLocaleDateString("en-US", {
+                            timeZone: "UTC",
+                          })}
                         </span>
                       </div>
                     )}

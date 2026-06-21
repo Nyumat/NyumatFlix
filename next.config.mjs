@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   redirects: async () => {
     return [
+      {
+        source: "/home",
+        destination: "/",
+        permanent: true,
+      },
       {
         source: "/movie",
         destination: "/movies",
@@ -27,7 +33,7 @@ const nextConfig = {
   ],
   images: {
     unoptimized: true,
-    // minimumCacheTTL: 2678400,
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
       {
         protocol: "https",
@@ -50,13 +56,21 @@ const nextConfig = {
         hostname: "image.tmdb.org",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "s4.anilist.co",
+        pathname: "/**",
+      },
     ],
   },
   experimental: {
-    scrollRestoration: true,
     taint: true,
-    browserDebugInfoInTerminal: true,
-    clientSegmentCache: true,
+    browserDebugInfoInTerminal: process.env.NODE_ENV !== "production",
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",

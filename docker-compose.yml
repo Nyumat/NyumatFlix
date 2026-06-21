@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nyumatflix:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 8080
+      APP_URL: ${APP_URL:-http://localhost:${APP_PORT:-8080}}
+      AUTH_URL: ${AUTH_URL:-${APP_URL:-http://localhost:${APP_PORT:-8080}}}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-${APP_URL:-http://localhost:${APP_PORT:-8080}}}
+      TMDB_API_KEY: ${TMDB_API_KEY:?Set TMDB_API_KEY in your environment}
+      AUTH_RESEND_KEY: ${AUTH_RESEND_KEY:?Set AUTH_RESEND_KEY in your environment}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in your environment}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in your environment}
+      ID_MOE_API_KEY: ${ID_MOE_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+    ports:
+      - "${APP_PORT:-8080}:8080"

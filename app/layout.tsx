@@ -1,9 +1,11 @@
+import { JsonLdScript } from "@/components/seo/json-ld-script";
+import { buildWebsiteStructuredData } from "@/lib/seo/structured-data";
 import { NavbarServer } from "@/components/layout/nav/navbar-server";
+import { RouteScrollReset } from "@/components/layout/route-scroll-reset";
 import { FooterSection } from "@/components/layout/sections/footer";
-import { ThemeProvider } from "@/components/layout/theme-provider";
 import { OnboardingProvider } from "@/components/providers/onboarding-provider";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
-import { GlobalDockProvider } from "@/components/ui/global-dock";
+import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/lib/query-client";
@@ -12,6 +14,13 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_OG_IMAGE,
+  OG_IMAGE_SIZE,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/seo/constants";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -25,33 +34,49 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nyumatflix.com/"),
-  title: "NyumatFlix | Watch Movies and TV Shows",
+  metadataBase: new URL(`${SITE_URL}/`),
+  title: `${SITE_NAME} | Watch Movies and TV Shows`,
+  description: DEFAULT_DESCRIPTION,
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico?v=2", type: "image/x-icon" },
+      { url: "/icon.png?v=2", sizes: "256x256", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico?v=2",
+    apple: [
+      {
+        url: "/apple-touch-icon.png?v=2",
+        sizes: "180x180",
+        type: "image/png",
+      },
+      {
+        url: "/apple-touch-icon-120x120.png?v=2",
+        sizes: "120x120",
+        type: "image/png",
+      },
+    ],
   },
-  description:
-    "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
   openGraph: {
     type: "website",
-    url: "https://nyumatflix.com",
-    title: "NyumatFlix | Watch Movies and TV Shows",
-    description:
-      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} | Watch Movies and TV Shows`,
+    description: DEFAULT_DESCRIPTION,
     images: [
       {
-        url: "https://nyumatflix.com/og.webp",
-        alt: "NyumatFlix | Watch Movies and TV Shows",
+        url: DEFAULT_OG_IMAGE,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        type: "image/webp",
+        alt: `${SITE_NAME} | Watch Movies and TV Shows`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "https://nyumatflix.com",
-    title: "NyumatFlix | Watch Movies and TV Shows",
-    description:
-      "Nyumatflix is an open-source, no-cost, and ad-free movie and tv show stream aggregator.",
-    images: ["https://nyumatflix.com/og.webp"],
+    title: `${SITE_NAME} | Watch Movies and TV Shows`,
+    description: DEFAULT_DESCRIPTION,
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 
@@ -65,7 +90,6 @@ export default function RootLayout({
       lang="en"
       className={cn(manrope.variable, "dark")}
       suppressHydrationWarning
-      data-scroll-behavior="smooth"
     >
       <head>
         {process.env.NODE_ENV === "production" && (
@@ -77,25 +101,22 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={cn("min-h-screen bg-background font-sans")}>
+      <body className={cn("flex min-h-dvh flex-col bg-background font-sans")}>
+        <JsonLdScript data={buildWebsiteStructuredData()} />
+        <RouteScrollReset />
         <QueryProvider>
           <AuthSessionProvider>
             <OnboardingProvider>
-              <ThemeProvider
-                attribute="class"
-                defaultTheme="dark"
-                forcedTheme="dark"
-                disableTransitionOnChange
-              >
-                <TooltipProvider>
-                  <GlobalDockProvider>
-                    <NavbarServer />
-                    <main className="flex-1">{children}</main>
-                    <FooterSection />
-                    <Toaster richColors closeButton />
-                  </GlobalDockProvider>
-                </TooltipProvider>
-              </ThemeProvider>
+              <TooltipProvider>
+                <GlobalDockProvider>
+                  <NavbarServer />
+                  <main className="flex min-h-0 flex-1 flex-col">
+                    {children}
+                  </main>
+                  <FooterSection />
+                  <Toaster richColors closeButton />
+                </GlobalDockProvider>
+              </TooltipProvider>
             </OnboardingProvider>
           </AuthSessionProvider>
         </QueryProvider>

@@ -3,7 +3,8 @@ import {
   getSearchTitle,
   isAnime,
 } from "@/utils/anilist-helpers";
-import { MediaItem } from "@/utils/typings";
+import { catalogCacheHeaders } from "@/lib/http-cache";
+import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_TMDB_SHOW_IDS = [1429]; // Attack on Titan
@@ -104,6 +105,7 @@ const cache = new Map<
   { data: TmdbShow | TmdbSeason | AnilistMediaExtended[]; timestamp: number }
 >();
 const CACHE_TTL = 60 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 250;
 
 function getCached(key: string) {
   const cached = cache.get(key);
@@ -119,6 +121,54 @@ function setCached(
   data: TmdbShow | TmdbSeason | AnilistMediaExtended[],
 ) {
   cache.set(key, { data, timestamp: Date.now() });
+
+  if (cache.size <= MAX_CACHE_ENTRIES) return;
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey) cache.delete(oldestKey);
+}
+
+function toSlimTmdbSeason(data: unknown): TmdbSeason | null {
+  if (typeof data !== "object" || data === null) {
+    return null;
+  }
+
+  const raw = data as {
+    air_date?: unknown;
+    episode_count?: unknown;
+    episodes?: unknown;
+    season_number?: unknown;
+  };
+  const seasonNumber =
+    typeof raw.season_number === "number" ? raw.season_number : null;
+  if (seasonNumber === null) {
+    return null;
+  }
+
+  const episodes = Array.isArray(raw.episodes)
+    ? raw.episodes
+        .filter((episode): episode is Record<string, unknown> => {
+          return typeof episode === "object" && episode !== null;
+        })
+        .map((episode, index) => ({
+          episode_number:
+            typeof episode.episode_number === "number"
+              ? episode.episode_number
+              : index + 1,
+          air_date:
+            typeof episode.air_date === "string" ? episode.air_date : "",
+          name: typeof episode.name === "string" ? episode.name : "",
+        }))
+    : [];
+
+  return {
+    season_number: seasonNumber,
+    episode_count:
+      typeof raw.episode_count === "number"
+        ? raw.episode_count
+        : episodes.length,
+    episodes,
+    air_date: typeof raw.air_date === "string" ? raw.air_date : "",
+  };
 }
 
 async function fetchTmdbShow(showId: number): Promise<TmdbShow | null> {
@@ -169,13 +219,17 @@ async function fetchTmdbSeason(
   try {
     const response = await fetch(
       `https://api.themoviedb.org/3/tv/${showId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+      { cache: "no-store" },
     );
 
     if (!response.ok) {
       throw new Error(`TMDB API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = toSlimTmdbSeason(await response.json());
+    if (!data) {
+      throw new Error("Invalid TMDB season response");
+    }
     setCached(cacheKey, data);
     return data;
   } catch (error) {
@@ -193,21 +247,12 @@ async function fetchAniListCandidates(
   genreIds?: number[],
   genres?: { id: number }[],
 ): Promise<AnilistMediaExtended[]> {
-  console.log(
-    "fetchAniListCandidates called with title:",
-    title,
-    "genreIds:",
-    genreIds,
-    "genres:",
-    genres,
-  );
   const cacheKey = `anilist_candidates_${title}`;
   const cached = getCached(cacheKey);
   if (cached && Array.isArray(cached)) return cached as AnilistMediaExtended[];
 
   // Only fetch AniList data if the content is anime
   const genreData = genreIds || genres;
-  console.log("Is anime check result:", !genreData || !isAnime(genreData));
   if (!genreData || !isAnime(genreData)) {
     return [];
   }
@@ -531,7 +576,7 @@ export async function GET(request: NextRequest) {
       response.debug = debugInfo;
     }
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers: catalogCacheHeaders() });
   } catch (error) {
     console.error("Error in /api/map:", error);
     return NextResponse.json(

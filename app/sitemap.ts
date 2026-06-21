@@ -1,65 +1,90 @@
 import type { MetadataRoute } from "next";
+import { pages } from "@/config/pages";
+import { SITE_URL } from "@/lib/seo/constants";
+
+const staticRoutes: MetadataRoute.Sitemap = [
+  {
+    url: `${SITE_URL}/`,
+    changeFrequency: "daily",
+    priority: 1,
+  },
+  {
+    url: `${SITE_URL}/movies`,
+    changeFrequency: "daily",
+    priority: 0.9,
+  },
+  {
+    url: `${SITE_URL}/tvshows`,
+    changeFrequency: "daily",
+    priority: 0.9,
+  },
+  {
+    url: `${SITE_URL}${pages.anime.root.link}`,
+    changeFrequency: "daily",
+    priority: 0.85,
+  },
+  {
+    url: `${SITE_URL}${pages.trending.root.link}`,
+    changeFrequency: "hourly",
+    priority: 0.85,
+  },
+  {
+    url: `${SITE_URL}${pages.trending.movie.link}`,
+    changeFrequency: "hourly",
+    priority: 0.8,
+  },
+  {
+    url: `${SITE_URL}${pages.trending.tv.link}`,
+    changeFrequency: "hourly",
+    priority: 0.8,
+  },
+  {
+    url: `${SITE_URL}${pages.trending.people.link}`,
+    changeFrequency: "daily",
+    priority: 0.75,
+  },
+  {
+    url: `${SITE_URL}${pages.people.popular.link}`,
+    changeFrequency: "daily",
+    priority: 0.75,
+  },
+  {
+    url: `${SITE_URL}/live`,
+    changeFrequency: "daily",
+    priority: 0.7,
+  },
+  {
+    url: `${SITE_URL}/search`,
+    changeFrequency: "weekly",
+    priority: 0.8,
+  },
+  {
+    url: `${SITE_URL}/privacy`,
+    changeFrequency: "monthly",
+    priority: 0.3,
+  },
+  {
+    url: `${SITE_URL}/terms`,
+    changeFrequency: "monthly",
+    priority: 0.3,
+  },
+  {
+    url: `${SITE_URL}/dmca`,
+    changeFrequency: "monthly",
+    priority: 0.3,
+  },
+  {
+    url: `${SITE_URL}/cookie-policy`,
+    changeFrequency: "monthly",
+    priority: 0.3,
+  },
+];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModifiedDate = new Date("2025-07-05");
-  return [
-    // Homepage
-    {
-      url: "https://nyumatflix.com/",
-      lastModified: lastModifiedDate,
-      changeFrequency: "daily",
-      priority: 1,
-    },
-    // Home page
-    {
-      url: "https://nyumatflix.com/home",
-      lastModified: lastModifiedDate,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: "https://nyumatflix.com/movies",
-      lastModified: lastModifiedDate,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: "https://nyumatflix.com/tvshows",
-      lastModified: lastModifiedDate,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    // Search page
-    {
-      url: "https://nyumatflix.com/search",
-      lastModified: lastModifiedDate,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    // Legal pages
-    {
-      url: "https://nyumatflix.com/privacy",
-      lastModified: lastModifiedDate,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-    {
-      url: "https://nyumatflix.com/terms",
-      lastModified: lastModifiedDate,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-    {
-      url: "https://nyumatflix.com/dmca",
-      lastModified: lastModifiedDate,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-    {
-      url: "https://nyumatflix.com/cookie-policy",
-      lastModified: lastModifiedDate,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-  ];
+  const lastModified = new Date();
+
+  return staticRoutes.map((entry) => ({
+    ...entry,
+    lastModified,
+  }));
 }

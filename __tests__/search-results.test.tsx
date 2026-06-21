@@ -1,7 +1,7 @@
 import SearchResults from "@/components/search/search-results";
-import { GlobalDockProvider } from "@/components/ui/global-dock";
+import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Movie, TvShow } from "@/utils/typings";
+import { Movie, TvShow } from "@/lib/domain/typings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

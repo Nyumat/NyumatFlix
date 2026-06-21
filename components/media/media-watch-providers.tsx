@@ -1,4 +1,4 @@
-import { ProviderTable } from "@/components/provider";
+import { ProviderTable } from "@/components/provider/provider";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import type { WatchLocale } from "@/tmdb/models";
 import { tmdb } from "@/tmdb/api";

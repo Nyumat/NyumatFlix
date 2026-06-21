@@ -1,11 +1,11 @@
 "use client";
 
-import { MediaItem } from "@/utils/typings";
+import { MediaItem } from "@/lib/domain/typings";
 import NextDynamic from "next/dynamic";
 import { use } from "react";
 
 export const DynamicMediaCarousel = NextDynamic(
-  () => import("@/components/hero/hero-client").then((m) => m.MediaCarousel),
+  () => import("@/components/hero/media-carousel").then((m) => m.MediaCarousel),
   {
     ssr: false,
     loading: () => (

@@ -1,8 +1,9 @@
+import { JsonLdScript } from "@/components/seo/json-ld-script";
 import { TvShowDetailTabPanels } from "@/components/tvshow/tv-show-detail-tab-panels";
 import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
+import { buildTvStructuredData } from "@/lib/seo/structured-data";
 import { generateMediaMetadata } from "@/utils/media-metadata-helpers";
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 export const dynamicParams = true;
 
@@ -12,17 +13,15 @@ type Props = {
 
 export default async function TvShowDetailPage(props: Props) {
   const { id } = await props.params;
-
-  const details = await getCachedTvShowDetail(id).catch(() => null);
-  if (!details) {
-    notFound();
-  }
+  const tvShow = await getCachedTvShowDetail(id).catch(() => null);
 
   return (
-    <TvShowDetailTabPanels
-      tvId={id}
-      numberOfEpisodes={details.number_of_episodes}
-    />
+    <>
+      {tvShow ? (
+        <JsonLdScript data={buildTvStructuredData(tvShow, id)} />
+      ) : null}
+      <TvShowDetailTabPanels tvId={id} />
+    </>
   );
 }
 

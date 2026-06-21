@@ -16,7 +16,7 @@ import useMedia from "@/hooks/useMedia";
 import { cn } from "@/lib/utils";
 import { PersonCard } from "@/components/person/person-card";
 import { TvCard } from "@/components/tv/tv-card";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Carousel,
@@ -43,9 +43,22 @@ interface TrendCarouselProps {
 
 const carouselItemBasis = {
   default: "basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5",
-  compact:
-    "basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-[14.285%]",
+  compact: "basis-[44%] sm:basis-1/4 md:basis-1/5 lg:basis-1/5 xl:basis-1/5",
 } as const;
+
+const getTrendItemKey = (
+  item: MovieWithMediaType | TvShowWithMediaType | PersonWithMediaType,
+  index: number,
+) => {
+  const animeId =
+    "sourceAnilistId" in item && typeof item.sourceAnilistId === "number"
+      ? item.sourceAnilistId
+      : undefined;
+
+  return animeId
+    ? `anilist-${animeId}`
+    : `${item.media_type}-${item.id}-${index}`;
+};
 
 export const TrendCarousel: React.FC<TrendCarouselProps> = ({
   title,
@@ -107,16 +120,18 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
       opts={{
         align: "start",
         slidesToScroll: "auto",
-        dragFree: false,
+        dragFree: true,
       }}
       setApi={setApi}
     >
       {showToolbar ? (
-        <div className="mb-4 flex items-center justify-between gap-4 rounded-md p-2 pr-4 md:justify-start">
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-md p-2 pr-3 md:justify-start md:gap-4 md:pr-4">
           {icon ? <div className="shrink-0">{icon}</div> : null}
 
-          <div className="mr-32 w-full shrink truncate">
-            <h2 className="font-xl">{title}</h2>
+          <div className="min-w-0 flex-1 md:mr-32">
+            <h2 className="truncate text-lg font-medium md:text-base">
+              {title}
+            </h2>
             {description ? (
               <p className="hidden truncate text-sm text-muted-foreground xl:block">
                 {description}
@@ -178,9 +193,9 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
       ) : null}
 
       <CarouselContent>
-        {visibleItems.map((item) => (
+        {visibleItems.map((item, index) => (
           <CarouselItem
-            key={item.id}
+            key={getTrendItemKey(item, index)}
             className={
               compact ? carouselItemBasis.compact : carouselItemBasis.default
             }

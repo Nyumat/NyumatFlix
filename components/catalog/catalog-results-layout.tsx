@@ -1,8 +1,11 @@
 import { CatalogDiscoverToolbarDynamic } from "@/components/catalog/catalog-discover-toolbar-dynamic";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
+import { CatalogGridFallback } from "@/components/catalog/catalog-suspense-fallbacks";
+import { QueryPageHeader } from "@/components/catalog/query-page-header";
 import { filterDiscoverParams } from "@/lib/utils";
 import type { Genre, WatchProvider } from "@/tmdb/models";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
+import { Suspense } from "react";
 
 type CatalogResultsLayoutProps = {
   mediaType: "movie" | "tv";
@@ -14,8 +17,10 @@ type CatalogResultsLayoutProps = {
   currentPage: number;
   totalPages: number;
   queryParams: Record<string, string>;
+  resultCount: number;
   emptyTitle: string;
   emptyDescription?: string;
+  indexHref?: string;
 };
 
 export const CatalogResultsLayout = ({
@@ -28,55 +33,54 @@ export const CatalogResultsLayout = ({
   currentPage,
   totalPages,
   queryParams,
+  resultCount,
   emptyTitle,
   emptyDescription,
+  indexHref,
 }: CatalogResultsLayoutProps) => {
   const serverDiscoverFilters = filterDiscoverParams(queryParams);
 
   return items.length ? (
     <>
-      <header className="space-y-1 text-center md:text-left">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-          {title}
-        </h1>
-        {description ? (
-          <p className="text-muted-foreground">{description}</p>
-        ) : null}
-      </header>
+      <QueryPageHeader
+        title={title}
+        description={description}
+        backHref={indexHref}
+      />
 
       <CatalogDiscoverToolbarDynamic
         mediaType={mediaType}
         genres={genres}
         providers={providers}
         serverDiscoverFilters={serverDiscoverFilters}
+        resultCount={resultCount}
       />
 
-      <CatalogInfiniteGrid
-        mediaType={mediaType}
-        initialItems={items}
-        initialPage={currentPage}
-        totalPages={totalPages}
-        queryParams={queryParams}
-      />
+      <Suspense fallback={<CatalogGridFallback />}>
+        <CatalogInfiniteGrid
+          mediaType={mediaType}
+          initialItems={items}
+          initialPage={currentPage}
+          totalPages={totalPages}
+          queryParams={queryParams}
+        />
+      </Suspense>
     </>
   ) : (
     <>
-      <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-          {title}
-        </h1>
-        {description ? (
-          <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
-      </div>
+      <QueryPageHeader
+        title={title}
+        description={description}
+        backHref={indexHref}
+        className="mx-auto max-w-2xl"
+      />
 
       <CatalogDiscoverToolbarDynamic
         mediaType={mediaType}
         genres={genres}
         providers={providers}
         serverDiscoverFilters={serverDiscoverFilters}
+        resultCount={resultCount}
       />
 
       <div className="rounded-lg border border-dashed p-12 text-center">

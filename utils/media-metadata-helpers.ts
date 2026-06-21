@@ -1,5 +1,7 @@
-import { Metadata } from "next";
-import { MediaItem } from "./typings";
+import type { MediaItem } from "@/lib/domain/typings";
+import { buildMediaDescription } from "@/lib/seo/media-description";
+import { buildNotFoundMetadata, buildPageMetadata } from "@/lib/seo/metadata";
+import type { Metadata } from "next";
 
 type GenerateMediaMetadataOptions = {
   media: MediaItem | null;
@@ -7,6 +9,26 @@ type GenerateMediaMetadataOptions = {
   mediaId: string;
   notFoundTitle?: string;
   notFoundDescription?: string;
+};
+
+const getMediaTitle = (media: MediaItem, mediaType: "movie" | "tv"): string => {
+  if (mediaType === "tv" && "name" in media && typeof media.name === "string") {
+    return media.name;
+  }
+  if ("title" in media && typeof media.title === "string" && media.title) {
+    return media.title;
+  }
+  return mediaType === "movie" ? "Movie" : "TV Show";
+};
+
+const getMediaDate = (media: MediaItem, mediaType: "movie" | "tv") => {
+  if (mediaType === "tv" && "first_air_date" in media) {
+    return media.first_air_date || null;
+  }
+  if ("release_date" in media) {
+    return media.release_date || null;
+  }
+  return null;
 };
 
 export async function generateMediaMetadata({
@@ -17,68 +39,34 @@ export async function generateMediaMetadata({
   notFoundDescription,
 }: GenerateMediaMetadataOptions): Promise<Metadata> {
   if (!media) {
-    return {
-      title:
-        notFoundTitle ||
-        `${mediaType === "movie" ? "Movie" : "TV Show"} Not Found | NyumatFlix`,
-      description:
-        notFoundDescription ||
-        `The requested ${mediaType === "movie" ? "movie" : "TV show"} could not be found.`,
-    };
+    return buildNotFoundMetadata(
+      notFoundTitle ||
+        `${mediaType === "movie" ? "Movie" : "TV Show"} Not Found`,
+    );
   }
 
-  const title =
-    mediaType === "tv" && "name" in media ? media.name : media.title || "";
-  const description = media.overview || `Watch ${title} on NyumatFlix`;
-
-  const dateField =
-    mediaType === "tv" && "first_air_date" in media
-      ? media.first_air_date
-      : "release_date" in media
-        ? media.release_date
-        : null;
-
+  const title = getMediaTitle(media, mediaType);
+  const tagline =
+    "tagline" in media && typeof media.tagline === "string"
+      ? media.tagline
+      : undefined;
+  const description = buildMediaDescription({
+    tagline,
+    overview: media.overview,
+    fallback: `Watch ${title} on NyumatFlix`,
+  });
+  const dateField = getMediaDate(media, mediaType);
   const year = dateField ? new Date(dateField).getFullYear() : "";
+  const titleWithYear = year ? `${title} (${year})` : title;
+  const path =
+    mediaType === "movie" ? `/movies/${mediaId}` : `/tvshows/${mediaId}`;
 
-  const titleWithYear = year
-    ? `${title} (${year}) | NyumatFlix`
-    : `${title} | NyumatFlix`;
-
-  const ogType = mediaType === "movie" ? "video.movie" : "video.tv_show";
-  const backdropPath = media.backdrop_path || "";
-
-  return {
+  return buildPageMetadata({
     title: titleWithYear,
-    ...(mediaType === "movie" && {
-      alternates: {
-        canonical: `https://nyumatflix.com/movies/${mediaId}`,
-        languages: {
-          "en-US": `https://nyumatflix.com/movies/${mediaId}`,
-        },
-      },
-    }),
     description,
-    openGraph: {
-      title: titleWithYear,
-      description,
-      type: ogType,
-      images: backdropPath
-        ? [
-            {
-              url: `https://image.tmdb.org/t/p/w1280${backdropPath}`,
-              width: 1280,
-              height: 720,
-              alt: String(title || "Media Backdrop"),
-            },
-          ]
-        : [],
-    },
-    twitter: {
-      title: titleWithYear,
-      description,
-      images: backdropPath
-        ? [`https://image.tmdb.org/t/p/w1280${backdropPath}`]
-        : [],
-    },
-  };
+    path,
+    ogType: "website",
+    imageAlt: `${titleWithYear} on NyumatFlix`,
+    includeDefaultImage: false,
+  });
 }

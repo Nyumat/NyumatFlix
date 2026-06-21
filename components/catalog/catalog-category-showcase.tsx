@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { fetchCatalogShowcaseRows } from "@/lib/catalog-showcase-fetch";
 import type { MovieWithMediaType, TvShowWithMediaType } from "@/tmdb/models";
-import type { MediaItem } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
 
 const toMovieWithType = (items: MediaItem[]): MovieWithMediaType[] =>
   items.map((item) => ({
@@ -22,12 +23,12 @@ const CatalogCategoryShowcaseSkeleton = () => (
   <div className="space-y-10" aria-hidden>
     {[0, 1, 2].map((key) => (
       <div key={key} className="space-y-4">
-        <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+        <Skeleton className="h-8 w-48 rounded-lg" />
         <div className="flex gap-3 overflow-hidden">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div
+            <Skeleton
               key={i}
-              className="aspect-poster w-28 shrink-0 animate-pulse rounded-lg bg-muted sm:w-32"
+              className="aspect-poster w-28 shrink-0 rounded-lg sm:w-32"
             />
           ))}
         </div>

@@ -11,9 +11,10 @@ import {
   ChevronsUpDown,
   SlidersHorizontal,
 } from "lucide-react";
-import { useFilters, useSort } from "@/hooks";
 import { useDiscoverMultiSelect } from "@/hooks/useDiscoverMultiSelect";
-import { languages } from "@/lib";
+import { useFilters } from "@/hooks/useFilters";
+import { useSort } from "@/hooks/useSort";
+import { languages } from "@/lib/languages";
 import { cn, joiner } from "@/lib/utils";
 import type { Genre } from "@/tmdb/models";
 import { WatchProvider } from "@/tmdb/models";
@@ -36,6 +37,14 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -46,7 +55,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
-import { ProviderLogo } from "@/components/provider";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ProviderLogo } from "@/components/provider/provider";
 import { InfoTooltip } from "@/components/shared/info-tooltip";
 
 // --- discover-filter-date.tsx ---
@@ -60,6 +70,25 @@ interface DiscoverFilterDateProps {
   onChange: (value: string) => void;
 }
 
+const parseIsoLocalDate = (value: string): Date | undefined => {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
+const monthNames = Array.from({ length: 12 }, (_, index) =>
+  format(new Date(2026, index, 1), "MMMM"),
+);
+
+const createMonthDate = (year: number, month: number, currentDate: Date) => {
+  const day = Math.min(
+    currentDate.getDate(),
+    new Date(year, month + 1, 0).getDate(),
+  );
+  return new Date(year, month, day);
+};
+
 export const DiscoverFilterDate: React.FC<DiscoverFilterDateProps> = ({
   value,
   align,
@@ -68,20 +97,61 @@ export const DiscoverFilterDate: React.FC<DiscoverFilterDateProps> = ({
   disableAfter,
   onChange,
 }) => {
-  const selected = value ? new Date(value.replace(/\//g, "-")) : undefined;
-  const from = disableBefore ? new Date(disableBefore) : new Date("01/01/1900");
-  const to = disableAfter ? new Date(disableAfter) : new Date("12/31/2050");
+  const selected = value ? parseIsoLocalDate(value) : undefined;
+  const from = disableBefore ? parseIsoLocalDate(disableBefore) : undefined;
+  const to = disableAfter ? parseIsoLocalDate(disableAfter) : undefined;
+  const fromDate = from ?? new Date(1900, 0, 1);
+  const toDate = to ?? new Date(2050, 11, 31);
+  const [displayMonth, setDisplayMonth] = React.useState<Date>(
+    selected ?? new Date(),
+  );
+
+  React.useEffect(() => {
+    if (selected) {
+      setDisplayMonth(selected);
+    }
+  }, [selected]);
+
+  const years = React.useMemo(
+    () =>
+      Array.from(
+        { length: toDate.getFullYear() - fromDate.getFullYear() + 1 },
+        (_, index) => fromDate.getFullYear() + index,
+      ),
+    [fromDate, toDate],
+  );
+
   const disabled = {
-    after: disableAfter ? new Date(disableAfter) : new Date("12/31/2050"),
-    before: disableBefore ? new Date(disableBefore) : new Date("01/01/1900"),
+    after: toDate,
+    before: fromDate,
   };
 
   const setSelectedDate = (date?: Date) => {
     onChange(date ? format(date, "yyyy-MM-dd") : "");
   };
 
+  const handleMonthChange = (month: string) => {
+    setDisplayMonth(
+      createMonthDate(
+        displayMonth.getFullYear(),
+        Number.parseInt(month, 10),
+        displayMonth,
+      ),
+    );
+  };
+
+  const handleYearChange = (year: string) => {
+    setDisplayMonth(
+      createMonthDate(
+        Number.parseInt(year, 10),
+        displayMonth.getMonth(),
+        displayMonth,
+      ),
+    );
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <Label className="flex text-muted-foreground">{label}</Label>
       <Popover>
         <PopoverTrigger asChild>
@@ -101,15 +171,56 @@ export const DiscoverFilterDate: React.FC<DiscoverFilterDateProps> = ({
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent align={align} className="w-64 p-0 md:w-auto">
+        <PopoverContent align={align} className="w-auto p-3">
+          <div className="mb-3 grid grid-cols-[1fr_5.5rem] gap-2">
+            <Select
+              value={String(displayMonth.getMonth())}
+              onValueChange={handleMonthChange}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue aria-label={monthNames[displayMonth.getMonth()]} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {monthNames.map((month, index) => (
+                    <SelectItem key={month} value={String(index)}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={String(displayMonth.getFullYear())}
+              onValueChange={handleYearChange}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-64">
+                <SelectGroup>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Calendar
             mode="single"
-            captionLayout="dropdown"
             selected={selected}
-            fromDate={from}
-            toDate={to}
+            month={displayMonth}
+            onMonthChange={setDisplayMonth}
+            fromDate={fromDate}
+            toDate={toDate}
             disabled={disabled}
             onSelect={setSelectedDate}
+            className="p-0"
+            classNames={{ caption: "sr-only", nav: "hidden" }}
             initialFocus
           />
         </PopoverContent>
@@ -131,15 +242,59 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
   genres,
   onChange,
 }) => {
+  const [matchMode, setMatchMode] = React.useState<"or" | "and">(() =>
+    value.includes(",") && !value.includes("|") ? "and" : "or",
+  );
+  const selectedIds = React.useMemo(
+    () =>
+      value
+        .split(/[|,]/)
+        .map((part) => Number.parseInt(part.trim(), 10))
+        .filter((n) => !Number.isNaN(n)),
+    [value],
+  );
   const { selection, toggleSelection } = useDiscoverMultiSelect({
     value,
-    logic: "and",
+    logic: matchMode,
     onChange,
   });
 
+  React.useEffect(() => {
+    setMatchMode(value.includes(",") && !value.includes("|") ? "and" : "or");
+  }, [value]);
+
+  const handleMatchModeChange = (nextMode: string) => {
+    if (nextMode !== "or" && nextMode !== "and") return;
+    setMatchMode(nextMode);
+    const separator = nextMode === "and" ? "," : "|";
+    onChange(selectedIds.length ? selectedIds.join(separator) : "");
+  };
+
   return (
     <div className="space-y-2">
-      <Label className="text-muted-foreground">Genres</Label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label className="text-muted-foreground">Genres</Label>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Match</span>
+          <InfoTooltip className="max-w-64">
+            Any includes titles matching at least one selected genre. All only
+            includes titles matching every selected genre.
+          </InfoTooltip>
+          <ToggleGroup
+            type="single"
+            value={matchMode}
+            onValueChange={handleMatchModeChange}
+            className="h-8 rounded-md border border-border/70 bg-background/50 p-0.5"
+          >
+            <ToggleGroupItem value="or" className="h-7 px-2 text-xs">
+              Any
+            </ToggleGroupItem>
+            <ToggleGroupItem value="and" className="h-7 px-2 text-xs">
+              All
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         {genres.map((genre) => {
@@ -644,11 +799,15 @@ interface DiscoverSortProps {
 
 export const DiscoverSort: React.FC<DiscoverSortProps> = ({ type }) => {
   const { options, getSort, setSort } = useSort(type);
+  const activeSort = getSort();
+  const activeOption =
+    options.find((option) => option.value === activeSort) ?? options[0];
 
   return (
     <Popover>
       <PopoverTrigger className={buttonVariants({ variant: "outline" })}>
-        <ArrowDownWideNarrow className="mr-2 size-4" /> Sort by
+        <ArrowDownWideNarrow className="mr-2 size-4" />
+        <span>Sort: {activeOption?.label ?? "Most Popular"}</span>
       </PopoverTrigger>
 
       <PopoverContent align="end" className="flex flex-col gap-1 p-1">

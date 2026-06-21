@@ -1,4 +1,4 @@
-import { MediaItem } from "./typings";
+import { MediaItem } from "@/lib/domain/typings";
 
 export function getSearchTitle(media: MediaItem): string | null {
   if (!media) return null;

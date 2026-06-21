@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./", import.meta.url)),
+      "next/server": "next/server.js",
     },
   },
   plugins: [
@@ -27,7 +28,7 @@ export default defineConfig({
     env: loadEnv("", process.cwd(), ""),
     server: {
       deps: {
-        inline: ["zod"],
+        inline: ["zod", "next-auth"],
       },
     },
   },

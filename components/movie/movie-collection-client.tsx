@@ -3,6 +3,7 @@
 import { fetchCollectionDetails } from "@/app/actions/media-detail-tab-data";
 import { MediaBackdrop } from "@/components/media/media-shared";
 import { Button } from "@/components/ui/button";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { queryKeys } from "@/lib/query-keys";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -14,12 +15,13 @@ type MovieCollectionClientProps = {
 export const MovieCollectionClient = ({
   collectionId,
 }: MovieCollectionClientProps) => {
+  const isHydrated = useIsHydrated();
   const { data: collection } = useQuery({
     queryKey: queryKeys.movieCollection(collectionId),
     queryFn: () => fetchCollectionDetails(collectionId),
   });
 
-  if (!collection) return null;
+  if (!isHydrated || !collection) return null;
 
   return (
     <div className="h-hero relative w-full">

@@ -1,5 +1,3 @@
-"use server";
-
 import { auth } from "@/auth";
 import { NavbarClient } from "./navbar-client";
 

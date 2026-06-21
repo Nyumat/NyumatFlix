@@ -1,4 +1,5 @@
-import { Episode } from "@/utils/typings";
+import { Episode } from "@/lib/domain/typings";
+import { getSession } from "next-auth/react";
 import { create } from "zustand";
 import { useServerStore } from "./server-store";
 
@@ -24,7 +25,7 @@ interface EpisodeState {
   ) => void;
   clearSelectedEpisode: () => void;
   getEmbedUrl: () => string | null;
-  setWatchCallback: (callback: () => void) => void;
+  setWatchCallback: (callback: (() => void) | null) => void;
 }
 
 export const useEpisodeStore = create<EpisodeState>((set, get) => ({
@@ -59,20 +60,28 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
 
     // Track watch progress
     if (tvShowId && seasonNumber && episode.episode_number) {
-      fetch("/api/watchlist/progress", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contentId: parseInt(tvShowId),
-          mediaType: "tv",
-          seasonNumber,
-          episodeNumber: episode.episode_number,
-        }),
-      }).catch((error) => {
-        console.error("Error tracking watch progress:", error);
-      });
+      getSession()
+        .then((session) => {
+          if (!session?.user?.id) {
+            return;
+          }
+
+          return fetch("/api/watchlist/progress", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contentId: parseInt(tvShowId),
+              mediaType: "tv",
+              seasonNumber,
+              episodeNumber: episode.episode_number,
+            }),
+          });
+        })
+        .catch((error) => {
+          console.error("Error tracking watch progress:", error);
+        });
     }
 
     if (!skipWatchCallback) {

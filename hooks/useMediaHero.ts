@@ -1,12 +1,36 @@
 "use client";
 
 import type { YouTubePlayer } from "@/components/hero/youtube-types";
+import type { VideasyTrailerStreamStatus } from "@/hooks/use-videasy-trailer-stream";
+import { useVideasyTrailerStream } from "@/hooks/use-videasy-trailer-stream";
+import {
+  extractVideoRowsFromMediaVideos,
+  selectPrimaryTrailerKey,
+} from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import type { MediaItem } from "@/utils/typings";
-import { getFirstRegularSeason, isTVShow } from "@/utils/typings";
+import type { MediaItem } from "@/lib/domain/typings";
+import { getFirstRegularSeason, isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+const readImdbIdFromMediaItem = (
+  item: MediaItem | undefined,
+): string | undefined => {
+  if (!item) {
+    return undefined;
+  }
+  const fromExternal = (item as { external_ids?: { imdb_id?: string } })
+    .external_ids?.imdb_id;
+  if (typeof fromExternal === "string" && fromExternal.startsWith("tt")) {
+    return fromExternal;
+  }
+  const fromRoot = (item as { imdb_id?: string }).imdb_id;
+  if (typeof fromRoot === "string" && fromRoot.startsWith("tt")) {
+    return fromRoot;
+  }
+  return undefined;
+};
 
 export interface UseMediaHeroState {
   currentItemIndex: number;
@@ -35,18 +59,25 @@ export interface UseMediaHeroOptions {
   noSlide?: boolean;
   isWatch?: boolean;
   passedMediaType?: "tv" | "movie";
+  anilistId?: number | null | undefined;
 }
 
 export interface UseMediaHeroReturn
   extends UseMediaHeroState,
     UseMediaHeroComputed,
-    UseMediaHeroActions {}
+    UseMediaHeroActions {
+  videasyTrailerUrl: string | null;
+  videasyTrailerHlsUrl: string | null;
+  videasyTrailerStatus: VideasyTrailerStreamStatus;
+  canPlayTrailer: boolean;
+}
 
 export const useMediaHero = ({
   media,
   noSlide,
   isWatch = false,
   passedMediaType,
+  anilistId,
 }: UseMediaHeroOptions): UseMediaHeroReturn => {
   const [currentItemIndex, setCurrentItemIndex] = useState<number>(0);
   const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(false);
@@ -54,7 +85,6 @@ export const useMediaHero = ({
   const [youtubePlayer, setYoutubePlayer] = useState<YouTubePlayer>(null);
   const [historyLength, setHistoryLength] = useState<number>(2);
   const controls = useAnimation();
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -69,13 +99,6 @@ export const useMediaHero = ({
   }, [media.length]);
 
   useEffect(() => {
-    const ref = timeoutRef.current;
-    return () => {
-      if (ref) clearTimeout(ref);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!isPlayingVideo && !noSlide && !isWatch && !isPlayingTrailer) {
       const interval = setInterval(() => {
         handleNext();
@@ -88,6 +111,40 @@ export const useMediaHero = ({
     () => media[currentItemIndex],
     [media, currentItemIndex],
   );
+
+  const imdbId = useMemo(
+    () => readImdbIdFromMediaItem(currentItem),
+    [currentItem],
+  );
+
+  const mediaType = useMemo((): "tv" | "movie" | undefined => {
+    if (passedMediaType) return passedMediaType;
+    if (pathname.includes("/tvshows/")) return "tv";
+    if (pathname.includes("/movies/")) return "movie";
+    if (pathname.includes("/watch/")) {
+      const currentMedia = media[currentItemIndex];
+      if (currentMedia) {
+        return isTVShow(currentMedia) ? "tv" : "movie";
+      }
+    }
+    return undefined;
+  }, [passedMediaType, pathname, media, currentItemIndex]);
+
+  const videasyEnabled =
+    (mediaType === "movie" || mediaType === "tv") &&
+    !isPlayingVideo &&
+    Boolean(imdbId);
+
+  const {
+    mp4Url: videasyTrailerUrl,
+    hlsUrl: videasyTrailerHlsUrl,
+    status: videasyTrailerStatus,
+  } = useVideasyTrailerStream(imdbId, videasyEnabled);
+
+  const canPlayTrailer = useMemo(() => {
+    const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);
+    return Boolean(selectPrimaryTrailerKey(rows));
+  }, [currentItem]);
 
   const handleWatch = useCallback(() => {
     setIsPlayingTrailer(false);
@@ -149,36 +206,14 @@ export const useMediaHero = ({
     pathname,
     passedMediaType,
     currentItem,
+    anilistId,
     handleWatch,
   ]);
 
   const handlePlayTrailer = useCallback(() => {
-    let currentItemVideos: { type: string; key: string }[] = [];
-    if (currentItem?.videos) {
-      if (Array.isArray(currentItem.videos)) {
-        currentItemVideos = currentItem.videos as {
-          type: string;
-          key: string;
-        }[];
-      } else if (
-        typeof currentItem.videos === "object" &&
-        currentItem.videos !== null
-      ) {
-        const videosObj = currentItem.videos as { results?: unknown };
-        if (Array.isArray(videosObj.results)) {
-          currentItemVideos = videosObj.results as {
-            type: string;
-            key: string;
-          }[];
-        }
-      }
-    }
-    const acceptableVideoTypes = ["Trailer", "Teaser", "Clip", "Featurette"];
-    const trailerVideo = currentItemVideos.find((v) =>
-      acceptableVideoTypes.includes(v.type),
-    );
-
-    if (!trailerVideo?.key) {
+    const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);
+    const ytKey = selectPrimaryTrailerKey(rows);
+    if (!ytKey) {
       return;
     }
 
@@ -190,19 +225,6 @@ export const useMediaHero = ({
       setHistoryLength(window.history.length);
     }
   }, []);
-
-  const mediaType = useMemo((): "tv" | "movie" | undefined => {
-    if (passedMediaType) return passedMediaType;
-    if (pathname.includes("/tvshows/")) return "tv";
-    if (pathname.includes("/movies/")) return "movie";
-    if (pathname.includes("/watch/")) {
-      const currentMedia = media[currentItemIndex];
-      if (currentMedia) {
-        return isTVShow(currentMedia) ? "tv" : "movie";
-      }
-    }
-    return undefined;
-  }, [passedMediaType, pathname, media, currentItemIndex]);
 
   return {
     currentItemIndex,
@@ -221,6 +243,10 @@ export const useMediaHero = ({
       setIsPlayingVideo(false);
     },
     setYoutubePlayer,
+    videasyTrailerUrl,
+    videasyTrailerHlsUrl,
+    videasyTrailerStatus,
+    canPlayTrailer,
   };
 };
 

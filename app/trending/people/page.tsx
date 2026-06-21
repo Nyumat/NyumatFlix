@@ -1,11 +1,15 @@
-import { TrendList } from "@/components/trend";
+import { TrendList } from "@/components/trend/trend-server";
 import { pages } from "@/config/pages";
+import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: `${pages.trending.people.title} | NyumatFlix`,
-  };
+  return buildCatalogMetadata({
+    title: pages.trending.people.title,
+    description:
+      "Browse trending actors, directors, and creators on NyumatFlix.",
+    path: pages.trending.people.link,
+  });
 }
 
 export default async function TrendingPeople({

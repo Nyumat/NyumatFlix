@@ -1,155 +1,159 @@
 "use client";
 
-import {
-  fetchMovieCredits,
-  fetchMovieImages,
-  fetchMovieRecommendationsPage,
-  fetchMovieReviewsPage,
-  fetchMovieSimilarPage,
-  fetchMovieVideos,
-  getMovieDetailsForQuery,
-} from "@/app/actions/media-detail-tab-data";
+import { ExpandableCastGrid } from "@/components/media/expandable-cast-grid";
 import { MovieCard } from "@/components/movie/movie-card";
 import { MovieOverviewTab } from "@/components/movie/movie-overview-tab";
-import { MediaImages } from "@/components/media/media-client";
-import { MediaCreditsList } from "@/components/media/media-shared";
-import { MediaVideos } from "@/components/media/media-videos";
-import { MediaReviewCard } from "@/components/media/media-review-card";
-import { ListPagination } from "@/components/shared/list-pagination";
-import { useMediaDetailTab } from "@/lib/stores/media-detail-tab-store";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import {
+  fetchMovieCreditsClient,
+  fetchMovieDetailsClient,
+  fetchMovieRecommendationsPageClient,
+} from "@/lib/media-detail-tab-client";
 import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 import type { MovieDetails } from "@/tmdb/models";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
+import { Suspense, type ReactNode } from "react";
 
 type MovieDetailTabPanelsProps = {
   movieId: string;
 };
 
-export const MovieDetailTabPanels = ({
-  movieId,
-}: MovieDetailTabPanelsProps) => {
-  const searchParams = useSearchParams();
-  const rawTab = useMediaDetailTab("movie", movieId);
-  const activeTab = !rawTab || rawTab === "overview" ? undefined : rawTab;
-  const listPage = searchParams.get("page") ?? "1";
+type DetailSectionProps = {
+  title: string;
+  children: ReactNode;
+};
+
+const DetailSection = ({ title, children }: DetailSectionProps) => (
+  <section className="scroll-mt-24">
+    <h2
+      className={cn(
+        "mb-5 flex items-center gap-3 text-2xl font-semibold text-foreground sm:text-3xl",
+      )}
+    >
+      <span className="h-8 w-1 rounded-full bg-primary" aria-hidden />
+      {title}
+    </h2>
+    {children}
+  </section>
+);
+
+const OverviewFallback = () => (
+  <DetailSection title="Overview">
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <div className="h-4 w-full rounded bg-card/50" />
+        <div className="h-4 w-11/12 rounded bg-card/50" />
+        <div className="h-4 w-3/4 rounded bg-card/50" />
+      </div>
+      <div className="h-64 rounded-xl border border-white/15 bg-black/25" />
+    </div>
+  </DetailSection>
+);
+
+const GridSectionFallback = ({ title }: { title: string }) => (
+  <DetailSection title={title}>
+    <div className="grid-list">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div
+          key={index}
+          className="aspect-poster rounded-lg border border-border/60 bg-card/25"
+        />
+      ))}
+    </div>
+  </DetailSection>
+);
+
+const OverviewSection = ({ movieId }: MovieDetailTabPanelsProps) => {
   const numId = Number.parseInt(movieId, 10);
+  const isHydrated = useIsHydrated();
 
   const { data: raw } = useQuery({
     queryKey: queryKeys.movieDetails(numId),
     queryFn: async () => {
-      const m = await getMovieDetailsForQuery(movieId);
-      if (!m || !("title" in m)) throw new Error("Movie not found");
-      return m;
+      const movie = await fetchMovieDetailsClient(movieId);
+      if (!movie || !("title" in movie)) throw new Error("Movie not found");
+      return movie;
     },
+    enabled: isHydrated,
   });
 
-  const details = raw as unknown as MovieDetails | undefined;
+  if (!isHydrated || !raw) return <OverviewFallback />;
 
+  return (
+    <DetailSection title="Overview">
+      <MovieOverviewTab
+        details={raw as unknown as MovieDetails}
+        showOverviewHeading={false}
+      />
+    </DetailSection>
+  );
+};
+
+const CastSection = ({ movieId }: MovieDetailTabPanelsProps) => {
+  const isHydrated = useIsHydrated();
   const { data: credits } = useQuery({
     queryKey: queryKeys.movieTabCredits(movieId),
-    queryFn: () => fetchMovieCredits(movieId),
-    enabled: activeTab === "credits",
+    queryFn: () => fetchMovieCreditsClient(movieId),
+    enabled: isHydrated,
   });
 
-  const { data: images } = useQuery({
-    queryKey: queryKeys.movieTabImages(movieId),
-    queryFn: () => fetchMovieImages(movieId),
-    enabled: activeTab === "images",
-  });
+  if (!isHydrated || !credits) return <GridSectionFallback title="Cast" />;
 
-  const { data: videos } = useQuery({
-    queryKey: queryKeys.movieTabVideos(movieId),
-    queryFn: () => fetchMovieVideos(movieId),
-    enabled: activeTab === "videos",
-  });
+  return (
+    <DetailSection title="Cast">
+      {credits.cast?.length ? (
+        <ExpandableCastGrid cast={credits.cast} />
+      ) : (
+        <div className="empty-box">No cast information available</div>
+      )}
+    </DetailSection>
+  );
+};
 
-  const { data: reviewsData } = useQuery({
-    queryKey: queryKeys.movieTabReviews(movieId, listPage),
-    queryFn: () => fetchMovieReviewsPage(movieId, listPage),
-    enabled: activeTab === "reviews",
-  });
-
+const RecommendationsSection = ({ movieId }: MovieDetailTabPanelsProps) => {
+  const isHydrated = useIsHydrated();
   const { data: recommendationsData } = useQuery({
-    queryKey: queryKeys.movieTabRecommendations(movieId, listPage),
-    queryFn: () => fetchMovieRecommendationsPage(movieId, listPage),
-    enabled: activeTab === "recommendations",
+    queryKey: queryKeys.movieTabRecommendations(movieId, "1"),
+    queryFn: () => fetchMovieRecommendationsPageClient(movieId, "1"),
+    enabled: isHydrated,
   });
 
-  const { data: similarData } = useQuery({
-    queryKey: queryKeys.movieTabSimilar(movieId, listPage),
-    queryFn: () => fetchMovieSimilarPage(movieId, listPage),
-    enabled: activeTab === "similar",
-  });
-
-  if (!activeTab) {
-    return details ? <MovieOverviewTab details={details} /> : null;
+  if (!isHydrated || !recommendationsData) {
+    return <GridSectionFallback title="You Might Like" />;
   }
 
-  switch (activeTab) {
-    case "credits":
-      return credits ? (
-        <MediaCreditsList cast={credits.cast} crew={credits.crew} />
-      ) : null;
-    case "reviews":
-      if (!reviewsData) return null;
-      if (!reviewsData.results.length) {
-        return <div className="empty-box">No reviews</div>;
-      }
-      return (
-        <section className="space-y-8">
-          {reviewsData.results.map((review) => (
-            <MediaReviewCard key={review.id} review={review} />
+  return (
+    <DetailSection title="You Might Like">
+      {recommendationsData.results?.length ? (
+        <section className="grid-list">
+          {recommendationsData.results.map((movie) => (
+            <MovieCard key={movie.id} {...movie} variant="linkOnly" />
           ))}
-          <ListPagination
-            currentPage={reviewsData.page}
-            totalPages={reviewsData.total_pages}
-          />
         </section>
-      );
-    case "images":
-      return images ? (
-        <MediaImages posters={images.posters} backdrops={images.backdrops} />
-      ) : null;
-    case "videos":
-      return videos ? <MediaVideos videos={videos.results} /> : null;
-    case "recommendations":
-      if (!recommendationsData) return null;
-      if (!recommendationsData.results?.length) {
-        return <div className="empty-box">No recommendations</div>;
-      }
-      return (
-        <div className="space-y-4">
-          <section className="grid-list">
-            {recommendationsData.results.map((movie) => (
-              <MovieCard key={movie.id} {...movie} variant="linkOnly" />
-            ))}
-          </section>
-          <ListPagination
-            currentPage={recommendationsData.page}
-            totalPages={recommendationsData.total_pages}
-          />
-        </div>
-      );
-    case "similar":
-      if (!similarData) return null;
-      if (!similarData.results?.length) {
-        return <div className="empty-box">No similar titles</div>;
-      }
-      return (
-        <div className="space-y-4">
-          <section className="grid-list">
-            {similarData.results.map((movie) => (
-              <MovieCard key={movie.id} {...movie} variant="linkOnly" />
-            ))}
-          </section>
-          <ListPagination
-            currentPage={similarData.page}
-            totalPages={similarData.total_pages}
-          />
-        </div>
-      );
-    default:
-      return null;
-  }
+      ) : (
+        <div className="empty-box">No recommendations available</div>
+      )}
+    </DetailSection>
+  );
+};
+
+export const MovieDetailTabPanels = ({
+  movieId,
+}: MovieDetailTabPanelsProps) => {
+  return (
+    <div className="space-y-8">
+      <Suspense fallback={<OverviewFallback />}>
+        <OverviewSection movieId={movieId} />
+      </Suspense>
+
+      <Suspense fallback={<GridSectionFallback title="Cast" />}>
+        <CastSection movieId={movieId} />
+      </Suspense>
+
+      <Suspense fallback={<GridSectionFallback title="You Might Like" />}>
+        <RecommendationsSection movieId={movieId} />
+      </Suspense>
+    </div>
+  );
 };
