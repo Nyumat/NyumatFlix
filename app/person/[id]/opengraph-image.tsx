@@ -7,7 +7,6 @@ import {
 } from "@/lib/seo/og-image";
 import { tmdb } from "@/tmdb/api";
 
-export const runtime = "edge";
 export const alt = "Person on NyumatFlix";
 export const size = OG_IMAGE_SIZE;
 export const contentType = ogImageContentType;

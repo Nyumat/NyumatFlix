@@ -7,6 +7,7 @@ import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { HeroBackground } from "./hero-background";
 import { HeroContent } from "./hero-content";
+import { HeroMediaOverlay } from "./hero-overlay";
 import { HeroPagination } from "./hero-static";
 import type { TvHeroEpisodeData } from "./types";
 
@@ -38,6 +39,7 @@ export function MediaDetailHero({
   const [isAmbientMuted, setIsAmbientMuted] = useState(false);
   const [showAmbientAudioHint, setShowAmbientAudioHint] = useState(false);
   const [isHeroHovered, setIsHeroHovered] = useState(false);
+  const [isAmbientBackdropActive, setIsAmbientBackdropActive] = useState(false);
   const [supportsExpandedHero, setSupportsExpandedHero] = useState(false);
   const hoverCollapseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -150,6 +152,7 @@ export function MediaDetailHero({
           setIsAmbientMuted(true);
           setShowAmbientAudioHint(true);
         }}
+        onAmbientBackdropActiveChange={setIsAmbientBackdropActive}
       />
 
       <HeroContent
@@ -181,10 +184,9 @@ export function MediaDetailHero({
         }}
       />
 
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-52 bg-linear-to-b from-transparent via-background/75 to-background sm:h-64 lg:h-80"
-      />
+      {!isPlayingVideo && !isPlayingTrailer ? (
+        <HeroMediaOverlay isAmbientBackdropActive={isAmbientBackdropActive} />
+      ) : null}
 
       {!noSlide && !isPlayingVideo && !isWatch && media.length > 1 && (
         <HeroPagination items={media} currentIndex={currentItemIndex} />

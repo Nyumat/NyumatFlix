@@ -8,7 +8,6 @@ import {
   ogImageContentType,
 } from "@/lib/seo/og-image";
 
-export const runtime = "edge";
 export const alt = "Collection on NyumatFlix";
 export const size = OG_IMAGE_SIZE;
 export const contentType = ogImageContentType;
