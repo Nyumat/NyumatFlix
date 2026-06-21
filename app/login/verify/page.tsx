@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SITE_URL } from "@/lib/constants";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_TYPE,
+  OG_IMAGE_SIZE,
+} from "@/lib/seo/constants";
 import { ArrowLeft, ExternalLink, MailCheck } from "lucide-react";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -15,27 +21,27 @@ export const metadata: Metadata = {
   keywords: ["NyumatFlix", "Verify Email", "Magic Link", "Authentication"],
   openGraph: {
     type: "website",
-    url: "https://nyumatflix.com/login/verify",
+    url: `${SITE_URL}/login/verify`,
     title: "Verify Email | NyumatFlix",
     description: "Check your email for the magic link to sign in to NyumatFlix",
     images: [
       {
-        url: "https://nyumatflix.com/og.webp",
-        width: 1200,
-        height: 630,
-        type: "image/webp",
+        url: DEFAULT_OG_IMAGE,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        type: DEFAULT_OG_IMAGE_TYPE,
         alt: "Verify Email | NyumatFlix",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "https://nyumatflix.com/login/verify",
+    site: `${SITE_URL}/login/verify`,
     title: "Verify Email | NyumatFlix",
     description: "Check your email for the magic link to sign in to NyumatFlix",
     images: [
       {
-        url: "https://nyumatflix.com/og.webp",
+        url: DEFAULT_OG_IMAGE,
         alt: "Verify Email | NyumatFlix",
       },
     ],

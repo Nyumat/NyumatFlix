@@ -1,10 +1,6 @@
 import type { MediaItem } from "@/lib/domain/typings";
-import {
-  buildCanonicalUrl,
-  SITE_NAME,
-  SITE_URL,
-  tmdbImageUrl,
-} from "./constants";
+import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import { buildCanonicalUrl, tmdbImageUrl } from "./constants";
 
 const getMediaTitle = (media: MediaItem, mediaType: "movie" | "tv") =>
   mediaType === "tv" && "name" in media ? media.name : media.title || "";

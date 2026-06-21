@@ -16,10 +16,14 @@ import Script from "next/script";
 import "./globals.css";
 import {
   DEFAULT_DESCRIPTION,
-  DEFAULT_OG_IMAGE,
-  OG_IMAGE_SIZE,
   SITE_NAME,
+  SITE_TAGLINE,
   SITE_URL,
+} from "@/lib/constants";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_TYPE,
+  OG_IMAGE_SIZE,
 } from "@/lib/seo/constants";
 
 const manrope = Manrope({
@@ -35,7 +39,7 @@ if (process.env.NODE_ENV !== "production") {
 
 export const metadata: Metadata = {
   metadataBase: new URL(`${SITE_URL}/`),
-  title: `${SITE_NAME} | Watch Movies and TV Shows`,
+  title: `${SITE_NAME} | ${SITE_TAGLINE}`,
   description: DEFAULT_DESCRIPTION,
   icons: {
     icon: [
@@ -60,21 +64,21 @@ export const metadata: Metadata = {
     type: "website",
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: `${SITE_NAME} | Watch Movies and TV Shows`,
+    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
     description: DEFAULT_DESCRIPTION,
     images: [
       {
         url: DEFAULT_OG_IMAGE,
         width: OG_IMAGE_SIZE.width,
         height: OG_IMAGE_SIZE.height,
-        type: "image/webp",
-        alt: `${SITE_NAME} | Watch Movies and TV Shows`,
+        type: DEFAULT_OG_IMAGE_TYPE,
+        alt: `${SITE_NAME} | ${SITE_TAGLINE}`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} | Watch Movies and TV Shows`,
+    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
     description: DEFAULT_DESCRIPTION,
     images: [DEFAULT_OG_IMAGE],
   },

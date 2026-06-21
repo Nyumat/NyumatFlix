@@ -10,6 +10,14 @@ export const requiredEnvVars = [
   "DATABASE_URL",
 ];
 export const LOGGER_TITLE = "Nyumatflix 3.0";
+
+export const SITE_URL = "https://nyumatflix.com";
+export const SITE_NAME = "NyumatFlix";
+export const DEFAULT_DESCRIPTION =
+  "Nyumatflix is an open-source, no-cost, and ad-free movie and TV stream aggregator.";
+export const SITE_TAGLINE = "Watch Movies and TV Shows";
+export const SITE_HERO_BANNER_PATH = "/movie-banner.webp";
+export const SITE_OG_HEADLINE = "Find where anything streams.";
 // For development, you can set RESEND_FROM_EMAIL in .env.local
 // The email domain must be verified in your Resend account
 // Example: RESEND_FROM_EMAIL="Nyumatflix <noreply@yourdomain.com>"

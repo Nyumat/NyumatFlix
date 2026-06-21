@@ -1,4 +1,4 @@
-![NyumatFlix](/public/preview.webp)
+![NyumatFlix](/preview.png)
 
 <div align="center">
   <h3 style="font-size: 3rem; font-weight: 600;"><a href="https://nyumatflix.com">NyumatFlix</a></h3>
@@ -61,7 +61,7 @@ DATABASE_URL=
 You can get your own instance of the API keys by creating an account on [TMDb](https://www.themoviedb.org/) and [Resend](https://resend.com/).
 
 > [!TIP]
-> For the database, you can use any PostgreSQL database you want. I recommend using [Neon](https://neon.tech/) for production and [Local Postgres](https://www.postgresql.org/) for development.
+> For a database, you can use any PostgreSQL-compatible database you want. I recommend using [Neon](https://neon.tech/) for production and [Local Postgres](https://www.postgresql.org/) for development.
 
 For local development, set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to `http://localhost:3000`.
 
@@ -98,7 +98,7 @@ bun run dev
 
 7. Finally, open [http://localhost:3000](http://localhost:3000) in your browser to see the project in action!
 
-<!-- 
+<!--
 ## 🐳 Run with Docker
 
 Docker uses the same image shape for local and production. Build-time secrets are not used. Copy the example env file and fill in the values:
@@ -194,10 +194,10 @@ When running the application in development mode (`NODE_ENV=development`), authe
    ============================================================
    ```
 
-5. **Automatic redirect** - In development mode, there's a btn that will redirect you to the callback URL and sign you in. The link is also logged to the terminal in case you need to manually access it or if the redirect doesn't work.
-
-> [!NOTE]
-> In production, magic links are still sent via email using Resend. The development mode bypasses email sending for convenience during local development.
+> [!TIP]
+> In development mode, there's a btn that will redirect you to the callback URL and sign you in. The link is also logged to the terminal in case you need to manually access it or if the redirect doesn't work.
+>
+>In production, magic links are still sent via email using Resend. The development mode bypasses email sending for convenience during local development.
 
 ## 📝 Scripts
 
