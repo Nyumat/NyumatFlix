@@ -15,10 +15,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { BackgroundImageProps, HeroProps } from "./types";
 
-export function HeroGradients() {
-  return null;
-}
-
 interface HeroDetailsProps {
   formattedDate: string;
   runtime?: number;

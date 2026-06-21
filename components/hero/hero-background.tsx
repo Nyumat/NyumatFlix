@@ -18,6 +18,7 @@ import {
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { VideasyStreamVideo } from "./videasy-stream-video";
+import { HERO_AMBIENT_VIDEO_MASK, HERO_MEDIA_TRANSITION } from "./hero-overlay";
 import {
   HERO_YOUTUBE_CHROMELESS_BASE,
   type YouTubePlayer,
@@ -50,6 +51,7 @@ interface HeroBackgroundProps {
   videasyTrailerStatus: VideasyTrailerStreamStatus;
   isAmbientMuted: boolean;
   onAmbientAutoplayBlocked(): void;
+  onAmbientBackdropActiveChange?(active: boolean): void;
 }
 
 /**
@@ -73,6 +75,7 @@ export function HeroBackground({
   videasyTrailerStatus,
   isAmbientMuted,
   onAmbientAutoplayBlocked,
+  onAmbientBackdropActiveChange,
 }: HeroBackgroundProps) {
   const { getEmbedUrl } = useEpisodeStore();
   const { selectedServer, vidnestContentType, animePreference } =
@@ -244,6 +247,16 @@ export function HeroBackground({
   }, [ambientVideoKey, media.backdrop_path, media.poster_path]);
 
   useEffect(() => {
+    onAmbientBackdropActiveChange?.(
+      shouldShowAmbientVideo && isAmbientVideoReady,
+    );
+  }, [
+    isAmbientVideoReady,
+    onAmbientBackdropActiveChange,
+    shouldShowAmbientVideo,
+  ]);
+
+  useEffect(() => {
     if (!isPlayingTrailer) return;
 
     let cancelled = false;
@@ -379,16 +392,20 @@ export function HeroBackground({
                 opacity: shouldShowAmbientVideo && isAmbientVideoReady ? 0 : 1,
               }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1.4, ease: "easeInOut" }}
+              transition={HERO_MEDIA_TRANSITION}
             />
           )}
 
           {videasyBackdropReady ? (
             <motion.div
-              className="absolute inset-0 z-0 overflow-hidden bg-black/20 pointer-events-none"
-              initial={{ opacity: 0 }}
+              className="absolute inset-0 z-0 overflow-hidden pointer-events-none"
+              initial={false}
               animate={{ opacity: isAmbientVideoReady ? 1 : 0 }}
-              transition={{ duration: 1.2, ease: "easeInOut" }}
+              transition={HERO_MEDIA_TRANSITION}
+              style={{
+                maskImage: HERO_AMBIENT_VIDEO_MASK,
+                WebkitMaskImage: HERO_AMBIENT_VIDEO_MASK,
+              }}
             >
               <VideasyStreamVideo
                 key={`${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`}
