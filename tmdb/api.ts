@@ -214,6 +214,7 @@ export type DiscoverRequestParams = {
   with_keywords?: string;
   with_people?: string;
   with_networks?: string;
+  with_origin_country?: string;
   with_original_language?: string;
   with_release_type?: string;
   with_watch_providers?: string;

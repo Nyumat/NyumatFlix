@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 
+import { SITE_URL } from "@/lib/constants";
 import {
   buildLiveChannelShareUrl,
   buildLiveShareUrlFromSlug,
   formatChannelSlugForDisplay,
 } from "@/lib/live/channel-slugs";
 import type { LiveChannel } from "@/lib/live/types";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_TYPE,
+  OG_IMAGE_SIZE,
+} from "@/lib/seo/constants";
 
 const LIVE_DESCRIPTION = "Watch live TV channels and events on NyumatFlix.";
-const DEFAULT_OG_IMAGE = "https://nyumatflix.com/og.webp";
 
 const buildLiveChannelDescription = (channel: LiveChannel) =>
   `Watch ${channel.name} live on NyumatFlix. Stream ${channel.categoryName.toLowerCase()} channels for free.`;
@@ -27,26 +32,26 @@ export const buildDefaultLiveMetadata = (): Metadata => ({
     "NyumatFlix",
   ],
   alternates: {
-    canonical: "https://nyumatflix.com/live",
+    canonical: `${SITE_URL}/live`,
   },
   openGraph: {
     type: "website",
-    url: "https://nyumatflix.com/live",
+    url: `${SITE_URL}/live`,
     title: "Live TV | NyumatFlix",
     description: LIVE_DESCRIPTION,
     images: [
       {
         url: DEFAULT_OG_IMAGE,
-        width: 1200,
-        height: 630,
-        type: "image/webp",
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        type: DEFAULT_OG_IMAGE_TYPE,
         alt: "NyumatFlix Live TV",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "https://nyumatflix.com",
+    site: SITE_URL,
     title: "Live TV | NyumatFlix",
     description: LIVE_DESCRIPTION,
     images: [DEFAULT_OG_IMAGE],
@@ -74,16 +79,16 @@ export const buildLiveChannelMetadataFromSlug = (slug: string): Metadata => {
       images: [
         {
           url: DEFAULT_OG_IMAGE,
-          width: 1200,
-          height: 630,
-          type: "image/webp",
+          width: OG_IMAGE_SIZE.width,
+          height: OG_IMAGE_SIZE.height,
+          type: DEFAULT_OG_IMAGE_TYPE,
           alt: `${channelName} on NyumatFlix`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      site: "https://nyumatflix.com",
+      site: SITE_URL,
       title,
       description,
       images: [DEFAULT_OG_IMAGE],
@@ -118,16 +123,16 @@ export const buildLiveChannelMetadata = (channel: LiveChannel): Metadata => {
       images: [
         {
           url: imageUrl,
-          width: 1200,
-          height: 630,
-          type: channel.logoUrl ? "image/png" : "image/webp",
+          width: OG_IMAGE_SIZE.width,
+          height: OG_IMAGE_SIZE.height,
+          type: channel.logoUrl ? "image/png" : DEFAULT_OG_IMAGE_TYPE,
           alt: `${channel.name} on NyumatFlix`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      site: "https://nyumatflix.com",
+      site: SITE_URL,
       title,
       description,
       images: [imageUrl],

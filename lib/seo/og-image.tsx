@@ -766,6 +766,318 @@ export const CollectionOgImage = ({
   </div>
 );
 
+const SITE_POSTER_W = 184;
+const SITE_POSTER_H = 276;
+const SITE_POSTER_RADIUS = 16;
+const SITE_LOGO_SIZE = 45;
+const SITE_TITLE_SIZE = 43;
+const SITE_HEADLINE_SIZE = 55;
+const SITE_FAN_STEP = 140;
+const SITE_FAN_TILTS = [-2, -1, 0, 1, 2];
+const SITE_FAN_LIFTS = [6, 3, 0, 3, 6];
+
+const SiteBannerBackground = ({ url }: { url: string }) => (
+  <div
+    style={{
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: OG_IMAGE_SIZE.width,
+      height: OG_IMAGE_SIZE.height,
+      display: "flex",
+      background: BG,
+    }}
+  >
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img
+      alt=""
+      src={url}
+      width={OG_IMAGE_SIZE.width}
+      height={OG_IMAGE_SIZE.height}
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        objectFit: "cover",
+        objectPosition: "center top",
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        display: "flex",
+        background: "rgba(0,0,0,0.78)",
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        display: "flex",
+        background:
+          "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 50%, rgba(0,0,0,0.3) 100%)",
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        display: "flex",
+        background:
+          "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.35) 100%)",
+      }}
+    />
+  </div>
+);
+
+const SitePosterGlow = () => (
+  <div
+    style={{
+      position: "absolute",
+      bottom: -260,
+      left: "50%",
+      marginLeft: -440,
+      width: 880,
+      height: 720,
+      display: "flex",
+      background:
+        "radial-gradient(ellipse at 50% 50%, rgba(36,100,240,0.32) 0%, rgba(124,58,237,0.16) 42%, rgba(10,10,10,0) 76%)",
+    }}
+  />
+);
+
+const sitePosterFanLayout = (
+  index: number,
+  { active = false }: { active?: boolean } = {},
+) => ({
+  display: "flex" as const,
+  marginLeft: index === 0 ? 0 : -(SITE_POSTER_W - SITE_FAN_STEP),
+  marginTop: SITE_FAN_LIFTS[index],
+  transform: `rotate(${SITE_FAN_TILTS[index]}deg)`,
+  zIndex: active ? 10 : index,
+});
+
+const SitePosterShadow = ({
+  index,
+  active = false,
+}: {
+  index: number;
+  active?: boolean;
+}) => (
+  <div style={sitePosterFanLayout(index)}>
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        width: SITE_POSTER_W,
+        height: SITE_POSTER_H,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: SITE_POSTER_H - 2,
+          left: "6%",
+          width: "88%",
+          height: active ? 38 : 30,
+          display: "flex",
+          background: active
+            ? "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(0,0,0,0.5) 0%, transparent 72%)"
+            : "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(0,0,0,0.38) 0%, transparent 72%)",
+        }}
+      />
+    </div>
+  </div>
+);
+
+const SitePosterCard = ({
+  url,
+  index,
+  active = false,
+}: {
+  url: string;
+  index: number;
+  active?: boolean;
+}) => (
+  <div style={sitePosterFanLayout(index, { active })}>
+    <div
+      style={{
+        display: "flex",
+        width: SITE_POSTER_W,
+        height: SITE_POSTER_H,
+        borderRadius: SITE_POSTER_RADIUS,
+        overflow: "hidden",
+        background: "#101010",
+        border: active
+          ? "1px solid rgba(255,255,255,0.1)"
+          : "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        alt=""
+        src={url}
+        width={SITE_POSTER_W}
+        height={SITE_POSTER_H}
+        style={{ objectFit: "cover" }}
+      />
+    </div>
+  </div>
+);
+
+const SitePosterFan = ({ urls }: { urls: string[] }) => {
+  const posters = urls
+    .filter((url) => Boolean(url))
+    .slice(0, SITE_FAN_TILTS.length);
+  const centerIndex = Math.floor(posters.length / 2);
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 10,
+        marginLeft: SITE_POSTER_W - SITE_FAN_STEP,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {posters.map((url, index) => (
+          <SitePosterShadow
+            key={`shadow-${url}-${index}`}
+            index={index}
+            active={index === centerIndex}
+          />
+        ))}
+      </div>
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {posters.map((url, index) => (
+          <SitePosterCard
+            key={`${url}-${index}`}
+            url={url}
+            index={index}
+            active={index === centerIndex}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export const SiteOgImage = ({
+  title,
+  headline,
+  posterUrls,
+  bannerUrl,
+}: {
+  title: string;
+  headline: string;
+  posterUrls: string[];
+  bannerUrl: string;
+}) => (
+  <div
+    style={{
+      width: "100%",
+      height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      position: "relative",
+      background: BG,
+      fontFamily: "Manrope",
+    }}
+  >
+    <SiteBannerBackground url={bannerUrl} />
+    <SitePosterGlow />
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        width: "100%",
+        height: "100%",
+        padding: `100px ${SAFE}px 48px`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          marginBottom: 32,
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          alt=""
+          src={LOGO_DATA_URI}
+          width={SITE_LOGO_SIZE}
+          height={SITE_LOGO_SIZE}
+        />
+        <div
+          style={{
+            display: "flex",
+            color: TEXT_PRIMARY,
+            fontSize: SITE_TITLE_SIZE,
+            fontWeight: 800,
+            letterSpacing: -1.2,
+            lineHeight: 1,
+            textShadow: TEXT_SHADOW,
+          }}
+        >
+          {title}
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          color: TEXT_PRIMARY,
+          fontSize: SITE_HEADLINE_SIZE,
+          fontWeight: 800,
+          lineHeight: 1,
+          letterSpacing: -2,
+          textAlign: "center",
+          textShadow: TEXT_SHADOW,
+          marginBottom: 24,
+        }}
+      >
+        {headline}
+      </div>
+      <SitePosterFan urls={posterUrls} />
+    </div>
+  </div>
+);
+
 export const DefaultOgImage = ({
   title,
   description,

@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SITE_URL } from "@/lib/constants";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_TYPE,
+  OG_IMAGE_SIZE,
+} from "@/lib/seo/constants";
 import { AlertTriangle, ArrowLeft, Mail } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -251,27 +257,27 @@ export const metadata: Metadata = {
   keywords: ["NyumatFlix", "Sign In Error", "Authentication", "Magic Link"],
   openGraph: {
     type: "website",
-    url: "https://nyumatflix.com/login/error",
+    url: `${SITE_URL}/login/error`,
     title: "Sign In Error | NyumatFlix",
     description: "There was a problem signing in to NyumatFlix.",
     images: [
       {
-        url: "https://nyumatflix.com/og.webp",
-        width: 1200,
-        height: 630,
-        type: "image/webp",
+        url: DEFAULT_OG_IMAGE,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        type: DEFAULT_OG_IMAGE_TYPE,
         alt: "Sign In Error | NyumatFlix",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "https://nyumatflix.com/login/error",
+    site: `${SITE_URL}/login/error`,
     title: "Sign In Error | NyumatFlix",
     description: "There was a problem signing in to NyumatFlix.",
     images: [
       {
-        url: "https://nyumatflix.com/og.webp",
+        url: DEFAULT_OG_IMAGE,
         alt: "Sign In Error | NyumatFlix",
       },
     ],
