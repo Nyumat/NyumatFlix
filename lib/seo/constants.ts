@@ -1,6 +1,7 @@
 import { SITE_URL } from "@/lib/constants";
 
-export const DEFAULT_OG_IMAGE = `${SITE_URL}/og.webp`;
+export const DEFAULT_OG_IMAGE = `${SITE_URL}/opengraph-image`;
+export const DEFAULT_OG_IMAGE_TYPE = "image/png";
 
 export const OG_IMAGE_SIZE = {
   width: 1200,

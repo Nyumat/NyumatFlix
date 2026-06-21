@@ -17,7 +17,12 @@ export default function SiteOgPreviewPage() {
         <div className="border-b border-border px-4 py-3">
           <h2 className="font-semibold text-foreground">Default site card</h2>
           <p className="text-sm text-muted-foreground">
-            Raw image:{" "}
+            Production:{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5">
+              /opengraph-image
+            </code>
+            {" · "}
+            Dev preview:{" "}
             <code className="rounded bg-muted px-1.5 py-0.5">
               /dev/site-og/image
             </code>

@@ -3,6 +3,7 @@ import { DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/constants";
 import type { Metadata } from "next";
 import {
   DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_TYPE,
   OG_IMAGE_SIZE,
   buildCanonicalUrl,
 } from "./constants";
@@ -46,6 +47,7 @@ export const buildPageMetadata = ({
             url: image,
             width: OG_IMAGE_SIZE.width,
             height: OG_IMAGE_SIZE.height,
+            type: DEFAULT_OG_IMAGE_TYPE,
             alt: imageAlt,
           },
         ],

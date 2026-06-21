@@ -20,7 +20,11 @@ import {
   SITE_TAGLINE,
   SITE_URL,
 } from "@/lib/constants";
-import { DEFAULT_OG_IMAGE, OG_IMAGE_SIZE } from "@/lib/seo/constants";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_TYPE,
+  OG_IMAGE_SIZE,
+} from "@/lib/seo/constants";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -67,7 +71,7 @@ export const metadata: Metadata = {
         url: DEFAULT_OG_IMAGE,
         width: OG_IMAGE_SIZE.width,
         height: OG_IMAGE_SIZE.height,
-        type: "image/webp",
+        type: DEFAULT_OG_IMAGE_TYPE,
         alt: `${SITE_NAME} | ${SITE_TAGLINE}`,
       },
     ],
