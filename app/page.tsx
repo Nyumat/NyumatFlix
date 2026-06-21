@@ -20,6 +20,12 @@ import {
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { siteConfig } from "@/config/site";
+import { SITE_URL } from "@/lib/constants";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_TYPE,
+  OG_IMAGE_SIZE,
+} from "@/lib/seo/constants";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -30,25 +36,25 @@ export const metadata: Metadata = {
   description: siteConfig.description,
   openGraph: {
     type: "website",
-    url: "https://nyumatflix.com/",
+    url: `${SITE_URL}/`,
     title: "Home | NyumatFlix",
     description: siteConfig.description,
     images: [
       {
-        url: "https://nyumatflix.com/og.webp",
-        width: 1200,
-        height: 630,
-        type: "image/webp",
+        url: DEFAULT_OG_IMAGE,
+        width: OG_IMAGE_SIZE.width,
+        height: OG_IMAGE_SIZE.height,
+        type: DEFAULT_OG_IMAGE_TYPE,
         alt: "NyumatFlix",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "https://nyumatflix.com",
+    site: SITE_URL,
     title: "Home | NyumatFlix",
     description: siteConfig.description,
-    images: ["https://nyumatflix.com/og.webp"],
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 
