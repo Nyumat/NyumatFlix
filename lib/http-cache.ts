@@ -14,3 +14,10 @@ export const catalogCacheHeaders = (): HeadersInit => ({
 export const seasonCacheHeaders = (): HeadersInit => ({
   "Cache-Control": CACHE_CONTROL_SEASON,
 });
+
+export const CACHE_CONTROL_SIGNED_URL =
+  "private, no-store, max-age=0, must-revalidate";
+
+export const signedUrlCacheHeaders = (): HeadersInit => ({
+  "Cache-Control": CACHE_CONTROL_SIGNED_URL,
+});

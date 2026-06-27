@@ -49,6 +49,7 @@ interface HeroBackgroundProps {
   videasyTrailerUrl: string | null;
   videasyTrailerHlsUrl: string | null;
   videasyTrailerStatus: VideasyTrailerStreamStatus;
+  onVideasyStreamError(): void;
   isAmbientMuted: boolean;
   onAmbientAutoplayBlocked(): void;
   onAmbientBackdropActiveChange?(active: boolean): void;
@@ -73,6 +74,7 @@ export function HeroBackground({
   videasyTrailerUrl,
   videasyTrailerHlsUrl,
   videasyTrailerStatus,
+  onVideasyStreamError,
   isAmbientMuted,
   onAmbientAutoplayBlocked,
   onAmbientBackdropActiveChange,
@@ -415,6 +417,7 @@ export function HeroBackground({
                 isMuted={isAmbientMuted}
                 onAutoplayBlocked={onAmbientAutoplayBlocked}
                 onCanPlay={() => setIsAmbientVideoReady(true)}
+                onError={onVideasyStreamError}
                 className="absolute top-1/2 left-1/2 aspect-video h-[calc(100%+14rem)] min-w-[calc(100%+14rem)] -translate-x-1/2 -translate-y-[calc(50%+25px)] scale-[1.015] object-cover"
               />
             </motion.div>
