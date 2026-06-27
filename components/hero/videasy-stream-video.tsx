@@ -43,68 +43,71 @@ export const VideasyStreamVideo = ({
     }
 
     let hlsInstance: Hls | null = null;
+    let disposed = false;
 
     const clearSrc = () => {
       video.removeAttribute("src");
       video.load();
     };
 
+    const attachHls = (url: string) => {
+      if (Hls.isSupported()) {
+        hlsInstance = new Hls({ enableWorker: true });
+        hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
+          if (disposed || !data.fatal) {
+            return;
+          }
+          onError?.();
+        });
+        hlsInstance.loadSource(url);
+        hlsInstance.attachMedia(video);
+        return;
+      }
+      if (canPlayNativeHls(video)) {
+        video.src = url;
+      }
+    };
+
     if (playback === "ambient") {
       if (mp4Url) {
         video.src = mp4Url;
         return () => {
+          disposed = true;
           clearSrc();
         };
       }
       if (hlsUrl) {
-        if (Hls.isSupported()) {
-          hlsInstance = new Hls({ enableWorker: true });
-          hlsInstance.loadSource(hlsUrl);
-          hlsInstance.attachMedia(video);
-          return () => {
-            hlsInstance?.destroy();
-            hlsInstance = null;
-            clearSrc();
-          };
-        }
-        if (canPlayNativeHls(video)) {
-          video.src = hlsUrl;
-          return () => {
-            clearSrc();
-          };
-        }
-      }
-      return;
-    }
-
-    if (hlsUrl) {
-      if (Hls.isSupported()) {
-        hlsInstance = new Hls({ enableWorker: true });
-        hlsInstance.loadSource(hlsUrl);
-        hlsInstance.attachMedia(video);
+        attachHls(hlsUrl);
         return () => {
+          disposed = true;
           hlsInstance?.destroy();
           hlsInstance = null;
           clearSrc();
         };
       }
-      if (canPlayNativeHls(video)) {
-        video.src = hlsUrl;
-        return () => {
-          clearSrc();
-        };
-      }
+      return;
+    }
+
+    if (hlsUrl) {
+      attachHls(hlsUrl);
+      return () => {
+        disposed = true;
+        hlsInstance?.destroy();
+        hlsInstance = null;
+        clearSrc();
+      };
     }
 
     if (mp4Url) {
       video.src = mp4Url;
       return () => {
+        disposed = true;
         clearSrc();
       };
     }
 
     return undefined;
-  }, [playback, mp4Url, hlsUrl]);
+  }, [playback, mp4Url, hlsUrl, onError]);
 
   useEffect(() => {
     if (playback !== "ambient") {

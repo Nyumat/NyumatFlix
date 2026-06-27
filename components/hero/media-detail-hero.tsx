@@ -70,6 +70,7 @@ export function MediaDetailHero({
     videasyTrailerUrl,
     videasyTrailerHlsUrl,
     videasyTrailerStatus,
+    handleVideasyStreamError,
     canPlayTrailer,
   } = useMediaHero({ media, noSlide, isWatch, passedMediaType, anilistId });
 
@@ -144,6 +145,7 @@ export function MediaDetailHero({
         videasyTrailerUrl={videasyTrailerUrl}
         videasyTrailerHlsUrl={videasyTrailerHlsUrl}
         videasyTrailerStatus={videasyTrailerStatus}
+        onVideasyStreamError={handleVideasyStreamError}
         isAmbientMuted={isAmbientMuted}
         onAmbientAutoplayBlocked={() => {
           if (!hasVideasyAmbientSource) {

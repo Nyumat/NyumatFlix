@@ -69,6 +69,7 @@ export interface UseMediaHeroReturn
   videasyTrailerUrl: string | null;
   videasyTrailerHlsUrl: string | null;
   videasyTrailerStatus: VideasyTrailerStreamStatus;
+  handleVideasyStreamError: () => void;
   canPlayTrailer: boolean;
 }
 
@@ -139,6 +140,7 @@ export const useMediaHero = ({
     mp4Url: videasyTrailerUrl,
     hlsUrl: videasyTrailerHlsUrl,
     status: videasyTrailerStatus,
+    handleStreamError: handleVideasyStreamError,
   } = useVideasyTrailerStream(imdbId, videasyEnabled);
 
   const canPlayTrailer = useMemo(() => {
@@ -246,6 +248,7 @@ export const useMediaHero = ({
     videasyTrailerUrl,
     videasyTrailerHlsUrl,
     videasyTrailerStatus,
+    handleVideasyStreamError,
     canPlayTrailer,
   };
 };
