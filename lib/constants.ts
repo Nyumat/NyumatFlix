@@ -12,6 +12,9 @@ export const requiredEnvVars = [
 export const LOGGER_TITLE = "Nyumatflix 3.0";
 
 export const SITE_URL = "https://nyumatflix.com";
+export const UMAMI_URL = "https://analytics.nyumatflix.com";
+export const UMAMI_WEBSITE_ID = "eb985e75-d6fe-42d3-8e24-0de58c4bf22c";
+export const UMAMI_CLOUD_WEBSITE_ID = "679411bf-5cd3-4f57-983d-956d67f033cc";
 export const SITE_NAME = "NyumatFlix";
 export const DEFAULT_DESCRIPTION =
   "Nyumatflix is an open-source, no-cost, and ad-free movie and TV stream aggregator.";

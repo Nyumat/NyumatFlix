@@ -25,6 +25,18 @@ const nextConfig = {
       },
     ];
   },
+  rewrites: async () => {
+    return [
+      {
+        source: "/assets/client-runtime.js",
+        destination: "https://cloud.umami.is/script.js",
+      },
+      {
+        source: "/client/api/send",
+        destination: "https://gateway.umami.is/api/send",
+      },
+    ];
+  },
   transpilePackages: [
     "gsap",
     "react-three-fiber",
