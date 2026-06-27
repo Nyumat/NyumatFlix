@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import Hls from "hls.js";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type VideasyStreamPlayback = "ambient" | "controls";
 
@@ -35,6 +35,39 @@ export const VideasyStreamVideo = ({
 }: VideasyStreamVideoProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const autoplayBlockedNotifiedRef = useRef(false);
+  const [useFallbackSource, setUseFallbackSource] = useState(false);
+  const primarySource =
+    playback === "ambient"
+      ? mp4Url
+        ? "mp4"
+        : hlsUrl
+          ? "hls"
+          : null
+      : hlsUrl
+        ? "hls"
+        : mp4Url
+          ? "mp4"
+          : null;
+  const fallbackSource =
+    primarySource === "mp4" && hlsUrl
+      ? "hls"
+      : primarySource === "hls" && mp4Url
+        ? "mp4"
+        : null;
+  const activeSource =
+    useFallbackSource && fallbackSource ? fallbackSource : primarySource;
+
+  useEffect(() => {
+    setUseFallbackSource(false);
+  }, [playback, mp4Url, hlsUrl]);
+
+  const handleSourceError = useCallback(() => {
+    if (!useFallbackSource && fallbackSource) {
+      setUseFallbackSource(true);
+      return;
+    }
+    onError?.();
+  }, [fallbackSource, onError, useFallbackSource]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -50,34 +83,16 @@ export const VideasyStreamVideo = ({
       video.load();
     };
 
-    const attachHls = (url: string) => {
+    if (activeSource === "hls" && hlsUrl) {
       if (Hls.isSupported()) {
         hlsInstance = new Hls({ enableWorker: true });
         hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
-          if (disposed || !data.fatal) {
-            return;
+          if (!disposed && data.fatal) {
+            handleSourceError();
           }
-          onError?.();
         });
-        hlsInstance.loadSource(url);
+        hlsInstance.loadSource(hlsUrl);
         hlsInstance.attachMedia(video);
-        return;
-      }
-      if (canPlayNativeHls(video)) {
-        video.src = url;
-      }
-    };
-
-    if (playback === "ambient") {
-      if (mp4Url) {
-        video.src = mp4Url;
-        return () => {
-          disposed = true;
-          clearSrc();
-        };
-      }
-      if (hlsUrl) {
-        attachHls(hlsUrl);
         return () => {
           disposed = true;
           hlsInstance?.destroy();
@@ -85,20 +100,18 @@ export const VideasyStreamVideo = ({
           clearSrc();
         };
       }
+      if (canPlayNativeHls(video)) {
+        video.src = hlsUrl;
+        return () => {
+          disposed = true;
+          clearSrc();
+        };
+      }
+      handleSourceError();
       return;
     }
 
-    if (hlsUrl) {
-      attachHls(hlsUrl);
-      return () => {
-        disposed = true;
-        hlsInstance?.destroy();
-        hlsInstance = null;
-        clearSrc();
-      };
-    }
-
-    if (mp4Url) {
+    if (activeSource === "mp4" && mp4Url) {
       video.src = mp4Url;
       return () => {
         disposed = true;
@@ -107,7 +120,7 @@ export const VideasyStreamVideo = ({
     }
 
     return undefined;
-  }, [playback, mp4Url, hlsUrl, onError]);
+  }, [activeSource, handleSourceError, hlsUrl, mp4Url]);
 
   useEffect(() => {
     if (playback !== "ambient") {
@@ -147,7 +160,7 @@ export const VideasyStreamVideo = ({
       autoPlay={ambient}
       aria-hidden={ambient || undefined}
       onEnded={onEnded}
-      onError={onError}
+      onError={handleSourceError}
       onCanPlay={onCanPlay}
     />
   );

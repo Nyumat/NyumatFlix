@@ -19,6 +19,9 @@ import {
   SITE_NAME,
   SITE_TAGLINE,
   SITE_URL,
+  UMAMI_CLOUD_WEBSITE_ID,
+  UMAMI_URL,
+  UMAMI_WEBSITE_ID,
 } from "@/lib/constants";
 import {
   DEFAULT_OG_IMAGE,
@@ -97,12 +100,27 @@ export default function RootLayout({
     >
       <head>
         {process.env.NODE_ENV === "production" && (
-          <Script
-            defer
-            src="https://cloud.umami.is/script.js"
-            data-website-id="679411bf-5cd3-4f57-983d-956d67f033cc"
-            strategy="afterInteractive"
-          />
+          <>
+            <Script
+              defer
+              src="/assets/client-runtime.js"
+              data-host-url={`${SITE_URL}/client`}
+              data-website-id={UMAMI_CLOUD_WEBSITE_ID}
+              strategy="afterInteractive"
+            />
+            <Script
+              defer
+              src={`${UMAMI_URL}/script.js`}
+              data-website-id={UMAMI_WEBSITE_ID}
+              strategy="afterInteractive"
+            />
+            <Script
+              defer
+              src={`${UMAMI_URL}/recorder.js`}
+              data-website-id={UMAMI_WEBSITE_ID}
+              strategy="afterInteractive"
+            />
+          </>
         )}
       </head>
       <body className={cn("flex min-h-dvh flex-col bg-background font-sans")}>
