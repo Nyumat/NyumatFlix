@@ -100,16 +100,21 @@ type ImdbVideoStrip = {
   edges?: { node?: ImdbVideoNode }[];
 };
 
+type ImdbGraphqlCache = "catalog" | "no-store";
+
 const imdbGraphql = async <T>(
   operationName: string,
   query: string,
   variables: Record<string, unknown>,
+  cache: ImdbGraphqlCache = "catalog",
 ): Promise<T> => {
   const response = await fetch(IMDB_GRAPHQL_URL, {
     method: "POST",
     headers: IMDB_HEADERS,
     body: JSON.stringify({ operationName, query, variables }),
-    next: { revalidate: 3600 },
+    ...(cache === "no-store"
+      ? { cache: "no-store" as const }
+      : { next: { revalidate: 3600 } }),
   });
 
   if (!response.ok) {
@@ -284,7 +289,7 @@ const fetchImdbPlaybackStreams = async (
         videoMimeType?: string;
       }[];
     };
-  }>("VideoPlayback", VIDEO_PLAYBACK_QUERY, { const: videoId });
+  }>("VideoPlayback", VIDEO_PLAYBACK_QUERY, { const: videoId }, "no-store");
 
   const playbackUrls = data.video?.playbackURLs ?? [];
   return playbackUrls

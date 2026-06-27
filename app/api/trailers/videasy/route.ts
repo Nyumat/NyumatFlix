@@ -1,10 +1,12 @@
 import { fetchImdbTrailerStreams } from "@/lib/imdb-trailer";
-import { catalogCacheHeaders } from "@/lib/http-cache";
+import { signedUrlCacheHeaders } from "@/lib/http-cache";
 import {
   pickBestVideasyHlsStream,
   pickBestVideasyMp4Stream,
 } from "@/lib/videasy-trailer";
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 
 const IMDB_ID_PATTERN = /^tt\d+$/;
 
@@ -43,7 +45,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       { url: url ?? null, hlsUrl: hlsUrl ?? null },
-      { headers: catalogCacheHeaders() },
+      { headers: signedUrlCacheHeaders() },
     );
   } catch {
     if (process.env.NODE_ENV === "production") {
