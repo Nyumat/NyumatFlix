@@ -11,8 +11,16 @@ import { useEpisodeStore } from "@/lib/stores/episode-store";
 import type { MediaItem } from "@/lib/domain/typings";
 import { getFirstRegularSeason, isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { stabilizeScrollTop } from "@/components/layout/route-scroll-reset";
+import { usePathname, useSearchParams } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 const readImdbIdFromMediaItem = (
   item: MediaItem | undefined,
@@ -87,9 +95,13 @@ export const useMediaHero = ({
   const [historyLength, setHistoryLength] = useState<number>(2);
   const controls = useAnimation();
 
-  const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const autoplayHandledRef = useRef(false);
+
+  useEffect(() => {
+    autoplayHandledRef.current = false;
+  }, [pathname]);
 
   const handleNext = useCallback(() => {
     setCurrentItemIndex((prevIndex) =>
@@ -153,9 +165,14 @@ export const useMediaHero = ({
     setIsPlayingVideo(true);
   }, []);
 
+  useLayoutEffect(() => {
+    if (searchParams.get("autoplay") !== "true" || !isWatch) return;
+    stabilizeScrollTop();
+  }, [searchParams, isWatch]);
+
   useEffect(() => {
     const shouldAutoplay = searchParams.get("autoplay") === "true";
-    if (!shouldAutoplay || !isWatch) return;
+    if (!shouldAutoplay || !isWatch || autoplayHandledRef.current) return;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     const maybeAutoplay = async () => {
@@ -187,13 +204,14 @@ export const useMediaHero = ({
       }
 
       timer = setTimeout(() => {
+        autoplayHandledRef.current = true;
         handleWatch();
         const params = new URLSearchParams(searchParams.toString());
         params.delete("autoplay");
         const newSearch = params.toString();
-        router.replace(`${pathname}${newSearch ? `?${newSearch}` : ""}`, {
-          scroll: false,
-        });
+        const nextUrl = `${pathname}${newSearch ? `?${newSearch}` : ""}`;
+        window.history.replaceState(window.history.state, "", nextUrl);
+        stabilizeScrollTop();
       }, 500);
     };
 
@@ -204,7 +222,6 @@ export const useMediaHero = ({
   }, [
     searchParams,
     isWatch,
-    router,
     pathname,
     passedMediaType,
     currentItem,

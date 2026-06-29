@@ -1,5 +1,6 @@
 "use client";
 
+import { stabilizeScrollTop } from "@/components/layout/route-scroll-reset";
 import { useLayoutEffect } from "react";
 
 type MediaDetailScrollResetProps = {
@@ -10,11 +11,7 @@ export const MediaDetailScrollReset = ({
   restoreKey,
 }: MediaDetailScrollResetProps) => {
   useLayoutEffect(() => {
-    const html = document.documentElement;
-    const previous = html.style.scrollBehavior;
-    html.style.scrollBehavior = "auto";
-    window.scrollTo(0, 0);
-    html.style.scrollBehavior = previous;
+    stabilizeScrollTop([0, 50, 150, 400]);
   }, [restoreKey]);
 
   return null;

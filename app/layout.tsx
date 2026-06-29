@@ -99,6 +99,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "history.scrollRestoration='manual'",
+          }}
+        />
         {process.env.NODE_ENV === "production" && (
           <>
             <Script
