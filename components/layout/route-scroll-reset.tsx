@@ -3,13 +3,26 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useState } from "react";
 
-const scrollToTop = () => {
+export const scrollToTop = () => {
   const html = document.documentElement;
   const previous = html.style.scrollBehavior;
 
   html.style.scrollBehavior = "auto";
   window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   html.style.scrollBehavior = previous;
+};
+
+export const stabilizeScrollTop = (
+  delaysMs: number[] = [0, 50, 150, 400, 550, 700],
+) => {
+  scrollToTop();
+  for (const delay of delaysMs) {
+    if (delay === 0) {
+      requestAnimationFrame(scrollToTop);
+      continue;
+    }
+    window.setTimeout(scrollToTop, delay);
+  }
 };
 
 const isMediaDetailPath = (pathname: string) =>
