@@ -25,11 +25,12 @@ import {
   shouldKeepSearchFocusWithinContainer,
 } from "@/hooks/use-search-autocomplete";
 import { useSearchPreview } from "@/hooks/use-search-preview";
+import { useSearchDialogStore } from "@/lib/stores/search-dialog-store";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Clock3, Search, X } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import {
   getSearchResultHref,
@@ -71,6 +72,17 @@ const SEARCH_DIALOG_SPRING = {
   damping: 32,
   mass: 0.9,
 };
+
+const searchSubmitButtonClassName = (isDialog: boolean) =>
+  cn(
+    "rounded-full bg-primary text-primary-foreground hover:bg-primary/90",
+    isDialog
+      ? "h-10 min-w-12 px-3 sm:h-11 sm:min-w-14 sm:px-3.5"
+      : "h-9 min-w-11 px-2.5 sm:h-10 sm:min-w-12 sm:px-3",
+  );
+
+const searchSubmitIconClassName = (isDialog: boolean) =>
+  isDialog ? "size-5 sm:size-[1.35rem]" : "size-4 sm:size-5";
 
 export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   const [query, setQuery] = useState("");
@@ -390,19 +402,19 @@ function SearchExperience({
     <motion.div
       className={cn(
         "w-full flex flex-col",
-        isDialog ? "h-full min-h-0 max-h-full overflow-hidden gap-4" : "gap-8",
+        isDialog ? "h-full min-h-0 max-h-full overflow-hidden gap-3" : "gap-8",
       )}
       transition={{ type: "spring", stiffness: 260, damping: 30 }}
     >
       {isDialog && (
-        <div className="mx-auto flex w-full max-w-xl shrink-0 items-center justify-between gap-4">
+        <div className="mx-auto flex w-full max-w-none shrink-0 items-center justify-between gap-4 px-1">
           {showCommittedResults ? (
             <motion.p
               layout
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="px-1 text-sm text-muted-foreground"
+              className="text-sm text-muted-foreground"
             >
               Results for{" "}
               <span className="font-medium text-foreground">
@@ -410,12 +422,12 @@ function SearchExperience({
               </span>
             </motion.p>
           ) : (
-            <DialogTitle className="text-2xl font-semibold tracking-tight text-white">
+            <DialogTitle className="text-lg font-semibold tracking-tight text-white">
               Search
             </DialogTitle>
           )}
-          <DialogClose className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-muted-foreground transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white focus:outline-hidden focus:ring-1 focus:ring-white/25">
-            <X className="size-5" />
+          <DialogClose className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-muted-foreground transition-colors hover:border-white/15 hover:bg-white/[0.08] hover:text-white focus:outline-hidden focus:ring-1 focus:ring-white/20">
+            <X className="size-4" />
             <span className="sr-only">Close search</span>
           </DialogClose>
         </div>
@@ -432,7 +444,7 @@ function SearchExperience({
           ref={containerRef}
           className={cn(
             isDialog
-              ? "relative mx-auto w-full max-w-xl"
+              ? "relative w-full"
               : "relative mx-auto max-w-sm md:max-w-lg",
             formClassName,
           )}
@@ -440,7 +452,8 @@ function SearchExperience({
           <div className="relative">
             <Search
               className={cn(
-                "absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground",
+                "absolute top-1/2 z-10 -translate-y-1/2 text-muted-foreground",
+                isDialog ? "left-3.5 size-4" : "left-3 h-4 w-4",
                 iconClassName,
               )}
             />
@@ -478,27 +491,48 @@ function SearchExperience({
                 }
               }}
               className={cn(
-                "pl-10 pr-12 md:pr-16 py-3 text-base w-full rounded-xl border transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground",
+                "w-full border text-base transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground",
+                isDialog
+                  ? "h-11 rounded-lg pl-10 pr-10 text-sm [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                  : "rounded-xl py-3 pl-10 pr-[3.25rem] sm:pr-[3.75rem] md:pr-16",
                 inputClassName,
               )}
             />
-            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 md:right-2 md:scale-50">
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon"
-                aria-label="Search"
-                className={cn(
-                  "size-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 md:size-10",
-                  submitButtonClassName,
-                )}
-                disabled={!query.trim()}
+            {isDialog && query ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => {
+                  setQuery("");
+                  setSearchQuery("");
+                  inputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
               >
-                <ArrowRight
-                  className={cn("h-4 w-4 md:h-5 md:w-5", submitIconClassName)}
-                />
-              </Button>
-            </div>
+                <X className="size-4" />
+              </button>
+            ) : null}
+            {!isDialog ? (
+              <div className="absolute top-1/2 -translate-y-1/2 right-1.5 md:right-2 md:scale-50">
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  aria-label="Search"
+                  className={cn(
+                    searchSubmitButtonClassName(isDialog),
+                    submitButtonClassName,
+                  )}
+                  disabled={!query.trim()}
+                >
+                  <ArrowRight
+                    className={cn(
+                      searchSubmitIconClassName(isDialog),
+                      submitIconClassName,
+                    )}
+                  />
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           {showAutocomplete && (
@@ -554,7 +588,7 @@ function SearchExperience({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
-            className="mx-auto w-full max-w-xl shrink-0"
+            className="mx-auto w-full max-w-none shrink-0"
           >
             <div className="mb-3 flex items-center justify-between px-1.5">
               <p className="text-sm font-medium text-muted-foreground">
@@ -632,6 +666,7 @@ function SearchExperience({
               query={searchQuery}
               hideTitle={isDialog}
               hidePaginationInfo={isDialog}
+              variant={isDialog ? "dialog" : "page"}
             />
           </motion.div>
         )}
@@ -647,18 +682,33 @@ export function SearchDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  const setSearchDialogOpen = useSearchDialogStore((state) => state.setIsOpen);
+
+  useEffect(() => {
+    setSearchDialogOpen(open);
+    return () => setSearchDialogOpen(false);
+  }, [open, setSearchDialogOpen]);
+
+  useEffect(() => {
+    if (pathnameRef.current === pathname) return;
+    pathnameRef.current = pathname;
+    onOpenChange(false);
+  }, [pathname, onOpenChange]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
         <DialogOverlay className="bg-black/70 backdrop-blur-sm" />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-[15vh] z-50 flex w-[min(100%-2rem,48rem)] max-h-[min(74vh,900px)] -translate-x-1/2 flex-col overflow-hidden border-0 bg-transparent p-5 shadow-none outline-none sm:p-7",
+            "fixed left-1/2 top-[8vh] z-50 flex w-[min(100%-1.5rem,72rem)] max-h-[min(84vh,920px)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#09090b]/95 p-4 shadow-2xl shadow-black/50 outline-none sm:p-5",
             "duration-300 ease-out",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
             "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
-            "data-[state=open]:slide-in-from-bottom-10 data-[state=closed]:slide-out-to-bottom-6",
+            "data-[state=open]:slide-in-from-bottom-8 data-[state=closed]:slide-out-to-bottom-4",
             "data-[state=open]:slide-in-from-left-1/2 data-[state=closed]:slide-out-to-left-1/2",
           )}
         >
@@ -669,12 +719,10 @@ export function SearchDialog({
             autoFocus={open}
             variant="dialog"
             onAfterNavigation={() => onOpenChange(false)}
-            formClassName="max-w-xl md:max-w-xl"
-            iconClassName="left-4 size-5 text-muted-foreground"
-            inputClassName="h-14 rounded-2xl border-white/10 bg-black/55 pl-12 pr-16 text-lg shadow-none backdrop-blur-xl placeholder:text-muted-foreground/75 focus-visible:border-white/20 focus-visible:bg-black/65 focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0"
-            placeholder="Type here to search..."
-            submitButtonClassName="right-2 size-8 bg-white/10 text-muted-foreground hover:bg-white/15 hover:text-white md:size-8"
-            submitIconClassName="size-5 md:size-5"
+            formClassName="w-full"
+            iconClassName="left-3.5 size-4 text-muted-foreground"
+            inputClassName="border-white/10 bg-white/[0.04] shadow-none backdrop-blur-sm placeholder:text-muted-foreground/70 focus-visible:border-white/15 focus-visible:bg-white/[0.06] focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0"
+            placeholder="Search movies and TV shows..."
           />
         </DialogPrimitive.Content>
       </DialogPortal>

@@ -11,6 +11,7 @@ export interface UseSearchResultsState {
   currentPage: number;
   totalPages: number;
   isLoading: boolean;
+  isFetching: boolean;
   error: string | null;
   selectedGenreIds: string[];
   allGenres: { [key: number]: string };
@@ -95,6 +96,7 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
     currentPage,
     totalPages: searchQuery.data?.totalPages ?? 1,
     isLoading: searchQuery.isLoading,
+    isFetching: searchQuery.isFetching,
     error: searchQuery.error?.message ?? null,
     selectedGenreIds,
     allGenres: genresQuery.data ?? {},
