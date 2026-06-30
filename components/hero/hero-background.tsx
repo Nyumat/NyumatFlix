@@ -376,7 +376,7 @@ export function HeroBackground({
   };
 
   return (
-    <div className="absolute inset-0 z-0">
+    <div className="absolute inset-0 z-0 bg-black">
       <AnimatePresence mode="popLayout">
         <motion.div
           key={media.backdrop_path}
@@ -389,7 +389,7 @@ export function HeroBackground({
               fetchPriority="high"
               alt={(media.title || media.name) as string}
               className="w-full h-full object-cover absolute inset-0 z-0"
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{
                 opacity: shouldShowAmbientVideo && isAmbientVideoReady ? 0 : 1,
               }}
