@@ -1,4 +1,7 @@
-import { DetailPageLoading } from "@/components/layout/page-loading/detail-page-loading";
+import {
+  DETAIL_CONTENT_CONTAINER_CLASS,
+  DetailPageLoading,
+} from "@/components/layout/page-loading/detail-page-loading";
 import { MediaDetailLayout } from "@/components/media/media-server";
 import { hydrateMovieDetailQueries } from "@/lib/prefetch-media-detail-queries";
 import { getCachedMovieAboveFoldDetail } from "@/lib/media-above-fold-server";
@@ -41,7 +44,7 @@ async function MovieDetailLayoutContent({ children, params }: Props) {
         mediaType="movie"
         isUpcoming={isUpcoming}
         anilistId={anilistId}
-        contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl pt-4! sm:pt-6! lg:pt-8!"
+        contentContainerClassName={DETAIL_CONTENT_CONTAINER_CLASS}
       >
         <div className="mt-4">{children}</div>
       </MediaDetailLayout>
@@ -51,7 +54,7 @@ async function MovieDetailLayoutContent({ children, params }: Props) {
 
 export default function MovieDetailLayout({ children, params }: Props) {
   return (
-    <Suspense fallback={<DetailPageLoading />}>
+    <Suspense fallback={<DetailPageLoading mediaType="movie" />}>
       <MovieDetailLayoutContent params={params}>
         {children}
       </MovieDetailLayoutContent>
