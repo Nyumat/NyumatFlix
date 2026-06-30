@@ -1,3 +1,4 @@
+import { isLiveTvEnabled } from "@/config/features";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { Cannabis, Globe, Heart } from "lucide-react";
 import Image from "next/image";
@@ -7,7 +8,7 @@ const FOOTER_LINKS = [
   { href: "/movies", label: "Movies" },
   { href: "/tvshows", label: "TV Shows" },
   { href: "/anime", label: "Anime" },
-  { href: "/live", label: "Live TV" },
+  ...(isLiveTvEnabled() ? [{ href: "/live", label: "Live TV" } as const] : []),
   { href: "/search", label: "Search" },
 ] as const;
 

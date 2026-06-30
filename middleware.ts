@@ -1,3 +1,4 @@
+import { isLiveTvEnabled } from "@/config/features";
 import {
   isLegacyMovieDetailTabPathSegment,
   isLegacyTvDetailTabPathSegment,
@@ -10,6 +11,10 @@ const LEGACY_ANILIST_ID_QUERY = "anilistId";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (!isLiveTvEnabled() && pathname.startsWith("/live")) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
 
   if (pathname.startsWith("/dev") && process.env.NODE_ENV !== "development") {
     return NextResponse.redirect(new URL("/", request.url));
