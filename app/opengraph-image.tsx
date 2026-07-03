@@ -1,16 +1,13 @@
 import { SITE_NAME } from "@/lib/constants";
 import { OG_IMAGE_SIZE, ogImageContentType } from "@/lib/seo/og-image";
-import {
-  ogImageRouteRevalidate,
-  renderCachedOgImage,
-} from "@/lib/seo/og-render";
+import { renderCachedOgImage } from "@/lib/seo/og-render";
 import { renderSiteOgImageElement } from "@/lib/seo/site-og-image";
 import { headers } from "next/headers";
 
 export const alt = SITE_NAME;
 export const size = OG_IMAGE_SIZE;
 export const contentType = ogImageContentType;
-export const revalidate = ogImageRouteRevalidate;
+export const revalidate = 86400; // OG_IMAGE_REVALIDATE_SECONDS
 
 const getRequestOrigin = async () => {
   const headerList = await headers();

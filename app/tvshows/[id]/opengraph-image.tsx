@@ -6,15 +6,12 @@ import {
   OG_IMAGE_SIZE,
   ogImageContentType,
 } from "@/lib/seo/og-image";
-import {
-  ogImageRouteRevalidate,
-  renderCachedOgImage,
-} from "@/lib/seo/og-render";
+import { renderCachedOgImage } from "@/lib/seo/og-render";
 
 export const alt = "TV show on NyumatFlix";
 export const size = OG_IMAGE_SIZE;
 export const contentType = ogImageContentType;
-export const revalidate = ogImageRouteRevalidate;
+export const revalidate = 86400; // OG_IMAGE_REVALIDATE_SECONDS
 
 type Props = {
   params: Promise<{ id: string }>;

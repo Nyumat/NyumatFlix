@@ -4,7 +4,6 @@ import type { ReactElement } from "react";
 import { createOgImageResponse } from "./og-image";
 
 export const OG_IMAGE_REVALIDATE_SECONDS = 86400;
-export const ogImageRouteRevalidate = OG_IMAGE_REVALIDATE_SECONDS;
 
 const MAX_CONCURRENT_OG_RENDERS = 3;
 const MAX_PNG_CACHE_ENTRIES = 250;

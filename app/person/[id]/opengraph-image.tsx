@@ -6,16 +6,13 @@ import {
   ogImageContentType,
   PersonOgImage,
 } from "@/lib/seo/og-image";
-import {
-  ogImageRouteRevalidate,
-  renderCachedOgImage,
-} from "@/lib/seo/og-render";
+import { renderCachedOgImage } from "@/lib/seo/og-render";
 import { tmdb } from "@/tmdb/api";
 
 export const alt = "Person on NyumatFlix";
 export const size = OG_IMAGE_SIZE;
 export const contentType = ogImageContentType;
-export const revalidate = ogImageRouteRevalidate;
+export const revalidate = 86400; // OG_IMAGE_REVALIDATE_SECONDS
 
 type Props = {
   params: Promise<{ id: string }>;
