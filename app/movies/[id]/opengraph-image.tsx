@@ -1,15 +1,20 @@
-import { getCachedMovieDetail } from "@/lib/media-detail-cache";
+import { fetchOgMovieDetail } from "@/lib/seo/og-tmdb-fetch";
+import { resolveMediaOgImageProps } from "@/lib/seo/og-remote-image";
 import {
-  createOgImageResponse,
   getMediaOgImageProps,
   MediaOgImage,
   OG_IMAGE_SIZE,
   ogImageContentType,
 } from "@/lib/seo/og-image";
+import {
+  ogImageRouteRevalidate,
+  renderCachedOgImage,
+} from "@/lib/seo/og-render";
 
 export const alt = "Movie on NyumatFlix";
 export const size = OG_IMAGE_SIZE;
 export const contentType = ogImageContentType;
+export const revalidate = ogImageRouteRevalidate;
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -17,15 +22,18 @@ type Props = {
 
 export default async function Image({ params }: Props) {
   const { id } = await params;
-  const movie = await getCachedMovieDetail(id);
 
-  if (!movie) {
-    return createOgImageResponse(
-      <MediaOgImage label="FILM" title="Movie Not Found" />,
+  return renderCachedOgImage(`movie:${id}`, async () => {
+    const movie = await fetchOgMovieDetail(id);
+
+    if (!movie) {
+      return <MediaOgImage label="FILM" title="Movie Not Found" />;
+    }
+
+    const props = await resolveMediaOgImageProps(
+      getMediaOgImageProps(movie, "movie"),
     );
-  }
 
-  const props = getMediaOgImageProps(movie, "movie");
-
-  return createOgImageResponse(<MediaOgImage {...props} />);
+    return <MediaOgImage {...props} />;
+  });
 }

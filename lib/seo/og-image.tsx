@@ -139,6 +139,8 @@ const BackdropLayer = ({ url }: { url?: string | null }) => {
       <img
         alt=""
         src={url}
+        width={OG_IMAGE_SIZE.width + BLUR_OVERSCAN * 2}
+        height={OG_IMAGE_SIZE.height + BLUR_OVERSCAN * 2}
         style={{
           position: "absolute",
           top: -BLUR_OVERSCAN,
@@ -1308,8 +1310,18 @@ export const getPersonOgImageProps = async (
     PersonDetails,
     "id" | "name" | "gender" | "known_for_department" | "profile_path"
   >,
+  creditsOverride?: Array<{
+    title?: string;
+    name?: string;
+    media_type?: string;
+    genre_ids?: number[];
+    popularity?: number;
+    poster_path?: string | null;
+  }>,
 ): Promise<PersonOgImageProps> => {
-  const credits = await fetchPersonCastCredits(person.id);
+  const credits = creditsOverride
+    ? dedupePersonCastCredits(creditsOverride)
+    : await fetchPersonCastCredits(person.id);
   const knownForTitles = credits
     .slice(0, 3)
     .map((credit) => getCreditTitle(credit))
