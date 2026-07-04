@@ -146,7 +146,7 @@
 }
 
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
   color-scheme: dark;
 }
 
@@ -340,6 +340,7 @@ html {
   body {
     @apply bg-background text-foreground;
     @apply min-w-full!;
+    overflow-x: clip;
     font-optical-sizing: auto;
   }
 

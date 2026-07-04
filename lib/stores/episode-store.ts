@@ -11,6 +11,7 @@ interface EpisodeState {
   isAnimeEpisode: boolean;
   anilistId: number | null;
   relativeEpisodeNumber: number | null;
+  defaultAnilistId: number | null;
   watchCallback: (() => void) | null;
   setSelectedEpisode: (
     episode: Episode,
@@ -24,6 +25,7 @@ interface EpisodeState {
     skipWatchCallback?: boolean,
   ) => void;
   clearSelectedEpisode: () => void;
+  setDefaultAnilistId: (anilistId: number | null) => void;
   getEmbedUrl: () => string | null;
   setWatchCallback: (callback: (() => void) | null) => void;
 }
@@ -35,6 +37,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   isAnimeEpisode: false,
   anilistId: null,
   relativeEpisodeNumber: null,
+  defaultAnilistId: null,
   watchCallback: null,
   setSelectedEpisode: (
     episode,
@@ -43,10 +46,19 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     animeInfo,
     skipWatchCallback = false,
   ) => {
-    const isAnimeEpisode = !!animeInfo;
-    const anilistId = animeInfo?.anilistId || null;
-    const relativeEpisodeNumber = animeInfo
-      ? episode.episode_number - animeInfo.startEpisode + 1
+    const effectiveAnimeInfo =
+      animeInfo ??
+      (get().defaultAnilistId
+        ? {
+            anilistId: get().defaultAnilistId!,
+            startEpisode: 1,
+            endEpisode: Number.MAX_SAFE_INTEGER,
+          }
+        : undefined);
+    const isAnimeEpisode = !!effectiveAnimeInfo;
+    const anilistId = effectiveAnimeInfo?.anilistId || null;
+    const relativeEpisodeNumber = effectiveAnimeInfo
+      ? episode.episode_number - effectiveAnimeInfo.startEpisode + 1
       : null;
 
     set({
@@ -101,6 +113,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       relativeEpisodeNumber: null,
     });
   },
+  setDefaultAnilistId: (defaultAnilistId) => set({ defaultAnilistId }),
   getEmbedUrl: () => {
     const {
       selectedEpisode,

@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export const scrollToTop = () => {
   const html = document.documentElement;
@@ -30,7 +30,12 @@ const isMediaDetailPath = (pathname: string) =>
 
 export const RouteScrollReset = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
   const [isFreshNavigating, setIsFreshNavigating] = useState(false);
+  const pendingDetailNavRef = useRef(false);
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
@@ -59,12 +64,23 @@ export const RouteScrollReset = () => {
 
       const nextUrl = new URL(anchor.href, window.location.href);
       if (nextUrl.origin !== window.location.origin) return;
-      if (nextUrl.pathname === window.location.pathname) return;
+      if (
+        nextUrl.pathname === window.location.pathname &&
+        nextUrl.search === window.location.search
+      ) {
+        return;
+      }
 
       if (isMediaDetailPath(nextUrl.pathname)) {
         event.preventDefault();
+        pendingDetailNavRef.current = true;
         setIsFreshNavigating(true);
-        window.setTimeout(() => window.location.assign(nextUrl.href), 50);
+        scrollToTop();
+
+        const href = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+        window.setTimeout(() => {
+          routerRef.current.push(href, { scroll: false });
+        }, 50);
         return;
       }
 
@@ -76,16 +92,38 @@ export const RouteScrollReset = () => {
   }, []);
 
   useLayoutEffect(() => {
-    setIsFreshNavigating(false);
     scrollToTop();
+
+    if (isMediaDetailPath(pathname)) {
+      stabilizeScrollTop([0, 50, 150, 400]);
+    }
+
+    if (!pendingDetailNavRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+    const finishTransition = () => {
+      if (cancelled) return;
+      pendingDetailNavRef.current = false;
+      setIsFreshNavigating(false);
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(finishTransition);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [pathname]);
 
   if (!isFreshNavigating) return null;
 
   return (
-    <div className="fixed inset-0 z-[2147483647] grid place-items-center bg-background text-foreground">
+    <div className="fixed inset-0 z-[2147483647] grid place-items-center bg-neutral-950 text-foreground">
       <div
-        className="size-12 animate-spin rounded-full border-3 border-muted border-t-primary"
+        className="size-10 animate-spin rounded-full border-3 border-white/10 border-t-primary/80"
         aria-label="Loading"
       />
     </div>

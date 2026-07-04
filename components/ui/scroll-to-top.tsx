@@ -1,10 +1,12 @@
 "use client";
 
+import { useSearchDialogStore } from "@/lib/stores/search-dialog-store";
 import { ChevronUp } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function ScrollToTop() {
   const [isVisible, setIsVisible] = useState(false);
+  const isSearchDialogOpen = useSearchDialogStore((state) => state.isOpen);
 
   useEffect(() => {
     const toggleVisibility = () => {
@@ -27,7 +29,7 @@ export function ScrollToTop() {
     });
   };
 
-  if (!isVisible) {
+  if (!isVisible || isSearchDialogOpen) {
     return null;
   }
 

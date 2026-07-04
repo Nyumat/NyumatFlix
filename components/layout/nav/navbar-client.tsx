@@ -1,5 +1,6 @@
 "use client";
 
+import { isLiveTvEnabled } from "@/config/features";
 import { SiteNav } from "@/components/layout/site-nav";
 import { SiteNavDesktop } from "@/components/layout/site-nav-desktop";
 import { AnniversaryBanner } from "@/components/layout/anniversary-banner";
@@ -50,7 +51,7 @@ const CATALOG_ROUTE_PATTERNS = [
   /^\/movies(?:\/(?:browse|now-playing|popular|top-rated|upcoming))?$/,
   /^\/tvshows(?:\/(?:airing-today|browse|on-the-air|popular|top-rated))?$/,
   /^\/anime$/,
-  /^\/live$/,
+  ...(isLiveTvEnabled() ? [/^\/live$/] : []),
   /^\/trending(?:\/(?:movie|people|tv))?$/,
   /^\/browse\/(?:country|genre)\/[^/]+$/,
   /^\/people\/popular$/,
@@ -97,7 +98,9 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
         "top-0 z-50 w-full bg-transparent",
       )}
     >
-      {!isAuthRoute(pathname) && pathname !== "/live" && <AnniversaryBanner />}
+      {!isAuthRoute(pathname) && isLiveTvEnabled() && pathname !== "/live" && (
+        <AnniversaryBanner />
+      )}
       <div className="site-container flex min-h-14 items-center gap-2 py-2.5 lg:gap-3">
         <div className="flex shrink-0 items-center gap-1 lg:gap-2">
           <BackButton />

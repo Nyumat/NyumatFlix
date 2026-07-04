@@ -26,7 +26,7 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
     id: movieId,
     append: "images",
   });
-  const logo = item.images.logos.find((l) => l.iso_639_1 === "en");
+  const logo = item.images?.logos.find((l) => l.iso_639_1 === "en");
 
   const backdropUrl = item.backdrop_path
     ? tmdbImage.backdrop(item.backdrop_path, "w1280")

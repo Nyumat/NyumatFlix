@@ -176,14 +176,14 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
             {...props}
             onClick={handleTogglePopover}
             className={cn(
-              "flex h-auto min-h-10 w-full items-center justify-between rounded-md p-1",
+              "flex h-auto min-h-10 w-full min-w-0 items-center rounded-md p-1",
               className,
             )}
           >
             {selectedValues.length > 0 ? (
-              <div className="flex justify-between items-center w-full">
+              <div className="flex w-full min-w-0 items-center gap-1">
                 <div
-                  className="flex items-center overflow-x-scroll px-2 py-1 gap-1"
+                  className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 py-0.5"
                   id="scrollbar_hide"
                 >
                   {selectedValues.slice(0, maxCount).map((value) => {
@@ -195,28 +195,30 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                         className={cn(
                           isAnimating ? "animate-bounce" : "",
                           multiSelectVariants({ variant }),
-                          "px-2 py-1 font-semibold",
+                          "inline-flex max-w-none shrink-0 items-center gap-1 whitespace-nowrap px-2 py-1 font-semibold",
                         )}
                         style={{ animationDuration: `${animation}s` }}
                       >
                         {IconComponent && (
-                          <IconComponent className="h-4 w-4 mr-2" />
+                          <IconComponent className="size-4 shrink-0" />
                         )}
-                        {option?.label}
-                        <XCircle
-                          className="ml-2 h-4 w-4 cursor-pointer hover:text-destructive transition-colors"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleOption(value);
-                          }}
-                        />
+                        <span className="shrink-0">{option?.label}</span>
+                        {selectedValues.length > 1 ? (
+                          <XCircle
+                            className="size-4 shrink-0 cursor-pointer transition-colors hover:text-destructive"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleOption(value);
+                            }}
+                          />
+                        ) : null}
                       </Badge>
                     );
                   })}
                   {selectedValues.length > maxCount && (
                     <Badge
                       className={cn(
-                        "bg-transparent text-foreground border-foreground/1 hover:bg-transparent",
+                        "shrink-0 whitespace-nowrap border-foreground/10 bg-transparent text-foreground hover:bg-transparent",
                         isAnimating ? "animate-bounce" : "",
                         multiSelectVariants({ variant }),
                       )}
@@ -224,7 +226,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                     >
                       {`+ ${selectedValues.length - maxCount} more`}
                       <XCircle
-                        className="ml-2 h-4 w-4 cursor-pointer"
+                        className="ml-1.5 size-4 shrink-0 cursor-pointer"
                         onClick={(event) => {
                           event.stopPropagation();
                           clearExtraOptions(maxCount);
@@ -233,27 +235,24 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex shrink-0 items-center">
                   <XIcon
-                    className="h-4 mx-2 cursor-pointer text-muted-foreground hover:text-destructive transition-colors"
+                    className="mx-1.5 size-4 shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-destructive"
                     onClick={(event) => {
                       event.stopPropagation();
                       handleClear();
                     }}
                   />
-                  <Separator
-                    orientation="vertical"
-                    className="flex min-h-6 h-full"
-                  />
-                  <ChevronDown className="h-4 mx-2 cursor-pointer text-muted-foreground hover:text-primary transition-colors" />
+                  <Separator orientation="vertical" className="h-5 shrink-0" />
+                  <ChevronDown className="mx-1.5 size-4 shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-primary" />
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between w-full mx-auto">
-                <span className="text-sm text-muted-foreground mx-3">
+              <div className="flex w-full items-center justify-between gap-2 px-2">
+                <span className="min-w-0 flex-1 truncate text-left text-sm text-muted-foreground">
                   {placeholder}
                 </span>
-                <ChevronDown className="h-4 cursor-pointer text-muted-foreground hover:text-primary transition-colors mx-2" />
+                <ChevronDown className="size-4 shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-primary" />
               </div>
             )}
           </Button>
