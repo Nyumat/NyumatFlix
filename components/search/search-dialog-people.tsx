@@ -24,11 +24,13 @@ interface Person {
 interface SearchDialogPeopleProps {
   query: string;
   className?: string;
+  onNavigate?: () => void;
 }
 
 export function SearchDialogPeople({
   query,
   className,
+  onNavigate,
 }: SearchDialogPeopleProps) {
   const router = useRouter();
   const trimmedQuery = useMemo(() => query.trim(), [query]);
@@ -126,6 +128,7 @@ export function SearchDialogPeople({
   }, [inView, isLoading, currentPage, totalPages, loadMore]);
 
   const handlePersonClick = (personId: number) => {
+    onNavigate?.();
     router.push(`/person/${personId}`);
   };
 

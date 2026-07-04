@@ -24,6 +24,23 @@ export interface ServerOverride {
   isAvailable: boolean;
   reason?: string; // Optional reason for the override (e.g., "Server down", "Maintenance")
 }
+// Brand accent used for embeds that accept a `color` param (hex without the leading #).
+export const EMBED_ACCENT_COLOR = "9146ff";
+
+// VidSrc Mirror (vidsrc.wtf) exposes 4 interchangeable API surfaces.
+export type VidsrcApi = "1" | "2" | "3" | "4";
+
+export const VIDSRC_MIRROR_APIS: {
+  value: VidsrcApi;
+  label: string;
+  description: string;
+}[] = [
+  { value: "1", label: "Multi Server", description: "API 1" },
+  { value: "2", label: "Multi Language", description: "API 2" },
+  { value: "3", label: "Multi Embeds", description: "API 3" },
+  { value: "4", label: "Premium", description: "API 4" },
+];
+
 // Old -> vidsrc.xyz - vsrc.su
 // New: vsembed.ru - vsembed.su
 export const videoServers: VideoServer[] = [
@@ -35,6 +52,23 @@ export const videoServers: VideoServer[] = [
     getTvUrl: (tmdbId) => `https://vsembed.ru/embed/tv?tmdb=${tmdbId}`,
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://vsembed.ru/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+  },
+  {
+    id: "vidsrc-mirror",
+    name: "VidSrc Mirror",
+    baseUrl: "https://vidsrc.wtf",
+    getMovieUrl: (tmdbId) => {
+      const api = useServerStore.getState().vidsrcApi;
+      return `https://vidsrc.wtf/${api}/movie/${tmdbId}?color=${EMBED_ACCENT_COLOR}`;
+    },
+    getTvUrl: (tmdbId) => {
+      const api = useServerStore.getState().vidsrcApi;
+      return `https://vidsrc.wtf/${api}/tv/${tmdbId}/1/1?color=${EMBED_ACCENT_COLOR}`;
+    },
+    getEpisodeUrl: (tmdbId, season, episode) => {
+      const api = useServerStore.getState().vidsrcApi;
+      return `https://vidsrc.wtf/${api}/tv/${tmdbId}/${season}/${episode}?color=${EMBED_ACCENT_COLOR}`;
+    },
   },
   {
     id: "superembed",
@@ -166,14 +200,50 @@ export const videoServers: VideoServer[] = [
 
 export const defaultServerOverrides: ServerOverride[] = [];
 
+export interface ServerAvailabilityInput {
+  tmdbId: number;
+  mediaType: "movie" | "tv";
+  seasonNumber?: number;
+  episodeNumber?: number;
+  anilistId?: number;
+  animeEpisodeNumber?: number;
+  animePreference?: "sub" | "dub";
+}
+
+type ServerHealthResponse = {
+  available: boolean;
+  state: "available" | "unavailable" | "unknown";
+  status: number | null;
+};
+
+const availabilityKeyFor = (
+  input: ServerAvailabilityInput,
+  vidsrcApi: VidsrcApi,
+) =>
+  [
+    input.mediaType,
+    input.tmdbId,
+    input.seasonNumber ?? "",
+    input.episodeNumber ?? "",
+    input.anilistId ?? "",
+    input.animeEpisodeNumber ?? "",
+    input.animePreference ?? "",
+    vidsrcApi,
+  ].join(":");
+
 interface ServerState {
   selectedServer: VideoServer;
   serverOverrides: ServerOverride[];
   animePreference: "sub" | "dub";
   vidnestContentType: "movie" | "tv" | "anime" | "animepahe";
+  vidsrcApi: VidsrcApi;
+  availabilityKey: string | null;
+  unavailableServerIds: string[];
   setSelectedServer: (server: VideoServer) => void;
   setAnimePreference: (preference: "sub" | "dub") => void;
   setVidnestContentType: (type: "movie" | "tv" | "anime" | "animepahe") => void;
+  setVidsrcApi: (api: VidsrcApi) => void;
+  prefetchServerAvailability: (input: ServerAvailabilityInput) => Promise<void>;
   getServerById: (id: string) => VideoServer | undefined;
   getAvailableServer: (tmdbId: number, type: "movie" | "tv") => VideoServer;
   setServerOverride: (
@@ -200,6 +270,9 @@ export const useServerStore = create<ServerState>()(
       serverOverrides: defaultServerOverrides,
       animePreference: "sub" as "sub" | "dub",
       vidnestContentType: "movie" as "movie" | "tv" | "anime" | "animepahe",
+      vidsrcApi: "1" as VidsrcApi,
+      availabilityKey: null,
+      unavailableServerIds: [],
       setSelectedServer: (server) => {
         set({ selectedServer: server });
       },
@@ -208,6 +281,86 @@ export const useServerStore = create<ServerState>()(
       },
       setVidnestContentType: (type) => {
         set({ vidnestContentType: type });
+      },
+      setVidsrcApi: (api) => {
+        set({ vidsrcApi: api });
+      },
+      prefetchServerAvailability: async (input) => {
+        const availabilityKey = availabilityKeyFor(input, get().vidsrcApi);
+        if (get().availabilityKey === availabilityKey) return;
+
+        set({ availabilityKey, unavailableServerIds: [] });
+
+        const results = await Promise.all(
+          videoServers.map(async (server) => {
+            const url =
+              server.id === "vidnest" &&
+              input.anilistId &&
+              input.animeEpisodeNumber
+                ? `https://vidnest.fun/anime/${input.anilistId}/${input.animeEpisodeNumber}/${input.animePreference ?? "sub"}`
+                : input.mediaType === "tv" &&
+                    input.seasonNumber &&
+                    input.episodeNumber
+                  ? server.getEpisodeUrl(
+                      input.tmdbId,
+                      input.seasonNumber,
+                      input.episodeNumber,
+                    )
+                  : input.mediaType === "tv"
+                    ? server.getTvUrl(input.tmdbId)
+                    : server.getMovieUrl(input.tmdbId);
+
+            try {
+              const response = await fetch("/api/servers/health", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url }),
+              });
+              if (!response.ok) {
+                return {
+                  server,
+                  state: "unknown" as const,
+                  unavailable: false,
+                };
+              }
+
+              const health = (await response.json()) as ServerHealthResponse;
+              return {
+                server,
+                state: health.state,
+                unavailable: health.state === "unavailable",
+              };
+            } catch {
+              return {
+                server,
+                state: "unknown" as const,
+                unavailable: false,
+              };
+            }
+          }),
+        );
+
+        if (get().availabilityKey !== availabilityKey) return;
+
+        const unavailableServerIds = results
+          .filter(({ unavailable }) => unavailable)
+          .map(({ server }) => server.id);
+        const selectedServer = get().selectedServer;
+        const fallbackServer = results.find(
+          ({ server, state }) =>
+            state === "available" &&
+            !get().serverOverrides.some(
+              (override) =>
+                override.serverId === server.id && !override.isAvailable,
+            ),
+        )?.server;
+
+        set({
+          unavailableServerIds,
+          selectedServer: unavailableServerIds.includes(selectedServer.id)
+            ? fallbackServer || selectedServer
+            : selectedServer,
+        });
       },
       getServerById: (id) => {
         return videoServers.find((server) => server.id === id);
@@ -305,6 +458,8 @@ export const useServerStore = create<ServerState>()(
               ...value.state,
               selectedServerId: value.state.selectedServer.id,
               selectedServer: undefined,
+              availabilityKey: undefined,
+              unavailableServerIds: undefined,
             },
           };
           localStorage.setItem(name, JSON.stringify(toStore));

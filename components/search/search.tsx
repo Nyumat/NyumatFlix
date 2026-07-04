@@ -667,6 +667,7 @@ function SearchExperience({
               hideTitle={isDialog}
               hidePaginationInfo={isDialog}
               variant={isDialog ? "dialog" : "page"}
+              onNavigate={isDialog ? onAfterNavigation : undefined}
             />
           </motion.div>
         )}

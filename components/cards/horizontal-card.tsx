@@ -19,6 +19,7 @@ import { CardMeta } from "./card-meta";
 
 type HorizontalCardProps = {
   item: CanonicalMediaCard | MediaItem;
+  onNavigate?: () => void;
   testIdPrefix?: string;
   overviewLines?: string;
   variant?: "default" | "compact";
@@ -26,6 +27,7 @@ type HorizontalCardProps = {
 
 export function HorizontalCard({
   item,
+  onNavigate,
   testIdPrefix = "horizontal-card",
   overviewLines,
   variant = "default",
@@ -171,6 +173,7 @@ export function HorizontalCard({
       </div>
       <Link
         href={href}
+        onClick={onNavigate}
         className="absolute inset-0 z-40"
         aria-label={`View ${title}`}
       />

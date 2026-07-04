@@ -373,11 +373,13 @@ export default function SearchResults({
   hideTitle = false,
   hidePaginationInfo = false,
   variant = "page",
+  onNavigate,
 }: {
   query: string;
   hideTitle?: boolean;
   hidePaginationInfo?: boolean;
   variant?: "page" | "dialog";
+  onNavigate?: () => void;
 }) {
   const isDialogLayout = variant === "dialog" || hideTitle;
 
@@ -563,7 +565,7 @@ export default function SearchResults({
               <div className="space-y-5 p-4">
                 {genreFilterPanel}
                 <div className="hidden lg:block">
-                  <SearchDialogPeople query={query} />
+                  <SearchDialogPeople query={query} onNavigate={onNavigate} />
                 </div>
               </div>
             </aside>
@@ -587,6 +589,7 @@ export default function SearchResults({
                   .map((item) => (
                     <HorizontalCard
                       key={getStableCardKey(item)}
+                      onNavigate={onNavigate}
                       variant="compact"
                       item={{
                         ...item,
@@ -618,7 +621,7 @@ export default function SearchResults({
           </div>
 
           <div className="border-t border-white/8 p-4 lg:hidden">
-            <SearchDialogPeople query={query} />
+            <SearchDialogPeople query={query} onNavigate={onNavigate} />
           </div>
         </div>
       </div>
