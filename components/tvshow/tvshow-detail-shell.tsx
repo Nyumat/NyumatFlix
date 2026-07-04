@@ -1,6 +1,7 @@
 "use client";
 
 import { WatchlistItem } from "@/lib/domain/watchlist";
+import { DETAIL_CONTENT_CONTAINER_CLASS } from "@/components/layout/page-loading/detail-page-loading";
 import { MediaDetailLayout } from "@/components/media/media-server";
 import { useWatchlistItem } from "@/hooks/useWatchlistItem";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
@@ -70,7 +71,7 @@ export const TvShowDetailShell = ({
         anilistId={resolvedAnilistId}
         watchlistItem={passedWatchlistItem}
         initialSeasonNumber={watchlistItem?.lastWatchedSeason || null}
-        contentContainerClassName="mx-auto px-4 relative z-10 max-w-7xl pt-4! sm:pt-6! lg:pt-8!"
+        contentContainerClassName={DETAIL_CONTENT_CONTAINER_CLASS}
       >
         <div className="mt-4">{children}</div>
       </MediaDetailLayout>

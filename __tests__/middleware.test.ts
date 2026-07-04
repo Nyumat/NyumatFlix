@@ -34,4 +34,13 @@ describe("middleware", () => {
       ),
     ).toBe("http://localhost:3000/");
   });
+
+  test("redirects live tv routes when the feature is disabled", () => {
+    expect(getRedirectLocation("http://localhost:3000/live")).toBe(
+      "http://localhost:3000/",
+    );
+    expect(getRedirectLocation("http://localhost:3000/live?ch=espn")).toBe(
+      "http://localhost:3000/",
+    );
+  });
 });

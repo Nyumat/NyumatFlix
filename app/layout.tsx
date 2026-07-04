@@ -1,6 +1,6 @@
 import { JsonLdScript } from "@/components/seo/json-ld-script";
 import { buildWebsiteStructuredData } from "@/lib/seo/structured-data";
-import { NavbarServer } from "@/components/layout/nav/navbar-server";
+import { NavbarClient } from "@/components/layout/nav/navbar-client";
 import { RouteScrollReset } from "@/components/layout/route-scroll-reset";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { OnboardingProvider } from "@/components/providers/onboarding-provider";
@@ -28,6 +28,7 @@ import {
   DEFAULT_OG_IMAGE_TYPE,
   OG_IMAGE_SIZE,
 } from "@/lib/seo/constants";
+import { auth } from "@/auth";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -87,11 +88,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html
       lang="en"
@@ -132,11 +135,11 @@ export default function RootLayout({
         <JsonLdScript data={buildWebsiteStructuredData()} />
         <RouteScrollReset />
         <QueryProvider>
-          <AuthSessionProvider>
+          <AuthSessionProvider session={session}>
             <OnboardingProvider>
               <TooltipProvider>
                 <GlobalDockProvider>
-                  <NavbarServer />
+                  <NavbarClient session={session} />
                   <main className="flex min-h-0 flex-1 flex-col">
                     {children}
                   </main>

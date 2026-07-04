@@ -8,7 +8,6 @@ import {
   resolveChannelFromSlug,
 } from "@/lib/live/channel-slugs";
 import { pickDefaultLiveChannel } from "@/lib/live/defaults";
-import { EMPTY_LIVE_GUIDE } from "@/lib/live/empty-guide";
 import {
   mergeLiveChannelGuides,
   toPlayableLiveGuide,
@@ -19,6 +18,7 @@ const ALL_CATEGORIES = "all";
 const DEFAULT_DOCUMENT_TITLE = "Live TV | NyumatFlix";
 
 type LiveTvPageProps = {
+  initialGuide: LiveChannelsResponse;
   initialChannelSlug?: string | null;
 };
 
@@ -37,16 +37,20 @@ const resolveInitialChannelId = (
   return pickDefaultLiveChannel(guide.channels)?.id ?? null;
 };
 
-const fetchLiveGuide = async (mode: "bootstrap" | "supplemental" | "full") => {
+const fetchLiveGuide = async (
+  mode: "bootstrap" | "supplemental" | "full",
+  options?: { reload?: boolean },
+) => {
   const url =
     mode === "bootstrap"
       ? "/api/live/channels?bootstrap=1"
       : mode === "supplemental"
         ? "/api/live/channels?supplemental=1"
         : "/api/live/channels";
-  const response = await fetch(url, {
-    cache: "no-store",
-  });
+  const response = await fetch(
+    url,
+    options?.reload ? { cache: "reload" } : undefined,
+  );
 
   if (!response.ok) {
     throw new Error(`Live guide returned ${response.status}`);
@@ -66,19 +70,25 @@ const replaceLiveChannelUrl = (slug: string) => {
   window.history.replaceState(window.history.state, "", url);
 };
 
-export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
+export function LiveTvPage({
+  initialGuide,
+  initialChannelSlug = null,
+}: LiveTvPageProps) {
   const initialChannelSlugRef = useRef(initialChannelSlug);
-  const [guide, setGuide] = useState(EMPTY_LIVE_GUIDE);
+  const hasSsrGuide = initialGuide.channels.length > 0;
+  const [guide, setGuide] = useState(initialGuide);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
-    null,
+    () => resolveInitialChannelId(initialGuide, initialChannelSlug),
   );
-  const [loadingGuide, setLoadingGuide] = useState(true);
+  const [loadingGuide, setLoadingGuide] = useState(!hasSsrGuide);
   const [loadingMoreChannels, setLoadingMoreChannels] = useState(false);
   const [guideError, setGuideError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const fullGuideLoadedRef = useRef(false);
+  const fullGuideLoadedRef = useRef(
+    hasSsrGuide && initialGuide.guideComplete !== false,
+  );
 
   const playableGuide = useMemo(() => toPlayableLiveGuide(guide), [guide]);
 
@@ -138,28 +148,51 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
     [],
   );
 
-  const loadSupplementalGuide = useCallback(async () => {
-    const supplementalGuide = await fetchLiveGuide("supplemental");
-    applyGuide(supplementalGuide, true);
-    fullGuideLoadedRef.current = true;
-  }, [applyGuide]);
+  const loadSupplementalGuide = useCallback(
+    async (reload = false) => {
+      const supplementalGuide = await fetchLiveGuide("supplemental", {
+        reload,
+      });
+      applyGuide(supplementalGuide, true);
+      fullGuideLoadedRef.current = true;
+    },
+    [applyGuide],
+  );
 
   useEffect(() => {
     let cancelled = false;
 
-    const bootstrapGuide = async () => {
+    const loadGuide = async () => {
+      if (hasSsrGuide) {
+        if (initialGuide.guideComplete === false) {
+          setLoadingMoreChannels(true);
+
+          try {
+            await loadSupplementalGuide();
+          } catch {
+            // Supplemental guide load is best-effort once bootstrap succeeded.
+          } finally {
+            if (!cancelled) {
+              setLoadingMoreChannels(false);
+            }
+          }
+        }
+
+        return;
+      }
+
       setLoadingGuide(true);
       fullGuideLoadedRef.current = false;
 
       try {
-        const initialGuide = await fetchLiveGuide("bootstrap");
+        const bootstrapGuide = await fetchLiveGuide("bootstrap");
         if (cancelled) {
           return;
         }
 
-        applyGuide(initialGuide);
+        applyGuide(bootstrapGuide);
 
-        if (initialGuide.guideComplete === false) {
+        if (bootstrapGuide.guideComplete === false) {
           setLoadingMoreChannels(true);
 
           try {
@@ -183,7 +216,9 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
           await loadSupplementalGuide();
         } catch {
           try {
-            await fetchLiveGuide("full").then((guide) => applyGuide(guide));
+            await fetchLiveGuide("full").then((nextGuide) =>
+              applyGuide(nextGuide),
+            );
           } catch {
             if (!cancelled) {
               setGuideError(true);
@@ -198,30 +233,37 @@ export function LiveTvPage({ initialChannelSlug = null }: LiveTvPageProps) {
       }
     };
 
-    void bootstrapGuide();
+    void loadGuide();
 
     return () => {
       cancelled = true;
     };
-  }, [applyGuide, loadSupplementalGuide]);
+  }, [
+    applyGuide,
+    hasSsrGuide,
+    initialGuide.guideComplete,
+    loadSupplementalGuide,
+  ]);
 
   const refreshGuide = useCallback(async () => {
     setRefreshing(true);
     fullGuideLoadedRef.current = false;
 
     try {
-      const bootstrapGuide = await fetchLiveGuide("bootstrap");
+      const bootstrapGuide = await fetchLiveGuide("bootstrap", {
+        reload: true,
+      });
       applyGuide(bootstrapGuide);
 
       if (bootstrapGuide.guideComplete === false) {
         setLoadingMoreChannels(true);
-        await loadSupplementalGuide();
+        await loadSupplementalGuide(true);
       } else {
         fullGuideLoadedRef.current = true;
       }
     } catch {
       try {
-        const fullGuide = await fetchLiveGuide("full");
+        const fullGuide = await fetchLiveGuide("full", { reload: true });
         applyGuide(fullGuide);
       } catch {
         setGuideError(true);

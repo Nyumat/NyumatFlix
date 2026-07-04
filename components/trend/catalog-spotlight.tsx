@@ -31,7 +31,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
       id,
       append: "images",
     });
-    const logo = item.images.logos.find((l) => l.iso_639_1 === "en");
+    const logo = item.images?.logos.find((l) => l.iso_639_1 === "en");
 
     const backdropUrl = item.backdrop_path
       ? tmdbImage.backdrop(item.backdrop_path, "w1280")
@@ -153,7 +153,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
     id,
     append: "images",
   });
-  const logo = item.images.logos.find((l) => l.iso_639_1 === "en");
+  const logo = item.images?.logos.find((l) => l.iso_639_1 === "en");
 
   const backdropUrl = item.backdrop_path
     ? tmdbImage.backdrop(item.backdrop_path, "w1280")

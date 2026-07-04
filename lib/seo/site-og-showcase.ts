@@ -19,7 +19,7 @@ export const getSiteOgImageProps = async (
     include_adult: false,
   });
 
-  const posterUrls = data.results
+  const posterUrls = (data.results ?? [])
     .slice(0, 5)
     .map((m) => tmdbImageUrl(m.poster_path, "w500"))
     .filter((url): url is string => Boolean(url));

@@ -6,6 +6,7 @@ import {
   selectPrimaryTrailerVideo,
   type TrailerPickRow,
 } from "@/lib/select-primary-trailer-video";
+import { useVidsrcProgress } from "@/hooks/use-vidsrc-progress";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useServerStore } from "@/lib/stores/server-store";
 import { logger } from "@/lib/utils";
@@ -79,9 +80,60 @@ export function HeroBackground({
   onAmbientAutoplayBlocked,
   onAmbientBackdropActiveChange,
 }: HeroBackgroundProps) {
-  const { getEmbedUrl } = useEpisodeStore();
-  const { selectedServer, vidnestContentType, animePreference } =
-    useServerStore();
+  const {
+    getEmbedUrl,
+    selectedEpisode,
+    tvShowId,
+    seasonNumber,
+    isAnimeEpisode,
+    anilistId: episodeAnilistId,
+    relativeEpisodeNumber,
+  } = useEpisodeStore();
+  const {
+    selectedServer,
+    vidnestContentType,
+    animePreference,
+    vidsrcApi,
+    prefetchServerAvailability,
+  } = useServerStore();
+
+  useEffect(() => {
+    const isTv =
+      mediaType === "tv" ||
+      (!mediaType && (media.media_type === "tv" || media.name !== undefined));
+    const tmdbId = isTv && tvShowId ? Number(tvShowId) : media.id;
+
+    if (!Number.isInteger(tmdbId) || tmdbId <= 0) return;
+
+    void prefetchServerAvailability({
+      tmdbId,
+      mediaType: isTv ? "tv" : "movie",
+      seasonNumber: seasonNumber || undefined,
+      episodeNumber: selectedEpisode?.episode_number,
+      anilistId: isAnimeEpisode ? episodeAnilistId || undefined : undefined,
+      animeEpisodeNumber: isAnimeEpisode
+        ? relativeEpisodeNumber || undefined
+        : undefined,
+      animePreference,
+    });
+  }, [
+    media.id,
+    media.media_type,
+    media.name,
+    mediaType,
+    prefetchServerAvailability,
+    animePreference,
+    episodeAnilistId,
+    isAnimeEpisode,
+    relativeEpisodeNumber,
+    seasonNumber,
+    selectedEpisode?.episode_number,
+    tvShowId,
+    vidsrcApi,
+  ]);
+
+  // Capture watch-progress emitted by the VidSrc Mirror embed (postMessage).
+  useVidsrcProgress();
   const initialTrailerVideos = useMemo(() => {
     const rows = extractVideoRowsFromMediaVideos(media.videos).filter(
       (video) =>
@@ -376,7 +428,7 @@ export function HeroBackground({
   };
 
   return (
-    <div className="absolute inset-0 z-0">
+    <div className="absolute inset-0 z-0 bg-black">
       <AnimatePresence mode="popLayout">
         <motion.div
           key={media.backdrop_path}
@@ -389,7 +441,7 @@ export function HeroBackground({
               fetchPriority="high"
               alt={(media.title || media.name) as string}
               className="w-full h-full object-cover absolute inset-0 z-0"
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{
                 opacity: shouldShowAmbientVideo && isAmbientVideoReady ? 0 : 1,
               }}

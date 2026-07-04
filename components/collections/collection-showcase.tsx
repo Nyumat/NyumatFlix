@@ -141,9 +141,10 @@ export function CollectionShowcase({
           </Link>
 
           <div className="min-w-0 flex-1 space-y-1.5 sm:space-y-2">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-              Collection
-            </p>
+            <div
+              className="h-px w-1/5 bg-linear-to-r from-foreground/50 via-foreground/25 to-transparent"
+              aria-hidden
+            />
             <h3 className="line-clamp-2 text-base font-semibold tracking-tight text-foreground sm:text-lg">
               {collection.name}
             </h3>

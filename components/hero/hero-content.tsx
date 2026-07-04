@@ -8,6 +8,7 @@ import { Episode, MediaItem, Movie, TvShow } from "@/lib/domain/typings";
 import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import { Icons } from "@/lib/icons";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useServerStore } from "@/lib/stores/server-store";
 import { cn } from "@/lib/utils";
 import {
   getCountryFlagEmoji,
@@ -80,6 +81,7 @@ export function HeroContent({
     clearSelectedEpisode,
     setWatchCallback,
     setSelectedEpisode,
+    setDefaultAnilistId,
   } = useEpisodeStore();
   const title = media.title || media.name;
 
@@ -110,6 +112,16 @@ export function HeroContent({
       media as MediaItem & { genres?: Array<{ id: number; name: string }> }
     ).genres?.slice(0, 3) || [];
   const isAnime = typeof anilistId === "number";
+
+  useEffect(() => {
+    const resolvedAnilistId = isAnime ? anilistId : null;
+    setDefaultAnilistId(resolvedAnilistId);
+
+    const serverState = useServerStore.getState();
+    serverState.setVidnestContentType(isAnime ? "anime" : "tv");
+
+    return () => setDefaultAnilistId(null);
+  }, [anilistId, isAnime, setDefaultAnilistId]);
   const primaryProductionCountry =
     !isTv && "production_countries" in media
       ? media.production_countries?.[0]

@@ -1,5 +1,6 @@
 "use client";
 
+import { isLiveTvEnabled } from "@/config/features";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
@@ -19,6 +20,11 @@ export function AnniversaryBanner({ className }: AnniversaryBannerProps) {
   const [hasCheckedDismissal, setHasCheckedDismissal] = useState(false);
 
   useEffect(() => {
+    if (!isLiveTvEnabled()) {
+      setHasCheckedDismissal(true);
+      return;
+    }
+
     window.localStorage.removeItem(OLD_ANNOUNCEMENT_BANNER_STORAGE_KEY);
 
     const wasDismissed =
@@ -35,7 +41,7 @@ export function AnniversaryBanner({ className }: AnniversaryBannerProps) {
 
   return (
     <AnimatePresence initial={false}>
-      {hasCheckedDismissal && isVisible && (
+      {isLiveTvEnabled() && hasCheckedDismissal && isVisible && (
         <motion.div
           className={cn(
             "overflow-hidden border-b border-zinc-800/80 bg-zinc-950/90 text-zinc-100 shadow-[0_10px_30px_rgba(0,0,0,0.24)] backdrop-blur-xl",

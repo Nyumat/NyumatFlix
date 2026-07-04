@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isLiveTvEnabled } from "@/config/features";
 import {
   decodeLiveStreamToken,
   isAllowedLiveStreamUrl,
@@ -54,6 +55,10 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, context: RouteContext) {
+  if (!isLiveTvEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const { token, asset } = await context.params;
   const rangeHeader = request.headers.get("range");
 

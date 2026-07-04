@@ -47,7 +47,7 @@ async function TvShowDetailLayoutContent({ children, params }: Props) {
 
 export default function TVShowDetailLayout({ children, params }: Props) {
   return (
-    <Suspense fallback={<DetailPageLoading />}>
+    <Suspense fallback={<DetailPageLoading mediaType="tv" />}>
       <TvShowDetailLayoutContent params={params}>
         {children}
       </TvShowDetailLayoutContent>

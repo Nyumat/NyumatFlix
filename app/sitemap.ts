@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { pages } from "@/config/pages";
+import { isLiveTvEnabled } from "@/config/features";
 import { SITE_URL } from "@/lib/constants";
 
 const staticRoutes: MetadataRoute.Sitemap = [
@@ -48,11 +49,15 @@ const staticRoutes: MetadataRoute.Sitemap = [
     changeFrequency: "daily",
     priority: 0.75,
   },
-  {
-    url: `${SITE_URL}/live`,
-    changeFrequency: "daily",
-    priority: 0.7,
-  },
+  ...(isLiveTvEnabled()
+    ? [
+        {
+          url: `${SITE_URL}/live`,
+          changeFrequency: "daily" as const,
+          priority: 0.7,
+        },
+      ]
+    : []),
   {
     url: `${SITE_URL}/search`,
     changeFrequency: "weekly",

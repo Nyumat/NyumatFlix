@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isLiveTvEnabled } from "@/config/features";
 import { getLiveChannels } from "@/lib/live/dulo";
 
 export const maxDuration = 90;
@@ -19,6 +20,10 @@ const resolveGuideMode = (request: Request) => {
 };
 
 export async function GET(request: Request) {
+  if (!isLiveTvEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const mode = resolveGuideMode(request);
 
   try {

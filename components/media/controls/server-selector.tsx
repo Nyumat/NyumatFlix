@@ -1,15 +1,12 @@
 "use client";
 
-import { useServerStore, videoServers } from "@/lib/stores/server-store";
-import { MediaItem } from "@/lib/domain/typings";
 import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Server,
-  Wifi,
-  WifiOff,
-} from "lucide-react";
+  useServerStore,
+  videoServers,
+  VIDSRC_MIRROR_APIS,
+} from "@/lib/stores/server-store";
+import { MediaItem } from "@/lib/domain/typings";
+import { Check, ChevronLeft, ChevronRight, Server } from "lucide-react";
 import * as React from "react";
 import {
   DropdownMenu,
@@ -43,13 +40,17 @@ export function ServerSelector({
     selectedServer,
     setSelectedServer,
     getServerOverride,
+    unavailableServerIds,
     animePreference,
     setAnimePreference,
     vidnestContentType,
     setVidnestContentType,
+    vidsrcApi,
+    setVidsrcApi,
   } = useServerStore();
 
   const isServerEnabled = (serverId: string): boolean => {
+    if (unavailableServerIds.includes(serverId)) return false;
     const override = getServerOverride(serverId);
     if (!override) return true;
     return override.isAvailable;
@@ -62,7 +63,6 @@ export function ServerSelector({
     onServerSelect?.();
   };
 
-  const currentServerEnabled = isServerEnabled(selectedServer.id);
   const detailServer = detailServerId
     ? videoServers.find((server) => server.id === detailServerId)
     : undefined;
@@ -90,11 +90,6 @@ export function ServerSelector({
               >
                 <Server className="h-4 w-4" />
                 {selectedServer.name}
-                {currentServerEnabled ? (
-                  <Wifi className="h-4 w-4 text-green-400" />
-                ) : (
-                  <WifiOff className="h-4 w-4 text-red-400" />
-                )}
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -119,6 +114,7 @@ export function ServerSelector({
               <DropdownMenuItem
                 onSelect={() => handleServerChange(detailServer.id)}
                 className="flex cursor-pointer items-center justify-between"
+                disabled={!isServerEnabled(detailServer.id)}
               >
                 <span className="font-medium">Use {detailServer.name}</span>
                 {selectedServer.id === detailServer.id && (
@@ -161,6 +157,30 @@ export function ServerSelector({
                   </DropdownMenuRadioGroup>
                 </>
               )}
+              {detailServer.id === "vidsrc-mirror" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                    API
+                  </DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={vidsrcApi}
+                    onValueChange={(value) =>
+                      setVidsrcApi(value as typeof vidsrcApi)
+                    }
+                  >
+                    {VIDSRC_MIRROR_APIS.map((api) => (
+                      <DropdownMenuRadioItem
+                        key={api.value}
+                        value={api.value}
+                        onSelect={keepMenuOpen}
+                      >
+                        {api.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </>
+              )}
               {(detailServer.id === "videasy" ||
                 vidnestContentType === "anime" ||
                 vidnestContentType === "animepahe") && (
@@ -187,25 +207,17 @@ export function ServerSelector({
             </>
           ) : (
             [...videoServers]
-              .sort((a, b) => {
-                const aEnabled = isServerEnabled(a.id);
-                const bEnabled = isServerEnabled(b.id);
-                if (aEnabled !== bEnabled) return bEnabled ? 1 : -1;
-                return 0;
-              })
+              .filter((server) => isServerEnabled(server.id))
               .map((server) => {
-                const enabled = isServerEnabled(server.id);
-                const isDisabled = !enabled;
-                const serverOverride = getServerOverride(server.id);
                 const hasOptions =
-                  server.id === "vidnest" || server.id === "videasy";
+                  server.id === "vidnest" ||
+                  server.id === "videasy" ||
+                  server.id === "vidsrc-mirror";
 
                 return (
                   <DropdownMenuItem
                     key={server.id}
                     onSelect={(event) => {
-                      if (isDisabled) return;
-
                       if (hasOptions) {
                         event.preventDefault();
                         setDetailServerId(server.id);
@@ -214,15 +226,7 @@ export function ServerSelector({
 
                       handleServerChange(server.id);
                     }}
-                    className={`flex items-center justify-between cursor-pointer ${
-                      isDisabled ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                    disabled={isDisabled}
-                    title={
-                      serverOverride && !serverOverride.isAvailable
-                        ? serverOverride.reason || "Server disabled"
-                        : undefined
-                    }
+                    className="flex cursor-pointer items-center justify-between"
                   >
                     {renderServerLabel(server)}
                     {hasOptions ? (

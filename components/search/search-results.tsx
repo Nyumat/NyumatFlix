@@ -16,12 +16,13 @@ import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { useSearchResults } from "@/hooks/useSearchResults";
 import { getStableCardKey } from "@/lib/cards/selectors";
 import { cn } from "@/lib/utils";
-import type { MediaItem } from "@/lib/domain/typings";
-import { User } from "lucide-react";
-import Image from "next/image";
+import type { CanonicalMediaCard } from "@/lib/domain/typings";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
+import { PersonCollage } from "./person-collage";
+import { SearchDialogPeople } from "./search-dialog-people";
+import { SearchGenreChips } from "./search-genre-chips";
 
 interface KnownForItem {
   id: number;
@@ -29,171 +30,6 @@ interface KnownForItem {
   name?: string;
   poster_path?: string | null;
   media_type: string;
-}
-
-interface PersonCollageProps {
-  knownFor?: KnownForItem[];
-  profilePath?: string | null;
-  className?: string;
-}
-
-const getCollageLayout = (
-  count: number,
-): {
-  imagesToShow: number;
-  gridCols: string;
-  gridRows: string;
-  specialLayout?: "three";
-} => {
-  if (count <= 1) {
-    return {
-      imagesToShow: 1,
-      gridCols: "grid-cols-1",
-      gridRows: "grid-rows-1",
-    };
-  }
-  if (count === 2) {
-    return {
-      imagesToShow: 2,
-      gridCols: "grid-cols-2",
-      gridRows: "grid-rows-1",
-    };
-  }
-  if (count === 3) {
-    return {
-      imagesToShow: 3,
-      gridCols: "grid-cols-2",
-      gridRows: "grid-rows-2",
-      specialLayout: "three",
-    };
-  }
-  if (count === 4) {
-    return {
-      imagesToShow: 4,
-      gridCols: "grid-cols-2",
-      gridRows: "grid-rows-2",
-    };
-  }
-  if (count > 4 && count <= 10) {
-    return {
-      imagesToShow: 5,
-      gridCols: "grid-cols-3",
-      gridRows: "grid-rows-2",
-    };
-  }
-  return { imagesToShow: 10, gridCols: "grid-cols-4", gridRows: "grid-rows-3" };
-};
-
-export function PersonCollage({
-  knownFor = [],
-  profilePath,
-  className,
-}: PersonCollageProps) {
-  const hasKnownFor = knownFor.length > 0;
-  const { imagesToShow, gridCols, gridRows, specialLayout } = getCollageLayout(
-    hasKnownFor ? knownFor.length : 0,
-  );
-
-  if (profilePath) {
-    return (
-      <div className={cn("w-full h-full relative", className)}>
-        <Image
-          src={`https://image.tmdb.org/t/p/w185${profilePath}`}
-          fill
-          sizes="(max-width: 768px) 45vw, (max-width: 1200px) 20vw, 120px"
-          alt="Profile"
-          className="rounded-md object-cover"
-          loading="lazy"
-        />
-      </div>
-    );
-  }
-
-  if (!hasKnownFor) {
-    return (
-      <div
-        className={cn(
-          "w-full h-full flex items-center justify-center text-muted-foreground bg-muted",
-          className,
-        )}
-      >
-        <User size={32} />
-      </div>
-    );
-  }
-
-  const imagesToDisplay = knownFor.slice(0, imagesToShow);
-
-  if (specialLayout === "three") {
-    return (
-      <div
-        className={cn(
-          "w-full h-full grid gap-0.5 rounded-md overflow-hidden",
-          gridCols,
-          gridRows,
-          className,
-        )}
-      >
-        {imagesToDisplay.map((item, index) => {
-          const isFirstImage = index === 0;
-          return (
-            <div
-              key={`${item.id}-${index}`}
-              className={cn(
-                "relative w-full h-full",
-                isFirstImage && "col-span-2",
-              )}
-            >
-              {item.poster_path ? (
-                <Image
-                  src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  alt={item.title || item.name || "Media"}
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <User size={16} className="text-muted-foreground" />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={cn(
-        "w-full h-full grid gap-0.5 rounded-md overflow-hidden",
-        gridCols,
-        gridRows,
-        className,
-      )}
-    >
-      {imagesToDisplay.map((item, index) => (
-        <div key={`${item.id}-${index}`} className="relative w-full h-full">
-          {item.poster_path ? (
-            <Image
-              src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
-              fill
-              sizes="(max-width: 768px) 45vw, (max-width: 1200px) 20vw, 120px"
-              alt={item.title || item.name || "Media"}
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center">
-              <User size={16} className="text-muted-foreground" />
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
 }
 
 interface Person {
@@ -520,20 +356,39 @@ function EnhancedPagination({
   );
 }
 
+const filterItemsByGenre = (
+  items: CanonicalMediaCard[],
+  selectedGenreIds: string[],
+) => {
+  if (selectedGenreIds.length === 0) return items;
+  return items.filter((item) =>
+    item.genre_ids?.some((genreId) =>
+      selectedGenreIds.includes(genreId.toString()),
+    ),
+  );
+};
+
 export default function SearchResults({
   query,
   hideTitle = false,
   hidePaginationInfo = false,
+  variant = "page",
+  onNavigate,
 }: {
   query: string;
   hideTitle?: boolean;
   hidePaginationInfo?: boolean;
+  variant?: "page" | "dialog";
+  onNavigate?: () => void;
 }) {
+  const isDialogLayout = variant === "dialog" || hideTitle;
+
   const {
     items,
     currentPage,
     totalPages,
     isLoading,
+    isFetching,
     error,
     selectedGenreIds,
     allGenres,
@@ -543,6 +398,47 @@ export default function SearchResults({
     setCurrentPage,
     setSelectedGenreIds,
   } = useSearchResults(query);
+
+  const [accumulatedItems, setAccumulatedItems] = useState<
+    CanonicalMediaCard[]
+  >([]);
+  const trimmedQuery = query.trim();
+
+  const { ref: loadMoreRef, inView: loadMoreInView } = useInView({
+    threshold: 0,
+    rootMargin: "160px",
+  });
+
+  useEffect(() => {
+    if (!isDialogLayout) return;
+    setAccumulatedItems([]);
+    setCurrentPage(1);
+  }, [trimmedQuery, isDialogLayout, setCurrentPage]);
+
+  useEffect(() => {
+    if (!isDialogLayout) return;
+
+    if (currentPage === 1) {
+      setAccumulatedItems(items);
+      return;
+    }
+
+    setAccumulatedItems((previousItems) => {
+      const existingKeys = new Set(previousItems.map(getStableCardKey));
+      const nextItems = items.filter(
+        (item) => !existingKeys.has(getStableCardKey(item)),
+      );
+      return [...previousItems, ...nextItems];
+    });
+  }, [items, currentPage, isDialogLayout]);
+
+  const dialogFilteredItems = useMemo(
+    () => filterItemsByGenre(accumulatedItems, selectedGenreIds),
+    [accumulatedItems, selectedGenreIds],
+  );
+
+  const pageFilteredItems = filteredItems;
+  const visibleItems = isDialogLayout ? dialogFilteredItems : pageFilteredItems;
 
   const parsedGenresForFilter = useMemo(() => genreOptions, [genreOptions]);
 
@@ -555,7 +451,32 @@ export default function SearchResults({
     }
   };
 
-  if (isLoading && items.length === 0 && query && query.trim()) {
+  const loadMoreResults = useCallback(() => {
+    if (isFetching || currentPage >= totalPages) return;
+    setCurrentPage(currentPage + 1);
+  }, [currentPage, isFetching, setCurrentPage, totalPages]);
+
+  useEffect(() => {
+    if (!isDialogLayout) return;
+    if (loadMoreInView && !isFetching && currentPage < totalPages) {
+      loadMoreResults();
+    }
+  }, [
+    currentPage,
+    isDialogLayout,
+    isFetching,
+    loadMoreInView,
+    loadMoreResults,
+    totalPages,
+  ]);
+
+  if (
+    isLoading &&
+    items.length === 0 &&
+    accumulatedItems.length === 0 &&
+    query &&
+    query.trim()
+  ) {
     return (
       <div
         className="text-center py-0 text-muted-foreground"
@@ -588,7 +509,12 @@ export default function SearchResults({
     );
   }
 
-  if (items.length === 0 && !isLoading) {
+  if (
+    items.length === 0 &&
+    !isLoading &&
+    !isFetching &&
+    accumulatedItems.length === 0
+  ) {
     return (
       <div
         className="text-center py-10 text-muted-foreground"
@@ -599,40 +525,122 @@ export default function SearchResults({
     );
   }
 
-  return (
-    <div className="container mx-auto px-2 sm:px-4 pb-8 max-w-7xl">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-3 space-y-4">
-          <PeopleInfiniteScroll query={query} />
+  const genreFilterPanel =
+    !genresLoading && parsedGenresForFilter.length > 0 ? (
+      isDialogLayout ? (
+        <SearchGenreChips
+          options={parsedGenresForFilter}
+          selectedIds={selectedGenreIds}
+          onChange={setSelectedGenreIds}
+        />
+      ) : (
+        <div
+          className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg p-4"
+          data-testid="genre-filter"
+        >
+          <h3 className="text-sm font-medium text-foreground mb-3">
+            Filter by Genre
+          </h3>
+          <MultiSelect
+            options={parsedGenresForFilter}
+            maxCount={3}
+            onValueChange={(selectedIds) => {
+              setSelectedGenreIds(selectedIds);
+            }}
+            placeholder="Select genres..."
+            defaultValue={selectedGenreIds}
+            className="min-h-10 h-auto w-full rounded-full border-white/30 bg-white/10 px-1 shadow-lg backdrop-blur-md hover:border-white/40 hover:bg-white/20 focus:ring-0 focus:ring-offset-0 [&_span]:text-white [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-white/80 [&_svg:hover]:text-white"
+            data-testid="genre-multi-select"
+          />
+        </div>
+      )
+    ) : null;
 
-          {!genresLoading && parsedGenresForFilter.length > 0 && (
-            <div
-              className="bg-card/50 backdrop-blur-xs border border-border/50 rounded-lg p-4"
-              data-testid="genre-filter"
-            >
-              <h3 className="text-sm font-medium text-foreground mb-3">
-                Filter by Genre
-              </h3>
-              <MultiSelect
-                options={parsedGenresForFilter}
-                maxCount={3}
-                onValueChange={(selectedIds) => {
-                  setSelectedGenreIds(selectedIds);
-                }}
-                placeholder="Select genres..."
-                defaultValue={selectedGenreIds}
-                className="backdrop-blur-md bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/40 shadow-lg focus:ring-0 focus:ring-offset-0 [&_span]:text-white [&_svg]:text-white/80 [&_svg:hover]:text-white"
-                data-testid="genre-multi-select"
-              />
-            </div>
-          )}
+  if (isDialogLayout) {
+    return (
+      <div className="flex min-h-0 w-full flex-1 flex-col">
+        <div className="overflow-hidden rounded-xl border border-white/8 bg-[#0c0c0e]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="flex min-h-0 flex-col lg:flex-row">
+            <aside className="shrink-0 border-b border-white/8 bg-white/[0.02] lg:w-56 lg:border-b-0 lg:border-r xl:w-60">
+              <div className="space-y-5 p-4">
+                {genreFilterPanel}
+                <div className="hidden lg:block">
+                  <SearchDialogPeople query={query} onNavigate={onNavigate} />
+                </div>
+              </div>
+            </aside>
+
+            <section className="min-w-0 flex-1">
+              <div className="border-b border-white/8 px-4 py-3">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {visibleItems.filter(isValidMediaItem).length}
+                  </span>{" "}
+                  titles
+                </p>
+              </div>
+
+              <div
+                className="space-y-2 p-3 sm:p-4"
+                data-testid="search-results-list"
+              >
+                {visibleItems
+                  .filter((item) => isValidMediaItem(item))
+                  .map((item) => (
+                    <HorizontalCard
+                      key={getStableCardKey(item)}
+                      onNavigate={onNavigate}
+                      variant="compact"
+                      item={{
+                        ...item,
+                        genres:
+                          item.genres ??
+                          item.genre_ids
+                            ?.map((id) => ({ id, name: allGenres[id] }))
+                            .filter((genre) => genre.name && genre.id),
+                      }}
+                      testIdPrefix="search-result-card"
+                    />
+                  ))}
+              </div>
+
+              {currentPage < totalPages ? (
+                <div
+                  className="border-t border-white/8 px-4 py-3"
+                  data-testid="search-load-more"
+                >
+                  <div ref={loadMoreRef} className="h-1" aria-hidden />
+                  {isFetching ? (
+                    <p className="py-1 text-center text-xs text-muted-foreground">
+                      Loading more...
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          </div>
+
+          <div className="border-t border-white/8 p-4 lg:hidden">
+            <SearchDialogPeople query={query} onNavigate={onNavigate} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto max-w-7xl px-2 pb-8 sm:px-4">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="space-y-4 lg:col-span-3">
+          <PeopleInfiniteScroll query={query} />
+          {genreFilterPanel}
         </div>
 
-        <div className="lg:col-span-9 flex flex-col">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+        <div className="flex flex-col lg:col-span-9">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             {!hideTitle && (
               <h2
-                className="text-lg md:text-xl font-medium text-primary-foreground"
+                className="text-lg font-medium text-primary-foreground md:text-xl"
                 data-testid="search-results-title"
               >
                 Results for "{query}"
@@ -640,10 +648,7 @@ export default function SearchResults({
             )}
             {!hidePaginationInfo && (
               <div
-                className={cn(
-                  "text-xs text-muted-foreground",
-                  hideTitle && "sm:ml-auto",
-                )}
+                className="text-xs text-muted-foreground"
                 data-testid="pagination-info"
               >
                 {totalPages > 1 && (
@@ -659,12 +664,11 @@ export default function SearchResults({
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={handlePageChange}
-            data-testid="search-pagination"
           />
 
           <div className="mt-4">
             <div className="space-y-4" data-testid="search-results-list">
-              {filteredItems
+              {pageFilteredItems
                 .filter((item) => isValidMediaItem(item))
                 .map((item) => (
                   <HorizontalCard

@@ -148,7 +148,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
   hideGenre,
 }) => {
   const item = await tmdb.movie.detail<WithImages>({ id, append: "images" });
-  const logo = item.images.logos.find((logo) => logo.iso_639_1 === "en");
+  const logo = item.images?.logos.find((logo) => logo.iso_639_1 === "en");
 
   return (
     <div className="h-hero relative isolate" key={item.id}>

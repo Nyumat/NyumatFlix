@@ -129,7 +129,7 @@ export function MediaDetailHero({
   }, []);
 
   return (
-    <div className="relative h-[100svh] min-h-[34rem] overflow-hidden">
+    <div className="relative h-[100svh] min-h-[34rem] overflow-hidden bg-black">
       <Script src="https://www.youtube.com/iframe_api" strategy="lazyOnload" />
 
       <HeroBackground

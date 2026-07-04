@@ -3,6 +3,7 @@
 import { ChevronUp, Grid2X2, List } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ViewMode } from "@/components/content-grid";
+import { useSearchDialogStore } from "@/lib/stores/search-dialog-store";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +29,8 @@ export function CompactDock({
   position = "bottom-right",
 }: CompactDockProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const isSearchDialogOpen = useSearchDialogStore((state) => state.isOpen);
+  const includeScrollToTop = showScrollToTop && !isSearchDialogOpen;
 
   useEffect(() => {
     const toggleVisibility = () => {
@@ -58,7 +61,7 @@ export function CompactDock({
 
   const allItems = [
     ...(items || []),
-    ...(showScrollToTop
+    ...(includeScrollToTop
       ? [
           {
             id: "scroll-to-top",

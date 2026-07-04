@@ -12,21 +12,27 @@ import {
 } from "@/lib/cards/selectors";
 import { tmdbImage } from "@/tmdb/utils";
 import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { CardMeta } from "./card-meta";
 
 type HorizontalCardProps = {
   item: CanonicalMediaCard | MediaItem;
+  onNavigate?: () => void;
   testIdPrefix?: string;
   overviewLines?: string;
+  variant?: "default" | "compact";
 };
 
 export function HorizontalCard({
   item,
+  onNavigate,
   testIdPrefix = "horizontal-card",
-  overviewLines = "line-clamp-2 md:line-clamp-3",
+  overviewLines,
+  variant = "default",
 }: HorizontalCardProps) {
+  const isCompact = variant === "compact";
   const title = getDisplayTitle(item);
   const href = getHref(item);
   const posterPath = getPosterPath(item) ?? undefined;
@@ -38,10 +44,18 @@ export function HorizontalCard({
     item,
     href,
   );
+  const resolvedOverviewLines =
+    overviewLines ??
+    (isCompact ? "line-clamp-2" : "line-clamp-2 md:line-clamp-3");
 
   return (
     <Card
-      className="group relative overflow-hidden bg-card/40 backdrop-blur-xl border border-white/10 hover:border-primary/50 transition-all duration-500 cursor-pointer shadow-2xl h-full"
+      className={cn(
+        "group relative h-full cursor-pointer overflow-hidden border transition-all duration-300",
+        isCompact
+          ? "border-white/10 bg-card/40 shadow-none backdrop-blur-xl hover:border-primary/40"
+          : "border-white/10 bg-card/40 shadow-2xl backdrop-blur-xl hover:border-primary/50",
+      )}
       data-testid={`${testIdPrefix}-${item.id}`}
       data-media-type={item.media_type}
       data-content-id={item.id}
@@ -50,8 +64,15 @@ export function HorizontalCard({
       onFocus={schedulePrefetch}
       onTouchStart={prefetch}
     >
-      {backdropUrl && (
-        <div className="absolute inset-0 opacity-15 group-hover:opacity-25 transition-opacity duration-700">
+      {backdropUrl ? (
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-700",
+            isCompact
+              ? "opacity-20 group-hover:opacity-30"
+              : "opacity-15 group-hover:opacity-25",
+          )}
+        >
           <Image
             src={backdropUrl}
             alt={title || "Media backdrop"}
@@ -60,50 +81,99 @@ export function HorizontalCard({
             className="scale-110 object-cover blur-xs"
           />
         </div>
-      )}
-      <div className="absolute inset-0 bg-linear-to-r from-background/95 via-background/70 to-transparent pointer-events-none" />
-      <div className="relative flex gap-6 p-4 md:p-6 h-full">
-        <div className="shrink-0 w-24 sm:w-28 md:w-32 lg:w-36">
-          <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-white/10 group-hover:ring-primary/30 transition-all duration-500">
+      ) : null}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 bg-linear-to-r from-background/95 via-background/70 to-transparent",
+          isCompact && "via-background/75",
+        )}
+      />
+      <div
+        className={cn(
+          "relative flex h-full",
+          isCompact ? "z-10 gap-3 p-3" : "gap-6 p-4 md:p-6",
+        )}
+      >
+        <div
+          className={cn(
+            "shrink-0",
+            isCompact ? "w-[4.5rem]" : "w-24 sm:w-28 md:w-32 lg:w-36",
+          )}
+        >
+          <div
+            className={cn(
+              "relative overflow-hidden rounded-lg bg-muted ring-1 ring-white/10 transition-all duration-300 group-hover:ring-primary/25",
+              isCompact
+                ? "aspect-[2/3]"
+                : "aspect-2/3 rounded-xl shadow-2xl group-hover:ring-primary/30",
+            )}
+          >
             <Poster
               posterPath={posterPath}
               title={title || "Media poster"}
-              size="medium"
-              className="transition-transform duration-700 group-hover:scale-[1.05]"
+              size={isCompact ? "small" : "medium"}
+              className={cn(
+                "transition-transform duration-500",
+                isCompact
+                  ? "group-hover:scale-[1.02]"
+                  : "duration-700 group-hover:scale-[1.05]",
+              )}
             />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 flex items-center justify-center">
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 scale-75 group-hover:scale-100">
-                <Icons.play
-                  className="text-primary-foreground w-12 h-12 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-                  strokeWidth={1.5}
-                />
+            {!isCompact ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-all duration-500 group-hover:bg-black/20">
+                <div className="scale-75 opacity-0 transition-all duration-500 group-hover:scale-100 group-hover:opacity-100">
+                  <Icons.play
+                    className="h-12 w-12 text-primary-foreground drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+                    strokeWidth={1.5}
+                  />
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center py-2 space-y-3">
-          <div className="space-y-1">
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col justify-center",
+            isCompact ? "gap-2 py-0.5" : "space-y-3 py-2",
+          )}
+        >
+          <div className={isCompact ? "space-y-1.5" : "space-y-1"}>
             <MediaLogo
               logo={item.logo}
               title={title}
               align="left"
-              className="mb-1 max-w-[240px]"
-              fallbackClassName="text-xl sm:text-2xl md:text-3xl font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300 leading-tight tracking-tight"
+              className={cn(
+                "max-w-full",
+                isCompact ? "mb-0 max-w-[280px]" : "mb-1 max-w-[240px]",
+              )}
+              fallbackClassName={cn(
+                "line-clamp-2 font-semibold leading-snug tracking-tight text-foreground transition-colors duration-300 group-hover:text-primary",
+                isCompact
+                  ? "text-base"
+                  : "text-xl font-bold sm:text-2xl md:text-3xl",
+              )}
             />
-            <CardMeta item={item} showType />
+            <CardMeta item={item} showType variant={variant} />
           </div>
 
-          {item.overview && (
+          {item.overview ? (
             <p
-              className={`text-sm text-muted-foreground/90 leading-relaxed ${overviewLines} max-w-2xl font-normal`}
+              className={cn(
+                "max-w-none font-normal leading-relaxed text-muted-foreground/85",
+                isCompact
+                  ? "text-xs"
+                  : "max-w-2xl text-sm text-muted-foreground/90",
+                resolvedOverviewLines,
+              )}
             >
               {item.overview}
             </p>
-          )}
+          ) : null}
         </div>
       </div>
       <Link
         href={href}
+        onClick={onNavigate}
         className="absolute inset-0 z-40"
         aria-label={`View ${title}`}
       />
