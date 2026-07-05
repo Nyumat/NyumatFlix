@@ -20,9 +20,19 @@ type XPassPlaylist = {
   }>;
 };
 
-const extractMvidPlaylistPath = (html: string): string | null => {
-  const match = html.match(/mvid\/[A-Za-z0-9_-]+\/1\/playlist\.json/);
-  return match?.[0] ?? null;
+const PLAYLIST_PATH_FALLBACK =
+  /(?:mvid|meg\/(?:tv|movie)|vip|mdata|vxr|vrk)\/[^"'\s<>]+\/playlist\.json/;
+
+export const extractXPassPlaylistPath = (html: string): string | null => {
+  const playlistMatch = html.match(
+    /"playlist"\s*:\s*"(\/?[^"]+\/playlist\.json)"/,
+  );
+  if (playlistMatch?.[1]) {
+    return playlistMatch[1].replace(/^\//, "");
+  }
+
+  const fallbackMatch = html.match(PLAYLIST_PATH_FALLBACK);
+  return fallbackMatch?.[0] ?? null;
 };
 
 const resolveImdbId = async (
@@ -97,7 +107,7 @@ export async function scrapeXPass(
       };
     }
 
-    const playlistPath = extractMvidPlaylistPath(embedPage.text);
+    const playlistPath = extractXPassPlaylistPath(embedPage.text);
     if (!playlistPath) {
       return { ok: false, providerId, error: "XPass playlist path missing" };
     }

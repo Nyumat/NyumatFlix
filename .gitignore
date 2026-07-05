@@ -47,3 +47,6 @@ certificates
 SCRAPING.md
 SCRAPING_OLD.md
 UI_GOAL.md
+
+# act local secrets
+.act.secrets
