@@ -5,7 +5,12 @@ import {
   type AniListMedia,
 } from "@/lib/anilist";
 import { fetchIdsMoeMappingByAniListId } from "@/lib/ids-moe";
-import { getFribbMapping, getTmdbIdFromFribb } from "@/lib/fribb-mapping";
+import {
+  getFribbMapping,
+  getTmdbIdFromFribb,
+  resolveFribbTmdbMapping,
+  type FribbTmdbEntry,
+} from "@/lib/fribb-mapping";
 import { api, tmdb, type WithImages } from "@/tmdb/api";
 import type {
   Image,
@@ -143,12 +148,12 @@ const scoreSearchCandidate = (
   const exactTitle = normalizedTitles.some(
     (title) => title && title === normalizedCandidate,
   );
-  const containsTitle = normalizedTitles.some(
-    (title) =>
-      title &&
-      (normalizedCandidate.includes(title) ||
-        title.includes(normalizedCandidate)),
-  );
+  const containsTitle = normalizedTitles.some((title) => {
+    if (!title || title.length < 4) return false;
+    return (
+      normalizedCandidate.includes(title) || title.includes(normalizedCandidate)
+    );
+  });
   const candidateYear = Number.parseInt(
     ("first_air_date" in candidate
       ? candidate.first_air_date
@@ -172,10 +177,11 @@ const scoreSearchCandidate = (
   ) {
     score += 10;
   }
-  if (exactTitle) score += 40;
-  else if (containsTitle) score += 20;
-  if (yearDelta === 0) score += 15;
-  else if (yearDelta <= 1) score += 8;
+  if (exactTitle) score += 50;
+  else if (containsTitle) score += 15;
+  if (yearDelta === 0) score += 20;
+  else if (yearDelta <= 1) score += 10;
+  else if (yearDelta > 2) score -= 15;
   score += Math.min(candidate.popularity ?? 0, 50) / 10;
 
   return score;
@@ -201,7 +207,7 @@ const fetchTmdbSearchMappedItem = async (
       }))
       .sort((a, b) => b.score - a.score)[0];
 
-    if (!best || best.score < 35) continue;
+    if (!best || best.score < 45) continue;
 
     return await fetchTmdbMappedItem(
       best.candidate.id,
@@ -224,21 +230,60 @@ const toAniListFallbackMediaItem = (item: AniListMedia): MediaItem =>
     isAniListFallback: true,
   }) as MediaItem;
 
+const getAniListTitleFromMediaItem = (item: MediaItem) => {
+  const title =
+    ("title" in item && typeof item.title === "string" && item.title) ||
+    ("name" in item && typeof item.name === "string" && item.name) ||
+    "";
+  return title.trim() || undefined;
+};
+
 const applyTmdbMapping = (
   fallback: MediaItem,
   tmdbId: number,
   type: "movie" | "tv",
-): MediaItem =>
-  ({
+): MediaItem => {
+  const displayTitle =
+    getAniListTitleFromMediaItem(fallback) ||
+    fallback.name ||
+    ("title" in fallback && typeof fallback.title === "string"
+      ? fallback.title
+      : "") ||
+    "";
+
+  return {
     ...fallback,
     id: tmdbId,
     media_type: type,
     isAniListFallback: false,
-  }) as MediaItem;
+    name: displayTitle,
+    title: displayTitle,
+    original_name: fallback.original_name || displayTitle,
+    original_title:
+      ("original_title" in fallback && fallback.original_title) || displayTitle,
+  } as MediaItem;
+};
+
+const resolveIdsMoeMapping = (
+  mapping: Awaited<ReturnType<typeof fetchIdsMoeMappingByAniListId>>,
+  format?: string | null,
+): { id: number; type: "movie" | "tv" } | null => {
+  if (!mapping?.themoviedb) return null;
+
+  if (mapping.themoviedb_type === "movie" || mapping.themoviedb_type === "tv") {
+    return { id: mapping.themoviedb, type: mapping.themoviedb_type };
+  }
+
+  if (format === "MOVIE") {
+    return { id: mapping.themoviedb, type: "movie" };
+  }
+
+  return { id: mapping.themoviedb, type: "tv" };
+};
 
 const applyLightweightMappings = (
   item: AniListMedia,
-  fribbMap: Record<number, { id: number; type: "movie" | "tv" }> | null,
+  fribbMap: Record<number, FribbTmdbEntry> | null,
 ): MediaItem => {
   const fallback = toAniListFallbackMediaItem(item);
 
@@ -250,7 +295,10 @@ const applyLightweightMappings = (
     );
   }
 
-  const fribbMapping = fribbMap?.[item.id];
+  const fribbMapping = resolveFribbTmdbMapping(
+    fribbMap?.[item.id],
+    item.format,
+  );
   if (fribbMapping) {
     return applyTmdbMapping(fallback, fribbMapping.id, fribbMapping.type);
   }
@@ -261,8 +309,7 @@ const applyLightweightMappings = (
 const enrichBatchLightweight = async (
   items: AniListMedia[],
 ): Promise<MediaItem[]> => {
-  let fribbMap: Record<number, { id: number; type: "movie" | "tv" }> | null =
-    null;
+  let fribbMap: Record<number, FribbTmdbEntry> | null = null;
 
   try {
     fribbMap = await getFribbMapping();
@@ -295,15 +342,18 @@ const enrichBatchLightweight = async (
   for (let i = 0; i < needsIdsMoe.length; i++) {
     const mapping = idsMoeResults[i];
     const targetIndex = needsIdsMoe[i]?.index;
-    if (targetIndex === undefined || !mapping?.themoviedb) continue;
+    if (targetIndex === undefined) continue;
+
+    const resolved = resolveIdsMoeMapping(mapping, items[targetIndex]?.format);
+    if (!resolved) continue;
 
     const current = results[targetIndex];
     if (!current?.isAniListFallback) continue;
 
     results[targetIndex] = applyTmdbMapping(
       current,
-      mapping.themoviedb,
-      mapping.themoviedb_type === "movie" ? "movie" : "tv",
+      resolved.id,
+      resolved.type,
     );
   }
 
@@ -325,7 +375,7 @@ const enrichOneHeroUncached = async (
   }
 
   try {
-    const fribbMapping = await getTmdbIdFromFribb(item.id);
+    const fribbMapping = await getTmdbIdFromFribb(item.id, item.format);
     if (fribbMapping) {
       return fetchTmdbMappedItem(
         fribbMapping.id,
@@ -336,13 +386,9 @@ const enrichOneHeroUncached = async (
     }
 
     const mapping = await fetchIdsMoeMappingByAniListId(item.id);
-    if (mapping?.themoviedb) {
-      return fetchTmdbMappedItem(
-        mapping.themoviedb,
-        mapping.themoviedb_type,
-        fallback,
-        item.id,
-      );
+    const resolved = resolveIdsMoeMapping(mapping, item.format);
+    if (resolved) {
+      return fetchTmdbMappedItem(resolved.id, resolved.type, fallback, item.id);
     }
   } catch {
     return fallback;
@@ -372,7 +418,7 @@ const enrichOneUncached = async (item: AniListMedia): Promise<MediaItem> => {
   }
 
   try {
-    const fribbMapping = await getTmdbIdFromFribb(item.id);
+    const fribbMapping = await getTmdbIdFromFribb(item.id, item.format);
     if (fribbMapping) {
       return await fetchTmdbMappedItem(
         fribbMapping.id,
@@ -383,11 +429,12 @@ const enrichOneUncached = async (item: AniListMedia): Promise<MediaItem> => {
     }
 
     const mapping = await fetchIdsMoeMappingByAniListId(item.id);
+    const resolved = resolveIdsMoeMapping(mapping, item.format);
 
-    if (mapping?.themoviedb) {
+    if (resolved) {
       return await fetchTmdbMappedItem(
-        mapping.themoviedb,
-        mapping.themoviedb_type,
+        resolved.id,
+        resolved.type,
         fallback,
         item.id,
       );
