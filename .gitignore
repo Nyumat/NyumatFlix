@@ -17,6 +17,8 @@
 .env.*
 .env
 !.env.example
+de-ber.conf
+*.wg.conf
 
 # misc
 .DS_Store
