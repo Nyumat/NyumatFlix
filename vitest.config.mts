@@ -10,6 +10,9 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./", import.meta.url)),
       "next/server": "next/server.js",
+      "server-only": fileURLToPath(
+        new URL("./test/mocks/server-only.ts", import.meta.url),
+      ),
     },
   },
   plugins: [
