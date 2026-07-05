@@ -17,6 +17,8 @@
 .env.*
 .env
 !.env.example
+de-ber.conf
+*.wg.conf
 
 # misc
 .DS_Store
@@ -40,3 +42,8 @@ yarn-error.log*
 next-env.d.ts
 certificates
 .cursor
+
+# local notes
+SCRAPING.md
+SCRAPING_OLD.md
+UI_GOAL.md

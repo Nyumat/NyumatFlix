@@ -149,10 +149,20 @@ export function HeroTvEpisodePanel({
 
   const handleEpisodeClick = useCallback(
     (episode: Episode, episodeSeason: number) => {
-      setSelectedEpisode(episode, tvId, episodeSeason, undefined, false);
+      const seasonEpisodes =
+        loadedSeasonDetails[episodeSeason]?.episodes ??
+        allSeasonDetails?.[episodeSeason]?.episodes;
+      setSelectedEpisode(
+        episode,
+        tvId,
+        episodeSeason,
+        undefined,
+        false,
+        seasonEpisodes,
+      );
       setSelectedSeason(episodeSeason);
     },
-    [setSelectedEpisode, tvId],
+    [allSeasonDetails, loadedSeasonDetails, setSelectedEpisode, tvId],
   );
 
   const isRowSelected = useCallback(

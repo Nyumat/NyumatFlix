@@ -93,10 +93,10 @@ export const AdblockerIcons = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Link
-              href="https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm"
+              href="https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Get uBlock Origin for Chrome"
+              aria-label="Get uBlock Origin Lite for Chrome"
               className="hover:scale-110 transition-transform"
             >
               <span className="flex items-center gap-0.5 bg-background/80 rounded-lg p-2 border border-border shadow-xs">
@@ -120,7 +120,7 @@ export const AdblockerIcons = ({
             </Link>
           </TooltipTrigger>
           <TooltipContent side="top">
-            Get uBlock Origin for Chrome
+            Get uBlock Origin Lite for Chrome
           </TooltipContent>
         </Tooltip>
       </div>

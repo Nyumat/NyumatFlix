@@ -57,6 +57,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { BrowseSettings } from "@/components/layout/nav/browse-settings";
 import {
   navMobileMenuClassName,
   navbarActionButtonClassName,
@@ -268,6 +269,8 @@ export const NavbarMobileNavigation = ({
                   />
                 )}
               </section>
+
+              {!detailItem ? <BrowseSettings variant="mobile" /> : null}
             </div>
           </div>
 

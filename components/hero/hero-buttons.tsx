@@ -109,6 +109,7 @@ export function HeroButtons({
 
     let episode: Episode;
     let targetSeasonNumber: number;
+    let seasonEpisodes: Episode[] | undefined;
 
     if (watchTarget.source === "watchlist") {
       const seasonData = await fetchSeasonDetails(
@@ -126,6 +127,7 @@ export function HeroButtons({
 
       episode = resolvedEpisode;
       targetSeasonNumber = watchTarget.seasonNumber;
+      seasonEpisodes = seasonData?.episodes;
     } else {
       episode = watchTarget.episode;
       targetSeasonNumber = watchTarget.seasonNumber;
@@ -146,6 +148,7 @@ export function HeroButtons({
       targetSeasonNumber,
       undefined,
       false,
+      seasonEpisodes,
     );
   };
 
@@ -173,54 +176,46 @@ export function HeroButtons({
 
   const disabledTooltip = getDisabledTooltip();
 
-  const TrailerButton = (
-    <button
-      type="button"
-      className={cn(
-        "backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
-        canPlayTrailer
-          ? "hover:bg-white/20 hover:border-white/40 hover:shadow-xl"
-          : "opacity-50 cursor-not-allowed",
-      )}
-      onClick={handlePlayTrailer}
-      disabled={!canPlayTrailer}
-      aria-disabled={!canPlayTrailer}
-      aria-label={
-        canPlayTrailer ? "Play trailer" : "Trailer not available for this title"
-      }
-    >
-      <Youtube className="mr-2 h-4 w-4" />
-      <span className="text-sm">Trailer</span>
-    </button>
+  const watchButtonClassName = cn(
+    "backdrop-blur-md bg-white border border-white/60 text-black py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
+    isWatchDisabled
+      ? "bg-white/60 border-white/50 text-black/50 cursor-not-allowed"
+      : "cursor-pointer hover:bg-white/90 hover:border-white/70 hover:shadow-xl",
   );
 
-  const WatchButton = (
-    <button
-      onClick={handleWatchClick}
-      disabled={isWatchDisabled}
-      className={cn(
-        "backdrop-blur-md bg-white border border-white/60 text-black py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
-        isWatchDisabled
-          ? "bg-white/60 border-white/50 text-black/50 cursor-not-allowed"
-          : "cursor-pointer hover:bg-white/90 hover:border-white/70 hover:shadow-xl",
-      )}
-    >
-      <Icons.play className="mr-2 h-4 w-4 text-black fill-black stroke-black" />
-      <span className="text-sm">{getWatchButtonText()}</span>
-    </button>
+  const trailerButtonClassName = cn(
+    "backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold transition flex items-center shadow-lg whitespace-nowrap",
+    canPlayTrailer
+      ? "hover:bg-white/20 hover:border-white/40 hover:shadow-xl"
+      : "opacity-50 cursor-not-allowed",
   );
 
   return (
     <div className="flex items-center justify-center gap-2 sm:gap-3">
       {isWatchDisabled ? (
         <Tooltip>
-          <TooltipTrigger asChild>{WatchButton}</TooltipTrigger>
+          <TooltipTrigger
+            type="button"
+            className={watchButtonClassName}
+            disabled={isWatchDisabled}
+            onClick={handleWatchClick}
+          >
+            <Icons.play className="mr-2 h-4 w-4 text-black fill-black stroke-black" />
+            <span className="text-sm">{getWatchButtonText()}</span>
+          </TooltipTrigger>
           <TooltipContent>
             <p>{disabledTooltip}</p>
           </TooltipContent>
         </Tooltip>
       ) : (
-        WatchButton
+        <button
+          type="button"
+          onClick={handleWatchClick}
+          className={watchButtonClassName}
+        >
+          <Icons.play className="mr-2 h-4 w-4 text-black fill-black stroke-black" />
+          <span className="text-sm">{getWatchButtonText()}</span>
+        </button>
       )}
 
       <WatchlistButton
@@ -233,13 +228,30 @@ export function HeroButtons({
 
       {!canPlayTrailer ? (
         <Tooltip>
-          <TooltipTrigger asChild>{TrailerButton}</TooltipTrigger>
+          <TooltipTrigger
+            type="button"
+            className={trailerButtonClassName}
+            disabled
+            aria-disabled
+            aria-label="Trailer not available for this title"
+          >
+            <Youtube className="mr-2 h-4 w-4" />
+            <span className="text-sm">Trailer</span>
+          </TooltipTrigger>
           <TooltipContent>
             <p>No trailer is available for this title yet.</p>
           </TooltipContent>
         </Tooltip>
       ) : (
-        TrailerButton
+        <button
+          type="button"
+          className={trailerButtonClassName}
+          onClick={handlePlayTrailer}
+          aria-label="Play trailer"
+        >
+          <Youtube className="mr-2 h-4 w-4" />
+          <span className="text-sm">Trailer</span>
+        </button>
       )}
     </div>
   );

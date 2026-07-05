@@ -1,0 +1,20 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HTTPPROXY: "on"
+      HTTPPROXY_LOG: "off"
+    networks:
+      - betterome
+
+networks:
+  betterome:
+    external: true

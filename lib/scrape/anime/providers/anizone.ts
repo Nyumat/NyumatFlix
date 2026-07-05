@@ -1,0 +1,67 @@
+import { extractFirstMatch, extractM3u8Urls } from "../html-utils";
+import { searchAnizoneSlug } from "../anizone-livewire";
+import { resolveAnimeSearchQuery } from "../anilist-meta";
+import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
+import { scrapeFetchText } from "../../fetch";
+
+const ANIZONE_ORIGIN = "https://anizone.to";
+
+export async function scrapeAnizone(
+  input: AnimeScrapeInput,
+): Promise<AnimeScrapeResult> {
+  const providerId = "anizone" as const;
+
+  try {
+    const query = await resolveAnimeSearchQuery(input);
+    const slug = await searchAnizoneSlug(query);
+
+    if (!slug) {
+      return { ok: false, providerId, error: "AniZone slug not found" };
+    }
+
+    const episode = await scrapeFetchText(
+      `${ANIZONE_ORIGIN}/anime/${slug}/${input.episodeNumber}`,
+      { Referer: `${ANIZONE_ORIGIN}/` },
+    );
+
+    if (episode.status !== 200) {
+      return {
+        ok: false,
+        providerId,
+        error: `AniZone episode page failed (${episode.status})`,
+      };
+    }
+
+    const streamUrls = extractM3u8Urls(episode.text);
+    const master =
+      streamUrls.find((url) => url.includes("master.m3u8")) ?? streamUrls[0];
+
+    if (!master) {
+      return {
+        ok: false,
+        providerId,
+        error: "No m3u8 in AniZone episode HTML",
+      };
+    }
+
+    const subtitleUrl = extractFirstMatch(
+      episode.text,
+      /src="(https:\/\/[^"]+\.ass)"/,
+    );
+
+    return {
+      ok: true,
+      providerId,
+      streamUrl: master,
+      streamKind: "hls",
+      referer: ANIZONE_ORIGIN,
+      subtitles: subtitleUrl ? [{ lang: "und", url: subtitleUrl }] : undefined,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      providerId,
+      error: error instanceof Error ? error.message : "AniZone scrape failed",
+    };
+  }
+}
