@@ -3,11 +3,13 @@
 import type { YouTubePlayer } from "@/components/hero/youtube-types";
 import type { VideasyTrailerStreamStatus } from "@/hooks/use-videasy-trailer-stream";
 import { useVideasyTrailerStream } from "@/hooks/use-videasy-trailer-stream";
+import { useAdblockGateAction } from "@/components/providers/adblock-gate-provider";
 import {
   extractVideoRowsFromMediaVideos,
   selectPrimaryTrailerKey,
 } from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import type { MediaItem } from "@/lib/domain/typings";
 import { getFirstRegularSeason, isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
@@ -56,7 +58,7 @@ export interface UseMediaHeroComputed {
 
 export interface UseMediaHeroActions {
   handleNext: () => void;
-  handleWatch: () => void;
+  handleWatch: (options?: { skipAdblockCheck?: boolean }) => void;
   handlePlayTrailer: () => void;
   handleTrailerEnded: () => void;
   setYoutubePlayer: (player: YouTubePlayer) => void;
@@ -68,6 +70,8 @@ export interface UseMediaHeroOptions {
   isWatch?: boolean;
   passedMediaType?: "tv" | "movie";
   anilistId?: number | null | undefined;
+  onPlaybackStart?: () => void;
+  onPlaybackStop?: () => void;
 }
 
 export interface UseMediaHeroReturn
@@ -87,6 +91,8 @@ export const useMediaHero = ({
   isWatch = false,
   passedMediaType,
   anilistId,
+  onPlaybackStart,
+  onPlaybackStop,
 }: UseMediaHeroOptions): UseMediaHeroReturn => {
   const [currentItemIndex, setCurrentItemIndex] = useState<number>(0);
   const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(false);
@@ -94,10 +100,14 @@ export const useMediaHero = ({
   const [youtubePlayer, setYoutubePlayer] = useState<YouTubePlayer>(null);
   const [historyLength, setHistoryLength] = useState<number>(2);
   const controls = useAnimation();
+  const gateAction = useAdblockGateAction();
 
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const autoplayHandledRef = useRef(false);
+  const disableHeroTrailers = useAppSettingsStore(
+    (state) => state.disableHeroTrailers,
+  );
 
   useEffect(() => {
     autoplayHandledRef.current = false;
@@ -107,9 +117,10 @@ export const useMediaHero = ({
     setCurrentItemIndex((prevIndex) =>
       prevIndex === media.length - 1 ? 0 : prevIndex + 1,
     );
+    onPlaybackStop?.();
     setIsPlayingVideo(false);
     setIsPlayingTrailer(false);
-  }, [media.length]);
+  }, [media.length, onPlaybackStop]);
 
   useEffect(() => {
     if (!isPlayingVideo && !noSlide && !isWatch && !isPlayingTrailer) {
@@ -144,6 +155,7 @@ export const useMediaHero = ({
   }, [passedMediaType, pathname, media, currentItemIndex]);
 
   const videasyEnabled =
+    !disableHeroTrailers &&
     (mediaType === "movie" || mediaType === "tv") &&
     !isPlayingVideo &&
     Boolean(imdbId);
@@ -160,10 +172,23 @@ export const useMediaHero = ({
     return Boolean(selectPrimaryTrailerKey(rows));
   }, [currentItem]);
 
-  const handleWatch = useCallback(() => {
+  const startPlayback = useCallback(() => {
     setIsPlayingTrailer(false);
     setIsPlayingVideo(true);
-  }, []);
+    onPlaybackStart?.();
+  }, [onPlaybackStart]);
+
+  const handleWatch = useCallback(
+    (options?: { skipAdblockCheck?: boolean }) => {
+      if (options?.skipAdblockCheck) {
+        startPlayback();
+        return;
+      }
+
+      gateAction(startPlayback);
+    },
+    [gateAction, startPlayback],
+  );
 
   useLayoutEffect(() => {
     if (searchParams.get("autoplay") !== "true" || !isWatch) return;
@@ -195,6 +220,9 @@ export const useMediaHero = ({
                   firstEpisode,
                   currentItem.id.toString(),
                   firstSeason.season_number,
+                  undefined,
+                  false,
+                  seasonData.episodes,
                 );
             }
           } catch {
@@ -205,7 +233,7 @@ export const useMediaHero = ({
 
       timer = setTimeout(() => {
         autoplayHandledRef.current = true;
-        handleWatch();
+        handleWatch({ skipAdblockCheck: true });
         const params = new URLSearchParams(searchParams.toString());
         params.delete("autoplay");
         const newSearch = params.toString();
@@ -258,6 +286,7 @@ export const useMediaHero = ({
     handleWatch,
     handlePlayTrailer,
     handleTrailerEnded: () => {
+      onPlaybackStop?.();
       setIsPlayingTrailer(false);
       setIsPlayingVideo(false);
     },

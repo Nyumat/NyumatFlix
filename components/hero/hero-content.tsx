@@ -8,7 +8,6 @@ import { Episode, MediaItem, Movie, TvShow } from "@/lib/domain/typings";
 import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import { Icons } from "@/lib/icons";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { useServerStore } from "@/lib/stores/server-store";
 import { cn } from "@/lib/utils";
 import {
   getCountryFlagEmoji,
@@ -17,10 +16,11 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { Star, Volume2, VolumeX, X } from "lucide-react";
 import Link from "next/link";
-import React, { useEffect } from "react";
-import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
-import { resolveTvWatchTarget } from "@/lib/tv-watch-target";
+import React, { useLayoutEffect, useRef } from "react";
+import { useHeroAnimePrefs } from "@/hooks/use-hero-anime-prefs";
+import { useTvEpisodeHydrate } from "@/hooks/use-tv-episode-hydrate";
 import { HeroButtons } from "./hero-buttons";
+import { useScrapeChrome } from "./scrape-chrome-context";
 import type { YouTubePlayer } from "./youtube-types";
 
 interface HeroContentProps {
@@ -77,13 +77,39 @@ export function HeroContent({
   const {
     selectedEpisode,
     seasonNumber,
-    tvShowId,
     clearSelectedEpisode,
     setWatchCallback,
-    setSelectedEpisode,
-    setDefaultAnilistId,
   } = useEpisodeStore();
+  const scrapeChrome = useScrapeChrome();
   const title = media.title || media.name;
+  const isAnime = typeof anilistId === "number";
+
+  useHeroAnimePrefs(anilistId, mediaType);
+  useTvEpisodeHydrate({
+    mediaId: media.id,
+    mediaType,
+    watchlistItem,
+    initialEpisode,
+    initialSeasonNumber,
+  });
+
+  const handleWatchRef = useRef(handleWatch);
+  handleWatchRef.current = handleWatch;
+
+  useLayoutEffect(() => {
+    if (mediaType !== "tv") {
+      return;
+    }
+
+    setWatchCallback(() => {
+      handleWatchRef.current();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    return () => {
+      setWatchCallback(null);
+    };
+  }, [mediaType, setWatchCallback]);
 
   const year =
     media.release_date?.substring(0, 4) ||
@@ -111,17 +137,6 @@ export function HeroContent({
     (
       media as MediaItem & { genres?: Array<{ id: number; name: string }> }
     ).genres?.slice(0, 3) || [];
-  const isAnime = typeof anilistId === "number";
-
-  useEffect(() => {
-    const resolvedAnilistId = isAnime ? anilistId : null;
-    setDefaultAnilistId(resolvedAnilistId);
-
-    const serverState = useServerStore.getState();
-    serverState.setVidnestContentType(isAnime ? "anime" : "tv");
-
-    return () => setDefaultAnilistId(null);
-  }, [anilistId, isAnime, setDefaultAnilistId]);
   const primaryProductionCountry =
     !isTv && "production_countries" in media
       ? media.production_countries?.[0]
@@ -210,87 +225,6 @@ export function HeroContent({
     ];
   }, [] as React.ReactNode[]);
 
-  // Hydrate the resume episode so the label and player stay in sync.
-  useEffect(() => {
-    if (mediaType !== "tv") {
-      return;
-    }
-
-    const contentIdStr = media.id.toString();
-    const storeState = useEpisodeStore.getState();
-    const target = resolveTvWatchTarget(
-      media.id,
-      {
-        selectedEpisode: storeState.selectedEpisode,
-        tvShowId: storeState.tvShowId,
-        seasonNumber: storeState.seasonNumber,
-      },
-      watchlistItem,
-      initialEpisode,
-      initialSeasonNumber,
-    );
-
-    if (!target) {
-      return;
-    }
-
-    if (
-      target.source !== "watchlist" &&
-      storeState.selectedEpisode &&
-      storeState.tvShowId === contentIdStr
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const hydrateEpisode = async () => {
-      let episode = target.source === "watchlist" ? null : target.episode;
-      const seasonNumber = target.seasonNumber;
-
-      if (target.source === "watchlist") {
-        const seasonData = await fetchSeasonDetails(
-          contentIdStr,
-          target.seasonNumber,
-        );
-        episode =
-          seasonData?.episodes?.find(
-            (item) => item.episode_number === target.episodeNumber,
-          ) ?? null;
-      }
-
-      if (cancelled || !episode) {
-        return;
-      }
-
-      const latestState = useEpisodeStore.getState();
-      if (
-        latestState.selectedEpisode &&
-        latestState.tvShowId === contentIdStr &&
-        latestState.seasonNumber === seasonNumber &&
-        latestState.selectedEpisode.episode_number === episode.episode_number
-      ) {
-        return;
-      }
-
-      setSelectedEpisode(episode, contentIdStr, seasonNumber, undefined, true);
-    };
-
-    void hydrateEpisode();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    initialEpisode,
-    initialSeasonNumber,
-    media.id,
-    mediaType,
-    setSelectedEpisode,
-    watchlistItem,
-  ]);
-
-  // Use server-rendered episode if available, otherwise use store
   const displayEpisode = selectedEpisode || initialEpisode;
   const displaySeasonNumber = seasonNumber || initialSeasonNumber;
   const isLastWatchedEpisode =
@@ -300,35 +234,6 @@ export function HeroContent({
     watchlistItem?.lastWatchedEpisode != null &&
     displaySeasonNumber === watchlistItem.lastWatchedSeason &&
     displayEpisode.episode_number === watchlistItem.lastWatchedEpisode;
-
-  // Set the watch callback in the episode store
-  useEffect(() => {
-    if (mediaType === "tv") {
-      setWatchCallback(() => {
-        handleWatch();
-        // Scroll to top to show the video
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      });
-    }
-
-    return () => {
-      setWatchCallback(null);
-    };
-  }, [handleWatch, mediaType, setWatchCallback]);
-
-  // Clear stale episode state when leaving TV pages or switching shows.
-  useEffect(() => {
-    const contentIdStr = media.id.toString();
-
-    if (mediaType !== "tv") {
-      clearSelectedEpisode();
-      return;
-    }
-
-    if (tvShowId && tvShowId !== contentIdStr) {
-      clearSelectedEpisode();
-    }
-  }, [media.id, mediaType, tvShowId, clearSelectedEpisode]);
 
   return (
     <div>
@@ -345,6 +250,19 @@ export function HeroContent({
             <ServerSelector
               media={media}
               mediaType={mediaType}
+              scrapeStatus={scrapeChrome.scrapeStatus}
+              activeScrapeProviderId={
+                scrapeChrome.activeProviderId ?? undefined
+              }
+              activeScrapeProviderName={
+                scrapeChrome.activeProviderName ?? undefined
+              }
+              scrapeProviders={scrapeChrome.scrapeProviders}
+              onSelectScrapeProvider={
+                scrapeChrome.onSelectScrapeProvider ?? undefined
+              }
+              onFindNextSource={scrapeChrome.onFindNextSource ?? undefined}
+              canFindNextSource={scrapeChrome.canFindNextSource}
               onServerSelect={() => {
                 if (isPlayingTrailer && youtubePlayer?.destroy) {
                   youtubePlayer.destroy();
@@ -447,7 +365,7 @@ export function HeroContent({
                               height: "auto",
                               transition: {
                                 duration: 0.4,
-                                ease: [0.19, 1, 0.22, 1], // fluid ease-out
+                                ease: [0.19, 1, 0.22, 1],
                                 staggerChildren: 0.05,
                                 delayChildren: 0.05,
                               },
@@ -457,7 +375,7 @@ export function HeroContent({
                               height: 0,
                               transition: {
                                 duration: 0.3,
-                                ease: [0.4, 0, 1, 1], // tight ease-in
+                                ease: [0.4, 0, 1, 1],
                                 staggerChildren: 0.03,
                                 staggerDirection: -1,
                               },
@@ -465,7 +383,6 @@ export function HeroContent({
                           }}
                           className="overflow-hidden flex flex-col"
                         >
-                          {/* Episode Selection Display */}
                           {displayEpisode &&
                             displaySeasonNumber &&
                             mediaType === "tv" && (

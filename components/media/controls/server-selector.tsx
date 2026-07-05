@@ -3,10 +3,29 @@
 import {
   useServerStore,
   videoServers,
+  scrapeServer,
+  isScrapeServer,
   VIDSRC_MIRROR_APIS,
 } from "@/lib/stores/server-store";
+import { sortServersByAvailability } from "@/lib/scrape/source-overlay";
+import {
+  dualCapabilityEmbedProviderIds,
+  embedOnlyProviderIds,
+  TMDB_SCRAPE_PROVIDER_OPTIONS,
+} from "@/lib/providers/registry";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { MediaItem } from "@/lib/domain/typings";
-import { Check, ChevronLeft, ChevronRight, Server } from "lucide-react";
+import type { ScrapePlayerStatus } from "@/hooks/use-scrape";
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Radio,
+  RefreshCw,
+  Server,
+  Tv,
+} from "lucide-react";
 import * as React from "react";
 import {
   DropdownMenu,
@@ -18,36 +37,151 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+
+type ScrapeProviderOption = {
+  providerId: string;
+  name: string;
+};
+
+type PlaybackMenuMode = "direct" | "embed";
+
+const DUAL_EMBED_PICKER_ID = "__dual_embed__";
+
+const EMBED_ONLY_IDS = new Set(embedOnlyProviderIds());
+const DUAL_EMBED_IDS = new Set(dualCapabilityEmbedProviderIds());
 
 interface ServerSelectorProps {
   media?: MediaItem;
   mediaType?: "tv" | "movie";
   className?: string;
   onServerSelect?: () => void;
+  scrapeStatus?: ScrapePlayerStatus;
+  activeScrapeProviderId?: string | null;
+  activeScrapeProviderName?: string | null;
+  scrapeProviders?: ScrapeProviderOption[];
+  onSelectScrapeProvider?: (providerId: string) => void;
+  onFindNextSource?: () => void;
+  canFindNextSource?: boolean;
+}
+
+function ModeSwitcher({
+  mode,
+  onModeChange,
+  showEmbed,
+}: {
+  mode: PlaybackMenuMode;
+  onModeChange: (mode: PlaybackMenuMode) => void;
+  showEmbed: boolean;
+}) {
+  return (
+    <div className="p-2" onPointerDown={(event) => event.preventDefault()}>
+      <div
+        role="radiogroup"
+        aria-label="Playback mode"
+        className={cn(
+          "grid gap-1 rounded-lg bg-muted/80 p-1",
+          showEmbed ? "grid-cols-2" : "grid-cols-1",
+        )}
+      >
+        <button
+          type="button"
+          role="radio"
+          aria-checked={mode === "direct"}
+          onClick={() => onModeChange("direct")}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-bold transition",
+            mode === "direct"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+          )}
+        >
+          Proxy
+        </button>
+        {showEmbed ? (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === "embed"}
+            onClick={() => onModeChange("embed")}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-bold transition",
+              mode === "embed"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+            )}
+          >
+            Iframe
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-2 px-0.5 text-[11px] leading-snug text-muted-foreground">
+        {mode === "direct"
+          ? "No ads, ever. Subject to availability."
+          : "3rd parties. Might have ads."}
+      </p>
+    </div>
+  );
 }
 
 export function ServerSelector({
   className,
   onServerSelect,
+  scrapeStatus = "idle",
+  activeScrapeProviderId,
+  activeScrapeProviderName,
+  scrapeProviders = [],
+  onSelectScrapeProvider,
+  onFindNextSource,
+  canFindNextSource = false,
 }: ServerSelectorProps) {
   const [detailServerId, setDetailServerId] = React.useState<string>();
+  const [menuMode, setMenuMode] = React.useState<PlaybackMenuMode>("direct");
   const {
     selectedServer,
     setSelectedServer,
     getServerOverride,
-    unavailableServerIds,
     animePreference,
     setAnimePreference,
     vidnestContentType,
     setVidnestContentType,
     vidsrcApi,
     setVidsrcApi,
+    availableServerIds,
+    unavailableServerIds,
   } = useServerStore();
+  const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
+
+  const isScrapeActive = isScrapeServer(selectedServer);
+  const showEmbedMode = !noAdsMode;
+
+  const directStreamProviders = React.useMemo(
+    () =>
+      scrapeProviders.length > 0
+        ? scrapeProviders
+        : TMDB_SCRAPE_PROVIDER_OPTIONS,
+    [scrapeProviders],
+  );
+
+  const sortedEmbedServers = React.useMemo(
+    () =>
+      sortServersByAvailability(
+        videoServers,
+        availableServerIds,
+        unavailableServerIds,
+      ),
+    [availableServerIds, unavailableServerIds],
+  );
+
+  const embedOnlyServers = React.useMemo(
+    () => sortedEmbedServers.filter((server) => EMBED_ONLY_IDS.has(server.id)),
+    [sortedEmbedServers],
+  );
+
+  const dualEmbedServers = React.useMemo(
+    () => sortedEmbedServers.filter((server) => DUAL_EMBED_IDS.has(server.id)),
+    [sortedEmbedServers],
+  );
 
   const isServerEnabled = (serverId: string): boolean => {
     if (unavailableServerIds.includes(serverId)) return false;
@@ -57,189 +191,320 @@ export function ServerSelector({
   };
 
   const handleServerChange = (serverId: string) => {
-    const server = videoServers.find((s) => s.id === serverId);
+    const server =
+      serverId === scrapeServer.id
+        ? scrapeServer
+        : videoServers.find((s) => s.id === serverId);
     if (!server) return;
     setSelectedServer(server);
     onServerSelect?.();
+  };
+
+  const handleModeChange = (mode: PlaybackMenuMode) => {
+    setMenuMode(mode);
+    if (mode === "direct" && !isScrapeActive) {
+      handleServerChange(scrapeServer.id);
+    }
   };
 
   const detailServer = detailServerId
     ? videoServers.find((server) => server.id === detailServerId)
     : undefined;
 
-  const renderServerLabel = (server: (typeof videoServers)[number]) => (
-    <div className="flex items-center">
-      <span className="font-medium">{server.name}</span>
+  const keepMenuOpen = (event: Event) => event.preventDefault();
+
+  const triggerLabel = (() => {
+    if (
+      isScrapeActive &&
+      scrapeStatus === "playing" &&
+      activeScrapeProviderName
+    ) {
+      return activeScrapeProviderName;
+    }
+
+    if (isScrapeActive) {
+      return "Proxy";
+    }
+
+    return selectedServer.name;
+  })();
+
+  const triggerModeHint = isScrapeActive ? "Proxy" : "Iframe";
+
+  const serverHasOptions = (serverId: string) =>
+    serverId === "vidnest" ||
+    serverId === "videasy" ||
+    serverId === "vidsrc-mirror";
+
+  const renderEmbedServerItem = (server: (typeof videoServers)[number]) => {
+    const hasOptions = serverHasOptions(server.id);
+    const enabled = isServerEnabled(server.id);
+    const isSelected = selectedServer.id === server.id && !isScrapeActive;
+
+    return (
+      <DropdownMenuItem
+        key={server.id}
+        onSelect={(event) => {
+          if (!enabled) {
+            event.preventDefault();
+            return;
+          }
+
+          if (hasOptions) {
+            event.preventDefault();
+            setDetailServerId(server.id);
+            return;
+          }
+
+          handleServerChange(server.id);
+        }}
+        className={cn(
+          "flex cursor-pointer items-center justify-between rounded-md py-2",
+          isSelected && "bg-accent/60",
+        )}
+        disabled={!enabled}
+      >
+        <span className="font-semibold">{server.name}</span>
+        {hasOptions ? (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        ) : isSelected ? (
+          <Check className="h-4 w-4 text-primary" />
+        ) : null}
+      </DropdownMenuItem>
+    );
+  };
+
+  const renderDirectStreamPanel = () => (
+    <div className="px-1 pb-1">
+      {directStreamProviders.map((provider) => {
+        const isActive =
+          isScrapeActive &&
+          activeScrapeProviderId === provider.providerId &&
+          scrapeStatus === "playing";
+
+        return (
+          <DropdownMenuItem
+            key={provider.providerId}
+            onSelect={() => {
+              if (!isScrapeActive) {
+                handleServerChange(scrapeServer.id);
+              }
+              onSelectScrapeProvider?.(provider.providerId);
+            }}
+            className={cn(
+              "flex cursor-pointer items-center justify-between rounded-md py-2",
+              isActive && "bg-primary/15 font-semibold text-primary",
+            )}
+            disabled={!onSelectScrapeProvider}
+          >
+            <span className="font-semibold">{provider.name}</span>
+            {isActive ? <Check className="h-4 w-4 text-primary" /> : null}
+          </DropdownMenuItem>
+        );
+      })}
+      {canFindNextSource && onFindNextSource ? (
+        <DropdownMenuItem
+          onSelect={onFindNextSource}
+          className="mt-0.5 flex cursor-pointer items-center gap-2 rounded-md py-2 font-medium text-muted-foreground"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          <span>Try next source</span>
+        </DropdownMenuItem>
+      ) : null}
     </div>
   );
 
-  const keepMenuOpen = (event: Event) => event.preventDefault();
+  const renderEmbedPanel = () => (
+    <div className="px-1 pb-1">
+      {embedOnlyServers.map((server) => renderEmbedServerItem(server))}
+      {dualEmbedServers.length > 0 ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            setDetailServerId(DUAL_EMBED_PICKER_ID);
+          }}
+          className="flex cursor-pointer items-center justify-between rounded-md py-2 text-muted-foreground"
+        >
+          <span className="font-medium">More embed servers</span>
+          <ChevronRight className="h-4 w-4" />
+        </DropdownMenuItem>
+      ) : null}
+    </div>
+  );
+
+  const renderServerDetailPanel = (server: (typeof videoServers)[number]) => (
+    <>
+      <DropdownMenuItem
+        onSelect={(event) => {
+          event.preventDefault();
+          setDetailServerId(undefined);
+        }}
+        className="flex cursor-pointer items-center gap-2 py-2 text-muted-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        onSelect={() => handleServerChange(server.id)}
+        className="flex cursor-pointer items-center justify-between py-2"
+        disabled={!isServerEnabled(server.id)}
+      >
+        <span className="font-semibold">Use {server.name}</span>
+        {selectedServer.id === server.id && !isScrapeActive ? (
+          <Check className="h-4 w-4 text-primary" />
+        ) : null}
+      </DropdownMenuItem>
+      {server.id === "vidnest" && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Content
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={vidnestContentType}
+            onValueChange={(value) =>
+              setVidnestContentType(value as typeof vidnestContentType)
+            }
+          >
+            <DropdownMenuRadioItem value="movie" onSelect={keepMenuOpen}>
+              Movie
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="tv" onSelect={keepMenuOpen}>
+              TV show
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="anime" onSelect={keepMenuOpen}>
+              Anime
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="animepahe" onSelect={keepMenuOpen}>
+              AnimePahe
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </>
+      )}
+      {server.id === "vidsrc-mirror" && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            API
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={vidsrcApi}
+            onValueChange={(value) => setVidsrcApi(value as typeof vidsrcApi)}
+          >
+            {VIDSRC_MIRROR_APIS.map((api) => (
+              <DropdownMenuRadioItem
+                key={api.value}
+                value={api.value}
+                onSelect={keepMenuOpen}
+              >
+                {api.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </>
+      )}
+      {(server.id === "videasy" ||
+        vidnestContentType === "anime" ||
+        vidnestContentType === "animepahe") && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Anime audio
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={animePreference}
+            onValueChange={(value) =>
+              setAnimePreference(value as typeof animePreference)
+            }
+          >
+            <DropdownMenuRadioItem value="sub" onSelect={keepMenuOpen}>
+              Subbed anime
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dub" onSelect={keepMenuOpen}>
+              Dubbed anime
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </>
+      )}
+    </>
+  );
+
+  const renderDualEmbedPicker = () => (
+    <>
+      <DropdownMenuItem
+        onSelect={(event) => {
+          event.preventDefault();
+          setDetailServerId(undefined);
+        }}
+        className="flex cursor-pointer items-center gap-2 py-2 text-muted-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Embed players
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        Also as embed
+      </DropdownMenuLabel>
+      {dualEmbedServers.map((server) => renderEmbedServerItem(server))}
+    </>
+  );
+
+  const renderRootMenu = () => (
+    <>
+      <ModeSwitcher
+        mode={menuMode}
+        onModeChange={handleModeChange}
+        showEmbed={showEmbedMode}
+      />
+      <DropdownMenuSeparator />
+      {menuMode === "direct" || !showEmbedMode
+        ? renderDirectStreamPanel()
+        : renderEmbedPanel()}
+    </>
+  );
 
   return (
-    <div className="flex items-center gap-3">
-      <DropdownMenu
-        onOpenChange={(open) => {
-          if (!open) setDetailServerId(undefined);
-        }}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`backdrop-blur-md bg-white/10 border border-white/30 text-white py-2 px-4 rounded-full font-bold hover:bg-white/20 hover:border-white/40 hover:shadow-xl transition flex items-center shadow-lg gap-2 ${className}`}
-              >
-                <Server className="h-4 w-4" />
-                {selectedServer.name}
-              </button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Select a server to stream from</p>
-          </TooltipContent>
-        </Tooltip>
-        <DropdownMenuContent align="end" className="w-44">
-          {detailServer ? (
-            <>
-              <DropdownMenuItem
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setDetailServerId(undefined);
-                }}
-                className="flex cursor-pointer items-center gap-2 text-muted-foreground"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Servers
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => handleServerChange(detailServer.id)}
-                className="flex cursor-pointer items-center justify-between"
-                disabled={!isServerEnabled(detailServer.id)}
-              >
-                <span className="font-medium">Use {detailServer.name}</span>
-                {selectedServer.id === detailServer.id && (
-                  <Check className="h-4 w-4 text-primary" />
-                )}
-              </DropdownMenuItem>
-              {detailServer.id === "vidnest" && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-                    Content
-                  </DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={vidnestContentType}
-                    onValueChange={(value) =>
-                      setVidnestContentType(value as typeof vidnestContentType)
-                    }
-                  >
-                    <DropdownMenuRadioItem
-                      value="movie"
-                      onSelect={keepMenuOpen}
-                    >
-                      Movie
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="tv" onSelect={keepMenuOpen}>
-                      TV show
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem
-                      value="anime"
-                      onSelect={keepMenuOpen}
-                    >
-                      Anime
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem
-                      value="animepahe"
-                      onSelect={keepMenuOpen}
-                    >
-                      AnimePahe
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </>
-              )}
-              {detailServer.id === "vidsrc-mirror" && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-                    API
-                  </DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={vidsrcApi}
-                    onValueChange={(value) =>
-                      setVidsrcApi(value as typeof vidsrcApi)
-                    }
-                  >
-                    {VIDSRC_MIRROR_APIS.map((api) => (
-                      <DropdownMenuRadioItem
-                        key={api.value}
-                        value={api.value}
-                        onSelect={keepMenuOpen}
-                      >
-                        {api.label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </>
-              )}
-              {(detailServer.id === "videasy" ||
-                vidnestContentType === "anime" ||
-                vidnestContentType === "animepahe") && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-                    Anime Audio
-                  </DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={animePreference}
-                    onValueChange={(value) =>
-                      setAnimePreference(value as typeof animePreference)
-                    }
-                  >
-                    <DropdownMenuRadioItem value="sub" onSelect={keepMenuOpen}>
-                      Subbed anime
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="dub" onSelect={keepMenuOpen}>
-                      Dubbed anime
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </>
-              )}
-            </>
-          ) : (
-            [...videoServers]
-              .filter((server) => isServerEnabled(server.id))
-              .map((server) => {
-                const hasOptions =
-                  server.id === "vidnest" ||
-                  server.id === "videasy" ||
-                  server.id === "vidsrc-mirror";
-
-                return (
-                  <DropdownMenuItem
-                    key={server.id}
-                    onSelect={(event) => {
-                      if (hasOptions) {
-                        event.preventDefault();
-                        setDetailServerId(server.id);
-                        return;
-                      }
-
-                      handleServerChange(server.id);
-                    }}
-                    className="flex cursor-pointer items-center justify-between"
-                  >
-                    {renderServerLabel(server)}
-                    {hasOptions ? (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    ) : selectedServer.id === server.id ? (
-                      <Check className="h-4 w-4 text-primary" />
-                    ) : null}
-                  </DropdownMenuItem>
-                );
-              })
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (open) {
+          setMenuMode(isScrapeActive ? "direct" : "embed");
+        }
+        if (!open) {
+          setDetailServerId(undefined);
+        }
+      }}
+    >
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title="Choose playback mode and source"
+          aria-label="Choose playback mode and source"
+          className={cn(
+            "flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 font-bold text-white shadow-lg backdrop-blur-md transition hover:border-white/40 hover:bg-white/20 hover:shadow-xl",
+            className,
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        >
+          <Server className="h-4 w-4 shrink-0" />
+          <span className="flex min-w-0 flex-col items-start leading-tight">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
+              {triggerModeHint}
+            </span>
+            <span className="truncate">{triggerLabel}</span>
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-56 max-h-[min(70vh,24rem)] overflow-y-auto p-0"
+      >
+        {detailServerId === DUAL_EMBED_PICKER_ID
+          ? renderDualEmbedPicker()
+          : detailServer
+            ? renderServerDetailPanel(detailServer)
+            : renderRootMenu()}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

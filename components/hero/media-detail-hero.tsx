@@ -2,10 +2,19 @@
 
 import { WatchlistItem } from "@/lib/domain/watchlist";
 import { Episode, MediaItem } from "@/lib/domain/typings";
+import { useHeroScrapePlayback } from "@/hooks/use-hero-scrape-playback";
 import { useMediaHero } from "@/hooks/useMediaHero";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
 import Script from "next/script";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { HeroBackground } from "./hero-background";
+import { ScrapeChromeProvider } from "./scrape-chrome-context";
 import { HeroContent } from "./hero-content";
 import { HeroMediaOverlay } from "./hero-overlay";
 import { HeroPagination } from "./hero-static";
@@ -34,7 +43,6 @@ export function MediaDetailHero({
   watchlistItem,
   initialEpisode,
   initialSeasonNumber,
-  tvHeroEpisodeData,
 }: MediaDetailHeroProps) {
   const [isAmbientMuted, setIsAmbientMuted] = useState(false);
   const [showAmbientAudioHint, setShowAmbientAudioHint] = useState(false);
@@ -44,6 +52,17 @@ export function MediaDetailHero({
   const hoverCollapseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const scrapePlaybackRef = useRef<ReturnType<
+    typeof useHeroScrapePlayback
+  > | null>(null);
+
+  const notifyPlaybackStart = useCallback(() => {
+    scrapePlaybackRef.current?.onPlaybackStart();
+  }, []);
+
+  const notifyPlaybackStop = useCallback(() => {
+    scrapePlaybackRef.current?.onPlaybackStop();
+  }, []);
 
   useEffect(() => {
     if (!showAmbientAudioHint) {
@@ -72,7 +91,38 @@ export function MediaDetailHero({
     videasyTrailerStatus,
     handleVideasyStreamError,
     canPlayTrailer,
-  } = useMediaHero({ media, noSlide, isWatch, passedMediaType, anilistId });
+  } = useMediaHero({
+    media,
+    noSlide,
+    isWatch,
+    passedMediaType,
+    anilistId,
+    onPlaybackStart: notifyPlaybackStart,
+    onPlaybackStop: notifyPlaybackStop,
+  });
+
+  const heroMedia = (currentItem ?? media[0]) as MediaItem;
+
+  const scrapePlayback = useHeroScrapePlayback({
+    media: heroMedia,
+    mediaType,
+    isPlayingVideo,
+  });
+  scrapePlaybackRef.current = scrapePlayback;
+
+  useLayoutEffect(() => {
+    const contentIdStr = String(currentItem?.id ?? "");
+    const storeState = useEpisodeStore.getState();
+
+    if (mediaType !== "tv") {
+      storeState.clearSelectedEpisode();
+      return;
+    }
+
+    if (storeState.tvShowId && storeState.tvShowId !== contentIdStr) {
+      storeState.clearSelectedEpisode();
+    }
+  }, [currentItem?.id, mediaType]);
 
   const hasVideasyAmbientSource =
     videasyTrailerStatus === "ready" &&
@@ -128,71 +178,82 @@ export function MediaDetailHero({
     };
   }, []);
 
+  if (!currentItem) {
+    return null;
+  }
+
   return (
-    <div className="relative h-[100svh] min-h-[34rem] overflow-hidden bg-black">
-      <Script src="https://www.youtube.com/iframe_api" strategy="lazyOnload" />
+    <ScrapeChromeProvider chrome={scrapePlayback.scrapeChrome}>
+      <div className="relative h-[100svh] min-h-[34rem] overflow-hidden bg-black">
+        <Script
+          src="https://www.youtube.com/iframe_api"
+          strategy="lazyOnload"
+        />
 
-      <HeroBackground
-        media={currentItem as MediaItem}
-        mediaType={mediaType}
-        isPlayingVideo={isPlayingVideo}
-        isPlayingTrailer={isPlayingTrailer}
-        controls={controls}
-        onTrailerEnded={handleTrailerEnded}
-        youtubePlayer={youtubePlayer}
-        setYoutubePlayer={setYoutubePlayer}
-        anilistId={anilistId}
-        videasyTrailerUrl={videasyTrailerUrl}
-        videasyTrailerHlsUrl={videasyTrailerHlsUrl}
-        videasyTrailerStatus={videasyTrailerStatus}
-        onVideasyStreamError={handleVideasyStreamError}
-        isAmbientMuted={isAmbientMuted}
-        onAmbientAutoplayBlocked={() => {
-          if (!hasVideasyAmbientSource) {
-            return;
-          }
-          setIsAmbientMuted(true);
-          setShowAmbientAudioHint(true);
-        }}
-        onAmbientBackdropActiveChange={setIsAmbientBackdropActive}
-      />
+        <HeroBackground
+          media={currentItem}
+          mediaType={mediaType}
+          isPlayingVideo={isPlayingVideo}
+          isPlayingTrailer={isPlayingTrailer}
+          controls={controls}
+          onTrailerEnded={handleTrailerEnded}
+          youtubePlayer={youtubePlayer}
+          setYoutubePlayer={setYoutubePlayer}
+          anilistId={anilistId}
+          videasyTrailerUrl={videasyTrailerUrl}
+          videasyTrailerHlsUrl={videasyTrailerHlsUrl}
+          videasyTrailerStatus={videasyTrailerStatus}
+          onVideasyStreamError={handleVideasyStreamError}
+          isAmbientMuted={isAmbientMuted}
+          onAmbientAutoplayBlocked={() => {
+            if (!hasVideasyAmbientSource) {
+              return;
+            }
+            setIsAmbientMuted(true);
+            setShowAmbientAudioHint(true);
+          }}
+          onAmbientBackdropActiveChange={setIsAmbientBackdropActive}
+          scrapePlayback={scrapePlayback}
+        />
 
-      <HeroContent
-        media={currentItem as MediaItem}
-        mediaType={mediaType}
-        isWatch={isWatch}
-        isPlayingVideo={isPlayingVideo}
-        isPlayingTrailer={isPlayingTrailer}
-        handleWatch={handleWatch}
-        handlePlayTrailer={handlePlayTrailer}
-        handleTrailerEnded={handleTrailerEnded}
-        youtubePlayer={youtubePlayer}
-        setYoutubePlayer={setYoutubePlayer}
-        isUpcoming={isUpcoming}
-        watchlistItem={watchlistItem}
-        initialEpisode={initialEpisode}
-        initialSeasonNumber={initialSeasonNumber}
-        anilistId={anilistId}
-        canPlayTrailer={canPlayTrailer}
-        showAmbientMuteButton={showAmbientMuteButton}
-        showAmbientAudioHint={showAmbientMuteButton && showAmbientAudioHint}
-        isAmbientMuted={isAmbientMuted}
-        isHeroHovered={supportsExpandedHero && isHeroHovered}
-        onDetailsMouseEnter={handleDetailsMouseEnter}
-        onDetailsMouseLeave={handleDetailsMouseLeave}
-        onToggleAmbientMute={() => {
-          setShowAmbientAudioHint(false);
-          setIsAmbientMuted((prev) => !prev);
-        }}
-      />
+        <HeroContent
+          key={`${currentItem.id}-${mediaType ?? "unknown"}`}
+          media={currentItem}
+          mediaType={mediaType}
+          isWatch={isWatch}
+          isPlayingVideo={isPlayingVideo}
+          isPlayingTrailer={isPlayingTrailer}
+          handleWatch={handleWatch}
+          handlePlayTrailer={handlePlayTrailer}
+          handleTrailerEnded={handleTrailerEnded}
+          youtubePlayer={youtubePlayer}
+          setYoutubePlayer={setYoutubePlayer}
+          isUpcoming={isUpcoming}
+          watchlistItem={watchlistItem}
+          initialEpisode={initialEpisode}
+          initialSeasonNumber={initialSeasonNumber}
+          anilistId={anilistId}
+          canPlayTrailer={canPlayTrailer}
+          showAmbientMuteButton={showAmbientMuteButton}
+          showAmbientAudioHint={showAmbientMuteButton && showAmbientAudioHint}
+          isAmbientMuted={isAmbientMuted}
+          isHeroHovered={supportsExpandedHero && isHeroHovered}
+          onDetailsMouseEnter={handleDetailsMouseEnter}
+          onDetailsMouseLeave={handleDetailsMouseLeave}
+          onToggleAmbientMute={() => {
+            setShowAmbientAudioHint(false);
+            setIsAmbientMuted((prev) => !prev);
+          }}
+        />
 
-      {!isPlayingVideo && !isPlayingTrailer ? (
-        <HeroMediaOverlay isAmbientBackdropActive={isAmbientBackdropActive} />
-      ) : null}
+        {!isPlayingVideo && !isPlayingTrailer ? (
+          <HeroMediaOverlay isAmbientBackdropActive={isAmbientBackdropActive} />
+        ) : null}
 
-      {!noSlide && !isPlayingVideo && !isWatch && media.length > 1 && (
-        <HeroPagination items={media} currentIndex={currentItemIndex} />
-      )}
-    </div>
+        {!noSlide && !isPlayingVideo && !isWatch && media.length > 1 && (
+          <HeroPagination items={media} currentIndex={currentItemIndex} />
+        )}
+      </div>
+    </ScrapeChromeProvider>
   );
 }
