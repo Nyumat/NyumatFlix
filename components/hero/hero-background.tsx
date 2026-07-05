@@ -1,14 +1,16 @@
 "use client";
 
 import type { VideasyTrailerStreamStatus } from "@/hooks/use-videasy-trailer-stream";
+import { useMediaVideosQuery } from "@/hooks/use-media-videos-query";
+import type { useHeroScrapePlayback } from "@/hooks/use-hero-scrape-playback";
+import { useVidsrcProgress } from "@/hooks/use-vidsrc-progress";
 import {
   extractVideoRowsFromMediaVideos,
   selectPrimaryTrailerVideo,
   type TrailerPickRow,
 } from "@/lib/select-primary-trailer-video";
-import { useVidsrcProgress } from "@/hooks/use-vidsrc-progress";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { useServerStore } from "@/lib/stores/server-store";
+import { isScrapeServer, useServerStore } from "@/lib/stores/server-store";
 import { logger } from "@/lib/utils";
 import type { MediaItem } from "@/lib/domain/typings";
 import {
@@ -18,34 +20,30 @@ import {
 } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { VideasyStreamVideo } from "./videasy-stream-video";
-import { HERO_AMBIENT_VIDEO_MASK, HERO_MEDIA_TRANSITION } from "./hero-overlay";
+import { tmdbImage } from "@/tmdb/utils";
+import { AmbientVideoBackdrop } from "./ambient-video-backdrop";
+import {
+  HeroEmbedPlayerPanel,
+  HeroPlaybackShell,
+  HeroScrapePlayerPanel,
+} from "./hero-scrape-player-panel";
+import { HERO_MEDIA_TRANSITION } from "./hero-overlay";
 import {
   HERO_YOUTUBE_CHROMELESS_BASE,
   type YouTubePlayer,
 } from "./youtube-types";
 
-/**
- * Props for the HeroBackground component
- */
+export type HeroScrapePlaybackState = ReturnType<typeof useHeroScrapePlayback>;
+
 interface HeroBackgroundProps {
-  /** Media item to display in the background */
   media: MediaItem;
-  /** Media type from route (tv or movie) */
   mediaType?: "tv" | "movie";
-  /** Whether a video is currently playing */
   isPlayingVideo: boolean;
-  /** Whether a trailer is currently playing */
   isPlayingTrailer: boolean;
-  /** Animation controls for the background */
   controls: LegacyAnimationControls;
-  /** Callback function when trailer ends */
   onTrailerEnded(): void;
-  /** YouTube player instance */
   youtubePlayer: YouTubePlayer;
-  /** Setter for YouTube player instance */
   setYoutubePlayer(player: YouTubePlayer): void;
-  /** Anilist ID for anime content */
   anilistId?: number | null | undefined;
   videasyTrailerUrl: string | null;
   videasyTrailerHlsUrl: string | null;
@@ -54,14 +52,21 @@ interface HeroBackgroundProps {
   isAmbientMuted: boolean;
   onAmbientAutoplayBlocked(): void;
   onAmbientBackdropActiveChange?(active: boolean): void;
+  scrapePlayback: HeroScrapePlaybackState;
 }
 
-/**
- * HeroBackground component manages the background display for hero sections
- * Handles background images, video playback, and YouTube trailer integration
- * @param props - The component props
- * @returns A dynamic background component with video and image support
- */
+function sortTrailerVideos(rows: TrailerPickRow[]): TrailerPickRow[] {
+  const primary = selectPrimaryTrailerVideo(rows);
+  if (!primary) {
+    return rows;
+  }
+
+  return [
+    primary,
+    ...rows.filter((video) => video.key !== primary.key),
+  ] as TrailerPickRow[];
+}
+
 export function HeroBackground({
   media,
   mediaType,
@@ -79,76 +84,45 @@ export function HeroBackground({
   isAmbientMuted,
   onAmbientAutoplayBlocked,
   onAmbientBackdropActiveChange,
+  scrapePlayback,
 }: HeroBackgroundProps) {
+  const { getEmbedUrl } = useEpisodeStore();
+  const { selectedServer, vidnestContentType, animePreference } =
+    useServerStore();
+
   const {
-    getEmbedUrl,
-    selectedEpisode,
-    tvShowId,
-    seasonNumber,
-    isAnimeEpisode,
-    anilistId: episodeAnilistId,
-    relativeEpisodeNumber,
-  } = useEpisodeStore();
-  const {
-    selectedServer,
-    vidnestContentType,
-    animePreference,
-    vidsrcApi,
-    prefetchServerAvailability,
-  } = useServerStore();
+    resolvedMediaType,
+    playbackTitle,
+    buildPlaybackProgressKey,
+    isAnimeScrapeMode,
+    activeScrape,
+    animeScrape,
+    sourceOverlayItems,
+    handleSelectEmbedServer,
+    handleScrapedPlaybackError,
+    handleScrapePlaybackEnded,
+  } = scrapePlayback;
 
-  useEffect(() => {
-    const isTv =
-      mediaType === "tv" ||
-      (!mediaType && (media.media_type === "tv" || media.name !== undefined));
-    const tmdbId = isTv && tvShowId ? Number(tvShowId) : media.id;
-
-    if (!Number.isInteger(tmdbId) || tmdbId <= 0) return;
-
-    void prefetchServerAvailability({
-      tmdbId,
-      mediaType: isTv ? "tv" : "movie",
-      seasonNumber: seasonNumber || undefined,
-      episodeNumber: selectedEpisode?.episode_number,
-      anilistId: isAnimeEpisode ? episodeAnilistId || undefined : undefined,
-      animeEpisodeNumber: isAnimeEpisode
-        ? relativeEpisodeNumber || undefined
-        : undefined,
-      animePreference,
-    });
-  }, [
-    media.id,
-    media.media_type,
-    media.name,
-    mediaType,
-    prefetchServerAvailability,
-    animePreference,
-    episodeAnilistId,
-    isAnimeEpisode,
-    relativeEpisodeNumber,
-    seasonNumber,
-    selectedEpisode?.episode_number,
-    tvShowId,
-    vidsrcApi,
-  ]);
-
-  // Capture watch-progress emitted by the VidSrc Mirror embed (postMessage).
   useVidsrcProgress();
+
   const initialTrailerVideos = useMemo(() => {
     const rows = extractVideoRowsFromMediaVideos(media.videos).filter(
       (video) =>
         (!video.site || video.site === "YouTube") && Boolean(video.key),
     );
-    const primary = selectPrimaryTrailerVideo(rows);
-    if (!primary) return rows;
-    return [
-      primary,
-      ...rows.filter((video) => video.key !== primary.key),
-    ] as TrailerPickRow[];
+    return sortTrailerVideos(rows);
   }, [media.videos]);
-  const [trailerVideos, setTrailerVideos] =
-    useState<TrailerPickRow[]>(initialTrailerVideos);
+
+  const trailerVideosQuery = useMediaVideosQuery(
+    resolvedMediaType,
+    media.id,
+    initialTrailerVideos,
+    isPlayingTrailer,
+  );
+
+  const trailerVideos = trailerVideosQuery.data ?? initialTrailerVideos;
   const [selectedTrailerIndex, setSelectedTrailerIndex] = useState(0);
+
   const hasVideasySource =
     videasyTrailerStatus === "ready" &&
     (Boolean(videasyTrailerUrl?.length) ||
@@ -157,42 +131,19 @@ export function HeroBackground({
   const videasyBackdropReady =
     hasVideasySource && !isPlayingTrailer && !isPlayingVideo;
   const selectedTrailer =
-    trailerVideos[selectedTrailerIndex] ?? initialTrailerVideos[0];
+    trailerVideos[selectedTrailerIndex] ?? trailerVideos[0];
   const canSwitchTrailers = trailerVideos.length > 1;
 
-  const getMediaType = (): "movie" | "tv" => {
-    if (mediaType) {
-      return mediaType;
-    }
-
-    if (media) {
-      // I found that checking for a 'name' property is a reliable way to identify a TV show.
-      // a 'first_air_date' is also a good indicator, as are season and episode counts.
-      const isTvShow =
-        media.media_type === "tv" ||
-        media.name !== undefined ||
-        media.first_air_date !== undefined ||
-        media.number_of_seasons !== undefined ||
-        media.number_of_episodes !== undefined;
-
-      if (isTvShow) {
-        return "tv";
-      }
-    }
-
-    if (typeof window !== "undefined") {
-      if (window.location.pathname.includes("/tvshows/")) {
-        return "tv";
-      } else if (window.location.pathname.includes("/movies/")) {
-        return "movie";
-      }
-    }
-
-    return "movie";
-  };
+  const playbackBackdropPath = media.backdrop_path ?? media.poster_path ?? null;
+  const playbackBackdropUrl = playbackBackdropPath
+    ? tmdbImage.backdrop(playbackBackdropPath, "w1280")
+    : null;
+  const playbackPosterUrl = playbackBackdropPath
+    ? tmdbImage.backdrop(playbackBackdropPath, "w780")
+    : null;
 
   const getVideoSrc = () => {
-    const detectedMediaType = getMediaType();
+    const detectedMediaType = resolvedMediaType;
 
     if (selectedServer.id === "vidnest" && selectedServer.getVidnestUrl) {
       const episodeStore = useEpisodeStore.getState();
@@ -213,7 +164,8 @@ export function HeroBackground({
             parseInt(episodeStore.tvShowId || ""),
             "tv",
             episodeStore.seasonNumber || undefined,
-            episodeStore.selectedEpisode.episode_number,
+            episodeStore.providerEpisodeNumber ??
+              episodeStore.selectedEpisode.episode_number,
             undefined,
           );
         }
@@ -239,12 +191,11 @@ export function HeroBackground({
             episodeStore.relativeEpisodeNumber,
             episodeStore.anilistId,
           );
-        } else {
-          // For non-anime content with anime content type, use anilistId if available, otherwise construct URL manually
-          const episode = episodeStore.selectedEpisode?.episode_number || 1;
-          const idToUse = anilistId || media.id;
-          return `https://vidnest.fun/anime/${idToUse}/${episode}/${animePreference}`;
         }
+
+        const episode = episodeStore.selectedEpisode?.episode_number || 1;
+        const idToUse = anilistId || media.id;
+        return `https://vidnest.fun/anime/${idToUse}/${episode}/${animePreference}`;
       }
 
       if (vidnestContentType === "animepahe") {
@@ -260,16 +211,14 @@ export function HeroBackground({
             episodeStore.relativeEpisodeNumber,
             episodeStore.anilistId,
           );
-        } else {
-          // For non-anime content with animepahe content type, use anilistId if available, otherwise construct URL manually
-          const episode = episodeStore.selectedEpisode?.episode_number || 1;
-          const idToUse = anilistId || media.id;
-          return `https://vidnest.fun/animepahe/${idToUse}/${episode}/${animePreference}`;
         }
+
+        const episode = episodeStore.selectedEpisode?.episode_number || 1;
+        const idToUse = anilistId || media.id;
+        return `https://vidnest.fun/animepahe/${idToUse}/${episode}/${animePreference}`;
       }
     }
 
-    // For TV shows, use episode URLs (which now includes anime URLs)
     if (detectedMediaType === "tv") {
       const episodeEmbedUrl = getEmbedUrl();
       if (episodeEmbedUrl) {
@@ -278,72 +227,32 @@ export function HeroBackground({
       return "";
     }
 
-    // For movies, use movie URL
     return selectedServer.getMovieUrl(media.id);
   };
 
-  const [isAmbientVideoReady, setIsAmbientVideoReady] = useState(false);
+  const embedVideoSrc = useMemo(
+    () => getVideoSrc(),
+    [
+      animePreference,
+      anilistId,
+      getEmbedUrl,
+      media.id,
+      resolvedMediaType,
+      selectedServer,
+      vidnestContentType,
+    ],
+  );
+  const embedIframeKey = `${embedVideoSrc}-${vidnestContentType}-${animePreference}-${selectedServer.id}`;
   const backdropSrc = `https://image.tmdb.org/t/p/original${
     media.backdrop_path ?? media.poster_path
   }`;
   const ambientVideoKey = hasVideasySource
     ? `${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`
-    : media.backdrop_path;
-  const shouldShowAmbientVideo = videasyBackdropReady;
+    : String(media.backdrop_path ?? media.poster_path ?? media.id);
 
   useEffect(() => {
-    setTrailerVideos(initialTrailerVideos);
     setSelectedTrailerIndex(0);
-  }, [initialTrailerVideos]);
-
-  useEffect(() => {
-    setIsAmbientVideoReady(false);
-  }, [ambientVideoKey, media.backdrop_path, media.poster_path]);
-
-  useEffect(() => {
-    onAmbientBackdropActiveChange?.(
-      shouldShowAmbientVideo && isAmbientVideoReady,
-    );
-  }, [
-    isAmbientVideoReady,
-    onAmbientBackdropActiveChange,
-    shouldShowAmbientVideo,
-  ]);
-
-  useEffect(() => {
-    if (!isPlayingTrailer) return;
-
-    let cancelled = false;
-    const loadVideos = async () => {
-      try {
-        const response = await fetch(
-          `/api/media/${getMediaType()}/${media.id}/videos`,
-        );
-        if (!response.ok) return;
-        const data: unknown = await response.json();
-        if (cancelled) return;
-        const rows = extractVideoRowsFromMediaVideos(data).filter(
-          (video) =>
-            (!video.site || video.site === "YouTube") && Boolean(video.key),
-        );
-        const primary = selectPrimaryTrailerVideo(rows);
-        const sorted = primary
-          ? [primary, ...rows.filter((video) => video.key !== primary.key)]
-          : rows;
-        if (sorted.length > 0) {
-          setTrailerVideos(sorted);
-          setSelectedTrailerIndex(0);
-        }
-      } catch {
-        // Keep the videos already embedded in the media payload.
-      }
-    };
-
-    void loadVideos();
-    return () => {
-      cancelled = true;
-    };
-  }, [isPlayingTrailer, media.id]);
+  }, [media.id, trailerVideos]);
 
   useEffect(() => {
     if (!isPlayingTrailer || !selectedTrailer?.key) {
@@ -435,44 +344,32 @@ export function HeroBackground({
           className="relative h-full w-full"
           animate={controls}
         >
-          {!isPlayingTrailer && !isPlayingVideo && (
+          {!isPlayingTrailer && !isPlayingVideo && !videasyBackdropReady && (
             <motion.img
               src={backdropSrc}
               fetchPriority="high"
               alt={(media.title || media.name) as string}
               className="w-full h-full object-cover absolute inset-0 z-0"
               initial={false}
-              animate={{
-                opacity: shouldShowAmbientVideo && isAmbientVideoReady ? 0 : 1,
-              }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={HERO_MEDIA_TRANSITION}
             />
           )}
 
           {videasyBackdropReady ? (
-            <motion.div
-              className="absolute inset-0 z-0 overflow-hidden pointer-events-none"
-              initial={false}
-              animate={{ opacity: isAmbientVideoReady ? 1 : 0 }}
-              transition={HERO_MEDIA_TRANSITION}
-              style={{
-                maskImage: HERO_AMBIENT_VIDEO_MASK,
-                WebkitMaskImage: HERO_AMBIENT_VIDEO_MASK,
-              }}
-            >
-              <VideasyStreamVideo
-                key={`${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`}
-                mp4Url={videasyTrailerUrl}
-                hlsUrl={videasyTrailerHlsUrl}
-                playback="ambient"
-                isMuted={isAmbientMuted}
-                onAutoplayBlocked={onAmbientAutoplayBlocked}
-                onCanPlay={() => setIsAmbientVideoReady(true)}
-                onError={onVideasyStreamError}
-                className="absolute top-1/2 left-1/2 aspect-video h-[calc(100%+14rem)] min-w-[calc(100%+14rem)] -translate-x-1/2 -translate-y-[calc(50%+25px)] scale-[1.015] object-cover"
-              />
-            </motion.div>
+            <AmbientVideoBackdrop
+              key={ambientVideoKey}
+              ambientVideoKey={ambientVideoKey}
+              backdropSrc={backdropSrc}
+              backdropAlt={(media.title || media.name) as string}
+              mp4Url={videasyTrailerUrl}
+              hlsUrl={videasyTrailerHlsUrl}
+              isMuted={isAmbientMuted}
+              onAutoplayBlocked={onAmbientAutoplayBlocked}
+              onStreamError={onVideasyStreamError}
+              onBackdropActiveChange={onAmbientBackdropActiveChange}
+            />
           ) : null}
 
           {isPlayingTrailer && (
@@ -528,31 +425,40 @@ export function HeroBackground({
               className="w-full absolute z-30 px-4 sm:px-6 lg:px-8"
               style={{ top: "5rem", height: "calc(100% - 11rem)" }}
             >
-              <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full">
-                {(() => {
-                  const videoSrc = getVideoSrc();
-                  const iframeKey = `${videoSrc}-${vidnestContentType}-${animePreference}-${selectedServer.id}`;
-
-                  if (!videoSrc) {
-                    return (
-                      <div className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20 bg-black/80 flex items-center justify-center">
-                        <div className="text-white text-center">
-                          <p>Loading video...</p>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <motion.iframe
-                      key={iframeKey}
-                      src={videoSrc}
-                      className="w-full h-full rounded-lg overflow-hidden shadow-2xl border border-border/20"
-                      allow="autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
+              <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full relative">
+                <HeroPlaybackShell
+                  selectedServer={selectedServer}
+                  scrapeStatus={activeScrape.status}
+                  playbackBackdropUrl={playbackBackdropUrl}
+                >
+                  {isScrapeServer(selectedServer) ? (
+                    <HeroScrapePlayerPanel
+                      selectedServer={selectedServer}
+                      scrapeStatus={activeScrape.status}
+                      scrapeResult={activeScrape.result}
+                      scrapeError={activeScrape.error}
+                      activeProviderId={activeScrape.activeProviderId}
+                      sourceOverlayItems={sourceOverlayItems}
+                      playbackTitle={playbackTitle}
+                      playbackPosterUrl={playbackPosterUrl}
+                      progressKey={buildPlaybackProgressKey()}
+                      streamKind={
+                        isAnimeScrapeMode && animeScrape.result?.streamKind
+                          ? animeScrape.result.streamKind
+                          : "hls"
+                      }
+                      isTv={resolvedMediaType === "tv"}
+                      onSelectEmbedServer={handleSelectEmbedServer}
+                      onFatalError={handleScrapedPlaybackError}
+                      onEnded={handleScrapePlaybackEnded}
                     />
-                  );
-                })()}
+                  ) : (
+                    <HeroEmbedPlayerPanel
+                      videoSrc={embedVideoSrc}
+                      iframeKey={embedIframeKey}
+                    />
+                  )}
+                </HeroPlaybackShell>
               </div>
             </motion.div>
           )}

@@ -180,12 +180,14 @@ export function PosterCard({
             "transition-all duration-500 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:bg-linear-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]",
         )}
       >
-        {item.logo?.file_path || !hideTitleFallback ? (
+        {item.logo?.file_path || title ? (
           <MediaLogo
             logo={item.logo}
             align="center"
             className="w-full max-h-10 mx-auto mb-2"
-            title={title}
+            title={
+              hideTitleFallback && item.logo?.file_path ? undefined : title
+            }
             fallbackClassName="text-sm font-semibold leading-tight line-clamp-2 mb-2"
           />
         ) : null}

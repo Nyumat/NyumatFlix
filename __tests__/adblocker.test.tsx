@@ -126,6 +126,8 @@ describe("AdblockerAlert", () => {
     });
 
     expect(screen.getByText(/itself is ad-free/i)).toBeInTheDocument();
+    expect(screen.getByText(/Scrape/i)).toBeInTheDocument();
+    expect(screen.getByText(/server selector/i)).toBeInTheDocument();
   });
 
   test("shows initial CTA buttons", async () => {

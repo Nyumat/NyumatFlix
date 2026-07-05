@@ -1,0 +1,226 @@
+import { scrapeFetchText } from "../fetch";
+import type { ScrapeMediaInput, ScrapeResult } from "../types";
+import { validateStreamUrl } from "../validate-stream";
+
+const EMBED_ORIGIN = "https://vsembed.ru";
+const PLAYER_ORIGIN = "https://cloudorchestranova.com";
+
+const buildEmbedUrl = (input: ScrapeMediaInput): string => {
+  if (input.mediaType === "movie") {
+    return `${EMBED_ORIGIN}/embed/movie?tmdb=${input.tmdbId}`;
+  }
+
+  const params = new URLSearchParams({
+    tmdb: String(input.tmdbId),
+    season: String(input.seasonNumber ?? 1),
+    episode: String(input.episodeNumber ?? 1),
+  });
+
+  return `${EMBED_ORIGIN}/embed/tv?${params.toString()}`;
+};
+
+const normalizeEmbedSrc = (raw: string): string | null => {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "about:blank") {
+    return null;
+  }
+
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+
+  if (trimmed.startsWith("http")) {
+    return trimmed;
+  }
+
+  return null;
+};
+
+const extractIframeSrc = (html: string): string | null => {
+  const playerIframeTag = html.match(
+    /<iframe\b[^>]*\bid=["']player_iframe["'][^>]*>/i,
+  );
+  if (playerIframeTag?.[0]) {
+    const srcMatch = playerIframeTag[0].match(/\bsrc=["']([^"']+)["']/i);
+    if (srcMatch?.[1]) {
+      const normalized = normalizeEmbedSrc(srcMatch[1]);
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+
+  const playerPatterns = [
+    /src=["']([^"']*(?:cloudorchestranova|\/rcp\/|\/prorcp\/)[^"']*)["']/i,
+    /src=["']([^"']+)["']/i,
+  ];
+
+  for (const pattern of playerPatterns) {
+    const match = html.match(pattern);
+    if (!match?.[1]) {
+      continue;
+    }
+
+    const normalized = normalizeEmbedSrc(match[1]);
+    if (normalized && !normalized.includes("cdnjs.cloudflare.com")) {
+      return normalized;
+    }
+  }
+
+  return null;
+};
+
+const extractProrcpHash = (html: string): string | null => {
+  const match = html.match(/\/prorcp\/([a-zA-Z0-9_-]+)/);
+  return match?.[1] ?? null;
+};
+
+const extractMasterUrl = (html: string): string | null => {
+  const patterns = [
+    /master_urls\s*=\s*"([^"]+)"/,
+    /master_urls\s*=\s*'([^']+)'/,
+    /master_url\s*=\s*"([^"]+)"/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (!match?.[1]) {
+      continue;
+    }
+
+    const candidate = match[1].split(" or ")[0]?.trim();
+    if (candidate?.includes(".m3u8")) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
+const tokenHostFromUrl = (url: string): string | null => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+};
+
+const scrapeVidSrcEdn = async (
+  input: ScrapeMediaInput,
+): Promise<ScrapeResult> => {
+  const providerId = "vidsrc";
+  const embedUrl = buildEmbedUrl(input);
+  const embed = await scrapeFetchText(embedUrl, {
+    Referer: `${EMBED_ORIGIN}/`,
+  });
+
+  if (embed.status !== 200) {
+    return {
+      ok: false,
+      providerId,
+      error: `Embed page failed (${embed.status})`,
+    };
+  }
+
+  const iframeSrc = extractIframeSrc(embed.text);
+  if (!iframeSrc) {
+    return { ok: false, providerId, error: "VidSrc iframe not found" };
+  }
+
+  const playerReferer = iframeSrc;
+  let playerOrigin = PLAYER_ORIGIN;
+  try {
+    playerOrigin = new URL(playerReferer).origin;
+  } catch {
+    // keep default
+  }
+
+  let prorcpHash = extractProrcpHash(iframeSrc);
+
+  if (!prorcpHash) {
+    const rcpPage = await scrapeFetchText(iframeSrc, {
+      Referer: `${EMBED_ORIGIN}/`,
+    });
+    prorcpHash = extractProrcpHash(rcpPage.text);
+  }
+
+  if (!prorcpHash) {
+    return { ok: false, providerId, error: "VidSrc player hash not found" };
+  }
+
+  const playerPage = await scrapeFetchText(
+    `${playerOrigin}/prorcp/${prorcpHash}`,
+    { Referer: playerReferer },
+  );
+
+  const masterTemplate = extractMasterUrl(playerPage.text);
+  if (!masterTemplate) {
+    return { ok: false, providerId, error: "VidSrc master playlist missing" };
+  }
+
+  const tokenHost = tokenHostFromUrl(masterTemplate);
+  if (!tokenHost) {
+    return { ok: false, providerId, error: "VidSrc token host missing" };
+  }
+
+  const tokenResponse = await scrapeFetchText(
+    `https://${tokenHost}/generate.php`,
+    { Referer: `${playerOrigin}/` },
+  );
+
+  const token = tokenResponse.text.trim();
+  if (!token) {
+    return { ok: false, providerId, error: "VidSrc JWT token missing" };
+  }
+
+  const streamUrl = masterTemplate
+    .replaceAll("__TOKEN__", token)
+    .replaceAll("__TOKENPG__", token);
+
+  return {
+    ok: true,
+    providerId,
+    streamUrl,
+    referer: `${playerOrigin}/`,
+  };
+};
+
+const isPlayableStream = async (result: ScrapeResult): Promise<boolean> => {
+  if (!result.ok) {
+    return false;
+  }
+
+  return validateStreamUrl(result.streamUrl, result.referer);
+};
+
+export async function scrapeVidSrc(
+  input: ScrapeMediaInput,
+): Promise<ScrapeResult> {
+  const providerId = "vidsrc";
+
+  try {
+    const embedResult = await scrapeVidSrcEdn(input);
+    if (await isPlayableStream(embedResult)) {
+      return embedResult;
+    }
+
+    if (!embedResult.ok) {
+      return embedResult;
+    }
+
+    return {
+      ok: false,
+      providerId,
+      error: "Stream URL failed validation",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      providerId,
+      error:
+        error instanceof Error
+          ? error.message
+          : "VidSrc scrape failed unexpectedly",
+    };
+  }
+}

@@ -3,7 +3,9 @@ import { buildWebsiteStructuredData } from "@/lib/seo/structured-data";
 import { NavbarClient } from "@/components/layout/nav/navbar-client";
 import { RouteScrollReset } from "@/components/layout/route-scroll-reset";
 import { FooterSection } from "@/components/layout/sections/footer";
+import { AdblockGateProvider } from "@/components/providers/adblock-gate-provider";
 import { OnboardingProvider } from "@/components/providers/onboarding-provider";
+import { AppSettingsSync } from "@/components/providers/app-settings-sync";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { Toaster } from "@/components/ui/sonner";
@@ -138,14 +140,17 @@ export default async function RootLayout({
           <AuthSessionProvider session={session}>
             <OnboardingProvider>
               <TooltipProvider>
-                <GlobalDockProvider>
-                  <NavbarClient session={session} />
-                  <main className="flex min-h-0 flex-1 flex-col">
-                    {children}
-                  </main>
-                  <FooterSection />
-                  <Toaster richColors closeButton />
-                </GlobalDockProvider>
+                <AdblockGateProvider>
+                  <AppSettingsSync />
+                  <GlobalDockProvider>
+                    <NavbarClient session={session} />
+                    <main className="flex min-h-0 flex-1 flex-col">
+                      {children}
+                    </main>
+                    <FooterSection />
+                    <Toaster richColors closeButton />
+                  </GlobalDockProvider>
+                </AdblockGateProvider>
               </TooltipProvider>
             </OnboardingProvider>
           </AuthSessionProvider>

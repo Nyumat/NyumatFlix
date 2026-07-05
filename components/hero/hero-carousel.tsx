@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdblockGateAction } from "@/components/providers/adblock-gate-provider";
 import { GenreBadge } from "@/components/media/controls/genre-badge";
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ export function MediaInfoDialog({
   media,
 }: MediaInfoDialogProps) {
   const router = useRouter();
+  const gateAction = useAdblockGateAction();
 
   const titleText = match(media)
     .with({ title: P.string }, (movie) => movie.title)
@@ -94,7 +96,9 @@ export function MediaInfoDialog({
 
   const handleWatchNow = () => {
     onClose();
-    router.push(`${href}?autoplay=true`);
+    gateAction(() => {
+      router.push(`${href}?autoplay=true`);
+    });
   };
 
   return (

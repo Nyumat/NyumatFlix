@@ -60,6 +60,11 @@ export const queryKeys = {
 
   watchlist: () => [...queryKeys.all, "watchlist"] as const,
   watchlistSummary: () => [...queryKeys.watchlist(), "summary"] as const,
+
+  serverAvailability: (key: string) =>
+    [...queryKeys.all, "server-availability", key] as const,
+  mediaVideos: (mediaType: "tv" | "movie", id: number) =>
+    [...queryKeys.media(), mediaType, id, "videos"] as const,
 } as const;
 
 export type QueryKeys = typeof queryKeys;

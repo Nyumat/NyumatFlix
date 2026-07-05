@@ -170,16 +170,23 @@ export function MediaContentGrid({
       "sourceAnilistId" in mediaItem &&
       typeof mediaItem.sourceAnilistId === "number"
     ) {
-      const isAniListFallback =
+      const hasLogo = Boolean(
+        "logo" in mediaItem &&
+          mediaItem.logo &&
+          typeof mediaItem.logo === "object" &&
+          "file_path" in mediaItem.logo &&
+          mediaItem.logo.file_path,
+      );
+      const isMappedToTmdb =
         "isAniListFallback" in mediaItem &&
-        mediaItem.isAniListFallback === true;
+        mediaItem.isAniListFallback === false;
 
       return (
         <ContentCard
           key={getMediaItemKey(mediaItem)}
           item={mediaItem}
           isMobile={!!isMobile}
-          hideTitleFallback={!isAniListFallback}
+          hideTitleFallback={isMappedToTmdb && hasLogo}
           href={
             "href" in mediaItem && typeof mediaItem.href === "string"
               ? mediaItem.href

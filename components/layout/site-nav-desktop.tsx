@@ -24,6 +24,7 @@ import {
   toTitleCase,
 } from "@/lib/nav/browse";
 import { cn } from "@/lib/utils";
+import { BrowseSettings } from "@/components/layout/nav/browse-settings";
 import { Check, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -174,6 +175,8 @@ const BrowseRootMenu = ({
         })}
       </div>
     </div>
+
+    <BrowseSettings variant="desktop" />
   </>
 );
 

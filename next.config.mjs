@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  outputFileTracingIncludes: {
+    "/api/scrape": ["./node_modules/undici/**/*"],
+    "/api/scrape/anime": ["./node_modules/undici/**/*"],
+  },
   redirects: async () => {
     return [
       {

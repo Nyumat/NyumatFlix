@@ -1,15 +1,23 @@
 import type { LiveChannelsResponse } from "@/lib/live/types";
 
-const LIVE_PREVIEW_ORIGIN = "http://nyumatflix-preview.railway.internal:8080";
 const PREVIEW_FETCH_TIMEOUT_MS = 30_000;
 
-export const shouldUseLivePreviewUpstream = () =>
-  process.env.RAILWAY_PRIVATE_DOMAIN === "nyumatflix.railway.internal";
+const livePreviewOrigin = () => {
+  const origin = process.env.LIVE_PREVIEW_ORIGIN?.trim();
 
-const previewChannelsUrl = () => `${LIVE_PREVIEW_ORIGIN}/api/live/channels`;
+  if (!origin) {
+    return undefined;
+  }
+
+  return origin.endsWith("/") ? origin.slice(0, -1) : origin;
+};
+
+export const shouldUseLivePreviewUpstream = () => Boolean(livePreviewOrigin());
+
+const previewChannelsUrl = () => `${livePreviewOrigin()}/api/live/channels`;
 
 export const previewPlayUrl = (token: string, asset: string) =>
-  `${LIVE_PREVIEW_ORIGIN}/api/live/play/${token}/${asset}`;
+  `${livePreviewOrigin()}/api/live/play/${token}/${asset}`;
 
 const fetchWithTimeout = async (
   url: string,

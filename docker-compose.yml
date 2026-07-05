@@ -1,10 +1,29 @@
 services:
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: nyumatflix-flaresolverr
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: ${FLARESOLVERR_LOG_LEVEL:-info}
+      CAPTCHA_SOLVER: ${FLARESOLVERR_CAPTCHA_SOLVER:-none}
+    ports:
+      - "${FLARESOLVERR_PORT:-8191}:8191"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8191/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
     image: nyumatflix:local
     restart: unless-stopped
+    depends_on:
+      flaresolverr:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
@@ -18,5 +37,6 @@ services:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in your environment}
       ID_MOE_API_KEY: ${ID_MOE_API_KEY:-}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+      FLARESOLVERR_URL: ${FLARESOLVERR_URL:-http://flaresolverr:8191/v1}
     ports:
       - "${APP_PORT:-8080}:8080"
