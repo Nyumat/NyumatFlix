@@ -4,20 +4,6 @@ function normalizeOrigin(origin: string) {
   return origin.endsWith("/") ? origin.slice(0, -1) : origin;
 }
 
-function railwayPublicOrigin() {
-  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
-
-  if (!railwayDomain) {
-    return undefined;
-  }
-
-  return normalizeOrigin(
-    railwayDomain.startsWith("http")
-      ? railwayDomain
-      : `https://${railwayDomain}`,
-  );
-}
-
 const isLocalOrigin = (origin: string) => {
   try {
     const { hostname } = new URL(origin);
@@ -36,10 +22,7 @@ export async function getAppOrigin() {
     : undefined;
 
   const configuredOrigin =
-    process.env.APP_URL ||
-    process.env.AUTH_URL ||
-    process.env.NEXTAUTH_URL ||
-    railwayPublicOrigin();
+    process.env.APP_URL || process.env.AUTH_URL || process.env.NEXTAUTH_URL;
 
   if (configuredOrigin) {
     const normalizedOrigin = normalizeOrigin(configuredOrigin);
