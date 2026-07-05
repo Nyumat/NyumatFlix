@@ -101,7 +101,7 @@ jobs:
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/home/whotypes/apps/nyumatflix' }}
       DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-      DOCKER_IMAGE: ${{ env.DOCKER_IMAGE }}
+      DOCKER_IMAGE: whotypes/nyumatflix:latest
 
     steps:
       - name: Set up SSH key
