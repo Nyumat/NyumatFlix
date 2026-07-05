@@ -24,7 +24,11 @@ import {
   useSearchAutocomplete,
   shouldKeepSearchFocusWithinContainer,
 } from "@/hooks/use-search-autocomplete";
+import { useClickOutside } from "@/hooks/use-click-outside";
+import { useSearchKeyboardShortcuts } from "@/hooks/use-search-keyboard-shortcuts";
+import { useSearchRecents } from "@/hooks/use-search-recents";
 import { useSearchPreview } from "@/hooks/use-search-preview";
+import { useAdblockGateAction } from "@/components/providers/adblock-gate-provider";
 import { useSearchDialogStore } from "@/lib/stores/search-dialog-store";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -57,9 +61,6 @@ interface SearchExperienceProps {
   autoFocus?: boolean;
   variant?: "page" | "dialog";
 }
-
-const SEARCH_RECENTS_KEY = "nyumatflix.search.recents";
-const MAX_RECENT_SEARCHES = 3;
 
 const SEARCH_FORM_CLASSNAME =
   "relative max-w-sm md:max-w-lg mx-auto md:scale-150";
@@ -116,38 +117,12 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isTypingInInput =
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        (e.target as HTMLElement)?.isContentEditable;
-
-      if (e.key === "/" && !isTypingInInput) {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-
-      if (e.key === "Escape") {
-        setIsFocused(false);
-        inputRef.current?.blur();
-      }
-
-      if (
-        !isTypingInInput &&
-        e.key.length === 1 &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !e.metaKey &&
-        inputRef.current !== document.activeElement
-      ) {
-        inputRef.current?.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  useSearchKeyboardShortcuts({
+    inputRef,
+    focusOnSlash: true,
+    focusOnPrintable: true,
+    onEscape: () => setIsFocused(false),
+  });
 
   return (
     <div className="relative w-full max-w-lg mx-auto" suppressHydrationWarning>
@@ -193,12 +168,15 @@ export function SearchPageClient() {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") || "";
   const router = useRouter();
+  const gateAction = useAdblockGateAction();
 
   return (
     <SearchExperience
       initialQuery={urlQuery}
       onSubmit={(trimmedQuery) => {
-        router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+        gateAction(() => {
+          router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+        });
       }}
       formClassName={SEARCH_FORM_CLASSNAME}
       inputClassName={SEARCH_INPUT_CLASSNAME}
@@ -221,7 +199,6 @@ function SearchExperience({
 }: SearchExperienceProps) {
   const [query, setQuery] = useState(initialQuery);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isClearRecentsDialogOpen, setIsClearRecentsDialogOpen] =
     useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -230,6 +207,8 @@ function SearchExperience({
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const isDialog = variant === "dialog";
+  const { recentSearches, saveRecentSearch, clearRecentSearches } =
+    useSearchRecents(isDialog);
   const autocompleteFooter: SearchAutocompleteFooter = isDialog
     ? "view-all"
     : "none";
@@ -238,27 +217,6 @@ function SearchExperience({
   const { results, suggestions, isLoading } = useSearchPreview(query);
   const showAutocomplete =
     isFocused && query.trim().length >= 2 && !showCommittedResults;
-
-  const saveRecentSearch = useCallback((trimmedQuery: string) => {
-    setRecentSearches((currentRecentSearches) => {
-      const nextRecentSearches = [
-        trimmedQuery,
-        ...currentRecentSearches.filter(
-          (recentSearch) =>
-            recentSearch.toLowerCase() !== trimmedQuery.toLowerCase(),
-        ),
-      ].slice(0, MAX_RECENT_SEARCHES);
-
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(
-          SEARCH_RECENTS_KEY,
-          JSON.stringify(nextRecentSearches),
-        );
-      }
-
-      return nextRecentSearches;
-    });
-  }, []);
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
@@ -333,26 +291,7 @@ function SearchExperience({
     [onSubmit, saveRecentSearch],
   );
 
-  const clearRecentSearches = useCallback(() => {
-    setRecentSearches([]);
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(SEARCH_RECENTS_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!showAutocomplete) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target)) {
-        setIsFocused(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showAutocomplete]);
+  useClickOutside(containerRef, showAutocomplete, () => setIsFocused(false));
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -360,43 +299,15 @@ function SearchExperience({
   }, [initialQuery]);
 
   useEffect(() => {
-    if (!isDialog || typeof window === "undefined") return;
-
-    const storedRecentSearches =
-      window.localStorage.getItem(SEARCH_RECENTS_KEY);
-    if (!storedRecentSearches) return;
-
-    try {
-      const parsedRecentSearches = JSON.parse(storedRecentSearches);
-      if (Array.isArray(parsedRecentSearches)) {
-        setRecentSearches(
-          parsedRecentSearches
-            .filter((recentSearch) => typeof recentSearch === "string")
-            .slice(0, MAX_RECENT_SEARCHES),
-        );
-      }
-    } catch {
-      window.localStorage.removeItem(SEARCH_RECENTS_KEY);
-    }
-  }, [isDialog]);
-
-  useEffect(() => {
     if (autoFocus) {
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [autoFocus]);
 
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleGlobalKeyDown);
-    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
-  }, []);
+  useSearchKeyboardShortcuts({
+    inputRef,
+    focusOnModK: true,
+  });
 
   return (
     <motion.div
@@ -747,6 +658,7 @@ export const NavbarSearchClient = forwardRef<
   const innerRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const gateAction = useAdblockGateAction();
 
   const inputRef = (ref as React.RefObject<HTMLInputElement>) || innerRef;
 
@@ -755,18 +667,22 @@ export const NavbarSearchClient = forwardRef<
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
-      onAfterNavigation?.();
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      gateAction(() => {
+        onAfterNavigation?.();
+        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      });
     }
-  }, [query, router, onAfterNavigation]);
+  }, [gateAction, query, router, onAfterNavigation]);
 
   const handleAutocompleteSelect = useCallback(
     (selection: SearchAutocompleteSelection) => {
       if (selection.type === "suggestion") {
         const trimmedQuery = selection.value.trim();
         setQuery(trimmedQuery);
-        onAfterNavigation?.();
-        router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+        gateAction(() => {
+          onAfterNavigation?.();
+          router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+        });
         return;
       }
 
@@ -778,7 +694,7 @@ export const NavbarSearchClient = forwardRef<
 
       handleSearch();
     },
-    [handleSearch, onAfterNavigation, router],
+    [gateAction, handleSearch, onAfterNavigation, router],
   );
 
   const {
@@ -806,33 +722,12 @@ export const NavbarSearchClient = forwardRef<
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!showAutocomplete) return;
+  useClickOutside(containerRef, showAutocomplete, () => setIsFocused(false));
 
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target)) {
-        setIsFocused(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showAutocomplete]);
-
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleGlobalKeyDown);
-    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [inputRef]);
+  useSearchKeyboardShortcuts({
+    inputRef,
+    focusOnModK: true,
+  });
 
   return (
     <div

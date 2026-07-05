@@ -60,10 +60,26 @@ export const AdblockerAlert = ({
           <AlertDialogTitle>
             Are you sure you don&apos;t want an ad-blocker?
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            <span className="font-bold text-primary">nyumatflix.com</span>{" "}
-            itself is ad-free. However, the APIs we aggregate from often inject
-            scripts within their iframes to display popups and or ads.
+          <AlertDialogDescription asChild>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                <a
+                  href="https://nyumatflix.com"
+                  className="font-bold text-primary hover:underline"
+                >
+                  nyumatflix.com
+                </a>{" "}
+                itself is ad-free. However, the embed providers we aggregate
+                from often inject scripts within their iframes to display popups
+                and/or ads.
+              </p>
+              <p>
+                If you want no ads <em className="italic">and</em> don&apos;t
+                want to install an ad blocker, use the{" "}
+                <span className="font-semibold text-primary">Scrape</span>{" "}
+                method in the server selector.
+              </p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -76,19 +92,19 @@ export const AdblockerAlert = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="flex w-full flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3"
+                className="flex w-full flex-col items-stretch gap-2.5"
               >
                 <Button
                   variant="default"
-                  className="font-bold w-full sm:w-auto whitespace-normal text-center text-sm sm:text-base"
+                  className="h-auto min-h-10 w-full py-2.5 text-center text-sm leading-snug whitespace-normal"
                   onClick={handleShowOptions}
                   aria-label="Show ad blocker options"
                 >
-                  Show me adblockers
+                  Show me ad blockers
                 </Button>
                 <Button
                   variant="outline"
-                  className="font-bold w-full sm:w-auto whitespace-normal text-center text-sm sm:text-base"
+                  className="h-auto min-h-10 w-full py-2.5 text-center text-sm leading-snug whitespace-normal"
                   onClick={handleProceed}
                   aria-label="Proceed without ad blocker"
                 >
@@ -107,7 +123,7 @@ export const AdblockerAlert = ({
                 <div className="mt-4 flex">
                   <Button
                     variant="outline"
-                    className="font-bold w-full whitespace-normal text-center"
+                    className="h-auto min-h-10 w-full py-2.5 text-center text-sm leading-snug whitespace-normal"
                     onClick={handleProceed}
                     aria-label="Continue to home"
                   >
