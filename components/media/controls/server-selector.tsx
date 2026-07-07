@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 type ScrapeProviderOption = {
   providerId: string;
   name: string;
+  group?: "anime" | "tmdb";
 };
 
 type PlaybackMenuMode = "direct" | "embed";
@@ -155,7 +156,7 @@ export function ServerSelector({
   const isScrapeActive = isScrapeServer(selectedServer);
   const showEmbedMode = !noAdsMode;
 
-  const directStreamProviders = React.useMemo(
+  const directStreamProviders = React.useMemo<ScrapeProviderOption[]>(
     () =>
       scrapeProviders.length > 0
         ? scrapeProviders
@@ -236,7 +237,10 @@ export function ServerSelector({
     serverId === "videasy" ||
     serverId === "vidsrc-mirror";
 
-  const renderEmbedServerItem = (server: (typeof videoServers)[number]) => {
+  const renderEmbedServerItem = (
+    server: (typeof videoServers)[number],
+    options?: { isFirst?: boolean; isLast?: boolean },
+  ) => {
     const hasOptions = serverHasOptions(server.id);
     const enabled = isServerEnabled(server.id);
     const isSelected = selectedServer.id === server.id && !isScrapeActive;
@@ -259,7 +263,9 @@ export function ServerSelector({
           handleServerChange(server.id);
         }}
         className={cn(
-          "flex cursor-pointer items-center justify-between rounded-md py-2",
+          "flex cursor-pointer items-center justify-between rounded-none py-2",
+          options?.isFirst && "rounded-t-md",
+          options?.isLast && "rounded-b-md",
           isSelected && "bg-accent/60",
         )}
         disabled={!enabled}
@@ -274,63 +280,102 @@ export function ServerSelector({
     );
   };
 
-  const renderDirectStreamPanel = () => (
-    <div className="px-1 pb-1">
-      {directStreamProviders.map((provider) => {
-        const isActive =
-          isScrapeActive &&
-          activeScrapeProviderId === provider.providerId &&
-          scrapeStatus === "playing";
+  const renderDirectStreamPanel = () => {
+    const animeProviders = directStreamProviders.filter(
+      (provider) => provider.group !== "tmdb",
+    );
+    const tmdbProviders = directStreamProviders.filter(
+      (provider) => provider.group === "tmdb",
+    );
+    const hasGroups =
+      animeProviders.length > 0 &&
+      tmdbProviders.length > 0 &&
+      directStreamProviders.some((provider) => provider.group);
 
-        return (
-          <DropdownMenuItem
-            key={provider.providerId}
-            onSelect={() => {
-              if (!isScrapeActive) {
-                handleServerChange(scrapeServer.id);
-              }
-              onSelectScrapeProvider?.(provider.providerId);
-            }}
-            className={cn(
-              "flex cursor-pointer items-center justify-between rounded-md py-2",
-              isActive && "bg-primary/15 font-semibold text-primary",
-            )}
-            disabled={!onSelectScrapeProvider}
-          >
-            <span className="font-semibold">{provider.name}</span>
-            {isActive ? <Check className="h-4 w-4 text-primary" /> : null}
-          </DropdownMenuItem>
-        );
-      })}
-      {canFindNextSource && onFindNextSource ? (
-        <DropdownMenuItem
-          onSelect={onFindNextSource}
-          className="mt-0.5 flex cursor-pointer items-center gap-2 rounded-md py-2 font-medium text-muted-foreground"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          <span>Try next source</span>
-        </DropdownMenuItem>
-      ) : null}
-    </div>
-  );
+    const renderProviderItem = (provider: ScrapeProviderOption) => {
+      const isActive =
+        isScrapeActive &&
+        activeScrapeProviderId === provider.providerId &&
+        scrapeStatus === "playing";
 
-  const renderEmbedPanel = () => (
-    <div className="px-1 pb-1">
-      {embedOnlyServers.map((server) => renderEmbedServerItem(server))}
-      {dualEmbedServers.length > 0 ? (
+      return (
         <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            setDetailServerId(DUAL_EMBED_PICKER_ID);
+          key={provider.providerId}
+          onSelect={() => {
+            if (!isScrapeActive) {
+              handleServerChange(scrapeServer.id);
+            }
+            onSelectScrapeProvider?.(provider.providerId);
           }}
-          className="flex cursor-pointer items-center justify-between rounded-md py-2 text-muted-foreground"
+          className={cn(
+            "flex cursor-pointer items-center justify-between rounded-none py-2",
+            isActive && "bg-primary/15 font-semibold text-primary",
+          )}
+          disabled={!onSelectScrapeProvider}
         >
-          <span className="font-medium">More embed servers</span>
-          <ChevronRight className="h-4 w-4" />
+          <span className="font-semibold">{provider.name}</span>
+          {isActive ? <Check className="h-4 w-4 text-primary" /> : null}
         </DropdownMenuItem>
-      ) : null}
-    </div>
-  );
+      );
+    };
+
+    return (
+      <div className="px-1 pb-1">
+        {hasGroups ? (
+          <>
+            <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Anime sources
+            </DropdownMenuLabel>
+            {animeProviders.map((provider) => renderProviderItem(provider))}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              TMDB proxies
+            </DropdownMenuLabel>
+            {tmdbProviders.map((provider) => renderProviderItem(provider))}
+          </>
+        ) : (
+          directStreamProviders.map((provider) => renderProviderItem(provider))
+        )}
+        {canFindNextSource && onFindNextSource ? (
+          <DropdownMenuItem
+            onSelect={onFindNextSource}
+            className="mt-0.5 flex cursor-pointer items-center gap-2 rounded-none py-2 font-medium text-muted-foreground"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Try next source</span>
+          </DropdownMenuItem>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderEmbedPanel = () => {
+    const embedOnlyCount = embedOnlyServers.length;
+    const hasMoreEmbedServers = dualEmbedServers.length > 0;
+
+    return (
+      <div className="px-1 pb-1">
+        {embedOnlyServers.map((server, index) =>
+          renderEmbedServerItem(server, {
+            isFirst: index === 0,
+            isLast: index === embedOnlyCount - 1 && !hasMoreEmbedServers,
+          }),
+        )}
+        {dualEmbedServers.length > 0 ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setDetailServerId(DUAL_EMBED_PICKER_ID);
+            }}
+            className="flex cursor-pointer items-center justify-between rounded-b-md rounded-none py-2 text-muted-foreground"
+          >
+            <span className="font-medium">More embed servers</span>
+            <ChevronRight className="h-4 w-4" />
+          </DropdownMenuItem>
+        ) : null}
+      </div>
+    );
+  };
 
   const renderServerDetailPanel = (server: (typeof videoServers)[number]) => (
     <>
@@ -446,7 +491,12 @@ export function ServerSelector({
       <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
         Also as embed
       </DropdownMenuLabel>
-      {dualEmbedServers.map((server) => renderEmbedServerItem(server))}
+      {dualEmbedServers.map((server, index) =>
+        renderEmbedServerItem(server, {
+          isFirst: index === 0,
+          isLast: index === dualEmbedServers.length - 1,
+        }),
+      )}
     </>
   );
 

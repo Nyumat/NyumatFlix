@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# playwright-cli artifacts
+.playwright-cli/
+
 # local env files
 .env.*
 !.env.example
