@@ -37,49 +37,50 @@ export type CatPlayerProps = {
 
 /** Parse KickAssAnime cat-player `props="..."` attribute (React flight tuple). */
 export const parseCatPlayerProps = (html: string): CatPlayerProps | null => {
-  const propsRaw = extractFirstMatch(html, /props="([^"]+)"/);
-  if (!propsRaw) {
-    return null;
-  }
+  const rawJson = extractFirstMatch(html, /(?:props|data-props)="([^"]+)"/);
+  const decoded = decodeHtmlEntities(rawJson ?? "");
 
-  const decoded = decodeHtmlEntities(propsRaw);
+  if (decoded) {
+    try {
+      const parsed = JSON.parse(decoded) as Record<string, unknown>;
 
-  try {
-    const parsed = JSON.parse(decoded) as Record<string, unknown>;
-
-    const manifestField = parsed.manifest;
-    if (Array.isArray(manifestField)) {
-      const manifestUrl = manifestField.find(
-        (entry): entry is string => typeof entry === "string",
-      );
-      if (manifestUrl) {
-        return { manifest: manifestUrl };
+      const manifestField = parsed.manifest;
+      if (Array.isArray(manifestField)) {
+        const manifestUrl = manifestField.find(
+          (entry): entry is string => typeof entry === "string",
+        );
+        if (manifestUrl) {
+          return { manifest: manifestUrl };
+        }
       }
-    }
 
-    if (typeof parsed.manifest === "string") {
-      return { manifest: parsed.manifest };
-    }
+      if (typeof parsed.manifest === "string") {
+        return { manifest: parsed.manifest };
+      }
 
-    if (Array.isArray(parsed)) {
-      const manifestIndex =
-        typeof parsed[1] === "number" ? parsed[1] : undefined;
-      const manifestUrl =
-        manifestIndex !== undefined && typeof parsed[manifestIndex] === "string"
-          ? parsed[manifestIndex]
-          : null;
+      if (Array.isArray(parsed)) {
+        const manifestIndex =
+          typeof parsed[1] === "number" ? parsed[1] : undefined;
+        const manifestUrl =
+          manifestIndex !== undefined &&
+          typeof parsed[manifestIndex] === "string"
+            ? parsed[manifestIndex]
+            : null;
 
-      return manifestUrl ? { manifest: manifestUrl } : null;
+        return manifestUrl ? { manifest: manifestUrl } : null;
+      }
+    } catch {
+      // fall through to regex extraction
     }
-  } catch {
-    // fall through to regex extraction
   }
 
   const manifestUrl =
-    extractFirstMatch(decoded, /https?:\\\/\\\/[^"\\]+master\.m3u8/)?.replace(
+    extractFirstMatch(html, /(https?:\/\/[^"'\s<>]+\.m3u8[^"'\s<>]*)/) ??
+    extractFirstMatch(html, /https?:\\\/\\\/[^"\\]+\.m3u8/)?.replace(
       /\\\//g,
       "/",
-    ) ?? extractFirstMatch(decoded, /(https?:\/\/[^"]+master\.m3u8)/);
+    ) ??
+    extractFirstMatch(html, /source\s+src\s*=\s*["']([^"']+\.m3u8[^"']*)["']/i);
 
   return manifestUrl ? { manifest: manifestUrl } : null;
 };
@@ -99,3 +100,46 @@ export const extractDataUrlAttributes = (html: string): string[] => {
     .map((entry) => extractFirstMatch(entry, /data-url="([^"]+)"/))
     .filter((entry): entry is string => Boolean(entry));
 };
+
+const DEAN_EDWARDS_PACKER_PATTERN =
+  /eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\('((?:\\.|[^'])*)',(\d+),(\d+),'((?:\\.|[^'])*)'\.split\('\|'\)/g;
+
+const encodePackerToken = (value: number, radix: number): string => {
+  const alphabet =
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if (value < radix) {
+    return alphabet[value] ?? "";
+  }
+
+  return `${encodePackerToken(Math.floor(value / radix), radix)}${
+    alphabet[value % radix] ?? ""
+  }`;
+};
+
+const decodePackedString = (value: string): string =>
+  value
+    .replace(/\\'/g, "'")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\\\//g, "/")
+    .replace(/\\\\/g, "\\");
+
+/** Unpack Dean Edwards P.A.C.K.E.R scripts without evaluating remote code. */
+export const unpackDeanEdwardsScripts = (html: string): string[] =>
+  [...html.matchAll(DEAN_EDWARDS_PACKER_PATTERN)].map((match) => {
+    const payload = decodePackedString(match[1] ?? "");
+    const radix = Number(match[2]);
+    const count = Number(match[3]);
+    const symbols = (match[4] ?? "").split("|");
+    let unpacked = payload;
+
+    for (let index = count - 1; index >= 0; index -= 1) {
+      const symbol = symbols[index];
+      if (!symbol) continue;
+      const token = encodePackerToken(index, radix);
+      unpacked = unpacked.replace(new RegExp(`\\b${token}\\b`, "g"), symbol);
+    }
+
+    return unpacked;
+  });

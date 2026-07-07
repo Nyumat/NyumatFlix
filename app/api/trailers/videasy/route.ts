@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     if (!url && !hlsUrl) {
       return NextResponse.json(
         { url: null, hlsUrl: null, error: "no_stream" },
-        { status: 404 },
+        { status: 200 },
       );
     }
 

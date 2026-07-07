@@ -3,6 +3,10 @@ import {
   isLegacyMovieDetailTabPathSegment,
   isLegacyTvDetailTabPathSegment,
 } from "@/lib/media-detail-tab-query";
+import {
+  isAnilistTvRouteId,
+  normalizeAnilistTvRouteSlug,
+} from "@/lib/anilist-route-id";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -18,6 +22,16 @@ export function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/dev") && process.env.NODE_ENV !== "development") {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  const tvDetail = pathname.match(/^\/tvshows\/([^/]+)$/);
+  if (tvDetail) {
+    const [, rawId] = tvDetail;
+    if (rawId.startsWith("-") && isAnilistTvRouteId(rawId)) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/tvshows/${normalizeAnilistTvRouteSlug(rawId)}`;
+      return NextResponse.redirect(url);
+    }
   }
 
   const detailOnly = pathname.match(/^\/(tvshows|movies)\/([^/]+)$/);

@@ -4,10 +4,13 @@ import {
   isAnime,
 } from "@/utils/anilist-helpers";
 import { catalogCacheHeaders } from "@/lib/http-cache";
+import {
+  inferMappingConfidence,
+  type MappingConfidence,
+} from "@/lib/anime/tmdb-anilist-map";
 import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
-
-const ALLOWED_TMDB_SHOW_IDS = [1429]; // Attack on Titan
+import { resolveAniListFranchise } from "@/lib/anilist-franchise";
 
 interface TmdbEpisode {
   episode_number: number;
@@ -36,6 +39,8 @@ interface TmdbShow {
 
 interface AnilistMediaExtended {
   id: number;
+  format?: string | null;
+  isAdult?: boolean | null;
   title: {
     english: string | null;
     romaji: string | null;
@@ -96,6 +101,8 @@ interface MapResponse {
   tmdbShowId: number;
   tmdbSeason?: number;
   segments: MappingSegment[];
+  confidence: MappingConfidence;
+  isAdult: boolean;
   source: string;
   debug?: DebugInfo;
 }
@@ -241,13 +248,76 @@ async function fetchTmdbSeason(
   }
 }
 
+async function fetchAniListMediaById(
+  anilistId: number,
+): Promise<AnilistMediaExtended | null> {
+  const detailQuery = `
+    query ($id: Int) {
+      Media(id: $id, type: ANIME) {
+        id
+        format
+        isAdult
+        title {
+          english
+          romaji
+          native
+        }
+        startDate {
+          year
+          month
+          day
+        }
+        endDate {
+          year
+          month
+          day
+        }
+        episodes
+        status
+      }
+    }
+  `;
+
+  const response = await fetch("https://graphql.anilist.co", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: detailQuery,
+      variables: { id: anilistId },
+    }),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data: AnilistResponseExtended = await response.json();
+  return data.data.Media;
+}
+
 async function fetchAniListCandidates(
   title: string,
   seasonNumber?: number,
   genreIds?: number[],
   genres?: { id: number }[],
+  sourceAnilistId?: number,
 ): Promise<AnilistMediaExtended[]> {
-  const cacheKey = `anilist_candidates_${title}`;
+  if (sourceAnilistId && Number.isInteger(sourceAnilistId)) {
+    const franchise = await resolveAniListFranchise(sourceAnilistId);
+    const candidates = await Promise.all(
+      franchise.seasons.map(({ anilistId }) =>
+        fetchAniListMediaById(anilistId),
+      ),
+    );
+    return candidates.filter(
+      (candidate): candidate is AnilistMediaExtended =>
+        Boolean(candidate) && candidate?.format !== "MOVIE",
+    );
+  }
+
+  const cacheKey = `anilist_candidates_v2_${title}`;
   const cached = getCached(cacheKey);
   if (cached && Array.isArray(cached)) return cached as AnilistMediaExtended[];
 
@@ -266,6 +336,7 @@ async function fetchAniListCandidates(
         query ($id: Int) {
           Media(id: $id, type: ANIME) {
             id
+            isAdult
             title {
               english
               romaji
@@ -302,6 +373,18 @@ async function fetchAniListCandidates(
         const data: AnilistResponseExtended = await response.json();
         if (data.data.Media) {
           candidates.push(data.data.Media);
+        }
+      }
+
+      const franchise = await resolveAniListFranchise(primaryId);
+      const related = await Promise.all(
+        franchise.seasons
+          .filter(({ anilistId }) => anilistId !== primaryId)
+          .map(({ anilistId }) => fetchAniListMediaById(anilistId)),
+      );
+      for (const candidate of related) {
+        if (candidate && candidate.format !== "MOVIE") {
+          candidates.push(candidate);
         }
       }
 
@@ -463,6 +546,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tmdbShowId = searchParams.get("tmdbShowId");
   const tmdbSeason = searchParams.get("tmdbSeason");
+  const sourceAnilistIdParam = searchParams.get("sourceAnilistId");
   const debug = searchParams.get("debug") === "true";
 
   if (!tmdbShowId) {
@@ -480,14 +564,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!ALLOWED_TMDB_SHOW_IDS.includes(showId)) {
-    return NextResponse.json(
-      { error: "This endpoint is only available for specific shows" },
-      { status: 403 },
-    );
-  }
-
   const seasonNumber = tmdbSeason ? parseInt(tmdbSeason) : undefined;
+  const sourceAnilistId = sourceAnilistIdParam
+    ? parseInt(sourceAnilistIdParam, 10)
+    : undefined;
 
   try {
     const [tmdbShow, tmdbSeasonData] = await Promise.all([
@@ -530,9 +610,22 @@ export async function GET(request: NextRequest) {
       seasonNumber,
       tmdbShow.genre_ids,
       tmdbShow.genres,
+      sourceAnilistId,
     );
 
-    if (anilistCandidates.length === 0) {
+    const orderedCandidates =
+      sourceAnilistId && Number.isInteger(sourceAnilistId)
+        ? [
+            ...anilistCandidates.filter(
+              (candidate) => candidate.id === sourceAnilistId,
+            ),
+            ...anilistCandidates.filter(
+              (candidate) => candidate.id !== sourceAnilistId,
+            ),
+          ]
+        : anilistCandidates;
+
+    if (orderedCandidates.length === 0) {
       return NextResponse.json(
         { error: "No AniList matches found" },
         { status: 502 },
@@ -546,7 +639,7 @@ export async function GET(request: NextRequest) {
       const result = resolveMappings(
         tmdbShow,
         tmdbSeasonData,
-        anilistCandidates,
+        orderedCandidates,
         debug,
       );
       segments = result.segments;
@@ -557,7 +650,7 @@ export async function GET(request: NextRequest) {
         const result = resolveMappings(
           tmdbShow,
           firstSeasonData,
-          anilistCandidates,
+          orderedCandidates,
           debug,
         );
         segments = result.segments;
@@ -565,10 +658,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const confidence = inferMappingConfidence(
+      segments,
+      orderedCandidates.length,
+      sourceAnilistId,
+    );
+    const isAdult = orderedCandidates.some(
+      (candidate) => candidate.isAdult === true,
+    );
+
     const response: MapResponse = {
       tmdbShowId: showId,
       tmdbSeason: seasonNumber,
       segments,
+      confidence,
+      isAdult,
       source: "date+title heuristic",
     };
 

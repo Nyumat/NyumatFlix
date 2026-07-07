@@ -1,4 +1,4 @@
-import { buildAniListUrl } from "@/lib/anilist";
+import { buildAniListUrl, requiresAdultAniListContent } from "@/lib/anilist";
 import { describe, expect, test } from "vitest";
 
 describe("AniList URL helpers", () => {
@@ -28,5 +28,17 @@ describe("AniList URL helpers", () => {
 
   test("does not emit legacy anime browse URLs", () => {
     expect(buildAniListUrl({})).not.toContain("/anime/browse");
+  });
+});
+
+describe("requiresAdultAniListContent", () => {
+  test("returns true when Hentai is selected", () => {
+    expect(requiresAdultAniListContent(["Hentai"])).toBe(true);
+    expect(requiresAdultAniListContent(["Action", "Hentai"])).toBe(true);
+  });
+
+  test("returns false for non-adult genres", () => {
+    expect(requiresAdultAniListContent([])).toBe(false);
+    expect(requiresAdultAniListContent(["Action", "Romance"])).toBe(false);
   });
 });

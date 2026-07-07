@@ -106,6 +106,8 @@
     "react-resizable-panels": "^2.1.2",
     "react-window": "^2.1.0",
     "recharts": "^2.12.7",
+    "server-only": "^0.0.1",
+    "shaka-player": "^5.1.13",
     "sharp": "^0.35.3",
     "sonner": "^1.5.0",
     "tailwind-merge": "^3.5.0",

@@ -1,21 +1,15 @@
+import { buildAnilistTvDetailHref } from "@/lib/anilist-route-id";
 import type { MediaItem } from "@/lib/domain/typings";
 
 type AnimePageItem = MediaItem & {
   href?: string;
   isAniListFallback?: boolean;
+  sourceAnilistId?: number;
   tmdbFallback?: { id: number; type: "movie" | "tv" };
 };
 
 const isExternalHref = (href: string) =>
   /^https?:\/\//i.test(href) || href.includes("anilist.co");
-
-const getFallbackSearchHref = (item: MediaItem) => {
-  const title =
-    ("title" in item && typeof item.title === "string" && item.title) ||
-    ("name" in item && typeof item.name === "string" && item.name) ||
-    "";
-  return title ? `/search?q=${encodeURIComponent(title)}` : "/search";
-};
 
 /** Keep anime hub/grid links on NyumatFlix — never outbound to AniList. */
 export const withAnimePageHref = (item: MediaItem): MediaItem => {
@@ -31,7 +25,14 @@ export const withAnimePageHref = (item: MediaItem): MediaItem => {
   }
 
   if (animeItem.isAniListFallback) {
-    return { ...item, href: getFallbackSearchHref(item) } as MediaItem;
+    const anilistId =
+      typeof animeItem.sourceAnilistId === "number"
+        ? animeItem.sourceAnilistId
+        : item.id;
+    return {
+      ...item,
+      href: buildAnilistTvDetailHref(anilistId),
+    } as MediaItem;
   }
 
   const existingHref =

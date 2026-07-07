@@ -13,16 +13,17 @@ describe("withAnimePageHref", () => {
     ).toBe("/tvshows/42");
   });
 
-  it("sends unmapped fallback items to internal search", () => {
+  it("routes unmapped AniList fallback items to AniList-backed TV detail pages", () => {
     expect(
       withAnimePageHref({
-        id: 1,
+        id: 188,
         media_type: "tv",
-        name: "Cowboy Bebop",
+        name: "Gosenzo San'e",
         isAniListFallback: true,
-        href: "https://anilist.co/anime/1",
+        sourceAnilistId: 188,
+        href: "https://anilist.co/anime/188",
       } as unknown as MediaItem).href,
-    ).toBe("/search?q=Cowboy%20Bebop");
+    ).toBe("/tvshows/anilist-188");
   });
 
   it("preserves existing internal hrefs", () => {
