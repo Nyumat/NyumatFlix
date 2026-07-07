@@ -96,7 +96,6 @@ export function HeroBackground({
     buildPlaybackProgressKey,
     isAnimeScrapeMode,
     activeScrape,
-    animeScrape,
     sourceOverlayItems,
     handleSelectEmbedServer,
     handleScrapedPlaybackError,
@@ -443,8 +442,11 @@ export function HeroBackground({
                       playbackPosterUrl={playbackPosterUrl}
                       progressKey={buildPlaybackProgressKey()}
                       streamKind={
-                        isAnimeScrapeMode && animeScrape.result?.streamKind
-                          ? animeScrape.result.streamKind
+                        isAnimeScrapeMode &&
+                        activeScrape.result &&
+                        "streamKind" in activeScrape.result &&
+                        activeScrape.result.streamKind
+                          ? activeScrape.result.streamKind
                           : "hls"
                       }
                       isTv={resolvedMediaType === "tv"}
