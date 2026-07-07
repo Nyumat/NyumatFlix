@@ -18,7 +18,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ScrapeVideoLayout } from "@/components/media/scrape-video-layout";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
+import { usePlaybackTrackPreferences } from "@/hooks/use-playback-track-preferences";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import { trackMatchesLanguage } from "@/lib/playback/track-matching";
+import {
+  getTrackPreferences,
+  trackPreferenceStorageKey,
+} from "@/lib/playback/track-preferences-storage";
 import { configureScrapeHlsInstance } from "@/lib/scrape/hls-quality";
 import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
 import {
@@ -38,15 +44,8 @@ import "./scrape-hls-player.css";
 
 const VIDKING_KEEPALIVE_INTERVAL_MS = VIDKING_PROACTIVE_REFRESH_AFTER_MS;
 
-let dashjsLibraryPromise: Promise<typeof import("dashjs").MediaPlayer> | null =
-  null;
-
-const loadDashjsLibrary = () => {
-  dashjsLibraryPromise ??= import("dashjs").then(
-    (module) => module.MediaPlayer,
-  );
-  return dashjsLibraryPromise;
-};
+const loadDashjsLibrary = () =>
+  import("dashjs").then((module) => ({ default: module.MediaPlayer }));
 
 type ScrapeHlsPlayerProps = {
   playUrl: string;
@@ -105,14 +104,52 @@ export function ScrapeHlsPlayer({
   );
   const [qualityIndex, setQualityIndex] = useState(0);
   const activePlayUrl = qualityPlayUrls[qualityIndex] ?? playUrl;
+  const activePlaybackUrl = useMemo(() => {
+    if (!activePlayUrl.startsWith("/")) {
+      return activePlayUrl;
+    }
+
+    try {
+      return new URL(activePlayUrl, window.location.href).toString();
+    } catch {
+      return activePlayUrl;
+    }
+  }, [activePlayUrl]);
   const playerSrc = useMemo(
-    () => buildScrapeMediaPlayerSrc(activePlayUrl, streamKind),
-    [activePlayUrl, streamKind],
+    () => buildScrapeMediaPlayerSrc(activePlaybackUrl, streamKind),
+    [activePlaybackUrl, streamKind],
   );
-  const textTracks = useMemo(
-    () => buildScrapeSubtitleTracks(subtitles, referer),
-    [referer, subtitles],
-  );
+  const textTracks = useMemo(() => {
+    const tracks = buildScrapeSubtitleTracks(subtitles, referer);
+    const savedSubtitleLang = getTrackPreferences(
+      trackPreferenceStorageKey(progressKey),
+    )?.subtitleLang;
+
+    if (!savedSubtitleLang || savedSubtitleLang === "off") {
+      return tracks;
+    }
+
+    let matched = false;
+    return tracks.map((track) => {
+      const isDefault =
+        !matched &&
+        trackMatchesLanguage(
+          { lang: track.lang, label: track.label },
+          savedSubtitleLang,
+        );
+
+      if (isDefault) {
+        matched = true;
+      }
+
+      return {
+        ...track,
+        default: isDefault,
+      };
+    });
+  }, [progressKey, referer, subtitles]);
+
+  usePlaybackTrackPreferences(playerRef, progressKey, activePlayUrl);
 
   const handleProviderChange = useCallback(
     (provider: MediaProviderAdapter | null) => {
@@ -130,19 +167,21 @@ export function ScrapeHlsPlayer({
       }
 
       if (isDASHProvider(provider)) {
-        void loadDashjsLibrary().then((library) => {
-          provider.library = library;
-        });
+        provider.config = {
+          debug: {
+            // Dash.js can keep emitting buffer logs after disposal (e.g. during Fast Refresh).
+            // Silence noisy debug output; real failures still surface via Vidstack errors.
+            logLevel: 0,
+          },
+          streaming: {
+            cmcd: { enabled: false },
+          },
+        };
+        provider.library = loadDashjsLibrary;
       }
     },
     [],
   );
-
-  useEffect(() => {
-    if (streamKind === "dash") {
-      void loadDashjsLibrary();
-    }
-  }, [streamKind]);
 
   const applyResumePosition = useCallback(() => {
     const player = playerRef.current;
@@ -190,8 +229,25 @@ export function ScrapeHlsPlayer({
     }
 
     startedRef.current = true;
+
+    // Avoid noisy "play request failed" logs when autoplay isn't permitted
+    // (common in dev, strict-mode double-invokes, and without user activation).
+    const hasUserActivation =
+      typeof navigator !== "undefined" &&
+      "userActivation" in navigator &&
+      Boolean(
+        (
+          navigator as Navigator & {
+            userActivation?: { hasBeenActive?: boolean };
+          }
+        ).userActivation?.hasBeenActive,
+      );
+    if (!hasUserActivation) {
+      return;
+    }
+
     void player.play().catch(() => {
-      // Autoplay may be blocked by the browser.
+      // Autoplay may still be blocked by the browser.
     });
   }, [applyResumePosition, normalizeSpuriousStartupPosition]);
 
@@ -220,12 +276,8 @@ export function ScrapeHlsPlayer({
   const handlePlaybackError = useCallback(
     (_detail: MediaErrorDetail) => {
       if (streamKind === "hls") {
-        if (qualityIndex < qualityPlayUrls.length - 1) {
-          setQualityIndex((index) => index + 1);
-          return;
-        }
-
-        onFatalError?.();
+        // HLS emits both a generic media error and a richer hls-error event.
+        // Only the latter tells us whether the failure is actually fatal.
         return;
       }
 

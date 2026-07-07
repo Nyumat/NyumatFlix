@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { cn } from "@/lib/utils";
 import type { SourceOverlayItem } from "@/lib/scrape/source-overlay";
-import { Check, Loader2, Minus, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 type ScrapingOverlayProps = {
   items: SourceOverlayItem[];
@@ -12,26 +14,6 @@ type ScrapingOverlayProps = {
   onSelectEmbedServer?: (serverId: string) => void;
 };
 
-const statusIcon = (item: SourceOverlayItem) => {
-  switch (item.status) {
-    case "pending":
-      return <Loader2 className="size-4 animate-spin text-white" />;
-    case "success":
-    case "available":
-      return <Check className="size-4 text-white/80" strokeWidth={2} />;
-    case "failure":
-    case "unavailable":
-      return <X className="size-4 text-white/50" strokeWidth={2} />;
-    case "skipped":
-      return <Minus className="size-4 text-white/30" strokeWidth={2} />;
-    case "waiting":
-    case "unknown":
-      return <span className="size-1.5 rounded-full bg-white/25" />;
-    default:
-      return <span className="size-1.5 rounded-full bg-white/25" />;
-  }
-};
-
 export function ScrapingOverlay({
   items,
   activeProviderId,
@@ -39,83 +21,72 @@ export function ScrapingOverlay({
   className,
   onSelectEmbedServer,
 }: ScrapingOverlayProps) {
+  const [isTakingLonger, setIsTakingLonger] = useState(false);
+  const activeItem = items.find(
+    (item) => item.kind === "scrape" && item.id === activeProviderId,
+  );
+  const availableEmbeds = items.filter(
+    (item) =>
+      item.kind === "embed" &&
+      item.status === "available" &&
+      Boolean(onSelectEmbedServer),
+  );
+
+  useEffect(() => {
+    setIsTakingLonger(false);
+    if (error) return;
+
+    const timeout = window.setTimeout(() => setIsTakingLonger(true), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [activeProviderId, error]);
+
   return (
     <div
       className={cn(
-        "absolute inset-0 z-30 flex items-center justify-center",
+        "absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-md",
         className,
       )}
     >
-      <ul className="w-full max-w-sm space-y-1 px-4">
-        {items.map((item) => {
-          const isActive =
-            item.kind === "scrape" && item.id === activeProviderId;
-          const isSelectableEmbed =
-            item.kind === "embed" &&
-            item.status === "available" &&
-            Boolean(onSelectEmbedServer);
-          const isUnavailableEmbed =
-            item.kind === "embed" && item.status === "unavailable";
-
-          return (
-            <li
-              key={`${item.kind}-${item.id}`}
-              className={cn(
-                "rounded-md px-3 py-2",
-                isActive && "bg-black/35",
-                item.status === "skipped" && "opacity-40",
-                item.status === "failure" && !isActive && "opacity-50",
-                isUnavailableEmbed && "opacity-45",
-                isSelectableEmbed &&
-                  "cursor-pointer transition hover:bg-black/30",
-              )}
-            >
-              {isSelectableEmbed ? (
-                <button
-                  type="button"
-                  onClick={() => onSelectEmbedServer?.(item.id)}
-                  className="flex w-full items-center gap-3 text-left"
-                >
-                  <div className="flex size-5 shrink-0 items-center justify-center">
-                    {statusIcon(item)}
-                  </div>
-                  <p className="min-w-0 flex-1 truncate text-sm text-white/85">
-                    {item.name}
-                  </p>
-                </button>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <div className="flex size-5 shrink-0 items-center justify-center">
-                    {statusIcon(item)}
-                  </div>
-                  <p
-                    className={cn(
-                      "min-w-0 flex-1 truncate text-sm",
-                      isActive ? "text-white" : "text-white/70",
-                    )}
-                  >
-                    {item.name}
-                  </p>
+      <div className="w-full max-w-sm px-6">
+        <div className="rounded-2xl border border-white/10 bg-zinc-950/90 px-6 py-5 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+          {error ? (
+            <div className="space-y-4 text-center">
+              <p className="text-sm leading-relaxed text-white/65">{error}</p>
+              {availableEmbeds.length > 0 ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {availableEmbeds.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onSelectEmbedServer?.(item.id)}
+                      className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10"
+                    >
+                      {item.name}
+                    </button>
+                  ))}
                 </div>
-              )}
-              {item.status === "failure" && item.error ? (
-                <p
-                  className="mt-0.5 truncate pl-8 text-xs text-white/40"
-                  title={item.error}
-                >
-                  {item.error}
-                </p>
               ) : null}
-            </li>
-          );
-        })}
-      </ul>
-
-      {error ? (
-        <p className="absolute inset-x-0 bottom-6 px-6 text-center text-sm text-white/60">
-          {error}
-        </p>
-      ) : null}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <Loader2
+                className="size-5 animate-spin text-white/55"
+                aria-hidden
+              />
+              <div className="text-center">
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/40">
+                  {isTakingLonger
+                    ? "Trying another source…"
+                    : "Finding a working source…"}
+                </p>
+                <p className="mt-1.5 text-lg font-medium tracking-tight text-white">
+                  {activeItem?.name ?? "Starting…"}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

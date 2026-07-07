@@ -10,13 +10,6 @@ export type ProviderScrapePlayerStatus =
   | "playing"
   | "error";
 
-type ScrapeApiFailure = {
-  ok: false;
-  providerId: string;
-  providerName: string;
-  error: string;
-};
-
 type ScrapeAttemptResult<TPayload> =
   | { outcome: "success"; payload: TPayload }
   | { outcome: "failure" }
@@ -28,6 +21,7 @@ export type ProviderScrapeLoopConfig<
   _TPayload extends { providerId: TProviderId },
 > = {
   providerOrder: readonly TProviderId[];
+  resolveProviderOrder?: (input: TInput) => readonly TProviderId[];
   providerLabels: Record<TProviderId, string>;
   mediaKeyFor: (input: TInput) => string;
   allFailedError: string;
@@ -55,12 +49,20 @@ export function useProviderScrapeLoop<
 >(config: ProviderScrapeLoopConfig<TProviderId, TInput, TPayload>) {
   const {
     providerOrder,
+    resolveProviderOrder,
     providerLabels,
     mediaKeyFor,
     allFailedError,
     apiPath,
     buildRequestBody,
   } = config;
+
+  const activeProviderOrderRef = useRef<readonly TProviderId[]>(providerOrder);
+
+  const getOrderForInput = useCallback(
+    (input: TInput) => resolveProviderOrder?.(input) ?? providerOrder,
+    [providerOrder, resolveProviderOrder],
+  );
 
   const [items, setItems] = useState<ScrapeItem[]>(() =>
     initialItems(providerOrder, providerLabels),
@@ -79,19 +81,11 @@ export function useProviderScrapeLoop<
   const currentInputRef = useRef<TInput | null>(null);
 
   const resetItems = useCallback(
-    (skipProviderIds: TProviderId[] = []) => {
-      const skip = new Set(skipProviderIds);
-      setItems(
-        providerOrder.map((providerId) => ({
-          providerId,
-          name: providerLabels[providerId],
-          status: skip.has(providerId)
-            ? ("skipped" as ScrapeItemStatus)
-            : ("waiting" as ScrapeItemStatus),
-        })),
-      );
+    (order: readonly TProviderId[]) => {
+      activeProviderOrderRef.current = order;
+      setItems(initialItems(order, providerLabels));
     },
-    [providerLabels, providerOrder],
+    [providerLabels],
   );
 
   const updateItem = useCallback(
@@ -141,24 +135,35 @@ export function useProviderScrapeLoop<
         return { outcome: "cancelled" };
       }
 
-      const payload = (await response.json()) as
-        | (TPayload & { ok: true })
-        | ScrapeApiFailure;
+      let rawPayload: Record<string, unknown>;
+
+      try {
+        rawPayload = (await response.json()) as Record<string, unknown>;
+      } catch {
+        updateItem(providerId, {
+          status: "failure",
+          error: "Invalid response",
+        });
+        return { outcome: "failure" };
+      }
 
       if (runId !== runIdRef.current) {
         return { outcome: "cancelled" };
       }
 
-      if (!response.ok || !payload.ok) {
+      if (!rawPayload.ok) {
         updateItem(providerId, {
           status: "failure",
-          error: payload.ok ? "Request failed" : payload.error,
+          error:
+            typeof rawPayload.error === "string"
+              ? rawPayload.error
+              : "Unknown error",
         });
         return { outcome: "failure" };
       }
 
       updateItem(providerId, { status: "success", error: undefined });
-      return { outcome: "success", payload };
+      return { outcome: "success", payload: rawPayload as TPayload };
     },
     [apiPath, buildRequestBody, updateItem],
   );
@@ -180,13 +185,22 @@ export function useProviderScrapeLoop<
       const failed = useFailedCache
         ? (failedProvidersRef.current.get(mediaKey) ?? new Set())
         : new Set<TProviderId>();
+      const order =
+        startFromIndex > 0
+          ? activeProviderOrderRef.current
+          : getOrderForInput(input);
 
-      for (let index = startFromIndex; index < providerOrder.length; index++) {
+      if (startFromIndex === 0) {
+        activeProviderOrderRef.current = order;
+        resetItems(order);
+      }
+
+      for (let index = startFromIndex; index < order.length; index++) {
         if (runId !== runIdRef.current) {
           return;
         }
 
-        const providerId = providerOrder[index];
+        const providerId = order[index];
         if (!providerId || failed.has(providerId)) {
           updateItem(providerId, { status: "skipped" });
           continue;
@@ -216,44 +230,65 @@ export function useProviderScrapeLoop<
       setError(allFailedError);
       setActiveProviderId(null);
     },
-    [allFailedError, mediaKeyFor, providerOrder, scrapeProvider, updateItem],
+    [
+      allFailedError,
+      getOrderForInput,
+      mediaKeyFor,
+      resetItems,
+      scrapeProvider,
+      updateItem,
+    ],
   );
 
   const startScraping = useCallback(
-    (input: TInput) => {
+    (input: TInput, preferredProviderId?: TProviderId) => {
       failedProvidersRef.current.delete(mediaKeyFor(input));
-      resetItems();
-      void runScrapeLoop(input, 0, { useFailedCache: false });
+      const order = getOrderForInput(input);
+      resetItems(order);
+      const preferredIndex = preferredProviderId
+        ? order.indexOf(preferredProviderId)
+        : -1;
+      const startIndex = preferredIndex >= 0 ? preferredIndex : 0;
+      void runScrapeLoop(input, startIndex, { useFailedCache: false });
     },
-    [mediaKeyFor, resetItems, runScrapeLoop],
+    [getOrderForInput, mediaKeyFor, resetItems, runScrapeLoop],
   );
 
   const resumeScraping = useCallback(
-    (input: TInput, fromProviderId: TProviderId) => {
-      const startIndex = providerOrder.indexOf(fromProviderId);
+    (
+      input: TInput,
+      fromProviderId: TProviderId,
+      failureReason = "Playback failed",
+    ) => {
+      const order = activeProviderOrderRef.current;
+      const startIndex = order.indexOf(fromProviderId);
       const nextIndex = startIndex >= 0 ? startIndex + 1 : 0;
       const mediaKey = mediaKeyFor(input);
       const failed = failedProvidersRef.current.get(mediaKey) ?? new Set();
       failed.add(fromProviderId);
       failedProvidersRef.current.set(mediaKey, failed);
-      resetItems([...failed]);
+      updateItem(fromProviderId, {
+        status: "failure",
+        error: failureReason,
+      });
       void runScrapeLoop(input, nextIndex, { useFailedCache: true });
     },
-    [mediaKeyFor, providerOrder, resetItems, runScrapeLoop],
+    [mediaKeyFor, runScrapeLoop, updateItem],
   );
 
   const switchToProvider = useCallback(
     (input: TInput, providerId: TProviderId) => {
-      const startIndex = providerOrder.indexOf(providerId);
+      const order = getOrderForInput(input);
+      const startIndex = order.indexOf(providerId);
       if (startIndex < 0) {
         return;
       }
 
       failedProvidersRef.current.delete(mediaKeyFor(input));
-      resetItems();
+      resetItems(order);
       void runScrapeLoop(input, startIndex, { useFailedCache: false });
     },
-    [mediaKeyFor, resetItems, runScrapeLoop],
+    [getOrderForInput, mediaKeyFor, resetItems, runScrapeLoop],
   );
 
   const stopScraping = useCallback(() => {
@@ -272,8 +307,8 @@ export function useProviderScrapeLoop<
     setActiveProviderId(null);
     setResult(null);
     setError(null);
-    resetItems();
-  }, [mediaKeyFor, resetItems]);
+    resetItems(providerOrder);
+  }, [mediaKeyFor, providerOrder, resetItems]);
 
   useEffect(
     () => () => {

@@ -5,10 +5,12 @@ import {
   decodeScrapePlaybackToken,
   isDashManifestResponse,
   isPlaylistResponse,
+  resolveKaaSegmentFallbackUrl,
+  resolveDashTemplateUrl,
   rewriteDashManifest,
   rewriteManifestPlaylist,
-  scrapeUpstreamHeaders,
 } from "@/lib/scrape/playback";
+import { scrapeFetch } from "@/lib/scrape/fetch";
 import {
   invalidateVidKingSession,
   isRetryableVidKingUpstreamStatus,
@@ -16,8 +18,6 @@ import {
 } from "@/lib/scrape/vidking-playback";
 
 export const maxDuration = 60;
-
-const FETCH_TIMEOUT_MS = 30_000;
 
 type RouteContext = {
   params: Promise<{
@@ -30,13 +30,16 @@ const fetchUpstream = async (
   upstreamUrl: string,
   referer: string | undefined,
   rangeHeader: string | null,
-  signal: AbortSignal,
+  cookies?: string,
 ) =>
-  fetch(upstreamUrl, {
-    cache: "no-store",
-    headers: scrapeUpstreamHeaders(upstreamUrl, referer, rangeHeader),
-    redirect: "follow",
-    signal,
+  scrapeFetch(upstreamUrl, {
+    method: "GET",
+    curlFallback: false,
+    headers: {
+      ...(referer ? { Referer: referer } : {}),
+      ...(rangeHeader ? { Range: rangeHeader } : {}),
+      ...(cookies ? { Cookie: cookies } : {}),
+    },
   });
 
 export async function GET(request: Request, context: RouteContext) {
@@ -51,12 +54,11 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const rangeHeader = request.headers.get("range");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
+    const playbackUrl = resolveDashTemplateUrl(playback.url, request.url);
     let upstreamUrl = await resolveScrapePlaybackUpstreamUrl(
-      playback.url,
+      playbackUrl,
       playback.refresh,
     );
 
@@ -64,8 +66,21 @@ export async function GET(request: Request, context: RouteContext) {
       upstreamUrl,
       playback.referer,
       rangeHeader,
-      controller.signal,
+      playback.cookies,
     );
+
+    if (upstream.status === 403) {
+      const fallbackUrl = resolveKaaSegmentFallbackUrl(upstreamUrl);
+      if (fallbackUrl) {
+        upstreamUrl = fallbackUrl;
+        upstream = await fetchUpstream(
+          upstreamUrl,
+          playback.referer,
+          rangeHeader,
+          playback.cookies,
+        );
+      }
+    }
 
     if (
       !upstream.ok &&
@@ -74,7 +89,7 @@ export async function GET(request: Request, context: RouteContext) {
     ) {
       invalidateVidKingSession(playback.refresh);
       upstreamUrl = await resolveScrapePlaybackUpstreamUrl(
-        playback.url,
+        playbackUrl,
         playback.refresh,
         { force: true },
       );
@@ -82,12 +97,13 @@ export async function GET(request: Request, context: RouteContext) {
         upstreamUrl,
         playback.referer,
         rangeHeader,
-        controller.signal,
+        playback.cookies,
       );
     }
 
     if (!upstream.ok) {
-      return new NextResponse(null, { status: upstream.status });
+      const body = await upstream.text().catch(() => "");
+      return new NextResponse(body, { status: upstream.status });
     }
 
     const upstreamContentType = upstream.headers.get("content-type");
@@ -99,6 +115,7 @@ export async function GET(request: Request, context: RouteContext) {
         upstreamUrl,
         playback.referer,
         playback.refresh,
+        request.url,
       );
 
       return new NextResponse(rewritten, {
@@ -117,6 +134,7 @@ export async function GET(request: Request, context: RouteContext) {
         upstreamUrl,
         playback.referer,
         playback.refresh,
+        request.url,
       );
 
       return new NextResponse(rewritten, {
@@ -162,7 +180,5 @@ export async function GET(request: Request, context: RouteContext) {
       { error: "Failed to proxy scraped stream" },
       { status: 502 },
     );
-  } finally {
-    clearTimeout(timeout);
   }
 }
