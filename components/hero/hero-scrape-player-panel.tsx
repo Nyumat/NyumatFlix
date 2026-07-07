@@ -8,6 +8,7 @@ import { ScrapePlayerShell } from "@/components/media/scrape-player-shell";
 import type { UseAnimeScrapeReturn } from "@/hooks/use-anime-scrape";
 import type { UseScrapeReturn } from "@/hooks/use-scrape";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import { USE_SHAKA_DASH } from "@/lib/constants";
 import { buildScrapePlayerKey } from "@/lib/scrape/player-sources";
 import type { SourceOverlayItem } from "@/lib/scrape/source-overlay";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
@@ -26,6 +27,16 @@ const ScrapeHlsPlayer = dynamic(
         Loading player...
       </div>
     ),
+  },
+);
+
+const ScrapeShakaDashPlayer = dynamic(
+  () =>
+    import("@/components/media/scrape-shaka-dash-player").then(
+      (module) => module.ScrapeShakaDashPlayer,
+    ),
+  {
+    ssr: false,
   },
 );
 
@@ -83,24 +94,43 @@ export function HeroScrapePlayerPanel({
       ) : null}
 
       {scrapeStatus === "playing" && scrapeResult?.playUrl && progressKey ? (
-        <ScrapeHlsPlayer
-          key={buildScrapePlayerKey({
-            playUrl: scrapeResult.playUrl,
-            qualities: scrapeResult.qualities,
-            subtitles: scrapeResult.subtitles,
-          })}
-          playUrl={scrapeResult.playUrl}
-          streamKind={streamKind}
-          qualities={scrapeResult.qualities}
-          referer={scrapeResult.referer}
-          subtitles={scrapeResult.subtitles}
-          title={playbackTitle}
-          poster={playbackPosterUrl}
-          progressKey={progressKey}
-          className="h-full w-full"
-          onFatalError={onFatalError}
-          onEnded={isTv ? onEnded : undefined}
-        />
+        USE_SHAKA_DASH && streamKind === "dash" ? (
+          <ScrapeShakaDashPlayer
+            key={buildScrapePlayerKey({
+              playUrl: scrapeResult.playUrl,
+              qualities: scrapeResult.qualities,
+              subtitles: scrapeResult.subtitles,
+            })}
+            playUrl={scrapeResult.playUrl}
+            referer={scrapeResult.referer}
+            subtitles={scrapeResult.subtitles}
+            title={playbackTitle}
+            poster={playbackPosterUrl}
+            progressKey={progressKey}
+            className="h-full w-full"
+            onFatalError={onFatalError}
+            onEnded={isTv ? onEnded : undefined}
+          />
+        ) : (
+          <ScrapeHlsPlayer
+            key={buildScrapePlayerKey({
+              playUrl: scrapeResult.playUrl,
+              qualities: scrapeResult.qualities,
+              subtitles: scrapeResult.subtitles,
+            })}
+            playUrl={scrapeResult.playUrl}
+            streamKind={streamKind}
+            qualities={scrapeResult.qualities}
+            referer={scrapeResult.referer}
+            subtitles={scrapeResult.subtitles}
+            title={playbackTitle}
+            poster={playbackPosterUrl}
+            progressKey={progressKey}
+            className="h-full w-full"
+            onFatalError={onFatalError}
+            onEnded={isTv ? onEnded : undefined}
+          />
+        )
       ) : null}
 
       {scrapeStatus === "error" ? (

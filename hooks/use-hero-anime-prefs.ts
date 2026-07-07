@@ -8,6 +8,7 @@ import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
 export function useHeroAnimePrefs(
   anilistId: number | null | undefined,
   mediaType?: "tv" | "movie",
+  isAdultAnime?: boolean,
 ) {
   const setDefaultAnilistId = useEpisodeStore(
     (state) => state.setDefaultAnilistId,
@@ -20,7 +21,7 @@ export function useHeroAnimePrefs(
       return;
     }
 
-    setDefaultAnilistId(isAnime ? anilistId : null);
+    setDefaultAnilistId(isAnime ? anilistId : null, isAdultAnime === true);
     useEmbedServerStore
       .getState()
       .setVidnestContentType(isAnime ? "anime" : "tv");
@@ -28,5 +29,5 @@ export function useHeroAnimePrefs(
     return () => {
       setDefaultAnilistId(null);
     };
-  }, [anilistId, isAnime, mediaType, setDefaultAnilistId]);
+  }, [anilistId, isAdultAnime, isAnime, mediaType, setDefaultAnilistId]);
 }

@@ -11,6 +11,7 @@ import {
   fetchTvDetailsClient,
   fetchTvRecommendationsPageClient,
 } from "@/lib/media-detail-tab-client";
+import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import type { TvShowDetails } from "@/lib/domain/typings";
@@ -89,11 +90,13 @@ const GridSectionFallback = ({ title }: { title: string }) => (
 );
 
 const EpisodesSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const numId = Number.parseInt(tvId, 10);
   const isHydrated = useIsHydrated();
+  const isAnilistRoute = isAnilistTvRouteId(tvId);
 
   const { data: details } = useQuery({
-    queryKey: queryKeys.tvDetails(numId),
+    queryKey: isAnilistRoute
+      ? queryKeys.tvDetailsRoute(tvId)
+      : queryKeys.tvDetails(Number.parseInt(tvId, 10)),
     queryFn: async () => {
       const d = await fetchTvDetailsClient(tvId);
       if (!d) throw new Error("TV show not found");

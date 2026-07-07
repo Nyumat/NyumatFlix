@@ -1,3 +1,5 @@
+import { getCachedAnilistTvAboveFoldDetail } from "@/lib/anilist-tv-detail";
+import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
 import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
 import {
   type MediaAboveFoldDetail,
@@ -141,4 +143,6 @@ export const getCachedMovieAboveFoldDetail = (id: string) =>
   getCachedMediaAboveFoldDetail("movie", id);
 
 export const getCachedTvAboveFoldDetail = (id: string) =>
-  getCachedMediaAboveFoldDetail("tv", id);
+  isAnilistTvRouteId(id)
+    ? getCachedAnilistTvAboveFoldDetail(id)
+    : getCachedMediaAboveFoldDetail("tv", id);

@@ -1,6 +1,7 @@
 import { Episode } from "@/lib/domain/typings";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { episodeNumberForProviders } from "@/lib/tv-provider-episode";
+import type { MappingConfidence } from "@/lib/anime/tmdb-anilist-map";
 import { getSession } from "next-auth/react";
 import { create } from "zustand";
 import { useServerStore, isScrapeServer } from "./server-store";
@@ -29,7 +30,10 @@ interface EpisodeState {
   isAnimeEpisode: boolean;
   anilistId: number | null;
   relativeEpisodeNumber: number | null;
+  mappingConfidence: MappingConfidence | null;
+  isAdultAnime: boolean;
   defaultAnilistId: number | null;
+  defaultIsAdultAnime: boolean;
   watchCallback: (() => void) | null;
   setSelectedEpisode: (
     episode: Episode,
@@ -42,9 +46,22 @@ interface EpisodeState {
     },
     skipWatchCallback?: boolean,
     seasonEpisodes?: Episode[],
+    mapping?: {
+      confidence: MappingConfidence;
+      isAdult: boolean;
+    },
   ) => void;
+  applyAnimeEpisodeMapping: (mapping: {
+    animeInfo: {
+      anilistId: number;
+      startEpisode: number;
+      endEpisode: number;
+    };
+    confidence: MappingConfidence;
+    isAdult: boolean;
+  }) => void;
   clearSelectedEpisode: () => void;
-  setDefaultAnilistId: (anilistId: number | null) => void;
+  setDefaultAnilistId: (anilistId: number | null, isAdult?: boolean) => void;
   getEmbedUrl: () => string | null;
   /** Next episode within the loaded season, if any. */
   getNextEpisodeTarget: () => NextEpisodeTarget | null;
@@ -93,7 +110,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   isAnimeEpisode: false,
   anilistId: null,
   relativeEpisodeNumber: null,
+  mappingConfidence: null,
+  isAdultAnime: false,
   defaultAnilistId: null,
+  defaultIsAdultAnime: false,
   watchCallback: null,
   setSelectedEpisode: (
     episode,
@@ -102,6 +122,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     animeInfo,
     skipWatchCallback = false,
     seasonEpisodes,
+    mapping,
   ) => {
     const effectiveAnimeInfo =
       animeInfo ??
@@ -130,6 +151,8 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       isAnimeEpisode,
       anilistId,
       relativeEpisodeNumber,
+      mappingConfidence: mapping?.confidence ?? (isAnimeEpisode ? "low" : null),
+      isAdultAnime: mapping?.isAdult ?? false,
     });
 
     // Track watch progress
@@ -175,9 +198,32 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       isAnimeEpisode: false,
       anilistId: null,
       relativeEpisodeNumber: null,
+      mappingConfidence: null,
+      isAdultAnime: false,
     });
   },
-  setDefaultAnilistId: (defaultAnilistId) => set({ defaultAnilistId }),
+  applyAnimeEpisodeMapping: (mapping) => {
+    const { selectedEpisode } = get();
+    if (!selectedEpisode) {
+      return;
+    }
+
+    const relativeEpisodeNumber =
+      selectedEpisode.episode_number - mapping.animeInfo.startEpisode + 1;
+
+    set({
+      anilistId: mapping.animeInfo.anilistId,
+      relativeEpisodeNumber,
+      isAnimeEpisode: true,
+      mappingConfidence: mapping.confidence,
+      isAdultAnime: mapping.isAdult,
+    });
+  },
+  setDefaultAnilistId: (defaultAnilistId, isAdult = false) =>
+    set({
+      defaultAnilistId,
+      defaultIsAdultAnime: defaultAnilistId ? isAdult === true : false,
+    }),
   getEmbedUrl: () => {
     const {
       selectedEpisode,

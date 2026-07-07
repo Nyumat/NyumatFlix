@@ -1,6 +1,11 @@
 import "server-only";
 
 import {
+  getCachedAnilistTvAllSeasons,
+  getCachedAnilistTvSeasonDetails,
+} from "@/lib/anilist-tv-detail";
+import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
+import {
   CACHE_REVALIDATE_SECONDS,
   CACHE_SEASON_REVALIDATE_SECONDS,
 } from "@/lib/http-cache";
@@ -194,6 +199,10 @@ export async function fetchSeasonDetailsServer(
   tvId: string,
   seasonNumber: number,
 ): Promise<SeasonDetails | null> {
+  if (isAnilistTvRouteId(tvId)) {
+    return getCachedAnilistTvSeasonDetails(tvId, seasonNumber);
+  }
+
   try {
     const response = await fetch(
       `https://api.themoviedb.org/3/tv/${tvId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
@@ -216,6 +225,10 @@ export async function fetchAllSeasonDetails(
   tvId: string,
   seasons: Season[] | undefined,
 ): Promise<Record<number, SeasonDetails>> {
+  if (isAnilistTvRouteId(tvId)) {
+    return getCachedAnilistTvAllSeasons(tvId);
+  }
+
   const regularSeasons =
     seasons?.filter(
       (season: Season) => season.season_number > 0 && season.episode_count > 0,

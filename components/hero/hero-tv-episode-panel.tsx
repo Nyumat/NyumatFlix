@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
+import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import {
   matchesEpisodeSearch,
@@ -24,11 +25,20 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowDownAZ, ArrowUpZA, Search, Tv } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export type HeroTvEpisodePanelProps = {
   tvId: string;
   details: TvShowDetails;
   allSeasonDetails?: Record<number, SeasonDetails>;
+};
+
+type AnimeSeasonMap = {
+  segments?: Array<{
+    startEpisode: number;
+    endEpisode: number;
+    anilistMediaId: number;
+  }>;
 };
 
 export function HeroTvEpisodePanel({
@@ -50,10 +60,21 @@ export function HeroTvEpisodePanel({
     selectedEpisode,
     seasonNumber: storeSeason,
     tvShowId,
+    defaultAnilistId,
     setSelectedEpisode,
+    setDefaultAnilistId,
   } = useEpisodeStore();
+  const searchParams = useSearchParams();
+  const requestedSeason = Number.parseInt(searchParams.get("season") ?? "", 10);
 
   const [selectedSeason, setSelectedSeason] = useState<number>(() => {
+    if (
+      Number.isInteger(requestedSeason) &&
+      requestedSeason > 0 &&
+      seasonNumbers.includes(requestedSeason)
+    ) {
+      return requestedSeason;
+    }
     if (
       storeSeason &&
       seasonNumbers.length > 0 &&
@@ -63,6 +84,7 @@ export function HeroTvEpisodePanel({
     }
     return seasonNumbers[0] ?? 1;
   });
+  const [selectedAnimeSegment, setSelectedAnimeSegment] = useState(0);
 
   const [query, setQuery] = useState("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -83,15 +105,25 @@ export function HeroTvEpisodePanel({
     }
   }, [storeSeason, seasonNumbers]);
 
+  useEffect(() => {
+    if (!isAnilistTvRouteId(tvId)) return;
+
+    const seasonMeta = details.seasons?.find(
+      (season) => season.season_number === selectedSeason,
+    );
+    if (!seasonMeta?.id) return;
+
+    setDefaultAnilistId(seasonMeta.id, details.adult === true);
+  }, [
+    details.adult,
+    details.seasons,
+    selectedSeason,
+    setDefaultAnilistId,
+    tvId,
+  ]);
+
   const selectedSeasonQuery = useQuery({
-    queryKey: [
-      "nyumatflix",
-      "media",
-      "tv",
-      Number(tvId),
-      "season",
-      selectedSeason,
-    ],
+    queryKey: ["nyumatflix", "media", "tv", tvId, "season", selectedSeason],
     queryFn: () => fetchSeasonDetails(tvId, selectedSeason),
     enabled:
       isHydrated &&
@@ -99,6 +131,30 @@ export function HeroTvEpisodePanel({
       !loadedSeasonDetails[selectedSeason],
     staleTime: 60 * 60 * 1000,
   });
+
+  const animeSeasonMapQuery = useQuery({
+    queryKey: ["nyumatflix", "anime-season-map", tvId, selectedSeason],
+    queryFn: async (): Promise<AnimeSeasonMap> => {
+      const response = await fetch(
+        `/api/map?tmdbShowId=${encodeURIComponent(tvId)}&tmdbSeason=${selectedSeason}&sourceAnilistId=${defaultAnilistId}`,
+      );
+      if (!response.ok) return {};
+      return response.json() as Promise<AnimeSeasonMap>;
+    },
+    enabled:
+      isHydrated &&
+      !isAnilistTvRouteId(tvId) &&
+      Number.isInteger(defaultAnilistId),
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const animeSegments = animeSeasonMapQuery.data?.segments ?? [];
+  const useAnimeSeasonGroups =
+    seasonNumbers.length === 1 && animeSegments.length > 1;
+
+  useEffect(() => {
+    setSelectedAnimeSegment(0);
+  }, [selectedSeason, animeSegments.length]);
 
   useEffect(() => {
     const seasonDetail = selectedSeasonQuery.data;
@@ -110,8 +166,22 @@ export function HeroTvEpisodePanel({
   }, [selectedSeasonQuery.data]);
 
   const seasonEpisodes = useMemo(() => {
-    return loadedSeasonDetails[selectedSeason]?.episodes ?? [];
-  }, [loadedSeasonDetails, selectedSeason]);
+    const episodes = loadedSeasonDetails[selectedSeason]?.episodes ?? [];
+    if (!useAnimeSeasonGroups) return episodes;
+    const segment = animeSegments[selectedAnimeSegment];
+    if (!segment) return episodes;
+    return episodes.filter(
+      (episode) =>
+        episode.episode_number >= segment.startEpisode &&
+        episode.episode_number <= segment.endEpisode,
+    );
+  }, [
+    animeSegments,
+    loadedSeasonDetails,
+    selectedAnimeSegment,
+    selectedSeason,
+    useAnimeSeasonGroups,
+  ]);
 
   const searchActive = query.trim().length > 0;
 
@@ -207,8 +277,18 @@ export function HeroTvEpisodePanel({
       <div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Select
-            value={String(selectedSeason)}
-            onValueChange={(value) => setSelectedSeason(Number(value))}
+            value={
+              useAnimeSeasonGroups
+                ? `anime-${selectedAnimeSegment}`
+                : String(selectedSeason)
+            }
+            onValueChange={(value) => {
+              if (value.startsWith("anime-")) {
+                setSelectedAnimeSegment(Number(value.slice(6)));
+              } else {
+                setSelectedSeason(Number(value));
+              }
+            }}
           >
             <SelectTrigger
               aria-label="Select season"
@@ -220,11 +300,20 @@ export function HeroTvEpisodePanel({
               <SelectValue placeholder="Season" />
             </SelectTrigger>
             <SelectContent className="border-border bg-popover/95">
-              {seasonNumbers.map((num) => (
-                <SelectItem key={num} value={String(num)}>
-                  Season {num}
-                </SelectItem>
-              ))}
+              {useAnimeSeasonGroups
+                ? animeSegments.map((segment, index) => (
+                    <SelectItem
+                      key={segment.anilistMediaId}
+                      value={`anime-${index}`}
+                    >
+                      Season {index + 1}
+                    </SelectItem>
+                  ))
+                : seasonNumbers.map((num) => (
+                    <SelectItem key={num} value={String(num)}>
+                      Season {num}
+                    </SelectItem>
+                  ))}
             </SelectContent>
           </Select>
 

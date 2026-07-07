@@ -18,6 +18,8 @@ export const queryKeys = {
   movieDetails: (movieId: number) =>
     [...queryKeys.media(), "movie", movieId] as const,
   tvDetails: (tvId: number) => [...queryKeys.media(), "tv", tvId] as const,
+  tvDetailsRoute: (tvRouteId: string) =>
+    [...queryKeys.media(), "tv", tvRouteId, "details"] as const,
   mediaAboveFold: (mediaType: "movie" | "tv", id: string) =>
     [...queryKeys.media(), mediaType, id, "above-fold"] as const,
 

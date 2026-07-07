@@ -261,7 +261,8 @@ export function StaticHero({
     pathname.includes("/terms") ||
     pathname.includes("/privacy") ||
     pathname.includes("/cookie-policy") ||
-    pathname.includes("/dmca");
+    pathname.includes("/dmca") ||
+    pathname.includes("/ad-free");
   const isWatchlistPage = pathname.includes("/watchlist");
   const isFullPageBackground =
     isSearchPage ||

@@ -18,6 +18,7 @@ import { Star, Volume2, VolumeX, X } from "lucide-react";
 import Link from "next/link";
 import React, { useLayoutEffect, useRef } from "react";
 import { useHeroAnimePrefs } from "@/hooks/use-hero-anime-prefs";
+import { useAnimeEpisodeMapping } from "@/hooks/use-anime-episode-mapping";
 import { useTvEpisodeHydrate } from "@/hooks/use-tv-episode-hydrate";
 import { HeroButtons } from "./hero-buttons";
 import { useScrapeChrome } from "./scrape-chrome-context";
@@ -84,7 +85,8 @@ export function HeroContent({
   const title = media.title || media.name;
   const isAnime = typeof anilistId === "number";
 
-  useHeroAnimePrefs(anilistId, mediaType);
+  useHeroAnimePrefs(anilistId, mediaType, media.adult === true);
+  useAnimeEpisodeMapping();
   useTvEpisodeHydrate({
     mediaId: media.id,
     mediaType,
