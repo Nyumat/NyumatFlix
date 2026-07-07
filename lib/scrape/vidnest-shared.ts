@@ -1,5 +1,4 @@
 import type { ScrapeMediaInput, ScrapeSubtitle } from "./types";
-import { refererForStreamUrl } from "./stream-url-patterns";
 
 const VIDNEST_REFERER = "https://vidnest.fun/";
 
@@ -35,19 +34,24 @@ const isHlsStream = (stream: VidNestStream): boolean =>
 export const pickVidnestStreamUrl = (
   streams: VidNestStream[],
 ): string | null => {
+  return rankVidnestStreamUrls(streams)[0] ?? null;
+};
+
+export const rankVidnestStreamUrls = (streams: VidNestStream[]): string[] => {
   const candidates = streams.filter((stream) => stream.url?.startsWith("http"));
   if (candidates.length === 0) {
-    return null;
+    return [];
   }
 
-  const hlsCandidates = candidates.filter(isHlsStream);
-  const pool = hlsCandidates.length > 0 ? hlsCandidates : candidates;
-
-  const english = pool.find((stream) =>
-    /^(?:en|english)(?:[-_]|$)/i.test(stream.language ?? ""),
-  );
-
-  return (english ?? pool[0])?.url ?? null;
+  return [...candidates]
+    .sort((left, right) => {
+      const score = (stream: VidNestStream) =>
+        (isHlsStream(stream) ? 2 : 0) +
+        (/^(?:en|english)(?:[-_]|$)/i.test(stream.language ?? "") ? 1 : 0);
+      return score(right) - score(left);
+    })
+    .map((stream) => stream.url)
+    .filter((url): url is string => Boolean(url));
 };
 
 export const mapVidnestCaptions = (
@@ -90,15 +94,5 @@ export const extractVidnestStreams = (payload: VidNestPayload) =>
 export const extractVidnestCaptions = (payload: VidNestPayload) =>
   payload.data?.captions ?? payload.captions ?? [];
 
-export const refererForVidnestStream = (streamUrl: string): string => {
-  try {
-    const { hostname } = new URL(streamUrl);
-    if (hostname === "goodstream.cc" || hostname.endsWith(".goodstream.cc")) {
-      return VIDNEST_REFERER;
-    }
-  } catch {
-    // fall through
-  }
-
-  return refererForStreamUrl(streamUrl, VIDNEST_REFERER);
-};
+export const refererForVidnestStream = (_streamUrl: string): string =>
+  VIDNEST_REFERER;

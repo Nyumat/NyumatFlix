@@ -1,52 +1,125 @@
 import "server-only";
 
-import { scrapeProxyUrl } from "./proxy";
+import {
+  scrapeDirectDispatcher,
+  scrapeProxyDispatcher,
+  scrapeProxyUrl,
+} from "./proxy";
 import { scrapeUpstreamHeaders } from "./upstream-headers";
 
 const FETCH_TIMEOUT_MS = 30_000;
+const CURL_FALLBACK_HOSTS =
+  /(?:^kwik\.[a-z]+$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|shadowlemon\.site|opstream11\.com|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com)$)/i;
+
+type ScrapeFetchInit = RequestInit & {
+  headers?: Record<string, string>;
+  curlFallback?: boolean;
+};
+
+const scrapeCurlFallback = async (
+  url: string,
+  headers: Record<string, string>,
+  proxyUrl?: string,
+): Promise<Response | null> => {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+
+  if (
+    parsed.protocol !== "https:" ||
+    !CURL_FALLBACK_HOSTS.test(parsed.hostname)
+  ) {
+    return null;
+  }
+
+  try {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execute = promisify(execFile);
+    const args = [
+      "--fail-with-body",
+      "--location",
+      "--silent",
+      "--show-error",
+      "--max-time",
+      "30",
+    ];
+
+    if (proxyUrl) {
+      args.push("--proxy", proxyUrl);
+    }
+
+    for (const [name, value] of Object.entries(headers)) {
+      args.push("--header", `${name}: ${value}`);
+    }
+    args.push(url);
+
+    const { stdout } = await execute("curl", args, {
+      encoding: "buffer",
+      maxBuffer: 32 * 1024 * 1024,
+      timeout: 35_000,
+    });
+
+    return new Response(stdout, { status: 200 });
+  } catch {
+    return null;
+  }
+};
 
 export { DEFAULT_USER_AGENT, scrapeUpstreamHeaders } from "./upstream-headers";
 
 export async function scrapeFetch(
   url: string,
-  init: RequestInit & { headers?: Record<string, string> } = {},
+  init: ScrapeFetchInit = {},
 ): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  const referer = init.headers?.Referer;
+  const { curlFallback = true, ...fetchInit } = init;
+  const timeoutSignal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+  const signal = fetchInit.signal
+    ? AbortSignal.any([fetchInit.signal, timeoutSignal])
+    : timeoutSignal;
+  const referer = fetchInit.headers?.Referer;
   const upstreamHeaders = scrapeUpstreamHeaders(url, referer);
 
   const requestInit = {
-    ...init,
-    signal: controller.signal,
+    ...fetchInit,
+    signal,
     headers: {
       ...upstreamHeaders,
-      ...init.headers,
+      ...fetchInit.headers,
     },
-    redirect: "follow" as const,
+    redirect: fetchInit.redirect ?? ("follow" as const),
     cache: "no-store" as const,
   };
 
+  const { fetch: undiciFetch } = await import("undici");
   const proxyUrl = scrapeProxyUrl();
+  const dispatcher = proxyUrl
+    ? scrapeProxyDispatcher()
+    : scrapeDirectDispatcher();
 
-  try {
-    if (proxyUrl) {
-      const { fetch: undiciFetch, ProxyAgent } = await import("undici");
-      const dispatcher = new ProxyAgent(proxyUrl);
-      return (await undiciFetch(url, {
-        method: init.method ?? "GET",
-        headers: requestInit.headers,
-        body: init.body as import("undici").BodyInit | undefined,
-        signal: controller.signal,
-        redirect: "follow",
-        dispatcher,
-      })) as unknown as Response;
-    }
+  const response = (await undiciFetch(url, {
+    method: fetchInit.method ?? "GET",
+    headers: requestInit.headers,
+    body: fetchInit.body as import("undici").BodyInit | undefined,
+    signal,
+    redirect: requestInit.redirect,
+    dispatcher,
+  })) as unknown as Response;
 
-    return await fetch(url, requestInit);
-  } finally {
-    clearTimeout(timeout);
+  if (response.status !== 403 || !curlFallback) {
+    return response;
   }
+
+  return (
+    (await scrapeCurlFallback(
+      url,
+      requestInit.headers as Record<string, string>,
+      proxyUrl,
+    )) ?? response
+  );
 }
 
 export async function scrapeFetchText(

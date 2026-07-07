@@ -1,9 +1,7 @@
-import { flareSolverrGet } from "../flaresolverr";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
+import { scrapeVidSrcMirrorEmbed } from "./vidsrc";
 
 const VIDSRC_WTF_API = "https://api.vidsrc.wtf/source";
-const VIDSRC_WTF_REFERER = "https://vidsrc.wtf/";
-
 type VidSrcWtfPayload = {
   stream?: {
     url?: string;
@@ -42,47 +40,5 @@ export const parseVidsrcMirrorBody = (
 export async function scrapeVidsrcMirror(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
-  const providerId = "vidsrc-mirror";
-
-  try {
-    const apiUrl = buildVidsrcMirrorApiUrl(input);
-    const solved = await flareSolverrGet(apiUrl);
-
-    if (!solved || solved.status !== 200) {
-      return {
-        ok: false,
-        providerId,
-        error: solved
-          ? `VidSrc Mirror API failed (${solved.status})`
-          : "VidSrc Mirror requires FlareSolverr",
-      };
-    }
-
-    const payload = parseVidsrcMirrorBody(solved.body);
-    const streamUrl = payload?.stream?.url;
-
-    if (!streamUrl?.startsWith("http")) {
-      return {
-        ok: false,
-        providerId,
-        error: "VidSrc Mirror stream URL missing",
-      };
-    }
-
-    return {
-      ok: true,
-      providerId,
-      streamUrl,
-      referer: VIDSRC_WTF_REFERER,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      providerId,
-      error:
-        error instanceof Error
-          ? error.message
-          : "VidSrc Mirror scrape failed unexpectedly",
-    };
-  }
+  return scrapeVidSrcMirrorEmbed(input);
 }

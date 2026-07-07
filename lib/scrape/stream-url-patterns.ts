@@ -20,7 +20,15 @@ export const looksLikeStreamUrl = (
     return /\.mpd(?:[?#].*|$)/i.test(url);
   }
 
-  return /\.mp4(?:[?#].*|$)/i.test(url);
+  if (kind === "mp4") {
+    return (
+      /\.mp4(?:[?#].*|$)/i.test(url) ||
+      /\/api\/hen\/o8\/mp4(?:[?#].*|$)/i.test(url) ||
+      /\/api\/anime\/src\/file(?:[?#].*|$)/i.test(url)
+    );
+  }
+
+  return false;
 };
 
 export const refererForStreamUrl = (

@@ -26,6 +26,7 @@ export const scrapeUpstreamHeaders = (
 ): Record<string, string> => {
   const headers: Record<string, string> = {
     Accept: "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
   };
 
   const userAgent = userAgentForUpstreamUrl(upstreamUrl);
@@ -33,13 +34,23 @@ export const scrapeUpstreamHeaders = (
     headers["User-Agent"] = userAgent;
   }
 
-  if (referer) {
-    headers.Referer = referer;
-  } else {
+  const effectiveReferer =
+    referer ??
+    (() => {
+      try {
+        return new URL(upstreamUrl).origin;
+      } catch {
+        return undefined;
+      }
+    })();
+
+  if (effectiveReferer) {
+    headers.Referer = effectiveReferer;
+
     try {
-      headers.Referer = new URL(upstreamUrl).origin;
+      headers.Origin = new URL(effectiveReferer).origin;
     } catch {
-      // no referer
+      // origin not derivable
     }
   }
 

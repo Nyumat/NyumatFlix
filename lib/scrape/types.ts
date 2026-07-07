@@ -35,6 +35,7 @@ export type ScrapeQuality = {
 export type ScrapeSuccess = {
   ok: true;
   providerId: string;
+  validated?: true;
   streamUrl: string;
   referer?: string;
   subtitles?: ScrapeSubtitle[];

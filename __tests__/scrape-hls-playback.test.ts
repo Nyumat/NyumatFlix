@@ -5,7 +5,12 @@ import { isRecoverableScrapeHlsStall } from "@/lib/scrape/hls-quality";
 import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
 import {
   buildScrapePlayUrl,
+  contentTypeForProxiedAsset,
+  decodeScrapePlaybackToken,
   extractScrapePlaybackRefreshFromPlayUrl,
+  extractScrapePlaybackTokenFromPlayUrl,
+  resolveKaaSegmentFallbackUrl,
+  rewriteManifestPlaylist,
 } from "@/lib/scrape/playback";
 import {
   buildScrapePlayerSrc,
@@ -109,5 +114,54 @@ describe("scrape hls playback helpers", () => {
 
     expect(buildScrapePlayerSrc(playUrl, undefined)).toBe(playUrl);
     expect(buildScrapePlayerSrc(playUrl, [])).toBe(playUrl);
+  });
+
+  it("rewrites HLS audio, key, and map URI attributes through the proxy", () => {
+    const manifestUrl = "https://cdn.example/show/master.m3u8";
+    const rewritten = rewriteManifestPlaylist(
+      [
+        '#EXT-X-MEDIA:TYPE=AUDIO,URI="audio/ja/playlist.m3u8"',
+        "#EXT-X-KEY:METHOD=AES-128,URI='keys/video.key'",
+        '#EXT-X-MAP:URI="init.mp4"',
+      ].join("\n"),
+      manifestUrl,
+      "https://provider.example/",
+    );
+
+    const urls = [...rewritten.matchAll(/URI=["']([^"']+)["']/g)].map(
+      (match) => match[1] ?? "",
+    );
+    const decodedUrls = urls.map((url) => {
+      const token = extractScrapePlaybackTokenFromPlayUrl(url);
+      return token ? decodeScrapePlaybackToken(token)?.url : undefined;
+    });
+
+    expect(decodedUrls).toEqual([
+      "https://cdn.example/show/audio/ja/playlist.m3u8",
+      "https://cdn.example/show/keys/video.key",
+      "https://cdn.example/show/init.mp4",
+    ]);
+  });
+
+  it("serves disguised AnimeStream pict segments as MPEG-TS", () => {
+    expect(
+      contentTypeForProxiedAsset(
+        "https://cdn.example/show/img-00000.pict",
+        "image/x-pict",
+      ),
+    ).toBe("video/mp2t");
+  });
+
+  it("retries blocked KAA segment mirrors through the primary mirror", () => {
+    expect(
+      resolveKaaSegmentFallbackUrl(
+        "https://st1.habibikun.xyz/show/episode/213.jpg?token=abc",
+      ),
+    ).toBe(
+      "https://st1.advancedairesearchlab.xyz/show/episode/213.jpg?token=abc",
+    );
+    expect(
+      resolveKaaSegmentFallbackUrl("https://unrelated.example/213.jpg"),
+    ).toBeNull();
   });
 });

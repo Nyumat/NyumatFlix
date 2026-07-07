@@ -4,6 +4,8 @@ import {
   buildVidnestMediaPath,
   mapVidnestCaptions,
   pickVidnestStreamUrl,
+  rankVidnestStreamUrls,
+  refererForVidnestStream,
 } from "@/lib/scrape/vidnest-shared";
 import { decodeVidnestPayload } from "@/lib/scrape/vidnest-crypto";
 
@@ -43,6 +45,21 @@ describe("vidnest scrape helpers", () => {
     ]);
 
     expect(url).toBe("https://cdn.example/english.m3u8");
+  });
+
+  it("keeps secondary resolver streams available for validation fallback", () => {
+    expect(
+      rankVidnestStreamUrls([
+        { type: "hls", url: "https://blocked.example/master.m3u8" },
+        { type: "cloudflare", url: "https://working.example/cf-master.txt" },
+      ]),
+    ).toEqual([
+      "https://blocked.example/master.m3u8",
+      "https://working.example/cf-master.txt",
+    ]);
+    expect(
+      refererForVidnestStream("https://working.example/cf-master.txt"),
+    ).toBe("https://vidnest.fun/");
   });
 
   it("maps captions to subtitle tracks", () => {

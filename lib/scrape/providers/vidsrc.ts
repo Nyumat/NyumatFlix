@@ -1,13 +1,16 @@
 import { scrapeFetchText } from "../fetch";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
-import { validateStreamUrl } from "../validate-stream";
 
 const EMBED_ORIGIN = "https://vsembed.ru";
+export const VIDSRC_MIRROR_EMBED_ORIGIN = "https://vidsrc-embed.ru";
 const PLAYER_ORIGIN = "https://cloudorchestranova.com";
 
-const buildEmbedUrl = (input: ScrapeMediaInput): string => {
+const buildEmbedUrl = (
+  input: ScrapeMediaInput,
+  embedOrigin = EMBED_ORIGIN,
+): string => {
   if (input.mediaType === "movie") {
-    return `${EMBED_ORIGIN}/embed/movie?tmdb=${input.tmdbId}`;
+    return `${embedOrigin}/embed/movie?tmdb=${input.tmdbId}`;
   }
 
   const params = new URLSearchParams({
@@ -16,7 +19,7 @@ const buildEmbedUrl = (input: ScrapeMediaInput): string => {
     episode: String(input.episodeNumber ?? 1),
   });
 
-  return `${EMBED_ORIGIN}/embed/tv?${params.toString()}`;
+  return `${embedOrigin}/embed/tv?${params.toString()}`;
 };
 
 const normalizeEmbedSrc = (raw: string): string | null => {
@@ -107,11 +110,12 @@ const tokenHostFromUrl = (url: string): string | null => {
 
 const scrapeVidSrcEdn = async (
   input: ScrapeMediaInput,
+  embedOrigin = EMBED_ORIGIN,
+  providerId = "vidsrc",
 ): Promise<ScrapeResult> => {
-  const providerId = "vidsrc";
-  const embedUrl = buildEmbedUrl(input);
+  const embedUrl = buildEmbedUrl(input, embedOrigin);
   const embed = await scrapeFetchText(embedUrl, {
-    Referer: `${EMBED_ORIGIN}/`,
+    Referer: `${embedOrigin}/`,
   });
 
   if (embed.status !== 200) {
@@ -139,7 +143,7 @@ const scrapeVidSrcEdn = async (
 
   if (!prorcpHash) {
     const rcpPage = await scrapeFetchText(iframeSrc, {
-      Referer: `${EMBED_ORIGIN}/`,
+      Referer: `${embedOrigin}/`,
     });
     prorcpHash = extractProrcpHash(rcpPage.text);
   }
@@ -185,14 +189,6 @@ const scrapeVidSrcEdn = async (
   };
 };
 
-const isPlayableStream = async (result: ScrapeResult): Promise<boolean> => {
-  if (!result.ok) {
-    return false;
-  }
-
-  return validateStreamUrl(result.streamUrl, result.referer);
-};
-
 export async function scrapeVidSrc(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
@@ -200,19 +196,7 @@ export async function scrapeVidSrc(
 
   try {
     const embedResult = await scrapeVidSrcEdn(input);
-    if (await isPlayableStream(embedResult)) {
-      return embedResult;
-    }
-
-    if (!embedResult.ok) {
-      return embedResult;
-    }
-
-    return {
-      ok: false,
-      providerId,
-      error: "Stream URL failed validation",
-    };
+    return embedResult;
   } catch (error) {
     return {
       ok: false,
@@ -221,6 +205,27 @@ export async function scrapeVidSrc(
         error instanceof Error
           ? error.message
           : "VidSrc scrape failed unexpectedly",
+    };
+  }
+}
+
+export async function scrapeVidSrcMirrorEmbed(
+  input: ScrapeMediaInput,
+): Promise<ScrapeResult> {
+  try {
+    return await scrapeVidSrcEdn(
+      input,
+      VIDSRC_MIRROR_EMBED_ORIGIN,
+      "vidsrc-mirror",
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      providerId: "vidsrc-mirror",
+      error:
+        error instanceof Error
+          ? error.message
+          : "VidSrc Mirror scrape failed unexpectedly",
     };
   }
 }

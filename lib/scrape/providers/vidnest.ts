@@ -7,7 +7,7 @@ import {
   extractVidnestCaptions,
   extractVidnestStreams,
   mapVidnestCaptions,
-  pickVidnestStreamUrl,
+  rankVidnestStreamUrls,
   refererForVidnestStream,
   type VidNestPayload,
 } from "../vidnest-shared";
@@ -41,7 +41,7 @@ const parseVidnestBody = (body: string): VidNestPayload | null => {
 const fetchResolver = async (
   resolver: (typeof VIDNEST_SCRAPE_RESOLVERS)[number],
   mediaPath: string,
-): Promise<ScrapeResult | null> => {
+): Promise<ScrapeResult[]> => {
   const response = await scrapeFetchText(
     `${VIDNEST_API_ORIGIN}/${resolver}/${mediaPath}`,
     {
@@ -51,29 +51,25 @@ const fetchResolver = async (
   );
 
   if (response.status !== 200) {
-    return null;
+    return [];
   }
 
   const payload = parseVidnestBody(response.text);
   if (!payload) {
-    return null;
+    return [];
   }
 
-  const streamUrl = pickVidnestStreamUrl(extractVidnestStreams(payload));
-  if (!streamUrl) {
-    return null;
-  }
-
-  const referer = refererForVidnestStream(streamUrl);
   const subtitles = mapVidnestCaptions(extractVidnestCaptions(payload));
 
-  return {
-    ok: true,
-    providerId: "vidnest",
-    streamUrl,
-    referer,
-    subtitles: subtitles.length > 0 ? subtitles : undefined,
-  };
+  return rankVidnestStreamUrls(extractVidnestStreams(payload)).map(
+    (streamUrl) => ({
+      ok: true,
+      providerId: "vidnest",
+      streamUrl,
+      referer: refererForVidnestStream(streamUrl),
+      subtitles: subtitles.length > 0 ? subtitles : undefined,
+    }),
+  );
 };
 
 export async function scrapeVidNest(
@@ -92,18 +88,14 @@ export async function scrapeVidNest(
 
   try {
     for (const resolver of VIDNEST_SCRAPE_RESOLVERS) {
-      const result = await fetchResolver(resolver, mediaPath);
-      if (!result) {
-        continue;
-      }
-
-      if (!result?.ok) {
-        continue;
-      }
-
-      const isValid = await validateStreamUrl(result.streamUrl, result.referer);
-      if (isValid) {
-        return result;
+      const results = await fetchResolver(resolver, mediaPath);
+      for (const result of results) {
+        if (
+          result.ok &&
+          (await validateStreamUrl(result.streamUrl, result.referer))
+        ) {
+          return { ...result, validated: true };
+        }
       }
     }
 

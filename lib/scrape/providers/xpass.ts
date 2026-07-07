@@ -1,6 +1,8 @@
 import { scrapeFetchText } from "../fetch";
 import { fetchSub1x2Subtitles } from "../subtitles";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
+import { validateStreamUrl } from "../validate-stream";
+import { scrapeVidSrcMirrorEmbed } from "./vidsrc";
 
 const XPASS_ORIGIN = "https://play.xpass.top";
 const TWOEMBED_API = "https://api.2embed.cc";
@@ -132,7 +134,7 @@ export async function scrapeXPass(
     const sources =
       payload.playlist?.flatMap((entry) => entry.sources ?? []) ?? [];
 
-    const streamSource = sources.find((source) => {
+    const streamSources = sources.filter((source) => {
       const file = source.file ?? source.url ?? "";
       return (
         file.startsWith("http") &&
@@ -143,9 +145,24 @@ export async function scrapeXPass(
       );
     });
 
-    const streamUrl = streamSource?.file ?? streamSource?.url;
+    let streamUrl: string | null = null;
+    for (const source of streamSources) {
+      const candidate = source.file ?? source.url ?? "";
+      if (await validateStreamUrl(candidate, XPASS_ORIGIN)) {
+        streamUrl = candidate;
+        break;
+      }
+    }
+
     if (!streamUrl) {
-      return { ok: false, providerId, error: "XPass stream source missing" };
+      const alternate = await scrapeVidSrcMirrorEmbed(input);
+      return alternate.ok
+        ? { ...alternate, providerId, validated: true }
+        : {
+            ok: false,
+            providerId,
+            error: "2Embed returned no playable internal servers",
+          };
     }
 
     const subtitles = await fetchSub1x2Subtitles(input);
@@ -154,6 +171,7 @@ export async function scrapeXPass(
       ok: true,
       providerId,
       streamUrl,
+      validated: true,
       referer: XPASS_ORIGIN,
       qualities: sources
         .map((source) => ({
