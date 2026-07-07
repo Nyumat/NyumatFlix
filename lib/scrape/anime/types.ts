@@ -40,6 +40,10 @@ export type AnimeScrapeSuccess = {
   referer?: string;
   subtitles?: ScrapeSubtitle[];
   qualities?: ScrapeQuality[];
+  fallbackFrom?: {
+    providerId: AnimeScrapeProviderId;
+    error: string;
+  };
 };
 
 export type AnimeScrapeFailure = {

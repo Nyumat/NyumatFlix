@@ -30,7 +30,9 @@ export async function scrapeProvider(
     return result;
   }
 
-  const isValid = await validateStreamUrl(result.streamUrl, result.referer);
+  const isValid =
+    result.validated ??
+    (await validateStreamUrl(result.streamUrl, result.referer));
   if (!isValid) {
     return {
       ok: false,

@@ -28,7 +28,7 @@ export async function scrapeAnizone(
       return {
         ok: false,
         providerId,
-        error: `AniZone episode page failed (${episode.status})`,
+        error: `AniZone episode page failed (${episode.status}: ${slug}/${input.episodeNumber})`,
       };
     }
 

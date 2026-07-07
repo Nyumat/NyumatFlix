@@ -3,7 +3,10 @@ import {
   extractDataUrlAttributes,
   extractM3u8Urls,
 } from "../html-utils";
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import {
+  fetchAnilistTitleCandidates,
+  resolveAnimeSearchQuery,
+} from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { scrapeFetchText } from "../../fetch";
 
@@ -22,13 +25,29 @@ export async function scrapeAnimestream(
 
   try {
     const query = await resolveAnimeSearchQuery(input);
-    const slug = slugifySeries(query);
-    const episodePath = `/${slug}/episode-${input.episodeNumber}`;
-
-    const episodePage = await scrapeFetchText(
-      `${ANIMESTREAM_ORIGIN}${episodePath}`,
-      { Referer: `${ANIMESTREAM_ORIGIN}/` },
+    const titles = [
+      query,
+      ...(await fetchAnilistTitleCandidates(input.anilistId)),
+    ];
+    const episodePaths = [...new Set(titles.map(slugifySeries))].map(
+      (slug) => `/${slug}/episode-${input.episodeNumber}`,
     );
+    let episodePath = episodePaths[0] ?? "";
+    let episodePage = { status: 404, text: "" };
+
+    for (const candidatePath of episodePaths) {
+      const candidate = await scrapeFetchText(
+        `${ANIMESTREAM_ORIGIN}${candidatePath}`,
+        { Referer: `${ANIMESTREAM_ORIGIN}/` },
+      );
+      const hasPlayer = extractDataUrlAttributes(candidate.text).length > 0;
+      if (candidate.status === 200 && hasPlayer) {
+        episodePath = candidatePath;
+        episodePage = candidate;
+        break;
+      }
+      episodePage = candidate;
+    }
 
     if (episodePage.status === 404) {
       return {

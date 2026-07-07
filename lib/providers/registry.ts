@@ -12,6 +12,8 @@ export type TmdbScrapeProviderId =
 
 export type AnimeScrapeProviderId =
   | "anizone"
+  | "anipm"
+  | "hentaigasm"
   | "kickassanime"
   | "animeonsen"
   | "allmanga"
@@ -93,10 +95,10 @@ export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
 /** Direct-stream anime providers (tried in order). */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("anizone", "AniZone", { embed: false, animeScrape: true }),
+  provider("anipm", "ani.pm", { embed: false, animeScrape: true }),
+  provider("hentaigasm", "Hentaigasm", { embed: false, animeScrape: true }),
   provider("kickassanime", "KickAssAnime", { embed: false, animeScrape: true }),
   provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),
-  provider("allmanga", "AllManga", { embed: false, animeScrape: true }),
-  provider("animestream", "AnimeStream", { embed: false, animeScrape: true }),
   provider("animegg", "AnimeGG", { embed: false, animeScrape: true }),
   provider("animepahe", "AnimePahe", { embed: false, animeScrape: true }),
 ];
@@ -125,7 +127,32 @@ export const ANIME_SCRAPE_PROVIDER_OPTIONS = ANIME_SCRAPE_PROVIDER_REGISTRY.map(
   (entry) => ({ providerId: entry.id, name: entry.name }),
 );
 
+export type AnimePlaybackScrapeProviderId =
+  | AnimeScrapeProviderId
+  | TmdbScrapeProviderId;
+
+/** Anime episode scrape chain: native anime scrapers, then TMDB proxies (vidsrc, etc.). */
+export const ANIME_PLAYBACK_SCRAPE_PROVIDER_ORDER = [
+  ...ANIME_SCRAPE_PROVIDER_ORDER,
+  ...TMDB_SCRAPE_PROVIDER_ORDER,
+] as const satisfies readonly AnimePlaybackScrapeProviderId[];
+
+export const ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS: Record<
+  AnimePlaybackScrapeProviderId,
+  string
+> = {
+  ...ANIME_SCRAPE_PROVIDER_LABELS,
+  ...TMDB_SCRAPE_PROVIDER_LABELS,
+};
+
+export const ANIME_PLAYBACK_SCRAPE_PROVIDER_OPTIONS =
+  ANIME_PLAYBACK_SCRAPE_PROVIDER_ORDER.map((providerId) => ({
+    providerId,
+    name: ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS[providerId],
+  }));
+
 const tmdbScrapeIdSet = new Set<string>(TMDB_SCRAPE_PROVIDER_ORDER);
+const animeScrapeIdSet = new Set<string>(ANIME_SCRAPE_PROVIDER_ORDER);
 
 /** Embed servers that do not also appear in the TMDB scrape chain. */
 export const embedOnlyProviderIds = (): string[] =>
@@ -141,6 +168,10 @@ export const dualCapabilityEmbedProviderIds = (): string[] =>
 
 export const isTmdbScrapeProvider = (id: string): id is TmdbScrapeProviderId =>
   tmdbScrapeIdSet.has(id);
+
+export const isAnimeScrapeProvider = (
+  id: string,
+): id is AnimeScrapeProviderId => animeScrapeIdSet.has(id);
 
 export const getProviderName = (id: string): string | undefined => {
   const entry =

@@ -15,8 +15,7 @@ const ALLANIME_HOST = "https://allanime.day";
 
 const SEARCH_GQL = `query( $search: SearchInput $limit: Int $page: Int $translationType: VaildTranslationTypeEnumType $countryOrigin: VaildCountryOriginEnumType ) { shows( search: $search limit: $limit page: $page translationType: $translationType countryOrigin: $countryOrigin ) { edges { _id name availableEpisodesDetail __typename } }}`;
 
-const EPISODE_QUERY_HASH =
-  "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec";
+const EPISODE_GQL = `query($showId: String! $translationType: VaildTranslationTypeEnumType! $episodeString: String!) { episode(showId: $showId translationType: $translationType episodeString: $episodeString) { episodeString sourceUrls } }`;
 
 type AllanimeSearchResponse = {
   data?: {
@@ -24,6 +23,39 @@ type AllanimeSearchResponse = {
       edges?: Array<{ _id?: string; name?: string }>;
     };
   };
+};
+
+const titleTokens = (title: string): Set<string> =>
+  new Set(
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .split(/\s+/)
+      .filter((token) => token.length > 1 && token !== "no"),
+  );
+
+export const selectAllmangaShow = (
+  shows: Array<{ _id?: string; name?: string }>,
+  query: string,
+) => {
+  const queryTokens = titleTokens(query);
+
+  return [...shows].sort((left, right) => {
+    const score = (name?: string) => {
+      if (!name) return -1;
+      const candidateTokens = titleTokens(name);
+      const overlap = [...queryTokens].filter((token) =>
+        candidateTokens.has(token),
+      ).length;
+      const extras = [...candidateTokens].filter(
+        (token) => !queryTokens.has(token),
+      ).length;
+      return overlap * 10 - extras;
+    };
+
+    return score(right.name) - score(left.name);
+  })[0];
 };
 
 const allanimePost = async <T>(
@@ -65,32 +97,36 @@ const fetchEpisodeSources = async (
     translationType: mode,
     episodeString,
   };
-  const extensions = {
-    persistedQuery: { version: 1, sha256Hash: EPISODE_QUERY_HASH },
-  };
-
-  const url = `${ALLANIME_API}?variables=${encodeURIComponent(JSON.stringify(variables))}&extensions=${encodeURIComponent(JSON.stringify(extensions))}`;
-
-  const response = await scrapeFetch(url, {
+  const response = await scrapeFetch(ALLANIME_API, {
+    method: "POST",
     headers: {
+      "Content-Type": "application/json",
       Referer: `${ALLMANGA_ORIGIN}/`,
       Origin: ALLMANGA_ORIGIN,
     },
+    body: JSON.stringify({ query: EPISODE_GQL, variables }),
   });
 
   if (!response.ok) {
     throw new Error(`AllManga episode query failed (${response.status})`);
   }
 
-  const json = (await response.json()) as {
-    data?: { tobeparsed?: string };
-  };
-
-  if (!json.data?.tobeparsed) {
-    return [];
+  const json = (await response.json()) as unknown;
+  const normalized =
+    json && typeof json === "object" && "data" in json
+      ? (json as {
+          data?: {
+            tobeparsed?: string;
+            episode?: { sourceUrls?: AllanimeSourceUrl[] };
+          };
+        })
+      : null;
+  if (normalized?.data?.episode?.sourceUrls) {
+    return normalized.data.episode.sourceUrls;
   }
+  if (!normalized?.data?.tobeparsed) return [];
 
-  const decrypted = decryptAllanimeTobeparsed(json.data.tobeparsed) as {
+  const decrypted = decryptAllanimeTobeparsed(normalized.data.tobeparsed) as {
     episode?: { sourceUrls?: AllanimeSourceUrl[] };
   };
 
@@ -163,14 +199,17 @@ export async function scrapeAllmanga(
       SEARCH_GQL,
       {
         search: { allowAdult: false, allowUnknown: false, query },
-        limit: 10,
+        limit: 40,
         page: 1,
         translationType: mode,
         countryOrigin: "ALL",
       },
     );
 
-    const showId = searchPayload.data?.shows?.edges?.[0]?._id;
+    const showId = selectAllmangaShow(
+      searchPayload.data?.shows?.edges ?? [],
+      query,
+    )?._id;
     if (!showId) {
       return { ok: false, providerId, error: "AllManga show not found" };
     }

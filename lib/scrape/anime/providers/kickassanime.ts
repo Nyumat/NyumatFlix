@@ -1,4 +1,4 @@
-import { parseCatPlayerProps } from "../html-utils";
+import { extractM3u8Urls, parseCatPlayerProps } from "../html-utils";
 import { resolveAnimeSearchQuery } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { scrapeFetch, scrapeFetchText } from "../../fetch";
@@ -7,6 +7,34 @@ const KAA_ORIGIN = "https://kaa.lt";
 
 type KaaSearchResult = {
   result?: Array<{ slug?: string; title?: string }>;
+};
+
+const normalizeTitle = (value: string) =>
+  value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+export const selectKaaSearchResult = (
+  results: KaaSearchResult["result"],
+  query: string,
+) => {
+  const normalizedQuery = normalizeTitle(query);
+  return (
+    results?.find(
+      (entry) =>
+        entry.slug &&
+        entry.title &&
+        normalizeTitle(entry.title) === normalizedQuery,
+    ) ??
+    results?.find(
+      (entry) =>
+        entry.slug &&
+        entry.title &&
+        normalizeTitle(entry.title).startsWith(`${normalizedQuery} `),
+    )
+  );
 };
 
 type KaaEpisodeList = {
@@ -67,13 +95,13 @@ export async function scrapeKickassanime(
     }
 
     const searchPayload = (await searchResponse.json()) as KaaSearchResult;
-    const slug = searchPayload.result?.[0]?.slug;
+    const slug = selectKaaSearchResult(searchPayload.result, query)?.slug;
     if (!slug) {
       return { ok: false, providerId, error: "KAA show slug not found" };
     }
 
     const episodesResponse = await scrapeFetch(
-      `${KAA_ORIGIN}/api/show/${slug}/episodes?page=1&lang=ja-JP`,
+      `${KAA_ORIGIN}/api/show/${slug}/episodes?page=1&lang=${input.translationType === "dub" ? "en-US" : "ja-JP"}`,
       { headers: { Referer: `${KAA_ORIGIN}/` } },
     );
 
@@ -129,8 +157,15 @@ export async function scrapeKickassanime(
     });
 
     const props = parseCatPlayerProps(playerPage.text);
-    const manifest =
-      typeof props?.manifest === "string" ? props.manifest : null;
+    let manifest = typeof props?.manifest === "string" ? props.manifest : null;
+
+    if (!manifest) {
+      const fallbackUrls = extractM3u8Urls(playerPage.text);
+      manifest =
+        fallbackUrls.find((url) => url.includes("master.m3u8")) ??
+        fallbackUrls[0] ??
+        null;
+    }
 
     if (!manifest) {
       return {

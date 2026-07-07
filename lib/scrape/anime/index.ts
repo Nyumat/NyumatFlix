@@ -4,6 +4,8 @@ import { scrapeAnimeonsen } from "./providers/animeonsen";
 import { scrapeAnimepahe } from "./providers/animepahe";
 import { scrapeAllmanga } from "./providers/allmanga";
 import { scrapeAnizone } from "./providers/anizone";
+import { scrapeAnipm } from "./providers/anipm";
+import { scrapeHentaigasm } from "./providers/hentaigasm";
 import { scrapeKickassanime } from "./providers/kickassanime";
 import {
   ANIME_SCRAPE_PROVIDER_ORDER,
@@ -11,6 +13,7 @@ import {
   type AnimeScrapeProviderId,
   type AnimeScrapeResult,
 } from "./types";
+import { fetchAnilistMediaMeta } from "./anilist-meta";
 import { validateStreamUrl } from "../validate-stream";
 
 const ANIME_SCRAPERS: Record<
@@ -18,6 +21,8 @@ const ANIME_SCRAPERS: Record<
   (input: AnimeScrapeInput) => Promise<AnimeScrapeResult>
 > = {
   anizone: scrapeAnizone,
+  anipm: scrapeAnipm,
+  hentaigasm: scrapeHentaigasm,
   kickassanime: scrapeKickassanime,
   animeonsen: scrapeAnimeonsen,
   allmanga: scrapeAllmanga,
@@ -37,17 +42,21 @@ export async function scrapeAnimeProvider(
     return result;
   }
 
+  const mediaMeta = await fetchAnilistMediaMeta(input.anilistId);
   const isValid = await validateStreamUrl(
     result.streamUrl,
     result.referer,
     result.streamKind,
+    mediaMeta?.durationMinutes,
   );
 
   if (!isValid) {
     return {
       ok: false,
       providerId,
-      error: "Stream URL failed validation",
+      error: mediaMeta?.durationMinutes
+        ? "Stream URL failed validation (duration mismatch)"
+        : "Stream URL failed validation",
     };
   }
 
@@ -70,6 +79,28 @@ export async function scrapeAllAnimeProviders(
     providerId: providerIds[providerIds.length - 1] ?? "anizone",
     error: "All anime providers exhausted",
   };
+}
+
+export async function scrapeAnimeProviderWithFallback(
+  providerId: AnimeScrapeProviderId,
+  input: AnimeScrapeInput,
+): Promise<AnimeScrapeResult> {
+  const requested = await scrapeAnimeProvider(providerId, input);
+  if (requested.ok) {
+    return requested;
+  }
+
+  const fallback = await scrapeAllAnimeProviders(
+    input,
+    ANIME_SCRAPE_PROVIDER_ORDER.filter((candidate) => candidate !== providerId),
+  );
+
+  return fallback.ok
+    ? {
+        ...fallback,
+        fallbackFrom: { providerId, error: requested.error },
+      }
+    : fallback;
 }
 
 export {

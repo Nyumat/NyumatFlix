@@ -116,15 +116,18 @@ export async function handleScrapePost(request: Request) {
     );
   }
 
+  const origin = new URL(request.url).origin;
+
   if (parsed.mediaKind === "anime") {
-    return handleAnimeScrapePost(parsed);
+    return handleAnimeScrapePost(parsed, origin);
   }
 
-  return handleTmdbScrapePost(parsed);
+  return handleTmdbScrapePost(parsed, origin);
 }
 
 async function handleTmdbScrapePost(
   input: z.infer<typeof tmdbScrapeBodySchema> & { mediaKind?: "tmdb" },
+  origin: string,
 ) {
   const result = await scrapeProvider(input.providerId, {
     mediaType: input.mediaType,
@@ -169,13 +172,15 @@ async function handleTmdbScrapePost(
     );
   }
 
+  const playUrl = `${origin}${buildScrapePlayUrl(playbackToken)}`;
+
   return NextResponse.json({
     ok: true,
     mediaKind: "tmdb",
     providerId: result.providerId,
     providerName:
       TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
-    playUrl: buildScrapePlayUrl(playbackToken),
+    playUrl,
     referer: result.referer,
     subtitles: result.subtitles,
     qualities: result.qualities,
@@ -184,6 +189,7 @@ async function handleTmdbScrapePost(
 
 async function handleAnimeScrapePost(
   input: z.infer<typeof animeScrapeBodySchema>,
+  origin: string,
 ) {
   const scrapeInput = {
     anilistId: input.anilistId,
@@ -208,19 +214,22 @@ async function handleAnimeScrapePost(
     });
   }
 
+  const playUrl = `${origin}${buildScrapePlayUrl({
+    url: result.streamUrl,
+    referer: result.referer,
+  })}`;
+
   return NextResponse.json({
     ok: true,
     mediaKind: "anime",
     providerId: result.providerId,
     providerName: ANIME_SCRAPE_PROVIDER_LABELS[result.providerId],
     streamKind: result.streamKind,
-    playUrl: buildScrapePlayUrl({
-      url: result.streamUrl,
-      referer: result.referer,
-    }),
+    playUrl,
     referer: result.referer,
     subtitles: result.subtitles,
     qualities: result.qualities,
+    fallbackFrom: result.fallbackFrom,
   });
 }
 

@@ -2,6 +2,7 @@ import {
   extractFirstMatch,
   extractJsonPreBody,
   extractM3u8Urls,
+  unpackDeanEdwardsScripts,
 } from "../html-utils";
 import { resolveAnimeSearchQuery } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
@@ -10,6 +11,7 @@ import {
   flareSolverrDestroySession,
   flareSolverrGet,
 } from "../../flaresolverr";
+import { scrapeFetchText } from "../../fetch";
 
 const ANIMEPAHE_ORIGIN = "https://animepahe.pw";
 
@@ -52,23 +54,43 @@ const flareGetJson = async <T>(
   }
 };
 
-const extractKwikUrl = (html: string): string | null =>
-  extractFirstMatch(html, /data-src="(https:\/\/kwik\.[^"]+)"/) ??
-  extractFirstMatch(html, /href="(https:\/\/kwik\.[^"]+)"/);
+const extractKwikUrl = (
+  html: string,
+  translationType: AnimeScrapeInput["translationType"],
+): string | null => {
+  const desiredAudio = translationType === "dub" ? "eng" : "jpn";
+  const candidates = [
+    ...html.matchAll(
+      /<button\b([^>]+data-src="https:\/\/kwik\.[^"]+"[^>]*)>/gi,
+    ),
+  ]
+    .map((match) => ({
+      attrs: match[1] ?? "",
+      url: (match[1] ?? "").match(/data-src="(https:\/\/kwik\.[^"]+)"/i)?.[1],
+      audio: (match[1] ?? "").match(/data-audio="([^"]+)"/i)?.[1],
+      resolution: Number(
+        (match[1] ?? "").match(/data-resolution="(\d+)"/i)?.[1] ?? 0,
+      ),
+    }))
+    .filter((candidate): candidate is typeof candidate & { url: string } =>
+      Boolean(candidate.url),
+    );
 
-const unpackKwikPackedJs = (html: string): string | null => {
-  const packed = extractFirstMatch(
-    html,
-    /eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\('([^']*)'/,
+  const matchingAudio = candidates
+    .filter((candidate) => candidate.audio === desiredAudio)
+    .sort((left, right) => right.resolution - left.resolution);
+
+  return (
+    matchingAudio[0]?.url ??
+    extractFirstMatch(html, /data-src="(https:\/\/kwik\.[^"]+)"/) ??
+    extractFirstMatch(html, /href="(https:\/\/kwik\.[^"]+)"/)
   );
-
-  if (!packed) {
-    return null;
-  }
-
-  const m3u8 = packed.match(/https?:\\\/\\\/[^'\\]+\.m3u8/);
-  return m3u8?.[0]?.replace(/\\\//g, "/") ?? null;
 };
+
+const unpackKwikPackedJs = (html: string): string | null =>
+  unpackDeanEdwardsScripts(html)
+    .flatMap(extractM3u8Urls)
+    .find((url) => url.includes(".m3u8")) ?? null;
 
 export async function scrapeAnimepahe(
   input: AnimeScrapeInput,
@@ -128,7 +150,7 @@ export async function scrapeAnimepahe(
       };
     }
 
-    const kwikUrl = extractKwikUrl(playPage.body);
+    const kwikUrl = extractKwikUrl(playPage.body, input.translationType);
     const playPageM3u8 = extractM3u8Urls(playPage.body)[0];
 
     if (playPageM3u8) {
@@ -149,23 +171,24 @@ export async function scrapeAnimepahe(
       };
     }
 
-    const kwikPage = await flareSolverrGet(kwikUrl, 90_000, session);
-    if (!kwikPage || kwikPage.status !== 200 || kwikPage.body.length < 100) {
+    const kwikPage = await scrapeFetchText(kwikUrl, {
+      Referer: `${ANIMEPAHE_ORIGIN}/`,
+    });
+    if (kwikPage.status !== 200 || kwikPage.text.length < 100) {
       return {
         ok: false,
         providerId,
-        error:
-          "Kwik embed blocked (FlareSolverr IP ban) — metadata API works, stream needs Kwik unpacker",
+        error: `Kwik embed request failed (${kwikPage.status}) for ${new URL(kwikUrl).hostname}`,
       };
     }
 
     const directM3u8 =
-      extractM3u8Urls(kwikPage.body).find((url) => url.includes(".m3u8")) ??
-      unpackKwikPackedJs(kwikPage.body);
+      extractM3u8Urls(kwikPage.text).find((url) => url.includes(".m3u8")) ??
+      unpackKwikPackedJs(kwikPage.text);
 
     if (!directM3u8) {
       const pipeToken = extractFirstMatch(
-        kwikPage.body,
+        kwikPage.text,
         /(\w+\|\w+\|[a-f0-9]+\|\d+\|stream\|top\|[^|<]+\|vault\|https)/i,
       );
 
@@ -183,7 +206,7 @@ export async function scrapeAnimepahe(
       providerId,
       streamUrl: directM3u8,
       streamKind: "hls",
-      referer: ANIMEPAHE_ORIGIN,
+      referer: `${new URL(kwikUrl).origin}/`,
     };
   } catch (error) {
     return {

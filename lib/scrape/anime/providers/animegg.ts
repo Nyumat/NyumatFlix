@@ -1,5 +1,8 @@
 import { extractFirstMatch } from "../html-utils";
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import {
+  fetchAnilistTitleCandidates,
+  resolveAnimeSearchQuery,
+} from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { scrapeFetch, scrapeFetchText } from "../../fetch";
 
@@ -11,6 +14,25 @@ const slugifySeries = (title: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const extractAnimeggSources = (html: string) =>
+  [...html.matchAll(/\{file:\s*"([^"]+)",\s*label:\s*"([^"]+)"/g)]
+    .map((match) => ({ path: match[1] ?? "", label: match[2] ?? "" }))
+    .filter((source) => source.path.startsWith("/play/") && source.label);
+
+const findSeriesSlugFromSearch = async (
+  titles: readonly string[],
+): Promise<string | null> => {
+  for (const title of titles) {
+    const searchPage = await scrapeFetchText(
+      `${ANIMEGG_ORIGIN}/search/?q=${encodeURIComponent(title)}`,
+      { Referer: `${ANIMEGG_ORIGIN}/` },
+    );
+    const slug = extractFirstMatch(searchPage.text, /href="\/series\/([^"]+)"/);
+    if (slug) return slug;
+  }
+  return null;
+};
+
 export async function scrapeAnimegg(
   input: AnimeScrapeInput,
 ): Promise<AnimeScrapeResult> {
@@ -18,8 +40,13 @@ export async function scrapeAnimegg(
 
   try {
     const query = await resolveAnimeSearchQuery(input);
-    const seriesSlug = slugifySeries(query);
-    const episodeSlug = `${seriesSlug}-episode-${input.episodeNumber}`;
+    const titles = [
+      query,
+      ...(await fetchAnilistTitleCandidates(input.anilistId)),
+    ];
+    const seriesSlugs = [...new Set(titles.map(slugifySeries))];
+    let seriesSlug = seriesSlugs[0] ?? "";
+    let episodeSlug = `${seriesSlug}-episode-${input.episodeNumber}`;
 
     let episodePage = await scrapeFetchText(
       `${ANIMEGG_ORIGIN}/${episodeSlug}`,
@@ -27,15 +54,27 @@ export async function scrapeAnimegg(
     );
 
     if (episodePage.status !== 200) {
-      episodePage = await scrapeFetchText(
-        `${ANIMEGG_ORIGIN}/series/${seriesSlug}`,
-        { Referer: `${ANIMEGG_ORIGIN}/` },
-      );
-
-      const fallbackEpisode = extractFirstMatch(
-        episodePage.text,
-        new RegExp(`href="/${seriesSlug}-episode-${input.episodeNumber}"`),
-      );
+      let fallbackEpisode: string | null = null;
+      const searchedSlug = await findSeriesSlugFromSearch(titles);
+      for (const candidateSlug of [searchedSlug, ...seriesSlugs].filter(
+        (slug): slug is string => Boolean(slug),
+      )) {
+        const seriesPage = await scrapeFetchText(
+          `${ANIMEGG_ORIGIN}/series/${candidateSlug}`,
+          { Referer: `${ANIMEGG_ORIGIN}/` },
+        );
+        fallbackEpisode = extractFirstMatch(
+          seriesPage.text,
+          new RegExp(
+            `href="(/[^"]*episode-${input.episodeNumber}(?:-[^"]+)?)"`,
+          ),
+        );
+        if (fallbackEpisode) {
+          seriesSlug = candidateSlug;
+          episodeSlug = fallbackEpisode.slice(1);
+          break;
+        }
+      }
 
       if (!fallbackEpisode) {
         return {
@@ -50,7 +89,15 @@ export async function scrapeAnimegg(
       });
     }
 
-    const embedId = extractFirstMatch(episodePage.text, /\/embed\/(\d+)/);
+    const version = input.translationType === "dub" ? "dubbed" : "subbed";
+    const embedId =
+      extractFirstMatch(
+        episodePage.text,
+        new RegExp(
+          `data-id=['"](\\d+)['"][^>]*data-mirror=['"]Animegg['"][^>]*data-version=['"]${version}['"]`,
+          "i",
+        ),
+      ) ?? extractFirstMatch(episodePage.text, /\/embed\/(\d+)/);
     if (!embedId) {
       return { ok: false, providerId, error: "AnimeGG embed id missing" };
     }
@@ -60,10 +107,13 @@ export async function scrapeAnimegg(
       { Referer: `${ANIMEGG_ORIGIN}/` },
     );
 
-    const playPath = extractFirstMatch(
-      embedPage.text,
-      /(\/play\/\d+\/video\.mp4[^"']*)/,
+    const sources = extractAnimeggSources(embedPage.text).sort(
+      (left, right) =>
+        Number.parseInt(right.label) - Number.parseInt(left.label),
     );
+    const playPath =
+      sources[0]?.path ??
+      extractFirstMatch(embedPage.text, /(\/play\/\d+\/video\.mp4[^"']*)/);
 
     if (!playPath) {
       return {
@@ -84,12 +134,30 @@ export async function scrapeAnimegg(
       ? redirectUrl
       : `${ANIMEGG_ORIGIN}${playPath}`;
 
+    const qualities = await Promise.all(
+      sources.slice(1).map(async (source) => {
+        const response = await scrapeFetch(`${ANIMEGG_ORIGIN}${source.path}`, {
+          method: "GET",
+          redirect: "manual",
+          headers: { Referer: `${ANIMEGG_ORIGIN}/` },
+        });
+        const location = response.headers.get("location");
+        return {
+          label: source.label,
+          url: location?.startsWith("http")
+            ? location
+            : `${ANIMEGG_ORIGIN}${source.path}`,
+        };
+      }),
+    );
+
     return {
       ok: true,
       providerId,
       streamUrl,
       streamKind: "mp4",
       referer: ANIMEGG_ORIGIN,
+      qualities: qualities.length > 0 ? qualities : undefined,
     };
   } catch (error) {
     return {
