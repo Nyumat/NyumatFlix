@@ -25,6 +25,25 @@ type PlayerAudioTrack = TrackLanguageFields & {
   selected?: boolean;
 };
 
+const NON_PRIMARY_AUDIO_PATTERN =
+  /commentary|description|descriptive|audio description|director|cast|isolated score/i;
+
+export const pickPrimaryAudioTrack = (
+  tracks: PlayerAudioTrack[],
+): PlayerAudioTrack | undefined => {
+  const primaryTracks = tracks.filter((track) => {
+    const description = [track.label, track.language, track.lang]
+      .filter(Boolean)
+      .join(" ");
+    return !NON_PRIMARY_AUDIO_PATTERN.test(description);
+  });
+
+  return (
+    primaryTracks.find((track) => trackMatchesLanguage(track, "english")) ??
+    primaryTracks[0]
+  );
+};
+
 const normalizeAudioTrackLabel = (track: PlayerAudioTrack) => {
   const lang = (track.lang ?? track.language ?? "").trim().toLowerCase();
   const label = (track.label ?? "").trim();
@@ -183,14 +202,42 @@ export function usePlaybackTrackPreferences(
 
       const applySaved = () => {
         const preferences = getTrackPreferences(scopeKey);
-        if (!preferences) {
-          return;
-        }
 
         applyingRef.current = true;
         try {
-          applySubtitlePreference(player, preferences.subtitleLang);
-          applyAudioPreference(player, preferences.audioLang);
+          if (preferences) {
+            applySubtitlePreference(player, preferences.subtitleLang);
+          }
+
+          const tracks = toTrackArray<PlayerAudioTrack>(
+            (
+              player as MediaPlayerInstance & {
+                audioTracks?: Iterable<PlayerAudioTrack>;
+              }
+            ).audioTracks ?? [],
+          );
+          const savedTrack = preferences?.audioLang
+            ? tracks.find((track) =>
+                trackMatchesLanguage(track, preferences.audioLang!),
+              )
+            : undefined;
+          const savedTrackDescription = savedTrack
+            ? [savedTrack.label, savedTrack.language, savedTrack.lang]
+                .filter(Boolean)
+                .join(" ")
+            : "";
+
+          if (
+            savedTrack &&
+            !NON_PRIMARY_AUDIO_PATTERN.test(savedTrackDescription)
+          ) {
+            applyAudioPreference(player, preferences?.audioLang);
+          } else {
+            const primaryTrack = pickPrimaryAudioTrack(tracks);
+            if (primaryTrack) {
+              primaryTrack.selected = true;
+            }
+          }
         } finally {
           applyingRef.current = false;
         }
