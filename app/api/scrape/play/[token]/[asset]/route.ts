@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import {
+  convertAssToVtt,
   contentTypeForProxiedAsset,
   decodeScrapePlaybackToken,
   isDashManifestResponse,
@@ -10,7 +11,7 @@ import {
   rewriteDashManifest,
   rewriteManifestPlaylist,
 } from "@/lib/scrape/playback";
-import { scrapeFetch } from "@/lib/scrape/fetch";
+import { cancelResponseBody, scrapeFetch } from "@/lib/scrape/fetch";
 import {
   invalidateVidKingSession,
   isRetryableVidKingUpstreamStatus,
@@ -30,11 +31,13 @@ const fetchUpstream = async (
   upstreamUrl: string,
   referer: string | undefined,
   rangeHeader: string | null,
+  signal: AbortSignal,
   cookies?: string,
 ) =>
   scrapeFetch(upstreamUrl, {
     method: "GET",
     curlFallback: false,
+    signal,
     headers: {
       ...(referer ? { Referer: referer } : {}),
       ...(rangeHeader ? { Range: rangeHeader } : {}),
@@ -66,17 +69,20 @@ export async function GET(request: Request, context: RouteContext) {
       upstreamUrl,
       playback.referer,
       rangeHeader,
+      request.signal,
       playback.cookies,
     );
 
     if (upstream.status === 403) {
       const fallbackUrl = resolveKaaSegmentFallbackUrl(upstreamUrl);
       if (fallbackUrl) {
+        await cancelResponseBody(upstream);
         upstreamUrl = fallbackUrl;
         upstream = await fetchUpstream(
           upstreamUrl,
           playback.referer,
           rangeHeader,
+          request.signal,
           playback.cookies,
         );
       }
@@ -87,6 +93,7 @@ export async function GET(request: Request, context: RouteContext) {
       playback.refresh?.providerId === "vidking" &&
       isRetryableVidKingUpstreamStatus(upstream.status)
     ) {
+      await cancelResponseBody(upstream);
       invalidateVidKingSession(playback.refresh);
       upstreamUrl = await resolveScrapePlaybackUpstreamUrl(
         playbackUrl,
@@ -97,6 +104,7 @@ export async function GET(request: Request, context: RouteContext) {
         upstreamUrl,
         playback.referer,
         rangeHeader,
+        request.signal,
         playback.cookies,
       );
     }
@@ -115,7 +123,6 @@ export async function GET(request: Request, context: RouteContext) {
         upstreamUrl,
         playback.referer,
         playback.refresh,
-        request.url,
       );
 
       return new NextResponse(rewritten, {
@@ -134,7 +141,6 @@ export async function GET(request: Request, context: RouteContext) {
         upstreamUrl,
         playback.referer,
         playback.refresh,
-        request.url,
       );
 
       return new NextResponse(rewritten, {
@@ -170,11 +176,26 @@ export async function GET(request: Request, context: RouteContext) {
 
     headers.set("Cache-Control", "no-store");
 
-    return new NextResponse(upstream.body, {
+    const body =
+      playback.subtitleFormat === "ass" ||
+      /\.ass(?:[?#].*)?$/i.test(upstreamUrl)
+        ? convertAssToVtt(await upstream.text())
+        : upstream.body;
+
+    if (typeof body === "string") {
+      headers.delete("content-length");
+      headers.delete("content-range");
+      headers.delete("accept-ranges");
+    }
+
+    return new NextResponse(body, {
       status: upstream.status,
       headers,
     });
   } catch (error) {
+    if (request.signal.aborted) {
+      return new NextResponse(null, { status: 499 });
+    }
     console.error("Scrape playback proxy failed:", error);
     return NextResponse.json(
       { error: "Failed to proxy scraped stream" },

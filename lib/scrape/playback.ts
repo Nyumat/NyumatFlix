@@ -1,4 +1,5 @@
 import type { VidKingPlaybackRefresh } from "./vidking-constants";
+import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
 
 const MAX_ENCODED_URL_LENGTH = 8192;
 
@@ -7,9 +8,9 @@ export type ScrapePlaybackToken = {
   referer?: string;
   refresh?: VidKingPlaybackRefresh;
   cookies?: string;
+  subtitleFormat?: "ass";
 };
 
-// Browser Buffer polyfills support "base64" but not Node's "base64url".
 const encodeBase64Url = (value: string) =>
   Buffer.from(value, "utf8")
     .toString("base64")
@@ -58,7 +59,14 @@ const DISGUISED_HLS_SEGMENT =
 
 const MPEG_TS_CONTENT_TYPE = "video/mp2t";
 
-const suffixForUrl = (url: string) => {
+const suffixForUrl = (
+  url: string,
+  subtitleFormat?: ScrapePlaybackToken["subtitleFormat"],
+) => {
+  if (subtitleFormat === "ass") {
+    return "captions.vtt";
+  }
+
   if (/\.m3u8(?:[?#].*)?$/i.test(url)) {
     return "asset.m3u8";
   }
@@ -91,6 +99,10 @@ const suffixForUrl = (url: string) => {
     return "captions.srt";
   }
 
+  if (/\.ass(?:[?#].*)?$/i.test(url)) {
+    return "captions.vtt";
+  }
+
   if (/cf-master[^/?#]+\.txt(?:[?#].*)?$/i.test(url)) {
     return "asset.txt";
   }
@@ -117,11 +129,42 @@ export const contentTypeForProxiedAsset = (
     return "application/x-subrip";
   }
 
+  if (/\.ass(?:[?#].*)?$/i.test(upstreamUrl)) {
+    return "text/vtt";
+  }
+
   if (/\.mp4(?:[?#].*)?$/i.test(upstreamUrl)) {
     return "video/mp4";
   }
 
   return upstreamContentType ?? undefined;
+};
+
+const assTimestampToVtt = (timestamp: string): string | null => {
+  const match = timestamp.trim().match(/^(\d+):(\d{2}):(\d{2})[.](\d{2})$/);
+  if (!match) return null;
+  const [, hours, minutes, seconds, centiseconds] = match;
+  return `${hours?.padStart(2, "0")}:${minutes}:${seconds}.${centiseconds}0`;
+};
+
+export const convertAssToVtt = (ass: string): string => {
+  const cues = ass.split(/\r?\n/).flatMap((line) => {
+    if (!line.startsWith("Dialogue:")) return [];
+    const fields = line.slice("Dialogue:".length).split(",");
+    if (fields.length < 10) return [];
+    const start = assTimestampToVtt(fields[1] ?? "");
+    const end = assTimestampToVtt(fields[2] ?? "");
+    if (!start || !end) return [];
+    const text = fields
+      .slice(9)
+      .join(",")
+      .replace(/\{[^}]*\}/g, "")
+      .replace(/\\[Nn]/g, "\n")
+      .replace(/\\h/g, " ")
+      .trim();
+    return text ? [`${start} --> ${end}\n${text}`] : [];
+  });
+  return `WEBVTT\n\n${cues.join("\n\n")}\n`;
 };
 
 const KAA_SEGMENT_MIRROR_HOSTS = new Set([
@@ -146,7 +189,6 @@ export const resolveKaaSegmentFallbackUrl = (upstreamUrl: string) => {
     }
 
     if (KAA_SEGMENT_MIRROR_HOSTS.has(url.hostname)) {
-      // Already a KAA host. If it's not the current primary, try the primary.
       const firstPrimary = KAA_PRIMARY_SEGMENT_HOSTS[0];
       if (firstPrimary && url.hostname !== firstPrimary) {
         url.hostname = firstPrimary;
@@ -161,7 +203,10 @@ export const resolveKaaSegmentFallbackUrl = (upstreamUrl: string) => {
 };
 
 export const buildScrapePlayUrl = (payload: ScrapePlaybackToken) =>
-  `/api/scrape/play/${encodeScrapePlaybackToken(payload)}/${suffixForUrl(payload.url)}`;
+  `/api/scrape/play/${encodeScrapePlaybackToken(payload)}/${suffixForUrl(
+    payload.url,
+    payload.subtitleFormat,
+  )}`;
 
 const absolutizePlayUrl = (playUrl: string, baseUrl: string | undefined) => {
   if (!baseUrl) {
@@ -234,7 +279,11 @@ const rewritePlaylistUriAttributes = (
       }
 
       try {
-        const resolved = new URL(raw, manifestUrl).toString();
+        const rawResolved = new URL(raw, manifestUrl).toString();
+        const resolved =
+          refresh?.providerId === "vidking"
+            ? normalizeVidKingAssetHost(rawResolved, manifestUrl)
+            : rawResolved;
         const proxied = absolutizePlayUrl(
           buildScrapePlayUrl({
             url: resolved,
@@ -271,7 +320,11 @@ export const rewriteManifestPlaylist = (
         );
       }
 
-      const resolved = resolvePlaylistLine(line, manifestUrl);
+      const rawResolved = resolvePlaylistLine(line, manifestUrl);
+      const resolved =
+        rawResolved && refresh?.providerId === "vidking"
+          ? normalizeVidKingAssetHost(rawResolved, manifestUrl)
+          : rawResolved;
       if (!resolved) {
         return line;
       }

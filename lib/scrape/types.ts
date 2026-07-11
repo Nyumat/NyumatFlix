@@ -25,6 +25,7 @@ export const scrapeMediaKeyFor = (input: ScrapeMediaInput): string =>
 export type ScrapeSubtitle = {
   lang: string;
   url: string;
+  format?: "ass" | "srt" | "vtt";
 };
 
 export type ScrapeQuality = {

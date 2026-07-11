@@ -116,18 +116,15 @@ export async function handleScrapePost(request: Request) {
     );
   }
 
-  const origin = new URL(request.url).origin;
-
   if (parsed.mediaKind === "anime") {
-    return handleAnimeScrapePost(parsed, origin);
+    return handleAnimeScrapePost(parsed);
   }
 
-  return handleTmdbScrapePost(parsed, origin);
+  return handleTmdbScrapePost(parsed);
 }
 
 async function handleTmdbScrapePost(
   input: z.infer<typeof tmdbScrapeBodySchema> & { mediaKind?: "tmdb" },
-  origin: string,
 ) {
   const result = await scrapeProvider(input.providerId, {
     mediaType: input.mediaType,
@@ -172,7 +169,7 @@ async function handleTmdbScrapePost(
     );
   }
 
-  const playUrl = `${origin}${buildScrapePlayUrl(playbackToken)}`;
+  const playUrl = buildScrapePlayUrl(playbackToken);
 
   return NextResponse.json({
     ok: true,
@@ -189,7 +186,6 @@ async function handleTmdbScrapePost(
 
 async function handleAnimeScrapePost(
   input: z.infer<typeof animeScrapeBodySchema>,
-  origin: string,
 ) {
   const scrapeInput = {
     anilistId: input.anilistId,
@@ -214,10 +210,10 @@ async function handleAnimeScrapePost(
     });
   }
 
-  const playUrl = `${origin}${buildScrapePlayUrl({
+  const playUrl = buildScrapePlayUrl({
     url: result.streamUrl,
     referer: result.referer,
-  })}`;
+  });
 
   return NextResponse.json({
     ok: true,

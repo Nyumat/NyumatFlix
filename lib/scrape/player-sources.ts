@@ -55,16 +55,25 @@ export const buildScrapeSubtitleTracks = (
     try {
       trackReferer = new URL(track.url).origin;
     } catch {
-      // keep shared referer
+      void 0;
     }
 
     return [
       {
         id: `${track.lang}-${index}`,
-        src: buildScrapePlayUrl({ url: track.url, referer: trackReferer }),
+        src: buildScrapePlayUrl({
+          url: track.url,
+          referer: trackReferer,
+          subtitleFormat: track.format === "ass" ? "ass" : undefined,
+        }),
         lang: track.lang,
         label: formatScrapeSubtitleLabel(track.lang, track.url),
-        type: detectScrapeSubtitleType(track.url),
+        type:
+          track.format === "srt"
+            ? "srt"
+            : track.format === "vtt" || track.format === "ass"
+              ? "vtt"
+              : detectScrapeSubtitleType(track.url),
         default: false,
       },
     ];
@@ -133,7 +142,6 @@ export const buildScrapePlayerSrc = (
   referer?: string,
 ): PlayerSrc => {
   if (!qualities?.length) {
-    // Adaptive HLS masters expose renditions from the loaded manifest.
     return playUrl;
   }
 

@@ -6,7 +6,7 @@ import {
   detectScrapeSubtitleType,
   parseQualityLabel,
 } from "@/lib/scrape/player-sources";
-import { buildScrapePlayUrl } from "@/lib/scrape/playback";
+import { buildScrapePlayUrl, convertAssToVtt } from "@/lib/scrape/playback";
 
 describe("scrape subtitles", () => {
   it("detects vtt and srt from URLs", () => {
@@ -48,6 +48,38 @@ describe("scrape subtitles", () => {
     );
 
     expect(tracks).toHaveLength(1);
+  });
+
+  it("converts AniZone ASS captions to WebVTT", () => {
+    const vtt = convertAssToVtt(
+      "[Events]\nDialogue: 0,0:00:01.20,0:00:03.45,Default,,0,0,0,,{\\an8}Hello\\Nworld",
+    );
+
+    expect(vtt).toBe("WEBVTT\n\n00:00:01.200 --> 00:00:03.450\nHello\nworld\n");
+  });
+
+  it("serves ASS subtitle URLs through the VTT caption endpoint", () => {
+    expect(
+      buildScrapePlayUrl({
+        url: "https://cdn.example/subtitles.ass?token=x",
+      }),
+    ).toMatch(/\/captions\.vtt$/);
+  });
+
+  it("converts extensionless AnimeOnsen ASS tracks through the VTT endpoint", () => {
+    const [track] = buildScrapeSubtitleTracks(
+      [
+        {
+          lang: "en-US",
+          url: "https://api.animeonsen.xyz/v4/subtitles/title/en-US/1",
+          format: "ass",
+        },
+      ],
+      "https://www.animeonsen.xyz",
+    );
+
+    expect(track?.type).toBe("vtt");
+    expect(track?.src).toMatch(/\/captions\.vtt$/);
   });
 });
 

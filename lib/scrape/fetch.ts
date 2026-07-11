@@ -77,7 +77,7 @@ export async function cancelResponseBody(response: Response): Promise<void> {
   try {
     await response.body?.cancel();
   } catch {
-    // The body may already be closing because its request was aborted.
+    void 0;
   }
 }
 
