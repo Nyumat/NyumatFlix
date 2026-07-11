@@ -1,4 +1,5 @@
 const DEFAULT_FLARESOLVERR_URL = "http://localhost:8191/v1";
+const FLARESOLVERR_REQUEST_TIMEOUT_MS = 95_000;
 
 type FlareSolverrResponse = {
   status?: string;
@@ -24,9 +25,11 @@ const flareSolverrRequest = async (
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
+      signal: AbortSignal.timeout(FLARESOLVERR_REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
       return null;
     }
 

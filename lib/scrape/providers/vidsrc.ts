@@ -136,7 +136,7 @@ const scrapeVidSrcEdn = async (
   try {
     playerOrigin = new URL(playerReferer).origin;
   } catch {
-    // keep default
+    void 0;
   }
 
   let prorcpHash = extractProrcpHash(iframeSrc);

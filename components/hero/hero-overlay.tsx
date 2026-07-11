@@ -7,7 +7,6 @@ export const HERO_MEDIA_TRANSITION: Transition = {
   ease: "easeInOut",
 };
 
-/** Single-layer cinematic vignette + bottom handoff into page background. */
 const HERO_STATIC_OVERLAY = [
   "linear-gradient(to bottom, transparent 0%, transparent 58%, rgb(0 0 0 / 0.55) 82%, rgb(0 0 0) 100%)",
   "linear-gradient(to top, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.38) 26%, transparent 56%)",
@@ -15,7 +14,6 @@ const HERO_STATIC_OVERLAY = [
   "linear-gradient(to left, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.15) 36%, transparent 70%)",
 ].join(", ");
 
-/** Soft bottom feather on ambient video — fades into the page without a second overlay. */
 export const HERO_AMBIENT_VIDEO_MASK =
   "linear-gradient(to top, transparent 0%, black 34%)";
 

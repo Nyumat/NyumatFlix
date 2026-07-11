@@ -9,7 +9,7 @@ import { scrapeUpstreamHeaders } from "./upstream-headers";
 
 const FETCH_TIMEOUT_MS = 30_000;
 const CURL_FALLBACK_HOSTS =
-  /(?:^kwik\.[a-z]+$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|shadowlemon\.site|opstream11\.com|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com)$)/i;
+  /(?:^kwik\.[a-z]+$|^api\.wingsdatabase\.com$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|shadowlemon\.site|opstream11\.com|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com)$)/i;
 
 type ScrapeFetchInit = RequestInit & {
   headers?: Record<string, string>;
@@ -71,6 +71,16 @@ const scrapeCurlFallback = async (
 
 export { DEFAULT_USER_AGENT, scrapeUpstreamHeaders } from "./upstream-headers";
 
+export async function cancelResponseBody(response: Response): Promise<void> {
+  if (response.bodyUsed) return;
+
+  try {
+    await response.body?.cancel();
+  } catch {
+    // The body may already be closing because its request was aborted.
+  }
+}
+
 export async function scrapeFetch(
   url: string,
   init: ScrapeFetchInit = {},
@@ -109,17 +119,21 @@ export async function scrapeFetch(
     dispatcher,
   })) as unknown as Response;
 
-  if (response.status !== 403 || !curlFallback) {
+  if (![403, 429, 503].includes(response.status) || !curlFallback) {
     return response;
   }
 
-  return (
-    (await scrapeCurlFallback(
-      url,
-      requestInit.headers as Record<string, string>,
-      proxyUrl,
-    )) ?? response
+  const fallback = await scrapeCurlFallback(
+    url,
+    requestInit.headers as Record<string, string>,
+    proxyUrl,
   );
+  if (!fallback) {
+    return response;
+  }
+
+  await cancelResponseBody(response);
+  return fallback;
 }
 
 export async function scrapeFetchText(

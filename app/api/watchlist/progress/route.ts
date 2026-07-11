@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = updateProgressSchema.parse(body);
 
-    // Only TV shows should have season/episode
     if (validatedData.mediaType === "tv") {
       if (
         validatedData.seasonNumber === undefined ||
@@ -35,7 +34,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Find existing watchlist item
     const existing = await db
       .select()
       .from(watchlist)
@@ -49,7 +47,6 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existing.length > 0) {
-      // Update existing item
       const updateData: {
         lastWatchedSeason?: number | null;
         lastWatchedEpisode?: number | null;
@@ -73,7 +70,6 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ item: updatedItem }, { status: 200 });
     } else {
-      // Create new watchlist item if it doesn't exist
       const [newItem] = await db
         .insert(watchlist)
         .values({

@@ -62,7 +62,7 @@ const writeMap = (map: PlaybackProgressMap): void => {
       JSON.stringify(map),
     );
   } catch {
-    // Ignore quota errors.
+    void 0;
   }
 };
 
@@ -89,7 +89,6 @@ export const setPlaybackProgress = (
   writeMap(map);
 };
 
-/** Return saved position, clamped to a valid in-range seek target. */
 export const resolveResumeTime = (
   entry: PlaybackProgressEntry | null,
 ): number => {

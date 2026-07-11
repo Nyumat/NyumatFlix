@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = addWatchlistItemSchema.parse(body);
 
-    // Check if item already exists
     const existing = await db
       .select()
       .from(watchlist)
@@ -65,7 +64,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert new watchlist item
     const [newItem] = await db
       .insert(watchlist)
       .values({

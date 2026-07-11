@@ -67,7 +67,7 @@ export function ScrapeShakaDashPlayer({
     try {
       await player.destroy();
     } catch {
-      // ignore teardown failures
+      void 0;
     }
   }, []);
 

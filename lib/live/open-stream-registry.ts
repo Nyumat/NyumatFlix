@@ -89,7 +89,7 @@ export const registerOpenStreamUrl = (
   try {
     allowedHosts.add(new URL(normalized).hostname);
   } catch {
-    // Ignore invalid URLs.
+    void 0;
   }
 };
 

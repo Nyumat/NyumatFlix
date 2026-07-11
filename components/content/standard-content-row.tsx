@@ -17,13 +17,10 @@ import { hasPosterPath } from "@/lib/media-poster-path";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 
-// Interface to ensure item has an id property
 interface ItemWithId {
   id: number;
 }
 
-// Note: ContentRowVariant might be defined elsewhere or become unnecessary if pages import specific rows.
-// For now, we keep ContentRowProps similar, minus the variant prop for this specific component.
 export interface StandardContentRowProps {
   title: string;
   items: MediaItem[];
@@ -59,7 +56,6 @@ export function StandardContentRow({
     }
   }, [initialItems, items]);
 
-  // Handle scroll end detection for infinite loading
   useEffect(() => {
     if (!api || !hasMoreItems) return;
 
@@ -67,7 +63,6 @@ export function StandardContentRow({
       const scrollProgress = api.scrollProgress();
       lastScrollProgressRef.current = scrollProgress;
 
-      // When close to the end, load more items
       if (scrollProgress > 0.85 && !loading && hasMoreItems) {
         loadMoreItems();
       }
@@ -81,7 +76,6 @@ export function StandardContentRow({
   }, [api, hasMoreItems, loading]);
 
   const getContentRating = (item: MediaItem & ItemWithId) => {
-    // Use embedded content_rating first, then fallback to passed contentRating prop
     return item.content_rating || contentRating[item.id] || undefined;
   };
 

@@ -60,7 +60,6 @@ describe("WatchlistButton", () => {
       screen.getByTestId("watchlist-button-loading-text"),
     ).toHaveTextContent("Loading...");
 
-    // Let the async effect settle within the test to avoid post-test updates.
     return waitFor(() => {
       expect(
         screen.queryByTestId("watchlist-button-loading"),

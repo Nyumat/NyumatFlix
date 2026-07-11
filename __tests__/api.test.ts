@@ -14,7 +14,6 @@ describe("API functions", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     global.fetch = mockFetch;
-    // mock window for fetchSearchResults
     global.window = {
       location: {
         origin: "http://localhost:3000",

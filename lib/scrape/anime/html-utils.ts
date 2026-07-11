@@ -70,7 +70,7 @@ export const parseCatPlayerProps = (html: string): CatPlayerProps | null => {
         return manifestUrl ? { manifest: manifestUrl } : null;
       }
     } catch {
-      // fall through to regex extraction
+      void 0;
     }
   }
 

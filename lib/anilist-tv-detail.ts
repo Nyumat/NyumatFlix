@@ -55,7 +55,7 @@ const fetchAniListWithRetry = async (
         return response;
       }
     } catch {
-      // retry below
+      void 0;
     }
 
     if (attempt < ANILIST_FETCH_MAX_ATTEMPTS) {

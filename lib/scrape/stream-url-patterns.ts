@@ -1,4 +1,3 @@
-/** URL shapes that resolve to HLS manifests (including extensionless VidNest CDNs). */
 export const looksLikeHlsStreamUrl = (url: string): boolean =>
   /\.m3u8(?:[?#].*|$)/i.test(url) ||
   /playlist\.json(?:[?#].*|$)/i.test(url) ||

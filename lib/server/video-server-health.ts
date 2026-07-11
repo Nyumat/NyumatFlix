@@ -274,8 +274,5 @@ export async function checkVideoServerUrl(
     return checkHttpStatus(value, signal);
   }
 
-  // These providers return successful player shells for missing media and/or
-  // require a browser challenge. A server-side shell response is not evidence
-  // that media exists, so preserve them rather than hiding them incorrectly.
   return result("unknown", null, "opaque-player");
 }

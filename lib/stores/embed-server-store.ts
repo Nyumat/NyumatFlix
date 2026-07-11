@@ -208,7 +208,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
             healthResults = payload.results ?? [];
           }
         } catch {
-          // Unknown results preserve the configured servers as selectable.
+          void 0;
         }
 
         const results = checks.map(({ server }, index) => {

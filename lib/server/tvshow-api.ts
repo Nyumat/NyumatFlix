@@ -139,9 +139,6 @@ const toSlimSeasonDetails = (raw: RawSeasonDetails): SeasonDetails | null => {
   };
 };
 
-/**
- * Fetches details for a TV show by ID
- */
 export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
   try {
     const baseUrl = `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US`;
@@ -192,9 +189,6 @@ export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
   }
 }
 
-/**
- * Fetches details for a specific season of a TV show (server-side)
- */
 export async function fetchSeasonDetailsServer(
   tvId: string,
   seasonNumber: number,
@@ -218,9 +212,6 @@ export async function fetchSeasonDetailsServer(
   }
 }
 
-/**
- * Fetches details for a specific season of a TV show (client-side)
- */
 export async function fetchAllSeasonDetails(
   tvId: string,
   seasons: Season[] | undefined,

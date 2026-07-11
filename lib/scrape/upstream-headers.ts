@@ -13,7 +13,7 @@ export const userAgentForUpstreamUrl = (
       return undefined;
     }
   } catch {
-    // fall through
+    void 0;
   }
 
   return DEFAULT_USER_AGENT;
@@ -50,7 +50,7 @@ export const scrapeUpstreamHeaders = (
     try {
       headers.Origin = new URL(effectiveReferer).origin;
     } catch {
-      // origin not derivable
+      void 0;
     }
   }
 

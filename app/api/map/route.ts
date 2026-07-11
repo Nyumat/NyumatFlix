@@ -321,7 +321,6 @@ async function fetchAniListCandidates(
   const cached = getCached(cacheKey);
   if (cached && Array.isArray(cached)) return cached as AnilistMediaExtended[];
 
-  // Only fetch AniList data if the content is anime
   const genreData = genreIds || genres;
   if (!genreData || !isAnime(genreData)) {
     return [];

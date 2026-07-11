@@ -39,40 +39,24 @@ function getMediaItemKey(item: MediaItem) {
 }
 
 interface MediaContentGridProps {
-  /** Optional title to display above the grid */
   title?: string;
-  /** Array of media items to display in the grid */
   items: MediaItem[];
-  /** Media type for all items in the grid */
   type?: MediaItem["media_type"];
-  /** Default view mode (grid or list) */
   defaultViewMode?: ViewMode;
-  /** Number of columns for grid layout */
   gridColumns?: "auto" | 1 | 2 | 3 | 4 | 5 | 6;
-  /** Additional CSS classes */
   className?: string;
-  /** Callback when view mode changes */
   onViewModeChange?: (mode: ViewMode) => void;
-  /** Whether to show view mode controls */
   showViewModeControls?: boolean;
-  /** Whether to show the animated dock */
   showDock?: boolean;
-  /** Position of the dock */
   dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
-  /** Test ID for testing */
   "data-testid"?: string;
-  /** Items per row for grid layout */
   itemsPerRow?: number;
-  /** Optional CSS width for auto-fill grid tracks */
   gridMinItemWidth?: string;
-  /** Optional map of watchlist items by contentId */
   watchlistItemsMap?: Map<number, WatchlistItem>;
-  /** Optional callback for status change */
   onStatusChange?: (
     itemId: string,
     newStatus: "watching" | "waiting" | "finished",
   ) => void;
-  /** Optional map of episode info by contentId */
   episodeInfoMap?: Map<number, EpisodeInfo | null>;
 }
 

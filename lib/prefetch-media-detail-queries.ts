@@ -87,9 +87,6 @@ export async function hydrateTvShowDetailQueries(
   id: string,
   details: TvShowDetails | MediaAboveFoldDetail,
 ) {
-  // Above-fold data is intentionally slimmer than the full detail payload, so
-  // seed only the above-fold key. The full `tvDetails` query fetches the
-  // complete record (companies, languages, etc.) on its own.
   queryClient.setQueryData(queryKeys.mediaAboveFold("tv", id), details);
   if (isAnilistTvRouteId(id)) {
     queryClient.setQueryData(queryKeys.tvDetailsRoute(id), details);
@@ -126,8 +123,5 @@ export async function hydrateMovieDetailQueries(
   id: string,
   movie: MediaItem | MediaAboveFoldDetail,
 ) {
-  // Above-fold data is intentionally slimmer than the full detail payload, so
-  // seed only the above-fold key. The full `movieDetails` query fetches the
-  // complete record (budget, companies, original language, etc.) on its own.
   queryClient.setQueryData(queryKeys.mediaAboveFold("movie", id), movie);
 }

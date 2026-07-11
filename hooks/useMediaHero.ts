@@ -226,7 +226,7 @@ export const useMediaHero = ({
                 );
             }
           } catch {
-            // we could log this, but failure shouldn't block autoplay
+            void 0;
           }
         }
       }

@@ -22,9 +22,6 @@ export const SITE_TAGLINE = "Watch Movies and TV Shows";
 export const SITE_HERO_BANNER_PATH = "/movie-banner.webp";
 export const SITE_OG_HEADLINE = "Find where anything streams.";
 export const USE_SHAKA_DASH = false;
-// For development, you can set RESEND_FROM_EMAIL in .env.local
-// The email domain must be verified in your Resend account
-// Example: RESEND_FROM_EMAIL="Nyumatflix <noreply@yourdomain.com>"
 export const MAGIC_LINK_RESEND_FROM =
   process.env.NODE_ENV === "production"
     ? "Nyumatflix <login@auth.nyumatflix.com>"
@@ -32,10 +29,8 @@ export const MAGIC_LINK_RESEND_FROM =
 export const MAGIC_LINK_RESEND_SUBJECT = "Here's your magic link to sign in";
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
-/** Series graph total nodes (seasons + episodes) above which mobile defaults to canvas */
 export const LARGE_SERIES_GRAPH_NODE_THRESHOLD = 75;
 
-/** matches Tailwind `lg` — series graph grid on desktop */
 export const TV_DETAIL_LG_MEDIA_QUERY = "(min-width: 1024px)";
 
 export const TMDB_WATCH_REGION = "US" as const;

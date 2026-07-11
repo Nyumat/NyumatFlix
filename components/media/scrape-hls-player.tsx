@@ -242,9 +242,7 @@ export function ScrapeHlsPlayer({
       return;
     }
 
-    void player.play().catch(() => {
-      // Autoplay may still be blocked by the browser.
-    });
+    void player.play().catch(() => undefined);
   }, [applyResumePosition, normalizeSpuriousStartupPosition]);
 
   const handleTimeUpdate = useCallback(
@@ -320,9 +318,7 @@ export function ScrapeHlsPlayer({
       void fetch(activePlayUrl, {
         method: "GET",
         cache: "no-store",
-      }).catch(() => {
-        // Keepalive failures are non-fatal.
-      });
+      }).catch(() => undefined);
     };
 
     keepSessionWarm();

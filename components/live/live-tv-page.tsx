@@ -170,7 +170,7 @@ export function LiveTvPage({
           try {
             await loadSupplementalGuide();
           } catch {
-            // Supplemental guide load is best-effort once bootstrap succeeded.
+            void 0;
           } finally {
             if (!cancelled) {
               setLoadingMoreChannels(false);
@@ -198,7 +198,7 @@ export function LiveTvPage({
           try {
             await loadSupplementalGuide();
           } catch {
-            // Supplemental guide load is best-effort once bootstrap succeeded.
+            void 0;
           } finally {
             if (!cancelled) {
               setLoadingMoreChannels(false);

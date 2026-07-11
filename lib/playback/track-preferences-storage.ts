@@ -45,7 +45,7 @@ const writeMap = (map: TrackPreferencesMap): void => {
       JSON.stringify(map),
     );
   } catch {
-    // Ignore quota errors.
+    void 0;
   }
 };
 

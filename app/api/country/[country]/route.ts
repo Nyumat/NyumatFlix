@@ -24,7 +24,6 @@ export async function GET(
     const mediaType = searchParams.get("type") || "movie";
     const sortBy = searchParams.get("sortBy") || "popularity.desc";
 
-    // Validate mediaType
     if (mediaType !== "movie" && mediaType !== "tv") {
       return NextResponse.json(
         { error: "Invalid media type. Must be 'movie' or 'tv'" },
@@ -34,7 +33,6 @@ export async function GET(
 
     const countryCode = params.country;
 
-    // Build query parameters based on media type and sort
     const queryParams: Record<string, string> = {
       language: "en-US",
       include_adult: "false",
@@ -43,21 +41,17 @@ export async function GET(
 
     const today = getTodayIsoDateUtc();
 
-    // Add country filtering
     if (mediaType === "movie") {
       queryParams.region = countryCode;
       queryParams["primary_release_date.lte"] = today;
-      // For movies, we can also use production companies for better results
       if (countryCode === "US") {
         queryParams.with_origin_country = "US";
       }
     } else {
-      // For TV shows, use origin country
       queryParams.with_origin_country = countryCode;
       queryParams["first_air_date.lte"] = today;
     }
 
-    // Add quality filters
     queryParams["vote_count.gte"] = "10"; // Minimum vote count
     if (sortBy.startsWith("vote_average.")) {
       queryParams["vote_average.gte"] = "6.0"; // Minimum rating for rating sorts
@@ -69,18 +63,15 @@ export async function GET(
       page,
     );
 
-    // Filter results to only include items with posters
     const resultsWithPoster = (data.results || []).filter((item: MediaItem) =>
       Boolean(item.poster_path),
     );
 
-    // Process with categories for consistent data structure
     const processedResults = await buildItemsWithCategories<MediaItem>(
       resultsWithPoster as MediaItem[],
       mediaType as "movie" | "tv",
     );
 
-    // Enrich items with full details (runtime, logos, content ratings, etc.)
     const enrichedResults = await fetchAndEnrichMediaItems(
       processedResults,
       mediaType as "movie" | "tv",

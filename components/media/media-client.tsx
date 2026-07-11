@@ -130,44 +130,23 @@ export const MediaImages: React.FC<MediaImagesProps> = ({
   );
 };
 
-/**
- * Props for the Info component
- */
 interface InfoProps {
-  /** Title of the media content */
   title?: string;
-  /** Logo object for displaying media logo */
   logo?: {
     file_path: string;
     width: number;
     height: number;
   };
-  /** Release date for movies or first air date for TV shows */
   releaseDate?: string;
-  /** Average vote rating (0-10) */
   voteAverage?: number;
-  /** Runtime in minutes (for movies) */
   runtime?: number;
-  /** Production countries (for TV shows) */
   country?: Array<{ iso_3166_1: string; name: string }>;
-  /** Array of genre objects for displaying genre badges */
   genres?: Genre[];
-  /** Type of media - used for conditional rendering */
   mediaType?: "movie" | "tv";
-  /** Optional content rating (e.g., PG-13, R, etc.) */
   rating?: string;
-  /**
-   * Alignment of the content
-   * @default "left"
-   */
   align?: "left" | "center" | "right";
 }
 
-/**
- * Info component displays media information including title, rating, runtime, and genres
- * @param props - The component props
- * @returns A component displaying formatted media information
- */
 export const Info = ({
   title,
   logo,
@@ -521,24 +500,15 @@ interface TvDetails {
 }
 
 interface MediaCardProps {
-  /** The media item to display (should be pre-enriched with details) */
   item: MediaItem;
-  /** The type of media (movie or tv) */
   type: "movie" | "tv" | MediaItem["media_type"];
-  /** Optional content rating (e.g., PG-13, R, etc.) */
   rating?: string;
-  /** Whether to show the minimal version of the card
-   *  used for carosuel items within detail pages.
-   */
   minimal?: boolean;
-  /** Optional watchlist item for status toggle */
   watchlistItem?: WatchlistItem;
-  /** Optional callback for status change */
   onStatusChange?: (
     itemId: string,
     newStatus: "watching" | "waiting" | "finished",
   ) => void;
-  /** Optional episode info for TV shows */
   episodeInfo?: EpisodeInfo | null;
 }
 
@@ -671,7 +641,6 @@ export const MediaShowcaseCard = ({
             />
           </div>
 
-          {/* Status Toggle Overlay */}
           {watchlistItem && onStatusChange && (
             <div
               className={cn(
@@ -758,7 +727,6 @@ export const MediaShowcaseCard = ({
           rating={rating}
           align="center"
         />
-        {/* Episode Indicator */}
         {type === "tv" && item.id && !isExternalHref && (
           <div className="mt-2">
             <EpisodeIndicator

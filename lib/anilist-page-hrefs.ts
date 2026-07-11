@@ -15,7 +15,6 @@ const isExternalHref = (href: string) =>
 export const withAnimePageHref = (item: MediaItem): MediaItem => {
   const animeItem = item as AnimePageItem;
 
-  // Use real TMDB ID if available from a 429 TMDB fallback.
   if (animeItem.tmdbFallback) {
     const { id, type } = animeItem.tmdbFallback;
     return {

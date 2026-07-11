@@ -1,11 +1,3 @@
-/**
- * Genre mapping utility for TMDB genre IDs to human-readable names
- * Supports both movie and TV show genres from The Movie Database API
- */
-
-/**
- * Movie genre mapping
- */
 const MOVIE_GENRE_MAP: Record<number, string> = {
   28: "Action",
   12: "Adventure",
@@ -28,9 +20,6 @@ const MOVIE_GENRE_MAP: Record<number, string> = {
   37: "Western",
 } as const;
 
-/**
- * TV show genre mapping
- */
 const TV_GENRE_MAP: Record<number, string> = {
   10759: "Action & Adventure",
   16: "Animation",
@@ -50,12 +39,6 @@ const TV_GENRE_MAP: Record<number, string> = {
   37: "Western",
 } as const;
 
-/**
- * Maps a genre ID to its corresponding human-readable name
- * @param genreId - The TMDB genre ID to look up
- * @param mediaType - The media type (movie or tv) to determine which mapping to use
- * @returns The genre name or "Unknown" if the ID is not found
- */
 export function getGenreName(
   genreId?: number,
   mediaType: "movie" | "tv" = "movie",
@@ -68,12 +51,6 @@ export function getGenreName(
   return genreMap[genreId] || "Unknown";
 }
 
-/**
- * Maps multiple genre IDs to their corresponding names
- * @param genreIds - Array of TMDB genre IDs
- * @param mediaType - The media type (movie or tv) to determine which mapping to use
- * @returns Array of genre names, filtering out unknown genres
- */
 export function getGenreNames(
   genreIds?: number[],
   mediaType: "movie" | "tv" = "movie",
@@ -87,12 +64,6 @@ export function getGenreNames(
     .filter((name) => name !== "Unknown" && name !== "N/A");
 }
 
-/**
- * Checks if a genre ID exists in the mapping
- * @param genreId - The genre ID to check
- * @param mediaType - The media type (movie or tv) to determine which mapping to use
- * @returns True if the genre ID is valid, false otherwise
- */
 export function isValidGenreId(
   genreId: number,
   mediaType: "movie" | "tv" = "movie",
@@ -101,11 +72,6 @@ export function isValidGenreId(
   return genreId in genreMap;
 }
 
-/**
- * Gets all available genre mappings for a specific media type
- * @param mediaType - The media type (movie or tv)
- * @returns Complete genre mapping object for the specified media type
- */
 export function getAllGenres(
   mediaType: "movie" | "tv" = "movie",
 ): Record<number, string> {
