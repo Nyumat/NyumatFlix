@@ -68,7 +68,14 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(
+    "x-search-params",
+    request.nextUrl.searchParams.toString(),
+  );
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
   response.headers.set("x-pathname", pathname);
   return response;
 }

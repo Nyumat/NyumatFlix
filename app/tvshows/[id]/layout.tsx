@@ -1,7 +1,10 @@
 import { DetailPageLoading } from "@/components/layout/page-loading/detail-page-loading";
 import { TvShowDetailShell } from "@/components/tvshow/tvshow-detail-shell";
 import { resolveCanonicalAnilistRoute } from "@/lib/anilist-tv-detail";
+import { resolveAnilistSeasonAnilistId } from "@/lib/anilist-tv-detail";
+import { getAnilistIdFromFribb, getTmdbIdFromFribb } from "@/lib/fribb-mapping";
 import {
+  fromAnilistTvRouteId,
   isAnilistTvRouteId,
   normalizeAnilistTvRouteSlug,
 } from "@/lib/anilist-route-id";
@@ -11,6 +14,7 @@ import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { Suspense } from "react";
 import type { TvShowDetails } from "@/lib/domain/typings";
 
@@ -45,6 +49,31 @@ export default async function TVShowDetailLayout({ children, params }: Props) {
     if (id !== normalized) {
       redirect(`/tvshows/${normalized}`);
     }
+
+    const requestSearchParams = new URLSearchParams(
+      (await headers()).get("x-search-params") ?? "",
+    );
+    const requestedSeason = Number.parseInt(
+      requestSearchParams.get("season") ?? "1",
+      10,
+    );
+    const sourceAnilistId =
+      (Number.isInteger(requestedSeason) && requestedSeason > 0
+        ? await resolveAnilistSeasonAnilistId(id, requestedSeason)
+        : null) ?? fromAnilistTvRouteId(id);
+    const mapping = await getTmdbIdFromFribb(sourceAnilistId);
+
+    if (mapping?.type === "tv") {
+      const targetParams = new URLSearchParams();
+      if (mapping.season && mapping.season > 1) {
+        targetParams.set("season", String(mapping.season));
+      }
+      if (requestSearchParams.get("autoplay") === "true") {
+        targetParams.set("autoplay", "true");
+      }
+      const query = targetParams.toString();
+      redirect(`/tvshows/${mapping.id}${query ? `?${query}` : ""}`);
+    }
   }
 
   return (
@@ -73,7 +102,8 @@ async function TvShowDetailLayoutContent({ children, params }: Props) {
   const detailMedia = details as TvShowDetails;
   const anilistId = isAnilistTvRouteId(id)
     ? detailMedia.id
-    : await getAnilistIdForMedia(detailMedia);
+    : ((await getAnilistIdFromFribb(detailMedia.id, "tv")) ??
+      (await getAnilistIdForMedia(detailMedia)));
 
   const queryClient = new QueryClient();
   await hydrateTvShowDetailQueries(queryClient, id, details);
