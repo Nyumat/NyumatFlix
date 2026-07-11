@@ -25,17 +25,26 @@ describe("anime scrape helpers", () => {
     expect(decoded).toContain("/clock.json");
   });
 
-  it("selects the base AllManga series instead of a similarly named sequel", () => {
+  it("requires an exact known title instead of token-overlap guessing", () => {
     const selected = selectAllmangaShow(
       [
         { _id: "more", name: "Boku no Hero Academia: More" },
         { _id: "final", name: "Boku no Hero Academia Final Season" },
         { _id: "base", name: "Boku no Hero Academia" },
       ],
-      "My Hero Academia",
+      ["My Hero Academia", "Boku no Hero Academia"],
     );
 
     expect(selected?._id).toBe("base");
+  });
+
+  it("rejects AllManga results when no exact known title exists", () => {
+    expect(
+      selectAllmangaShow(
+        [{ _id: "sequel", name: "My Hero Academia Season 2" }],
+        ["My Hero Academia"],
+      ),
+    ).toBeUndefined();
   });
 
   it("unpacks Dean Edwards scripts without evaluating them", () => {

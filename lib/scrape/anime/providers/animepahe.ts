@@ -4,7 +4,11 @@ import {
   extractM3u8Urls,
   unpackDeanEdwardsScripts,
 } from "../html-utils";
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import {
+  fetchAnilistTitleCandidates,
+  resolveAnimeSearchQuery,
+} from "../anilist-meta";
+import { isExactAnimeTitleMatch } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import {
   flareSolverrCreateSession,
@@ -80,11 +84,7 @@ const extractKwikUrl = (
     .filter((candidate) => candidate.audio === desiredAudio)
     .sort((left, right) => right.resolution - left.resolution);
 
-  return (
-    matchingAudio[0]?.url ??
-    extractFirstMatch(html, /data-src="(https:\/\/kwik\.[^"]+)"/) ??
-    extractFirstMatch(html, /href="(https:\/\/kwik\.[^"]+)"/)
-  );
+  return matchingAudio[0]?.url ?? null;
 };
 
 const unpackKwikPackedJs = (html: string): string | null =>
@@ -113,7 +113,15 @@ export async function scrapeAnimepahe(
       session,
     );
 
-    const anime = searchPayload?.data?.[0];
+    const expectedTitles = [
+      query,
+      ...(await fetchAnilistTitleCandidates(input.anilistId)),
+    ];
+    const anime = searchPayload?.data?.find(
+      (candidate) =>
+        candidate.title &&
+        isExactAnimeTitleMatch(candidate.title, expectedTitles),
+    );
     if (!anime?.session && !anime?.id) {
       return { ok: false, providerId, error: "AnimePahe search miss" };
     }
@@ -151,18 +159,6 @@ export async function scrapeAnimepahe(
     }
 
     const kwikUrl = extractKwikUrl(playPage.body, input.translationType);
-    const playPageM3u8 = extractM3u8Urls(playPage.body)[0];
-
-    if (playPageM3u8) {
-      return {
-        ok: true,
-        providerId,
-        streamUrl: playPageM3u8,
-        streamKind: "hls",
-        referer: ANIMEPAHE_ORIGIN,
-      };
-    }
-
     if (!kwikUrl) {
       return {
         ok: false,

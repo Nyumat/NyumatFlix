@@ -1,5 +1,5 @@
 import { decodeHtmlEntities } from "./html-utils";
-import { scrapeFetch, scrapeFetchText } from "../fetch";
+import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../fetch";
 
 type LivewireUpdateResponse = {
   components?: Array<{
@@ -40,6 +40,7 @@ export const searchAnizoneSlug = async (
   });
 
   if (!indexResponse.ok) {
+    await cancelResponseBody(indexResponse);
     return null;
   }
 
@@ -80,6 +81,7 @@ export const searchAnizoneSlug = async (
   });
 
   if (!response.ok) {
+    await cancelResponseBody(response);
     return null;
   }
 

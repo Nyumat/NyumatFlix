@@ -1,7 +1,11 @@
 import { extractM3u8Urls, parseCatPlayerProps } from "../html-utils";
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import {
+  fetchAnilistTitleCandidates,
+  resolveAnimeSearchQuery,
+} from "../anilist-meta";
+import { isExactAnimeTitleMatch } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
-import { scrapeFetch, scrapeFetchText } from "../../fetch";
+import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
 
 const KAA_ORIGIN = "https://kaa.lt";
 
@@ -9,33 +13,18 @@ type KaaSearchResult = {
   result?: Array<{ slug?: string; title?: string }>;
 };
 
-const normalizeTitle = (value: string) =>
-  value
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
 export const selectKaaSearchResult = (
   results: KaaSearchResult["result"],
-  query: string,
-) => {
-  const normalizedQuery = normalizeTitle(query);
-  return (
-    results?.find(
-      (entry) =>
-        entry.slug &&
-        entry.title &&
-        normalizeTitle(entry.title) === normalizedQuery,
-    ) ??
-    results?.find(
-      (entry) =>
-        entry.slug &&
-        entry.title &&
-        normalizeTitle(entry.title).startsWith(`${normalizedQuery} `),
-    )
+  expectedTitles: readonly string[] | string,
+) =>
+  results?.find(
+    (entry) =>
+      Boolean(entry.slug && entry.title) &&
+      isExactAnimeTitleMatch(
+        entry.title ?? "",
+        typeof expectedTitles === "string" ? [expectedTitles] : expectedTitles,
+      ),
   );
-};
 
 type KaaEpisodeList = {
   result?: Array<{
@@ -87,6 +76,7 @@ export async function scrapeKickassanime(
     });
 
     if (!searchResponse.ok) {
+      await cancelResponseBody(searchResponse);
       return {
         ok: false,
         providerId,
@@ -95,7 +85,14 @@ export async function scrapeKickassanime(
     }
 
     const searchPayload = (await searchResponse.json()) as KaaSearchResult;
-    const slug = selectKaaSearchResult(searchPayload.result, query)?.slug;
+    const expectedTitles = [
+      query,
+      ...(await fetchAnilistTitleCandidates(input.anilistId)),
+    ];
+    const slug = selectKaaSearchResult(
+      searchPayload.result,
+      expectedTitles,
+    )?.slug;
     if (!slug) {
       return { ok: false, providerId, error: "KAA show slug not found" };
     }
@@ -106,6 +103,7 @@ export async function scrapeKickassanime(
     );
 
     if (!episodesResponse.ok) {
+      await cancelResponseBody(episodesResponse);
       return {
         ok: false,
         providerId,
@@ -133,6 +131,7 @@ export async function scrapeKickassanime(
     );
 
     if (!detailResponse.ok) {
+      await cancelResponseBody(detailResponse);
       return {
         ok: false,
         providerId,
@@ -143,9 +142,18 @@ export async function scrapeKickassanime(
     const detailPayload = (await detailResponse.json()) as KaaEpisodeDetail;
     const servers =
       detailPayload.result?.servers ?? detailPayload.servers ?? [];
-    const catPlayer =
-      servers.find((server) => server.src?.includes("cat-player")) ??
-      servers[0];
+    const catPlayer = servers.find((server) => {
+      if (!server.src) return false;
+      try {
+        const url = new URL(server.src);
+        return (
+          /(^|\.)cat-player\./i.test(url.hostname) ||
+          /\/cat-player(?:\/|$)/i.test(url.pathname)
+        );
+      } catch {
+        return false;
+      }
+    });
 
     if (!catPlayer?.src) {
       return { ok: false, providerId, error: "KAA cat-player URL missing" };
@@ -162,8 +170,7 @@ export async function scrapeKickassanime(
     if (!manifest) {
       const fallbackUrls = extractM3u8Urls(playerPage.text);
       manifest =
-        fallbackUrls.find((url) => url.includes("master.m3u8")) ??
-        fallbackUrls[0] ??
+        fallbackUrls.find((url) => /\/master\.m3u8(?:[?#]|$)/i.test(url)) ??
         null;
     }
 

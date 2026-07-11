@@ -9,6 +9,7 @@ import {
 } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { scrapeFetchText } from "../../fetch";
+import { isExactAnimeTitleMatch } from "../title-match";
 
 const ANIMESTREAM_ORIGIN = "https://animestream.my.id";
 
@@ -40,8 +41,18 @@ export async function scrapeAnimestream(
         `${ANIMESTREAM_ORIGIN}${candidatePath}`,
         { Referer: `${ANIMESTREAM_ORIGIN}/` },
       );
+      const pageTitle = candidate.text
+        .match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]
+        ?.replace(/<[^>]+>/g, " ")
+        .replace(/\s*[-|]\s*(?:AnimeStream|Watch Anime).*$/i, "")
+        .trim();
       const hasPlayer = extractDataUrlAttributes(candidate.text).length > 0;
-      if (candidate.status === 200 && hasPlayer) {
+      if (
+        candidate.status === 200 &&
+        hasPlayer &&
+        pageTitle &&
+        isExactAnimeTitleMatch(pageTitle, titles)
+      ) {
         episodePath = candidatePath;
         episodePage = candidate;
         break;
@@ -88,8 +99,9 @@ export async function scrapeAnimestream(
     );
 
     const streamUrls = extractM3u8Urls(playerPage.text);
-    const master =
-      streamUrls.find((url) => url.includes("master.m3u8")) ?? streamUrls[0];
+    const master = streamUrls.find((url) =>
+      /\/master\.m3u8(?:[?#]|$)/i.test(url),
+    );
 
     if (!master) {
       return {

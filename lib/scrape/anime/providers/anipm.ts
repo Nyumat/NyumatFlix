@@ -1,6 +1,6 @@
 import { fetchAnilistMediaMeta, type AnilistMediaMeta } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
-import { scrapeFetch } from "../../fetch";
+import { cancelResponseBody, scrapeFetch } from "../../fetch";
 
 const ANIPM_ORIGIN = "https://ani.pm";
 const ANIPM_API = `${ANIPM_ORIGIN}/api`;
@@ -65,15 +65,7 @@ const pickHentaiStream = (
     };
   }
 
-  const fallback = sources.find((source) => source.tok);
-  if (!fallback?.tok) {
-    return null;
-  }
-
-  return {
-    streamUrl: `${ANIPM_API}/hen/p3/mpd/${encodeURIComponent(fallback.tok)}`,
-    streamKind: "dash",
-  };
+  return null;
 };
 
 const scrapeAnipmHentai = async (
@@ -94,6 +86,7 @@ const scrapeAnipmHentai = async (
   );
 
   if (!matchResponse.ok) {
+    await cancelResponseBody(matchResponse);
     return {
       ok: false,
       providerId,
@@ -115,6 +108,7 @@ const scrapeAnipmHentai = async (
   );
 
   if (!titleResponse.ok) {
+    await cancelResponseBody(titleResponse);
     return {
       ok: false,
       providerId,
@@ -155,6 +149,7 @@ const scrapeAnipmAnime = async (
   );
 
   if (!serversResponse.ok) {
+    await cancelResponseBody(serversResponse);
     return {
       ok: false,
       providerId,
@@ -167,7 +162,7 @@ const scrapeAnipmAnime = async (
   const lane =
     input.translationType === "dub"
       ? (serversPayload.dub ?? [])
-      : (serversPayload.sub ?? serversPayload.dub ?? []);
+      : (serversPayload.sub ?? []);
   const direct = lane.find((server) => server.kind === "file" && server.url);
 
   if (!direct?.url) {
@@ -211,8 +206,7 @@ export async function scrapeAnipm(
       return animeResult;
     }
 
-    const hentaiFallback = await scrapeAnipmHentai(input, meta);
-    return hentaiFallback.ok ? hentaiFallback : animeResult;
+    return animeResult;
   } catch (error) {
     return {
       ok: false,

@@ -1,6 +1,6 @@
 import { fetchAnilistTitleCandidates } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
-import { scrapeFetch } from "../../fetch";
+import { cancelResponseBody, scrapeFetch } from "../../fetch";
 
 const ONSEN_ORIGIN = "https://www.animeonsen.xyz";
 const ONSEN_AUTH = "https://auth.animeonsen.xyz/oauth/token";
@@ -66,6 +66,7 @@ const getOnsenToken = async (): Promise<string | null> => {
   });
 
   if (!response.ok) {
+    await cancelResponseBody(response);
     return null;
   }
 
@@ -111,6 +112,7 @@ export async function scrapeAnimeonsen(
       );
 
       if (!searchResponse.ok) {
+        await cancelResponseBody(searchResponse);
         continue;
       }
 
@@ -131,6 +133,7 @@ export async function scrapeAnimeonsen(
     );
 
     if (!videoResponse.ok) {
+      await cancelResponseBody(videoResponse);
       return {
         ok: false,
         providerId,
@@ -159,7 +162,11 @@ export async function scrapeAnimeonsen(
       streamKind: streamUrl.includes(".mpd") ? "dash" : "hls",
       referer: ONSEN_ORIGIN,
       subtitles: subtitleMap
-        ? Object.entries(subtitleMap).map(([lang, url]) => ({ lang, url }))
+        ? Object.entries(subtitleMap).map(([lang, url]) => ({
+            lang,
+            url,
+            format: "ass" as const,
+          }))
         : undefined,
     };
   } catch (error) {

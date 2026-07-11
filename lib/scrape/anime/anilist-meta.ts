@@ -1,4 +1,4 @@
-import { scrapeFetch } from "../fetch";
+import { cancelResponseBody, scrapeFetch } from "../fetch";
 
 type AniListTitleResponse = {
   data?: {
@@ -31,6 +31,18 @@ export type AnilistMediaMeta = {
 const titleCache = new Map<number, string>();
 const titleCandidatesCache = new Map<number, string[]>();
 const mediaMetaCache = new Map<number, AnilistMediaMeta>();
+const MAX_ANILIST_META_CACHE_ENTRIES = 500;
+
+const setBounded = <T>(map: Map<number, T>, key: number, value: T): void => {
+  map.delete(key);
+  map.set(key, value);
+
+  while (map.size > MAX_ANILIST_META_CACHE_ENTRIES) {
+    const oldestKey = map.keys().next().value;
+    if (oldestKey === undefined) break;
+    map.delete(oldestKey);
+  }
+};
 
 export const fetchAnilistTitleCandidates = async (
   anilistId: number,
@@ -50,6 +62,7 @@ export const fetchAnilistTitleCandidates = async (
     });
 
     if (!response.ok) {
+      await cancelResponseBody(response);
       return [];
     }
 
@@ -63,8 +76,8 @@ export const fetchAnilistTitleCandidates = async (
     const unique = [...new Set(candidates)];
 
     if (unique.length > 0) {
-      titleCandidatesCache.set(anilistId, unique);
-      titleCache.set(anilistId, unique[0] ?? "");
+      setBounded(titleCandidatesCache, anilistId, unique);
+      setBounded(titleCache, anilistId, unique[0] ?? "");
     }
 
     return unique;
@@ -102,6 +115,7 @@ export const fetchAnilistMediaMeta = async (
     });
 
     if (!response.ok) {
+      await cancelResponseBody(response);
       return null;
     }
 
@@ -138,10 +152,10 @@ export const fetchAnilistMediaMeta = async (
       ),
     };
 
-    mediaMetaCache.set(anilistId, meta);
+    setBounded(mediaMetaCache, anilistId, meta);
     if (uniqueTitles.length > 0) {
-      titleCandidatesCache.set(anilistId, uniqueTitles);
-      titleCache.set(anilistId, uniqueTitles[0] ?? "");
+      setBounded(titleCandidatesCache, anilistId, uniqueTitles);
+      setBounded(titleCache, anilistId, uniqueTitles[0] ?? "");
     }
 
     return meta;

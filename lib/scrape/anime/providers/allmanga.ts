@@ -5,9 +5,13 @@ import {
   type AllanimeSourceUrl,
 } from "../allanime-crypto";
 import { extractM3u8Urls } from "../html-utils";
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import {
+  fetchAnilistTitleCandidates,
+  resolveAnimeSearchQuery,
+} from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
-import { scrapeFetch, scrapeFetchText } from "../../fetch";
+import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
+import { isExactAnimeTitleMatch } from "../title-match";
 
 const ALLMANGA_ORIGIN = "https://allmanga.to";
 const ALLANIME_API = "https://api.allanime.day/api";
@@ -25,37 +29,17 @@ type AllanimeSearchResponse = {
   };
 };
 
-const titleTokens = (title: string): Set<string> =>
-  new Set(
-    title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim()
-      .split(/\s+/)
-      .filter((token) => token.length > 1 && token !== "no"),
-  );
-
 export const selectAllmangaShow = (
   shows: Array<{ _id?: string; name?: string }>,
-  query: string,
+  expectedTitles: readonly string[] | string,
 ) => {
-  const queryTokens = titleTokens(query);
-
-  return [...shows].sort((left, right) => {
-    const score = (name?: string) => {
-      if (!name) return -1;
-      const candidateTokens = titleTokens(name);
-      const overlap = [...queryTokens].filter((token) =>
-        candidateTokens.has(token),
-      ).length;
-      const extras = [...candidateTokens].filter(
-        (token) => !queryTokens.has(token),
-      ).length;
-      return overlap * 10 - extras;
-    };
-
-    return score(right.name) - score(left.name);
-  })[0];
+  const titles =
+    typeof expectedTitles === "string" ? [expectedTitles] : expectedTitles;
+  return shows.find(
+    (show) =>
+      Boolean(show._id && show.name) &&
+      isExactAnimeTitleMatch(show.name ?? "", titles),
+  );
 };
 
 const allanimePost = async <T>(
@@ -73,6 +57,7 @@ const allanimePost = async <T>(
   });
 
   if (!response.ok) {
+    await cancelResponseBody(response);
     throw new Error(`AllManga API failed (${response.status})`);
   }
 
@@ -108,6 +93,7 @@ const fetchEpisodeSources = async (
   });
 
   if (!response.ok) {
+    await cancelResponseBody(response);
     throw new Error(`AllManga episode query failed (${response.status})`);
   }
 
@@ -193,6 +179,10 @@ export async function scrapeAllmanga(
 
   try {
     const query = await resolveAnimeSearchQuery(input);
+    const expectedTitles = [
+      query,
+      ...(await fetchAnilistTitleCandidates(input.anilistId)),
+    ];
     const mode = input.translationType === "dub" ? "dub" : "sub";
 
     const searchPayload = await allanimePost<AllanimeSearchResponse>(
@@ -208,7 +198,7 @@ export async function scrapeAllmanga(
 
     const showId = selectAllmangaShow(
       searchPayload.data?.shows?.edges ?? [],
-      query,
+      expectedTitles,
     )?._id;
     if (!showId) {
       return { ok: false, providerId, error: "AllManga show not found" };

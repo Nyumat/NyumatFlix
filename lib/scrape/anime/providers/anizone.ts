@@ -46,7 +46,7 @@ export async function scrapeAnizone(
 
     const subtitleUrl = extractFirstMatch(
       episode.text,
-      /src="(https:\/\/[^"]+\.ass)"/,
+      /src=["'](https:\/\/[^"']+\.ass(?:\?[^"']*)?)["']/i,
     );
 
     return {
@@ -55,7 +55,9 @@ export async function scrapeAnizone(
       streamUrl: master,
       streamKind: "hls",
       referer: ANIZONE_ORIGIN,
-      subtitles: subtitleUrl ? [{ lang: "und", url: subtitleUrl }] : undefined,
+      subtitles: subtitleUrl
+        ? [{ lang: "English", url: subtitleUrl }]
+        : undefined,
     };
   } catch (error) {
     return {

@@ -4,15 +4,10 @@ import {
   resolveAnimeSearchQuery,
 } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
-import { scrapeFetch, scrapeFetchText } from "../../fetch";
+import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
+import { isExactAnimeTitleMatch } from "../title-match";
 
 const ANIMEGG_ORIGIN = "https://www.animegg.org";
-
-const slugifySeries = (title: string) =>
-  title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 
 const extractAnimeggSources = (html: string) =>
   [...html.matchAll(/\{file:\s*"([^"]+)",\s*label:\s*"([^"]+)"/g)]
@@ -27,8 +22,12 @@ const findSeriesSlugFromSearch = async (
       `${ANIMEGG_ORIGIN}/search/?q=${encodeURIComponent(title)}`,
       { Referer: `${ANIMEGG_ORIGIN}/` },
     );
-    const slug = extractFirstMatch(searchPage.text, /href="\/series\/([^"]+)"/);
-    if (slug) return slug;
+    for (const match of searchPage.text.matchAll(
+      /<a\b[^>]*href="\/series\/([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi,
+    )) {
+      const label = (match[2] ?? "").replace(/<[^>]+>/g, " ");
+      if (match[1] && isExactAnimeTitleMatch(label, titles)) return match[1];
+    }
   }
   return null;
 };
@@ -44,8 +43,14 @@ export async function scrapeAnimegg(
       query,
       ...(await fetchAnilistTitleCandidates(input.anilistId)),
     ];
-    const seriesSlugs = [...new Set(titles.map(slugifySeries))];
-    let seriesSlug = seriesSlugs[0] ?? "";
+    const seriesSlug = await findSeriesSlugFromSearch(titles);
+    if (!seriesSlug) {
+      return {
+        ok: false,
+        providerId,
+        error: "AnimeGG exact title match not found",
+      };
+    }
     let episodeSlug = `${seriesSlug}-episode-${input.episodeNumber}`;
 
     let episodePage = await scrapeFetchText(
@@ -55,10 +60,7 @@ export async function scrapeAnimegg(
 
     if (episodePage.status !== 200) {
       let fallbackEpisode: string | null = null;
-      const searchedSlug = await findSeriesSlugFromSearch(titles);
-      for (const candidateSlug of [searchedSlug, ...seriesSlugs].filter(
-        (slug): slug is string => Boolean(slug),
-      )) {
+      for (const candidateSlug of [seriesSlug]) {
         const seriesPage = await scrapeFetchText(
           `${ANIMEGG_ORIGIN}/series/${candidateSlug}`,
           { Referer: `${ANIMEGG_ORIGIN}/` },
@@ -70,7 +72,6 @@ export async function scrapeAnimegg(
           ),
         );
         if (fallbackEpisode) {
-          seriesSlug = candidateSlug;
           episodeSlug = fallbackEpisode.slice(1);
           break;
         }
@@ -90,14 +91,13 @@ export async function scrapeAnimegg(
     }
 
     const version = input.translationType === "dub" ? "dubbed" : "subbed";
-    const embedId =
-      extractFirstMatch(
-        episodePage.text,
-        new RegExp(
-          `data-id=['"](\\d+)['"][^>]*data-mirror=['"]Animegg['"][^>]*data-version=['"]${version}['"]`,
-          "i",
-        ),
-      ) ?? extractFirstMatch(episodePage.text, /\/embed\/(\d+)/);
+    const embedId = extractFirstMatch(
+      episodePage.text,
+      new RegExp(
+        `data-id=['"](\\d+)['"][^>]*data-mirror=['"]Animegg['"][^>]*data-version=['"]${version}['"]`,
+        "i",
+      ),
+    );
     if (!embedId) {
       return { ok: false, providerId, error: "AnimeGG embed id missing" };
     }
@@ -130,6 +130,7 @@ export async function scrapeAnimegg(
     });
 
     const redirectUrl = playResponse.headers.get("location");
+    await cancelResponseBody(playResponse);
     const streamUrl = redirectUrl?.startsWith("http")
       ? redirectUrl
       : `${ANIMEGG_ORIGIN}${playPath}`;
@@ -142,6 +143,7 @@ export async function scrapeAnimegg(
           headers: { Referer: `${ANIMEGG_ORIGIN}/` },
         });
         const location = response.headers.get("location");
+        await cancelResponseBody(response);
         return {
           label: source.label,
           url: location?.startsWith("http")
