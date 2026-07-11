@@ -1,22 +1,28 @@
 "use client";
 
-import { Captions } from "@vidstack/react";
+import { FullscreenButton } from "@vidstack/react";
+import { FullscreenIcon } from "@vidstack/react/icons";
 import {
-  DefaultKeyboardDisplay,
-  DefaultVideoGestures,
   defaultLayoutIcons,
   DefaultVideoLayout,
 } from "@vidstack/react/player/layouts/default";
 
 export function ScrapeVideoLayout() {
   return (
-    <>
-      <Captions className="vds-captions" />
-      <DefaultVideoGestures />
-      <DefaultKeyboardDisplay
-        icons={defaultLayoutIcons.KeyboardDisplay ?? {}}
-      />
-      <DefaultVideoLayout icons={defaultLayoutIcons} />
-    </>
+    <DefaultVideoLayout
+      icons={defaultLayoutIcons}
+      slots={{
+        smallLayout: {
+          fullscreenButton: (
+            <FullscreenButton
+              className="vds-fullscreen-button vds-button"
+              target="provider"
+            >
+              <FullscreenIcon className="vds-icon" />
+            </FullscreenButton>
+          ),
+        },
+      }}
+    />
   );
 }

@@ -26,6 +26,7 @@ import { ArrowDownAZ, ArrowUpZA, Search, Tv } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { tmdbImage } from "@/tmdb/utils";
 
 export type HeroTvEpisodePanelProps = {
   tvId: string;
@@ -398,7 +399,7 @@ export function HeroTvEpisodePanel({
                   <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border sm:h-24 sm:w-44">
                     {episode.still_path ? (
                       <Image
-                        src={`https://image.tmdb.org/t/p/w300${episode.still_path}`}
+                        src={tmdbImage.url(episode.still_path, "w300")}
                         alt=""
                         width={300}
                         height={169}

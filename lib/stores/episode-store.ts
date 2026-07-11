@@ -26,7 +26,6 @@ interface EpisodeState {
   seasonEpisodes: Episode[] | null;
   /** 1-based episode index within the season for embed/scrape providers. */
   providerEpisodeNumber: number | null;
-  // anime stuff
   isAnimeEpisode: boolean;
   anilistId: number | null;
   relativeEpisodeNumber: number | null;
@@ -124,15 +123,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     seasonEpisodes,
     mapping,
   ) => {
-    const effectiveAnimeInfo =
-      animeInfo ??
-      (get().defaultAnilistId
-        ? {
-            anilistId: get().defaultAnilistId!,
-            startEpisode: 1,
-            endEpisode: Number.MAX_SAFE_INTEGER,
-          }
-        : undefined);
+    const effectiveAnimeInfo = animeInfo;
     const isAnimeEpisode = !!effectiveAnimeInfo;
     const anilistId = effectiveAnimeInfo?.anilistId || null;
     const relativeEpisodeNumber = effectiveAnimeInfo
@@ -155,7 +146,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       isAdultAnime: mapping?.isAdult ?? false,
     });
 
-    // Track watch progress
     if (tvShowId && seasonNumber && episode.episode_number) {
       getSession()
         .then((session) => {
@@ -246,7 +236,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       return null;
     }
 
-    // For vidnest server, handle different content types
     if (selectedServer.id === "vidnest") {
       if (isAnimeEpisode && anilistId && relativeEpisodeNumber) {
         if (vidnestContentType === "anime") {
@@ -269,7 +258,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       }
     }
 
-    // For non-vidnest servers or default tv episodes
     if (isAnimeEpisode && anilistId && relativeEpisodeNumber) {
       if (selectedServer.getAnimeUrl) {
         return selectedServer.getAnimeUrl(anilistId, relativeEpisodeNumber);

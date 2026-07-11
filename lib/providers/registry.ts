@@ -36,7 +36,6 @@ export type ProviderCapabilities = {
   embed: boolean;
   tmdbScrape: boolean;
   animeScrape: boolean;
-  /** Supports AniList-keyed anime embed URLs (vidnest, videasy). */
   animeEmbed: boolean;
 };
 
@@ -62,7 +61,6 @@ const provider = (
   },
 });
 
-/** Embed iframe providers in UI picker order. */
 export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
   provider("vidsrc-mirror", "VidSrc Mirror", { embed: true, tmdbScrape: true }),
@@ -79,20 +77,18 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
 ];
 
-/** Direct HLS/DASH TMDB scrape chain (tried in order). */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
+  provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
   provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
   provider("vidnest", "VidNest", {
     embed: true,
     tmdbScrape: true,
     animeEmbed: true,
   }),
-  provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
   provider("vidsrc-mirror", "VidSrc Mirror", { embed: true, tmdbScrape: true }),
 ];
 
-/** Direct-stream anime providers (tried in order). */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("anizone", "AniZone", { embed: false, animeScrape: true }),
   provider("anipm", "ani.pm", { embed: false, animeScrape: true }),
@@ -131,7 +127,6 @@ export type AnimePlaybackScrapeProviderId =
   | AnimeScrapeProviderId
   | TmdbScrapeProviderId;
 
-/** Anime episode scrape chain: native anime scrapers, then TMDB proxies (vidsrc, etc.). */
 export const ANIME_PLAYBACK_SCRAPE_PROVIDER_ORDER = [
   ...ANIME_SCRAPE_PROVIDER_ORDER,
   ...TMDB_SCRAPE_PROVIDER_ORDER,
@@ -154,13 +149,11 @@ export const ANIME_PLAYBACK_SCRAPE_PROVIDER_OPTIONS =
 const tmdbScrapeIdSet = new Set<string>(TMDB_SCRAPE_PROVIDER_ORDER);
 const animeScrapeIdSet = new Set<string>(ANIME_SCRAPE_PROVIDER_ORDER);
 
-/** Embed servers that do not also appear in the TMDB scrape chain. */
 export const embedOnlyProviderIds = (): string[] =>
   EMBED_PROVIDER_REGISTRY.filter(
     (entry) => entry.capabilities.embed && !tmdbScrapeIdSet.has(entry.id),
   ).map((entry) => entry.id);
 
-/** Embed-capable providers that also support direct TMDB scrape (shown in a sub-picker). */
 export const dualCapabilityEmbedProviderIds = (): string[] =>
   EMBED_PROVIDER_REGISTRY.filter(
     (entry) => entry.capabilities.embed && tmdbScrapeIdSet.has(entry.id),
