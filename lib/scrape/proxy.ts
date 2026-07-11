@@ -1,6 +1,12 @@
 import "server-only";
 
-import { Agent, ProxyAgent } from "undici";
+import { Agent, Pool, ProxyAgent } from "undici";
+
+const CONNECTIONS_PER_ORIGIN = 4;
+const PROXY_TUNNEL_CONNECTIONS = 32;
+const MAX_PROXY_ORIGINS = 64;
+const KEEP_ALIVE_TIMEOUT_MS = 10_000;
+const KEEP_ALIVE_MAX_TIMEOUT_MS = 30_000;
 
 let scrapeDirectAgent: Agent | undefined;
 let scrapeProxyAgent: ProxyAgent | undefined;
@@ -8,9 +14,10 @@ let scrapeProxyAgent: ProxyAgent | undefined;
 export const scrapeDirectDispatcher = (): Agent => {
   scrapeDirectAgent ??= new Agent({
     allowH2: true,
-    connections: 4,
-    keepAliveTimeout: 30_000,
-    keepAliveMaxTimeout: 120_000,
+    connections: CONNECTIONS_PER_ORIGIN,
+    maxOrigins: MAX_PROXY_ORIGINS,
+    keepAliveTimeout: KEEP_ALIVE_TIMEOUT_MS,
+    keepAliveMaxTimeout: KEEP_ALIVE_MAX_TIMEOUT_MS,
   });
 
   return scrapeDirectAgent;
@@ -27,6 +34,17 @@ export const scrapeProxyDispatcher = (): ProxyAgent | undefined => {
     return undefined;
   }
 
-  scrapeProxyAgent ??= new ProxyAgent(url);
+  scrapeProxyAgent ??= new ProxyAgent({
+    uri: url,
+    connections: CONNECTIONS_PER_ORIGIN,
+    maxOrigins: MAX_PROXY_ORIGINS,
+    keepAliveTimeout: KEEP_ALIVE_TIMEOUT_MS,
+    keepAliveMaxTimeout: KEEP_ALIVE_MAX_TIMEOUT_MS,
+    clientFactory: (origin, options) =>
+      new Pool(origin, {
+        ...options,
+        connections: PROXY_TUNNEL_CONNECTIONS,
+      }),
+  });
   return scrapeProxyAgent;
 };
