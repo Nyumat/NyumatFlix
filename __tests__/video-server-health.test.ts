@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import {
   checkVideoServerUrl,
   isAllowedVideoServerUrl,
@@ -177,5 +179,33 @@ describe("video server health", () => {
       status: null,
       evidence: "network",
     });
+  });
+
+  it("aborts an upstream probe when its caller disconnects", async () => {
+    let upstreamSignal: AbortSignal | undefined;
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          upstreamSignal = init?.signal ?? undefined;
+          upstreamSignal?.addEventListener(
+            "abort",
+            () => reject(upstreamSignal?.reason),
+            { once: true },
+          );
+        }),
+    );
+
+    const controller = new AbortController();
+    const resultPromise = checkVideoServerUrl(
+      "https://vsembed.ru/embed/movie?tmdb=550",
+      controller.signal,
+    );
+    controller.abort();
+
+    await expect(resultPromise).resolves.toMatchObject({
+      state: "unknown",
+      evidence: "network",
+    });
+    expect(upstreamSignal?.aborted).toBe(true);
   });
 });
