@@ -143,6 +143,35 @@ describe("scrape hls playback helpers", () => {
     ]);
   });
 
+  it("rewrites rotated VidKing segment and key hosts to the playlist origin", () => {
+    const manifestUrl =
+      "https://working.example/r2/cdn2/token/1080p/index.m3u8";
+    const rewritten = rewriteManifestPlaylist(
+      [
+        '#EXT-X-KEY:METHOD=AES-128,URI="https://stale.example/r2/cdn2/token/1080p/key.bin"',
+        "https://stale.example/r2/cdn2/token/1080p/segment.jpg",
+      ].join("\n"),
+      manifestUrl,
+      "https://www.vidking.net/",
+      {
+        providerId: "vidking",
+        mediaType: "movie",
+        tmdbId: 27205,
+        seedFetchedAt: Date.now(),
+      },
+    );
+
+    const upstreamUrls = rewritten
+      .match(/\/api\/scrape\/play\/[^\s"']+/g)
+      ?.map((url) => extractScrapePlaybackTokenFromPlayUrl(url))
+      .map((token) => (token ? decodeScrapePlaybackToken(token)?.url : null));
+
+    expect(upstreamUrls).toEqual([
+      "https://working.example/r2/cdn2/token/1080p/key.bin",
+      "https://working.example/r2/cdn2/token/1080p/segment.jpg",
+    ]);
+  });
+
   it("serves disguised AnimeStream pict segments as MPEG-TS", () => {
     expect(
       contentTypeForProxiedAsset(

@@ -29,21 +29,6 @@ const inferHeightFromLevel = (level: Level): number => {
   return Number.isFinite(height) && height > 0 ? height : 0;
 };
 
-const findHighestLevelIndex = (levels: Level[]): number => {
-  let bestIndex = 0;
-  let bestHeight = 0;
-
-  for (let index = 0; index < levels.length; index += 1) {
-    const height = inferHeightFromLevel(levels[index]!);
-    if (height > bestHeight) {
-      bestHeight = height;
-      bestIndex = index;
-    }
-  }
-
-  return bestIndex;
-};
-
 const normalizeLevelHeights = (levels: Level[]) => {
   for (const level of levels) {
     const inferred = inferHeightFromLevel(level);
@@ -79,10 +64,7 @@ export const configureScrapeHlsInstance = (hls: Hls) => {
     manifestLoadedAt = Date.now();
     normalizeLevelHeights(hls.levels);
     hls.levels.splice(0, hls.levels.length, ...stripInvalidLevels(hls.levels));
-
-    if (hls.levels.length > 1) {
-      hls.currentLevel = findHighestLevelIndex(hls.levels);
-    }
+    hls.currentLevel = -1;
   });
 
   hls.on(Hls.Events.ERROR, (_event, detail) => {

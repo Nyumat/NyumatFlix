@@ -169,8 +169,6 @@ export function ScrapeHlsPlayer({
       if (isDASHProvider(provider)) {
         provider.config = {
           debug: {
-            // Dash.js can keep emitting buffer logs after disposal (e.g. during Fast Refresh).
-            // Silence noisy debug output; real failures still surface via Vidstack errors.
             logLevel: 0,
           },
           streaming: {
@@ -230,8 +228,6 @@ export function ScrapeHlsPlayer({
 
     startedRef.current = true;
 
-    // Avoid noisy "play request failed" logs when autoplay isn't permitted
-    // (common in dev, strict-mode double-invokes, and without user activation).
     const hasUserActivation =
       typeof navigator !== "undefined" &&
       "userActivation" in navigator &&
@@ -276,8 +272,6 @@ export function ScrapeHlsPlayer({
   const handlePlaybackError = useCallback(
     (_detail: MediaErrorDetail) => {
       if (streamKind === "hls") {
-        // HLS emits both a generic media error and a richer hls-error event.
-        // Only the latter tells us whether the failure is actually fatal.
         return;
       }
 
