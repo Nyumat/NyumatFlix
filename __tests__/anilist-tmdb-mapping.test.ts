@@ -1,5 +1,6 @@
 import { getDisplayTitle } from "@/lib/cards/selectors";
 import { mapAniListMediaToMediaItem } from "@/lib/anilist";
+import { findAnilistIdByTmdbId } from "@/lib/fribb-mapping";
 import { describe, expect, it } from "vitest";
 
 describe("anime mapping title preservation", () => {
@@ -41,5 +42,20 @@ describe("anime mapping title preservation", () => {
     });
 
     expect(getDisplayTitle(item)).toBe("Frieren: Beyond Journey's End");
+  });
+});
+
+describe("TMDB to AniList mapping", () => {
+  it("resolves the first season of a TMDB TV series", () => {
+    expect(
+      findAnilistIdByTmdbId(
+        {
+          21: { tv: 37854 },
+          99999: { tv: 37854, season: 2 },
+        },
+        37854,
+        "tv",
+      ),
+    ).toBe(21);
   });
 });

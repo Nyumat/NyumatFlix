@@ -6,23 +6,27 @@ export type FribbMappingItem = {
     tv?: number;
     movie?: number;
   };
+  season?: {
+    tmdb?: number;
+  };
 };
 
 export type FribbTmdbEntry = {
   tv?: number;
   movie?: number;
+  season?: number;
 };
 
 export type FribbTmdbMapping = {
   id: number;
   type: "movie" | "tv";
+  season?: number;
 };
 
 const FRIBB_URL =
   "https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json";
 const FRIBB_FETCH_TIMEOUT_MS = 8000;
 
-/** Pick TV vs movie using AniList format when Fribb has both IDs. */
 export const resolveFribbTmdbMapping = (
   entry: FribbTmdbEntry | undefined,
   format?: string | null,
@@ -34,7 +38,7 @@ export const resolveFribbTmdbMapping = (
   }
 
   if (entry.tv) {
-    return { id: entry.tv, type: "tv" };
+    return { id: entry.tv, type: "tv", season: entry.season };
   }
 
   if (entry.movie) {
@@ -64,6 +68,9 @@ export const getFribbMapping = unstable_cache(
       const entry: FribbTmdbEntry = {};
       if (item.themoviedb_id.tv) entry.tv = item.themoviedb_id.tv;
       if (item.themoviedb_id.movie) entry.movie = item.themoviedb_id.movie;
+      if (item.season?.tmdb && item.season.tmdb > 0) {
+        entry.season = item.season.tmdb;
+      }
 
       if (entry.tv || entry.movie) {
         mapping[item.anilist_id] = entry;
@@ -83,3 +90,26 @@ export const getTmdbIdFromFribb = async (
   const mapping = await getFribbMapping();
   return resolveFribbTmdbMapping(mapping?.[anilistId], format);
 };
+
+export const findAnilistIdByTmdbId = (
+  mapping: Record<number, FribbTmdbEntry>,
+  tmdbId: number,
+  type: "movie" | "tv",
+): number | null => {
+  for (const [anilistId, entry] of Object.entries(mapping)) {
+    if (
+      entry[type] === tmdbId &&
+      (type !== "tv" || !entry.season || entry.season === 1)
+    ) {
+      const parsedId = Number(anilistId);
+      return Number.isInteger(parsedId) ? parsedId : null;
+    }
+  }
+
+  return null;
+};
+
+export const getAnilistIdFromFribb = async (
+  tmdbId: number,
+  type: "movie" | "tv",
+) => findAnilistIdByTmdbId(await getFribbMapping(), tmdbId, type);

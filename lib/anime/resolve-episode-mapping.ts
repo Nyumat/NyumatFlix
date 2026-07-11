@@ -1,7 +1,6 @@
 import {
   inferMappingConfidence,
   resolveAnimeEpisodeCoords,
-  type MappingConfidence,
   type ResolvedAnimeEpisodeCoords,
   type TmdbAnilistMapResponse,
 } from "@/lib/anime/tmdb-anilist-map";
@@ -37,22 +36,11 @@ const fetchTmdbAnilistMap = async (
 
 export const resolveEpisodeAnimeMapping = async (
   request: EpisodeMappingRequest,
-): Promise<ResolvedAnimeEpisodeCoords & { isAdult: boolean }> => {
+): Promise<(ResolvedAnimeEpisodeCoords & { isAdult: boolean }) | null> => {
   const map = await fetchTmdbAnilistMap(request);
-  const fallbackConfidence: MappingConfidence = "low";
 
   if (!map || map.segments.length === 0) {
-    const fallback = resolveAnimeEpisodeCoords({
-      segments: [],
-      tmdbEpisodeNumber: request.episodeNumber,
-      fallbackAnilistId: request.sourceAnilistId,
-      confidence: fallbackConfidence,
-    });
-
-    return {
-      ...fallback,
-      isAdult: request.isAdult ?? false,
-    };
+    return null;
   }
 
   const confidence =
@@ -69,6 +57,8 @@ export const resolveEpisodeAnimeMapping = async (
     fallbackAnilistId: request.sourceAnilistId,
     confidence,
   });
+
+  if (coords.confidence !== "high") return null;
 
   return {
     ...coords,

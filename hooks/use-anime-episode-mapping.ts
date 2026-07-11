@@ -54,7 +54,7 @@ export function useAnimeEpisodeMapping() {
       episodeNumber: selectedEpisode.episode_number,
       sourceAnilistId: defaultAnilistId,
     }).then((coords) => {
-      if (cancelled) {
+      if (cancelled || !coords) {
         return;
       }
 
