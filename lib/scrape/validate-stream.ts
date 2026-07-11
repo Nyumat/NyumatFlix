@@ -1,9 +1,10 @@
-import { scrapeFetch } from "./fetch";
+import { cancelResponseBody, scrapeFetch } from "./fetch";
 import {
   parseStreamDurationSeconds,
   streamDurationMatchesExpected,
 } from "./stream-duration";
 import { looksLikeStreamUrl, type StreamKind } from "./stream-url-patterns";
+import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
 
 const looksLikeValidBody = (body: string, kind: StreamKind): boolean => {
   if (kind === "hls") {
@@ -122,6 +123,7 @@ const probeHlsAsset = async (
     },
   });
   if (!response.ok) {
+    await cancelResponseBody(response);
     return false;
   }
 
@@ -187,11 +189,13 @@ const validateHlsPlayback = async (
       headers: referer ? { Referer: referer } : {},
     });
     if (!response.ok) {
+      await cancelResponseBody(response);
       return false;
     }
 
     const contentType = response.headers.get("content-type") ?? "";
     if (contentType.includes("text/html")) {
+      await cancelResponseBody(response);
       return false;
     }
 
@@ -225,7 +229,8 @@ const validateHlsPlayback = async (
   }
 
   for (const assetUrl of requiredAssets) {
-    if (!(await probeHlsAsset(assetUrl, referer))) {
+    const normalizedAssetUrl = normalizeVidKingAssetHost(assetUrl, playlistUrl);
+    if (!(await probeHlsAsset(normalizedAssetUrl, referer))) {
       return false;
     }
   }
@@ -294,9 +299,11 @@ export async function validateStreamUrl(
           : true;
       }
 
+      await cancelResponseBody(response);
       return true;
     }
 
+    await cancelResponseBody(response);
     return false;
   } catch {
     return false;

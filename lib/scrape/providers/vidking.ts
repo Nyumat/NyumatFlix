@@ -1,4 +1,4 @@
-import { scrapeFetch } from "../fetch";
+import { cancelResponseBody, scrapeFetch } from "../fetch";
 import type { ScrapeMediaInput, ScrapeQuality, ScrapeResult } from "../types";
 
 const VIDKING_ORIGIN = "https://www.vidking.net";
@@ -196,6 +196,7 @@ const fetchVidKingPayload = async (
   );
 
   if (!encryptedResponse.ok) {
+    await cancelResponseBody(encryptedResponse);
     return null;
   }
 
@@ -218,7 +219,6 @@ export async function scrapeVidKing(
     Origin: VIDKING_ORIGIN,
     Referer: `${VIDKING_ORIGIN}/`,
   };
-
   try {
     const seedResponse = await scrapeFetch(
       `${VIDKING_API}/seed?mediaId=${input.tmdbId}`,
@@ -226,6 +226,7 @@ export async function scrapeVidKing(
     );
 
     if (!seedResponse.ok) {
+      await cancelResponseBody(seedResponse);
       return {
         ok: false,
         providerId,

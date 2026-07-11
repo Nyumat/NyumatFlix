@@ -38,6 +38,18 @@ type VidKingSession = {
 
 const sessionCache = new Map<string, VidKingSession>();
 const inflightRefreshes = new Map<string, Promise<VidKingSession | null>>();
+const MAX_SESSION_CACHE_ENTRIES = 500;
+
+const setSessionCache = (mediaKey: string, session: VidKingSession): void => {
+  sessionCache.delete(mediaKey);
+  sessionCache.set(mediaKey, session);
+
+  while (sessionCache.size > MAX_SESSION_CACHE_ENTRIES) {
+    const oldestKey = sessionCache.keys().next().value;
+    if (!oldestKey) break;
+    sessionCache.delete(oldestKey);
+  }
+};
 
 const isRetryableUpstreamStatus = (status: number) =>
   status === 401 ||
@@ -86,7 +98,7 @@ const refreshVidKingSession = async (
         referer: result.referer,
         fetchedAt: Date.now(),
       };
-      sessionCache.set(mediaKey, session);
+      setSessionCache(mediaKey, session);
       return session;
     } finally {
       inflightRefreshes.delete(mediaKey);
@@ -184,7 +196,7 @@ export function primeVidKingSession(
     return;
   }
 
-  sessionCache.set(scrapeMediaKeyFor(refresh), {
+  setSessionCache(scrapeMediaKeyFor(refresh), {
     cdnToken,
     referer,
     fetchedAt: refresh.seedFetchedAt,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  normalizeVidKingAssetHost,
   parseVidKingCdnUrl,
   rebuildVidKingCdnUrl,
   swapVidKingCdnToken,
@@ -39,6 +40,33 @@ describe("vidking-playback", () => {
     expect(swapped).toBe(
       "https://shadowlemon.site/r2/cdn2/fresh-token/720p/index.m3u8",
     );
+  });
+
+  it("moves rotated asset hosts to the working playlist origin", () => {
+    expect(
+      normalizeVidKingAssetHost(
+        "https://stale.example/r2/cdn2/shared-token/1080p/a.jpg",
+        "https://working.example/r2/cdn2/shared-token/1080p/index.m3u8",
+      ),
+    ).toBe("https://working.example/r2/cdn2/shared-token/1080p/a.jpg");
+  });
+
+  it("does not move unrelated tokens or non-HTTPS assets", () => {
+    const playlist =
+      "https://working.example/r2/cdn2/expected/1080p/index.m3u8";
+
+    expect(
+      normalizeVidKingAssetHost(
+        "https://stale.example/r2/cdn2/different/1080p/a.jpg",
+        playlist,
+      ),
+    ).toBe("https://stale.example/r2/cdn2/different/1080p/a.jpg");
+    expect(
+      normalizeVidKingAssetHost(
+        "http://stale.example/r2/cdn2/expected/1080p/a.jpg",
+        playlist,
+      ),
+    ).toBe("http://stale.example/r2/cdn2/expected/1080p/a.jpg");
   });
 
   it("rebuilds URLs from parsed parts", () => {

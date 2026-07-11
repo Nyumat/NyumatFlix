@@ -50,3 +50,31 @@ export const swapVidKingCdnToken = (
 
 export const extractVidKingCdnToken = (url: string): string | null =>
   parseVidKingCdnUrl(url)?.token ?? null;
+
+export const normalizeVidKingAssetHost = (
+  assetUrl: string,
+  playlistUrl: string,
+): string => {
+  try {
+    const asset = new URL(assetUrl);
+    const playlist = new URL(playlistUrl);
+    const assetPath = asset.pathname.match(
+      /^\/(?:r2\/)?cdn[12]\/([^/]+)\/(.+)$/i,
+    );
+    const playlistPath = playlist.pathname.match(
+      /^\/(?:r2\/)?cdn[12]\/([^/]+)\/(.+)$/i,
+    );
+    if (
+      asset.protocol === "https:" &&
+      playlist.protocol === "https:" &&
+      asset.origin !== playlist.origin &&
+      assetPath?.[1] &&
+      assetPath[1] === playlistPath?.[1]
+    ) {
+      asset.host = playlist.host;
+    }
+    return asset.toString();
+  } catch {
+    return assetUrl;
+  }
+};
