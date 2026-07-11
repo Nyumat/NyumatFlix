@@ -15,7 +15,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN bun run build
 
-FROM node:22-slim AS runner
+FROM node:24.15.0-slim AS runner
 WORKDIR /app
 
 RUN apt-get update \
@@ -24,7 +24,9 @@ RUN apt-get update \
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS=--max-old-space-size=4096
+# Leave room for native allocations, streaming buffers, Docker, and sidecars on
+# the 8 GiB production host. The container has a separate 3 GiB hard limit.
+ENV NODE_OPTIONS=--max-old-space-size=2048
 ENV HOSTNAME=0.0.0.0
 ENV PORT=8080
 
