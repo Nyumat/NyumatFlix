@@ -142,7 +142,7 @@ export interface SearchAutocompleteProps {
   listClassName?: string;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
-  onOptionHover?: (index: number) => void;
+  onOptionFocus?: (index: number) => void;
   onOptionKeyDown?: (event: React.KeyboardEvent, index: number) => void;
   onSelectSuggestion: (suggestion: string) => void;
   onSelectResult: (result: SearchPreviewResult) => void;
@@ -163,7 +163,7 @@ export function SearchAutocomplete({
   listClassName,
   onMouseEnter,
   onMouseLeave,
-  onOptionHover,
+  onOptionFocus,
   onOptionKeyDown,
   onSelectSuggestion,
   onSelectResult,
@@ -212,8 +212,7 @@ export function SearchAutocomplete({
         event.preventDefault();
         onActivate();
       }}
-      onFocus={() => onOptionHover?.(index)}
-      onMouseEnter={() => onOptionHover?.(index)}
+      onFocus={() => onOptionFocus?.(index)}
       onKeyDown={(event) => onOptionKeyDown?.(event, index)}
       className={cn(
         "flex w-full cursor-pointer text-left outline-none transition-colors duration-150",

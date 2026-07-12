@@ -24,6 +24,8 @@ type HorizontalCardProps = {
   testIdPrefix?: string;
   overviewLines?: string;
   variant?: "default" | "compact";
+  /** overlay: play icon hotspot (carousels/grids). row: entire card navigates (search lists). */
+  interaction?: "overlay" | "row";
 };
 
 export function HorizontalCard({
@@ -32,8 +34,10 @@ export function HorizontalCard({
   testIdPrefix = "horizontal-card",
   overviewLines,
   variant = "default",
+  interaction = "overlay",
 }: HorizontalCardProps) {
   const isCompact = variant === "compact";
+  const isRowInteraction = interaction === "row";
   const isMobile = !!useMedia("(max-width: 768px)", false);
   const title = getDisplayTitle(item);
   const href = getHref(item);
@@ -53,7 +57,10 @@ export function HorizontalCard({
   return (
     <Card
       className={cn(
-        "group relative h-full cursor-grab select-none overflow-hidden border transition-all duration-300 active:cursor-grabbing",
+        "group relative h-full overflow-hidden border transition-all duration-300",
+        isRowInteraction
+          ? "cursor-pointer"
+          : "cursor-grab select-none active:cursor-grabbing",
         isCompact
           ? "border-white/10 bg-card/40 shadow-none backdrop-blur-xl hover:border-primary/40"
           : "border-white/10 bg-card/40 shadow-2xl backdrop-blur-xl hover:border-primary/50",
@@ -120,7 +127,7 @@ export function HorizontalCard({
                   : "duration-700 group-hover:scale-[1.05]",
               )}
             />
-            {!isMobile ? (
+            {!isMobile && !isRowInteraction ? (
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/0 transition-all duration-500 group-hover:bg-black/20">
                 <Link
                   href={href}
@@ -187,11 +194,18 @@ export function HorizontalCard({
           ) : null}
         </div>
       </div>
-      {isMobile ? (
+      {isMobile || isRowInteraction ? (
         <Link
           href={href}
           onClick={onNavigate}
-          className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+          onFocus={schedulePrefetch}
+          onPointerEnter={schedulePrefetch}
+          className={cn(
+            "absolute inset-0 z-40",
+            isRowInteraction
+              ? "cursor-pointer"
+              : "cursor-grab active:cursor-grabbing",
+          )}
           aria-label={`View ${title}`}
         />
       ) : null}
