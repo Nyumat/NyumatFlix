@@ -1,3 +1,6 @@
+"use client";
+
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
 import { LogIn, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Session } from "next-auth";
@@ -20,6 +23,13 @@ export const NavbarAuth = ({
   isMobile = false,
   onMobileLinkClick,
 }: NavbarAuthProps) => {
+  const flags = useFeatureFlagsOptional();
+  const authEnabled = flags?.authEnabled ?? true;
+
+  if (!authEnabled) {
+    return null;
+  }
+
   if (isMobile) {
     return (
       <>
@@ -48,7 +58,7 @@ export const NavbarAuth = ({
           <Button
             variant="ghost"
             size="icon"
-            className={cn(navbarActionButtonClassName, "hidden md:inline-flex")}
+            className={cn(navbarActionButtonClassName)}
           >
             <UserRound
               className={navbarActionIconClassName}
