@@ -10,6 +10,7 @@ import {
 } from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
 import type { MediaItem } from "@/lib/domain/typings";
 import { getFirstRegularSeason, isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
@@ -108,6 +109,7 @@ export const useMediaHero = ({
   const disableHeroTrailers = useAppSettingsStore(
     (state) => state.disableHeroTrailers,
   );
+  const featureFlags = useFeatureFlagsOptional();
 
   useEffect(() => {
     autoplayHandledRef.current = false;
@@ -156,6 +158,7 @@ export const useMediaHero = ({
 
   const videasyEnabled =
     !disableHeroTrailers &&
+    !featureFlags?.staticHeroBackdrops &&
     (mediaType === "movie" || mediaType === "tv") &&
     !isPlayingVideo &&
     Boolean(imdbId);

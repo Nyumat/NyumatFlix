@@ -4,6 +4,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { scrapeServer, useServerStore } from "@/lib/stores/server-store";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ const settingRowClassName =
   "flex w-full cursor-pointer items-start gap-3 rounded-md border border-white/10 bg-card/45 p-3 text-left text-white outline-hidden transition-all hover:border-white/25 hover:bg-white/8";
 
 export function BrowseSettings({ variant }: BrowseSettingsProps) {
+  const flags = useFeatureFlagsOptional();
   const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
   const disableHeroTrailers = useAppSettingsStore(
     (state) => state.disableHeroTrailers,
@@ -26,6 +28,14 @@ export function BrowseSettings({ variant }: BrowseSettingsProps) {
     (state) => state.setDisableHeroTrailers,
   );
   const setSelectedServer = useServerStore((state) => state.setSelectedServer);
+
+  const hideAll = flags?.locks.browseSettings ?? false;
+  const hideNoAds = hideAll || flags?.locks.playbackMode;
+  const hideHero = hideAll || flags?.locks.heroTrailers;
+
+  if (hideNoAds && hideHero) {
+    return null;
+  }
 
   const handleNoAdsModeChange = (enabled: boolean) => {
     setNoAdsMode(enabled);
@@ -42,32 +52,36 @@ export function BrowseSettings({ variant }: BrowseSettingsProps) {
           <p className="px-1 pb-1 text-xs font-normal tracking-wide text-muted-foreground">
             Settings
           </p>
-          <DropdownMenuCheckboxItem
-            checked={noAdsMode}
-            onCheckedChange={handleNoAdsModeChange}
-            onSelect={(event) => event.preventDefault()}
-            className="cursor-pointer rounded-md pl-8 focus:bg-white/8 focus:text-white"
-          >
-            <div className="space-y-0.5">
-              <span className="font-medium">No ads mode</span>
-              <p className="text-xs text-muted-foreground">
-                Subject to monkey patching
-              </p>
-            </div>
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={disableHeroTrailers}
-            onCheckedChange={setDisableHeroTrailers}
-            onSelect={(event) => event.preventDefault()}
-            className="cursor-pointer rounded-md pl-8 focus:bg-white/8 focus:text-white"
-          >
-            <div className="space-y-0.5">
-              <span className="font-medium">Static hero</span>
-              <p className="text-xs text-muted-foreground">
-                Backdrop image instead of autoplay trailers
-              </p>
-            </div>
-          </DropdownMenuCheckboxItem>
+          {!hideNoAds ? (
+            <DropdownMenuCheckboxItem
+              checked={noAdsMode}
+              onCheckedChange={handleNoAdsModeChange}
+              onSelect={(event) => event.preventDefault()}
+              className="cursor-pointer rounded-md pl-8 focus:bg-white/8 focus:text-white"
+            >
+              <div className="space-y-0.5">
+                <span className="font-medium">No ads mode</span>
+                <p className="text-xs text-muted-foreground">
+                  Subject to monkey patching
+                </p>
+              </div>
+            </DropdownMenuCheckboxItem>
+          ) : null}
+          {!hideHero ? (
+            <DropdownMenuCheckboxItem
+              checked={disableHeroTrailers}
+              onCheckedChange={setDisableHeroTrailers}
+              onSelect={(event) => event.preventDefault()}
+              className="cursor-pointer rounded-md pl-8 focus:bg-white/8 focus:text-white"
+            >
+              <div className="space-y-0.5">
+                <span className="font-medium">Static hero</span>
+                <p className="text-xs text-muted-foreground">
+                  Backdrop image instead of autoplay trailers
+                </p>
+              </div>
+            </DropdownMenuCheckboxItem>
+          ) : null}
         </div>
       </>
     );
@@ -77,20 +91,24 @@ export function BrowseSettings({ variant }: BrowseSettingsProps) {
     <section className="space-y-2">
       <p className="px-1 text-sm font-medium text-white/70">Settings</p>
       <div className="space-y-2">
-        <MobileSettingRow
-          icon={ShieldOff}
-          title="No ads mode"
-          description="Subject to monkey patching"
-          enabled={noAdsMode}
-          onToggle={() => handleNoAdsModeChange(!noAdsMode)}
-        />
-        <MobileSettingRow
-          icon={ImageIcon}
-          title="Static hero"
-          description="Backdrop image instead of autoplay trailers"
-          enabled={disableHeroTrailers}
-          onToggle={() => setDisableHeroTrailers(!disableHeroTrailers)}
-        />
+        {!hideNoAds ? (
+          <MobileSettingRow
+            icon={ShieldOff}
+            title="No ads mode"
+            description="Subject to monkey patching"
+            enabled={noAdsMode}
+            onToggle={() => handleNoAdsModeChange(!noAdsMode)}
+          />
+        ) : null}
+        {!hideHero ? (
+          <MobileSettingRow
+            icon={ImageIcon}
+            title="Static hero"
+            description="Backdrop image instead of autoplay trailers"
+            enabled={disableHeroTrailers}
+            onToggle={() => setDisableHeroTrailers(!disableHeroTrailers)}
+          />
+        ) : null}
       </div>
     </section>
   );

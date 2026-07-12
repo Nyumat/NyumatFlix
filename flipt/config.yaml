@@ -1,0 +1,22 @@
+log:
+  level: info
+
+authentication:
+  required: true
+  exclude:
+    evaluation: true
+  methods:
+    token:
+      enabled: true
+      storage:
+        tokens:
+          nyumatflix_app:
+            credential: "${env:FLIPT_API_TOKEN}"
+            metadata:
+              description: "NyumatFlix app read/write"
+
+storage:
+  default:
+    backend:
+      type: local
+      path: /var/opt/flipt

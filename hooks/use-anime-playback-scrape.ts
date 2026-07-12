@@ -2,6 +2,11 @@
 
 import { useMemo } from "react";
 
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import {
+  isAnimeScrapeProviderEnabled,
+  isTmdbScrapeProviderEnabled,
+} from "@/lib/flags/site-flags";
 import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
 import {
   buildAnimePlaybackProviderOrder,
@@ -85,11 +90,28 @@ const animePlaybackScrapeLoopConfig = {
 } as const;
 
 export function useAnimePlaybackScrape() {
+  const flags = useFeatureFlagsOptional();
+  const config = useMemo(
+    () => ({
+      ...animePlaybackScrapeLoopConfig,
+      resolveProviderOrder: (input: AnimePlaybackScrapeInput) => {
+        const order = buildAnimePlaybackProviderOrder(input.chain);
+        if (!flags) return order;
+        return order.filter((providerId) =>
+          isTmdbScrapeProvider(providerId)
+            ? isTmdbScrapeProviderEnabled(flags, providerId)
+            : isAnimeScrapeProviderEnabled(flags, providerId),
+        );
+      },
+    }),
+    [flags],
+  );
+
   return useProviderScrapeLoop<
     AnimePlaybackScrapeProviderId,
     AnimePlaybackScrapeInput,
     AnimePlaybackScrapeSuccessPayload
-  >(useMemo(() => animePlaybackScrapeLoopConfig, []));
+  >(config);
 }
 
 export type UseAnimePlaybackScrapeReturn = ReturnType<

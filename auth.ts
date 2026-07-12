@@ -5,9 +5,11 @@ import {
   MAGIC_LINK_RESEND_SUBJECT,
 } from "@/lib/constants";
 import { setDevMagicLink } from "@/lib/dev-magic-link-store";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
+import { eq } from "drizzle-orm";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
@@ -67,6 +69,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    signIn: async ({ user }) => {
+      const flags = await getSiteFlags();
+      if (!flags.authEnabled) {
+        return false;
+      }
+      if (flags.signupDisabled && user.email) {
+        const [existing] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.email, user.email))
+          .limit(1);
+        if (!existing) {
+          return false;
+        }
+      }
+      return true;
+    },
     session: async ({ session, token }) => {
       if (session?.user && token?.sub) {
         session.user.id = token.sub;

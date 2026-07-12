@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { pages } from "@/config/pages";
-import { isLiveTvEnabled } from "@/config/features";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import { SITE_URL } from "@/lib/constants";
 
 const staticRoutes: MetadataRoute.Sitemap = [
@@ -49,15 +49,6 @@ const staticRoutes: MetadataRoute.Sitemap = [
     changeFrequency: "daily",
     priority: 0.75,
   },
-  ...(isLiveTvEnabled()
-    ? [
-        {
-          url: `${SITE_URL}/live`,
-          changeFrequency: "daily" as const,
-          priority: 0.7,
-        },
-      ]
-    : []),
   {
     url: `${SITE_URL}/search`,
     changeFrequency: "weekly",
@@ -85,10 +76,24 @@ const staticRoutes: MetadataRoute.Sitemap = [
   },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const flags = await getSiteFlags();
   const lastModified = new Date();
+  const liveRoutes: MetadataRoute.Sitemap = flags.liveTvEnabled
+    ? [
+        {
+          url: `${SITE_URL}/live`,
+          changeFrequency: "daily",
+          priority: 0.7,
+        },
+      ]
+    : [];
 
-  return staticRoutes.map((entry) => ({
+  const routes = staticRoutes.filter(
+    (entry) => entry.url !== `${SITE_URL}/live`,
+  );
+
+  return [...routes, ...liveRoutes].map((entry) => ({
     ...entry,
     lastModified,
   }));

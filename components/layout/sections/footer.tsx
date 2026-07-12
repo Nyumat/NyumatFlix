@@ -1,18 +1,15 @@
-import { isLiveTvEnabled } from "@/config/features";
+"use client";
+
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { getFooterLinks } from "@/lib/navigation";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { Cannabis, Globe, Heart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-const FOOTER_LINKS = [
-  { href: "/movies", label: "Movies" },
-  { href: "/tvshows", label: "TV Shows" },
-  { href: "/anime", label: "Anime" },
-  ...(isLiveTvEnabled() ? [{ href: "/live", label: "Live TV" } as const] : []),
-  { href: "/search", label: "Search" },
-] as const;
-
 export const FooterSection = () => {
+  const flags = useFeatureFlagsOptional();
+  const footerLinks = getFooterLinks(flags?.liveTvEnabled ?? false);
   return (
     <footer
       id="footer"
@@ -43,7 +40,7 @@ export const FooterSection = () => {
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 md:gap-x-4 lg:gap-x-5"
                 role="list"
               >
-                {FOOTER_LINKS.map(({ href, label }) => (
+                {footerLinks.map(({ href, label }) => (
                   <li key={href}>
                     <Link
                       href={href}

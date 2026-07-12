@@ -1,4 +1,3 @@
-import { isLiveTvEnabled } from "@/config/features";
 import {
   isLegacyMovieDetailTabPathSegment,
   isLegacyTvDetailTabPathSegment,
@@ -7,15 +6,48 @@ import {
   isAnilistTvRouteId,
   normalizeAnilistTvRouteSlug,
 } from "@/lib/anilist-route-id";
+import { isFfsHost } from "@/lib/ffs/require-ffs-host";
+import { resolveSiteFlags } from "@/lib/flags/site-flags";
+import { readAdminFlagState } from "@/lib/flags/flipt-client";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const LEGACY_TAB_QUERY = "tab";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get("host");
+  const ffsHost = isFfsHost(host);
 
-  if (!isLiveTvEnabled() && pathname.startsWith("/live")) {
+  if (
+    ffsHost &&
+    !pathname.startsWith("/ffs") &&
+    !pathname.startsWith("/api/ffs")
+  ) {
+    return NextResponse.redirect(new URL("/ffs", request.url));
+  }
+
+  if (
+    !ffsHost &&
+    (pathname.startsWith("/ffs") || pathname.startsWith("/api/ffs"))
+  ) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  const siteFlags = resolveSiteFlags(await readAdminFlagState());
+
+  if (
+    !ffsHost &&
+    siteFlags.maintenanceMode &&
+    pathname.startsWith("/api/scrape")
+  ) {
+    return NextResponse.json(
+      { error: "Playback is temporarily unavailable (maintenance)." },
+      { status: 503 },
+    );
+  }
+
+  if (!siteFlags.liveTvEnabled && pathname.startsWith("/live")) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
@@ -67,6 +99,9 @@ export function middleware(request: NextRequest) {
     "x-search-params",
     request.nextUrl.searchParams.toString(),
   );
+  if (siteFlags.maintenanceMode && !ffsHost) {
+    requestHeaders.set("x-maintenance-mode", "1");
+  }
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
@@ -75,5 +110,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

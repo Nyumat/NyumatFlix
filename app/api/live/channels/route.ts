@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isLiveTvEnabled } from "@/config/features";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import { getLiveChannels } from "@/lib/live/dulo";
 
 export const maxDuration = 90;
@@ -20,7 +20,8 @@ const resolveGuideMode = (request: Request) => {
 };
 
 export async function GET(request: Request) {
-  if (!isLiveTvEnabled()) {
+  const flags = await getSiteFlags();
+  if (!flags.liveTvEnabled) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
