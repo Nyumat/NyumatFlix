@@ -25,7 +25,7 @@ const filterAnimeProvidersForTest = (context: AnimePlaybackChainContext) =>
   });
 
 describe("anime-playback-chain", () => {
-  it("includes TMDB proxies only for high-confidence non-adult mappings", () => {
+  it("includes TMDB proxies for every high-confidence mapping", () => {
     expect(
       shouldIncludeTmdbPlaybackProxies({
         mappingConfidence: "high",
@@ -45,10 +45,10 @@ describe("anime-playback-chain", () => {
         mappingConfidence: "high",
         isAdultAnime: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it("builds anime-only provider order for adult or low-confidence shows", () => {
+  it("builds anime-only provider order for low-confidence shows", () => {
     const order = buildAnimePlaybackProviderOrder({
       mappingConfidence: "low",
       isAdultAnime: true,
@@ -56,6 +56,22 @@ describe("anime-playback-chain", () => {
 
     expect(order).toContain("hentaigasm");
     expect(order).not.toEqual(
+      expect.arrayContaining([...TMDB_SCRAPE_PROVIDER_ORDER]),
+    );
+  });
+
+  it("puts hentaigasm and anipm first and omits mainstream providers for adult", () => {
+    const order = buildAnimePlaybackProviderOrder({
+      mappingConfidence: "high",
+      isAdultAnime: true,
+      anilistGenres: ["Hentai"],
+    });
+
+    expect(order[0]).toBe("hentaigasm");
+    expect(order[1]).toBe("anipm");
+    expect(order).not.toContain("animegg");
+    expect(order).not.toContain("animepahe");
+    expect(order).toEqual(
       expect.arrayContaining([...TMDB_SCRAPE_PROVIDER_ORDER]),
     );
   });
@@ -69,17 +85,21 @@ describe("anime-playback-chain", () => {
 
     expect(order).not.toContain("hentaigasm");
     expect(order).not.toContain("anipm");
+    expect(order).toContain("animegg");
+    expect(order).toContain("animepahe");
   });
 
-  it("includes hentaigasm when the Hentai genre is present", () => {
+  it("includes hentaigasm first when the Hentai genre is present", () => {
     const order = buildAnimePlaybackProviderOrder({
       mappingConfidence: "low",
       isAdultAnime: false,
       anilistGenres: ["Hentai", "Romance"],
     });
 
-    expect(order).toContain("hentaigasm");
-    expect(order).toContain("anipm");
+    expect(order[0]).toBe("hentaigasm");
+    expect(order[1]).toBe("anipm");
+    expect(order).not.toContain("animegg");
+    expect(order).not.toContain("animepahe");
   });
 
   it("keeps multi-audio AniZone and omits sub-only AnimeOnsen for dub playback", () => {
@@ -92,7 +112,19 @@ describe("anime-playback-chain", () => {
 
     expect(order).toContain("anizone");
     expect(order).not.toContain("animeonsen");
-    expect(order).toEqual(["anizone", "kickassanime", "animegg", "animepahe"]);
+    expect(order).toEqual([
+      "justanime",
+      "anikitty",
+      "animeparadise",
+      "kyren",
+      "anikuro",
+      "allmanga",
+      "animegg",
+      "kickassanime",
+      "anizone",
+      "animestream",
+      "animepahe",
+    ]);
   });
 
   it("appends TMDB proxies for high-confidence non-adult shows", () => {
@@ -126,5 +158,28 @@ describe("anime-playback-chain", () => {
 
     expect(animeCount).toBe(animeProviders.length);
     expect(tmdbCount).toBe(TMDB_SCRAPE_PROVIDER_ORDER.length);
+  });
+
+  it("groups adult options without mainstream-only providers", () => {
+    const grouped = buildGroupedAnimePlaybackProviderOptions({
+      mappingConfidence: "low",
+      isAdultAnime: true,
+      anilistGenres: ["Hentai"],
+    });
+
+    expect(grouped.map((entry) => entry.providerId)).toEqual([
+      "hentaigasm",
+      "anipm",
+      "justanime",
+      "anikitty",
+      "animeparadise",
+      "kyren",
+      "anikuro",
+      "animeonsen",
+      "allmanga",
+      "kickassanime",
+      "anizone",
+      "animestream",
+    ]);
   });
 });

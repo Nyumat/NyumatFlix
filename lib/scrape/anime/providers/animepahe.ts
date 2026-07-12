@@ -1,142 +1,633 @@
 import {
-  extractFirstMatch,
-  extractJsonPreBody,
-  extractM3u8Urls,
-  unpackDeanEdwardsScripts,
-} from "../html-utils";
-import {
   fetchAnilistTitleCandidates,
   resolveAnimeSearchQuery,
 } from "../anilist-meta";
-import { isExactAnimeTitleMatch } from "../title-match";
-import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import {
-  flareSolverrCreateSession,
-  flareSolverrDestroySession,
-  flareSolverrGet,
-} from "../../flaresolverr";
+  animeSearchLabelMatches,
+  stripAnimeSearchMetadata,
+} from "../title-match";
+import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { scrapeFetchText } from "../../fetch";
 
-const ANIMEPAHE_ORIGIN = "https://animepahe.pw";
+/** Official domains per https://animepahe.ch/ */
+const ANIMEPAHE_ORIGINS = [
+  "https://animepahe.ch",
+  "https://animepahe.ng",
+] as const;
 
-type AnimePaheSearchItem = {
-  id?: number;
-  title?: string;
-  session?: string;
+const MEGAPLAY_ORIGIN = "https://megaplay.buzz";
+const ORIGIN_CACHE_TTL_MS = 10 * 60_000;
+
+type CachedOrigin = {
+  origin: string;
+  cachedAt: number;
 };
 
-type AnimePaheSearchResponse = {
-  data?: AnimePaheSearchItem[];
-};
+let cachedOrigin: CachedOrigin | null = null;
 
-type AnimePaheReleaseItem = {
-  id?: number;
-  session?: string;
-  episode?: number;
-};
-
-type AnimePaheReleaseResponse = {
-  data?: AnimePaheReleaseItem[];
-};
-
-const flareGetJson = async <T>(
-  url: string,
-  session: string,
-): Promise<T | null> => {
-  const response = await flareSolverrGet(url, 90_000, session);
-  if (!response || response.status !== 200) {
-    return null;
+const uniqueTitles = (titles: readonly string[]): string[] => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const title of titles) {
+    const trimmed = title.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
   }
+  return result;
+};
 
-  const preBody = extractJsonPreBody(response.body);
-  const raw = preBody ?? response.body.trim();
+const cleanSearchLabel = (raw: string): string =>
+  stripAnimeSearchMetadata(raw)
+    .replace(/\b(Anime|Ongoing|Completed|Upcoming|Sub|Dub)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
+const slugifyTitle = (title: string): string =>
+  title
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-US")
+    .replace(/['']/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
+
+const decodeBase64Utf8 = (value: string): string | null => {
   try {
-    return JSON.parse(raw) as T;
+    return Buffer.from(value, "base64").toString("utf8");
   } catch {
     return null;
   }
 };
 
-const extractKwikUrl = (
-  html: string,
-  translationType: AnimeScrapeInput["translationType"],
-): string | null => {
-  const desiredAudio = translationType === "dub" ? "eng" : "jpn";
-  const candidates = [
-    ...html.matchAll(
-      /<button\b([^>]+data-src="https:\/\/kwik\.[^"]+"[^>]*)>/gi,
-    ),
-  ]
-    .map((match) => ({
-      attrs: match[1] ?? "",
-      url: (match[1] ?? "").match(/data-src="(https:\/\/kwik\.[^"]+)"/i)?.[1],
-      audio: (match[1] ?? "").match(/data-audio="([^"]+)"/i)?.[1],
-      resolution: Number(
-        (match[1] ?? "").match(/data-resolution="(\d+)"/i)?.[1] ?? 0,
-      ),
-    }))
-    .filter((candidate): candidate is typeof candidate & { url: string } =>
-      Boolean(candidate.url),
-    );
-
-  const matchingAudio = candidates
-    .filter((candidate) => candidate.audio === desiredAudio)
-    .sort((left, right) => right.resolution - left.resolution);
-
-  return matchingAudio[0]?.url ?? null;
+const getCachedOrigin = (): string | null => {
+  if (
+    cachedOrigin &&
+    Date.now() - cachedOrigin.cachedAt < ORIGIN_CACHE_TTL_MS
+  ) {
+    return cachedOrigin.origin;
+  }
+  return null;
 };
 
-const unpackKwikPackedJs = (html: string): string | null =>
-  unpackDeanEdwardsScripts(html)
-    .flatMap(extractM3u8Urls)
-    .find((url) => url.includes(".m3u8")) ?? null;
+const rememberOrigin = (origin: string): void => {
+  cachedOrigin = { origin, cachedAt: Date.now() };
+};
+
+const originsToTry = (): string[] => {
+  const preferred = getCachedOrigin();
+  if (!preferred) {
+    return [...ANIMEPAHE_ORIGINS];
+  }
+  return [
+    preferred,
+    ...ANIMEPAHE_ORIGINS.filter((origin) => origin !== preferred),
+  ];
+};
+
+const isHomepageHtml = (html: string): boolean => {
+  const title = html.match(/<title>([^<]+)/i)?.[1]?.trim() ?? "";
+  return /^Animepahe\s*\|\s*Watch Free Anime Online/i.test(title);
+};
+
+const isValidSeriesPage = (html: string, seriesSlug: string): boolean => {
+  if (!html || html.length < 800) return false;
+  if (isHomepageHtml(html) && !html.includes(`/series/${seriesSlug}`)) {
+    return false;
+  }
+  return (
+    html.includes(`eplister`) ||
+    html.includes(`${seriesSlug}-episode-`) ||
+    new RegExp(`Watch\\s+.+\\s+Online Free`, "i").test(
+      html.match(/<title>([^<]+)/i)?.[1] ?? "",
+    )
+  );
+};
+
+const isValidEpisodePage = (html: string): boolean => {
+  if (!html || html.length < 800) return false;
+  if (isHomepageHtml(html)) return false;
+  return (
+    /player-embed/i.test(html) ||
+    /megaplay\.buzz/i.test(html) ||
+    /gov-the-embed/i.test(html) ||
+    /m3u8=/i.test(html) ||
+    /livesportshd\.ru/i.test(html)
+  );
+};
+
+type SeriesCandidate = {
+  seriesPath: string;
+  label: string;
+};
+
+const isDubSeriesCandidate = (candidate: SeriesCandidate): boolean =>
+  /(?:^|-)dub\/?$/i.test(candidate.seriesPath) ||
+  /\(\s*dub\s*\)|\bdub\b/i.test(candidate.label);
+
+const pickSeriesCandidate = (
+  candidates: SeriesCandidate[],
+  expectedTitles: readonly string[],
+  translationType: AnimeScrapeInput["translationType"],
+): SeriesCandidate | undefined => {
+  const matched = candidates.filter((candidate) =>
+    animeSearchLabelMatches(candidate.label, expectedTitles),
+  );
+  if (matched.length === 0) {
+    return undefined;
+  }
+
+  if (translationType === "dub") {
+    return (
+      matched.find((candidate) => isDubSeriesCandidate(candidate)) ?? matched[0]
+    );
+  }
+
+  return (
+    matched.find((candidate) => !isDubSeriesCandidate(candidate)) ?? matched[0]
+  );
+};
+
+const parseSeriesCandidates = (
+  html: string,
+  origin: string,
+): SeriesCandidate[] => {
+  const candidates: SeriesCandidate[] = [];
+  const seen = new Set<string>();
+
+  // Prefer heading links from search hits over sidebar widgets.
+  for (const match of html.matchAll(
+    /<h[12]\b[^>]*>[\s\S]*?<a\b[^>]*href="((?:https?:\/\/[^"]+)?\/series\/([^"/?#]+)\/?)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h[12]>/gi,
+  )) {
+    const href = match[1] ?? "";
+    const slug = match[2] ?? "";
+    const label = cleanSearchLabel(match[3] ?? "");
+    if (!slug) continue;
+
+    let seriesPath: string;
+    try {
+      seriesPath = new URL(href, origin).pathname.replace(/\/?$/, "/");
+    } catch {
+      seriesPath = `/series/${slug}/`;
+    }
+
+    if (seen.has(seriesPath)) continue;
+    seen.add(seriesPath);
+    candidates.push({
+      seriesPath,
+      label: label || slug.replace(/-/g, " "),
+    });
+  }
+
+  if (candidates.length > 0) {
+    return candidates;
+  }
+
+  for (const match of html.matchAll(
+    /<a\b[^>]*href="((?:https?:\/\/[^"]+)?\/series\/([^"/?#]+)\/?)"[^>]*>([\s\S]*?)<\/a>/gi,
+  )) {
+    const href = match[1] ?? "";
+    const slug = match[2] ?? "";
+    const label = cleanSearchLabel(match[3] ?? "");
+    if (!slug) continue;
+
+    let seriesPath: string;
+    try {
+      seriesPath = new URL(href, origin).pathname.replace(/\/?$/, "/");
+    } catch {
+      seriesPath = `/series/${slug}/`;
+    }
+
+    if (seen.has(seriesPath)) continue;
+    seen.add(seriesPath);
+    candidates.push({
+      seriesPath,
+      label: label || slug.replace(/-/g, " "),
+    });
+  }
+
+  return candidates;
+};
+
+const findSeriesPath = async (
+  origin: string,
+  expectedTitles: readonly string[],
+  translationType: AnimeScrapeInput["translationType"],
+): Promise<string | null> => {
+  for (const title of expectedTitles) {
+    const searchPage = await scrapeFetchText(
+      `${origin}/?s=${encodeURIComponent(title)}`,
+      { Referer: `${origin}/` },
+    );
+    if (searchPage.status !== 200) {
+      continue;
+    }
+
+    const candidates = parseSeriesCandidates(searchPage.text, origin);
+    const matched = pickSeriesCandidate(
+      candidates,
+      expectedTitles,
+      translationType,
+    );
+    if (!matched) {
+      continue;
+    }
+
+    const seriesSlug = matched.seriesPath
+      .replace(/^\/series\//, "")
+      .replace(/\/$/, "");
+    const seriesPage = await scrapeFetchText(`${origin}${matched.seriesPath}`, {
+      Referer: `${origin}/`,
+    });
+    if (
+      seriesPage.status === 200 &&
+      isValidSeriesPage(seriesPage.text, seriesSlug)
+    ) {
+      return matched.seriesPath;
+    }
+  }
+
+  for (const title of expectedTitles) {
+    const baseSlug = slugifyTitle(title);
+    if (!baseSlug) continue;
+    const slugCandidates =
+      translationType === "dub"
+        ? [`${baseSlug}-dub`, baseSlug]
+        : [baseSlug, `${baseSlug}-dub`];
+    for (const slug of slugCandidates) {
+      const seriesPath = `/series/${slug}/`;
+      const seriesPage = await scrapeFetchText(`${origin}${seriesPath}`, {
+        Referer: `${origin}/`,
+      });
+      if (
+        seriesPage.status === 200 &&
+        isValidSeriesPage(seriesPage.text, slug)
+      ) {
+        return seriesPath;
+      }
+    }
+  }
+
+  return null;
+};
+
+const episodePathPatterns = (
+  seriesSlug: string,
+  episodeNumber: number,
+  translationType: AnimeScrapeInput["translationType"],
+): string[] => {
+  const n = episodeNumber;
+  const preferDub = translationType === "dub";
+  const subPatterns = [
+    `/${seriesSlug}-episode-${n}-english-subbed/`,
+    `/${seriesSlug}-episode-${n}-subbed/`,
+    `/${seriesSlug}-episode-${n}/`,
+  ];
+  const dubPatterns = [
+    `/${seriesSlug}-episode-${n}-english-dubbed/`,
+    `/${seriesSlug}-episode-${n}-dubbed/`,
+  ];
+  return preferDub
+    ? [...dubPatterns, ...subPatterns]
+    : [...subPatterns, ...dubPatterns];
+};
+
+const findEpisodeUrl = (
+  seriesHtml: string,
+  origin: string,
+  seriesSlug: string,
+  episodeNumber: number,
+  translationType: AnimeScrapeInput["translationType"],
+): string | null => {
+  const hrefs = [
+    ...seriesHtml.matchAll(
+      /href="((?:https?:\/\/[^"]+)?\/[^"]*episode-[^"]+)"/gi,
+    ),
+  ].map((match) => match[1] ?? "");
+
+  for (const pattern of episodePathPatterns(
+    seriesSlug,
+    episodeNumber,
+    translationType,
+  )) {
+    const hit = hrefs.find((href) => {
+      try {
+        return new URL(href, origin).pathname === pattern;
+      } catch {
+        return href.includes(pattern);
+      }
+    });
+    if (hit) {
+      return new URL(hit, origin).toString();
+    }
+  }
+
+  const episodeRe = new RegExp(
+    `/${seriesSlug}-episode-${episodeNumber}(?:-[a-z0-9-]+)?/?$`,
+    "i",
+  );
+  for (const href of hrefs) {
+    try {
+      const path = new URL(href, origin).pathname;
+      if (episodeRe.test(path)) {
+        return new URL(href, origin).toString();
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+};
+
+const extractIframeSrc = (html: string): string | null => {
+  const match = html.match(/<iframe\b[^>]*\bsrc=["']([^"']+)["']/i);
+  return match?.[1]?.trim() || null;
+};
+
+/** Collect primary iframe + putMi server embeds from episode HTML. */
+const extractEpisodeEmbedUrls = (episodeHtml: string): string[] => {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  const push = (value: string | null | undefined) => {
+    const trimmed = value?.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    if (!/^https?:\/\//i.test(trimmed)) return;
+    seen.add(trimmed);
+    urls.push(trimmed);
+  };
+
+  for (const match of episodeHtml.matchAll(
+    /<iframe\b[^>]*\bsrc=["']([^"']+)["']/gi,
+  )) {
+    push(match[1]);
+  }
+
+  for (const match of episodeHtml.matchAll(
+    /putMi\(\s*this\s*,\s*'([A-Za-z0-9+/=]+)'/gi,
+  )) {
+    const decoded = decodeBase64Utf8(match[1] ?? "");
+    if (!decoded) continue;
+    push(extractIframeSrc(decoded));
+    for (const urlMatch of decoded.matchAll(/https?:\/\/[^\s"'<>]+/gi)) {
+      push(urlMatch[0]?.replace(/&amp;/g, "&"));
+    }
+  }
+
+  return urls;
+};
+
+const extractDirectM3u8FromEmbedUrl = (embedUrl: string): string | null => {
+  try {
+    const parsed = new URL(embedUrl);
+    const fromQuery =
+      parsed.searchParams.get("m3u8") ??
+      parsed.searchParams.get("url") ??
+      parsed.searchParams.get("file");
+    if (fromQuery && /^https?:\/\//i.test(fromQuery)) {
+      return fromQuery;
+    }
+  } catch {
+    void 0;
+  }
+
+  const inline = embedUrl.match(/m3u8=(https?:\/\/[^&"'>\s]+)/i)?.[1];
+  return inline ? decodeURIComponent(inline) : null;
+};
+
+/** Numeric getSources ids only — not MAL ids from `/stream/mal/{mal}/{ep}/sub`. */
+const extractNumericMegaplaySourceId = (value: string): string | null => {
+  const fromQuery = value.match(/[?&]id=(\d+)/i)?.[1];
+  if (fromQuery) return fromQuery;
+
+  const pathMatch = value.match(
+    /megaplay\.buzz\/stream\/(?:s-\d+|embed|e)\/(\d+)/i,
+  );
+  return pathMatch?.[1] ?? null;
+};
+
+type MegaplaySourcesResponse = {
+  sources?: { file?: string };
+};
+
+const resolveMegaplaySourcesById = async (
+  megaplayId: string,
+): Promise<string | null> => {
+  const response = await scrapeFetchText(
+    `${MEGAPLAY_ORIGIN}/stream/getSources?id=${encodeURIComponent(megaplayId)}`,
+    {
+      Referer: `${MEGAPLAY_ORIGIN}/`,
+      "X-Requested-With": "XMLHttpRequest",
+      Accept: "application/json, text/plain, */*",
+    },
+  );
+  if (response.status !== 200) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(response.text) as MegaplaySourcesResponse;
+    const file = payload.sources?.file?.trim();
+    return file && /^https?:\/\//i.test(file) ? file : null;
+  } catch {
+    return null;
+  }
+};
+
+const resolveMegaplayEmbedStream = async (
+  embedUrl: string,
+): Promise<string | null> => {
+  const directId = extractNumericMegaplaySourceId(embedUrl);
+  if (directId) {
+    const fromId = await resolveMegaplaySourcesById(directId);
+    if (fromId) return fromId;
+  }
+
+  const embedPage = await scrapeFetchText(embedUrl, {
+    Referer: `${MEGAPLAY_ORIGIN}/`,
+  });
+  if (embedPage.status !== 200) {
+    return null;
+  }
+
+  const pageId =
+    embedPage.text.match(/data-id="(\d+)"/i)?.[1] ??
+    embedPage.text.match(/data-realid="(\d+)"/i)?.[1] ??
+    null;
+  if (!pageId) {
+    return null;
+  }
+
+  return resolveMegaplaySourcesById(pageId);
+};
+
+const resolveEpisodeStream = async (
+  episodeHtml: string,
+  pageReferer: string,
+): Promise<{
+  streamUrl: string;
+  referer: string;
+  subtitles?: Array<{ lang: string; url: string; format: "vtt" }>;
+} | null> => {
+  const embeds = extractEpisodeEmbedUrls(episodeHtml);
+
+  const subtitles: Array<{ lang: string; url: string; format: "vtt" }> = [];
+  for (const embed of embeds) {
+    try {
+      const subtitle = new URL(embed).searchParams.get("subtitle");
+      if (
+        subtitle &&
+        /^https?:\/\//i.test(subtitle) &&
+        /\.vtt(?:[?#]|$)/i.test(subtitle)
+      ) {
+        subtitles.push({ lang: "English", url: subtitle, format: "vtt" });
+        break;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  for (const embed of embeds) {
+    if (!/megaplay\.buzz/i.test(embed)) continue;
+    const streamUrl = await resolveMegaplayEmbedStream(embed);
+    if (streamUrl) {
+      return {
+        streamUrl,
+        referer: `${MEGAPLAY_ORIGIN}/`,
+        ...(subtitles.length > 0 ? { subtitles } : {}),
+      };
+    }
+  }
+
+  for (const embed of embeds) {
+    const direct = extractDirectM3u8FromEmbedUrl(embed);
+    if (direct) {
+      let referer = pageReferer;
+      try {
+        referer = `${new URL(embed).origin}/`;
+      } catch {
+        void 0;
+      }
+      return {
+        streamUrl: direct,
+        referer,
+        ...(subtitles.length > 0 ? { subtitles } : {}),
+      };
+    }
+  }
+
+  // Legacy: bare data-id on the episode page itself.
+  for (const match of episodeHtml.matchAll(/data-id="(\d+)"/gi)) {
+    const streamUrl = await resolveMegaplaySourcesById(match[1] ?? "");
+    if (streamUrl) {
+      return {
+        streamUrl,
+        referer: `${MEGAPLAY_ORIGIN}/`,
+        ...(subtitles.length > 0 ? { subtitles } : {}),
+      };
+    }
+  }
+
+  return null;
+};
 
 export async function scrapeAnimepahe(
   input: AnimeScrapeInput,
 ): Promise<AnimeScrapeResult> {
   const providerId = "animepahe" as const;
-  const session = await flareSolverrCreateSession();
-
-  if (!session) {
-    return {
-      ok: false,
-      providerId,
-      error: "FlareSolverr session unavailable (is Docker running?)",
-    };
-  }
 
   try {
     const query = await resolveAnimeSearchQuery(input);
-    const searchPayload = await flareGetJson<AnimePaheSearchResponse>(
-      `${ANIMEPAHE_ORIGIN}/api?m=search&q=${encodeURIComponent(query)}`,
-      session,
-    );
-
-    const expectedTitles = [
+    const expectedTitles = uniqueTitles([
       query,
       ...(await fetchAnilistTitleCandidates(input.anilistId)),
-    ];
-    const anime = searchPayload?.data?.find(
-      (candidate) =>
-        candidate.title &&
-        isExactAnimeTitleMatch(candidate.title, expectedTitles),
-    );
-    if (!anime?.session && !anime?.id) {
-      return { ok: false, providerId, error: "AnimePahe search miss" };
+    ]);
+
+    let origin: string | null = null;
+    let seriesPath: string | null = null;
+
+    for (const candidateOrigin of originsToTry()) {
+      const found = await findSeriesPath(
+        candidateOrigin,
+        expectedTitles,
+        input.translationType,
+      );
+      if (found) {
+        origin = candidateOrigin;
+        seriesPath = found;
+        rememberOrigin(candidateOrigin);
+        break;
+      }
     }
 
-    const animeSession = anime.session ?? String(anime.id);
-    const releasePayload = await flareGetJson<AnimePaheReleaseResponse>(
-      `${ANIMEPAHE_ORIGIN}/api?m=release&id=${encodeURIComponent(animeSession)}&sort=episode_asc&page=1`,
-      session,
+    if (!origin || !seriesPath) {
+      return {
+        ok: false,
+        providerId,
+        error: "AnimePahe exact title match not found",
+      };
+    }
+
+    const seriesSlug = seriesPath.replace(/^\/series\//, "").replace(/\/$/, "");
+    const seriesPage = await scrapeFetchText(`${origin}${seriesPath}`, {
+      Referer: `${origin}/`,
+    });
+    if (
+      seriesPage.status !== 200 ||
+      !isValidSeriesPage(seriesPage.text, seriesSlug)
+    ) {
+      return {
+        ok: false,
+        providerId,
+        error: `AnimePahe series page failed (${seriesPage.status})`,
+      };
+    }
+
+    let episodeUrl = findEpisodeUrl(
+      seriesPage.text,
+      origin,
+      seriesSlug,
+      input.episodeNumber,
+      input.translationType,
     );
 
-    const episodeEntry = releasePayload?.data?.find(
-      (entry) => entry.episode === input.episodeNumber,
-    );
+    let episodeHtml: string | null = null;
 
-    if (!episodeEntry?.session) {
+    const tryEpisodeUrl = async (url: string): Promise<boolean> => {
+      const page = await scrapeFetchText(url, {
+        Referer: `${origin}${seriesPath}`,
+      });
+      if (page.status === 200 && isValidEpisodePage(page.text)) {
+        episodeUrl = url;
+        episodeHtml = page.text;
+        return true;
+      }
+      return false;
+    };
+
+    if (episodeUrl) {
+      const ok = await tryEpisodeUrl(episodeUrl);
+      if (!ok) {
+        episodeUrl = null;
+      }
+    }
+
+    if (!episodeHtml) {
+      for (const path of episodePathPatterns(
+        seriesSlug,
+        input.episodeNumber,
+        input.translationType,
+      )) {
+        if (await tryEpisodeUrl(`${origin}${path}`)) {
+          break;
+        }
+      }
+    }
+
+    if (!episodeUrl || !episodeHtml) {
       return {
         ok: false,
         providerId,
@@ -144,65 +635,22 @@ export async function scrapeAnimepahe(
       };
     }
 
-    const playPage = await flareSolverrGet(
-      `${ANIMEPAHE_ORIGIN}/play/${animeSession}/${episodeEntry.session}`,
-      90_000,
-      session,
-    );
-
-    if (!playPage || playPage.status !== 200) {
+    const resolved = await resolveEpisodeStream(episodeHtml, episodeUrl);
+    if (!resolved) {
       return {
         ok: false,
         providerId,
-        error: "AnimePahe play page failed via FlareSolverr",
-      };
-    }
-
-    const kwikUrl = extractKwikUrl(playPage.body, input.translationType);
-    if (!kwikUrl) {
-      return {
-        ok: false,
-        providerId,
-        error: "AnimePahe kwik embed URL missing",
-      };
-    }
-
-    const kwikPage = await scrapeFetchText(kwikUrl, {
-      Referer: `${ANIMEPAHE_ORIGIN}/`,
-    });
-    if (kwikPage.status !== 200 || kwikPage.text.length < 100) {
-      return {
-        ok: false,
-        providerId,
-        error: `Kwik embed request failed (${kwikPage.status}) for ${new URL(kwikUrl).hostname}`,
-      };
-    }
-
-    const directM3u8 =
-      extractM3u8Urls(kwikPage.text).find((url) => url.includes(".m3u8")) ??
-      unpackKwikPackedJs(kwikPage.text);
-
-    if (!directM3u8) {
-      const pipeToken = extractFirstMatch(
-        kwikPage.text,
-        /(\w+\|\w+\|[a-f0-9]+\|\d+\|stream\|top\|[^|<]+\|vault\|https)/i,
-      );
-
-      return {
-        ok: false,
-        providerId,
-        error: pipeToken
-          ? "Kwik m3u8 requires updated pipe unpacker"
-          : "Kwik m3u8 not found in page",
+        error: "AnimePahe stream embed missing",
       };
     }
 
     return {
       ok: true,
       providerId,
-      streamUrl: directM3u8,
+      streamUrl: resolved.streamUrl,
       streamKind: "hls",
-      referer: `${new URL(kwikUrl).origin}/`,
+      referer: resolved.referer,
+      ...(resolved.subtitles ? { subtitles: resolved.subtitles } : {}),
     };
   } catch (error) {
     return {
@@ -210,7 +658,5 @@ export async function scrapeAnimepahe(
       providerId,
       error: error instanceof Error ? error.message : "AnimePahe scrape failed",
     };
-  } finally {
-    await flareSolverrDestroySession(session);
   }
 }

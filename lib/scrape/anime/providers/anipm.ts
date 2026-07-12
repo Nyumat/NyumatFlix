@@ -1,6 +1,8 @@
 import { fetchAnilistMediaMeta, type AnilistMediaMeta } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
+import type { ScrapeQuality } from "../../types";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
+import type { StreamKind } from "../../stream-url-patterns";
 
 const ANIPM_ORIGIN = "https://ani.pm";
 const ANIPM_API = `${ANIPM_ORIGIN}/api`;
@@ -34,6 +36,12 @@ type AnipmSrcServersResponse = {
   dub?: AnipmSrcServer[];
 };
 
+type ResolvedAnipmStream = {
+  streamUrl: string;
+  streamKind: StreamKind;
+  label: string;
+};
+
 export const toAnipmEpisodeSlug = (
   matchedSlug: string,
   episodeNumber: number,
@@ -46,26 +54,31 @@ export const toAnipmEpisodeSlug = (
   return episodeNumber === 1 ? matchedSlug : `${matchedSlug}-${episodeNumber}`;
 };
 
-const pickHentaiStream = (
+const mapHentaiStreams = (
   sources: AnipmCatalogSource[],
-): { streamUrl: string; streamKind: "mp4" | "dash" } | null => {
-  const mp4 = sources.find((source) => source.provider === "hentaiocean");
-  if (mp4?.tok) {
-    return {
-      streamUrl: `${ANIPM_API}/hen/o8/mp4?slug=${encodeURIComponent(mp4.tok)}`,
-      streamKind: "mp4",
-    };
+): ResolvedAnipmStream[] => {
+  const streams: ResolvedAnipmStream[] = [];
+
+  for (const source of sources) {
+    if (source.provider === "hentaiocean" && source.tok) {
+      streams.push({
+        streamUrl: `${ANIPM_API}/hen/o8/mp4?slug=${encodeURIComponent(source.tok)}`,
+        streamKind: "mp4",
+        label: source.quality?.trim() || "MP4",
+      });
+      continue;
+    }
+
+    if (source.provider === "hstream" && source.tok) {
+      streams.push({
+        streamUrl: `${ANIPM_API}/hen/p3/mpd/${encodeURIComponent(source.tok)}`,
+        streamKind: "dash",
+        label: source.quality?.trim() || "DASH",
+      });
+    }
   }
 
-  const dash = sources.find((source) => source.provider === "hstream");
-  if (dash?.tok) {
-    return {
-      streamUrl: `${ANIPM_API}/hen/p3/mpd/${encodeURIComponent(dash.tok)}`,
-      streamKind: "dash",
-    };
-  }
-
-  return null;
+  return streams;
 };
 
 const scrapeAnipmHentai = async (
@@ -118,17 +131,27 @@ const scrapeAnipmHentai = async (
 
   const titlePayload =
     (await titleResponse.json()) as AnipmCatalogTitleResponse;
-  const stream = pickHentaiStream(titlePayload.sources ?? []);
-  if (!stream) {
+  const streams = mapHentaiStreams(titlePayload.sources ?? []);
+  const primary = streams[0];
+  if (!primary) {
     return { ok: false, providerId, error: "ani.pm hentai stream missing" };
   }
+
+  const sameKind = streams.filter(
+    (stream) => stream.streamKind === primary.streamKind,
+  );
+  const qualities: ScrapeQuality[] = sameKind.slice(1).map((stream) => ({
+    label: stream.label,
+    url: stream.streamUrl,
+  }));
 
   return {
     ok: true,
     providerId,
-    streamUrl: stream.streamUrl,
-    streamKind: stream.streamKind,
+    streamUrl: primary.streamUrl,
+    streamKind: primary.streamKind,
     referer: `${ANIPM_ORIGIN}/hentai/${episodeSlug}`,
+    qualities: qualities.length > 0 ? qualities : undefined,
   };
 };
 
@@ -163,15 +186,22 @@ const scrapeAnipmAnime = async (
     input.translationType === "dub"
       ? (serversPayload.dub ?? [])
       : (serversPayload.sub ?? []);
-  const direct = lane.find((server) => server.kind === "file" && server.url);
+  const files = lane.filter((server) => server.kind === "file" && server.url);
 
-  if (!direct?.url) {
+  if (files.length === 0) {
     return { ok: false, providerId, error: "ani.pm direct file missing" };
   }
 
-  const streamUrl = direct.url.startsWith("http")
-    ? direct.url
-    : `${ANIPM_ORIGIN}${direct.url}`;
+  const toAbsolute = (url: string) =>
+    url.startsWith("http") ? url : `${ANIPM_ORIGIN}${url}`;
+
+  const primary = files[0]!;
+  const streamUrl = toAbsolute(primary.url!);
+  const qualities: ScrapeQuality[] = files.slice(1).map((server, index) => ({
+    label:
+      server.name?.trim() || server.provider?.trim() || `Source ${index + 2}`,
+    url: toAbsolute(server.url!),
+  }));
 
   return {
     ok: true,
@@ -179,6 +209,7 @@ const scrapeAnipmAnime = async (
     streamUrl,
     streamKind: "mp4",
     referer: `${ANIPM_ORIGIN}/`,
+    qualities: qualities.length > 0 ? qualities : undefined,
   };
 };
 
@@ -201,12 +232,7 @@ export async function scrapeAnipm(
       return scrapeAnipmHentai(input, meta);
     }
 
-    const animeResult = await scrapeAnipmAnime(input, meta);
-    if (animeResult.ok) {
-      return animeResult;
-    }
-
-    return animeResult;
+    return scrapeAnipmAnime(input, meta);
   } catch (error) {
     return {
       ok: false,

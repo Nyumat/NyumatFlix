@@ -26,15 +26,20 @@ export type GroupedScrapeProviderOption = {
   group: ScrapeProviderGroup;
 };
 
+/** Mainstream catalogs that do not carry adult OVAs — skip on adult chains. */
+export const MAINSTREAM_ONLY_ANIME_PROVIDER_IDS = [
+  "animegg",
+  "animepahe",
+] as const satisfies readonly AnimeScrapeProviderId[];
+
+const ADULT_ONLY_PROVIDER_IDS = new Set<string>(ADULT_ONLY_ANIME_PROVIDER_IDS);
+const MAINSTREAM_ONLY_PROVIDER_IDS = new Set<string>(
+  MAINSTREAM_ONLY_ANIME_PROVIDER_IDS,
+);
+
 export const shouldIncludeTmdbPlaybackProxies = (
   context: AnimePlaybackChainContext,
-): boolean => {
-  if (context.isAdultAnime) {
-    return false;
-  }
-
-  return context.mappingConfidence === "high";
-};
+): boolean => context.mappingConfidence === "high";
 
 const filterAnimeScrapeProviders = (
   context: AnimePlaybackChainContext,
@@ -44,13 +49,16 @@ const filterAnimeScrapeProviders = (
     context.anilistGenres ?? [],
   );
 
-  return ANIME_SCRAPE_PROVIDER_ORDER.filter((providerId) => {
-    if (
-      ADULT_ONLY_ANIME_PROVIDER_IDS.includes(
-        providerId as "anipm" | "hentaigasm",
-      )
-    ) {
+  const filtered = ANIME_SCRAPE_PROVIDER_ORDER.filter((providerId) => {
+    if (ADULT_ONLY_PROVIDER_IDS.has(providerId)) {
       return includeAdultOnlyProviders;
+    }
+
+    if (
+      includeAdultOnlyProviders &&
+      MAINSTREAM_ONLY_PROVIDER_IDS.has(providerId)
+    ) {
+      return false;
     }
 
     if (context.translationType === "dub" && providerId === "animeonsen") {
@@ -59,6 +67,21 @@ const filterAnimeScrapeProviders = (
 
     return true;
   });
+
+  if (!includeAdultOnlyProviders) {
+    return filtered;
+  }
+
+  // Prefer Hentaigasm before ani.pm — measured winner for adult OVAs.
+  const adultPriority = ["hentaigasm", "anipm"] as const;
+  const adultFirst = adultPriority.filter((providerId) =>
+    filtered.includes(providerId),
+  );
+  const rest = filtered.filter(
+    (providerId) => !ADULT_ONLY_PROVIDER_IDS.has(providerId),
+  );
+
+  return [...adultFirst, ...rest];
 };
 
 export const buildAnimePlaybackProviderOrder = (

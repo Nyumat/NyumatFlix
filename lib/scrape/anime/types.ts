@@ -1,4 +1,8 @@
-import type { ScrapeQuality, ScrapeSubtitle } from "../types";
+import type {
+  ScrapeAudioVersion,
+  ScrapeQuality,
+  ScrapeSubtitle,
+} from "../types";
 import type { StreamKind } from "../stream-url-patterns";
 import {
   ANIME_SCRAPE_PROVIDER_LABELS,
@@ -40,6 +44,10 @@ export type AnimeScrapeSuccess = {
   referer?: string;
   subtitles?: ScrapeSubtitle[];
   qualities?: ScrapeQuality[];
+  audioVersions?: ScrapeAudioVersion[];
+  defaultAudioLang?: string;
+  defaultHardSubLang?: string;
+  preferredAudioLang?: string;
   fallbackFrom?: {
     providerId: AnimeScrapeProviderId;
     error: string;

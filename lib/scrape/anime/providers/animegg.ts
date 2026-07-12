@@ -5,7 +5,7 @@ import {
 } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
-import { isExactAnimeTitleMatch } from "../title-match";
+import { animeSearchLabelMatches } from "../title-match";
 
 const ANIMEGG_ORIGIN = "https://www.animegg.org";
 
@@ -25,8 +25,8 @@ const findSeriesSlugFromSearch = async (
     for (const match of searchPage.text.matchAll(
       /<a\b[^>]*href="\/series\/([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi,
     )) {
-      const label = (match[2] ?? "").replace(/<[^>]+>/g, " ");
-      if (match[1] && isExactAnimeTitleMatch(label, titles)) return match[1];
+      const label = match[2] ?? "";
+      if (match[1] && animeSearchLabelMatches(label, titles)) return match[1];
     }
   }
   return null;
@@ -39,10 +39,19 @@ export async function scrapeAnimegg(
 
   try {
     const query = await resolveAnimeSearchQuery(input);
-    const titles = [
+    const seen = new Set<string>();
+    const titles: string[] = [];
+    for (const title of [
       query,
       ...(await fetchAnilistTitleCandidates(input.anilistId)),
-    ];
+    ]) {
+      const trimmed = title.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      titles.push(trimmed);
+    }
     const seriesSlug = await findSeriesSlugFromSearch(titles);
     if (!seriesSlug) {
       return {

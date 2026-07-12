@@ -160,7 +160,7 @@ export async function scrapeAnimeonsen(
       providerId,
       streamUrl,
       streamKind: streamUrl.includes(".mpd") ? "dash" : "hls",
-      referer: ONSEN_ORIGIN,
+      referer: `${ONSEN_ORIGIN}/`,
       subtitles: subtitleMap
         ? Object.entries(subtitleMap).map(([lang, url]) => ({
             lang,

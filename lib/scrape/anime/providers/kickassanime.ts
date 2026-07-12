@@ -1,3 +1,4 @@
+import { preferredAudioLangForTranslation } from "../audio-preference";
 import { extractM3u8Urls, parseCatPlayerProps } from "../html-utils";
 import {
   fetchAnilistTitleCandidates,
@@ -6,8 +7,11 @@ import {
 import { isExactAnimeTitleMatch } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
+import type { ScrapeSubtitle } from "../../types";
 
 const KAA_ORIGIN = "https://kaa.lt";
+/** Segment CDN requires the cat-player site referer — kaa.lt gets Cloudflare 403. */
+const KAA_STREAM_REFERER = "https://krussdomi.com/";
 
 type KaaSearchResult = {
   result?: Array<{ slug?: string; title?: string }>;
@@ -56,6 +60,52 @@ const normalizeCatPlayerUrl = (src: string): string => {
     url.searchParams.set("source", "vidstream");
   }
   return url.toString();
+};
+
+const pickCatPlayerServer = (
+  servers: Array<{ name?: string; src?: string }>,
+) => {
+  const withSrc = servers.filter((server) => Boolean(server.src));
+  return (
+    withSrc.find((server) => {
+      try {
+        const url = new URL(server.src!);
+        return (
+          url.searchParams.get("source") === "vidstream" ||
+          url.searchParams.get("source") === "vidst"
+        );
+      } catch {
+        return false;
+      }
+    }) ??
+    withSrc.find((server) => {
+      if (!server.src) return false;
+      try {
+        const url = new URL(server.src);
+        return (
+          /(^|\.)cat-player\./i.test(url.hostname) ||
+          /\/cat-player(?:\/|$)/i.test(url.pathname) ||
+          /(^|\.)krussdomi\.com$/i.test(url.hostname)
+        );
+      } catch {
+        return false;
+      }
+    })
+  );
+};
+
+const mapCatPlayerSubtitles = (
+  subtitles: Array<{ lang: string; name?: string; src: string }> | undefined,
+): ScrapeSubtitle[] | undefined => {
+  if (!subtitles?.length) {
+    return undefined;
+  }
+
+  return subtitles.map((subtitle) => ({
+    lang: subtitle.name ?? subtitle.lang,
+    url: subtitle.src,
+    format: "vtt" as const,
+  }));
 };
 
 export async function scrapeKickassanime(
@@ -142,18 +192,7 @@ export async function scrapeKickassanime(
     const detailPayload = (await detailResponse.json()) as KaaEpisodeDetail;
     const servers =
       detailPayload.result?.servers ?? detailPayload.servers ?? [];
-    const catPlayer = servers.find((server) => {
-      if (!server.src) return false;
-      try {
-        const url = new URL(server.src);
-        return (
-          /(^|\.)cat-player\./i.test(url.hostname) ||
-          /\/cat-player(?:\/|$)/i.test(url.pathname)
-        );
-      } catch {
-        return false;
-      }
-    });
+    const catPlayer = pickCatPlayerServer(servers);
 
     if (!catPlayer?.src) {
       return { ok: false, providerId, error: "KAA cat-player URL missing" };
@@ -186,12 +225,17 @@ export async function scrapeKickassanime(
       ? `https:${manifest}`
       : manifest;
 
+    // Keep the master so HLS audio groups / ABR stay in the player UI.
     return {
       ok: true,
       providerId,
       streamUrl,
       streamKind: "hls",
-      referer: KAA_ORIGIN,
+      referer: KAA_STREAM_REFERER,
+      subtitles: mapCatPlayerSubtitles(props?.subtitles),
+      preferredAudioLang: preferredAudioLangForTranslation(
+        input.translationType,
+      ),
     };
   } catch (error) {
     return {

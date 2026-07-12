@@ -7,6 +7,11 @@ import { scrapeAnizone } from "./providers/anizone";
 import { scrapeAnipm } from "./providers/anipm";
 import { scrapeHentaigasm } from "./providers/hentaigasm";
 import { scrapeKickassanime } from "./providers/kickassanime";
+import { scrapeJustanime } from "./providers/justanime";
+import { scrapeAnikitty } from "./providers/anikitty";
+import { scrapeAnikuro } from "./providers/anikuro";
+import { scrapeKyren } from "./providers/kyren";
+import { scrapeAnimeparadise } from "./providers/animeparadise";
 import {
   ANIME_SCRAPE_PROVIDER_ORDER,
   type AnimeScrapeInput,
@@ -14,7 +19,9 @@ import {
   type AnimeScrapeResult,
 } from "./types";
 import { fetchAnilistMediaMeta } from "./anilist-meta";
-import { validateStreamUrl } from "../validate-stream";
+import { attachSubtitlesToQualities } from "../linked-config";
+import { probeScrapePlaybackPath } from "../playback-probe";
+import { validateStreamUrlWithReferers } from "../validate-stream";
 
 const ANIME_SCRAPERS: Record<
   AnimeScrapeProviderId,
@@ -29,6 +36,11 @@ const ANIME_SCRAPERS: Record<
   animestream: scrapeAnimestream,
   animegg: scrapeAnimegg,
   animepahe: scrapeAnimepahe,
+  justanime: scrapeJustanime,
+  anikitty: scrapeAnikitty,
+  anikuro: scrapeAnikuro,
+  kyren: scrapeKyren,
+  animeparadise: scrapeAnimeparadise,
 };
 
 export async function scrapeAnimeProvider(
@@ -43,24 +55,50 @@ export async function scrapeAnimeProvider(
   }
 
   const mediaMeta = await fetchAnilistMediaMeta(input.anilistId);
-  const isValid = await validateStreamUrl(
+  const validation = await validateStreamUrlWithReferers(
     result.streamUrl,
-    result.referer,
+    result.referer ?? "",
     result.streamKind,
-    mediaMeta?.durationMinutes,
+    {
+      depth: "full",
+      expectedDurationMinutes: mediaMeta?.durationMinutes,
+    },
   );
 
-  if (!isValid) {
+  if (!validation.ok) {
     return {
       ok: false,
       providerId,
-      error: mediaMeta?.durationMinutes
-        ? "Stream URL failed validation (duration mismatch)"
-        : "Stream URL failed validation",
+      error: "Stream URL failed validation",
     };
   }
 
-  return result;
+  // Prefer the provider referer when present — CDN-origin can pass probes
+  // while segments still need the embed referer at play time.
+  const next = result.referer
+    ? result
+    : validation.referer
+      ? { ...result, referer: validation.referer }
+      : result;
+
+  const playProbeOk = await probeScrapePlaybackPath(
+    { url: next.streamUrl, referer: next.referer },
+    next.streamKind,
+  );
+  if (!playProbeOk) {
+    return {
+      ok: false,
+      providerId,
+      error: "Stream failed playback-path probe",
+    };
+  }
+
+  const qualities = attachSubtitlesToQualities(next.qualities, next.subtitles);
+  if (qualities !== next.qualities) {
+    return { ...next, qualities };
+  }
+
+  return next;
 }
 
 export async function scrapeAllAnimeProviders(

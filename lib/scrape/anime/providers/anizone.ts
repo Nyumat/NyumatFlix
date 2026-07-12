@@ -1,4 +1,5 @@
-import { extractFirstMatch, extractM3u8Urls } from "../html-utils";
+import { preferredAudioLangForTranslation } from "../audio-preference";
+import { extractHtmlSubtitleTracks, extractM3u8Urls } from "../html-utils";
 import { searchAnizoneSlug } from "../anizone-livewire";
 import { resolveAnimeSearchQuery } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
@@ -44,10 +45,7 @@ export async function scrapeAnizone(
       };
     }
 
-    const subtitleUrl = extractFirstMatch(
-      episode.text,
-      /src=["'](https:\/\/[^"']+\.ass(?:\?[^"']*)?)["']/i,
-    );
+    const subtitles = extractHtmlSubtitleTracks(episode.text);
 
     return {
       ok: true,
@@ -55,9 +53,10 @@ export async function scrapeAnizone(
       streamUrl: master,
       streamKind: "hls",
       referer: ANIZONE_ORIGIN,
-      subtitles: subtitleUrl
-        ? [{ lang: "English", url: subtitleUrl }]
-        : undefined,
+      subtitles: subtitles.length > 0 ? subtitles : undefined,
+      preferredAudioLang: preferredAudioLangForTranslation(
+        input.translationType,
+      ),
     };
   } catch (error) {
     return {
