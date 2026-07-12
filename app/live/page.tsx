@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { isLiveTvEnabled } from "@/config/features";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
@@ -21,7 +21,8 @@ type LivePageProps = {
 export async function generateMetadata({
   searchParams,
 }: LivePageProps): Promise<Metadata> {
-  if (!isLiveTvEnabled()) {
+  const flags = await getSiteFlags();
+  if (!flags.liveTvEnabled) {
     return { title: "Not Found | NyumatFlix" };
   }
 
@@ -47,7 +48,8 @@ const loadInitialLiveGuide = async (): Promise<LiveChannelsResponse> => {
 };
 
 export default async function LivePage({ searchParams }: LivePageProps) {
-  if (!isLiveTvEnabled()) {
+  const flags = await getSiteFlags();
+  if (!flags.liveTvEnabled) {
     notFound();
   }
 

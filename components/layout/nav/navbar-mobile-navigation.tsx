@@ -21,7 +21,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import type { NavbarSearchClientProps } from "@/components/search/search";
-import { navigation, type NavItem } from "@/config/site";
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { type NavItem } from "@/config/site";
+import { getNavigationItems } from "@/lib/navigation";
 import { useWatchlistSummary } from "@/hooks/useWatchlistSummary";
 import {
   getBrowseLinkLabel,
@@ -90,6 +92,9 @@ export const NavbarMobileNavigation = ({
   session,
   triggerClassName,
 }: NavbarMobileNavigationProps) => {
+  const flags = useFeatureFlagsOptional();
+  const navigationItems = getNavigationItems(flags?.liveTvEnabled ?? false);
+  const authEnabled = flags?.authEnabled ?? true;
   const [open, setOpen] = useState(false);
   const [detailItemTitle, setDetailItemTitle] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -155,11 +160,11 @@ export const NavbarMobileNavigation = ({
         })
       : children;
 
-  const activeItem = navigation.items.find((item) =>
+  const activeItem = navigationItems.find((item) =>
     isInNavGroup(pathname, searchParams, item),
   );
   const detailItem = detailItemTitle
-    ? navigation.items.find((item) => item.title === detailItemTitle)
+    ? navigationItems.find((item) => item.title === detailItemTitle)
     : null;
 
   if (!isMounted) {
@@ -263,6 +268,7 @@ export const NavbarMobileNavigation = ({
                   />
                 ) : (
                   <MobileBrowseRoot
+                    items={navigationItems}
                     activeTitle={activeItem?.title}
                     onOpenDetail={setDetailItemTitle}
                     onNavigate={handleLinkClick}
@@ -301,14 +307,14 @@ export const NavbarMobileNavigation = ({
                   Delete account
                 </button>
               </div>
-            ) : (
+            ) : authEnabled ? (
               <Button asChild variant="chrome" className="w-full gap-2">
                 <Link href="/login" onClick={handleLinkClick}>
                   Sign in
                   <LogIn className="size-4 shrink-0" />
                 </Link>
               </Button>
-            )}
+            ) : null}
           </div>
         </SheetContent>
       </Sheet>
@@ -450,16 +456,18 @@ const WatchlistStat = ({
 );
 
 const MobileBrowseRoot = ({
+  items,
   activeTitle,
   onOpenDetail,
   onNavigate,
 }: {
+  items: NavItem[];
   activeTitle?: string;
   onOpenDetail: (title: string) => void;
   onNavigate: () => void;
 }) => (
   <div className="grid grid-cols-2 gap-2">
-    {navigation.items.map((item) => {
+    {items.map((item) => {
       const Icon = getNavIcon(item);
       const isActive = item.title === activeTitle;
       const tileClassName = cn(

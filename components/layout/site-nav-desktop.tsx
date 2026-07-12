@@ -13,7 +13,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { navigation, type NavItem } from "@/config/site";
+import { type NavItem } from "@/config/site";
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { getNavigationItems } from "@/lib/navigation";
 import {
   getBrowseLinkLabel,
   getBrowseLinks,
@@ -37,14 +39,16 @@ interface SiteNavDesktopProps {
 }
 
 export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
+  const flags = useFeatureFlagsOptional();
+  const navigationItems = getNavigationItems(flags?.liveTvEnabled ?? false);
   const [detailItemTitle, setDetailItemTitle] = useState<string | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const activeItem = navigation.items.find((item) =>
+  const activeItem = navigationItems.find((item) =>
     isInNavGroup(pathname, searchParams, item),
   );
   const detailItem = detailItemTitle
-    ? navigation.items.find((item) => item.title === detailItemTitle)
+    ? navigationItems.find((item) => item.title === detailItemTitle)
     : null;
 
   return (
@@ -91,6 +95,7 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
         ) : (
           <BrowseRootMenu
             activeTitle={activeItem?.title}
+            navigationItems={navigationItems}
             setMenuValue={setDetailItemTitle}
           />
         )}
@@ -101,9 +106,11 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
 
 const BrowseRootMenu = ({
   activeTitle,
+  navigationItems,
   setMenuValue,
 }: {
   activeTitle?: string;
+  navigationItems: NavItem[];
   setMenuValue: SetMenuValue;
 }) => (
   <>
@@ -115,7 +122,7 @@ const BrowseRootMenu = ({
         Content
       </p>
       <div className="grid grid-cols-2 gap-2">
-        {navigation.items.map((item) => {
+        {navigationItems.map((item) => {
           const Icon = getNavIcon(item);
           const isActive = item.title === activeTitle;
           const tileClassName = cn(

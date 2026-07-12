@@ -1,5 +1,4 @@
 import { pages } from "@/config/pages";
-import { isLiveTvEnabled } from "@/config/features";
 export { availableParams, pageLimit } from "@/config/catalog";
 
 export type SiteConfig = typeof siteConfig;
@@ -160,10 +159,8 @@ const liveTv: NavItem = {
 
 const navigationItems = [movies, tvShows, anime, people, trending] as NavItem[];
 
-if (isLiveTvEnabled()) {
-  navigationItems.splice(3, 0, liveTv);
-}
-
 export const navigation = {
   items: navigationItems,
 };
+
+export const liveTvNavItem = liveTv;
