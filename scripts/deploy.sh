@@ -42,6 +42,7 @@ load_build_env() {
 }
 
 build_push() {
+  "$ROOT/scripts/bootstrap-scrape-vpn.sh" ensure-local
   cd "$ROOT"
   load_build_env
   docker build --platform linux/amd64 \
@@ -56,6 +57,7 @@ ensure_network() {
 }
 
 serve() {
+  "$ROOT/scripts/bootstrap-scrape-vpn.sh" prod
   if [[ ! -f "$ENV_FILE" ]]; then
     echo "env file not found: $ENV_FILE (set ENV_FILE=...)" >&2
     exit 1

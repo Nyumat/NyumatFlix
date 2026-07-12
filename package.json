@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "./scripts/bootstrap-scrape-vpn.sh ensure-local",
     "dev": "next dev --turbopack",
+    "dev:next": "next dev --turbopack",
+    "dev:sync": "./scripts/bootstrap-scrape-vpn.sh sync-env",
+    "dev:stack": "./scripts/bootstrap-scrape-vpn.sh local",
     "build": "next build",
     "start": "next start",
     "lint": "biome check .",

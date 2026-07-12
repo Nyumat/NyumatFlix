@@ -21,6 +21,7 @@ FLARESOLVERR_CONTAINER="${FLARESOLVERR_CONTAINER:-flaresolverr}"
 FLARESOLVERR_IMAGE="${FLARESOLVERR_IMAGE:-flaresolverr/flaresolverr:latest}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-betterome}"
 PROXY_URL="${PROXY_URL:-http://gluetun:8888}"
+VPN_CONTROL_URL="${VPN_CONTROL_URL:-http://gluetun:8000}"
 NYUMAT_ENV="${NYUMAT_ENV:-\$HOME/apps/nyumatflix/.env}"
 LOCAL_VPN_ENV="${LOCAL_VPN_ENV:-$ROOT/.env.vpn}"
 LOCAL_WG_CONF="${LOCAL_WG_CONF:-$ROOT/de-ber.conf}"
@@ -121,7 +122,12 @@ patch_app_env() {
     else
       echo 'SCRAPE_PROXY_URL=$PROXY_URL' >> $NYUMAT_ENV
     fi
-    grep SCRAPE_PROXY_URL $NYUMAT_ENV"
+    if grep -q '^SCRAPE_VPN_CONTROL_URL=' $NYUMAT_ENV; then
+      sed -i 's|^SCRAPE_VPN_CONTROL_URL=.*|SCRAPE_VPN_CONTROL_URL=$VPN_CONTROL_URL|' $NYUMAT_ENV
+    else
+      echo 'SCRAPE_VPN_CONTROL_URL=$VPN_CONTROL_URL' >> $NYUMAT_ENV
+    fi
+    grep -E 'SCRAPE_(PROXY|VPN_CONTROL)_URL=' $NYUMAT_ENV"
 }
 
 test_vpn() {
