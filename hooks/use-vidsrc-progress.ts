@@ -1,15 +1,11 @@
 "use client";
 
+import { VIDSRC_PROGRESS_STORAGE_KEY } from "@/lib/playback/recently-watched";
 import { logger } from "@/lib/utils";
 import { getSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
 
-/**
- * localStorage key used by the VidSrc Mirror (vidsrc.wtf) embed to persist its
- * own "Continue Watching" state. We mirror the documented key so their player
- * can restore progress across sessions.
- */
-export const VIDSRC_PROGRESS_STORAGE_KEY = "vidsrcwtf-Progress";
+export { VIDSRC_PROGRESS_STORAGE_KEY };
 
 interface VidsrcProgress {
   watched: number;
