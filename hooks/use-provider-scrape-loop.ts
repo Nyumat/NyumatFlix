@@ -2,6 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { areScrapeProvidersExhausted } from "@/lib/scrape/scrape-provider-menu";
+import {
+  clearPreferredScrapeProvider,
+  getPreferredScrapeProvider,
+  setPreferredScrapeProvider,
+} from "@/lib/scrape/preferred-provider";
+import {
+  deprioritizeProviders,
+  reorderProvidersWithPreferred,
+  SCRAPE_ATTEMPT_TIMEOUT_MS,
+} from "@/lib/scrape/provider-race";
 import type { ScrapeItem, ScrapeItemStatus } from "@/lib/scrape/types";
 
 export type ProviderScrapePlayerStatus =
@@ -9,13 +20,6 @@ export type ProviderScrapePlayerStatus =
   | "scraping"
   | "playing"
   | "error";
-
-type ScrapeApiFailure = {
-  ok: false;
-  providerId: string;
-  providerName: string;
-  error: string;
-};
 
 type ScrapeAttemptResult<TPayload> =
   | { outcome: "success"; payload: TPayload }
@@ -28,6 +32,7 @@ export type ProviderScrapeLoopConfig<
   _TPayload extends { providerId: TProviderId },
 > = {
   providerOrder: readonly TProviderId[];
+  resolveProviderOrder?: (input: TInput) => readonly TProviderId[];
   providerLabels: Record<TProviderId, string>;
   mediaKeyFor: (input: TInput) => string;
   allFailedError: string;
@@ -55,6 +60,7 @@ export function useProviderScrapeLoop<
 >(config: ProviderScrapeLoopConfig<TProviderId, TInput, TPayload>) {
   const {
     providerOrder,
+    resolveProviderOrder,
     providerLabels,
     mediaKeyFor,
     allFailedError,
@@ -62,8 +68,28 @@ export function useProviderScrapeLoop<
     buildRequestBody,
   } = config;
 
+  const activeProviderOrderRef = useRef<readonly TProviderId[]>(providerOrder);
+
+  const getOrderForInput = useCallback(
+    (input: TInput) => resolveProviderOrder?.(input) ?? providerOrder,
+    [providerOrder, resolveProviderOrder],
+  );
+
   const [items, setItems] = useState<ScrapeItem[]>(() =>
     initialItems(providerOrder, providerLabels),
+  );
+  const itemsRef = useRef<ScrapeItem[]>(items);
+  itemsRef.current = items;
+
+  const syncItems = useCallback(
+    (updater: (current: ScrapeItem[]) => ScrapeItem[]) => {
+      setItems((current) => {
+        const next = updater(current);
+        itemsRef.current = next;
+        return next;
+      });
+    },
+    [],
   );
   const [status, setStatus] = useState<ProviderScrapePlayerStatus>("idle");
   const [activeProviderId, setActiveProviderId] = useState<TProviderId | null>(
@@ -77,21 +103,110 @@ export function useProviderScrapeLoop<
   statusRef.current = status;
   const failedProvidersRef = useRef<Map<string, Set<TProviderId>>>(new Map());
   const currentInputRef = useRef<TInput | null>(null);
+  const abortControllersRef = useRef<Set<AbortController>>(new Set());
+
+  const abortActiveFetches = useCallback(() => {
+    for (const controller of abortControllersRef.current) {
+      controller.abort();
+    }
+    abortControllersRef.current.clear();
+  }, []);
 
   const resetItems = useCallback(
-    (skipProviderIds: TProviderId[] = []) => {
-      const skip = new Set(skipProviderIds);
-      setItems(
-        providerOrder.map((providerId) => ({
+    (order: readonly TProviderId[]) => {
+      activeProviderOrderRef.current = order;
+      const next = initialItems(order, providerLabels);
+      itemsRef.current = next;
+      setItems(next);
+    },
+    [providerLabels],
+  );
+
+  const buildItemsForOrder = useCallback(
+    (
+      order: readonly TProviderId[],
+      failed: ReadonlySet<TProviderId>,
+      previousItems: readonly ScrapeItem[],
+      overrides?: Partial<
+        Record<TProviderId, Partial<Pick<ScrapeItem, "status" | "error">>>
+      >,
+    ): ScrapeItem[] => {
+      const errorByProvider = new Map(
+        previousItems.map((item) => [
+          item.providerId as TProviderId,
+          item.error,
+        ]),
+      );
+      const statusByProvider = new Map(
+        previousItems.map((item) => [
+          item.providerId as TProviderId,
+          item.status,
+        ]),
+      );
+
+      return order.map((providerId) => {
+        const override = overrides?.[providerId];
+        if (override) {
+          return {
+            providerId,
+            name: providerLabels[providerId],
+            status: override.status ?? "waiting",
+            error: override.error,
+          };
+        }
+
+        if (failed.has(providerId)) {
+          return {
+            providerId,
+            name: providerLabels[providerId],
+            status: "failure" as ScrapeItemStatus,
+            error: errorByProvider.get(providerId) ?? "Failed earlier",
+          };
+        }
+
+        const previousStatus = statusByProvider.get(providerId);
+        if (previousStatus === "success" || previousStatus === "unavailable") {
+          return {
+            providerId,
+            name: providerLabels[providerId],
+            status: previousStatus,
+            error: errorByProvider.get(providerId),
+          };
+        }
+
+        if (previousStatus === "failure") {
+          return {
+            providerId,
+            name: providerLabels[providerId],
+            status: "failure",
+            error: errorByProvider.get(providerId),
+          };
+        }
+
+        return {
           providerId,
           name: providerLabels[providerId],
-          status: skip.has(providerId)
-            ? ("skipped" as ScrapeItemStatus)
-            : ("waiting" as ScrapeItemStatus),
-        })),
+          status: "waiting" as ScrapeItemStatus,
+        };
+      });
+    },
+    [providerLabels],
+  );
+
+  const applyItemsForOrder = useCallback(
+    (
+      order: readonly TProviderId[],
+      failed: ReadonlySet<TProviderId>,
+      overrides?: Partial<
+        Record<TProviderId, Partial<Pick<ScrapeItem, "status" | "error">>>
+      >,
+    ) => {
+      activeProviderOrderRef.current = order;
+      syncItems((current) =>
+        buildItemsForOrder(order, failed, current, overrides),
       );
     },
-    [providerLabels, providerOrder],
+    [buildItemsForOrder, syncItems],
   );
 
   const updateItem = useCallback(
@@ -99,13 +214,13 @@ export function useProviderScrapeLoop<
       providerId: TProviderId,
       next: Partial<Pick<ScrapeItem, "status" | "error">>,
     ) => {
-      setItems((current) =>
+      syncItems((current) =>
         current.map((item) =>
           item.providerId === providerId ? { ...item, ...next } : item,
         ),
       );
     },
-    [],
+    [syncItems],
   );
 
   const scrapeProvider = useCallback(
@@ -113,9 +228,9 @@ export function useProviderScrapeLoop<
       providerId: TProviderId,
       input: TInput,
       runId: number,
+      signal: AbortSignal,
     ): Promise<ScrapeAttemptResult<TPayload>> => {
       updateItem(providerId, { status: "pending", error: undefined });
-      setActiveProviderId(providerId);
 
       let response: Response;
 
@@ -124,9 +239,10 @@ export function useProviderScrapeLoop<
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(buildRequestBody(providerId, input)),
+          signal,
         });
       } catch {
-        if (runId !== runIdRef.current) {
+        if (runId !== runIdRef.current || signal.aborted) {
           return { outcome: "cancelled" };
         }
 
@@ -137,30 +253,103 @@ export function useProviderScrapeLoop<
         return { outcome: "failure" };
       }
 
-      if (runId !== runIdRef.current) {
+      if (runId !== runIdRef.current || signal.aborted) {
         return { outcome: "cancelled" };
       }
 
-      const payload = (await response.json()) as
-        | (TPayload & { ok: true })
-        | ScrapeApiFailure;
+      let rawPayload: Record<string, unknown>;
 
-      if (runId !== runIdRef.current) {
-        return { outcome: "cancelled" };
-      }
+      try {
+        rawPayload = (await response.json()) as Record<string, unknown>;
+      } catch {
+        if (runId !== runIdRef.current || signal.aborted) {
+          return { outcome: "cancelled" };
+        }
 
-      if (!response.ok || !payload.ok) {
         updateItem(providerId, {
           status: "failure",
-          error: payload.ok ? "Request failed" : payload.error,
+          error: "Invalid response",
+        });
+        return { outcome: "failure" };
+      }
+
+      if (runId !== runIdRef.current || signal.aborted) {
+        return { outcome: "cancelled" };
+      }
+
+      if (!rawPayload.ok) {
+        const errorMessage =
+          typeof rawPayload.error === "string"
+            ? rawPayload.error
+            : "Unknown error";
+        updateItem(providerId, {
+          status: rawPayload.unavailable === true ? "unavailable" : "failure",
+          error: errorMessage,
         });
         return { outcome: "failure" };
       }
 
       updateItem(providerId, { status: "success", error: undefined });
-      return { outcome: "success", payload };
+      return { outcome: "success", payload: rawPayload as TPayload };
     },
     [apiPath, buildRequestBody, updateItem],
+  );
+
+  const reopenSkippedProviders = useCallback(
+    (failed: Set<TProviderId>) => {
+      syncItems((current) =>
+        current.map((item) => {
+          if (failed.has(item.providerId as TProviderId)) {
+            return item;
+          }
+
+          if (item.status === "skipped") {
+            return {
+              ...item,
+              status: "waiting" as ScrapeItemStatus,
+              error: undefined,
+            };
+          }
+
+          return item;
+        }),
+      );
+    },
+    [syncItems],
+  );
+
+  const finalizeSuccessfulProvider = useCallback(
+    (order: readonly TProviderId[], providerId: TProviderId) => {
+      const startIndex = order.indexOf(providerId);
+      if (startIndex < 0) {
+        return;
+      }
+
+      syncItems((current) =>
+        current.map((item) => {
+          const itemIndex = order.indexOf(item.providerId as TProviderId);
+
+          if (item.providerId === providerId) {
+            return {
+              ...item,
+              status: "success" as ScrapeItemStatus,
+              error: undefined,
+            };
+          }
+
+          if (itemIndex > startIndex && item.status === "waiting") {
+            return {
+              ...item,
+              status: "skipped" as ScrapeItemStatus,
+              error: undefined,
+            };
+          }
+
+          return item;
+        }),
+      );
+    },
+    [syncItems],
   );
 
   const runScrapeLoop = useCallback(
@@ -170,6 +359,7 @@ export function useProviderScrapeLoop<
       options: { useFailedCache?: boolean } = {},
     ) => {
       const { useFailedCache = true } = options;
+      abortActiveFetches();
       const runId = ++runIdRef.current;
       currentInputRef.current = input;
       setStatus("scraping");
@@ -178,33 +368,80 @@ export function useProviderScrapeLoop<
 
       const mediaKey = mediaKeyFor(input);
       const failed = useFailedCache
-        ? (failedProvidersRef.current.get(mediaKey) ?? new Set())
+        ? (failedProvidersRef.current.get(mediaKey) ?? new Set<TProviderId>())
         : new Set<TProviderId>();
+      let order =
+        startFromIndex > 0
+          ? activeProviderOrderRef.current
+          : getOrderForInput(input);
 
-      for (let index = startFromIndex; index < providerOrder.length; index++) {
+      if (useFailedCache && failed.size > 0) {
+        order = deprioritizeProviders(order, failed);
+      }
+
+      if (startFromIndex === 0) {
+        activeProviderOrderRef.current = order;
+        if (useFailedCache && failed.size > 0) {
+          applyItemsForOrder(order, failed);
+        } else {
+          resetItems(order);
+        }
+      }
+
+      for (let index = startFromIndex; index < order.length; index += 1) {
         if (runId !== runIdRef.current) {
           return;
         }
 
-        const providerId = providerOrder[index];
-        if (!providerId || failed.has(providerId)) {
-          updateItem(providerId, { status: "skipped" });
+        const providerId = order[index];
+        if (providerId === undefined || failed.has(providerId)) {
           continue;
         }
 
-        const attempt = await scrapeProvider(providerId, input, runId);
+        setActiveProviderId(providerId);
+
+        const controller = new AbortController();
+        abortControllersRef.current.add(controller);
+        const timeoutId = window.setTimeout(() => {
+          controller.abort();
+        }, SCRAPE_ATTEMPT_TIMEOUT_MS);
+        controller.signal.addEventListener(
+          "abort",
+          () => window.clearTimeout(timeoutId),
+          { once: true },
+        );
+
+        const attempt = await scrapeProvider(
+          providerId,
+          input,
+          runId,
+          controller.signal,
+        );
+
+        abortControllersRef.current.delete(controller);
+
         if (runId !== runIdRef.current) {
           return;
         }
 
         if (attempt.outcome === "cancelled") {
-          return;
+          updateItem(providerId, {
+            status: "failure",
+            error: "Timed out",
+          });
+          failed.add(providerId);
+          failedProvidersRef.current.set(mediaKey, failed);
+          continue;
         }
 
         if (attempt.outcome === "success") {
+          failed.delete(providerId);
+          finalizeSuccessfulProvider(order, providerId);
+          setPreferredScrapeProvider(mediaKey, providerId);
           setResult(attempt.payload);
           setStatus("playing");
           setActiveProviderId(providerId);
+          failedProvidersRef.current.set(mediaKey, failed);
           return;
         }
 
@@ -212,48 +449,143 @@ export function useProviderScrapeLoop<
         failedProvidersRef.current.set(mediaKey, failed);
       }
 
+      if (runId !== runIdRef.current) {
+        return;
+      }
+
+      const nextUntriedIndex = order.findIndex((providerId) => {
+        if (failed.has(providerId)) {
+          return false;
+        }
+
+        const status =
+          itemsRef.current.find((item) => item.providerId === providerId)
+            ?.status ?? "idle";
+        return status === "waiting" || status === "idle";
+      });
+
+      if (nextUntriedIndex >= 0) {
+        void runScrapeLoop(input, nextUntriedIndex, options);
+        return;
+      }
+
+      if (!areScrapeProvidersExhausted(itemsRef.current, order)) {
+        setStatus("idle");
+        setError(null);
+        setActiveProviderId(null);
+        return;
+      }
+
+      syncItems((current) =>
+        current.map((item) =>
+          item.status === "waiting"
+            ? {
+                ...item,
+                status: "skipped" as ScrapeItemStatus,
+                error: undefined,
+              }
+            : item,
+        ),
+      );
       setStatus("error");
       setError(allFailedError);
       setActiveProviderId(null);
     },
-    [allFailedError, mediaKeyFor, providerOrder, scrapeProvider, updateItem],
+    [
+      abortActiveFetches,
+      allFailedError,
+      applyItemsForOrder,
+      finalizeSuccessfulProvider,
+      getOrderForInput,
+      mediaKeyFor,
+      resetItems,
+      scrapeProvider,
+      syncItems,
+      updateItem,
+    ],
   );
 
   const startScraping = useCallback(
-    (input: TInput) => {
-      failedProvidersRef.current.delete(mediaKeyFor(input));
-      resetItems();
-      void runScrapeLoop(input, 0, { useFailedCache: false });
+    (input: TInput, preferredProviderId?: TProviderId) => {
+      const baseOrder = getOrderForInput(input);
+      const mediaKey = mediaKeyFor(input);
+      const failed =
+        failedProvidersRef.current.get(mediaKey) ?? new Set<TProviderId>();
+      const storedPreferred = getPreferredScrapeProvider(mediaKey);
+      const preferredFromArg =
+        preferredProviderId && baseOrder.includes(preferredProviderId)
+          ? preferredProviderId
+          : undefined;
+      const preferredFromStore = baseOrder.find((id) => id === storedPreferred);
+      const preferred = preferredFromArg ?? preferredFromStore;
+      let order = reorderProvidersWithPreferred(baseOrder, preferred);
+      if (failed.size > 0) {
+        order = deprioritizeProviders(order, failed);
+      }
+      activeProviderOrderRef.current = order;
+      if (failed.size > 0) {
+        applyItemsForOrder(order, failed);
+      } else {
+        resetItems(order);
+      }
+      void runScrapeLoop(input, 0, { useFailedCache: true });
     },
-    [mediaKeyFor, resetItems, runScrapeLoop],
+    [
+      applyItemsForOrder,
+      getOrderForInput,
+      mediaKeyFor,
+      resetItems,
+      runScrapeLoop,
+    ],
   );
 
   const resumeScraping = useCallback(
-    (input: TInput, fromProviderId: TProviderId) => {
-      const startIndex = providerOrder.indexOf(fromProviderId);
-      const nextIndex = startIndex >= 0 ? startIndex + 1 : 0;
+    (
+      input: TInput,
+      fromProviderId: TProviderId,
+      failureReason = "Playback failed",
+    ) => {
       const mediaKey = mediaKeyFor(input);
       const failed = failedProvidersRef.current.get(mediaKey) ?? new Set();
       failed.add(fromProviderId);
       failedProvidersRef.current.set(mediaKey, failed);
-      resetItems([...failed]);
-      void runScrapeLoop(input, nextIndex, { useFailedCache: true });
+      clearPreferredScrapeProvider(mediaKey);
+      updateItem(fromProviderId, {
+        status: "failure",
+        error: failureReason,
+      });
+      reopenSkippedProviders(failed);
+      void runScrapeLoop(input, 0, { useFailedCache: true });
     },
-    [mediaKeyFor, providerOrder, resetItems, runScrapeLoop],
+    [mediaKeyFor, reopenSkippedProviders, runScrapeLoop, updateItem],
   );
 
   const switchToProvider = useCallback(
     (input: TInput, providerId: TProviderId) => {
-      const startIndex = providerOrder.indexOf(providerId);
+      const mediaKey = mediaKeyFor(input);
+      const failed =
+        failedProvidersRef.current.get(mediaKey) ?? new Set<TProviderId>();
+      failed.delete(providerId);
+      failedProvidersRef.current.set(mediaKey, failed);
+
+      const baseOrder = getOrderForInput(input);
+      const order = deprioritizeProviders(baseOrder, failed);
+      const startIndex = order.indexOf(providerId);
       if (startIndex < 0) {
         return;
       }
 
-      failedProvidersRef.current.delete(mediaKeyFor(input));
-      resetItems();
-      void runScrapeLoop(input, startIndex, { useFailedCache: false });
+      applyItemsForOrder(order, failed, {
+        [providerId]: {
+          status: "waiting" as ScrapeItemStatus,
+          error: undefined,
+        },
+      } as Partial<
+        Record<TProviderId, Partial<Pick<ScrapeItem, "status" | "error">>>
+      >);
+      void runScrapeLoop(input, startIndex, { useFailedCache: true });
     },
-    [mediaKeyFor, resetItems, runScrapeLoop],
+    [applyItemsForOrder, getOrderForInput, mediaKeyFor, runScrapeLoop],
   );
 
   const stopScraping = useCallback(() => {
@@ -262,24 +594,34 @@ export function useProviderScrapeLoop<
     }
 
     runIdRef.current += 1;
-
-    if (currentInputRef.current) {
-      failedProvidersRef.current.delete(mediaKeyFor(currentInputRef.current));
-    }
+    abortActiveFetches();
 
     currentInputRef.current = null;
     setStatus("idle");
     setActiveProviderId(null);
     setResult(null);
     setError(null);
-    resetItems();
-  }, [mediaKeyFor, resetItems]);
+    resetItems(providerOrder);
+  }, [abortActiveFetches, providerOrder, resetItems]);
+
+  const retryAllScraping = useCallback(
+    (input: TInput) => {
+      const mediaKey = mediaKeyFor(input);
+      failedProvidersRef.current.delete(mediaKey);
+      clearPreferredScrapeProvider(mediaKey);
+      const order = getOrderForInput(input);
+      resetItems(order);
+      void runScrapeLoop(input, 0, { useFailedCache: false });
+    },
+    [getOrderForInput, mediaKeyFor, resetItems, runScrapeLoop],
+  );
 
   useEffect(
     () => () => {
       runIdRef.current += 1;
+      abortActiveFetches();
     },
-    [],
+    [abortActiveFetches],
   );
 
   return {
@@ -291,6 +633,7 @@ export function useProviderScrapeLoop<
     startScraping,
     resumeScraping,
     switchToProvider,
+    retryAllScraping,
     stopScraping,
   };
 }

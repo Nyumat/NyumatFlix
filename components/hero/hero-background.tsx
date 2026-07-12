@@ -11,6 +11,8 @@ import {
 } from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { isScrapeServer, useServerStore } from "@/lib/stores/server-store";
+import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
+import { readIntroDbImdbId } from "@/lib/playback/introdb";
 import { logger } from "@/lib/utils";
 import type { MediaItem } from "@/lib/domain/typings";
 import {
@@ -19,7 +21,7 @@ import {
   motion,
 } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { tmdbImage } from "@/tmdb/utils";
 import { AmbientVideoBackdrop } from "./ambient-video-backdrop";
 import {
@@ -32,6 +34,7 @@ import {
   HERO_YOUTUBE_CHROMELESS_BASE,
   type YouTubePlayer,
 } from "./youtube-types";
+import { VideasyStreamVideo } from "./videasy-stream-video";
 
 export type HeroScrapePlaybackState = ReturnType<typeof useHeroScrapePlayback>;
 
@@ -94,14 +97,25 @@ export function HeroBackground({
     resolvedMediaType,
     playbackTitle,
     buildPlaybackProgressKey,
-    isAnimeScrapeMode,
     activeScrape,
-    animeScrape,
     sourceOverlayItems,
     handleSelectEmbedServer,
     handleScrapedPlaybackError,
+    handleRetryAllScraping,
     handleScrapePlaybackEnded,
   } = scrapePlayback;
+
+  const scrapeStreamKind = useMemo(() => {
+    const playUrl = activeScrape.result?.playUrl;
+    const explicit =
+      activeScrape.result && "streamKind" in activeScrape.result
+        ? activeScrape.result.streamKind
+        : undefined;
+    if (!playUrl) {
+      return explicit ?? "hls";
+    }
+    return inferScrapeStreamKind(playUrl, explicit);
+  }, [activeScrape.result]);
 
   useVidsrcProgress();
 
@@ -122,6 +136,10 @@ export function HeroBackground({
 
   const trailerVideos = trailerVideosQuery.data ?? initialTrailerVideos;
   const [selectedTrailerIndex, setSelectedTrailerIndex] = useState(0);
+  const youtubePlayerRef = useRef(youtubePlayer);
+  youtubePlayerRef.current = youtubePlayer;
+  const onTrailerEndedRef = useRef(onTrailerEnded);
+  onTrailerEndedRef.current = onTrailerEnded;
 
   const hasVideasySource =
     videasyTrailerStatus === "ready" &&
@@ -133,6 +151,10 @@ export function HeroBackground({
   const selectedTrailer =
     trailerVideos[selectedTrailerIndex] ?? trailerVideos[0];
   const canSwitchTrailers = trailerVideos.length > 1;
+  const trailerVideoKeys = useMemo(
+    () => trailerVideos.map((video) => video.key).join("|"),
+    [trailerVideos],
+  );
 
   const playbackBackdropPath = media.backdrop_path ?? media.poster_path ?? null;
   const playbackBackdropUrl = playbackBackdropPath
@@ -141,6 +163,7 @@ export function HeroBackground({
   const playbackPosterUrl = playbackBackdropPath
     ? tmdbImage.backdrop(playbackBackdropPath, "w780")
     : null;
+  const playbackImdbId = readIntroDbImdbId(media);
 
   const getVideoSrc = () => {
     const detectedMediaType = resolvedMediaType;
@@ -252,12 +275,14 @@ export function HeroBackground({
 
   useEffect(() => {
     setSelectedTrailerIndex(0);
-  }, [media.id, trailerVideos]);
+  }, [media.id, trailerVideoKeys]);
 
   useEffect(() => {
     if (!isPlayingTrailer || !selectedTrailer?.key) {
-      if (youtubePlayer?.destroy) {
-        youtubePlayer.destroy();
+      const existing = youtubePlayerRef.current;
+      if (existing?.destroy) {
+        existing.destroy();
+        youtubePlayerRef.current = null;
         setYoutubePlayer(null);
       }
       return;
@@ -267,7 +292,7 @@ export function HeroBackground({
     let cancelled = false;
 
     const initPlayer = () => {
-      if (cancelled || youtubePlayer || !window.YT?.Player) return;
+      if (cancelled || youtubePlayerRef.current || !window.YT?.Player) return;
 
       try {
         const player = new window.YT.Player("trailer-player", {
@@ -279,11 +304,12 @@ export function HeroBackground({
           events: {
             onStateChange: (event: { data: number }) => {
               if (event.data === 0) {
-                onTrailerEnded();
+                onTrailerEndedRef.current();
               }
             },
           },
         });
+        youtubePlayerRef.current = player;
         setYoutubePlayer(player);
       } catch (error) {
         logger.error("Error initializing YouTube player", error);
@@ -311,23 +337,21 @@ export function HeroBackground({
       if (intervalId) {
         window.clearInterval(intervalId);
       }
-      if (youtubePlayer?.destroy) {
-        youtubePlayer.destroy();
+      const existing = youtubePlayerRef.current;
+      if (existing?.destroy) {
+        existing.destroy();
+        youtubePlayerRef.current = null;
         setYoutubePlayer(null);
       }
     };
-  }, [
-    isPlayingTrailer,
-    selectedTrailer?.key,
-    onTrailerEnded,
-    youtubePlayer,
-    setYoutubePlayer,
-  ]);
+  }, [isPlayingTrailer, selectedTrailer?.key, setYoutubePlayer]);
 
   const switchTrailer = (direction: "next" | "previous") => {
     if (!canSwitchTrailers) return;
-    if (youtubePlayer?.destroy) {
-      youtubePlayer.destroy();
+    const existing = youtubePlayerRef.current;
+    if (existing?.destroy) {
+      existing.destroy();
+      youtubePlayerRef.current = null;
       setYoutubePlayer(null);
     }
     setSelectedTrailerIndex((current) => {
@@ -409,6 +433,17 @@ export function HeroBackground({
                       </div>
                     ) : null}
                   </div>
+                ) : hasVideasySource ? (
+                  <div className="relative h-full w-full overflow-hidden rounded-lg border border-border/20 bg-black shadow-2xl">
+                    <VideasyStreamVideo
+                      mp4Url={videasyTrailerUrl}
+                      hlsUrl={videasyTrailerHlsUrl}
+                      playback="controls"
+                      onEnded={onTrailerEnded}
+                      onError={onVideasyStreamError}
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
                 ) : (
                   <div className="flex h-full w-full items-center justify-center rounded-lg border border-border/20 bg-black text-sm text-muted-foreground shadow-2xl">
                     Loading trailer...
@@ -442,13 +477,11 @@ export function HeroBackground({
                       playbackTitle={playbackTitle}
                       playbackPosterUrl={playbackPosterUrl}
                       progressKey={buildPlaybackProgressKey()}
-                      streamKind={
-                        isAnimeScrapeMode && animeScrape.result?.streamKind
-                          ? animeScrape.result.streamKind
-                          : "hls"
-                      }
+                      imdbId={playbackImdbId}
+                      streamKind={scrapeStreamKind}
                       isTv={resolvedMediaType === "tv"}
                       onSelectEmbedServer={handleSelectEmbedServer}
+                      onRetryAllScraping={handleRetryAllScraping}
                       onFatalError={handleScrapedPlaybackError}
                       onEnded={handleScrapePlaybackEnded}
                     />

@@ -9,6 +9,15 @@ import {
 } from "@/lib/stores/server-store";
 import { sortServersByAvailability } from "@/lib/scrape/source-overlay";
 import {
+  mergeScrapeProviderMenu,
+  type ScrapeProviderMenuEntry,
+} from "@/lib/scrape/scrape-provider-menu";
+import {
+  resolveScrapeMenuDotVariant,
+  shouldDimScrapeMenuProvider,
+} from "@/lib/scrape/scrape-provider-menu-status";
+import type { ScrapeItem, ScrapeItemStatus } from "@/lib/scrape/types";
+import {
   dualCapabilityEmbedProviderIds,
   embedOnlyProviderIds,
   TMDB_SCRAPE_PROVIDER_OPTIONS,
@@ -16,17 +25,22 @@ import {
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { MediaItem } from "@/lib/domain/typings";
 import type { ScrapePlayerStatus } from "@/hooks/use-scrape";
+import { ScrapeProviderMenuDot } from "@/components/media/controls/scrape-provider-menu-dot";
 import {
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Radio,
   RefreshCw,
   Server,
-  Tv,
 } from "lucide-react";
 import * as React from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { PulsatingButton } from "@/components/ui/pulsating-button";
+import {
+  hasSeenProxyModeHint,
+  rememberProxyModeHintSeen,
+} from "@/lib/playback/proxy-mode-hint-storage";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,11 +56,16 @@ import { cn } from "@/lib/utils";
 type ScrapeProviderOption = {
   providerId: string;
   name: string;
+  group?: "anime" | "tmdb";
 };
 
 type PlaybackMenuMode = "direct" | "embed";
 
 const DUAL_EMBED_PICKER_ID = "__dual_embed__";
+const PROXY_HINT_VISIBLE_MS = 5000;
+const PROXY_HINT_EXIT_MS = 300;
+
+type ProxyHintPhase = "idle" | "active" | "exiting";
 
 const EMBED_ONLY_IDS = new Set(embedOnlyProviderIds());
 const DUAL_EMBED_IDS = new Set(dualCapabilityEmbedProviderIds());
@@ -59,23 +78,123 @@ interface ServerSelectorProps {
   scrapeStatus?: ScrapePlayerStatus;
   activeScrapeProviderId?: string | null;
   activeScrapeProviderName?: string | null;
+  scrapeItems?: ScrapeItem[];
   scrapeProviders?: ScrapeProviderOption[];
   onSelectScrapeProvider?: (providerId: string) => void;
   onFindNextSource?: () => void;
   canFindNextSource?: boolean;
 }
 
+function ScrapeProviderStatusIcon({
+  status,
+  isActive,
+  scrapeStatus,
+}: {
+  status: ScrapeItemStatus | "idle";
+  isActive: boolean;
+  scrapeStatus: ScrapePlayerStatus;
+}) {
+  const variant = resolveScrapeMenuDotVariant({
+    liveStatus: status,
+    isActive,
+    scrapeStatus,
+  });
+
+  return <ScrapeProviderMenuDot variant={variant} />;
+}
+
+function ProxyModeHintBubble() {
+  return (
+    <motion.div
+      key="proxy-mode-hint"
+      initial={{ opacity: 0, y: 6, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 4, scale: 0.94 }}
+      transition={{
+        type: "spring",
+        stiffness: 420,
+        damping: 28,
+        opacity: { duration: 0.24, ease: "easeInOut" },
+      }}
+      className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-30 w-max max-w-38 -translate-x-1/2"
+    >
+      <motion.div
+        animate={{ y: [0, -2, 0] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        className="relative rounded-md bg-primary px-2 py-1 text-center text-[10px] font-semibold leading-tight text-primary-foreground shadow-md"
+      >
+        Use proxy for no ads
+        <span
+          aria-hidden
+          className="absolute left-1/2 top-full -translate-x-1/2 border-x-[5px] border-t-[5px] border-x-transparent border-t-primary"
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function ModeSwitcher({
   mode,
   onModeChange,
   showEmbed,
+  showProxyHint,
+  onProxyHintDismiss,
 }: {
   mode: PlaybackMenuMode;
   onModeChange: (mode: PlaybackMenuMode) => void;
   showEmbed: boolean;
+  showProxyHint?: boolean;
+  onProxyHintDismiss?: () => void;
 }) {
+  const [hintPhase, setHintPhase] = React.useState<ProxyHintPhase>("idle");
+
+  React.useEffect(() => {
+    if (!showProxyHint) {
+      setHintPhase("idle");
+      return;
+    }
+
+    setHintPhase("active");
+    const visibleTimer = window.setTimeout(() => {
+      setHintPhase("exiting");
+    }, PROXY_HINT_VISIBLE_MS);
+
+    return () => window.clearTimeout(visibleTimer);
+  }, [showProxyHint]);
+
+  React.useEffect(() => {
+    if (hintPhase !== "exiting") return;
+
+    const exitTimer = window.setTimeout(() => {
+      onProxyHintDismiss?.();
+    }, PROXY_HINT_EXIT_MS);
+
+    return () => window.clearTimeout(exitTimer);
+  }, [hintPhase, onProxyHintDismiss]);
+
+  const hintEffectsVisible = hintPhase === "active" || hintPhase === "exiting";
+  const pulseActive = hintPhase === "active";
+
+  const proxyButtonClassName = cn(
+    "flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-bold transition",
+    mode === "direct"
+      ? "bg-primary text-primary-foreground shadow-sm"
+      : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+  );
+
+  const handleProxySelect = () => {
+    onModeChange("direct");
+    onProxyHintDismiss?.();
+  };
+
   return (
-    <div className="p-2" onPointerDown={(event) => event.preventDefault()}>
+    <div
+      className={cn(
+        "p-2 transition-[padding] duration-300",
+        hintEffectsVisible && "pt-8",
+      )}
+      onPointerDown={(event) => event.preventDefault()}
+    >
       <div
         role="radiogroup"
         aria-label="Playback mode"
@@ -84,20 +203,33 @@ function ModeSwitcher({
           showEmbed ? "grid-cols-2" : "grid-cols-1",
         )}
       >
-        <button
-          type="button"
-          role="radio"
-          aria-checked={mode === "direct"}
-          onClick={() => onModeChange("direct")}
-          className={cn(
-            "flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-bold transition",
-            mode === "direct"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+        <div className="relative">
+          <AnimatePresence>
+            {hintPhase === "active" ? <ProxyModeHintBubble /> : null}
+          </AnimatePresence>
+          {hintEffectsVisible ? (
+            <PulsatingButton
+              type="button"
+              role="radio"
+              aria-checked={mode === "direct"}
+              onClick={handleProxySelect}
+              pulseActive={pulseActive}
+              className={proxyButtonClassName}
+            >
+              Proxy
+            </PulsatingButton>
+          ) : (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mode === "direct"}
+              onClick={handleProxySelect}
+              className={proxyButtonClassName}
+            >
+              Proxy
+            </button>
           )}
-        >
-          Proxy
-        </button>
+        </div>
         {showEmbed ? (
           <button
             type="button"
@@ -117,8 +249,8 @@ function ModeSwitcher({
       </div>
       <p className="mt-2 px-0.5 text-[11px] leading-snug text-muted-foreground">
         {mode === "direct"
-          ? "No ads, ever. Subject to availability."
-          : "3rd parties. Might have ads."}
+          ? "No ads, but volatile for obvious reasons."
+          : "3rd parties that love popups."}
       </p>
     </div>
   );
@@ -130,6 +262,7 @@ export function ServerSelector({
   scrapeStatus = "idle",
   activeScrapeProviderId,
   activeScrapeProviderName,
+  scrapeItems = [],
   scrapeProviders = [],
   onSelectScrapeProvider,
   onFindNextSource,
@@ -137,6 +270,7 @@ export function ServerSelector({
 }: ServerSelectorProps) {
   const [detailServerId, setDetailServerId] = React.useState<string>();
   const [menuMode, setMenuMode] = React.useState<PlaybackMenuMode>("direct");
+  const [showProxyHint, setShowProxyHint] = React.useState(false);
   const {
     selectedServer,
     setSelectedServer,
@@ -155,12 +289,22 @@ export function ServerSelector({
   const isScrapeActive = isScrapeServer(selectedServer);
   const showEmbedMode = !noAdsMode;
 
-  const directStreamProviders = React.useMemo(
+  const directStreamProviders = React.useMemo<ScrapeProviderOption[]>(
     () =>
       scrapeProviders.length > 0
         ? scrapeProviders
         : TMDB_SCRAPE_PROVIDER_OPTIONS,
     [scrapeProviders],
+  );
+
+  const directStreamMenuItems = React.useMemo(
+    () =>
+      mergeScrapeProviderMenu(
+        directStreamProviders,
+        scrapeItems,
+        activeScrapeProviderId,
+      ),
+    [activeScrapeProviderId, directStreamProviders, scrapeItems],
   );
 
   const sortedEmbedServers = React.useMemo(
@@ -200,10 +344,21 @@ export function ServerSelector({
     onServerSelect?.();
   };
 
+  const dismissProxyHint = React.useCallback(() => {
+    setShowProxyHint((active) => {
+      if (!active) return false;
+      rememberProxyModeHintSeen();
+      return false;
+    });
+  }, []);
+
   const handleModeChange = (mode: PlaybackMenuMode) => {
     setMenuMode(mode);
-    if (mode === "direct" && !isScrapeActive) {
-      handleServerChange(scrapeServer.id);
+    if (mode === "direct") {
+      dismissProxyHint();
+      if (!isScrapeActive) {
+        handleServerChange(scrapeServer.id);
+      }
     }
   };
 
@@ -236,7 +391,10 @@ export function ServerSelector({
     serverId === "videasy" ||
     serverId === "vidsrc-mirror";
 
-  const renderEmbedServerItem = (server: (typeof videoServers)[number]) => {
+  const renderEmbedServerItem = (
+    server: (typeof videoServers)[number],
+    options?: { isFirst?: boolean; isLast?: boolean },
+  ) => {
     const hasOptions = serverHasOptions(server.id);
     const enabled = isServerEnabled(server.id);
     const isSelected = selectedServer.id === server.id && !isScrapeActive;
@@ -259,7 +417,9 @@ export function ServerSelector({
           handleServerChange(server.id);
         }}
         className={cn(
-          "flex cursor-pointer items-center justify-between rounded-md py-2",
+          "flex cursor-pointer items-center justify-between rounded-none py-2",
+          options?.isFirst && "rounded-t-md",
+          options?.isLast && "rounded-b-md",
           isSelected && "bg-accent/60",
         )}
         disabled={!enabled}
@@ -274,63 +434,108 @@ export function ServerSelector({
     );
   };
 
-  const renderDirectStreamPanel = () => (
-    <div className="px-1 pb-1">
-      {directStreamProviders.map((provider) => {
-        const isActive =
-          isScrapeActive &&
-          activeScrapeProviderId === provider.providerId &&
-          scrapeStatus === "playing";
+  const renderDirectStreamPanel = () => {
+    const animeProviders = directStreamMenuItems.filter(
+      (provider) => provider.group !== "tmdb",
+    );
+    const tmdbProviders = directStreamMenuItems.filter(
+      (provider) => provider.group === "tmdb",
+    );
+    const hasGroups =
+      animeProviders.length > 0 &&
+      tmdbProviders.length > 0 &&
+      directStreamMenuItems.some((provider) => provider.group);
 
-        return (
-          <DropdownMenuItem
-            key={provider.providerId}
-            onSelect={() => {
-              if (!isScrapeActive) {
-                handleServerChange(scrapeServer.id);
-              }
-              onSelectScrapeProvider?.(provider.providerId);
-            }}
-            className={cn(
-              "flex cursor-pointer items-center justify-between rounded-md py-2",
-              isActive && "bg-primary/15 font-semibold text-primary",
-            )}
-            disabled={!onSelectScrapeProvider}
-          >
-            <span className="font-semibold">{provider.name}</span>
-            {isActive ? <Check className="h-4 w-4 text-primary" /> : null}
-          </DropdownMenuItem>
-        );
-      })}
-      {canFindNextSource && onFindNextSource ? (
-        <DropdownMenuItem
-          onSelect={onFindNextSource}
-          className="mt-0.5 flex cursor-pointer items-center gap-2 rounded-md py-2 font-medium text-muted-foreground"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          <span>Try next source</span>
-        </DropdownMenuItem>
-      ) : null}
-    </div>
-  );
+    const renderProviderItem = (provider: ScrapeProviderMenuEntry) => {
+      const isActive =
+        isScrapeActive &&
+        activeScrapeProviderId === provider.providerId &&
+        scrapeStatus === "playing";
+      const dimProvider = shouldDimScrapeMenuProvider(provider.status);
 
-  const renderEmbedPanel = () => (
-    <div className="px-1 pb-1">
-      {embedOnlyServers.map((server) => renderEmbedServerItem(server))}
-      {dualEmbedServers.length > 0 ? (
+      return (
         <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            setDetailServerId(DUAL_EMBED_PICKER_ID);
+          key={provider.providerId}
+          onSelect={() => {
+            if (!isScrapeActive) {
+              handleServerChange(scrapeServer.id);
+            }
+            onSelectScrapeProvider?.(provider.providerId);
           }}
-          className="flex cursor-pointer items-center justify-between rounded-md py-2 text-muted-foreground"
+          className={cn(
+            "flex cursor-pointer items-center justify-between rounded-none py-2",
+            isActive && "font-semibold",
+            dimProvider && !isActive && "text-muted-foreground",
+          )}
+          disabled={!onSelectScrapeProvider}
         >
-          <span className="font-medium">More embed servers</span>
-          <ChevronRight className="h-4 w-4" />
+          <span className="font-semibold">{provider.name}</span>
+          <ScrapeProviderStatusIcon
+            status={provider.status}
+            isActive={isActive}
+            scrapeStatus={scrapeStatus}
+          />
         </DropdownMenuItem>
-      ) : null}
-    </div>
-  );
+      );
+    };
+
+    return (
+      <div className="px-1 pb-1">
+        {hasGroups ? (
+          <>
+            <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Anime sources
+            </DropdownMenuLabel>
+            {animeProviders.map((provider) => renderProviderItem(provider))}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              TMDB proxies
+            </DropdownMenuLabel>
+            {tmdbProviders.map((provider) => renderProviderItem(provider))}
+          </>
+        ) : (
+          directStreamMenuItems.map((provider) => renderProviderItem(provider))
+        )}
+        {canFindNextSource && onFindNextSource ? (
+          <DropdownMenuItem
+            onSelect={onFindNextSource}
+            className="mt-0.5 flex cursor-pointer items-center gap-2 rounded-none py-2 font-medium text-muted-foreground"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Try next source</span>
+          </DropdownMenuItem>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderEmbedPanel = () => {
+    const embedOnlyCount = embedOnlyServers.length;
+    const hasMoreEmbedServers = dualEmbedServers.length > 0;
+
+    return (
+      <div className="px-1 pb-1">
+        {embedOnlyServers.map((server, index) =>
+          renderEmbedServerItem(server, {
+            isFirst: index === 0,
+            isLast: index === embedOnlyCount - 1 && !hasMoreEmbedServers,
+          }),
+        )}
+        {dualEmbedServers.length > 0 ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setDetailServerId(DUAL_EMBED_PICKER_ID);
+            }}
+            className="flex cursor-pointer items-center justify-between rounded-b-md rounded-none py-2 text-muted-foreground"
+          >
+            <span className="font-medium">More embed servers</span>
+            <ChevronRight className="h-4 w-4" />
+          </DropdownMenuItem>
+        ) : null}
+      </div>
+    );
+  };
 
   const renderServerDetailPanel = (server: (typeof videoServers)[number]) => (
     <>
@@ -446,7 +651,12 @@ export function ServerSelector({
       <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
         Also as embed
       </DropdownMenuLabel>
-      {dualEmbedServers.map((server) => renderEmbedServerItem(server))}
+      {dualEmbedServers.map((server, index) =>
+        renderEmbedServerItem(server, {
+          isFirst: index === 0,
+          isLast: index === dualEmbedServers.length - 1,
+        }),
+      )}
     </>
   );
 
@@ -456,11 +666,15 @@ export function ServerSelector({
         mode={menuMode}
         onModeChange={handleModeChange}
         showEmbed={showEmbedMode}
+        showProxyHint={showProxyHint}
+        onProxyHintDismiss={dismissProxyHint}
       />
       <DropdownMenuSeparator />
-      {menuMode === "direct" || !showEmbedMode
-        ? renderDirectStreamPanel()
-        : renderEmbedPanel()}
+      <div className="max-h-[min(52vh,18rem)] overflow-y-auto">
+        {menuMode === "direct" || !showEmbedMode
+          ? renderDirectStreamPanel()
+          : renderEmbedPanel()}
+      </div>
     </>
   );
 
@@ -469,9 +683,13 @@ export function ServerSelector({
       onOpenChange={(open) => {
         if (open) {
           setMenuMode(isScrapeActive ? "direct" : "embed");
+          if (!hasSeenProxyModeHint()) {
+            setShowProxyHint(true);
+          }
         }
         if (!open) {
           setDetailServerId(undefined);
+          dismissProxyHint();
         }
       }}
     >

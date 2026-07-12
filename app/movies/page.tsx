@@ -8,9 +8,11 @@ import {
   CatalogHeroPairFallback,
   CatalogRowFallback,
   CatalogSpotlightFallback,
+  RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import { ContentRow } from "@/components/content/content-row";
 import { DiscoverHubToolbarDynamic } from "@/components/discover/discover-hub-toolbar-dynamic";
+import { RecentlyWatchedRow } from "@/components/home/recently-watched-row";
 import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { MovieHero } from "@/components/movie/movie-server";
@@ -276,6 +278,10 @@ export default async function MoviesCatalogPage(props: PageProps) {
                   />
                 </Suspense>
               ) : null}
+
+              <Suspense fallback={<RecentlyWatchedRowFallback />}>
+                <RecentlyWatchedRow scope="movie" />
+              </Suspense>
 
               {hubTrendingCarousel.length > 0 ? (
                 <Suspense fallback={<CatalogRowFallback />}>

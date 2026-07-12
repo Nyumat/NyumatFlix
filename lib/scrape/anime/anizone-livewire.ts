@@ -1,5 +1,5 @@
 import { decodeHtmlEntities } from "./html-utils";
-import { scrapeFetch } from "../fetch";
+import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../fetch";
 
 type LivewireUpdateResponse = {
   components?: Array<{
@@ -40,6 +40,7 @@ export const searchAnizoneSlug = async (
   });
 
   if (!indexResponse.ok) {
+    await cancelResponseBody(indexResponse);
     return null;
   }
 
@@ -65,7 +66,7 @@ export const searchAnizoneSlug = async (
     ],
   };
 
-  const response = await fetch("https://anizone.to/livewire/update", {
+  const response = await scrapeFetch("https://anizone.to/livewire/update", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -77,16 +78,16 @@ export const searchAnizoneSlug = async (
       ...(cookieHeader ? { Cookie: cookieHeader } : {}),
     },
     body: JSON.stringify(payload),
-    cache: "no-store",
   });
 
   if (!response.ok) {
+    await cancelResponseBody(response);
     return null;
   }
 
   const livewire = (await response.json()) as LivewireUpdateResponse;
   const html = livewire.components?.[0]?.effects?.html ?? "";
-  const slugs = [...html.matchAll(/\/anime\/([a-z0-9]+)/g)].map(
+  const slugs = [...html.matchAll(/\/anime\/([a-z0-9-]+)/g)].map(
     (entry) => entry[1],
   );
 
@@ -97,10 +98,36 @@ export const searchAnizoneSlug = async (
   const normalizedQuery = query.trim().toLowerCase();
   const titledSlugMatch = html.match(
     new RegExp(
-      `/anime/([a-z0-9]+)[\\s\\S]{0,240}?${normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+      `/anime/([a-z0-9-]+)[\\s\\S]{0,240}?${normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
       "i",
     ),
   );
 
-  return titledSlugMatch?.[1] ?? slugs[slugs.length - 1] ?? null;
+  if (titledSlugMatch?.[1]) {
+    const candidatePage = await scrapeFetchText(
+      `https://anizone.to/anime/${titledSlugMatch[1]}`,
+      { Referer: "https://anizone.to/anime" },
+    );
+    const pageTitle = candidatePage.text.match(
+      /<title>([^<]+?)(?:\s+—\s+AniZone)?<\/title>/i,
+    )?.[1];
+    if (pageTitle?.trim().toLowerCase() === normalizedQuery) {
+      return titledSlugMatch[1];
+    }
+  }
+
+  for (const slug of [...new Set(slugs)]) {
+    const candidatePage = await scrapeFetchText(
+      `https://anizone.to/anime/${slug}`,
+      { Referer: "https://anizone.to/anime" },
+    );
+    const pageTitle = candidatePage.text.match(
+      /<title>([^<]+?)(?:\s+—\s+AniZone)?<\/title>/i,
+    )?.[1];
+    if (pageTitle?.trim().toLowerCase() === normalizedQuery) {
+      return slug;
+    }
+  }
+
+  return null;
 };

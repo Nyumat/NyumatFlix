@@ -39,14 +39,12 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
 
-  // Fetch genres once (cached across the app)
   const genresQuery = useQuery({
     queryKey: queryKeys.combinedGenres(),
     queryFn: fetchCombinedGenres,
     staleTime: 30 * 60 * 1000, // 30 minutes - genres rarely change
   });
 
-  // Fetch search results (depends on query and page)
   const searchQuery = useQuery({
     queryKey: queryKeys.searchResults(query.trim(), currentPage),
     queryFn: () => fetchSearchResults(query.trim(), currentPage),
@@ -83,7 +81,6 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
     searchQuery.refetch();
   }, [searchQuery]);
 
-  // Reset page when query changes
   const trimmedQuery = query.trim();
   const [lastQuery, setLastQuery] = useState(trimmedQuery);
   if (trimmedQuery !== lastQuery) {

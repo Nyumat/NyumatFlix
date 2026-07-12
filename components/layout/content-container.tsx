@@ -3,13 +3,9 @@ import { ReactNode } from "react";
 interface ContentContainerProps {
   children: ReactNode;
   className?: string;
-  topSpacing?: boolean; // Controls spacing at the top
+  topSpacing?: boolean;
 }
 
-/**
- * A reusable content container component that provides consistent
- * styling for page content (used inside PageContainer)
- */
 export function ContentContainer({
   children,
   className = "",

@@ -6,9 +6,6 @@ import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
 import { and, eq } from "drizzle-orm";
 
-/**
- * Get user's watchlist items
- */
 export async function getUserWatchlist(
   userId?: string,
 ): Promise<WatchlistItem[]> {
@@ -28,9 +25,6 @@ export async function getUserWatchlist(
   return items as WatchlistItem[];
 }
 
-/**
- * Get watchlist item for a specific content
- */
 export async function getWatchlistItem(
   contentId: number,
   mediaType: "movie" | "tv",
@@ -56,10 +50,6 @@ export async function getWatchlistItem(
   return (item as WatchlistItem) || null;
 }
 
-/**
- * Auto-detect if a TV show should be marked as "waiting for new episodes"
- * This checks if the user has watched all available episodes and the show is not ended
- */
 export async function checkAndUpdateWaitingStatus(
   contentId: number,
 ): Promise<void> {
@@ -70,7 +60,6 @@ export async function checkAndUpdateWaitingStatus(
   }
 
   try {
-    // Get the watchlist item
     const [item] = await db
       .select()
       .from(watchlist)
@@ -87,23 +76,19 @@ export async function checkAndUpdateWaitingStatus(
       return; // Don't auto-update if already finished or waiting
     }
 
-    // Fetch TV show details to check total episodes and status
     const tvShowDetails = await fetchTVShowDetails(contentId.toString());
 
     if (!tvShowDetails) {
       return;
     }
 
-    // Check if show has ended
     if (tvShowDetails.status === "Ended") {
       return; // Don't auto-mark as waiting if show has ended
     }
 
-    // Check if user has watched all available episodes
     const totalEpisodes = tvShowDetails.number_of_episodes || 0;
     const lastWatchedEpisode = item.lastWatchedEpisode || 0;
 
-    // If user has watched all episodes and show is not ended, mark as waiting
     if (lastWatchedEpisode >= totalEpisodes && totalEpisodes > 0) {
       await db
         .update(watchlist)
@@ -115,14 +100,9 @@ export async function checkAndUpdateWaitingStatus(
     }
   } catch (error) {
     console.error("Error checking waiting status:", error);
-    // Silently fail - this is a background check
   }
 }
 
-/**
- * Batch check waiting status for all TV shows in user's watchlist
- * This can be called periodically (e.g., daily) to auto-update statuses
- */
 export async function batchCheckWaitingStatus(): Promise<void> {
   const session = await auth();
 
@@ -131,7 +111,6 @@ export async function batchCheckWaitingStatus(): Promise<void> {
   }
 
   try {
-    // Get all TV shows in watchlist that are currently "watching"
     const tvShows = await db
       .select()
       .from(watchlist)
@@ -143,7 +122,6 @@ export async function batchCheckWaitingStatus(): Promise<void> {
         ),
       );
 
-    // Check each TV show
     for (const item of tvShows) {
       await checkAndUpdateWaitingStatus(item.contentId);
     }

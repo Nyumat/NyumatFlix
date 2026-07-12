@@ -1,6 +1,7 @@
 import { Episode } from "@/lib/domain/typings";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { episodeNumberForProviders } from "@/lib/tv-provider-episode";
+import type { MappingConfidence } from "@/lib/anime/tmdb-anilist-map";
 import { getSession } from "next-auth/react";
 import { create } from "zustand";
 import { useServerStore, isScrapeServer } from "./server-store";
@@ -25,11 +26,17 @@ interface EpisodeState {
   seasonEpisodes: Episode[] | null;
   /** 1-based episode index within the season for embed/scrape providers. */
   providerEpisodeNumber: number | null;
-  // anime stuff
   isAnimeEpisode: boolean;
   anilistId: number | null;
   relativeEpisodeNumber: number | null;
+  /** 1-based AniList-segment season when TMDB collapses cours into one season. */
+  animeSeasonNumber: number | null;
+  animeSegmentStart: number | null;
+  animeSegmentEnd: number | null;
+  mappingConfidence: MappingConfidence | null;
+  isAdultAnime: boolean;
   defaultAnilistId: number | null;
+  defaultIsAdultAnime: boolean;
   watchCallback: (() => void) | null;
   setSelectedEpisode: (
     episode: Episode,
@@ -42,9 +49,24 @@ interface EpisodeState {
     },
     skipWatchCallback?: boolean,
     seasonEpisodes?: Episode[],
+    mapping?: {
+      confidence: MappingConfidence;
+      isAdult: boolean;
+      animeSeasonNumber?: number | null;
+    },
   ) => void;
+  applyAnimeEpisodeMapping: (mapping: {
+    animeInfo: {
+      anilistId: number;
+      startEpisode: number;
+      endEpisode: number;
+    };
+    confidence: MappingConfidence;
+    isAdult: boolean;
+    animeSeasonNumber?: number | null;
+  }) => void;
   clearSelectedEpisode: () => void;
-  setDefaultAnilistId: (anilistId: number | null) => void;
+  setDefaultAnilistId: (anilistId: number | null, isAdult?: boolean) => void;
   getEmbedUrl: () => string | null;
   /** Next episode within the loaded season, if any. */
   getNextEpisodeTarget: () => NextEpisodeTarget | null;
@@ -93,7 +115,13 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   isAnimeEpisode: false,
   anilistId: null,
   relativeEpisodeNumber: null,
+  animeSeasonNumber: null,
+  animeSegmentStart: null,
+  animeSegmentEnd: null,
+  mappingConfidence: null,
+  isAdultAnime: false,
   defaultAnilistId: null,
+  defaultIsAdultAnime: false,
   watchCallback: null,
   setSelectedEpisode: (
     episode,
@@ -102,16 +130,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     animeInfo,
     skipWatchCallback = false,
     seasonEpisodes,
+    mapping,
   ) => {
-    const effectiveAnimeInfo =
-      animeInfo ??
-      (get().defaultAnilistId
-        ? {
-            anilistId: get().defaultAnilistId!,
-            startEpisode: 1,
-            endEpisode: Number.MAX_SAFE_INTEGER,
-          }
-        : undefined);
+    const effectiveAnimeInfo = animeInfo;
     const isAnimeEpisode = !!effectiveAnimeInfo;
     const anilistId = effectiveAnimeInfo?.anilistId || null;
     const relativeEpisodeNumber = effectiveAnimeInfo
@@ -130,9 +151,15 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       isAnimeEpisode,
       anilistId,
       relativeEpisodeNumber,
+      animeSeasonNumber: isAnimeEpisode
+        ? (mapping?.animeSeasonNumber ?? null)
+        : null,
+      animeSegmentStart: effectiveAnimeInfo?.startEpisode ?? null,
+      animeSegmentEnd: effectiveAnimeInfo?.endEpisode ?? null,
+      mappingConfidence: mapping?.confidence ?? (isAnimeEpisode ? "low" : null),
+      isAdultAnime: mapping?.isAdult ?? false,
     });
 
-    // Track watch progress
     if (tvShowId && seasonNumber && episode.episode_number) {
       getSession()
         .then((session) => {
@@ -175,9 +202,38 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       isAnimeEpisode: false,
       anilistId: null,
       relativeEpisodeNumber: null,
+      animeSeasonNumber: null,
+      animeSegmentStart: null,
+      animeSegmentEnd: null,
+      mappingConfidence: null,
+      isAdultAnime: false,
     });
   },
-  setDefaultAnilistId: (defaultAnilistId) => set({ defaultAnilistId }),
+  applyAnimeEpisodeMapping: (mapping) => {
+    const { selectedEpisode } = get();
+    if (!selectedEpisode) {
+      return;
+    }
+
+    const relativeEpisodeNumber =
+      selectedEpisode.episode_number - mapping.animeInfo.startEpisode + 1;
+
+    set({
+      anilistId: mapping.animeInfo.anilistId,
+      relativeEpisodeNumber,
+      animeSeasonNumber: mapping.animeSeasonNumber ?? null,
+      animeSegmentStart: mapping.animeInfo.startEpisode,
+      animeSegmentEnd: mapping.animeInfo.endEpisode,
+      isAnimeEpisode: true,
+      mappingConfidence: mapping.confidence,
+      isAdultAnime: mapping.isAdult,
+    });
+  },
+  setDefaultAnilistId: (defaultAnilistId, isAdult = false) =>
+    set({
+      defaultAnilistId,
+      defaultIsAdultAnime: defaultAnilistId ? isAdult === true : false,
+    }),
   getEmbedUrl: () => {
     const {
       selectedEpisode,
@@ -200,7 +256,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       return null;
     }
 
-    // For vidnest server, handle different content types
     if (selectedServer.id === "vidnest") {
       if (isAnimeEpisode && anilistId && relativeEpisodeNumber) {
         if (vidnestContentType === "anime") {
@@ -223,7 +278,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       }
     }
 
-    // For non-vidnest servers or default tv episodes
     if (isAnimeEpisode && anilistId && relativeEpisodeNumber) {
       if (selectedServer.getAnimeUrl) {
         return selectedServer.getAnimeUrl(anilistId, relativeEpisodeNumber);
@@ -287,13 +341,44 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       targetSeason: number,
       episodes: Episode[],
     ) => {
+      const {
+        anilistId,
+        animeSeasonNumber,
+        animeSegmentStart,
+        animeSegmentEnd,
+        mappingConfidence,
+        isAdultAnime,
+      } = get();
+
+      const stillInSegment =
+        anilistId != null &&
+        animeSegmentStart != null &&
+        animeSegmentEnd != null &&
+        episode.episode_number >= animeSegmentStart &&
+        episode.episode_number <= animeSegmentEnd;
+
+      const animeInfo = stillInSegment
+        ? {
+            anilistId,
+            startEpisode: animeSegmentStart,
+            endEpisode: animeSegmentEnd,
+          }
+        : undefined;
+
       setSelectedEpisode(
         episode,
         tvShowId,
         targetSeason,
-        undefined,
+        animeInfo,
         true,
         episodes,
+        animeInfo
+          ? {
+              confidence: mappingConfidence ?? "high",
+              isAdult: isAdultAnime,
+              animeSeasonNumber,
+            }
+          : undefined,
       );
     };
 

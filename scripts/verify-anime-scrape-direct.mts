@@ -2,10 +2,19 @@
 /**
  * Direct provider verification (no Next.js server required).
  * Usage: npx tsx scripts/verify-anime-scrape-direct.mts
+ *
+ * Loads .env then .env.local before importing scrapers (ESM import hoisting
+ * would otherwise read TMDB_API_KEY / SCRAPE_PROXY_URL too early).
  */
 
-import { scrapeAnimeProvider } from "../lib/scrape/anime/index.ts";
+import { config as loadEnv } from "dotenv";
+import { resolve } from "node:path";
 import type { AnimeScrapeProviderId } from "../lib/scrape/anime/types.ts";
+
+loadEnv({ path: resolve(process.cwd(), ".env") });
+loadEnv({ path: resolve(process.cwd(), ".env.local"), override: true });
+
+const { scrapeAnimeProvider } = await import("../lib/scrape/anime/index.ts");
 
 const CASES: Array<{
   label: string;
@@ -16,6 +25,31 @@ const CASES: Array<{
     query?: string;
   };
 }> = [
+  {
+    label: "JustAnime / One Piece ep1",
+    providerId: "justanime",
+    input: { anilistId: 21, episodeNumber: 1 },
+  },
+  {
+    label: "AniKitty / One Piece ep1",
+    providerId: "anikitty",
+    input: { anilistId: 21, episodeNumber: 1 },
+  },
+  {
+    label: "AnimeParadise / One Piece ep1",
+    providerId: "animeparadise",
+    input: { anilistId: 21, episodeNumber: 1, query: "One Piece" },
+  },
+  {
+    label: "Kyren / One Piece ep1",
+    providerId: "kyren",
+    input: { anilistId: 21, episodeNumber: 1 },
+  },
+  {
+    label: "AniKuro / One Piece ep1",
+    providerId: "anikuro",
+    input: { anilistId: 21, episodeNumber: 1 },
+  },
   {
     label: "AniZone / One Piece ep1",
     providerId: "anizone",
@@ -47,14 +81,17 @@ const CASES: Array<{
     input: { anilistId: 20, episodeNumber: 1, query: "Naruto" },
   },
   {
-    label: "AnimePahe / Naruto ep1 (FlareSolverr)",
+    label: "AnimePahe / One Piece ep1168",
     providerId: "animepahe",
-    input: { anilistId: 20, episodeNumber: 1, query: "Naruto" },
+    input: { anilistId: 21, episodeNumber: 1168, query: "One Piece" },
   },
 ];
 
 const main = async () => {
-  console.log("Direct anime scrape verification\n");
+  console.log("Direct anime scrape verification");
+  console.log(
+    `SCRAPE_PROXY_URL=${process.env.SCRAPE_PROXY_URL ?? "(unset)"}\n`,
+  );
 
   let ok = 0;
 
@@ -68,8 +105,20 @@ const main = async () => {
 
     if (result.ok) {
       ok += 1;
+      const meta = [
+        result.subtitles?.length ? `subs=${result.subtitles.length}` : "subs=0",
+        result.qualities?.length
+          ? `qualities=${result.qualities.length}`
+          : "qualities=0",
+        result.preferredAudioLang ? `audio=${result.preferredAudioLang}` : null,
+        result.audioVersions?.length
+          ? `versions=${result.audioVersions.length}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ");
       console.log(
-        `✓ ${testCase.label} (${elapsed}ms) [${result.streamKind}] ${result.streamUrl.slice(0, 90)}...`,
+        `✓ ${testCase.label} (${elapsed}ms) [${result.streamKind}] ${meta} ${result.streamUrl.slice(0, 90)}...`,
       );
     } else {
       console.log(`✗ ${testCase.label} (${elapsed}ms) -> ${result.error}`);

@@ -5,13 +5,6 @@ import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
 import { formatCountdown } from "@/lib/utils/countdown";
 import { tmdb } from "@/tmdb/api";
 
-/**
- * Check for new episodes and upcoming episodes for a TV show
- * @param contentId - TMDB TV show ID
- * @param lastWatchedSeason - User's last watched season number
- * @param lastWatchedEpisode - User's last watched episode number
- * @returns Episode information including new episode count and countdown
- */
 export async function checkEpisodesForShow(
   contentId: number,
   lastWatchedSeason: number | null,

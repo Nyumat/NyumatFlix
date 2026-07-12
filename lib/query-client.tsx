@@ -12,8 +12,6 @@ import { createIDBPersister } from "./idb-persister";
 
 const TWENTY_FOUR_HOURS = 1000 * 60 * 60 * 24;
 
-// Bump when the shape of persisted queries changes so stale entries are dropped.
-// v2: movie/tv detail queries no longer share a key with slim above-fold data.
 const PERSIST_BUSTER = "v2";
 
 function makeQueryClient() {

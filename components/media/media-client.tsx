@@ -20,6 +20,7 @@ import { SmartGenreBadgeGroup } from "@/components/media/controls/genre-badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { EpisodeIndicator } from "@/components/watchlist/watchlist";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import useMedia from "@/hooks/useMedia";
 import { sortWithProfilePathFirst } from "@/lib/media-poster-path";
 import { cn } from "@/lib/utils";
 import type { Genre, MediaItem, ProductionCountry } from "@/lib/domain/typings";
@@ -130,44 +131,23 @@ export const MediaImages: React.FC<MediaImagesProps> = ({
   );
 };
 
-/**
- * Props for the Info component
- */
 interface InfoProps {
-  /** Title of the media content */
   title?: string;
-  /** Logo object for displaying media logo */
   logo?: {
     file_path: string;
     width: number;
     height: number;
   };
-  /** Release date for movies or first air date for TV shows */
   releaseDate?: string;
-  /** Average vote rating (0-10) */
   voteAverage?: number;
-  /** Runtime in minutes (for movies) */
   runtime?: number;
-  /** Production countries (for TV shows) */
   country?: Array<{ iso_3166_1: string; name: string }>;
-  /** Array of genre objects for displaying genre badges */
   genres?: Genre[];
-  /** Type of media - used for conditional rendering */
   mediaType?: "movie" | "tv";
-  /** Optional content rating (e.g., PG-13, R, etc.) */
   rating?: string;
-  /**
-   * Alignment of the content
-   * @default "left"
-   */
   align?: "left" | "center" | "right";
 }
 
-/**
- * Info component displays media information including title, rating, runtime, and genres
- * @param props - The component props
- * @returns A component displaying formatted media information
- */
 export const Info = ({
   title,
   logo,
@@ -521,24 +501,15 @@ interface TvDetails {
 }
 
 interface MediaCardProps {
-  /** The media item to display (should be pre-enriched with details) */
   item: MediaItem;
-  /** The type of media (movie or tv) */
   type: "movie" | "tv" | MediaItem["media_type"];
-  /** Optional content rating (e.g., PG-13, R, etc.) */
   rating?: string;
-  /** Whether to show the minimal version of the card
-   *  used for carosuel items within detail pages.
-   */
   minimal?: boolean;
-  /** Optional watchlist item for status toggle */
   watchlistItem?: WatchlistItem;
-  /** Optional callback for status change */
   onStatusChange?: (
     itemId: string,
     newStatus: "watching" | "waiting" | "finished",
   ) => void;
-  /** Optional episode info for TV shows */
   episodeInfo?: EpisodeInfo | null;
 }
 
@@ -555,6 +526,7 @@ export const MediaShowcaseCard = ({
   onStatusChange,
   episodeInfo,
 }: MediaCardProps) => {
+  const isMobile = !!useMedia("(max-width: 768px)", false);
   if (item.id === undefined) return <div>No content ID found</div>;
   const title = getTitle(item);
   const posterPath = item.poster_path ?? undefined;
@@ -631,20 +603,26 @@ export const MediaShowcaseCard = ({
   return (
     <Card
       className={cn(
-        "group relative flex h-full cursor-pointer flex-col overflow-hidden bg-card/40 shadow-xl backdrop-blur-md transition-all duration-300",
+        "group relative flex h-full flex-col overflow-hidden bg-card/40 shadow-xl backdrop-blur-md transition-all duration-300",
         isWatchlistCard
           ? "rounded-2xl border border-white/12 shadow-black/25 hover:border-white/25"
           : "border-0",
+        isMobile && "cursor-pointer",
       )}
     >
-      <NextLink
-        href={href}
-        className="absolute inset-0 z-20"
-        aria-label={`View ${title}`}
-      />
+      {isMobile ? (
+        <NextLink
+          href={href}
+          className="absolute inset-0 z-20"
+          aria-label={`View ${title}`}
+          {...(isExternalHref
+            ? { target: "_blank", rel: "noopener noreferrer" }
+            : {})}
+        />
+      ) : null}
 
       {backdropUrl && (
-        <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
+        <div className="pointer-events-none absolute inset-0 opacity-10 transition-opacity duration-500 group-hover:opacity-20">
           <Image
             src={backdropUrl}
             alt=""
@@ -655,23 +633,33 @@ export const MediaShowcaseCard = ({
         </div>
       )}
 
-      <div className="absolute inset-0 bg-linear-to-t from-background/95 via-background/40 to-transparent pointer-events-none md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-500 z-10" />
+      <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-t from-background/95 via-background/40 to-transparent transition-opacity duration-500 md:opacity-0 md:group-hover:opacity-100" />
 
       <div className="relative shrink-0">
-        <div className="relative group overflow-hidden">
+        <div className="group relative overflow-hidden">
           <Poster
             posterPath={posterPath}
             title={title}
             className="rounded-none transition-transform duration-500 group-hover:scale-[1.02]"
           />
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
-            <LibIcons.play
-              className="text-primary-foreground w-12 h-12 scale-75 group-hover:scale-100 transition-transform duration-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-              strokeWidth={1.5}
-            />
-          </div>
+          {!isMobile ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <NextLink
+                href={href}
+                className="pointer-events-auto flex size-20 cursor-pointer items-center justify-center rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                aria-label={`View ${title}`}
+                {...(isExternalHref
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+              >
+                <LibIcons.play
+                  className="h-12 w-12 scale-75 text-primary-foreground drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-100"
+                  strokeWidth={1.5}
+                />
+              </NextLink>
+            </div>
+          ) : null}
 
-          {/* Status Toggle Overlay */}
           {watchlistItem && onStatusChange && (
             <div
               className={cn(
@@ -758,7 +746,6 @@ export const MediaShowcaseCard = ({
           rating={rating}
           align="center"
         />
-        {/* Episode Indicator */}
         {type === "tv" && item.id && !isExternalHref && (
           <div className="mt-2">
             <EpisodeIndicator

@@ -6,6 +6,7 @@
 #   ./scripts/setup-vpn.sh up           # start gluetun on leetbot
 #   ./scripts/setup-vpn.sh flaresolverr # recreate flaresolverr with PROXY_URL
 #   ./scripts/setup-vpn.sh app-env      # add SCRAPE_PROXY_URL to nyumatflix .env
+#   ./scripts/setup-vpn.sh rotate       # reconnect until the public IP changes
 #   ./scripts/setup-vpn.sh test         # verify VPN egress + scrape targets
 #   ./scripts/setup-vpn.sh all          # push-env + up + flaresolverr + app-env + test
 #
@@ -20,13 +21,14 @@ FLARESOLVERR_CONTAINER="${FLARESOLVERR_CONTAINER:-flaresolverr}"
 FLARESOLVERR_IMAGE="${FLARESOLVERR_IMAGE:-flaresolverr/flaresolverr:latest}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-betterome}"
 PROXY_URL="${PROXY_URL:-http://gluetun:8888}"
+VPN_CONTROL_URL="${VPN_CONTROL_URL:-http://gluetun:8000}"
 NYUMAT_ENV="${NYUMAT_ENV:-\$HOME/apps/nyumatflix/.env}"
 LOCAL_VPN_ENV="${LOCAL_VPN_ENV:-$ROOT/.env.vpn}"
 LOCAL_WG_CONF="${LOCAL_WG_CONF:-$ROOT/de-ber.conf}"
 
 cmd="${1:-}"
 if [[ -z "$cmd" ]]; then
-  echo "usage: $0 push-env | up | flaresolverr | app-env | test | all" >&2
+  echo "usage: $0 push-env | up | rotate | flaresolverr | app-env | test | all" >&2
   exit 1
 fi
 
@@ -48,6 +50,27 @@ read_wg_from_conf() {
   fi
   WIREGUARD_PRIVATE_KEY="$key"
   WIREGUARD_ADDRESSES="$addr"
+}
+
+rotate_gluetun() {
+  ssh "$SSH_HOST" 'set -eu
+    old_ip="$(sudo docker exec gluetun wget -qO- --timeout=10 http://ifconfig.io/ip 2>/dev/null || true)"
+    for attempt in 1 2 3; do
+      sudo docker restart gluetun >/dev/null
+      for wait_attempt in $(seq 1 45); do
+        new_ip="$(sudo docker exec gluetun wget -qO- --timeout=8 http://ifconfig.io/ip 2>/dev/null || true)"
+        if [ -n "$new_ip" ]; then
+          if [ "$new_ip" != "$old_ip" ]; then
+            printf "gluetun egress changed: %s -> %s\n" "$old_ip" "$new_ip"
+            exit 0
+          fi
+          break
+        fi
+        sleep 2
+      done
+    done
+    echo "gluetun reconnected but Surfshark reused the same public IP" >&2
+    exit 1'
 }
 
 push_env() {
@@ -99,7 +122,12 @@ patch_app_env() {
     else
       echo 'SCRAPE_PROXY_URL=$PROXY_URL' >> $NYUMAT_ENV
     fi
-    grep SCRAPE_PROXY_URL $NYUMAT_ENV"
+    if grep -q '^SCRAPE_VPN_CONTROL_URL=' $NYUMAT_ENV; then
+      sed -i 's|^SCRAPE_VPN_CONTROL_URL=.*|SCRAPE_VPN_CONTROL_URL=$VPN_CONTROL_URL|' $NYUMAT_ENV
+    else
+      echo 'SCRAPE_VPN_CONTROL_URL=$VPN_CONTROL_URL' >> $NYUMAT_ENV
+    fi
+    grep -E 'SCRAPE_(PROXY|VPN_CONTROL)_URL=' $NYUMAT_ENV"
 }
 
 test_vpn() {
@@ -116,6 +144,7 @@ test_vpn() {
 case "$cmd" in
   push-env) push_env ;;
   up) up_gluetun ;;
+  rotate) rotate_gluetun ;;
   flaresolverr) recreate_flaresolverr ;;
   app-env) patch_app_env ;;
   test) test_vpn ;;

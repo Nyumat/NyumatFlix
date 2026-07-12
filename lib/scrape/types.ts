@@ -25,20 +25,46 @@ export const scrapeMediaKeyFor = (input: ScrapeMediaInput): string =>
 export type ScrapeSubtitle = {
   lang: string;
   url: string;
+  format?: "ass" | "srt" | "vtt";
 };
 
 export type ScrapeQuality = {
   label: string;
   url: string;
+  subtitles?: ScrapeSubtitle[];
+  referer?: string;
 };
+
+export type ScrapeHardSub = {
+  lang: string;
+  label: string;
+  url: string;
+};
+
+export type ScrapeAudioVersion = {
+  lang: string;
+  label: string;
+  url: string;
+  original?: boolean;
+  hardSubs?: ScrapeHardSub[];
+  subtitles?: ScrapeSubtitle[];
+};
+
+import type { ScrapePlaybackRefresh } from "./playback-refresh";
 
 export type ScrapeSuccess = {
   ok: true;
   providerId: string;
+  validated?: true;
   streamUrl: string;
   referer?: string;
+  playbackRefresh?: ScrapePlaybackRefresh;
   subtitles?: ScrapeSubtitle[];
   qualities?: ScrapeQuality[];
+  audioVersions?: ScrapeAudioVersion[];
+  defaultAudioLang?: string;
+  defaultHardSubLang?: string;
+  preferredAudioLang?: string;
 };
 
 export type ScrapeFailure = {
@@ -54,7 +80,8 @@ export type ScrapeItemStatus =
   | "pending"
   | "success"
   | "failure"
-  | "skipped";
+  | "skipped"
+  | "unavailable";
 
 export type ScrapeItem = {
   providerId: string;

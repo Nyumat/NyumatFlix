@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import {
   checkVideoServerUrl,
   isAllowedVideoServerUrl,
@@ -9,6 +11,17 @@ describe("video server health", () => {
 
   it("only allows configured HTTPS video server hosts", () => {
     expect(isAllowedVideoServerUrl("https://vidfast.pro/movie/123")).toBe(true);
+    expect(isAllowedVideoServerUrl("https://vixsrc.to/movie/550")).toBe(true);
+    expect(isAllowedVideoServerUrl("https://vidlink.pro/movie/550")).toBe(true);
+    expect(
+      isAllowedVideoServerUrl("https://www.vidcore.org/embed/movie/550"),
+    ).toBe(true);
+    expect(isAllowedVideoServerUrl("https://1embed.cc/embed/movie/550")).toBe(
+      true,
+    );
+    expect(isAllowedVideoServerUrl("https://vidlux.xyz/embed/movie/550")).toBe(
+      true,
+    );
     expect(isAllowedVideoServerUrl("http://vidfast.pro/movie/123")).toBe(false);
     expect(
       isAllowedVideoServerUrl("https://vidfast.pro.evil.test/movie/123"),
@@ -177,5 +190,33 @@ describe("video server health", () => {
       status: null,
       evidence: "network",
     });
+  });
+
+  it("aborts an upstream probe when its caller disconnects", async () => {
+    let upstreamSignal: AbortSignal | undefined;
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          upstreamSignal = init?.signal ?? undefined;
+          upstreamSignal?.addEventListener(
+            "abort",
+            () => reject(upstreamSignal?.reason),
+            { once: true },
+          );
+        }),
+    );
+
+    const controller = new AbortController();
+    const resultPromise = checkVideoServerUrl(
+      "https://vsembed.ru/embed/movie?tmdb=550",
+      controller.signal,
+    );
+    controller.abort();
+
+    await expect(resultPromise).resolves.toMatchObject({
+      state: "unknown",
+      evidence: "network",
+    });
+    expect(upstreamSignal?.aborted).toBe(true);
   });
 });

@@ -6,7 +6,6 @@ import { checkEpisodesForShow } from "@/lib/server/episode-check-service";
 import { runInChunks } from "@/lib/server/chunked-parallel";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 
-// In-memory cache following pattern from app/api/map/route.ts
 const cache = new Map<string, { data: EpisodeInfo; timestamp: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_CACHE_ENTRIES = 500;
@@ -58,7 +57,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get all TV shows from user's watchlist
     const tvShows = await db
       .select()
       .from(watchlist)

@@ -22,7 +22,6 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const validatedData = updateNameSchema.parse(body);
 
-    // update the user's name in the database
     await db
       .update(users)
       .set({ name: validatedData.name })

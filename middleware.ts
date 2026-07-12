@@ -3,11 +3,14 @@ import {
   isLegacyMovieDetailTabPathSegment,
   isLegacyTvDetailTabPathSegment,
 } from "@/lib/media-detail-tab-query";
+import {
+  isAnilistTvRouteId,
+  normalizeAnilistTvRouteSlug,
+} from "@/lib/anilist-route-id";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const LEGACY_TAB_QUERY = "tab";
-const LEGACY_ANILIST_ID_QUERY = "anilistId";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -20,15 +23,20 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  const tvDetail = pathname.match(/^\/tvshows\/([^/]+)$/);
+  if (tvDetail) {
+    const [, rawId] = tvDetail;
+    if (rawId.startsWith("-") && isAnilistTvRouteId(rawId)) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/tvshows/${normalizeAnilistTvRouteSlug(rawId)}`;
+      return NextResponse.redirect(url);
+    }
+  }
+
   const detailOnly = pathname.match(/^\/(tvshows|movies)\/([^/]+)$/);
-  if (
-    detailOnly &&
-    (request.nextUrl.searchParams.has(LEGACY_TAB_QUERY) ||
-      request.nextUrl.searchParams.has(LEGACY_ANILIST_ID_QUERY))
-  ) {
+  if (detailOnly && request.nextUrl.searchParams.has(LEGACY_TAB_QUERY)) {
     const url = request.nextUrl.clone();
     url.searchParams.delete(LEGACY_TAB_QUERY);
-    url.searchParams.delete(LEGACY_ANILIST_ID_QUERY);
     return NextResponse.redirect(url);
   }
 
@@ -54,7 +62,14 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(
+    "x-search-params",
+    request.nextUrl.searchParams.toString(),
+  );
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
   response.headers.set("x-pathname", pathname);
   return response;
 }

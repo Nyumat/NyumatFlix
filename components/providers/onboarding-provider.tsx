@@ -50,7 +50,6 @@ export const OnboardingProvider = ({ children }: OnboardingProviderProps) => {
       return;
     }
 
-    // authenticated but has no name -> show onboarding
     // TODO: figure out what UX we want here.
     if (session?.user && !session.user.name) {
       setShowOnboarding(true);

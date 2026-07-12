@@ -10,6 +10,11 @@ const ALLOWED_VIDEO_SERVER_HOSTS = new Set([
   "vidfast.pro",
   "player.videasy.net",
   "www.vidking.net",
+  "vixsrc.to",
+  "vidlink.pro",
+  "www.vidcore.org",
+  "1embed.cc",
+  "vidlux.xyz",
 ]);
 
 const VIDNEST_RESOLVERS = [
@@ -68,12 +73,14 @@ function result(
 async function fetchBounded(
   url: string,
   headers?: HeadersInit,
+  signal?: AbortSignal,
 ): Promise<Response> {
+  const timeoutSignal = AbortSignal.timeout(VIDEO_SERVER_HEALTH_TIMEOUT_MS);
   return fetch(url, {
     method: "GET",
     headers,
     redirect: "follow",
-    signal: AbortSignal.timeout(VIDEO_SERVER_HEALTH_TIMEOUT_MS),
+    signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
     cache: "no-store",
   });
 }
@@ -102,7 +109,10 @@ function parseVidnestPath(url: URL): string | null {
   return null;
 }
 
-async function checkVidnest(url: URL): Promise<VideoServerHealthResult> {
+async function checkVidnest(
+  url: URL,
+  signal?: AbortSignal,
+): Promise<VideoServerHealthResult> {
   const mediaPath = parseVidnestPath(url);
   if (!mediaPath) return result("unknown", null, "opaque-player");
 
@@ -117,6 +127,7 @@ async function checkVidnest(url: URL): Promise<VideoServerHealthResult> {
           Accept: "application/json",
           Referer: "https://vidnest.fun/",
         },
+        signal,
       );
 
       if (!response.ok) {
@@ -146,12 +157,19 @@ async function checkVidnest(url: URL): Promise<VideoServerHealthResult> {
   return result("unknown", null, "network");
 }
 
-async function checkHttpStatus(url: string): Promise<VideoServerHealthResult> {
+async function checkHttpStatus(
+  url: string,
+  signal?: AbortSignal,
+): Promise<VideoServerHealthResult> {
   try {
-    const response = await fetchBounded(url, {
-      Accept: "text/html,application/xhtml+xml",
-      Range: "bytes=0-4095",
-    });
+    const response = await fetchBounded(
+      url,
+      {
+        Accept: "text/html,application/xhtml+xml",
+        Range: "bytes=0-4095",
+      },
+      signal,
+    );
     const status = response.status;
     await response.body?.cancel();
 
@@ -178,11 +196,18 @@ function extract2EmbedPlayerUrl(html: string): URL | null {
   }
 }
 
-async function check2Embed(value: string): Promise<VideoServerHealthResult> {
+async function check2Embed(
+  value: string,
+  signal?: AbortSignal,
+): Promise<VideoServerHealthResult> {
   try {
-    const shell = await fetchBounded(value, {
-      Accept: "text/html,application/xhtml+xml",
-    });
+    const shell = await fetchBounded(
+      value,
+      {
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal,
+    );
     if (!shell.ok) {
       await shell.body?.cancel();
       return result("unavailable", shell.status, "nested-player");
@@ -191,10 +216,14 @@ async function check2Embed(value: string): Promise<VideoServerHealthResult> {
     const playerUrl = extract2EmbedPlayerUrl(await shell.text());
     if (!playerUrl) return result("unavailable", shell.status, "nested-player");
 
-    const player = await fetchBounded(playerUrl.href, {
-      Accept: "text/html,application/xhtml+xml",
-      Referer: "https://www.2embed.cc/",
-    });
+    const player = await fetchBounded(
+      playerUrl.href,
+      {
+        Accept: "text/html,application/xhtml+xml",
+        Referer: "https://www.2embed.cc/",
+      },
+      signal,
+    );
     if (!player.ok) {
       await player.body?.cancel();
       return result("unavailable", player.status, "nested-player");
@@ -214,10 +243,14 @@ async function check2Embed(value: string): Promise<VideoServerHealthResult> {
       return result("unavailable", player.status, "nested-player");
     }
 
-    const nested = await fetchBounded(nestedUrl.href, {
-      Accept: "text/html,application/xhtml+xml",
-      Referer: playerUrl.href,
-    });
+    const nested = await fetchBounded(
+      nestedUrl.href,
+      {
+        Accept: "text/html,application/xhtml+xml",
+        Referer: playerUrl.href,
+      },
+      signal,
+    );
     const finalUrl = new URL(nested.url || nestedUrl.href);
     const available =
       nested.ok &&
@@ -236,17 +269,15 @@ async function check2Embed(value: string): Promise<VideoServerHealthResult> {
 
 export async function checkVideoServerUrl(
   value: string,
+  signal?: AbortSignal,
 ): Promise<VideoServerHealthResult> {
   const url = new URL(value);
 
-  if (url.hostname === "vidnest.fun") return checkVidnest(url);
-  if (url.hostname === "www.2embed.cc") return check2Embed(value);
+  if (url.hostname === "vidnest.fun") return checkVidnest(url, signal);
+  if (url.hostname === "www.2embed.cc") return check2Embed(value, signal);
   if (url.hostname === "vsembed.ru" || url.hostname === "player.videasy.net") {
-    return checkHttpStatus(value);
+    return checkHttpStatus(value, signal);
   }
 
-  // These providers return successful player shells for missing media and/or
-  // require a browser challenge. A server-side shell response is not evidence
-  // that media exists, so preserve them rather than hiding them incorrectly.
   return result("unknown", null, "opaque-player");
 }

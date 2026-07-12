@@ -18,6 +18,7 @@ import {
   type AnimeHubLayout,
   type AnimeHubPools,
 } from "@/lib/server/anime-hub-layout";
+import { withDevelopmentDataCache } from "@/lib/server/development-data-cache";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
@@ -255,7 +256,13 @@ const getCachedAnimeHubLayout = unstable_cache(
   { revalidate: ANIME_HOME_REVALIDATE_SECONDS },
 );
 
-export const fetchAnimeHubLayout = cache(getCachedAnimeHubLayout);
+export const fetchAnimeHubLayout = cache(() => {
+  const season = getAnimeSeasonContext();
+  return withDevelopmentDataCache({
+    key: `anime-home-season-hub-v13:${season.featuredSeason}:${season.featuredYear}`,
+    load: getCachedAnimeHubLayout,
+  });
+});
 
 /** @deprecated Use fetchAnimeHubLayout */
 export const fetchAnimeFullHubData = fetchAnimeHubLayout;

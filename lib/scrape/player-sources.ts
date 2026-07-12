@@ -4,7 +4,11 @@ import {
   buildScrapePlayUrl,
   extractScrapePlaybackRefreshFromPlayUrl,
 } from "./playback";
-import type { ScrapeQuality, ScrapeSubtitle } from "./types";
+import type {
+  ScrapeAudioVersion,
+  ScrapeQuality,
+  ScrapeSubtitle,
+} from "./types";
 
 export type ScrapeSubtitleTrackType = "vtt" | "srt";
 
@@ -51,20 +55,32 @@ export const buildScrapeSubtitleTracks = (
 
     seen.add(track.url);
 
+    // Subtitle CDNs often block self-referers; prefer the player/site referer.
     let trackReferer = referer;
-    try {
-      trackReferer = new URL(track.url).origin;
-    } catch {
-      // keep shared referer
+    if (!trackReferer) {
+      try {
+        trackReferer = new URL(track.url).origin;
+      } catch {
+        void 0;
+      }
     }
 
     return [
       {
         id: `${track.lang}-${index}`,
-        src: buildScrapePlayUrl({ url: track.url, referer: trackReferer }),
+        src: buildScrapePlayUrl({
+          url: track.url,
+          referer: trackReferer,
+          subtitleFormat: track.format === "ass" ? "ass" : undefined,
+        }),
         lang: track.lang,
         label: formatScrapeSubtitleLabel(track.lang, track.url),
-        type: detectScrapeSubtitleType(track.url),
+        type:
+          track.format === "srt"
+            ? "srt"
+            : track.format === "vtt" || track.format === "ass"
+              ? "vtt"
+              : detectScrapeSubtitleType(track.url),
         default: false,
       },
     ];
@@ -133,7 +149,6 @@ export const buildScrapePlayerSrc = (
   referer?: string,
 ): PlayerSrc => {
   if (!qualities?.length) {
-    // Adaptive HLS masters expose renditions from the loaded manifest.
     return playUrl;
   }
 
@@ -208,47 +223,119 @@ export const buildScrapePlayerSrc = (
 const qualityHeight = (quality: ScrapeQuality): number =>
   parseQualityLabel(quality.label)?.height ?? 0;
 
-/** Ordered play URLs to try: primary first, then alternate qualities (highest first). */
+export type ScrapeQualityPlayOption = {
+  label: string;
+  playUrl: string;
+  subtitles?: ScrapeSubtitle[];
+};
+
+const HEIGHT_QUALITY_LABEL = /^(?:.*·\s*)?\d{2,4}p$/i;
+
+/** True when failover options are only ABR height renditions of one master. */
+export const isAbrOnlyQualityFailover = (
+  options: readonly Pick<ScrapeQualityPlayOption, "label">[],
+): boolean => {
+  if (options.length <= 1) {
+    return false;
+  }
+
+  const failoverLabels = options.slice(1).map((option) => option.label.trim());
+  return (
+    failoverLabels.length > 0 &&
+    failoverLabels.every((label) => HEIGHT_QUALITY_LABEL.test(label))
+  );
+};
+
+/** Ordered play options: primary first, then alternate qualities (highest first). */
+export const buildScrapeQualityPlayOptions = (
+  playUrl: string,
+  qualities: ScrapeQuality[] | undefined,
+  referer: string | undefined,
+  topLevelSubtitles?: ScrapeSubtitle[],
+): ScrapeQualityPlayOption[] => {
+  const refresh = extractScrapePlaybackRefreshFromPlayUrl(playUrl);
+  const directPlayback = playUrl.startsWith("http");
+  const options: ScrapeQualityPlayOption[] = [];
+  const seen = new Set<string>();
+
+  const resolvePlayUrl = (quality: ScrapeQuality) => {
+    if (directPlayback) {
+      return quality.url;
+    }
+
+    return buildScrapePlayUrl({
+      url: quality.url,
+      referer: quality.referer ?? referer,
+      refresh,
+    });
+  };
+
+  const pushOption = (option: ScrapeQualityPlayOption) => {
+    if (seen.has(option.playUrl)) {
+      return;
+    }
+    seen.add(option.playUrl);
+    options.push(option);
+  };
+
+  const sorted = [...(qualities ?? [])]
+    .filter((quality) => quality.url.startsWith("http"))
+    .sort((left, right) => qualityHeight(right) - qualityHeight(left));
+
+  const primaryMatch = sorted.find((quality) => {
+    const proxied = resolvePlayUrl(quality);
+    return proxied === playUrl || quality.url === playUrl;
+  });
+
+  pushOption({
+    label: primaryMatch?.label ?? "Auto",
+    playUrl,
+    subtitles: primaryMatch?.subtitles?.length
+      ? primaryMatch.subtitles
+      : topLevelSubtitles,
+  });
+
+  for (const quality of sorted) {
+    const proxied = resolvePlayUrl(quality);
+    pushOption({
+      label: quality.label,
+      playUrl: proxied,
+      subtitles: quality.subtitles?.length
+        ? quality.subtitles
+        : topLevelSubtitles,
+    });
+  }
+
+  return options;
+};
+
 export const buildScrapeQualityPlayUrls = (
   playUrl: string,
   qualities: ScrapeQuality[] | undefined,
   referer: string | undefined,
-): string[] => {
-  const urls = [playUrl];
-  const seen = new Set<string>([playUrl]);
-  const refresh = extractScrapePlaybackRefreshFromPlayUrl(playUrl);
-
-  if (!qualities?.length) {
-    return urls;
-  }
-
-  const alternates = [...qualities]
-    .filter((quality) => quality.url.startsWith("http"))
-    .sort((left, right) => qualityHeight(right) - qualityHeight(left));
-
-  for (const quality of alternates) {
-    const proxied = buildScrapePlayUrl({ url: quality.url, referer, refresh });
-    if (seen.has(proxied)) {
-      continue;
-    }
-
-    seen.add(proxied);
-    urls.push(proxied);
-  }
-
-  return urls;
-};
+): string[] =>
+  buildScrapeQualityPlayOptions(playUrl, qualities, referer).map(
+    (option) => option.playUrl,
+  );
 
 export const buildScrapePlayerKey = (input: {
   playUrl: string;
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];
+  audioVersions?: ScrapeAudioVersion[];
 }) => {
   const qualityKey =
     input.qualities?.map((quality) => quality.label).join(",") ?? "";
   const subtitleKey =
     input.subtitles?.map((track) => `${track.lang}:${track.url}`).join("|") ??
     "";
+  const audioKey =
+    input.audioVersions
+      ?.map(
+        (version) =>
+          `${version.lang}:${version.hardSubs?.map((track) => track.lang).join(",") ?? ""}`,
+      )
+      .join("|") ?? "";
 
-  return `${input.playUrl}-${qualityKey}-${subtitleKey}`;
+  return `${input.playUrl}-${qualityKey}-${subtitleKey}-${audioKey}`;
 };

@@ -11,6 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
+import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
+import {
+  animeSeasonNumberForEpisode,
+  toAnimeDisplayCoords,
+  type MappingSegment,
+} from "@/lib/anime/tmdb-anilist-map";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import {
   matchesEpisodeSearch,
@@ -24,11 +30,17 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowDownAZ, ArrowUpZA, Search, Tv } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { tmdbImage } from "@/tmdb/utils";
 
 export type HeroTvEpisodePanelProps = {
   tvId: string;
   details: TvShowDetails;
   allSeasonDetails?: Record<number, SeasonDetails>;
+};
+
+type AnimeSeasonMap = {
+  segments?: MappingSegment[];
 };
 
 export function HeroTvEpisodePanel({
@@ -50,10 +62,21 @@ export function HeroTvEpisodePanel({
     selectedEpisode,
     seasonNumber: storeSeason,
     tvShowId,
+    defaultAnilistId,
     setSelectedEpisode,
+    setDefaultAnilistId,
   } = useEpisodeStore();
+  const searchParams = useSearchParams();
+  const requestedSeason = Number.parseInt(searchParams.get("season") ?? "", 10);
 
   const [selectedSeason, setSelectedSeason] = useState<number>(() => {
+    if (
+      Number.isInteger(requestedSeason) &&
+      requestedSeason > 0 &&
+      seasonNumbers.includes(requestedSeason)
+    ) {
+      return requestedSeason;
+    }
     if (
       storeSeason &&
       seasonNumbers.length > 0 &&
@@ -63,6 +86,7 @@ export function HeroTvEpisodePanel({
     }
     return seasonNumbers[0] ?? 1;
   });
+  const [selectedAnimeSegment, setSelectedAnimeSegment] = useState(0);
 
   const [query, setQuery] = useState("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -83,15 +107,25 @@ export function HeroTvEpisodePanel({
     }
   }, [storeSeason, seasonNumbers]);
 
+  useEffect(() => {
+    if (!isAnilistTvRouteId(tvId)) return;
+
+    const seasonMeta = details.seasons?.find(
+      (season) => season.season_number === selectedSeason,
+    );
+    if (!seasonMeta?.id) return;
+
+    setDefaultAnilistId(seasonMeta.id, details.adult === true);
+  }, [
+    details.adult,
+    details.seasons,
+    selectedSeason,
+    setDefaultAnilistId,
+    tvId,
+  ]);
+
   const selectedSeasonQuery = useQuery({
-    queryKey: [
-      "nyumatflix",
-      "media",
-      "tv",
-      Number(tvId),
-      "season",
-      selectedSeason,
-    ],
+    queryKey: ["nyumatflix", "media", "tv", tvId, "season", selectedSeason],
     queryFn: () => fetchSeasonDetails(tvId, selectedSeason),
     enabled:
       isHydrated &&
@@ -99,6 +133,51 @@ export function HeroTvEpisodePanel({
       !loadedSeasonDetails[selectedSeason],
     staleTime: 60 * 60 * 1000,
   });
+
+  const animeSeasonMapQuery = useQuery({
+    queryKey: ["nyumatflix", "anime-season-map", tvId, selectedSeason],
+    queryFn: async (): Promise<AnimeSeasonMap> => {
+      const response = await fetch(
+        `/api/map?tmdbShowId=${encodeURIComponent(tvId)}&tmdbSeason=${selectedSeason}&sourceAnilistId=${defaultAnilistId}`,
+      );
+      if (!response.ok) return {};
+      return response.json() as Promise<AnimeSeasonMap>;
+    },
+    enabled:
+      isHydrated &&
+      !isAnilistTvRouteId(tvId) &&
+      Number.isInteger(defaultAnilistId),
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const animeSegments = animeSeasonMapQuery.data?.segments ?? [];
+  const useAnimeSeasonGroups =
+    seasonNumbers.length === 1 && animeSegments.length > 1;
+
+  useEffect(() => {
+    setSelectedAnimeSegment(0);
+  }, [selectedSeason, animeSegments.length]);
+
+  useEffect(() => {
+    if (
+      !useAnimeSeasonGroups ||
+      !selectedEpisode ||
+      animeSegments.length === 0
+    ) {
+      return;
+    }
+
+    const segmentIndex = animeSegments.findIndex(
+      (segment) =>
+        selectedEpisode.episode_number >= segment.startEpisode &&
+        selectedEpisode.episode_number <= segment.endEpisode,
+    );
+    if (segmentIndex >= 0) {
+      setSelectedAnimeSegment(segmentIndex);
+    }
+    // Only re-sync when the selected episode changes or segments first arrive —
+    // not when the user manually browses another anime season group.
+  }, [animeSegments, selectedEpisode?.id, useAnimeSeasonGroups]);
 
   useEffect(() => {
     const seasonDetail = selectedSeasonQuery.data;
@@ -110,8 +189,22 @@ export function HeroTvEpisodePanel({
   }, [selectedSeasonQuery.data]);
 
   const seasonEpisodes = useMemo(() => {
-    return loadedSeasonDetails[selectedSeason]?.episodes ?? [];
-  }, [loadedSeasonDetails, selectedSeason]);
+    const episodes = loadedSeasonDetails[selectedSeason]?.episodes ?? [];
+    if (!useAnimeSeasonGroups) return episodes;
+    const segment = animeSegments[selectedAnimeSegment];
+    if (!segment) return episodes;
+    return episodes.filter(
+      (episode) =>
+        episode.episode_number >= segment.startEpisode &&
+        episode.episode_number <= segment.endEpisode,
+    );
+  }, [
+    animeSegments,
+    loadedSeasonDetails,
+    selectedAnimeSegment,
+    selectedSeason,
+    useAnimeSeasonGroups,
+  ]);
 
   const searchActive = query.trim().length > 0;
 
@@ -152,17 +245,49 @@ export function HeroTvEpisodePanel({
       const seasonEpisodes =
         loadedSeasonDetails[episodeSeason]?.episodes ??
         allSeasonDetails?.[episodeSeason]?.episodes;
+
+      const segment =
+        animeSegments.find(
+          (entry) =>
+            episode.episode_number >= entry.startEpisode &&
+            episode.episode_number <= entry.endEpisode,
+        ) ?? null;
+      const animeSeasonNumber = segment
+        ? animeSeasonNumberForEpisode(animeSegments, episode.episode_number)
+        : null;
+
       setSelectedEpisode(
         episode,
         tvId,
         episodeSeason,
-        undefined,
+        segment
+          ? {
+              anilistId: segment.anilistMediaId,
+              startEpisode: segment.startEpisode,
+              endEpisode: segment.endEpisode,
+            }
+          : undefined,
         false,
         seasonEpisodes,
+        segment
+          ? {
+              confidence: "high",
+              isAdult: details.adult === true,
+              animeSeasonNumber,
+            }
+          : undefined,
       );
       setSelectedSeason(episodeSeason);
     },
-    [allSeasonDetails, loadedSeasonDetails, setSelectedEpisode, tvId],
+    [
+      allSeasonDetails,
+      animeSegments,
+      details.adult,
+      loadedSeasonDetails,
+      setSelectedEpisode,
+      tvId,
+      useAnimeSeasonGroups,
+    ],
   );
 
   const isRowSelected = useCallback(
@@ -207,8 +332,18 @@ export function HeroTvEpisodePanel({
       <div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Select
-            value={String(selectedSeason)}
-            onValueChange={(value) => setSelectedSeason(Number(value))}
+            value={
+              useAnimeSeasonGroups
+                ? `anime-${selectedAnimeSegment}`
+                : String(selectedSeason)
+            }
+            onValueChange={(value) => {
+              if (value.startsWith("anime-")) {
+                setSelectedAnimeSegment(Number(value.slice(6)));
+              } else {
+                setSelectedSeason(Number(value));
+              }
+            }}
           >
             <SelectTrigger
               aria-label="Select season"
@@ -220,11 +355,20 @@ export function HeroTvEpisodePanel({
               <SelectValue placeholder="Season" />
             </SelectTrigger>
             <SelectContent className="border-border bg-popover/95">
-              {seasonNumbers.map((num) => (
-                <SelectItem key={num} value={String(num)}>
-                  Season {num}
-                </SelectItem>
-              ))}
+              {useAnimeSeasonGroups
+                ? animeSegments.map((segment, index) => (
+                    <SelectItem
+                      key={segment.anilistMediaId}
+                      value={`anime-${index}`}
+                    >
+                      Season {index + 1}
+                    </SelectItem>
+                  ))
+                : seasonNumbers.map((num) => (
+                    <SelectItem key={num} value={String(num)}>
+                      Season {num}
+                    </SelectItem>
+                  ))}
             </SelectContent>
           </Select>
 
@@ -293,6 +437,12 @@ export function HeroTvEpisodePanel({
           ) : (
             displayedList.map(({ episode, seasonNumber: epSeason }) => {
               const active = isRowSelected(episode, epSeason);
+              const animeDisplay = useAnimeSeasonGroups
+                ? toAnimeDisplayCoords(animeSegments, episode.episode_number)
+                : null;
+              const badgeEpisodeNumber =
+                animeDisplay?.episodeNumber ?? episode.episode_number;
+              const labelSeasonNumber = animeDisplay?.seasonNumber ?? epSeason;
               return (
                 <button
                   key={`${epSeason}-${episode.id}`}
@@ -309,7 +459,7 @@ export function HeroTvEpisodePanel({
                   <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border sm:h-24 sm:w-44">
                     {episode.still_path ? (
                       <Image
-                        src={`https://image.tmdb.org/t/p/w300${episode.still_path}`}
+                        src={tmdbImage.url(episode.still_path, "w300")}
                         alt=""
                         width={300}
                         height={169}
@@ -324,13 +474,16 @@ export function HeroTvEpisodePanel({
                       </div>
                     )}
                     <span className="absolute bottom-2 left-2 flex h-7 min-w-7 items-center justify-center rounded-md bg-background/85 px-2 text-sm font-semibold text-foreground ring-1 ring-border backdrop-blur">
-                      {episode.episode_number}
+                      {badgeEpisodeNumber}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1 self-center">
-                    {searchActive || epSeason !== selectedSeason ? (
+                    {searchActive ||
+                    (useAnimeSeasonGroups
+                      ? labelSeasonNumber !== selectedAnimeSegment + 1
+                      : epSeason !== selectedSeason) ? (
                       <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-primary">
-                        Season {epSeason}
+                        Season {labelSeasonNumber}
                       </p>
                     ) : null}
                     <p

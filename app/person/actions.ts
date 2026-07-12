@@ -6,7 +6,6 @@ import {
   fetchPersonFilmography,
 } from "@/lib/server/actions";
 
-// Type guard to validate that raw TMDB data has required fields
 function isValidMediaData(
   item: unknown,
 ): item is { id: number; genre_ids?: number[] } {
@@ -29,7 +28,6 @@ export async function getMoreFilmographyForPerson(
       return [[], null];
     }
 
-    // Filter and validate the results to ensure they have required fields
     const validResults = response.results.filter(isValidMediaData);
 
     const filmographyWithCategories = await buildItemsWithCategories(

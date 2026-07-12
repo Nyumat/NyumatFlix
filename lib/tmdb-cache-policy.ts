@@ -102,6 +102,26 @@ export const tmdbFetchInit = ({
   };
 };
 
+export const createTmdbDevelopmentCacheKey = (
+  endpoint: string,
+  params?: TmdbParams,
+) => {
+  const normalizedParams =
+    params instanceof URLSearchParams
+      ? Array.from(params.entries())
+      : Object.entries(params ?? {});
+  const query = new URLSearchParams(
+    normalizedParams
+      .filter(
+        (entry): entry is [string, string] =>
+          entry[0] !== "api_key" && typeof entry[1] === "string",
+      )
+      .sort(([left], [right]) => left.localeCompare(right)),
+  ).toString();
+
+  return `tmdb:${normalizeEndpoint(endpoint)}${query ? `?${query}` : ""}`;
+};
+
 export const redactTmdbUrl = (url: string) => {
   try {
     const parsed = new URL(url);

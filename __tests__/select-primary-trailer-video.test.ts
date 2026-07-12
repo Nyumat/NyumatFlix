@@ -7,7 +7,7 @@ import {
 } from "@/lib/select-primary-trailer-video";
 
 describe("selectPrimaryTrailerVideo", () => {
-  it("ignores featurettes and picks newest official trailer", () => {
+  it("ignores featurettes when a trailer exists", () => {
     const rows = [
       {
         type: "Featurette",
@@ -103,6 +103,26 @@ describe("selectPrimaryTrailerVideo", () => {
     expect(selectPrimaryTrailerKey(rows)).toBe("t1");
   });
 
+  it("falls back to featurette when no trailer or teaser", () => {
+    const rows = [
+      {
+        type: "Featurette",
+        key: "feat1",
+        site: "YouTube",
+        official: true,
+        published_at: "2026-04-10T19:00:19.000Z",
+      },
+      {
+        type: "Clip",
+        key: "clip1",
+        site: "YouTube",
+        official: true,
+        published_at: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    expect(selectPrimaryTrailerKey(rows)).toBe("feat1");
+  });
+
   it("extractVideoRowsFromMediaVideos reads results wrapper", () => {
     const wrapped = {
       results: [{ type: "Trailer", key: "k", site: "YouTube", official: true }],
@@ -110,5 +130,14 @@ describe("selectPrimaryTrailerVideo", () => {
     expect(
       selectPrimaryTrailerKey(extractVideoRowsFromMediaVideos(wrapped)),
     ).toBe("k");
+  });
+
+  it("extractVideoRowsFromMediaVideos reads already-flattened above-fold arrays", () => {
+    const rows = [
+      { type: "Trailer", key: "flat", site: "YouTube", official: true },
+    ];
+    expect(selectPrimaryTrailerKey(extractVideoRowsFromMediaVideos(rows))).toBe(
+      "flat",
+    );
   });
 });

@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# playwright-cli artifacts
+.playwright-cli/
+
 # local env files
 .env.*
 !.env.example
@@ -47,3 +50,6 @@ certificates
 SCRAPING.md
 SCRAPING_OLD.md
 UI_GOAL.md
+
+# act local secrets
+.act.secrets

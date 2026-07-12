@@ -25,7 +25,6 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateWatchlistItemSchema.parse(body);
 
-    // Check if item exists and belongs to user
     const existing = await db
       .select()
       .from(watchlist)
@@ -41,7 +40,6 @@ export async function PATCH(
       );
     }
 
-    // Update the item
     const updateData: {
       status?: "watching" | "waiting" | "finished";
       lastWatchedSeason?: number | null;
@@ -100,7 +98,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if item exists and belongs to user
     const existing = await db
       .select()
       .from(watchlist)
@@ -116,7 +113,6 @@ export async function DELETE(
       );
     }
 
-    // Delete the item
     await db
       .delete(watchlist)
       .where(

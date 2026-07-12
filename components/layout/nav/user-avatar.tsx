@@ -63,7 +63,6 @@ export const UserAvatar = ({ session, triggerClassName }: UserAvatarProps) => {
     }
   };
 
-  // get initials from email or name
   const getInitials = (email: string, name?: string | null) => {
     if (name) {
       return name

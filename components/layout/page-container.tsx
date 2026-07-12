@@ -5,10 +5,6 @@ interface PageContainerProps {
   className?: string;
 }
 
-/**
- * A reusable page container component that provides consistent
- * styling across all pages (home, movies, TV shows, etc.)
- */
 export function PageContainer({
   children,
   className = "",

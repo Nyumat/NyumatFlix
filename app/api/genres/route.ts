@@ -17,7 +17,6 @@ async function fetchGenresFromTMDB(
     console.error(
       `TMDB API error (genres ${mediaType}): ${response.status} ${response.statusText}`,
     );
-    // Consider throwing an error or returning a more specific error structure
     return []; // Return empty on error for simplicity here
   }
   const data: GenresResponse = await response.json();
@@ -41,19 +40,16 @@ export async function GET(request: Request) {
     const movieGenres = await fetchGenresFromTMDB("movie", apiKey);
     const tvGenres = await fetchGenresFromTMDB("tv", apiKey);
 
-    // Add Cache-Control header
     const headers = {
       "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
     };
 
-    // Return genres in the expected format for each media type
     if (type === "movie") {
       return NextResponse.json({ genres: movieGenres }, { headers });
     } else if (type === "tv") {
       return NextResponse.json({ genres: tvGenres }, { headers });
     }
 
-    // Return a combined structure if no specific type requested
     const allGenres = [...movieGenres, ...tvGenres];
     const genresMap: { [key: number]: string } = {};
 

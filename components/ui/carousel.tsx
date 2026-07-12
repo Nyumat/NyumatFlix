@@ -13,6 +13,97 @@ type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
 type CarouselOptions = UseCarouselParameters[0];
 type CarouselPlugin = UseCarouselParameters[1];
 
+const carouselApis = new WeakMap<HTMLElement, NonNullable<CarouselApi>>();
+
+const restoreCarouselScrollProgress = (
+  api: NonNullable<CarouselApi>,
+  progress: number,
+) => {
+  const clamped = Math.max(0, Math.min(1, progress));
+  const engine = api.internalEngine();
+  const desired = engine.limit.max - clamped * engine.limit.length;
+  const current = engine.offsetLocation.get();
+  const distance = desired - current;
+  if (Math.abs(distance) < 0.5) return true;
+
+  engine.scrollBody.useDuration(0).useFriction(0);
+  engine.scrollTo.distance(distance, false);
+  return true;
+};
+
+export const captureCarouselScrollProgress = (element: Element) => {
+  const carousel = element.closest<HTMLElement>("[data-carousel-root]");
+  if (!carousel) return null;
+  const api = carouselApis.get(carousel);
+  if (!api) return null;
+  return api.scrollProgress();
+};
+
+export const captureAllCarouselScrollProgresses = () =>
+  Array.from(document.querySelectorAll<HTMLElement>("[data-carousel-root]"))
+    .map((root) => carouselApis.get(root)?.scrollProgress())
+    .filter((progress): progress is number => typeof progress === "number");
+
+export const restorePageCarouselScrolls = (progresses: number[]) => {
+  const roots = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-carousel-root]"),
+  );
+  let restored = 0;
+
+  for (let i = 0; i < Math.min(roots.length, progresses.length); i++) {
+    const root = roots[i];
+    const progress = progresses[i];
+    if (!root || typeof progress !== "number" || !Number.isFinite(progress)) {
+      continue;
+    }
+    const api = carouselApis.get(root);
+    if (!api) continue;
+    if (restoreCarouselScrollProgress(api, progress)) restored += 1;
+  }
+
+  return restored;
+};
+
+/**
+ * Restore the carousel to its prior free-scroll offset when possible.
+ * Avoids api.scrollTo(index), which snaps the clicked card to the start and
+ * makes neighboring cards appear to "switch".
+ */
+export const revealCarouselItem = (
+  element: Element,
+  scrollProgress?: number,
+) => {
+  const carousel = element.closest<HTMLElement>("[data-carousel-root]");
+  const item = element.closest<HTMLElement>("[data-carousel-item]");
+  if (!carousel || !item) return false;
+
+  const api = carouselApis.get(carousel);
+  if (!api) return false;
+
+  if (typeof scrollProgress === "number" && Number.isFinite(scrollProgress)) {
+    return restoreCarouselScrollProgress(api, scrollProgress);
+  }
+
+  const items = Array.from(
+    carousel.querySelectorAll<HTMLElement>("[data-carousel-item]"),
+  ).filter(
+    (candidate) => candidate.closest("[data-carousel-root]") === carousel,
+  );
+  const itemIndex = items.indexOf(item);
+  if (itemIndex < 0) return false;
+
+  // Last resort: only nudge if the card is fully off-screen in the viewport.
+  const bounds = item.getBoundingClientRect();
+  const viewport = carousel.querySelector(".overflow-hidden") ?? carousel;
+  const viewBounds = viewport.getBoundingClientRect();
+  const fullyHidden =
+    bounds.right < viewBounds.left || bounds.left > viewBounds.right;
+  if (!fullyHidden) return true;
+
+  api.scrollTo(itemIndex, true);
+  return true;
+};
+
 type CarouselProps = {
   opts?: CarouselOptions;
   plugins?: CarouselPlugin;
@@ -66,6 +157,15 @@ const Carousel = React.forwardRef<
     );
     const [canScrollPrev, setCanScrollPrev] = React.useState(false);
     const [canScrollNext, setCanScrollNext] = React.useState(false);
+    const rootRef = React.useRef<HTMLDivElement | null>(null);
+    const setRootRef = React.useCallback(
+      (node: HTMLDivElement | null) => {
+        rootRef.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      },
+      [ref],
+    );
 
     const onSelect = React.useCallback((api: CarouselApi) => {
       if (!api) {
@@ -105,6 +205,16 @@ const Carousel = React.forwardRef<
       setApi(api);
     }, [api, setApi]);
 
+    React.useLayoutEffect(() => {
+      const root = rootRef.current;
+      if (!root || !api) return;
+
+      carouselApis.set(root, api);
+      return () => {
+        carouselApis.delete(root);
+      };
+    }, [api]);
+
     React.useEffect(() => {
       if (!api) {
         return;
@@ -134,7 +244,8 @@ const Carousel = React.forwardRef<
         }}
       >
         <div
-          ref={ref}
+          ref={setRootRef}
+          data-carousel-root=""
           onKeyDownCapture={handleKeyDown}
           className={cn("relative", className)}
           role="region"
@@ -180,6 +291,7 @@ const CarouselItem = React.forwardRef<
   return (
     <div
       ref={ref}
+      data-carousel-item=""
       role="group"
       aria-roledescription="slide"
       className={cn(

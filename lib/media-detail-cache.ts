@@ -1,3 +1,5 @@
+import { getCachedAnilistTvShowDetail } from "@/lib/anilist-tv-detail";
+import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
 import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
 import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
 import { LogoSchema, type MediaItem } from "@/lib/domain/typings";
@@ -101,5 +103,7 @@ export const getCachedMovieDetail = cache(
 );
 
 export const getCachedTvShowDetail = cache((id: string) =>
-  fetchTVShowDetails(id),
+  isAnilistTvRouteId(id)
+    ? getCachedAnilistTvShowDetail(id)
+    : fetchTVShowDetails(id),
 );

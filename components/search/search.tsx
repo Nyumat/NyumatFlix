@@ -202,7 +202,6 @@ function SearchExperience({
   const [isClearRecentsDialogOpen, setIsClearRecentsDialogOpen] =
     useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [_isMouseOverResults, setIsMouseOverResults] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -468,9 +467,7 @@ function SearchExperience({
                   footer={autocompleteFooter}
                   listboxId={listboxId}
                   placement={isDialog ? "panel" : "popover"}
-                  onMouseEnter={() => setIsMouseOverResults(true)}
-                  onMouseLeave={() => setIsMouseOverResults(false)}
-                  onOptionHover={setSelectedIndex}
+                  onOptionFocus={setSelectedIndex}
                   onOptionKeyDown={handleOptionKeyDown}
                   onSelectSuggestion={(suggestion) =>
                     handleAutocompleteSelect({
@@ -653,7 +650,6 @@ export const NavbarSearchClient = forwardRef<
 >(({ className, onAfterNavigation }, ref) => {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [_isMouseOverResults, setIsMouseOverResults] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const innerRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -801,9 +797,7 @@ export const NavbarSearchClient = forwardRef<
             selectedIndex={selectedIndex}
             footer="go-to-search"
             listboxId={listboxId}
-            onMouseEnter={() => setIsMouseOverResults(true)}
-            onMouseLeave={() => setIsMouseOverResults(false)}
-            onOptionHover={setSelectedIndex}
+            onOptionFocus={setSelectedIndex}
             onOptionKeyDown={handleOptionKeyDown}
             onSelectSuggestion={(suggestion) =>
               handleAutocompleteSelect({

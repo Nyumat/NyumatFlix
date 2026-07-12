@@ -1,4 +1,8 @@
 import { NavbarClient } from "@/components/layout/nav/navbar-client";
+import {
+  commitNavigationEntry,
+  recordNavigationOrigin,
+} from "@/lib/navigation/route-restoration";
 import { useDetailRouteStore } from "@/lib/stores/detail-route-store";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { usePathname, useRouter } from "next/navigation";
@@ -40,13 +44,16 @@ const mockUseRouter = vi.mocked(useRouter);
 
 describe("NavbarClient detail back routing", () => {
   const push = vi.fn();
+  const back = vi.fn();
 
   beforeEach(() => {
     useDetailRouteStore.getState().clearDetailRouteMetadata();
+    window.history.replaceState({}, "", "/tvshows/123");
+    window.sessionStorage.clear();
     mockUsePathname.mockReturnValue("/tvshows/123");
     mockUseRouter.mockReturnValue({
       push,
-      back: vi.fn(),
+      back,
       forward: vi.fn(),
       refresh: vi.fn(),
       replace: vi.fn(),
@@ -57,7 +64,7 @@ describe("NavbarClient detail back routing", () => {
   test("routes TV detail pages to the TV parent by default", () => {
     render(<NavbarClient session={null} />);
 
-    fireEvent.click(screen.getByLabelText("Back to parent page"));
+    fireEvent.click(screen.getByLabelText("Go back"));
 
     expect(push).toHaveBeenCalledWith("/tvshows");
   });
@@ -70,7 +77,7 @@ describe("NavbarClient detail back routing", () => {
 
     render(<NavbarClient session={null} />);
 
-    fireEvent.click(screen.getByLabelText("Back to parent page"));
+    fireEvent.click(screen.getByLabelText("Go back"));
 
     expect(push).toHaveBeenCalledWith("/anime");
   });
@@ -83,8 +90,41 @@ describe("NavbarClient detail back routing", () => {
 
     render(<NavbarClient session={null} />);
 
-    fireEvent.click(screen.getByLabelText("Back to parent page"));
+    fireEvent.click(screen.getByLabelText("Go back"));
 
     expect(push).toHaveBeenCalledWith("/tvshows");
+  });
+
+  test("uses real history when the detail route was opened from a card", () => {
+    window.history.replaceState({}, "", "/anime");
+    const card = document.createElement("a");
+    card.href = "/tvshows/123";
+    document.body.append(card);
+    recordNavigationOrigin(new URL(card.href), card);
+    window.history.pushState({}, "", "/tvshows/123");
+    commitNavigationEntry("/tvshows/123");
+
+    render(<NavbarClient session={null} />);
+    fireEvent.click(screen.getByLabelText("Go back"));
+
+    expect(back).toHaveBeenCalledOnce();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  test("uses real history even if Next.js clears custom history state", () => {
+    window.history.replaceState({}, "", "/anime");
+    const card = document.createElement("a");
+    card.href = "/tvshows/123";
+    document.body.append(card);
+    recordNavigationOrigin(new URL(card.href), card);
+    window.history.pushState({}, "", "/tvshows/123");
+    commitNavigationEntry("/tvshows/123");
+    window.history.replaceState({ __NA: true }, "", "/tvshows/123");
+
+    render(<NavbarClient session={null} />);
+    fireEvent.click(screen.getByLabelText("Go back"));
+
+    expect(back).toHaveBeenCalledOnce();
+    expect(push).not.toHaveBeenCalled();
   });
 });

@@ -28,7 +28,6 @@ export const useOnboardingForm = (): UseOnboardingFormReturn => {
       e.preventDefault();
 
       if (!name.trim()) {
-        // leave toasts to caller to keep this hook side-effect light
         return;
       }
 
@@ -56,7 +55,7 @@ export const useOnboardingForm = (): UseOnboardingFormReturn => {
     try {
       localStorage.setItem("onboardingSkipped", "true");
     } catch {
-      // ignore storage failures silently
+      void 0;
     }
     onComplete();
   }, []);

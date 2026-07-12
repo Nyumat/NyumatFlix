@@ -8,6 +8,7 @@ const defaultChrome: HeroScrapeChrome = {
   scrapeStatus: "idle",
   activeProviderId: null,
   activeProviderName: null,
+  scrapeItems: [],
   scrapeProviders: [],
   onSelectScrapeProvider: null,
   onFindNextSource: null,

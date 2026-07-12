@@ -4,9 +4,9 @@ import { persist } from "zustand/middleware";
 import {
   resolveVideoServerById,
   type VideoServer,
+  videoServers,
 } from "@/lib/stores/video-servers";
 
-/** Direct HLS scraping mode — not an iframe embed server. */
 export const scrapeServer: VideoServer = {
   id: "scrape",
   name: "Scrape",
@@ -20,6 +20,12 @@ export function isScrapeServer(server: Pick<VideoServer, "id">): boolean {
   return server.id === "scrape";
 }
 
+const defaultServer = videoServers[0];
+
+if (!defaultServer) {
+  throw new Error("At least one iframe video server must be configured");
+}
+
 interface PlaybackModeState {
   selectedServer: VideoServer;
   setSelectedServer: (server: VideoServer) => void;
@@ -29,13 +35,13 @@ const resolveStoredServer = (serverId: string): VideoServer => {
   if (serverId === scrapeServer.id) {
     return scrapeServer;
   }
-  return resolveVideoServerById(serverId) ?? scrapeServer;
+  return resolveVideoServerById(serverId) ?? defaultServer;
 };
 
 export const usePlaybackModeStore = create<PlaybackModeState>()(
   persist(
     (set) => ({
-      selectedServer: scrapeServer,
+      selectedServer: defaultServer,
       setSelectedServer: (server) => {
         set((state) =>
           state.selectedServer.id === server.id
@@ -63,7 +69,6 @@ export const usePlaybackModeStore = create<PlaybackModeState>()(
             }
           }
 
-          // Migrate selected server from legacy combined storage key.
           const legacy = localStorage.getItem("video-server-storage");
           if (!legacy) return null;
           try {
