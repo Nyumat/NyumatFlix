@@ -3,6 +3,7 @@
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { Card } from "@/components/ui/card";
 import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
+import useMedia from "@/hooks/useMedia";
 import { Icons } from "@/lib/icons";
 import {
   getBackdropPath,
@@ -33,6 +34,7 @@ export function HorizontalCard({
   variant = "default",
 }: HorizontalCardProps) {
   const isCompact = variant === "compact";
+  const isMobile = !!useMedia("(max-width: 768px)", false);
   const title = getDisplayTitle(item);
   const href = getHref(item);
   const posterPath = getPosterPath(item) ?? undefined;
@@ -51,7 +53,7 @@ export function HorizontalCard({
   return (
     <Card
       className={cn(
-        "group relative h-full cursor-pointer overflow-hidden border transition-all duration-300",
+        "group relative h-full cursor-grab select-none overflow-hidden border transition-all duration-300 active:cursor-grabbing",
         isCompact
           ? "border-white/10 bg-card/40 shadow-none backdrop-blur-xl hover:border-primary/40"
           : "border-white/10 bg-card/40 shadow-2xl backdrop-blur-xl hover:border-primary/50",
@@ -61,7 +63,6 @@ export function HorizontalCard({
       data-content-id={item.id}
       onPointerEnter={schedulePrefetch}
       onPointerLeave={cancelPrefetch}
-      onFocus={schedulePrefetch}
       onTouchStart={prefetch}
     >
       {backdropUrl ? (
@@ -119,14 +120,29 @@ export function HorizontalCard({
                   : "duration-700 group-hover:scale-[1.05]",
               )}
             />
-            {!isCompact ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-all duration-500 group-hover:bg-black/20">
-                <div className="scale-75 opacity-0 transition-all duration-500 group-hover:scale-100 group-hover:opacity-100">
+            {!isMobile ? (
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/0 transition-all duration-500 group-hover:bg-black/20">
+                <Link
+                  href={href}
+                  onClick={onNavigate}
+                  onFocus={schedulePrefetch}
+                  onPointerEnter={schedulePrefetch}
+                  className={cn(
+                    "pointer-events-auto flex cursor-pointer items-center justify-center rounded-full",
+                    isCompact
+                      ? "size-12 opacity-90"
+                      : "size-20 scale-75 opacity-0 transition-all duration-500 group-hover:scale-100 group-hover:opacity-100",
+                  )}
+                  aria-label={`View ${title}`}
+                >
                   <Icons.play
-                    className="h-12 w-12 text-primary-foreground drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+                    className={cn(
+                      "text-primary-foreground drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]",
+                      isCompact ? "h-7 w-7" : "h-12 w-12",
+                    )}
                     strokeWidth={1.5}
                   />
-                </div>
+                </Link>
               </div>
             ) : null}
           </div>
@@ -171,12 +187,14 @@ export function HorizontalCard({
           ) : null}
         </div>
       </div>
-      <Link
-        href={href}
-        onClick={onNavigate}
-        className="absolute inset-0 z-40"
-        aria-label={`View ${title}`}
-      />
+      {isMobile ? (
+        <Link
+          href={href}
+          onClick={onNavigate}
+          className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+          aria-label={`View ${title}`}
+        />
+      ) : null}
     </Card>
   );
 }

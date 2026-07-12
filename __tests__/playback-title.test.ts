@@ -58,4 +58,25 @@ describe("formatPlaybackTitle", () => {
       }),
     ).toBe("Severance");
   });
+
+  it("prefers anime display season/episode over TMDB absolute numbers", () => {
+    expect(
+      formatPlaybackTitle({
+        showTitle: "JUJUTSU KAISEN",
+        mediaType: "tv",
+        seasonNumber: 1,
+        episode: {
+          id: 48,
+          name: "Sendai Colony",
+          overview: "",
+          episode_number: 48,
+          air_date: "",
+          still_path: null,
+          runtime: null,
+        },
+        displaySeasonNumber: 3,
+        displayEpisodeNumber: 1,
+      }),
+    ).toBe("JUJUTSU KAISEN · S3E1 · Sendai Colony");
+  });
 });

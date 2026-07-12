@@ -21,7 +21,8 @@ export const DEFAULT_DESCRIPTION =
 export const SITE_TAGLINE = "Watch Movies and TV Shows";
 export const SITE_HERO_BANNER_PATH = "/movie-banner.webp";
 export const SITE_OG_HEADLINE = "Find where anything streams.";
-export const USE_SHAKA_DASH = false;
+/** AnimeOnsen (and ani.pm) serve MPEG-DASH; Shaka handles MPD more reliably than Vidstack+dashjs. */
+export const USE_SHAKA_DASH = true;
 export const MAGIC_LINK_RESEND_FROM =
   process.env.NODE_ENV === "production"
     ? "Nyumatflix <login@auth.nyumatflix.com>"

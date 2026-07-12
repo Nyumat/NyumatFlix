@@ -13,6 +13,7 @@ import {
   getCachedTvShowDetail,
 } from "@/lib/media-detail-cache";
 import { getCachedMediaAboveFoldDetail } from "@/lib/media-above-fold-server";
+import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-video";
 import { tmdb } from "@/tmdb/api";
 import { NextResponse } from "next/server";
 
@@ -158,7 +159,11 @@ export async function GET(
         );
       case "videos":
         if (isAnilistTv) {
-          return jsonCached({ results: [] }, "videos");
+          const detail = await getCachedAnilistTvAboveFoldDetail(id);
+          return jsonCached(
+            { results: extractVideoRowsFromMediaVideos(detail?.videos) },
+            "videos",
+          );
         }
         return jsonCached(await mediaApi.videos({ id }), "videos");
       case "reviews":

@@ -54,6 +54,10 @@ describe("buildSourceOverlayItems", () => {
     expect(embedItems.map((item) => item.id)).toEqual([
       "vidfast",
       "videasy",
+      "vidlink",
+      "vidcore",
+      "1embed",
+      "vidlux",
       "superembed",
       "111movies",
     ]);

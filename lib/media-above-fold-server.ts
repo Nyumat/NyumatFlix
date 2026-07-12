@@ -17,6 +17,8 @@ type RawAboveFoldDetail = Record<string, unknown> & {
   id: number;
   title?: string;
   name?: string;
+  original_title?: string;
+  original_name?: string;
   overview?: string;
   poster_path?: string | null;
   backdrop_path?: string | null;
@@ -84,6 +86,8 @@ function toAboveFoldDetail(
     media_type: mediaType,
     title: raw.title ?? raw.name,
     name: raw.name,
+    original_title: raw.original_title,
+    original_name: raw.original_name,
     overview: raw.overview,
     poster_path: raw.poster_path,
     backdrop_path: raw.backdrop_path,

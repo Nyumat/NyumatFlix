@@ -38,7 +38,10 @@ export async function prefetchTvShowTabQueries(
       posters: [],
       logos: [],
     });
-    queryClient.setQueryData(queryKeys.tvTabVideos(id), { results: [] });
+    queryClient.setQueryData(
+      queryKeys.tvTabVideos(id),
+      details?.videos ?? { results: [] },
+    );
     queryClient.setQueryData(queryKeys.tvTabReviews(id, "1"), {
       page: 1,
       results: [],

@@ -68,7 +68,14 @@ export const selectPrimaryTrailerVideo = <T extends TrailerPickRow>(
   const teasers = rows.filter(
     (v) => v.type === "Teaser" && v.key && isYoutube(v),
   );
-  return pickBestInPool(teasers);
+  const fromTeasers = pickBestInPool(teasers);
+  if (fromTeasers) return fromTeasers;
+
+  const clips = rows.filter(
+    (v) =>
+      (v.type === "Clip" || v.type === "Featurette") && v.key && isYoutube(v),
+  );
+  return pickBestInPool(clips);
 };
 
 export const selectPrimaryTrailerKey = (
