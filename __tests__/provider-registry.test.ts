@@ -22,6 +22,10 @@ describe("provider registry", () => {
       "111movies",
       "vidfast",
       "videasy",
+      "vidlink",
+      "vidcore",
+      "1embed",
+      "vidlux",
     ]);
   });
 
@@ -32,6 +36,7 @@ describe("provider registry", () => {
       "2embed",
       "vidnest",
       "vidking",
+      "vixsrc",
     ]);
   });
 

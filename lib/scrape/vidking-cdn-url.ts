@@ -4,21 +4,28 @@ export type ParsedVidKingCdnUrl = {
   pathAfterToken: string;
 };
 
-const VIDKING_CDN_HOST = /(?:^|\.)shadowlemon\.site$/i;
+/**
+ * VidKing rotates CDN hostnames (shadowlemon → ironbubble → …). Fingerprint the
+ * stable path shape instead of hardcoding hosts so playback keeps working.
+ */
+const VIDKING_CDN_PATHNAME = /^\/(?:r2\/)?cdn[12]\/[^/]+\/.+/i;
 
 const VIDKING_CDN_PATH =
-  /^((?:https?:\/\/[^/]*shadowlemon\.site)(?:\/r2)?\/cdn[12])\/([^/]+)\/(.+)$/i;
+  /^((?:https?:\/\/[^/?#]+)(?:\/r2)?\/cdn[12])\/([^/]+)\/(.+)$/i;
 
 export const isVidKingCdnUrl = (url: string): boolean => {
   try {
-    const { hostname } = new URL(url);
-    return VIDKING_CDN_HOST.test(hostname);
+    return VIDKING_CDN_PATHNAME.test(new URL(url).pathname);
   } catch {
     return false;
   }
 };
 
 export const parseVidKingCdnUrl = (url: string): ParsedVidKingCdnUrl | null => {
+  if (!isVidKingCdnUrl(url)) {
+    return null;
+  }
+
   const match = url.match(VIDKING_CDN_PATH);
   if (!match?.[1] || !match[2] || !match[3]) {
     return null;
@@ -51,6 +58,7 @@ export const swapVidKingCdnToken = (
 export const extractVidKingCdnToken = (url: string): string | null =>
   parseVidKingCdnUrl(url)?.token ?? null;
 
+/** Keep playlist/segment hosts aligned when the CDN rotates mid-playback. */
 export const normalizeVidKingAssetHost = (
   assetUrl: string,
   playlistUrl: string,

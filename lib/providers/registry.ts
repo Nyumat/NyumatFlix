@@ -8,7 +8,10 @@ export type TmdbScrapeProviderId =
   | "vidnest"
   | "vidsrc"
   | "2embed"
-  | "vidsrc-mirror";
+  | "vidsrc-mirror"
+  | "vixsrc"
+  | "vidrock"
+  | "bingr";
 
 export type AnimeScrapeProviderId =
   | "anizone"
@@ -19,7 +22,12 @@ export type AnimeScrapeProviderId =
   | "allmanga"
   | "animestream"
   | "animegg"
-  | "animepahe";
+  | "animepahe"
+  | "justanime"
+  | "anikitty"
+  | "anikuro"
+  | "kyren"
+  | "animeparadise";
 
 export type EmbedProviderId =
   | "vidsrc"
@@ -30,7 +38,12 @@ export type EmbedProviderId =
   | "vidnest"
   | "vidfast"
   | "videasy"
-  | "vidking";
+  | "vidking"
+  | "vixsrc"
+  | "vidlink"
+  | "vidcore"
+  | "1embed"
+  | "vidlux";
 
 export type ProviderCapabilities = {
   embed: boolean;
@@ -75,28 +88,53 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidfast", "VidFast", { embed: true }),
   provider("videasy", "VidEasy", { embed: true, animeEmbed: true }),
   provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
+  provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
+  provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
+  provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
+  provider("vidlink", "VidLink", { embed: true }),
+  provider("vidcore", "VidCore", { embed: true }),
+  provider("1embed", "1Embed", { embed: true }),
+  provider("vidlux", "VidLux", { embed: true }),
 ];
 
+/** Order from latency bench: success rate ↓, then ok p50 ↑ (see scripts/bench-scrape-latency.mts). */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
-  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
+  provider("vidsrc-mirror", "VidSrc Mirror", { embed: true, tmdbScrape: true }),
+  provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
+  provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
+  provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
+  provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
   provider("vidnest", "VidNest", {
     embed: true,
     tmdbScrape: true,
     animeEmbed: true,
   }),
-  provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
-  provider("vidsrc-mirror", "VidSrc Mirror", { embed: true, tmdbScrape: true }),
+  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
 ];
 
+/**
+ * Order from latency bench (non-adult). Adult-only `anipm` / `hentaigasm` stay
+ * last — `buildAnimePlaybackProviderOrder` promotes them when eligible.
+ */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
+  provider("justanime", "JustAnime", { embed: false, animeScrape: true }),
+  provider("anikitty", "AniKitty", { embed: false, animeScrape: true }),
+  provider("animeparadise", "AnimeParadise", {
+    embed: false,
+    animeScrape: true,
+  }),
+  provider("kyren", "Kyren", { embed: false, animeScrape: true }),
+  provider("anikuro", "AniKuro", { embed: false, animeScrape: true }),
+  provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),
+  provider("allmanga", "AllManga", { embed: false, animeScrape: true }),
+  provider("animegg", "AnimeGG", { embed: false, animeScrape: true }),
+  provider("kickassanime", "KickAssAnime", { embed: false, animeScrape: true }),
   provider("anizone", "AniZone", { embed: false, animeScrape: true }),
+  provider("animestream", "AnimeStream", { embed: false, animeScrape: true }),
+  provider("animepahe", "AnimePahe", { embed: false, animeScrape: true }),
   provider("anipm", "ani.pm", { embed: false, animeScrape: true }),
   provider("hentaigasm", "Hentaigasm", { embed: false, animeScrape: true }),
-  provider("kickassanime", "KickAssAnime", { embed: false, animeScrape: true }),
-  provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),
-  provider("animegg", "AnimeGG", { embed: false, animeScrape: true }),
-  provider("animepahe", "AnimePahe", { embed: false, animeScrape: true }),
 ];
 
 export const TMDB_SCRAPE_PROVIDER_ORDER = TMDB_SCRAPE_PROVIDER_REGISTRY.map(

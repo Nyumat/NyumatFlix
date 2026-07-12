@@ -1,4 +1,5 @@
 import type { ScrapeMediaInput, ScrapeSubtitle } from "./types";
+import { refererForStreamUrl } from "./stream-url-patterns";
 
 const VIDNEST_REFERER = "https://vidnest.fun/";
 
@@ -94,5 +95,5 @@ export const extractVidnestStreams = (payload: VidNestPayload) =>
 export const extractVidnestCaptions = (payload: VidNestPayload) =>
   payload.data?.captions ?? payload.captions ?? [];
 
-export const refererForVidnestStream = (_streamUrl: string): string =>
-  VIDNEST_REFERER;
+export const refererForVidnestStream = (streamUrl: string): string =>
+  refererForStreamUrl(streamUrl, VIDNEST_REFERER);

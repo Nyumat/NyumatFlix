@@ -10,6 +10,11 @@ const ALLOWED_VIDEO_SERVER_HOSTS = new Set([
   "vidfast.pro",
   "player.videasy.net",
   "www.vidking.net",
+  "vixsrc.to",
+  "vidlink.pro",
+  "www.vidcore.org",
+  "1embed.cc",
+  "vidlux.xyz",
 ]);
 
 const VIDNEST_RESOLVERS = [

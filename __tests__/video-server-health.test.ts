@@ -11,6 +11,17 @@ describe("video server health", () => {
 
   it("only allows configured HTTPS video server hosts", () => {
     expect(isAllowedVideoServerUrl("https://vidfast.pro/movie/123")).toBe(true);
+    expect(isAllowedVideoServerUrl("https://vixsrc.to/movie/550")).toBe(true);
+    expect(isAllowedVideoServerUrl("https://vidlink.pro/movie/550")).toBe(true);
+    expect(
+      isAllowedVideoServerUrl("https://www.vidcore.org/embed/movie/550"),
+    ).toBe(true);
+    expect(isAllowedVideoServerUrl("https://1embed.cc/embed/movie/550")).toBe(
+      true,
+    );
+    expect(isAllowedVideoServerUrl("https://vidlux.xyz/embed/movie/550")).toBe(
+      true,
+    );
     expect(isAllowedVideoServerUrl("http://vidfast.pro/movie/123")).toBe(false);
     expect(
       isAllowedVideoServerUrl("https://vidfast.pro.evil.test/movie/123"),

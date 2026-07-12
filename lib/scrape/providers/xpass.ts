@@ -1,7 +1,8 @@
 import { scrapeFetchText } from "../fetch";
+import { attachSubtitlesToQualities } from "../linked-config";
 import { fetchSub1x2Subtitles } from "../subtitles";
-import type { ScrapeMediaInput, ScrapeResult } from "../types";
-import { validateStreamUrl } from "../validate-stream";
+import type { ScrapeMediaInput, ScrapeQuality, ScrapeResult } from "../types";
+import { validateStreamUrlWithReferers } from "../validate-stream";
 import { scrapeVidSrcMirrorEmbed } from "./vidsrc";
 
 const XPASS_ORIGIN = "https://play.xpass.top";
@@ -77,6 +78,14 @@ const resolveTvImdbId = async (
   }
 };
 
+const isPlayableCandidate = (file: string): boolean =>
+  file.startsWith("http") &&
+  !file.includes("/video/error") &&
+  (file.includes(".m3u8") ||
+    file.includes("cf-master") ||
+    file.includes(".txt") ||
+    file.includes("1x2.space/playlist"));
+
 export async function scrapeXPass(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
@@ -134,27 +143,35 @@ export async function scrapeXPass(
     const sources =
       payload.playlist?.flatMap((entry) => entry.sources ?? []) ?? [];
 
-    const streamSources = sources.filter((source) => {
-      const file = source.file ?? source.url ?? "";
-      return (
-        file.startsWith("http") &&
-        !file.includes("/video/error") &&
-        (file.includes(".m3u8") ||
-          file.includes("cf-master") ||
-          file.includes(".txt"))
-      );
-    });
+    const streamSources = sources.filter((source) =>
+      isPlayableCandidate(source.file ?? source.url ?? ""),
+    );
 
-    let streamUrl: string | null = null;
+    const playable: ScrapeQuality[] = [];
+    // Full depth only — TikTok CDN masters look valid but serve PNG "segments".
     for (const source of streamSources) {
       const candidate = source.file ?? source.url ?? "";
-      if (await validateStreamUrl(candidate, XPASS_ORIGIN)) {
-        streamUrl = candidate;
-        break;
+      const label = source.label?.trim() || `Source ${playable.length + 1}`;
+      if (playable.some((entry) => entry.url === candidate)) {
+        continue;
       }
+      const validation = await validateStreamUrlWithReferers(
+        candidate,
+        XPASS_ORIGIN,
+        "hls",
+        { depth: "full" },
+      );
+      if (!validation.ok) {
+        continue;
+      }
+
+      const referer = validation.referer ?? XPASS_ORIGIN;
+      // Keep the master/candidate URL — expanding ABR renditions makes the
+      // player remount each height on fatal errors (flicker then next source).
+      playable.push({ label, url: candidate, referer });
     }
 
-    if (!streamUrl) {
+    if (playable.length === 0) {
       const alternate = await scrapeVidSrcMirrorEmbed(input);
       return alternate.ok
         ? { ...alternate, providerId, validated: true }
@@ -165,20 +182,19 @@ export async function scrapeXPass(
           };
     }
 
+    const primary = playable[0]!;
     const subtitles = await fetchSub1x2Subtitles(input);
 
     return {
       ok: true,
       providerId,
-      streamUrl,
+      streamUrl: primary.url,
       validated: true,
-      referer: XPASS_ORIGIN,
-      qualities: sources
-        .map((source) => ({
-          label: source.label ?? "auto",
-          url: source.file ?? source.url ?? "",
-        }))
-        .filter((source) => source.url.startsWith("http")),
+      referer: primary.referer ?? XPASS_ORIGIN,
+      qualities: attachSubtitlesToQualities(
+        playable.length > 1 ? playable : undefined,
+        subtitles,
+      ),
       subtitles: subtitles.length > 0 ? subtitles : undefined,
     };
   } catch (error) {

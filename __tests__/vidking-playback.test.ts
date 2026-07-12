@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isVidKingCdnUrl,
   normalizeVidKingAssetHost,
   parseVidKingCdnUrl,
   rebuildVidKingCdnUrl,
@@ -15,6 +16,8 @@ import {
 describe("vidking-playback", () => {
   const sampleUrl =
     "https://shadowlemon.site/r2/cdn2/abc123token/720p/index.m3u8";
+  const rotatedHostUrl =
+    "https://moon.ironbubble.site/r2/cdn2/abc123token/720p/index.m3u8";
 
   it("parses shadowlemon cdn2 variant URLs", () => {
     expect(parseVidKingCdnUrl(sampleUrl)).toEqual({
@@ -22,6 +25,18 @@ describe("vidking-playback", () => {
       token: "abc123token",
       pathAfterToken: "720p/index.m3u8",
     });
+  });
+
+  it("parses rotated CDN hosts by path shape, not hostname allowlist", () => {
+    expect(isVidKingCdnUrl(rotatedHostUrl)).toBe(true);
+    expect(parseVidKingCdnUrl(rotatedHostUrl)).toEqual({
+      prefix: "https://moon.ironbubble.site/r2/cdn2",
+      token: "abc123token",
+      pathAfterToken: "720p/index.m3u8",
+    });
+    expect(swapVidKingCdnToken(rotatedHostUrl, "fresh-token")).toBe(
+      "https://moon.ironbubble.site/r2/cdn2/fresh-token/720p/index.m3u8",
+    );
   });
 
   it("parses cdn1 flat playlists", () => {

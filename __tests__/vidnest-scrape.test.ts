@@ -59,7 +59,7 @@ describe("vidnest scrape helpers", () => {
     ]);
     expect(
       refererForVidnestStream("https://working.example/cf-master.txt"),
-    ).toBe("https://vidnest.fun/");
+    ).toBe("https://working.example/");
   });
 
   it("maps captions to subtitle tracks", () => {
