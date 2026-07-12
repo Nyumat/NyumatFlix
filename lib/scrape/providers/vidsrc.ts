@@ -4,7 +4,13 @@ import type { ScrapeMediaInput, ScrapeResult } from "../types";
 
 const EMBED_ORIGIN = "https://vsembed.ru";
 export const VIDSRC_MIRROR_EMBED_ORIGIN = "https://vidsrc-embed.ru";
+const VIDSRC_SCRAPE_EMBED_ORIGINS = [
+  EMBED_ORIGIN,
+  VIDSRC_MIRROR_EMBED_ORIGIN,
+] as const;
 const PLAYER_ORIGIN = "https://cloudorchestranova.com";
+/** Cloudflare player hops can 504 for ~20s — fail faster and try the next provider. */
+const VIDSRC_PLAYER_FETCH_TIMEOUT_MS = 12_000;
 
 const buildEmbedUrl = (
   input: ScrapeMediaInput,
@@ -111,9 +117,9 @@ const tokenHostFromUrl = (url: string): string | null => {
 
 const scrapeVidSrcEdn = async (
   input: ScrapeMediaInput,
-  embedOrigin = EMBED_ORIGIN,
-  providerId = "vidsrc",
+  embedOrigin: string,
 ): Promise<ScrapeResult> => {
+  const providerId = "vidsrc";
   const embedUrl = buildEmbedUrl(input, embedOrigin);
   const embed = await scrapeFetchText(embedUrl, {
     Referer: `${embedOrigin}/`,
@@ -143,9 +149,11 @@ const scrapeVidSrcEdn = async (
   let prorcpHash = extractProrcpHash(iframeSrc);
 
   if (!prorcpHash) {
-    const rcpPage = await scrapeFetchText(iframeSrc, {
-      Referer: `${embedOrigin}/`,
-    });
+    const rcpPage = await scrapeFetchText(
+      iframeSrc,
+      { Referer: `${embedOrigin}/` },
+      { timeoutMs: VIDSRC_PLAYER_FETCH_TIMEOUT_MS },
+    );
     prorcpHash = extractProrcpHash(rcpPage.text);
   }
 
@@ -156,6 +164,7 @@ const scrapeVidSrcEdn = async (
   const playerPage = await scrapeFetchText(
     `${playerOrigin}/prorcp/${prorcpHash}`,
     { Referer: playerReferer },
+    { timeoutMs: VIDSRC_PLAYER_FETCH_TIMEOUT_MS },
   );
 
   const masterTemplate = extractMasterUrl(playerPage.text);
@@ -183,7 +192,7 @@ const scrapeVidSrcEdn = async (
     .replaceAll("__TOKENPG__", token);
 
   const playbackRefresh: VidsrcPlaybackRefresh = {
-    providerId: providerId === "vidsrc-mirror" ? "vidsrc-mirror" : "vidsrc",
+    providerId: "vidsrc",
     tokenHost,
     masterTemplate,
     playerOrigin,
@@ -203,39 +212,40 @@ export async function scrapeVidSrc(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
   const providerId = "vidsrc";
+  let lastError = "VidSrc scrape failed";
 
-  try {
-    const embedResult = await scrapeVidSrcEdn(input);
-    return embedResult;
-  } catch (error) {
-    return {
-      ok: false,
-      providerId,
-      error:
+  for (const embedOrigin of VIDSRC_SCRAPE_EMBED_ORIGINS) {
+    try {
+      const result = await scrapeVidSrcEdn(input, embedOrigin);
+      if (result.ok) {
+        return result;
+      }
+      lastError = result.error ?? lastError;
+    } catch (error) {
+      lastError =
         error instanceof Error
           ? error.message
-          : "VidSrc scrape failed unexpectedly",
-    };
+          : "VidSrc scrape failed unexpectedly";
+    }
   }
+
+  return { ok: false, providerId, error: lastError };
 }
 
+/** Mirror embed origin only — used as a narrow fallback (e.g. 2Embed). */
 export async function scrapeVidSrcMirrorEmbed(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
   try {
-    return await scrapeVidSrcEdn(
-      input,
-      VIDSRC_MIRROR_EMBED_ORIGIN,
-      "vidsrc-mirror",
-    );
+    return await scrapeVidSrcEdn(input, VIDSRC_MIRROR_EMBED_ORIGIN);
   } catch (error) {
     return {
       ok: false,
-      providerId: "vidsrc-mirror",
+      providerId: "vidsrc",
       error:
         error instanceof Error
           ? error.message
-          : "VidSrc Mirror scrape failed unexpectedly",
+          : "VidSrc mirror embed scrape failed unexpectedly",
     };
   }
 }

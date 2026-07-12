@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildVidsrcStreamUrl,
+  extractVidsrcJwtFromUrl,
   isVidsrcCdnHostname,
   isVidsrcMasterPlaybackUrl,
 } from "@/lib/scrape/vidsrc-playback";
@@ -47,5 +48,18 @@ describe("vidsrc playback refresh", () => {
         sampleRefresh,
       ),
     ).toBe(false);
+  });
+
+  it("detects minted JWTs in master URLs", () => {
+    expect(
+      extractVidsrcJwtFromUrl(
+        "https://kaleidoscopekernel.space/pl/abc/master.m3u8?token=eyJhbGciOiJIUzI1NiJ9.payload",
+      ),
+    ).toMatch(/^eyJ/);
+    expect(
+      extractVidsrcJwtFromUrl(
+        "https://kaleidoscopekernel.space/pl/abc/master.m3u8?token=__TOKEN__",
+      ),
+    ).toBeNull();
   });
 });

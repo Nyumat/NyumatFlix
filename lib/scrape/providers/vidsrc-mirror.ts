@@ -1,5 +1,4 @@
-import type { ScrapeMediaInput, ScrapeResult } from "../types";
-import { scrapeVidSrcMirrorEmbed } from "./vidsrc";
+import type { ScrapeMediaInput } from "../types";
 
 const VIDSRC_WTF_API = "https://api.vidsrc.wtf/source";
 type VidSrcWtfPayload = {
@@ -36,9 +35,3 @@ export const parseVidsrcMirrorBody = (
     }
   }
 };
-
-export async function scrapeVidsrcMirror(
-  input: ScrapeMediaInput,
-): Promise<ScrapeResult> {
-  return scrapeVidSrcMirrorEmbed(input);
-}

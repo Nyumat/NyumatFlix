@@ -61,6 +61,38 @@ export const isVidsrcMasterPlaybackUrl = (
   }
 };
 
+/** JWT already substituted during scrape — generate.php rate-limits bursts. */
+export const extractVidsrcJwtFromUrl = (upstreamUrl: string): string | null => {
+  try {
+    const token = new URL(upstreamUrl).searchParams.get("token");
+    if (!token || token.includes("__TOKEN")) {
+      return null;
+    }
+
+    return token.startsWith("eyJ") ? token : null;
+  } catch {
+    return null;
+  }
+};
+
+const VIDSRC_JWT_REUSE_MS = 60_000;
+
+type VidsrcJwtSession = {
+  jwt: string;
+  fetchedAt: number;
+};
+
+const jwtSessionCache = new Map<string, VidsrcJwtSession>();
+
+const jwtSessionKey = (refresh: VidsrcPlaybackRefresh): string =>
+  refresh.tokenHost;
+
+export const invalidateVidsrcJwtSession = (
+  refresh: VidsrcPlaybackRefresh,
+): void => {
+  jwtSessionCache.delete(jwtSessionKey(refresh));
+};
+
 /**
  * Mint a fresh JWT and rebuild the master URL on the same egress that will
  * immediately fetch it — VidSrc tokens carry an ipacidr claim.
@@ -68,9 +100,27 @@ export const isVidsrcMasterPlaybackUrl = (
 export async function resolveVidsrcPlaybackUrl(
   upstreamUrl: string,
   refresh: VidsrcPlaybackRefresh,
+  options: { force?: boolean } = {},
 ): Promise<string> {
   if (!isVidsrcMasterPlaybackUrl(upstreamUrl, refresh)) {
     return upstreamUrl;
+  }
+
+  const embeddedJwt = extractVidsrcJwtFromUrl(upstreamUrl);
+  if (!options.force && embeddedJwt) {
+    return upstreamUrl;
+  }
+
+  const cacheKey = jwtSessionKey(refresh);
+  const cached = jwtSessionCache.get(cacheKey);
+  const now = Date.now();
+
+  if (
+    !options.force &&
+    cached &&
+    now - cached.fetchedAt < VIDSRC_JWT_REUSE_MS
+  ) {
+    return buildVidsrcStreamUrl(refresh.masterTemplate, cached.jwt);
   }
 
   const jwt = await fetchVidsrcJwtToken(refresh);
@@ -78,5 +128,6 @@ export async function resolveVidsrcPlaybackUrl(
     return upstreamUrl;
   }
 
+  jwtSessionCache.set(cacheKey, { jwt, fetchedAt: now });
   return buildVidsrcStreamUrl(refresh.masterTemplate, jwt);
 }
