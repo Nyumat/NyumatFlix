@@ -18,8 +18,13 @@ import {
   buildScrapePlayUrl,
   type ScrapePlaybackToken,
 } from "@/lib/scrape/playback";
-import { isVidsrcPlaybackRefresh } from "@/lib/scrape/playback-refresh";
+import {
+  isMegaplayPlaybackRefresh,
+  isVidsrcPlaybackRefresh,
+  isVixsrcPlaybackRefresh,
+} from "@/lib/scrape/playback-refresh";
 import { primeVidKingSession } from "@/lib/scrape/vidking-playback";
+import { primeVixsrcSession } from "@/lib/scrape/vixsrc-playback";
 import { isVidnestClientOnlyCdn } from "@/lib/scrape/vidnest-shared";
 import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
 
@@ -163,7 +168,9 @@ async function handleTmdbScrapePost(
         }
       : isVidsrcPlaybackRefresh(result.playbackRefresh)
         ? { refresh: result.playbackRefresh }
-        : {}),
+        : isVixsrcPlaybackRefresh(result.playbackRefresh)
+          ? { refresh: result.playbackRefresh }
+          : {}),
   };
 
   if (playbackToken.refresh?.providerId === "vidking") {
@@ -172,6 +179,10 @@ async function handleTmdbScrapePost(
       result.streamUrl,
       result.referer,
     );
+  }
+
+  if (playbackToken.refresh?.providerId === "vixsrc") {
+    primeVixsrcSession(playbackToken.refresh, result.streamUrl);
   }
 
   const playUrl = isVidnestClientOnlyCdn(result.streamUrl)
@@ -218,13 +229,20 @@ async function handleAnimeScrapePost(
       providerId: result.providerId,
       providerName: ANIME_SCRAPE_PROVIDER_LABELS[result.providerId],
       error: result.error,
+      ...(result.unavailable ? { unavailable: true } : {}),
     });
   }
 
-  const playUrl = buildScrapePlayUrl({
+  const playbackToken: ScrapePlaybackToken = {
     url: result.streamUrl,
     referer: result.referer,
-  });
+    ...(isMegaplayPlaybackRefresh(result.playbackRefresh)
+      ? { refresh: result.playbackRefresh }
+      : {}),
+    ...(result.cookies ? { cookies: result.cookies } : {}),
+  };
+
+  const playUrl = buildScrapePlayUrl(playbackToken);
 
   return NextResponse.json({
     ok: true,

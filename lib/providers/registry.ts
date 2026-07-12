@@ -8,7 +8,6 @@ export type TmdbScrapeProviderId =
   | "vidnest"
   | "vidsrc"
   | "2embed"
-  | "vidsrc-mirror"
   | "vixsrc"
   | "vidrock"
   | "bingr";
@@ -76,7 +75,7 @@ const provider = (
 
 export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
-  provider("vidsrc-mirror", "VidSrc Mirror", { embed: true, tmdbScrape: true }),
+  provider("vidsrc-mirror", "VidSrc Mirror", { embed: true }),
   provider("superembed", "SuperEmbed", { embed: true }),
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
   provider("111movies", "111Movies", { embed: true }),
@@ -99,11 +98,10 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
 
 /** Order from latency bench: success rate ↓, then ok p50 ↑ (see scripts/bench-scrape-latency.mts). */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
+  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
   provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
-  provider("vidsrc-mirror", "VidSrc Mirror", { embed: true, tmdbScrape: true }),
   provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
-  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
   provider("vidnest", "VidNest", {
     embed: true,
@@ -120,11 +118,13 @@ export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
  */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("justanime", "JustAnime", { embed: false, animeScrape: true }),
-  provider("anikitty", "AniKitty", { embed: false, animeScrape: true }),
-  provider("animeparadise", "AnimeParadise", {
-    embed: false,
-    animeScrape: true,
-  }),
+  // Disabled: upstream streams are currently broken (2026-03).
+  // provider("anikitty", "AniKitty", { embed: false, animeScrape: true }),
+  // Disabled: streams are currently broken upstream (2026-03).
+  // provider("animeparadise", "AnimeParadise", {
+  //   embed: false,
+  //   animeScrape: true,
+  // }),
   provider("kyren", "Kyren", { embed: false, animeScrape: true }),
   provider("anikuro", "AniKuro", { embed: false, animeScrape: true }),
   provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),

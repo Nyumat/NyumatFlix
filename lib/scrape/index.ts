@@ -1,13 +1,16 @@
 import { attachSubtitlesToQualities } from "./linked-config";
 import { scrapeVidKing } from "./providers/vidking";
 import { scrapeVidNest } from "./providers/vidnest";
-import { scrapeVidsrcMirror } from "./providers/vidsrc-mirror";
 import { scrapeVidSrc } from "./providers/vidsrc";
 import { scrapeVixsrc } from "./providers/vixsrc";
 import { scrapeVidrock } from "./providers/vidrock";
 import { scrapeBingr } from "./providers/bingr";
 import { scrapeXPass } from "./providers/xpass";
-import { isVidsrcPlaybackRefresh } from "./playback-refresh";
+import {
+  isMegaplayPlaybackRefresh,
+  isVidsrcPlaybackRefresh,
+  isVixsrcPlaybackRefresh,
+} from "./playback-refresh";
 import { probeScrapePlaybackPath } from "./playback-probe";
 import { resolveScrapePlaybackUpstreamUrl } from "./vidking-playback";
 import { fetchSub1x2Subtitles } from "./subtitles";
@@ -28,7 +31,6 @@ const SCRAPERS: Record<
   vidnest: scrapeVidNest,
   vidsrc: scrapeVidSrc,
   "2embed": scrapeXPass,
-  "vidsrc-mirror": scrapeVidsrcMirror,
   vixsrc: scrapeVixsrc,
   vidrock: scrapeVidrock,
   bingr: scrapeBingr,
@@ -58,14 +60,16 @@ export async function scrapeProvider(
   let next = result;
   const streamKind = inferTmdbStreamKind(result.streamUrl);
   const hasVidsrcRefresh = isVidsrcPlaybackRefresh(result.playbackRefresh);
+  const hasVixsrcRefresh = isVixsrcPlaybackRefresh(result.playbackRefresh);
 
   if (!result.validated) {
-    const streamUrlForValidation = hasVidsrcRefresh
-      ? await resolveScrapePlaybackUpstreamUrl(
-          result.streamUrl,
-          result.playbackRefresh,
-        )
-      : result.streamUrl;
+    const streamUrlForValidation =
+      hasVidsrcRefresh || hasVixsrcRefresh
+        ? await resolveScrapePlaybackUpstreamUrl(
+            result.streamUrl,
+            result.playbackRefresh,
+          )
+        : result.streamUrl;
     const providerReferer = result.referer ?? "";
     const validation = await validateStreamUrlWithReferers(
       streamUrlForValidation,
@@ -89,32 +93,31 @@ export async function scrapeProvider(
     }
   }
 
-  // VidKing uses a primed refresh session; tokenized CDN probes false-negative.
-  if (providerId === "vidking") {
-    // handled via validated + api-handlers session priming
-  } else if (isVidnestClientOnlyCdn(next.streamUrl)) {
-    if (!isFreshVidnestSignedUrl(next.streamUrl)) {
-      return {
-        ok: false,
-        providerId,
-        error: "VidNest signed stream URL is missing or expired",
-      };
-    }
-  } else if (!result.validated) {
-    const playProbeOk = await probeScrapePlaybackPath(
-      {
-        url: next.streamUrl,
-        referer: next.referer,
-        refresh: next.playbackRefresh,
-      },
-      streamKind,
-    );
-    if (!playProbeOk) {
-      return {
-        ok: false,
-        providerId,
-        error: "Stream failed playback-path probe",
-      };
+  if (providerId !== "vidking") {
+    if (isVidnestClientOnlyCdn(next.streamUrl)) {
+      if (!isFreshVidnestSignedUrl(next.streamUrl)) {
+        return {
+          ok: false,
+          providerId,
+          error: "VidNest signed stream URL is missing or expired",
+        };
+      }
+    } else if (!result.validated) {
+      const playProbeOk = await probeScrapePlaybackPath(
+        {
+          url: next.streamUrl,
+          referer: next.referer,
+          refresh: next.playbackRefresh,
+        },
+        streamKind,
+      );
+      if (!playProbeOk) {
+        return {
+          ok: false,
+          providerId,
+          error: "Stream failed playback-path probe",
+        };
+      }
     }
   }
 

@@ -80,7 +80,8 @@ export type ScrapeItemStatus =
   | "pending"
   | "success"
   | "failure"
-  | "skipped";
+  | "skipped"
+  | "unavailable";
 
 export type ScrapeItem = {
   providerId: string;
