@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bootstrap Gluetun/FlareSolverr scrape egress.
-# Usage: ensure-local | local | prod | sync-env
+# Usage: ensure-local | local | prod | prod-local | sync-env
 # SKIP_SCRAPE_STACK=1 and FORCE_SCRAPE_SYNC=1 are supported.
 
 set -euo pipefail
@@ -314,7 +314,9 @@ bootstrap_local() {
 }
 
 bootstrap_prod() {
-  ssh "$SSH_HOST" "set -eu
+  local execution_mode="${1:-remote}"
+  local bootstrap_command
+  bootstrap_command="set -eu
     PROD_NYUMAT_ENV=${PROD_NYUMAT_ENV}
     PROD_GLUETUN_DIR=${PROD_GLUETUN_DIR}
     PROD_PROXY_URL=${PROD_PROXY_URL}
@@ -375,6 +377,12 @@ bootstrap_prod() {
   echo 'prod gluetun did not become ready' >&2
   sudo docker logs --tail 40 gluetun >&2 || true
   exit 1"
+
+  if [[ "$execution_mode" == "local" ]]; then
+    bash -c "$bootstrap_command"
+  else
+    ssh "$SSH_HOST" "$bootstrap_command"
+  fi
 }
 
 case "$cmd" in
@@ -382,8 +390,9 @@ case "$cmd" in
   ensure-local) ensure_local ;;
   local) bootstrap_local ;;
   prod) bootstrap_prod ;;
+  prod-local) bootstrap_prod local ;;
   *)
-    echo "usage: $0 ensure-local | local | prod | sync-env" >&2
+    echo "usage: $0 ensure-local | local | prod | prod-local | sync-env" >&2
     exit 1
     ;;
 esac
