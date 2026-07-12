@@ -26,7 +26,13 @@ import {
   Server,
   Tv,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import * as React from "react";
+import { PulsatingButton } from "@/components/ui/pulsating-button";
+import {
+  hasSeenProxyModeHint,
+  rememberProxyModeHintSeen,
+} from "@/lib/playback/proxy-mode-hint-storage";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +54,10 @@ type ScrapeProviderOption = {
 type PlaybackMenuMode = "direct" | "embed";
 
 const DUAL_EMBED_PICKER_ID = "__dual_embed__";
+const PROXY_HINT_VISIBLE_MS = 5000;
+const PROXY_HINT_EXIT_MS = 300;
+
+type ProxyHintPhase = "idle" | "active" | "exiting";
 
 const EMBED_ONLY_IDS = new Set(embedOnlyProviderIds());
 const DUAL_EMBED_IDS = new Set(dualCapabilityEmbedProviderIds());
@@ -66,17 +76,98 @@ interface ServerSelectorProps {
   canFindNextSource?: boolean;
 }
 
+function ProxyModeHintBubble() {
+  return (
+    <motion.div
+      key="proxy-mode-hint"
+      initial={{ opacity: 0, y: 6, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 4, scale: 0.94 }}
+      transition={{
+        type: "spring",
+        stiffness: 420,
+        damping: 28,
+        opacity: { duration: 0.24, ease: "easeInOut" },
+      }}
+      className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-30 w-max max-w-38 -translate-x-1/2"
+    >
+      <motion.div
+        animate={{ y: [0, -2, 0] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        className="relative rounded-md bg-primary px-2 py-1 text-center text-[10px] font-semibold leading-tight text-primary-foreground shadow-md"
+      >
+        Use proxy for no ads
+        <span
+          aria-hidden
+          className="absolute left-1/2 top-full -translate-x-1/2 border-x-[5px] border-t-[5px] border-x-transparent border-t-primary"
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function ModeSwitcher({
   mode,
   onModeChange,
   showEmbed,
+  showProxyHint,
+  onProxyHintDismiss,
 }: {
   mode: PlaybackMenuMode;
   onModeChange: (mode: PlaybackMenuMode) => void;
   showEmbed: boolean;
+  showProxyHint?: boolean;
+  onProxyHintDismiss?: () => void;
 }) {
+  const [hintPhase, setHintPhase] = React.useState<ProxyHintPhase>("idle");
+
+  React.useEffect(() => {
+    if (!showProxyHint) {
+      setHintPhase("idle");
+      return;
+    }
+
+    setHintPhase("active");
+    const visibleTimer = window.setTimeout(() => {
+      setHintPhase("exiting");
+    }, PROXY_HINT_VISIBLE_MS);
+
+    return () => window.clearTimeout(visibleTimer);
+  }, [showProxyHint]);
+
+  React.useEffect(() => {
+    if (hintPhase !== "exiting") return;
+
+    const exitTimer = window.setTimeout(() => {
+      onProxyHintDismiss?.();
+    }, PROXY_HINT_EXIT_MS);
+
+    return () => window.clearTimeout(exitTimer);
+  }, [hintPhase, onProxyHintDismiss]);
+
+  const hintEffectsVisible = hintPhase === "active" || hintPhase === "exiting";
+  const pulseActive = hintPhase === "active";
+
+  const proxyButtonClassName = cn(
+    "flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-bold transition",
+    mode === "direct"
+      ? "bg-primary text-primary-foreground shadow-sm"
+      : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+  );
+
+  const handleProxySelect = () => {
+    onModeChange("direct");
+    onProxyHintDismiss?.();
+  };
+
   return (
-    <div className="p-2" onPointerDown={(event) => event.preventDefault()}>
+    <div
+      className={cn(
+        "p-2 transition-[padding] duration-300",
+        hintEffectsVisible && "pt-8",
+      )}
+      onPointerDown={(event) => event.preventDefault()}
+    >
       <div
         role="radiogroup"
         aria-label="Playback mode"
@@ -85,20 +176,33 @@ function ModeSwitcher({
           showEmbed ? "grid-cols-2" : "grid-cols-1",
         )}
       >
-        <button
-          type="button"
-          role="radio"
-          aria-checked={mode === "direct"}
-          onClick={() => onModeChange("direct")}
-          className={cn(
-            "flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-bold transition",
-            mode === "direct"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+        <div className="relative">
+          <AnimatePresence>
+            {hintPhase === "active" ? <ProxyModeHintBubble /> : null}
+          </AnimatePresence>
+          {hintEffectsVisible ? (
+            <PulsatingButton
+              type="button"
+              role="radio"
+              aria-checked={mode === "direct"}
+              onClick={handleProxySelect}
+              pulseActive={pulseActive}
+              className={proxyButtonClassName}
+            >
+              Proxy
+            </PulsatingButton>
+          ) : (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mode === "direct"}
+              onClick={handleProxySelect}
+              className={proxyButtonClassName}
+            >
+              Proxy
+            </button>
           )}
-        >
-          Proxy
-        </button>
+        </div>
         {showEmbed ? (
           <button
             type="button"
@@ -118,8 +222,8 @@ function ModeSwitcher({
       </div>
       <p className="mt-2 px-0.5 text-[11px] leading-snug text-muted-foreground">
         {mode === "direct"
-          ? "No ads, ever. Subject to availability."
-          : "3rd parties. Might have ads."}
+          ? "No ads, ever. Volatile"
+          : "3rd parties that love popups."}
       </p>
     </div>
   );
@@ -138,6 +242,7 @@ export function ServerSelector({
 }: ServerSelectorProps) {
   const [detailServerId, setDetailServerId] = React.useState<string>();
   const [menuMode, setMenuMode] = React.useState<PlaybackMenuMode>("direct");
+  const [showProxyHint, setShowProxyHint] = React.useState(false);
   const {
     selectedServer,
     setSelectedServer,
@@ -201,10 +306,21 @@ export function ServerSelector({
     onServerSelect?.();
   };
 
+  const dismissProxyHint = React.useCallback(() => {
+    setShowProxyHint((active) => {
+      if (!active) return false;
+      rememberProxyModeHintSeen();
+      return false;
+    });
+  }, []);
+
   const handleModeChange = (mode: PlaybackMenuMode) => {
     setMenuMode(mode);
-    if (mode === "direct" && !isScrapeActive) {
-      handleServerChange(scrapeServer.id);
+    if (mode === "direct") {
+      dismissProxyHint();
+      if (!isScrapeActive) {
+        handleServerChange(scrapeServer.id);
+      }
     }
   };
 
@@ -506,11 +622,15 @@ export function ServerSelector({
         mode={menuMode}
         onModeChange={handleModeChange}
         showEmbed={showEmbedMode}
+        showProxyHint={showProxyHint}
+        onProxyHintDismiss={dismissProxyHint}
       />
       <DropdownMenuSeparator />
-      {menuMode === "direct" || !showEmbedMode
-        ? renderDirectStreamPanel()
-        : renderEmbedPanel()}
+      <div className="max-h-[min(52vh,18rem)] overflow-y-auto">
+        {menuMode === "direct" || !showEmbedMode
+          ? renderDirectStreamPanel()
+          : renderEmbedPanel()}
+      </div>
     </>
   );
 
@@ -519,9 +639,13 @@ export function ServerSelector({
       onOpenChange={(open) => {
         if (open) {
           setMenuMode(isScrapeActive ? "direct" : "embed");
+          if (!hasSeenProxyModeHint()) {
+            setShowProxyHint(true);
+          }
         }
         if (!open) {
           setDetailServerId(undefined);
+          dismissProxyHint();
         }
       }}
     >

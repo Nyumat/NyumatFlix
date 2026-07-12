@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ScrapeVideoLayout } from "@/components/media/scrape-video-layout";
+import { IntroDbSegmentControl } from "@/components/media/controls/introdb-segment-control";
+import { useIntroDbSegments } from "@/hooks/use-introdb-segments";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
+import { buildIntroDbChaptersVtt } from "@/lib/playback/introdb";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
 import { buildScrapeSubtitleTracks } from "@/lib/scrape/player-sources";
 import type { ScrapeSubtitle } from "@/lib/scrape/types";
@@ -16,9 +18,10 @@ type ScrapeShakaDashPlayerProps = {
   title: string;
   poster?: string | null;
   progressKey: PlaybackProgressKey;
+  imdbId?: string | null;
   className?: string;
   onFatalError?: () => void;
-  onEnded?: () => void;
+  onEnded?: () => Promise<boolean>;
 };
 
 const absolutizeUrl = (url: string): string => {
@@ -40,12 +43,17 @@ export function ScrapeShakaDashPlayer({
   title,
   poster,
   progressKey,
+  imdbId = null,
   className,
   onFatalError,
   onEnded,
 }: ScrapeShakaDashPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<import("shaka-player").default.Player | null>(null);
+  const [playbackState, setPlaybackState] = useState({
+    currentTime: 0,
+    duration: 0,
+  });
 
   const playbackUrl = useMemo(() => absolutizeUrl(playUrl), [playUrl]);
 
@@ -55,6 +63,22 @@ export function ScrapeShakaDashPlayer({
   const textTracks = useMemo(
     () => buildScrapeSubtitleTracks(subtitles, referer),
     [referer, subtitles],
+  );
+  const { segments: introDbSegments } = useIntroDbSegments(
+    progressKey,
+    playbackState.duration,
+    imdbId,
+  );
+  const introDbChapters = useMemo(
+    () => buildIntroDbChaptersVtt(introDbSegments),
+    [introDbSegments],
+  );
+  const introDbChaptersUrl = useMemo(
+    () =>
+      introDbChapters
+        ? `data:text/vtt;charset=utf-8,${encodeURIComponent(introDbChapters)}`
+        : null,
+    [introDbChapters],
   );
 
   const destroyPlayer = useCallback(async () => {
@@ -115,6 +139,10 @@ export function ScrapeShakaDashPlayer({
   }, [destroyPlayer, onFatalError, playbackUrl]);
 
   useEffect(() => {
+    setPlaybackState({ currentTime: 0, duration: 0 });
+  }, [playbackUrl]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video || resumeTime <= 0) {
       return;
@@ -131,6 +159,8 @@ export function ScrapeShakaDashPlayer({
     return () => video.removeEventListener("loadedmetadata", apply);
   }, [resumeTime]);
 
+  // Native <video controls> only — DefaultVideoLayout requires a Vidstack
+  // MediaPlayer parent and throws `$props` if rendered here.
   return (
     <div className={cn("relative h-full w-full", className)}>
       <video
@@ -141,14 +171,32 @@ export function ScrapeShakaDashPlayer({
         preload="auto"
         poster={poster ?? undefined}
         title={title}
+        onLoadedMetadata={(event) => {
+          const video = event.currentTarget;
+          setPlaybackState({
+            currentTime: video.currentTime,
+            duration: video.duration || 0,
+          });
+        }}
+        onDurationChange={(event) => {
+          const video = event.currentTarget;
+          setPlaybackState((state) => ({
+            ...state,
+            duration: state.duration || video.duration || 0,
+          }));
+        }}
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
+          setPlaybackState((state) => ({
+            currentTime: video.currentTime,
+            duration: state.duration || video.duration || 0,
+          }));
           persist(video.currentTime, video.duration || 0);
         }}
         onEnded={(e) => {
           const video = e.currentTarget;
           persistImmediate(video.currentTime, video.duration || 0);
-          onEnded?.();
+          void onEnded?.();
         }}
       >
         {textTracks
@@ -163,8 +211,28 @@ export function ScrapeShakaDashPlayer({
               default={track.default}
             />
           ))}
+        {introDbChaptersUrl ? (
+          <track
+            src={introDbChaptersUrl}
+            kind="chapters"
+            label="TheIntroDB segments"
+            default
+          />
+        ) : null}
       </video>
-      <ScrapeVideoLayout />
+      <IntroDbSegmentControl
+        segments={introDbSegments}
+        currentTime={playbackState.currentTime}
+        duration={playbackState.duration}
+        isTv={progressKey.mediaType === "tv"}
+        onSeek={(time) => {
+          const video = videoRef.current;
+          if (video) {
+            video.currentTime = time;
+          }
+        }}
+        onAdvanceToNextEpisode={onEnded}
+      />
     </div>
   );
 }

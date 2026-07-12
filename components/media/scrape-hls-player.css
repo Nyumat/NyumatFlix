@@ -25,3 +25,18 @@
   height: 100%;
   object-fit: contain;
 }
+
+/* Tint IntroDB ranges while leaving Vidstack's progress fill and seeking intact. */
+.nyumat-scrape-player media-time-slider [part="chapters"]::after {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: var(--track-height);
+  border-radius: var(--media-slider-track-border-radius, 1px);
+  background-image: var(--nyumat-introdb-chapter-gradient, none);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-50%) translateZ(0);
+}

@@ -30,6 +30,7 @@ const NON_PRIMARY_AUDIO_PATTERN =
 
 export const pickPrimaryAudioTrack = (
   tracks: PlayerAudioTrack[],
+  preferredLang?: string | null,
 ): PlayerAudioTrack | undefined => {
   const primaryTracks = tracks.filter((track) => {
     const description = [track.label, track.language, track.lang]
@@ -37,6 +38,15 @@ export const pickPrimaryAudioTrack = (
       .join(" ");
     return !NON_PRIMARY_AUDIO_PATTERN.test(description);
   });
+
+  if (preferredLang) {
+    const preferred = primaryTracks.find((track) =>
+      trackMatchesLanguage(track, preferredLang),
+    );
+    if (preferred) {
+      return preferred;
+    }
+  }
 
   return (
     primaryTracks.find((track) => trackMatchesLanguage(track, "english")) ??
@@ -179,6 +189,7 @@ export function usePlaybackTrackPreferences(
   playerRef: RefObject<MediaPlayerInstance | null>,
   progressKey: PlaybackProgressKey,
   sourceKey: string,
+  preferredAudioLang?: string | null,
 ) {
   const scopeKey = useMemo(
     () => trackPreferenceStorageKey(progressKey),
@@ -233,7 +244,10 @@ export function usePlaybackTrackPreferences(
           ) {
             applyAudioPreference(player, preferences?.audioLang);
           } else {
-            const primaryTrack = pickPrimaryAudioTrack(tracks);
+            const primaryTrack = pickPrimaryAudioTrack(
+              tracks,
+              preferredAudioLang,
+            );
             if (primaryTrack) {
               primaryTrack.selected = true;
             }
@@ -323,5 +337,5 @@ export function usePlaybackTrackPreferences(
       disposed = true;
       cleanup?.();
     };
-  }, [playerRef, scopeKey, sourceKey]);
+  }, [playerRef, preferredAudioLang, scopeKey, sourceKey]);
 }
