@@ -80,9 +80,6 @@ const runWithProxySetting = async (useProxy: boolean) => {
   // Fresh imports so modules see current env; proxy agent may still cache if
   // we already imported with proxy — run proxy-off in a separate process when both.
   const { scrapeVidSrc } = await import("../lib/scrape/providers/vidsrc.ts");
-  const { scrapeVidsrcMirror } = await import(
-    "../lib/scrape/providers/vidsrc-mirror.ts"
-  );
   const { scrapeXPass } = await import("../lib/scrape/providers/xpass.ts");
   const { scrapeAnimeonsen } = await import(
     "../lib/scrape/anime/providers/animeonsen.ts"
@@ -131,10 +128,10 @@ const runWithProxySetting = async (useProxy: boolean) => {
       scrape: () => scrapeVidSrc({ mediaType: "movie", tmdbId: 550 }),
     },
     {
-      label: "vidsrc-mirror/Inception",
-      providerId: "vidsrc-mirror",
+      label: "vidsrc/Inception",
+      providerId: "vidsrc",
       media: { mediaType: "movie", tmdbId: 27205 },
-      scrape: () => scrapeVidsrcMirror({ mediaType: "movie", tmdbId: 27205 }),
+      scrape: () => scrapeVidSrc({ mediaType: "movie", tmdbId: 27205 }),
     },
     {
       label: "2embed/FightClub",
