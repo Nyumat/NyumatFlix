@@ -48,6 +48,29 @@ export function reorderProvidersWithPreferred<T extends string>(
   return [preferred, ...order.filter((id) => id !== preferred)];
 }
 
+/** Move session-failed providers to the end while preserving relative order. */
+export function deprioritizeProviders<T extends string>(
+  order: readonly T[],
+  failed: ReadonlySet<T>,
+): readonly T[] {
+  if (failed.size === 0) {
+    return order;
+  }
+
+  const tail: T[] = [];
+  const head: T[] = [];
+
+  for (const providerId of order) {
+    if (failed.has(providerId)) {
+      tail.push(providerId);
+    } else {
+      head.push(providerId);
+    }
+  }
+
+  return [...head, ...tail];
+}
+
 export function nextRaceBatch<T>(
   order: readonly T[],
   startIndex: number,

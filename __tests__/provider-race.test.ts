@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  deprioritizeProviders,
   nextRaceBatch,
   pickRaceWinner,
   reorderProvidersWithPreferred,
@@ -42,13 +43,13 @@ describe("nextRaceBatch", () => {
 });
 
 describe("pickRaceWinner", () => {
-  const order = ["vidsrc", "vidsrc-mirror", "vixsrc"] as const;
+  const order = ["vidsrc", "bingr", "vixsrc"] as const;
 
   it("prefers the earliest provider in order when several succeed", () => {
     const winner = pickRaceWinner(order, [
       { providerId: "vixsrc", attempt: { outcome: "success" } },
       { providerId: "vidsrc", attempt: { outcome: "success" } },
-      { providerId: "vidsrc-mirror", attempt: { outcome: "failure" } },
+      { providerId: "bingr", attempt: { outcome: "failure" } },
     ]);
 
     expect(winner?.providerId).toBe("vidsrc");
@@ -64,17 +65,35 @@ describe("pickRaceWinner", () => {
 });
 
 describe("reorderProvidersWithPreferred", () => {
-  const order = ["vidsrc", "vidsrc-mirror", "vixsrc"] as const;
+  const order = ["vidsrc", "bingr", "vixsrc"] as const;
 
   it("pins preferred to the front without dropping other providers", () => {
     expect(reorderProvidersWithPreferred(order, "vixsrc")).toEqual([
       "vixsrc",
       "vidsrc",
-      "vidsrc-mirror",
+      "bingr",
     ]);
   });
 
   it("returns the original order when preferred is missing", () => {
     expect(reorderProvidersWithPreferred(order, undefined)).toEqual(order);
+  });
+});
+
+describe("deprioritizeProviders", () => {
+  const order = ["vidking", "vidsrc", "bingr", "vixsrc"] as const;
+
+  it("moves failed providers to the end without dropping any", () => {
+    const failed = new Set<string>(["vidsrc", "vixsrc"]);
+    expect(deprioritizeProviders(order, failed)).toEqual([
+      "vidking",
+      "bingr",
+      "vidsrc",
+      "vixsrc",
+    ]);
+  });
+
+  it("returns the original order when nothing failed", () => {
+    expect(deprioritizeProviders(order, new Set())).toEqual(order);
   });
 });

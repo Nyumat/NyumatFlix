@@ -34,7 +34,7 @@ const animeScrapeLoopConfig = {
   providerOrder: ANIME_SCRAPE_PROVIDER_ORDER,
   providerLabels: ANIME_SCRAPE_PROVIDER_LABELS,
   mediaKeyFor: animeScrapeMediaKeyFor,
-  allFailedError: "All anime sources failed. Try another server or retry.",
+  allFailedError: "No playable source found.",
   apiPath: "/api/scrape",
   buildRequestBody: (
     providerId: AnimeScrapeProviderId,

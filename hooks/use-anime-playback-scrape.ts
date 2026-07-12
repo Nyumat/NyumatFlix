@@ -56,8 +56,7 @@ const animePlaybackScrapeLoopConfig = {
   providerLabels: ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS,
   mediaKeyFor: (input: AnimePlaybackScrapeInput) =>
     animeScrapeMediaKeyFor(input.anime),
-  allFailedError:
-    "All anime and proxy sources failed. Try another server or retry.",
+  allFailedError: "No playable source found.",
   apiPath: "/api/scrape",
   buildRequestBody: (
     providerId: AnimePlaybackScrapeProviderId,

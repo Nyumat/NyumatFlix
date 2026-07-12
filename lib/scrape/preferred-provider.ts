@@ -43,13 +43,20 @@ const writeMap = (map: PreferredProviderMap): void => {
   }
 };
 
+const normalizePreferredProviderId = (providerId: string): string => {
+  if (providerId === "vidsrc-mirror") {
+    return "vidsrc";
+  }
+  return providerId;
+};
+
 export const getPreferredScrapeProvider = (mediaKey: string): string | null => {
   const entry = readMap()[mediaKey];
   if (!entry || typeof entry.providerId !== "string" || !entry.providerId) {
     return null;
   }
 
-  return entry.providerId;
+  return normalizePreferredProviderId(entry.providerId);
 };
 
 import { UNTRUSTED_PREFERRED_SCRAPE_PROVIDERS } from "@/lib/scrape/provider-race";

@@ -34,7 +34,7 @@ const scrapeLoopConfig = {
   providerOrder: SCRAPE_PROVIDER_ORDER,
   providerLabels: SCRAPE_PROVIDER_LABELS,
   mediaKeyFor: scrapeMediaKeyFor,
-  allFailedError: "All sources failed. Try another server or retry.",
+  allFailedError: "No playable source found.",
   apiPath: "/api/scrape",
   buildRequestBody: (
     providerId: ScrapeProviderId,
