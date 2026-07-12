@@ -1,7 +1,11 @@
 import { scrapeFetchText } from "../fetch";
+import type { VixsrcPlaybackRefresh } from "../vixsrc-constants";
+import {
+  buildVixsrcPlaylistUrl,
+  extractVixsrcPlaylistParams,
+  VIXSRC_ORIGIN,
+} from "../vixsrc-shared";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
-
-const VIXSRC_ORIGIN = "https://vixsrc.to";
 
 const buildApiUrl = (input: ScrapeMediaInput): string => {
   if (input.mediaType === "movie") {
@@ -19,32 +23,6 @@ const absoluteEmbedUrl = (src: string): string => {
     return `${VIXSRC_ORIGIN}${src}`;
   }
   return `${VIXSRC_ORIGIN}/${src}`;
-};
-
-const extractPlaylistParams = (
-  html: string,
-): { videoId: string; token: string; expires: string } | null => {
-  const videoId =
-    html.match(/window\.video\s*=\s*\{[\s\S]*?\bid:\s*['"](\d+)['"]/)?.[1] ??
-    null;
-  const token =
-    html.match(
-      /window\.masterPlaylist\s*=\s*\{[\s\S]*?'token'\s*:\s*'([^']+)'/,
-    )?.[1] ??
-    html.match(/"token"\s*:\s*"([a-f0-9]+)"/i)?.[1] ??
-    null;
-  const expires =
-    html.match(
-      /window\.masterPlaylist\s*=\s*\{[\s\S]*?'expires'\s*:\s*'(\d+)'/,
-    )?.[1] ??
-    html.match(/"expires"\s*:\s*"?(\d+)"?/)?.[1] ??
-    null;
-
-  if (!videoId || !token || !expires) {
-    return null;
-  }
-
-  return { videoId, token, expires };
 };
 
 export async function scrapeVixsrc(
@@ -97,7 +75,7 @@ export async function scrapeVixsrc(
       };
     }
 
-    const params = extractPlaylistParams(embed.text);
+    const params = extractVixsrcPlaylistParams(embed.text);
     if (!params) {
       return {
         ok: false,
@@ -106,19 +84,25 @@ export async function scrapeVixsrc(
       };
     }
 
-    const playlistUrl = new URL(`${VIXSRC_ORIGIN}/playlist/${params.videoId}`);
-    playlistUrl.searchParams.set("token", params.token);
-    playlistUrl.searchParams.set("expires", params.expires);
-    playlistUrl.searchParams.set("h", "1");
-
-    const streamUrl = playlistUrl.toString();
+    const streamUrl = buildVixsrcPlaylistUrl(params);
     const referer = embedUrl;
+    const seedFetchedAt = Date.now();
+    const expires = Number.parseInt(params.expires, 10);
+
+    const playbackRefresh: VixsrcPlaybackRefresh = {
+      providerId: "vixsrc",
+      videoId: params.videoId,
+      embedUrl,
+      seedFetchedAt,
+      ...(Number.isFinite(expires) ? { expires } : {}),
+    };
 
     return {
       ok: true,
       providerId,
       streamUrl,
       referer,
+      playbackRefresh,
     };
   } catch (error) {
     return {
