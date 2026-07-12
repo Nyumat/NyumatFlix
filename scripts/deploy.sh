@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage (from repo root):
 #   bun run bp                 # build linux/amd64 + push to registry
-#   ./scripts/deploy.sh serve  # on leetbot: pull, health-check, blue/green switch
+#   ./scripts/deploy.sh serve  # on leetbot: pull, replace container
 #   ./scripts/deploy.sh stop   # stop app container
 #
 # Override defaults:
@@ -11,7 +11,14 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/scripts/bootstrap-scrape-vpn.sh" ]]; then
+  ROOT="$SCRIPT_DIR"
+elif [[ -f "$SCRIPT_DIR/bootstrap-scrape-vpn.sh" ]]; then
+  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+else
+  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
 DOCKER_IMAGE="${DOCKER_IMAGE:-whotypes/nyumatflix:latest}"
 CONTAINER_NAME="${CONTAINER_NAME:-nyumatflix}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-betterome}"
@@ -56,6 +63,12 @@ ensure_network() {
   sudo docker network create "$DOCKER_NETWORK" 2>/dev/null || true
 }
 
+ensure_infra_compose() {
+  cd "$ROOT"
+  sudo docker compose -f docker-compose.scrape.yml up -d
+  sudo docker compose -f docker-compose.ffs.yml up -d
+}
+
 serve() {
   "$ROOT/scripts/bootstrap-scrape-vpn.sh" prod
   if [[ ! -f "$ENV_FILE" ]]; then
@@ -63,6 +76,7 @@ serve() {
     exit 1
   fi
   ensure_network
+  ensure_infra_compose
   sudo docker pull "$DOCKER_IMAGE"
 
   local current_port target_port candidate old_name upstream_backup

@@ -2,6 +2,17 @@ name: CI
 
 env:
   HUSKY: 0
+  NODE_ENV: production
+  APP_URL: https://nyumatflix.com
+  AUTH_URL: https://nyumatflix.com
+  NEXTAUTH_URL: https://nyumatflix.com
+  FLARESOLVERR_URL: http://flaresolverr:8191/v1
+  SCRAPE_PROXY_URL: http://gluetun:8888
+  SCRAPE_VPN_CONTROL_URL: http://gluetun:8000
+  SCRAPE_VPN_ROTATE_COUNTRIES: Germany,Netherlands,France,United States
+  FLIPT_URL: http://flipt:8080
+  FLIPT_NAMESPACE: production
+  FLIPT_FLAG_CACHE_TTL_MS: "30000"
 
 on:
   push:
@@ -18,6 +29,17 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    env:
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      AUTH_RESEND_KEY: ${{ secrets.AUTH_RESEND_KEY }}
+      ID_MOE_API_KEY: ${{ secrets.ID_MOE_API_KEY }}
+      FLIPT_API_TOKEN: ${{ secrets.FLIPT_API_TOKEN }}
+      SCRAPE_VPN_CONTROL_API_KEY: ${{ secrets.SCRAPE_VPN_CONTROL_API_KEY }}
+      SCRAPE_VPN_ROTATE_SECRET: ${{ secrets.SCRAPE_VPN_ROTATE_SECRET }}
 
     steps:
       - name: Checkout code
@@ -31,19 +53,33 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Create .env file
+      - name: Create .env.local for CI
         run: |
-          echo "TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env.local
-          echo "PROD_DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" >> .env.local
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env.local
+          cat > .env.local <<EOF
+          TMDB_API_KEY=${TMDB_API_KEY}
+          NEXT_PUBLIC_TMDB_API_KEY=${NEXT_PUBLIC_TMDB_API_KEY}
+          DATABASE_URL=${DATABASE_URL}
+          PROD_DATABASE_URL=${PROD_DATABASE_URL}
+          AUTH_SECRET=${AUTH_SECRET}
+          AUTH_RESEND_KEY=${AUTH_RESEND_KEY}
+          ID_MOE_API_KEY=${ID_MOE_API_KEY}
+          APP_URL=${APP_URL}
+          AUTH_URL=${AUTH_URL}
+          NEXTAUTH_URL=${NEXTAUTH_URL}
+          FLARESOLVERR_URL=${FLARESOLVERR_URL}
+          SCRAPE_PROXY_URL=${SCRAPE_PROXY_URL}
+          SCRAPE_VPN_CONTROL_URL=${SCRAPE_VPN_CONTROL_URL}
+          SCRAPE_VPN_CONTROL_API_KEY=${SCRAPE_VPN_CONTROL_API_KEY}
+          SCRAPE_VPN_ROTATE_SECRET=${SCRAPE_VPN_ROTATE_SECRET}
+          SCRAPE_VPN_ROTATE_COUNTRIES=${SCRAPE_VPN_ROTATE_COUNTRIES}
+          FLIPT_URL=${FLIPT_URL}
+          FLIPT_NAMESPACE=${FLIPT_NAMESPACE}
+          FLIPT_API_TOKEN=${FLIPT_API_TOKEN}
+          FLIPT_FLAG_CACHE_TTL_MS=${FLIPT_FLAG_CACHE_TTL_MS}
+          EOF
 
       - name: Build the app
         if: github.event_name == 'push'
-        env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
-          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: bun run build
 
       - name: Check formatting
@@ -56,9 +92,6 @@ jobs:
         run: bun run type-check
 
       - name: Run tests
-        env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
         run: bun run test-ci
 
   build-push:
