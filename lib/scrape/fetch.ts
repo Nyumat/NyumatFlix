@@ -8,14 +8,36 @@ import {
 } from "./proxy";
 import { scrapeUpstreamHeaders } from "./upstream-headers";
 import { isVidKingCdnUrl } from "./vidking-cdn-url";
+import {
+  rotateScrapeVpnEgress,
+  scrapeRateLimitRotateHostname,
+} from "./vpn-rotate";
 
 const FETCH_TIMEOUT_MS = 30_000;
 const FETCH_RETRY_ATTEMPTS = 3;
 const FETCH_RETRY_DELAY_MS = 750;
 const CURL_FALLBACK_HOSTS =
-  /(?:^kwik\.[a-z]+$|^api\.wingsdatabase\.com$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|opstream11\.com|opstream16\.com|goodstream\.cc|astroliteonline\.online|tripplestream\.online|glowhavenmedia\.cyou|1x2\.space|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com)$)/i;
+  /(?:^kwik\.[a-z]+$|^api\.wingsdatabase\.com$|^cloudorchestranova\.com$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|opstream11\.com|opstream16\.com|goodstream\.cc|astroliteonline\.online|tripplestream\.online|glowhavenmedia\.cyou|1x2\.space|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com|\.space)$)/i;
+
+const VIDSRC_DIRECT_HOST_PATTERN =
+  /(?:^|\.)vsembed\.ru$|(?:^|\.)vidsrc-embed\.ru$|^cloudorchestranova\.com$|\.space$/i;
 
 const BLOCKED_STATUSES = new Set([403, 429, 503]);
+
+export const scrapePreferProxyHostname = (hostname: string): boolean =>
+  hostname === "api.wingsdatabase.com";
+
+export const scrapeBypassesProxyHostname = (hostname: string): boolean =>
+  hostname === "graphql.anilist.co" ||
+  hostname === "stream.animeparadise.moe" ||
+  hostname === "api.kyren.moe" ||
+  hostname === "kyren.moe" ||
+  /(?:^|\.)(?:vivibebe\.site|megaplay\.buzz)$/.test(hostname) ||
+  VIDSRC_DIRECT_HOST_PATTERN.test(hostname) ||
+  /mewstream/i.test(hostname) ||
+  /^momo\./i.test(hostname) ||
+  hostname === "momo.justanime.to" ||
+  /\.workers\.dev$/i.test(hostname);
 
 type HostEgressPreference = "direct" | "proxy";
 
@@ -32,6 +54,7 @@ export const scrapePreferDirectEgress = (): boolean =>
 type ScrapeFetchInit = RequestInit & {
   headers?: Record<string, string>;
   curlFallback?: boolean;
+  timeoutMs?: number;
 };
 
 const hostnameOf = (url: string): string => {
@@ -158,8 +181,8 @@ async function scrapeFetchOnce(
   url: string,
   init: ScrapeFetchInit = {},
 ): Promise<Response> {
-  const { curlFallback = true, ...fetchInit } = init;
-  const timeoutSignal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+  const { curlFallback = true, timeoutMs, ...fetchInit } = init;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs ?? FETCH_TIMEOUT_MS);
   const signal = fetchInit.signal
     ? AbortSignal.any([fetchInit.signal, timeoutSignal])
     : timeoutSignal;
@@ -180,7 +203,14 @@ async function scrapeFetchOnce(
   const hostname = hostnameOf(url);
   const proxyUrl = scrapeProxyUrl();
   const proxyDispatcher = proxyUrl ? scrapeProxyDispatcher() : undefined;
+  const preferProxyOnly =
+    Boolean(hostname) &&
+    Boolean(proxyUrl) &&
+    Boolean(proxyDispatcher) &&
+    scrapePreferProxyHostname(hostname);
+
   const preferDirect =
+    !preferProxyOnly &&
     Boolean(proxyUrl) &&
     Boolean(proxyDispatcher) &&
     scrapePreferDirectEgress() &&
@@ -221,7 +251,7 @@ async function scrapeFetchOnce(
       if (BLOCKED_STATUSES.has(response.status)) {
         const fallback = await tryCurlFallback(egressProxyUrl, response);
         if (fallback && fallback !== response) {
-          if (hostname) {
+          if (hostname && !scrapeBypassesProxyHostname(hostname)) {
             hostEgressPreference.set(hostname, preference);
           }
           return fallback;
@@ -229,14 +259,14 @@ async function scrapeFetchOnce(
         return response;
       }
 
-      if (hostname) {
+      if (hostname && !scrapeBypassesProxyHostname(hostname)) {
         hostEgressPreference.set(hostname, preference);
       }
       return response;
     } catch {
       const fallback = await tryCurlFallback(egressProxyUrl);
       if (fallback) {
-        if (hostname) {
+        if (hostname && !scrapeBypassesProxyHostname(hostname)) {
           hostEgressPreference.set(hostname, preference);
         }
         return fallback;
@@ -244,6 +274,18 @@ async function scrapeFetchOnce(
       return "error";
     }
   };
+
+  if (hostname && scrapeBypassesProxyHostname(hostname)) {
+    const directOnly = await attemptEgress(
+      scrapeDirectDispatcher(),
+      undefined,
+      "direct",
+    );
+    if (directOnly !== "error") {
+      return directOnly;
+    }
+    throw new Error(`scrapeFetch failed for ${url}`);
+  }
 
   if (preferDirect) {
     const directResult = await attemptEgress(
@@ -257,7 +299,7 @@ async function scrapeFetchOnce(
     ) {
       return directResult;
     }
-    if (hostname) {
+    if (hostname && !scrapeBypassesProxyHostname(hostname)) {
       // Don't keep paying a doomed direct hop on the next request.
       hostEgressPreference.set(hostname, "proxy");
     }
@@ -267,7 +309,19 @@ async function scrapeFetchOnce(
   }
 
   if (proxyDispatcher && proxyUrl) {
-    const proxyResult = await attemptEgress(proxyDispatcher, proxyUrl, "proxy");
+    let proxyResult = await attemptEgress(proxyDispatcher, proxyUrl, "proxy");
+
+    if (
+      proxyResult !== "error" &&
+      proxyResult.status === 429 &&
+      hostname &&
+      scrapeRateLimitRotateHostname(hostname) &&
+      (await rotateScrapeVpnEgress()).ok
+    ) {
+      await cancelResponseBody(proxyResult);
+      proxyResult = await attemptEgress(proxyDispatcher, proxyUrl, "proxy");
+    }
+
     if (proxyResult !== "error") {
       return proxyResult;
     }
@@ -289,8 +343,12 @@ async function scrapeFetchOnce(
 export async function scrapeFetchText(
   url: string,
   headers: Record<string, string> = {},
+  options: { timeoutMs?: number } = {},
 ): Promise<{ status: number; text: string }> {
-  const response = await scrapeFetch(url, { headers });
+  const response = await scrapeFetch(url, {
+    headers,
+    timeoutMs: options.timeoutMs,
+  });
   return {
     status: response.status,
     text: await response.text(),
