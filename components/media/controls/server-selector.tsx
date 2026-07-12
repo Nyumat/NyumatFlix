@@ -222,7 +222,7 @@ function ModeSwitcher({
       </div>
       <p className="mt-2 px-0.5 text-[11px] leading-snug text-muted-foreground">
         {mode === "direct"
-          ? "No ads, ever. Volatile"
+          ? "No ads, volatile for obvious reasons."
           : "3rd parties that love popups."}
       </p>
     </div>
