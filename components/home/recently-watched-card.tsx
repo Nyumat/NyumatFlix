@@ -12,6 +12,10 @@ export interface RecentlyWatchedCardProps {
   item: RecentlyWatchedItem;
 }
 
+const continueWatchingProgressFillClass = "bg-pink-500";
+const continueWatchingProgressFallbackFillClass = "bg-pink-500/40";
+const continueWatchingProgressTrackClass = "bg-pink-500/15";
+
 export function RecentlyWatchedCard({ item }: RecentlyWatchedCardProps) {
   const backdropUrl = item.backdropPath
     ? tmdbImage.backdrop(item.backdropPath, "w1280")
@@ -42,7 +46,7 @@ export function RecentlyWatchedCard({ item }: RecentlyWatchedCardProps) {
           draggable={false}
         />
       ) : (
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary/20 to-primary/5" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-pink-500/20 to-pink-500/5" />
       )}
 
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/90 via-black/35 to-transparent" />
@@ -79,7 +83,10 @@ export function RecentlyWatchedCard({ item }: RecentlyWatchedCardProps) {
       </div>
 
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-[3px] bg-white/15"
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 z-30 h-[3px]",
+          continueWatchingProgressTrackClass,
+        )}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
@@ -92,8 +99,10 @@ export function RecentlyWatchedCard({ item }: RecentlyWatchedCardProps) {
       >
         <div
           className={cn(
-            "h-full bg-primary transition-[width] duration-500",
-            progressPercent == null && "w-[6%] bg-white/35",
+            "h-full transition-[width] duration-500",
+            progressPercent == null
+              ? cn("w-[6%]", continueWatchingProgressFallbackFillClass)
+              : continueWatchingProgressFillClass,
           )}
           style={
             progressPercent != null

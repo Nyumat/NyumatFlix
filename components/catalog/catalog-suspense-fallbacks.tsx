@@ -62,7 +62,15 @@ export const RecentlyWatchedRowFallback = () => (
           key={index}
           className="basis-[85%] shrink-0 pl-3 sm:basis-[70%] md:basis-[42%] lg:basis-[32%] xl:basis-[28%]"
         >
-          <Skeleton className="aspect-video w-full rounded-xs" />
+          <div className="relative overflow-hidden rounded-xs">
+            <Skeleton className="aspect-video w-full rounded-xs" />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-pink-500/15"
+            >
+              <div className="h-full w-[6%] bg-pink-500/40" />
+            </div>
+          </div>
         </div>
       ))}
     </div>
