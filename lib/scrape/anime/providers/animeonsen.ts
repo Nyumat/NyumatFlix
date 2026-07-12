@@ -29,22 +29,49 @@ type OnsenVideoResponse = {
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
-const normalizeTitle = (title: string) =>
+export const ANIMEONSEN_CATALOG_MISS_ERROR = "Not in AnimeOnsen catalog";
+
+const normalizeTitleStrict = (title: string) =>
   title
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
+/** Collapse romaji spacing/particle variants (`Shite mo` vs `shitemo`). */
+const normalizeTitleLoose = (title: string) =>
+  normalizeTitleStrict(title)
+    .replace(/\b(wa|wo|ga|ni|de|to|mo|no|te|shite|shitemo)\b/g, " ")
+    .replace(/\s+/g, "")
+    .trim();
+
 export const findMatchingOnsenResult = (
   rows: OnsenSearchResult[],
   titles: string[],
 ): OnsenSearchResult | undefined => {
-  const expected = new Set(titles.map(normalizeTitle).filter(Boolean));
-  return rows.find((row) =>
+  const strictExpected = new Set(
+    titles.map(normalizeTitleStrict).filter(Boolean),
+  );
+  const strictMatch = rows.find((row) =>
     [row.content_title, row.content_title_en].some(
-      (title) => title && expected.has(normalizeTitle(title)),
+      (title) => title && strictExpected.has(normalizeTitleStrict(title)),
     ),
+  );
+  if (strictMatch) {
+    return strictMatch;
+  }
+
+  const looseExpected = new Set(
+    titles.map(normalizeTitleLoose).filter(Boolean),
+  );
+  return rows.find((row) =>
+    [row.content_title, row.content_title_en].some((title) => {
+      if (!title) {
+        return false;
+      }
+      const loose = normalizeTitleLoose(title);
+      return loose.length > 0 && looseExpected.has(loose);
+    }),
   );
 };
 
@@ -124,7 +151,12 @@ export async function scrapeAnimeonsen(
 
     const contentId = match?.content_id;
     if (!contentId) {
-      return { ok: false, providerId, error: "AnimeOnsen content not found" };
+      return {
+        ok: false,
+        providerId,
+        error: ANIMEONSEN_CATALOG_MISS_ERROR,
+        unavailable: true,
+      };
     }
 
     const videoResponse = await scrapeFetch(

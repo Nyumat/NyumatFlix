@@ -20,7 +20,9 @@ import {
 } from "./types";
 import { fetchAnilistMediaMeta } from "./anilist-meta";
 import { attachSubtitlesToQualities } from "../linked-config";
+import { isMegaplayPlaybackRefresh } from "../playback-refresh";
 import { probeScrapePlaybackPath } from "../playback-probe";
+import { resolveScrapePlaybackUpstreamUrl } from "../vidking-playback";
 import { validateStreamUrlWithReferers } from "../validate-stream";
 
 const ANIME_SCRAPERS: Record<
@@ -55,8 +57,16 @@ export async function scrapeAnimeProvider(
   }
 
   const mediaMeta = await fetchAnilistMediaMeta(input.anilistId);
+  const streamUrlForValidation = isMegaplayPlaybackRefresh(
+    result.playbackRefresh,
+  )
+    ? await resolveScrapePlaybackUpstreamUrl(
+        result.streamUrl,
+        result.playbackRefresh,
+      )
+    : result.streamUrl;
   const validation = await validateStreamUrlWithReferers(
-    result.streamUrl,
+    streamUrlForValidation,
     result.referer ?? "",
     result.streamKind,
     {
@@ -82,7 +92,12 @@ export async function scrapeAnimeProvider(
       : result;
 
   const playProbeOk = await probeScrapePlaybackPath(
-    { url: next.streamUrl, referer: next.referer },
+    {
+      url: next.streamUrl,
+      referer: next.referer,
+      refresh: next.playbackRefresh,
+      cookies: next.cookies,
+    },
     next.streamKind,
   );
   if (!playProbeOk) {

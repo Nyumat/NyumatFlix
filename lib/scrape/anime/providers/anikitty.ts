@@ -1,4 +1,6 @@
 import { preferredAudioLangForTranslation } from "../audio-preference";
+import { preferAnimeCdnReferer } from "../cdn-referer";
+import { isPlayableHlsStream } from "../hls-sanity";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeSubtitle } from "../../types";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
@@ -17,17 +19,49 @@ type AnikittyStreamResponse = {
   error?: string;
 };
 
-const extractUpstreamUrl = (proxyOrDirect: string): string => {
+const resolveStreamTarget = (
+  file: string,
+  headers: AnikittyStreamResponse["headers"],
+): { streamUrl: string; referer: string } => {
   try {
-    const parsed = new URL(proxyOrDirect);
+    const parsed = new URL(file);
+    if (
+      parsed.hostname === "anikitty.moe" ||
+      parsed.hostname.endsWith(".anikitty.moe")
+    ) {
+      return {
+        streamUrl: file,
+        referer: `${ANIKITTY_ORIGIN}/`,
+      };
+    }
+
     const nested = parsed.searchParams.get("url");
     if (nested && /^https?:\/\//i.test(nested)) {
-      return nested;
+      // Keep proxy wrappers — bare vivibebe URLs are often decoy ad playlists.
+      if (parsed.pathname.includes("/proxy")) {
+        return {
+          streamUrl: file,
+          referer: `${ANIKITTY_ORIGIN}/`,
+        };
+      }
+
+      return {
+        streamUrl: nested,
+        referer: preferAnimeCdnReferer(
+          nested,
+          headers?.Referer,
+          ANIKITTY_ORIGIN,
+        ),
+      };
     }
   } catch {
-    // keep original
+    void 0;
   }
-  return proxyOrDirect;
+
+  return {
+    streamUrl: file,
+    referer: preferAnimeCdnReferer(file, headers?.Referer, ANIKITTY_ORIGIN),
+  };
 };
 
 const resolveSubtitleUrl = (file: string): string => {
@@ -52,28 +86,6 @@ const mapSubtitles = (
     }));
 
   return mapped.length > 0 ? mapped : undefined;
-};
-
-const preferReferer = (
-  streamUrl: string,
-  headers: AnikittyStreamResponse["headers"],
-): string => {
-  if (headers?.Referer) {
-    // Upstream CDN often wants its own host, not the anitaku/proxy hint.
-    if (streamUrl.includes("vivibebe.site")) {
-      return "https://vivibebe.site/";
-    }
-    if (streamUrl.includes("mewstream") || streamUrl.includes("megaplay")) {
-      return "https://megaplay.buzz/";
-    }
-    return headers.Referer;
-  }
-
-  if (streamUrl.includes("vivibebe.site")) {
-    return "https://vivibebe.site/";
-  }
-
-  return `${ANIKITTY_ORIGIN}/`;
 };
 
 export async function scrapeAnikitty(
@@ -118,8 +130,18 @@ export async function scrapeAnikitty(
       };
     }
 
-    const streamUrl = extractUpstreamUrl(payload.file);
-    const referer = preferReferer(streamUrl, payload.headers);
+    const { streamUrl, referer } = resolveStreamTarget(
+      payload.file,
+      payload.headers,
+    );
+
+    if (!(await isPlayableHlsStream(streamUrl, referer))) {
+      return {
+        ok: false,
+        providerId,
+        error: "AniKitty returned no playable stream",
+      };
+    }
 
     return {
       ok: true,

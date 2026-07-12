@@ -164,20 +164,26 @@ export const fetchAnilistMediaMeta = async (
   }
 };
 
+export const resolveAnimeSearchQueries = async (input: {
+  anilistId: number;
+  query?: string;
+}): Promise<string[]> => {
+  const fromAnilist = await fetchAnilistTitleCandidates(input.anilistId);
+  const queries = input.query?.trim()
+    ? [input.query.trim(), ...fromAnilist]
+    : fromAnilist;
+  const unique = [...new Set(queries.filter(Boolean))];
+
+  if (unique.length === 0) {
+    throw new Error(
+      `Unable to resolve search title for AniList ${input.anilistId}`,
+    );
+  }
+
+  return unique;
+};
+
 export const resolveAnimeSearchQuery = async (input: {
   anilistId: number;
   query?: string;
-}): Promise<string> => {
-  if (input.query?.trim()) {
-    return input.query.trim();
-  }
-
-  const fromAnilist = await fetchAnilistSearchQuery(input.anilistId);
-  if (fromAnilist) {
-    return fromAnilist;
-  }
-
-  throw new Error(
-    `Unable to resolve search title for AniList ${input.anilistId}`,
-  );
-};
+}): Promise<string> => (await resolveAnimeSearchQueries(input))[0]!;

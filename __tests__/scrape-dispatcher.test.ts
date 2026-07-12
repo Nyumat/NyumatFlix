@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { scrapeDirectDispatcher, scrapeProxyUrl } from "@/lib/scrape/proxy";
 import {
   resetScrapeHostEgressPreferences,
+  scrapeBypassesProxyHostname,
   scrapePreferDirectEgress,
+  scrapePreferProxyHostname,
 } from "@/lib/scrape/fetch";
+import { scrapeDirectDispatcher, scrapeProxyUrl } from "@/lib/scrape/proxy";
 
 describe("scrape dispatchers", () => {
   it("reuses one direct dispatcher for the lifetime of the process", () => {
@@ -36,5 +38,26 @@ describe("scrape dispatchers", () => {
       process.env.SCRAPE_PREFER_DIRECT = previous;
     }
     resetScrapeHostEgressPreferences();
+  });
+
+  it("prefers proxy for wingsdatabase.com", () => {
+    expect(scrapePreferProxyHostname("api.wingsdatabase.com")).toBe(true);
+    expect(scrapePreferProxyHostname("kaa.lt")).toBe(false);
+  });
+
+  it("bypasses proxy for AniList metadata and anime CDN hosts", () => {
+    expect(scrapeBypassesProxyHostname("graphql.anilist.co")).toBe(true);
+    expect(scrapeBypassesProxyHostname("vivibebe.site")).toBe(true);
+    expect(scrapeBypassesProxyHostname("cdn.mewstream.buzz")).toBe(true);
+    expect(scrapeBypassesProxyHostname("momo.justanime.to")).toBe(true);
+    expect(scrapeBypassesProxyHostname("momo.alright-rabbit.workers.dev")).toBe(
+      true,
+    );
+    expect(
+      scrapeBypassesProxyHostname("morning-credit.vibevibe.workers.dev"),
+    ).toBe(true);
+    expect(scrapeBypassesProxyHostname("api.kyren.moe")).toBe(true);
+    expect(scrapeBypassesProxyHostname("stream.animeparadise.moe")).toBe(true);
+    expect(scrapeBypassesProxyHostname("kaa.lt")).toBe(false);
   });
 });

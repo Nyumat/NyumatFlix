@@ -2,13 +2,25 @@ import { preferredAudioLangForTranslation } from "../audio-preference";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeQuality, ScrapeSubtitle } from "../../types";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
+import type { MegaplayPlaybackRefresh } from "../../megaplay-constants";
+import {
+  MEGAPLAY_ORIGIN,
+  resolveMegaplayEmbedStream,
+} from "../../megaplay-sources";
 
 const KYREN_ORIGIN = "https://kyren.moe";
 
+/** Kyren stream servers — raze (megaplay) replaces neon (vidnest-direct, upstream 403). */
+const KYREN_SERVERS_SUB = ["viper", "kayo", "raze", "jett"] as const;
+const KYREN_SERVERS_DUB = ["kayo", "raze", "viper", "jett"] as const;
+
 type KyrenInfo = {
+  idMal?: number;
   title?: string;
   titleEnglish?: string;
   titleRomaji?: string;
+  seasonYear?: number;
+  episodes?: number;
 };
 
 type KyrenSource = {
@@ -36,26 +48,82 @@ const qualityRank = (label: string | undefined): number => {
   return 0;
 };
 
-const resolveTitle = async (anilistId: number): Promise<string> => {
+const kyrenPlayerReferer = (
+  idMal: number | undefined,
+  episodeNumber: number,
+): string =>
+  typeof idMal === "number" && idMal > 0
+    ? `${KYREN_ORIGIN}/player/${idMal}?ep=${episodeNumber}`
+    : `${KYREN_ORIGIN}/`;
+
+const kyrenHeaders = (referer: string) => ({
+  Accept: "application/json",
+  Origin: KYREN_ORIGIN,
+  Referer: referer,
+});
+
+const resolveKyrenPlayableSource = async (
+  source: KyrenSource,
+  kyrenReferer: string,
+): Promise<{
+  streamUrl: string;
+  referer: string;
+  playbackRefresh?: MegaplayPlaybackRefresh;
+} | null> => {
+  const url = source.url?.trim();
+  if (!url) {
+    return null;
+  }
+
+  if (/api\.kyren\.moe\/v1\/hls\//i.test(url)) {
+    return { streamUrl: url, referer: kyrenReferer };
+  }
+
+  if (/megaplay\.buzz/i.test(url) || source.provider === "megaplay") {
+    const resolved = await resolveMegaplayEmbedStream(url);
+    if (!resolved) {
+      return null;
+    }
+
+    const megaplayReferer = `${MEGAPLAY_ORIGIN}/`;
+    return {
+      streamUrl: resolved.streamUrl,
+      referer: megaplayReferer,
+      playbackRefresh: {
+        providerId: "megaplay",
+        referer: megaplayReferer,
+        seedStreamUrl: resolved.streamUrl,
+        megaplayId: resolved.megaplayId,
+      },
+    };
+  }
+
+  return null;
+};
+
+const resolveAnimeInfo = async (
+  anilistId: number,
+  referer: string,
+): Promise<KyrenInfo | null> => {
   const response = await scrapeFetch(
     `${KYREN_ORIGIN}/api/anime/info/${anilistId}`,
-    {
-      headers: {
-        Accept: "application/json",
-        Origin: KYREN_ORIGIN,
-        Referer: `${KYREN_ORIGIN}/`,
-      },
-    },
+    { headers: kyrenHeaders(referer) },
   );
 
   if (!response.ok) {
     await cancelResponseBody(response);
-    return "anime";
+    return null;
   }
 
-  const info = (await response.json()) as KyrenInfo;
-  return info.titleEnglish || info.title || info.titleRomaji || "anime";
+  return (await response.json()) as KyrenInfo;
 };
+
+const resolveStreamTitle = (info: KyrenInfo | null, query?: string): string =>
+  query?.trim() ||
+  info?.titleEnglish?.trim() ||
+  info?.title?.trim() ||
+  info?.titleRomaji?.trim() ||
+  "anime";
 
 const mapSubtitles = (
   subtitles: KyrenStreamResponse["subtitles"],
@@ -76,67 +144,100 @@ export async function scrapeKyren(
 ): Promise<AnimeScrapeResult> {
   const providerId = "kyren" as const;
   const lang = input.translationType === "dub" ? "dub" : "sub";
+  const servers = lang === "dub" ? KYREN_SERVERS_DUB : KYREN_SERVERS_SUB;
 
   try {
-    const title = await resolveTitle(input.anilistId);
-    const params = new URLSearchParams({ lang, title });
-    const response = await scrapeFetch(
-      `${KYREN_ORIGIN}/api/stream/${input.anilistId}/${input.episodeNumber}?${params.toString()}`,
-      {
-        headers: {
-          Accept: "application/json",
-          Origin: KYREN_ORIGIN,
-          Referer: `${KYREN_ORIGIN}/`,
-        },
-      },
-    );
+    const info = await resolveAnimeInfo(input.anilistId, `${KYREN_ORIGIN}/`);
+    const title = resolveStreamTitle(info, input.query);
+    const playerReferer = kyrenPlayerReferer(info?.idMal, input.episodeNumber);
+    let lastError = "Kyren returned no sources";
 
-    if (!response.ok) {
-      await cancelResponseBody(response);
-      return {
-        ok: false,
-        providerId,
-        error: `Kyren stream failed (${response.status})`,
-      };
+    for (const server of servers) {
+      const params = new URLSearchParams({ lang, title, server });
+      if (typeof info?.seasonYear === "number" && info.seasonYear > 0) {
+        params.set("year", String(info.seasonYear));
+      }
+      if (typeof info?.episodes === "number" && info.episodes > 0) {
+        params.set("episodes", String(info.episodes));
+      }
+
+      const response = await scrapeFetch(
+        `${KYREN_ORIGIN}/api/stream/${input.anilistId}/${input.episodeNumber}?${params.toString()}`,
+        { headers: kyrenHeaders(playerReferer) },
+      );
+
+      if (!response.ok) {
+        await cancelResponseBody(response);
+        lastError = `Kyren stream failed (${response.status})`;
+        continue;
+      }
+
+      const payload = (await response.json()) as KyrenStreamResponse;
+      const sources = (payload.sources ?? []).filter((source) =>
+        Boolean(source.url),
+      );
+      if (sources.length === 0) {
+        lastError = payload.error ?? "Kyren returned no sources";
+        continue;
+      }
+
+      const ranked = [...sources].sort(
+        (a, b) => qualityRank(b.quality) - qualityRank(a.quality),
+      );
+
+      for (const source of ranked) {
+        const playable = await resolveKyrenPlayableSource(
+          source,
+          playerReferer,
+        );
+        if (!playable) {
+          continue;
+        }
+
+        const qualities: ScrapeQuality[] = (
+          await Promise.all(
+            ranked
+              .filter((candidate) => candidate.url !== source.url)
+              .map(async (candidate) => {
+                const resolved = await resolveKyrenPlayableSource(
+                  candidate,
+                  playerReferer,
+                );
+                if (!resolved) {
+                  return null;
+                }
+
+                return {
+                  label: candidate.quality ?? candidate.provider ?? "auto",
+                  url: resolved.streamUrl,
+                  referer: resolved.referer,
+                } satisfies ScrapeQuality;
+              }),
+          )
+        ).filter((quality) => quality !== null);
+
+        return {
+          ok: true,
+          providerId,
+          streamUrl: playable.streamUrl,
+          streamKind: "hls",
+          referer: playable.referer,
+          playbackRefresh: playable.playbackRefresh,
+          subtitles: mapSubtitles(payload.subtitles),
+          qualities: qualities.length > 0 ? qualities : undefined,
+          preferredAudioLang: preferredAudioLangForTranslation(
+            input.translationType,
+          ),
+        };
+      }
+
+      lastError = payload.error ?? "Kyren returned no playable sources";
     }
-
-    const payload = (await response.json()) as KyrenStreamResponse;
-    const sources = (payload.sources ?? []).filter((source) =>
-      Boolean(source.url),
-    );
-    if (sources.length === 0) {
-      return {
-        ok: false,
-        providerId,
-        error: payload.error ?? "Kyren returned no sources",
-      };
-    }
-
-    const ranked = [...sources].sort(
-      (a, b) => qualityRank(b.quality) - qualityRank(a.quality),
-    );
-    const best = ranked[0]!;
-    const referer = `${KYREN_ORIGIN}/`;
-
-    const qualities: ScrapeQuality[] | undefined = ranked
-      .slice(1)
-      .map((source) => ({
-        label: source.quality ?? source.provider ?? "auto",
-        url: source.url!,
-        referer,
-      }));
 
     return {
-      ok: true,
+      ok: false,
       providerId,
-      streamUrl: best.url!,
-      streamKind: "hls",
-      referer,
-      subtitles: mapSubtitles(payload.subtitles),
-      qualities: qualities.length > 0 ? qualities : undefined,
-      preferredAudioLang: preferredAudioLangForTranslation(
-        input.translationType,
-      ),
+      error: lastError,
     };
   } catch (error) {
     return {

@@ -32,4 +32,20 @@ describe("AnimeOnsen title matching", () => {
       )?.content_id,
     ).toBe("correct");
   });
+
+  it("accepts romaji spacing variants after strict match fails", () => {
+    expect(
+      findMatchingOnsenResult(
+        [
+          {
+            content_id: "hanaori",
+            content_title: "Hanaori-san wa Tensei shitemo Kenka ga Shitai",
+            content_title_en:
+              "Hanaori-san Still Wants to Fight in the Next Life",
+          },
+        ],
+        ["Hanaori-san wa Tensei Shite mo Kenka ga Shitai"],
+      )?.content_id,
+    ).toBe("hanaori");
+  });
 });

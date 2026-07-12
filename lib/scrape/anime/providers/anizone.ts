@@ -1,7 +1,7 @@
 import { preferredAudioLangForTranslation } from "../audio-preference";
 import { extractHtmlSubtitleTracks, extractM3u8Urls } from "../html-utils";
 import { searchAnizoneSlug } from "../anizone-livewire";
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { scrapeFetchText } from "../../fetch";
 
@@ -13,8 +13,14 @@ export async function scrapeAnizone(
   const providerId = "anizone" as const;
 
   try {
-    const query = await resolveAnimeSearchQuery(input);
-    const slug = await searchAnizoneSlug(query);
+    const queries = await resolveAnimeSearchQueries(input);
+    let slug: string | null = null;
+    for (const query of queries) {
+      slug = await searchAnizoneSlug(query);
+      if (slug) {
+        break;
+      }
+    }
 
     if (!slug) {
       return { ok: false, providerId, error: "AniZone slug not found" };

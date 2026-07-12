@@ -1,7 +1,4 @@
-import {
-  fetchAnilistTitleCandidates,
-  resolveAnimeSearchQuery,
-} from "../anilist-meta";
+import { resolveAnimeSearchQueries } from "../anilist-meta";
 import { isExactAnimeTitleMatch } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
@@ -98,10 +95,8 @@ const selectSearchHit = (
   expectedTitles: readonly string[],
 ): AnimestreamSearchHit | undefined => {
   const withSlug = hits.filter((hit) => Boolean(hit.slug && hit.title));
-  return (
-    withSlug.find((hit) =>
-      isExactAnimeTitleMatch(hit.title!, expectedTitles),
-    ) ?? withSlug[0]
+  return withSlug.find((hit) =>
+    isExactAnimeTitleMatch(hit.title!, expectedTitles),
   );
 };
 
@@ -142,11 +137,7 @@ export async function scrapeAnimestream(
   const providerId = "animestream" as const;
 
   try {
-    const query = await resolveAnimeSearchQuery(input);
-    const expectedTitles = [
-      query,
-      ...(await fetchAnilistTitleCandidates(input.anilistId)),
-    ];
+    const expectedTitles = await resolveAnimeSearchQueries(input);
 
     const cookie = await warmAnimestreamSession();
     let hit: AnimestreamSearchHit | undefined;

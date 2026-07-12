@@ -1,8 +1,5 @@
 import { extractFirstMatch } from "../html-utils";
-import {
-  fetchAnilistTitleCandidates,
-  resolveAnimeSearchQuery,
-} from "../anilist-meta";
+import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
 import { animeSearchLabelMatches } from "../title-match";
@@ -38,20 +35,7 @@ export async function scrapeAnimegg(
   const providerId = "animegg" as const;
 
   try {
-    const query = await resolveAnimeSearchQuery(input);
-    const seen = new Set<string>();
-    const titles: string[] = [];
-    for (const title of [
-      query,
-      ...(await fetchAnilistTitleCandidates(input.anilistId)),
-    ]) {
-      const trimmed = title.trim();
-      if (!trimmed) continue;
-      const key = trimmed.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      titles.push(trimmed);
-    }
+    const titles = await resolveAnimeSearchQueries(input);
     const seriesSlug = await findSeriesSlugFromSearch(titles);
     if (!seriesSlug) {
       return {

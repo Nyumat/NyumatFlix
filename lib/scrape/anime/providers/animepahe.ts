@@ -1,13 +1,16 @@
-import {
-  fetchAnilistTitleCandidates,
-  resolveAnimeSearchQuery,
-} from "../anilist-meta";
+import { resolveAnimeSearchQueries } from "../anilist-meta";
 import {
   animeSearchLabelMatches,
   stripAnimeSearchMetadata,
 } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { scrapeFetchText } from "../../fetch";
+import type { MegaplayPlaybackRefresh } from "../../megaplay-constants";
+import {
+  MEGAPLAY_ORIGIN,
+  resolveMegaplayEmbedStream,
+  resolveMegaplaySourcesById,
+} from "../../megaplay-sources";
 
 /** Official domains per https://animepahe.ch/ */
 const ANIMEPAHE_ORIGINS = [
@@ -15,7 +18,6 @@ const ANIMEPAHE_ORIGINS = [
   "https://animepahe.ng",
 ] as const;
 
-const MEGAPLAY_ORIGIN = "https://megaplay.buzz";
 const ORIGIN_CACHE_TTL_MS = 10 * 60_000;
 
 type CachedOrigin = {
@@ -24,20 +26,6 @@ type CachedOrigin = {
 };
 
 let cachedOrigin: CachedOrigin | null = null;
-
-const uniqueTitles = (titles: readonly string[]): string[] => {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const title of titles) {
-    const trimmed = title.trim();
-    if (!trimmed) continue;
-    const key = trimmed.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(trimmed);
-  }
-  return result;
-};
 
 const cleanSearchLabel = (raw: string): string =>
   stripAnimeSearchMetadata(raw)
@@ -397,78 +385,13 @@ const extractDirectM3u8FromEmbedUrl = (embedUrl: string): string | null => {
   return inline ? decodeURIComponent(inline) : null;
 };
 
-/** Numeric getSources ids only — not MAL ids from `/stream/mal/{mal}/{ep}/sub`. */
-const extractNumericMegaplaySourceId = (value: string): string | null => {
-  const fromQuery = value.match(/[?&]id=(\d+)/i)?.[1];
-  if (fromQuery) return fromQuery;
-
-  const pathMatch = value.match(
-    /megaplay\.buzz\/stream\/(?:s-\d+|embed|e)\/(\d+)/i,
-  );
-  return pathMatch?.[1] ?? null;
-};
-
-type MegaplaySourcesResponse = {
-  sources?: { file?: string };
-};
-
-const resolveMegaplaySourcesById = async (
-  megaplayId: string,
-): Promise<string | null> => {
-  const response = await scrapeFetchText(
-    `${MEGAPLAY_ORIGIN}/stream/getSources?id=${encodeURIComponent(megaplayId)}`,
-    {
-      Referer: `${MEGAPLAY_ORIGIN}/`,
-      "X-Requested-With": "XMLHttpRequest",
-      Accept: "application/json, text/plain, */*",
-    },
-  );
-  if (response.status !== 200) {
-    return null;
-  }
-
-  try {
-    const payload = JSON.parse(response.text) as MegaplaySourcesResponse;
-    const file = payload.sources?.file?.trim();
-    return file && /^https?:\/\//i.test(file) ? file : null;
-  } catch {
-    return null;
-  }
-};
-
-const resolveMegaplayEmbedStream = async (
-  embedUrl: string,
-): Promise<string | null> => {
-  const directId = extractNumericMegaplaySourceId(embedUrl);
-  if (directId) {
-    const fromId = await resolveMegaplaySourcesById(directId);
-    if (fromId) return fromId;
-  }
-
-  const embedPage = await scrapeFetchText(embedUrl, {
-    Referer: `${MEGAPLAY_ORIGIN}/`,
-  });
-  if (embedPage.status !== 200) {
-    return null;
-  }
-
-  const pageId =
-    embedPage.text.match(/data-id="(\d+)"/i)?.[1] ??
-    embedPage.text.match(/data-realid="(\d+)"/i)?.[1] ??
-    null;
-  if (!pageId) {
-    return null;
-  }
-
-  return resolveMegaplaySourcesById(pageId);
-};
-
 const resolveEpisodeStream = async (
   episodeHtml: string,
   pageReferer: string,
 ): Promise<{
   streamUrl: string;
   referer: string;
+  playbackRefresh?: MegaplayPlaybackRefresh;
   subtitles?: Array<{ lang: string; url: string; format: "vtt" }>;
 } | null> => {
   const embeds = extractEpisodeEmbedUrls(episodeHtml);
@@ -492,11 +415,18 @@ const resolveEpisodeStream = async (
 
   for (const embed of embeds) {
     if (!/megaplay\.buzz/i.test(embed)) continue;
-    const streamUrl = await resolveMegaplayEmbedStream(embed);
-    if (streamUrl) {
+    const resolved = await resolveMegaplayEmbedStream(embed);
+    if (resolved) {
+      const referer = `${MEGAPLAY_ORIGIN}/`;
       return {
-        streamUrl,
-        referer: `${MEGAPLAY_ORIGIN}/`,
+        streamUrl: resolved.streamUrl,
+        referer,
+        playbackRefresh: {
+          providerId: "megaplay",
+          referer,
+          seedStreamUrl: resolved.streamUrl,
+          megaplayId: resolved.megaplayId,
+        },
         ...(subtitles.length > 0 ? { subtitles } : {}),
       };
     }
@@ -521,11 +451,19 @@ const resolveEpisodeStream = async (
 
   // Legacy: bare data-id on the episode page itself.
   for (const match of episodeHtml.matchAll(/data-id="(\d+)"/gi)) {
-    const streamUrl = await resolveMegaplaySourcesById(match[1] ?? "");
+    const megaplayId = match[1] ?? "";
+    const streamUrl = await resolveMegaplaySourcesById(megaplayId);
     if (streamUrl) {
+      const referer = `${MEGAPLAY_ORIGIN}/`;
       return {
         streamUrl,
-        referer: `${MEGAPLAY_ORIGIN}/`,
+        referer,
+        playbackRefresh: {
+          providerId: "megaplay",
+          referer,
+          seedStreamUrl: streamUrl,
+          megaplayId,
+        },
         ...(subtitles.length > 0 ? { subtitles } : {}),
       };
     }
@@ -540,11 +478,7 @@ export async function scrapeAnimepahe(
   const providerId = "animepahe" as const;
 
   try {
-    const query = await resolveAnimeSearchQuery(input);
-    const expectedTitles = uniqueTitles([
-      query,
-      ...(await fetchAnilistTitleCandidates(input.anilistId)),
-    ]);
+    const expectedTitles = await resolveAnimeSearchQueries(input);
 
     let origin: string | null = null;
     let seriesPath: string | null = null;
@@ -650,6 +584,9 @@ export async function scrapeAnimepahe(
       streamUrl: resolved.streamUrl,
       streamKind: "hls",
       referer: resolved.referer,
+      ...(resolved.playbackRefresh
+        ? { playbackRefresh: resolved.playbackRefresh }
+        : {}),
       ...(resolved.subtitles ? { subtitles: resolved.subtitles } : {}),
     };
   } catch (error) {

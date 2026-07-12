@@ -18,6 +18,7 @@ describe("provider registry", () => {
 
   it("lists embed-only providers not in the scrape chain", () => {
     expect(embedOnlyProviderIds()).toEqual([
+      "vidsrc-mirror",
       "superembed",
       "111movies",
       "vidfast",
@@ -36,7 +37,6 @@ describe("provider registry", () => {
   it("lists dual-capability providers for embed sub-picker", () => {
     expect(dualCapabilityEmbedProviderIds()).toEqual([
       "vidsrc",
-      "vidsrc-mirror",
       "2embed",
       "vidnest",
       "vidking",

@@ -1,5 +1,6 @@
 import { preferredAudioLangForTranslation } from "../audio-preference";
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import { isPlayableHlsStream } from "../hls-sanity";
+import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeSubtitle } from "../../types";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
@@ -98,8 +99,14 @@ export async function scrapeAnimeparadise(
   const providerId = "animeparadise" as const;
 
   try {
-    const query = await resolveAnimeSearchQuery(input);
-    const animeId = await resolveAnimeId(input.anilistId, query);
+    const queries = await resolveAnimeSearchQueries(input);
+    let animeId: string | null = null;
+    for (const query of queries) {
+      animeId = await resolveAnimeId(input.anilistId, query);
+      if (animeId) {
+        break;
+      }
+    }
     if (!animeId) {
       return {
         ok: false,
@@ -136,13 +143,22 @@ export async function scrapeAnimeparadise(
     }
 
     const streamUrl = `${PARADISE_STREAM}/m3u8?url=${encodeURIComponent(streamLink)}`;
+    const referer = `${PARADISE_ORIGIN}/`;
+
+    if (!(await isPlayableHlsStream(streamUrl, referer))) {
+      return {
+        ok: false,
+        providerId,
+        error: "AnimeParadise stream unavailable",
+      };
+    }
 
     return {
       ok: true,
       providerId,
       streamUrl,
       streamKind: "hls",
-      referer: `${PARADISE_ORIGIN}/`,
+      referer,
       subtitles: mapSubtitles(payload?.episode?.subData),
       preferredAudioLang: preferredAudioLangForTranslation(
         input.translationType,

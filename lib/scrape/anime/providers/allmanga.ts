@@ -4,10 +4,7 @@ import {
   type AllanimeSourceUrl,
 } from "../allanime-crypto";
 import { extractM3u8Urls, isDirectMediaUrl } from "../html-utils";
-import {
-  fetchAnilistTitleCandidates,
-  resolveAnimeSearchQuery,
-} from "../anilist-meta";
+import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeQuality } from "../../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
@@ -400,29 +397,31 @@ export async function scrapeAllmanga(
   const providerId = "allmanga" as const;
 
   try {
-    const query = await resolveAnimeSearchQuery(input);
-    const expectedTitles = [
-      query,
-      ...(await fetchAnilistTitleCandidates(input.anilistId)),
-    ];
+    const expectedTitles = await resolveAnimeSearchQueries(input);
     const mode = input.translationType === "dub" ? "dub" : "sub";
 
-    const searchPayload = await allanimePost<AllanimeSearchResponse>(
-      SEARCH_GQL,
-      {
-        search: { allowAdult: false, allowUnknown: false, query },
-        limit: 40,
-        page: 1,
-        translationType: mode,
-        countryOrigin: "ALL",
-      },
-    );
+    let showId: string | undefined;
+    for (const query of expectedTitles) {
+      const searchPayload = await allanimePost<AllanimeSearchResponse>(
+        SEARCH_GQL,
+        {
+          search: { allowAdult: false, allowUnknown: false, query },
+          limit: 40,
+          page: 1,
+          translationType: mode,
+          countryOrigin: "ALL",
+        },
+      );
 
-    const showId = selectAllmangaShow(
-      searchPayload.data?.shows?.edges ?? [],
-      expectedTitles,
-      input.anilistId,
-    )?._id;
+      showId = selectAllmangaShow(
+        searchPayload.data?.shows?.edges ?? [],
+        expectedTitles,
+        input.anilistId,
+      )?._id;
+      if (showId) {
+        break;
+      }
+    }
     if (!showId) {
       return { ok: false, providerId, error: "AllManga show not found" };
     }

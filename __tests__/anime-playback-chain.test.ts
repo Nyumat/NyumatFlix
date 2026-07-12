@@ -114,8 +114,6 @@ describe("anime-playback-chain", () => {
     expect(order).not.toContain("animeonsen");
     expect(order).toEqual([
       "justanime",
-      "anikitty",
-      "animeparadise",
       "kyren",
       "anikuro",
       "allmanga",
@@ -171,8 +169,6 @@ describe("anime-playback-chain", () => {
       "hentaigasm",
       "anipm",
       "justanime",
-      "anikitty",
-      "animeparadise",
       "kyren",
       "anikuro",
       "animeonsen",

@@ -3,6 +3,7 @@ import type {
   ScrapeQuality,
   ScrapeSubtitle,
 } from "../types";
+import type { ScrapePlaybackRefresh } from "../playback-refresh";
 import type { StreamKind } from "../stream-url-patterns";
 import {
   ANIME_SCRAPE_PROVIDER_LABELS,
@@ -42,6 +43,8 @@ export type AnimeScrapeSuccess = {
   streamUrl: string;
   streamKind: StreamKind;
   referer?: string;
+  playbackRefresh?: ScrapePlaybackRefresh;
+  cookies?: string;
   subtitles?: ScrapeSubtitle[];
   qualities?: ScrapeQuality[];
   audioVersions?: ScrapeAudioVersion[];
@@ -58,6 +61,8 @@ export type AnimeScrapeFailure = {
   ok: false;
   providerId: AnimeScrapeProviderId;
   error: string;
+  /** Title is not in this provider's catalog (not a transient scrape error). */
+  unavailable?: boolean;
 };
 
 export type AnimeScrapeResult = AnimeScrapeSuccess | AnimeScrapeFailure;

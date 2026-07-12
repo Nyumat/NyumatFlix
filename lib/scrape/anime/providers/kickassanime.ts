@@ -2,7 +2,7 @@ import { preferredAudioLangForTranslation } from "../audio-preference";
 import { extractM3u8Urls, parseCatPlayerProps } from "../html-utils";
 import {
   fetchAnilistTitleCandidates,
-  resolveAnimeSearchQuery,
+  resolveAnimeSearchQueries,
 } from "../anilist-meta";
 import { isExactAnimeTitleMatch } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
@@ -114,35 +114,39 @@ export async function scrapeKickassanime(
   const providerId = "kickassanime" as const;
 
   try {
-    const query = await resolveAnimeSearchQuery(input);
-    const searchResponse = await scrapeFetch(`${KAA_ORIGIN}/api/fsearch`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Origin: KAA_ORIGIN,
-        Referer: `${KAA_ORIGIN}/`,
-      },
-      body: JSON.stringify({ page: 1, query }),
-    });
+    const queries = await resolveAnimeSearchQueries(input);
+    let slug: string | null = null;
+    let expectedTitles: string[] = [];
 
-    if (!searchResponse.ok) {
-      await cancelResponseBody(searchResponse);
-      return {
-        ok: false,
-        providerId,
-        error: `KAA search failed (${searchResponse.status})`,
-      };
+    for (const query of queries) {
+      const searchResponse = await scrapeFetch(`${KAA_ORIGIN}/api/fsearch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: KAA_ORIGIN,
+          Referer: `${KAA_ORIGIN}/`,
+        },
+        body: JSON.stringify({ page: 1, query }),
+      });
+
+      if (!searchResponse.ok) {
+        await cancelResponseBody(searchResponse);
+        continue;
+      }
+
+      const searchPayload = (await searchResponse.json()) as KaaSearchResult;
+      expectedTitles = [
+        query,
+        ...(await fetchAnilistTitleCandidates(input.anilistId)),
+      ];
+      slug =
+        selectKaaSearchResult(searchPayload.result, expectedTitles)?.slug ??
+        null;
+      if (slug) {
+        break;
+      }
     }
 
-    const searchPayload = (await searchResponse.json()) as KaaSearchResult;
-    const expectedTitles = [
-      query,
-      ...(await fetchAnilistTitleCandidates(input.anilistId)),
-    ];
-    const slug = selectKaaSearchResult(
-      searchPayload.result,
-      expectedTitles,
-    )?.slug;
     if (!slug) {
       return { ok: false, providerId, error: "KAA show slug not found" };
     }
