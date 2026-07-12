@@ -1,4 +1,5 @@
 import { fetchImdbTrailerStreams } from "@/lib/imdb-trailer";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import { signedUrlCacheHeaders } from "@/lib/http-cache";
 import {
   pickBestVideasyHlsStream,
@@ -11,6 +12,14 @@ export const dynamic = "force-dynamic";
 const IMDB_ID_PATTERN = /^tt\d+$/;
 
 export async function GET(request: Request) {
+  const flags = await getSiteFlags();
+  if (flags.staticHeroBackdrops) {
+    return NextResponse.json(
+      { url: null, hlsUrl: null, error: "disabled_by_flag" },
+      { status: 200 },
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const imdbId = searchParams.get("imdbId")?.trim() ?? "";
 

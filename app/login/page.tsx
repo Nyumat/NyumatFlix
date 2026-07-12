@@ -20,6 +20,7 @@ import { ArrowRight, Mail } from "lucide-react";
 import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import { AuthShell } from "./auth-shell";
 
 export const metadata: Metadata = {
@@ -65,7 +66,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const flags = await getSiteFlags();
+  if (!flags.authEnabled) {
+    redirect("/");
+  }
+
   const handleLogin = async (formData: FormData) => {
     "use server";
 

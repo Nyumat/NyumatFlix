@@ -26,6 +26,13 @@ import {
 import { primeVidKingSession } from "@/lib/scrape/vidking-playback";
 import { primeVixsrcSession } from "@/lib/scrape/vixsrc-playback";
 import { isVidnestClientOnlyCdn } from "@/lib/scrape/vidnest-shared";
+import {
+  filterAnimeScrapeProviderIds,
+  filterTmdbScrapeProviderIds,
+  getSiteFlags,
+  isAnimeScrapeProviderEnabled,
+  isTmdbScrapeProviderEnabled,
+} from "@/lib/flags/site-flags";
 import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
 
 const tmdbProviderIds = TMDB_SCRAPE_PROVIDER_ORDER as unknown as [
@@ -134,6 +141,21 @@ export async function handleScrapePost(request: Request) {
 async function handleTmdbScrapePost(
   input: z.infer<typeof tmdbScrapeBodySchema> & { mediaKind?: "tmdb" },
 ) {
+  const flags = await getSiteFlags();
+  if (!isTmdbScrapeProviderEnabled(flags, input.providerId)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        mediaKind: "tmdb",
+        providerId: input.providerId,
+        providerName:
+          TMDB_SCRAPE_PROVIDER_LABELS[input.providerId as TmdbScrapeProviderId],
+        error: "Provider disabled by site policy",
+      },
+      { status: 403 },
+    );
+  }
+
   const result = await scrapeProvider(input.providerId, {
     mediaType: input.mediaType,
     tmdbId: input.tmdbId,
@@ -209,6 +231,26 @@ async function handleTmdbScrapePost(
 async function handleAnimeScrapePost(
   input: z.infer<typeof animeScrapeBodySchema>,
 ) {
+  const flags = await getSiteFlags();
+  if (
+    input.providerId &&
+    !isAnimeScrapeProviderEnabled(flags, input.providerId)
+  ) {
+    return NextResponse.json(
+      {
+        ok: false,
+        mediaKind: "anime",
+        providerId: input.providerId,
+        providerName:
+          ANIME_SCRAPE_PROVIDER_LABELS[
+            input.providerId as AnimeScrapeProviderId
+          ],
+        error: "Provider disabled by site policy",
+      },
+      { status: 403 },
+    );
+  }
+
   const scrapeInput = {
     anilistId: input.anilistId,
     episodeNumber: input.episodeNumber,
@@ -262,29 +304,45 @@ async function handleAnimeScrapePost(
   });
 }
 
-export function handleScrapeGet() {
+export async function handleScrapeGet() {
+  const flags = await getSiteFlags();
+  const tmdbIds = filterTmdbScrapeProviderIds(
+    flags,
+    TMDB_SCRAPE_PROVIDER_ORDER,
+  );
+  const animeIds = filterAnimeScrapeProviderIds(
+    flags,
+    ANIME_SCRAPE_PROVIDER_ORDER,
+  );
+
   return NextResponse.json({
     providers: {
-      tmdb: TMDB_SCRAPE_PROVIDER_ORDER.map((providerId) => ({
+      tmdb: tmdbIds.map((providerId) => ({
         id: providerId,
-        name: TMDB_SCRAPE_PROVIDER_LABELS[providerId],
+        name: TMDB_SCRAPE_PROVIDER_LABELS[providerId as TmdbScrapeProviderId],
       })),
-      anime: ANIME_SCRAPE_PROVIDER_ORDER.map((providerId) => ({
+      anime: animeIds.map((providerId) => ({
         id: providerId,
-        name: ANIME_SCRAPE_PROVIDER_LABELS[providerId],
+        name: ANIME_SCRAPE_PROVIDER_LABELS[providerId as AnimeScrapeProviderId],
       })),
     },
   });
 }
 
-export function handleAnimeScrapeGet() {
+export async function handleAnimeScrapeGet() {
+  const flags = await getSiteFlags();
+  const animeIds = filterAnimeScrapeProviderIds(
+    flags,
+    ANIME_SCRAPE_PROVIDER_ORDER,
+  );
+
   const payload: {
     providers: Array<{ id: AnimeScrapeProviderId; name: string }>;
     testLinks?: Record<string, unknown>;
   } = {
-    providers: ANIME_SCRAPE_PROVIDER_ORDER.map((providerId) => ({
-      id: providerId,
-      name: ANIME_SCRAPE_PROVIDER_LABELS[providerId],
+    providers: animeIds.map((providerId) => ({
+      id: providerId as AnimeScrapeProviderId,
+      name: ANIME_SCRAPE_PROVIDER_LABELS[providerId as AnimeScrapeProviderId],
     })),
   };
 

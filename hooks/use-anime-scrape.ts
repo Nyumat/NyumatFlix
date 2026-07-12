@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { filterAnimeScrapeProviderIds } from "@/lib/flags/site-flags";
 import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
 import {
   ANIME_SCRAPE_PROVIDER_LABELS,
@@ -50,11 +52,25 @@ const animeScrapeLoopConfig = {
 } as const;
 
 export function useAnimeScrape() {
+  const flags = useFeatureFlagsOptional();
+  const config = useMemo(
+    () => ({
+      ...animeScrapeLoopConfig,
+      providerOrder: flags
+        ? (filterAnimeScrapeProviderIds(
+            flags,
+            ANIME_SCRAPE_PROVIDER_ORDER,
+          ) as typeof ANIME_SCRAPE_PROVIDER_ORDER)
+        : ANIME_SCRAPE_PROVIDER_ORDER,
+    }),
+    [flags],
+  );
+
   return useProviderScrapeLoop<
     AnimeScrapeProviderId,
     AnimeScrapeInput,
     AnimeScrapeSuccessPayload
-  >(useMemo(() => animeScrapeLoopConfig, []));
+  >(config);
 }
 
 export type UseAnimeScrapeReturn = ReturnType<typeof useAnimeScrape>;

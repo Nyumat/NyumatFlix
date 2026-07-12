@@ -1,6 +1,6 @@
 "use client";
 
-import { isLiveTvEnabled } from "@/config/features";
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
 import { SiteNav } from "@/components/layout/site-nav";
 import { SiteNavDesktop } from "@/components/layout/site-nav-desktop";
 import { AnniversaryBanner } from "@/components/layout/anniversary-banner";
@@ -45,20 +45,6 @@ const DETAIL_PARENT_ROUTES: Array<{
 const getDetailRouteConfig = (pathname: string) =>
   DETAIL_PARENT_ROUTES.find(({ pattern }) => pattern.test(pathname));
 
-const CATALOG_ROUTE_PATTERNS = [
-  /^\/$/,
-  /^\/movies(?:\/(?:browse|now-playing|popular|top-rated|upcoming))?$/,
-  /^\/tvshows(?:\/(?:airing-today|browse|on-the-air|popular|top-rated))?$/,
-  /^\/anime$/,
-  ...(isLiveTvEnabled() ? [/^\/live$/] : []),
-  /^\/trending(?:\/(?:movie|people|tv))?$/,
-  /^\/browse\/(?:country|genre)\/[^/]+$/,
-  /^\/people\/popular$/,
-];
-
-const isCatalogRoute = (pathname: string) =>
-  CATALOG_ROUTE_PATTERNS.some((pattern) => pattern.test(pathname));
-
 const isAuthRoute = (pathname: string) =>
   pathname === "/login" || pathname.startsWith("/login/");
 
@@ -66,6 +52,22 @@ const detailNavbarActionButtonClassName =
   "border-white/25 bg-black/35 text-white shadow-lg shadow-black/35 ring-white/20 hover:border-white/35 hover:bg-black/45 hover:ring-white/30";
 
 export const NavbarClient = ({ session }: NavbarClientProps) => {
+  const flags = useFeatureFlagsOptional();
+  const liveTvEnabled = flags?.liveTvEnabled ?? false;
+  const isCatalogRoute = (pathname: string) => {
+    const patterns = [
+      /^\/$/,
+      /^\/movies(?:\/(?:browse|now-playing|popular|top-rated|upcoming))?$/,
+      /^\/tvshows(?:\/(?:airing-today|browse|on-the-air|popular|top-rated))?$/,
+      /^\/anime$/,
+      ...(liveTvEnabled ? [/^\/live$/] : []),
+      /^\/trending(?:\/(?:movie|people|tv))?$/,
+      /^\/browse\/(?:country|genre)\/[^/]+$/,
+      /^\/people\/popular$/,
+    ];
+    return patterns.some((pattern) => pattern.test(pathname));
+  };
+
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const detailRouteConfig = getDetailRouteConfig(pathname);
@@ -167,6 +169,8 @@ const DetailPageActions = ({
   setIsSearchOpen: (open: boolean) => void;
 }) => {
   const router = useRouter();
+  const flags = useFeatureFlagsOptional();
+  const authEnabled = flags?.authEnabled ?? true;
 
   const handleBack = () => {
     if (
@@ -238,7 +242,7 @@ const DetailPageActions = ({
               session={session}
               triggerClassName={detailNavbarActionButtonClassName}
             />
-          ) : (
+          ) : authEnabled ? (
             <Button
               asChild
               variant="ghost"
@@ -255,7 +259,7 @@ const DetailPageActions = ({
                 />
               </Link>
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </header>

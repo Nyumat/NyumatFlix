@@ -1,0 +1,19 @@
+services:
+  flipt:
+    image: docker.flipt.io/flipt/flipt:v2
+    container_name: flipt
+    restart: unless-stopped
+    environment:
+      FLIPT_API_TOKEN: ${FLIPT_API_TOKEN:?Set FLIPT_API_TOKEN}
+    volumes:
+      - flipt-data:/var/opt/flipt
+      - ./flipt/config.yaml:/etc/flipt/config/default.yml:ro
+    networks:
+      - betterome
+
+networks:
+  betterome:
+    external: true
+
+volumes:
+  flipt-data:

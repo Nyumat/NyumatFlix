@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isLiveTvEnabled } from "@/config/features";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import {
   decodeLiveStreamToken,
   isAllowedLiveStreamUrl,
@@ -55,7 +55,8 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, context: RouteContext) {
-  if (!isLiveTvEnabled()) {
+  const flags = await getSiteFlags();
+  if (!flags.liveTvEnabled) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
