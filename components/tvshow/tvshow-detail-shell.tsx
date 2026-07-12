@@ -11,6 +11,7 @@ import {
   fromAnilistTvRouteId,
   isAnilistTvRouteId,
 } from "@/lib/anilist-route-id";
+import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-video";
 import { useDetailRouteStore } from "@/lib/stores/detail-route-store";
 import { TvShowDetails } from "@/lib/domain/typings";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -100,7 +101,8 @@ export const TvShowDetailShell = ({
           {
             ...details,
             title: details.name,
-            videos: details.videos?.results || [],
+            // Above-fold stores a video array; full details use `{ results }`.
+            videos: extractVideoRowsFromMediaVideos(details.videos),
           },
         ]}
         mediaType="tv"

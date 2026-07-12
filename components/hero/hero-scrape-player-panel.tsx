@@ -12,7 +12,11 @@ import { USE_SHAKA_DASH } from "@/lib/constants";
 import { buildScrapePlayerKey } from "@/lib/scrape/player-sources";
 import type { SourceOverlayItem } from "@/lib/scrape/source-overlay";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
-import type { ScrapeQuality, ScrapeSubtitle } from "@/lib/scrape/types";
+import type {
+  ScrapeAudioVersion,
+  ScrapeQuality,
+  ScrapeSubtitle,
+} from "@/lib/scrape/types";
 import { isScrapeServer, type VideoServer } from "@/lib/stores/server-store";
 
 const ScrapeHlsPlayer = dynamic(
@@ -47,7 +51,11 @@ type HeroScrapePlayerPanelProps = {
     playUrl: string;
     qualities?: ScrapeQuality[];
     subtitles?: ScrapeSubtitle[];
+    audioVersions?: ScrapeAudioVersion[];
+    defaultAudioLang?: string;
+    defaultHardSubLang?: string;
     referer?: string;
+    preferredAudioLang?: string;
   } | null;
   scrapeError: string | null;
   activeProviderId: string | null;
@@ -55,11 +63,12 @@ type HeroScrapePlayerPanelProps = {
   playbackTitle: string;
   playbackPosterUrl: string | null;
   progressKey: PlaybackProgressKey | null;
+  imdbId: string | null;
   streamKind: StreamKind;
   isTv: boolean;
   onSelectEmbedServer: (serverId: string) => void;
   onFatalError: () => void;
-  onEnded?: () => void;
+  onEnded?: () => Promise<boolean>;
 };
 
 export function HeroScrapePlayerPanel({
@@ -72,6 +81,7 @@ export function HeroScrapePlayerPanel({
   playbackTitle,
   playbackPosterUrl,
   progressKey,
+  imdbId,
   streamKind,
   isTv,
   onSelectEmbedServer,
@@ -107,6 +117,7 @@ export function HeroScrapePlayerPanel({
             title={playbackTitle}
             poster={playbackPosterUrl}
             progressKey={progressKey}
+            imdbId={imdbId}
             className="h-full w-full"
             onFatalError={onFatalError}
             onEnded={isTv ? onEnded : undefined}
@@ -117,15 +128,21 @@ export function HeroScrapePlayerPanel({
               playUrl: scrapeResult.playUrl,
               qualities: scrapeResult.qualities,
               subtitles: scrapeResult.subtitles,
+              audioVersions: scrapeResult.audioVersions,
             })}
             playUrl={scrapeResult.playUrl}
             streamKind={streamKind}
             qualities={scrapeResult.qualities}
             referer={scrapeResult.referer}
             subtitles={scrapeResult.subtitles}
+            audioVersions={scrapeResult.audioVersions}
+            defaultAudioLang={scrapeResult.defaultAudioLang}
+            defaultHardSubLang={scrapeResult.defaultHardSubLang}
+            preferredAudioLang={scrapeResult.preferredAudioLang}
             title={playbackTitle}
             poster={playbackPosterUrl}
             progressKey={progressKey}
+            imdbId={imdbId}
             className="h-full w-full"
             onFatalError={onFatalError}
             onEnded={isTv ? onEnded : undefined}

@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/select";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
+import {
+  animeSeasonNumberForEpisode,
+  toAnimeDisplayCoords,
+  type MappingSegment,
+} from "@/lib/anime/tmdb-anilist-map";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import {
   matchesEpisodeSearch,
@@ -35,11 +40,7 @@ export type HeroTvEpisodePanelProps = {
 };
 
 type AnimeSeasonMap = {
-  segments?: Array<{
-    startEpisode: number;
-    endEpisode: number;
-    anilistMediaId: number;
-  }>;
+  segments?: MappingSegment[];
 };
 
 export function HeroTvEpisodePanel({
@@ -158,6 +159,27 @@ export function HeroTvEpisodePanel({
   }, [selectedSeason, animeSegments.length]);
 
   useEffect(() => {
+    if (
+      !useAnimeSeasonGroups ||
+      !selectedEpisode ||
+      animeSegments.length === 0
+    ) {
+      return;
+    }
+
+    const segmentIndex = animeSegments.findIndex(
+      (segment) =>
+        selectedEpisode.episode_number >= segment.startEpisode &&
+        selectedEpisode.episode_number <= segment.endEpisode,
+    );
+    if (segmentIndex >= 0) {
+      setSelectedAnimeSegment(segmentIndex);
+    }
+    // Only re-sync when the selected episode changes or segments first arrive —
+    // not when the user manually browses another anime season group.
+  }, [animeSegments, selectedEpisode?.id, useAnimeSeasonGroups]);
+
+  useEffect(() => {
     const seasonDetail = selectedSeasonQuery.data;
     if (!seasonDetail) return;
     setLoadedSeasonDetails((current) => ({
@@ -223,17 +245,50 @@ export function HeroTvEpisodePanel({
       const seasonEpisodes =
         loadedSeasonDetails[episodeSeason]?.episodes ??
         allSeasonDetails?.[episodeSeason]?.episodes;
+
+      const segment = useAnimeSeasonGroups
+        ? (animeSegments.find(
+            (entry) =>
+              episode.episode_number >= entry.startEpisode &&
+              episode.episode_number <= entry.endEpisode,
+          ) ?? null)
+        : null;
+      const animeSeasonNumber = segment
+        ? animeSeasonNumberForEpisode(animeSegments, episode.episode_number)
+        : null;
+
       setSelectedEpisode(
         episode,
         tvId,
         episodeSeason,
-        undefined,
+        segment
+          ? {
+              anilistId: segment.anilistMediaId,
+              startEpisode: segment.startEpisode,
+              endEpisode: segment.endEpisode,
+            }
+          : undefined,
         false,
         seasonEpisodes,
+        segment
+          ? {
+              confidence: "high",
+              isAdult: details.adult === true,
+              animeSeasonNumber,
+            }
+          : undefined,
       );
       setSelectedSeason(episodeSeason);
     },
-    [allSeasonDetails, loadedSeasonDetails, setSelectedEpisode, tvId],
+    [
+      allSeasonDetails,
+      animeSegments,
+      details.adult,
+      loadedSeasonDetails,
+      setSelectedEpisode,
+      tvId,
+      useAnimeSeasonGroups,
+    ],
   );
 
   const isRowSelected = useCallback(
@@ -383,6 +438,12 @@ export function HeroTvEpisodePanel({
           ) : (
             displayedList.map(({ episode, seasonNumber: epSeason }) => {
               const active = isRowSelected(episode, epSeason);
+              const animeDisplay = useAnimeSeasonGroups
+                ? toAnimeDisplayCoords(animeSegments, episode.episode_number)
+                : null;
+              const badgeEpisodeNumber =
+                animeDisplay?.episodeNumber ?? episode.episode_number;
+              const labelSeasonNumber = animeDisplay?.seasonNumber ?? epSeason;
               return (
                 <button
                   key={`${epSeason}-${episode.id}`}
@@ -414,13 +475,16 @@ export function HeroTvEpisodePanel({
                       </div>
                     )}
                     <span className="absolute bottom-2 left-2 flex h-7 min-w-7 items-center justify-center rounded-md bg-background/85 px-2 text-sm font-semibold text-foreground ring-1 ring-border backdrop-blur">
-                      {episode.episode_number}
+                      {badgeEpisodeNumber}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1 self-center">
-                    {searchActive || epSeason !== selectedSeason ? (
+                    {searchActive ||
+                    (useAnimeSeasonGroups
+                      ? labelSeasonNumber !== selectedAnimeSegment + 1
+                      : epSeason !== selectedSeason) ? (
                       <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-primary">
-                        Season {epSeason}
+                        Season {labelSeasonNumber}
                       </p>
                     ) : null}
                     <p

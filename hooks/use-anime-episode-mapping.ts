@@ -44,6 +44,7 @@ export function useAnimeEpisodeMapping() {
         },
         confidence: "high",
         isAdult: defaultIsAdultAnime,
+        animeSeasonNumber: seasonNumber,
       });
       return;
     }
@@ -62,6 +63,7 @@ export function useAnimeEpisodeMapping() {
         animeInfo: coords.animeInfo,
         confidence: coords.confidence,
         isAdult: coords.isAdult,
+        animeSeasonNumber: coords.animeSeasonNumber,
       });
     });
 

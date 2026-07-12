@@ -80,6 +80,8 @@ export function HeroContent({
     seasonNumber,
     clearSelectedEpisode,
     setWatchCallback,
+    animeSeasonNumber,
+    relativeEpisodeNumber,
   } = useEpisodeStore();
   const scrapeChrome = useScrapeChrome();
   const title = media.title || media.name;
@@ -229,6 +231,9 @@ export function HeroContent({
 
   const displayEpisode = selectedEpisode || initialEpisode;
   const displaySeasonNumber = seasonNumber || initialSeasonNumber;
+  const labelSeasonNumber = animeSeasonNumber ?? displaySeasonNumber;
+  const labelEpisodeNumber =
+    relativeEpisodeNumber ?? displayEpisode?.episode_number ?? null;
   const isLastWatchedEpisode =
     displayEpisode != null &&
     displaySeasonNumber != null &&
@@ -249,33 +254,42 @@ export function HeroContent({
           style={{ top: "calc(100% - 6rem)", left: 0, right: 0 }}
         >
           <div className="md:max-w-7xl lg:max-w-8xl mx-auto flex items-center justify-end gap-3 sm:gap-4">
-            <ServerSelector
-              media={media}
-              mediaType={mediaType}
-              scrapeStatus={scrapeChrome.scrapeStatus}
-              activeScrapeProviderId={
-                scrapeChrome.activeProviderId ?? undefined
-              }
-              activeScrapeProviderName={
-                scrapeChrome.activeProviderName ?? undefined
-              }
-              scrapeProviders={scrapeChrome.scrapeProviders}
-              onSelectScrapeProvider={
-                scrapeChrome.onSelectScrapeProvider ?? undefined
-              }
-              onFindNextSource={scrapeChrome.onFindNextSource ?? undefined}
-              canFindNextSource={scrapeChrome.canFindNextSource}
-              onServerSelect={() => {
-                if (isPlayingTrailer && youtubePlayer?.destroy) {
-                  youtubePlayer.destroy();
-                  setYoutubePlayer(null);
-                }
-                if (isPlayingTrailer) {
+            {isPlayingTrailer ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (youtubePlayer?.destroy) {
+                    youtubePlayer.destroy();
+                    setYoutubePlayer(null);
+                  }
                   handleTrailerEnded();
                   handleWatch();
+                }}
+                className="flex items-center gap-2 rounded-full border border-white/60 bg-white px-4 py-2 font-bold text-black shadow-lg backdrop-blur-md transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
+                aria-label="Play"
+              >
+                <Icons.play className="h-4 w-4 fill-black stroke-black" />
+                <span className="text-sm">Play</span>
+              </button>
+            ) : (
+              <ServerSelector
+                media={media}
+                mediaType={mediaType}
+                scrapeStatus={scrapeChrome.scrapeStatus}
+                activeScrapeProviderId={
+                  scrapeChrome.activeProviderId ?? undefined
                 }
-              }}
-            />
+                activeScrapeProviderName={
+                  scrapeChrome.activeProviderName ?? undefined
+                }
+                scrapeProviders={scrapeChrome.scrapeProviders}
+                onSelectScrapeProvider={
+                  scrapeChrome.onSelectScrapeProvider ?? undefined
+                }
+                onFindNextSource={scrapeChrome.onFindNextSource ?? undefined}
+                canFindNextSource={scrapeChrome.canFindNextSource}
+              />
+            )}
             <button
               onClick={() => {
                 if (isPlayingTrailer && youtubePlayer) {
@@ -386,7 +400,8 @@ export function HeroContent({
                           className="overflow-hidden flex flex-col"
                         >
                           {displayEpisode &&
-                            displaySeasonNumber &&
+                            labelSeasonNumber &&
+                            labelEpisodeNumber &&
                             mediaType === "tv" && (
                               <motion.div
                                 variants={{
@@ -414,8 +429,8 @@ export function HeroContent({
                                     {isLastWatchedEpisode
                                       ? "Continue"
                                       : "Up next"}{" "}
-                                    from S{displaySeasonNumber}E
-                                    {displayEpisode.episode_number}
+                                    from S{labelSeasonNumber}E
+                                    {labelEpisodeNumber}
                                     {displayEpisode.name ? (
                                       <span className="font-normal text-white/65">
                                         {" "}

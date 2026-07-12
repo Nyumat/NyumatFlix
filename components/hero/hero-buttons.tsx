@@ -3,6 +3,7 @@
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { WatchlistButton } from "@/components/watchlist/watchlist";
 import { pages } from "@/config/pages";
+import { resolveEpisodeAnimeMapping } from "@/lib/anime/resolve-episode-mapping";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import {
@@ -45,8 +46,16 @@ export function HeroButtons({
   initialSeasonNumber,
   canPlayTrailer,
 }: HeroButtonsProps) {
-  const { selectedEpisode, seasonNumber, tvShowId, setSelectedEpisode } =
-    useEpisodeStore();
+  const {
+    selectedEpisode,
+    seasonNumber,
+    tvShowId,
+    setSelectedEpisode,
+    defaultAnilistId,
+    defaultIsAdultAnime,
+    animeSeasonNumber,
+    relativeEpisodeNumber,
+  } = useEpisodeStore();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -136,19 +145,54 @@ export function HeroButtons({
     const storeState = useEpisodeStore.getState();
     if (
       isSameTvWatchTarget(watchTarget, storeState, contentId) &&
-      storeState.selectedEpisode?.id === episode.id
+      storeState.selectedEpisode?.id === episode.id &&
+      storeState.isAnimeEpisode
     ) {
       handleWatch();
       return;
+    }
+
+    let animeInfo:
+      | {
+          anilistId: number;
+          startEpisode: number;
+          endEpisode: number;
+        }
+      | undefined;
+    let mapping:
+      | {
+          confidence: "high" | "low";
+          isAdult: boolean;
+          animeSeasonNumber?: number | null;
+        }
+      | undefined;
+
+    if (defaultAnilistId) {
+      const coords = await resolveEpisodeAnimeMapping({
+        tmdbShowId: contentId,
+        seasonNumber: targetSeasonNumber,
+        episodeNumber: episode.episode_number,
+        sourceAnilistId: defaultAnilistId,
+        isAdult: defaultIsAdultAnime,
+      });
+      if (coords) {
+        animeInfo = coords.animeInfo;
+        mapping = {
+          confidence: coords.confidence,
+          isAdult: coords.isAdult,
+          animeSeasonNumber: coords.animeSeasonNumber,
+        };
+      }
     }
 
     setSelectedEpisode(
       episode,
       String(contentId),
       targetSeasonNumber,
-      undefined,
+      animeInfo,
       false,
       seasonEpisodes,
+      mapping,
     );
   };
 
@@ -158,7 +202,10 @@ export function HeroButtons({
     }
     if (mediaType === "tv") {
       if (watchTarget) {
-        return formatTvWatchLabel(watchTarget);
+        return formatTvWatchLabel(watchTarget, {
+          seasonNumber: animeSeasonNumber,
+          episodeNumber: relativeEpisodeNumber,
+        });
       }
       return "Episodes";
     }

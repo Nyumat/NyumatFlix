@@ -53,6 +53,7 @@ export function useHeroScrapePlayback({
     isAnimeEpisode,
     anilistId: episodeAnilistId,
     relativeEpisodeNumber,
+    animeSeasonNumber,
     mappingConfidence,
     isAdultAnime,
     advanceToNextEpisode,
@@ -114,8 +115,18 @@ export function useHeroScrapePlayback({
         mediaType: resolvedMediaType,
         seasonNumber,
         episode: selectedEpisode,
+        displaySeasonNumber: animeSeasonNumber,
+        displayEpisodeNumber: relativeEpisodeNumber,
       }),
-    [media.name, media.title, resolvedMediaType, seasonNumber, selectedEpisode],
+    [
+      animeSeasonNumber,
+      media.name,
+      media.title,
+      relativeEpisodeNumber,
+      resolvedMediaType,
+      seasonNumber,
+      selectedEpisode,
+    ],
   );
 
   const buildPlaybackProgressKey =
@@ -546,7 +557,7 @@ export function useHeroScrapePlayback({
 
   const handleScrapePlaybackEnded = useCallback(async () => {
     if (resolvedMediaType !== "tv") {
-      return;
+      return false;
     }
 
     const advanced = await advanceToNextEpisode();
@@ -554,6 +565,7 @@ export function useHeroScrapePlayback({
       lastScrapeMediaKeyRef.current = null;
       startScrapingForCurrentMedia();
     }
+    return advanced;
   }, [
     advanceToNextEpisode,
     isPlayingVideo,

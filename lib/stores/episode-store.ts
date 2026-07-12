@@ -29,6 +29,10 @@ interface EpisodeState {
   isAnimeEpisode: boolean;
   anilistId: number | null;
   relativeEpisodeNumber: number | null;
+  /** 1-based AniList-segment season when TMDB collapses cours into one season. */
+  animeSeasonNumber: number | null;
+  animeSegmentStart: number | null;
+  animeSegmentEnd: number | null;
   mappingConfidence: MappingConfidence | null;
   isAdultAnime: boolean;
   defaultAnilistId: number | null;
@@ -48,6 +52,7 @@ interface EpisodeState {
     mapping?: {
       confidence: MappingConfidence;
       isAdult: boolean;
+      animeSeasonNumber?: number | null;
     },
   ) => void;
   applyAnimeEpisodeMapping: (mapping: {
@@ -58,6 +63,7 @@ interface EpisodeState {
     };
     confidence: MappingConfidence;
     isAdult: boolean;
+    animeSeasonNumber?: number | null;
   }) => void;
   clearSelectedEpisode: () => void;
   setDefaultAnilistId: (anilistId: number | null, isAdult?: boolean) => void;
@@ -109,6 +115,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   isAnimeEpisode: false,
   anilistId: null,
   relativeEpisodeNumber: null,
+  animeSeasonNumber: null,
+  animeSegmentStart: null,
+  animeSegmentEnd: null,
   mappingConfidence: null,
   isAdultAnime: false,
   defaultAnilistId: null,
@@ -142,6 +151,11 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       isAnimeEpisode,
       anilistId,
       relativeEpisodeNumber,
+      animeSeasonNumber: isAnimeEpisode
+        ? (mapping?.animeSeasonNumber ?? null)
+        : null,
+      animeSegmentStart: effectiveAnimeInfo?.startEpisode ?? null,
+      animeSegmentEnd: effectiveAnimeInfo?.endEpisode ?? null,
       mappingConfidence: mapping?.confidence ?? (isAnimeEpisode ? "low" : null),
       isAdultAnime: mapping?.isAdult ?? false,
     });
@@ -188,6 +202,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       isAnimeEpisode: false,
       anilistId: null,
       relativeEpisodeNumber: null,
+      animeSeasonNumber: null,
+      animeSegmentStart: null,
+      animeSegmentEnd: null,
       mappingConfidence: null,
       isAdultAnime: false,
     });
@@ -204,6 +221,9 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     set({
       anilistId: mapping.animeInfo.anilistId,
       relativeEpisodeNumber,
+      animeSeasonNumber: mapping.animeSeasonNumber ?? null,
+      animeSegmentStart: mapping.animeInfo.startEpisode,
+      animeSegmentEnd: mapping.animeInfo.endEpisode,
       isAnimeEpisode: true,
       mappingConfidence: mapping.confidence,
       isAdultAnime: mapping.isAdult,
@@ -321,13 +341,44 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       targetSeason: number,
       episodes: Episode[],
     ) => {
+      const {
+        anilistId,
+        animeSeasonNumber,
+        animeSegmentStart,
+        animeSegmentEnd,
+        mappingConfidence,
+        isAdultAnime,
+      } = get();
+
+      const stillInSegment =
+        anilistId != null &&
+        animeSegmentStart != null &&
+        animeSegmentEnd != null &&
+        episode.episode_number >= animeSegmentStart &&
+        episode.episode_number <= animeSegmentEnd;
+
+      const animeInfo = stillInSegment
+        ? {
+            anilistId,
+            startEpisode: animeSegmentStart,
+            endEpisode: animeSegmentEnd,
+          }
+        : undefined;
+
       setSelectedEpisode(
         episode,
         tvShowId,
         targetSeason,
-        undefined,
+        animeInfo,
         true,
         episodes,
+        animeInfo
+          ? {
+              confidence: mappingConfidence ?? "high",
+              isAdult: isAdultAnime,
+              animeSeasonNumber,
+            }
+          : undefined,
       );
     };
 
