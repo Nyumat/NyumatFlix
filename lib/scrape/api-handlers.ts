@@ -181,6 +181,8 @@ async function handleTmdbScrapePost(
     referer: result.referer,
     subtitles: result.subtitles,
     qualities: result.qualities,
+    audioVersions: result.audioVersions,
+    preferredAudioLang: result.preferredAudioLang,
   });
 }
 
@@ -225,6 +227,10 @@ async function handleAnimeScrapePost(
     referer: result.referer,
     subtitles: result.subtitles,
     qualities: result.qualities,
+    audioVersions: result.audioVersions,
+    defaultAudioLang: result.defaultAudioLang,
+    defaultHardSubLang: result.defaultHardSubLang,
+    preferredAudioLang: result.preferredAudioLang,
     fallbackFrom: result.fallbackFrom,
   });
 }

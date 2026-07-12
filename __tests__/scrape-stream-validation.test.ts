@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   extractHlsProbeTargets,
   isValidHlsAssetResponse,
+  resolveStreamReferers,
+  resolveValidateStreamDepths,
 } from "@/lib/scrape/validate-stream";
+import { isTokenizedHlsMaster } from "@/lib/scrape/stream-url-patterns";
 
 describe("scrape stream validation", () => {
   it("follows the first rendition in a master playlist", () => {
@@ -22,6 +25,19 @@ describe("scrape stream validation", () => {
       childPlaylist: "https://cdn.example/1080/index.m3u8",
       requiredAssets: [],
     });
+  });
+
+  it("inherits parent query tokens onto relative child playlists", () => {
+    expect(
+      extractHlsProbeTargets(
+        [
+          "#EXTM3U",
+          "#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1920x1080",
+          "index-f1-v1-a1.txt",
+        ].join("\n"),
+        "https://cdn.example/v4/cf-master.txt?t=token&e=123",
+      ).childPlaylist,
+    ).toBe("https://cdn.example/v4/index-f1-v1-a1.txt?t=token&e=123");
   });
 
   it("requires encryption, initialization, and media assets", () => {
@@ -58,6 +74,42 @@ describe("scrape stream validation", () => {
         "https://cdn.example/master.m3u8",
       ).childPlaylist,
     ).toBe("https://cdn.example/video/index.m3u8");
+  });
+
+  it("detects tokenized HLS masters", () => {
+    expect(
+      isTokenizedHlsMaster("https://cdn.example/v4/cf-master.txt?t=abc&e=123"),
+    ).toBe(true);
+    expect(isTokenizedHlsMaster("https://cdn.example/playlist.m3u8")).toBe(
+      false,
+    );
+  });
+
+  it("defaults accept validation to full depth only", () => {
+    expect(resolveValidateStreamDepths(undefined)).toEqual(["full"]);
+    expect(resolveValidateStreamDepths("master")).toEqual(["master"]);
+    expect(resolveValidateStreamDepths("full")).toEqual(["full"]);
+  });
+
+  it("orders embed/player referer before stream-origin referer", () => {
+    expect(
+      resolveStreamReferers(
+        "https://vip.opstream16.com/path/index.m3u8",
+        "https://vidnest.fun/",
+      ),
+    ).toEqual(["https://vidnest.fun/", "https://vip.opstream16.com/"]);
+
+    // VidSrc: CDN origin can fetch the master but 403s segments; player referer
+    // must win so playback does not inherit a playlist-only referer.
+    expect(
+      resolveStreamReferers(
+        "https://comityofcognomen.site/pl/tokenized",
+        "https://cloudorchestranova.com/",
+      ),
+    ).toEqual([
+      "https://cloudorchestranova.com/",
+      "https://comityofcognomen.site/",
+    ]);
   });
 
   it("rejects image and HTML error bodies as HLS media", () => {

@@ -1,4 +1,6 @@
 import type { VidKingPlaybackRefresh } from "./vidking-constants";
+import { resolveHlsPlaylistUrl } from "./hls-url";
+import { looksLikeHlsStreamUrl } from "./stream-url-patterns";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
 
 const MAX_ENCODED_URL_LENGTH = 8192;
@@ -167,38 +169,50 @@ export const convertAssToVtt = (ass: string): string => {
   return `WEBVTT\n\n${cues.join("\n\n")}\n`;
 };
 
-const KAA_SEGMENT_MIRROR_HOSTS = new Set([
-  "st1.advancedairesearchlab.xyz",
-  "st1.habibikun.xyz",
-  "st1.babybayw.xyz",
-  "st1.narutokun.xyz",
-  "bl1.habibikun.xyz",
-  "bl1.babybayw.xyz",
-  "bl1.narutokun.xyz",
-]);
-const KAA_PRIMARY_SEGMENT_HOSTS = [
-  "st1.advancedairesearchlab.xyz",
-  "bl1.advancedairesearchlab.xyz",
-];
+const KAA_SEGMENT_HOST_PATTERN =
+  /^(?:bl1|st1)\.(?:advancedairesearchlab|habibikun|babybayw|narutokun)\.xyz$/i;
 
-export const resolveKaaSegmentFallbackUrl = (upstreamUrl: string) => {
+const KAA_SEGMENT_ROTATION_HOSTS = [
+  "bl1.advancedairesearchlab.xyz",
+  "st1.advancedairesearchlab.xyz",
+  "bl1.habibikun.xyz",
+  "st1.habibikun.xyz",
+  "bl1.babybayw.xyz",
+  "st1.babybayw.xyz",
+  "bl1.narutokun.xyz",
+  "st1.narutokun.xyz",
+] as const;
+
+/** @deprecated Prefer resolveKaaSegmentFallbackUrls — kept for single-host callers. */
+export const resolveKaaSegmentFallbackUrl = (upstreamUrl: string) =>
+  resolveKaaSegmentFallbackUrls(upstreamUrl)[0] ?? null;
+
+/**
+ * KAA rotates disguised .jpg segment hosts; Cloudflare often blocks one host at a time.
+ * Return alternate hosts for the same path so playback/validation can rotate.
+ */
+export const resolveKaaSegmentFallbackUrls = (
+  upstreamUrl: string,
+): string[] => {
   try {
     const url = new URL(upstreamUrl);
     if (url.protocol !== "https:") {
-      return null;
+      return [];
     }
 
-    if (KAA_SEGMENT_MIRROR_HOSTS.has(url.hostname)) {
-      const firstPrimary = KAA_PRIMARY_SEGMENT_HOSTS[0];
-      if (firstPrimary && url.hostname !== firstPrimary) {
-        url.hostname = firstPrimary;
-        return url.toString();
-      }
+    if (!KAA_SEGMENT_HOST_PATTERN.test(url.hostname)) {
+      return [];
     }
 
-    return null;
+    return KAA_SEGMENT_ROTATION_HOSTS.filter(
+      (host) => host !== url.hostname.toLowerCase(),
+    ).map((host) => {
+      const next = new URL(url.toString());
+      next.hostname = host;
+      return next.toString();
+    });
   } catch {
-    return null;
+    return [];
   }
 };
 
@@ -249,11 +263,7 @@ const resolvePlaylistLine = (line: string, manifestUrl: string) => {
     return null;
   }
 
-  try {
-    return new URL(trimmed, manifestUrl).toString();
-  } catch {
-    return null;
-  }
+  return resolveHlsPlaylistUrl(trimmed, manifestUrl);
 };
 
 const HLS_URI_ATTRIBUTE_PATTERN = /\bURI=("([^"]+)"|'([^']+)')/gi;
@@ -279,7 +289,9 @@ const rewritePlaylistUriAttributes = (
       }
 
       try {
-        const rawResolved = new URL(raw, manifestUrl).toString();
+        const rawResolved =
+          resolveHlsPlaylistUrl(raw, manifestUrl) ??
+          new URL(raw, manifestUrl).toString();
         const resolved =
           refresh?.providerId === "vidking"
             ? normalizeVidKingAssetHost(rawResolved, manifestUrl)
@@ -338,11 +350,23 @@ export const rewriteManifestPlaylist = (
 
 export { scrapeUpstreamHeaders } from "./upstream-headers";
 
-const isPlaylistResponse = (targetUrl: string, contentType: string | null) =>
-  /\.m3u8(?:[?#].*)?$/i.test(targetUrl) ||
-  /cf-master[^/?#]+\.txt(?:[?#].*)?$/i.test(targetUrl) ||
-  (contentType?.includes("mpegurl") ?? false) ||
-  (contentType?.includes("m3u8") ?? false);
+const isPlaylistResponse = (targetUrl: string, contentType: string | null) => {
+  if (isDisguisedHlsSegment(targetUrl)) {
+    return false;
+  }
+
+  return (
+    /\.m3u8(?:[?#].*)?$/i.test(targetUrl) ||
+    /cf-master[^/?#]+\.txt(?:[?#].*)?$/i.test(targetUrl) ||
+    looksLikeHlsStreamUrl(targetUrl) ||
+    (contentType?.includes("mpegurl") ?? false) ||
+    (contentType?.includes("m3u8") ?? false)
+  );
+};
+
+/** Ambiguous CT where extensionless masters often arrive (must body-sniff). */
+const isAmbiguousPlaylistContentType = (contentType: string | null) =>
+  /(?:text\/|json|octet-stream|binary)/i.test(contentType ?? "");
 
 const isDashManifestResponse = (
   targetUrl: string,
@@ -365,6 +389,8 @@ const appendDashTemplateParameters = (playUrl: string, templateUrl: string) => {
     return playUrl;
   }
 
+  // Keep `$Number%08d$` literal so dash.js / Shaka can substitute before fetch.
+  // Do not encodeURIComponent — that hides the markers from the player.
   const query = variables
     .map(
       (variable, index) => `${DASH_TEMPLATE_QUERY_PREFIX}${index}=${variable}`,
@@ -434,5 +460,9 @@ export const rewriteDashManifest = (
   );
 };
 
-export { isDashManifestResponse, isPlaylistResponse };
+export {
+  isAmbiguousPlaylistContentType,
+  isDashManifestResponse,
+  isPlaylistResponse,
+};
 export type { VidKingPlaybackRefresh } from "./vidking-constants";

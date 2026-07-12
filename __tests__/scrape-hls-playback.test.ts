@@ -9,10 +9,18 @@ import {
   decodeScrapePlaybackToken,
   extractScrapePlaybackRefreshFromPlayUrl,
   extractScrapePlaybackTokenFromPlayUrl,
+  isAmbiguousPlaylistContentType,
+  isPlaylistResponse,
   resolveKaaSegmentFallbackUrl,
+  resolveKaaSegmentFallbackUrls,
   rewriteManifestPlaylist,
 } from "@/lib/scrape/playback";
 import {
+  looksLikeHlsPlaylistBody,
+  shouldTreatAsHlsPlaylist,
+} from "@/lib/scrape/playback-probe";
+import {
+  buildScrapePlayerKey,
   buildScrapePlayerSrc,
   buildScrapeQualityPlayUrls,
 } from "@/lib/scrape/player-sources";
@@ -116,6 +124,46 @@ describe("scrape hls playback helpers", () => {
     expect(buildScrapePlayerSrc(playUrl, [])).toBe(playUrl);
   });
 
+  it("treats extensionless HLS URL patterns as playlist responses", () => {
+    expect(
+      isPlaylistResponse(
+        "https://goodstream.cc/pl/abc123tokenizedvaluehere",
+        null,
+      ),
+    ).toBe(true);
+    expect(
+      isPlaylistResponse("https://vixsrc.to/playlist/xyz", "text/plain"),
+    ).toBe(true);
+    expect(
+      isPlaylistResponse(
+        "https://st1.habibikun.xyz/show/episode/213.jpg",
+        "image/jpeg",
+      ),
+    ).toBe(false);
+  });
+
+  it("body-sniffs ambiguous content types as HLS playlists", () => {
+    expect(isAmbiguousPlaylistContentType("text/plain")).toBe(true);
+    expect(isAmbiguousPlaylistContentType("application/octet-stream")).toBe(
+      true,
+    );
+    expect(looksLikeHlsPlaylistBody("#EXTM3U\n#EXTINF:1,\nseg.ts")).toBe(true);
+    expect(
+      shouldTreatAsHlsPlaylist(
+        "https://cdn.example/stream/token",
+        "text/plain",
+        "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nchild.m3u8",
+      ),
+    ).toBe(true);
+    expect(
+      shouldTreatAsHlsPlaylist(
+        "https://st1.habibikun.xyz/show/episode/213.jpg",
+        "image/jpeg",
+        "#EXTM3U",
+      ),
+    ).toBe(false);
+  });
+
   it("rewrites HLS audio, key, and map URI attributes through the proxy", () => {
     const manifestUrl = "https://cdn.example/show/master.m3u8";
     const rewritten = rewriteManifestPlaylist(
@@ -181,16 +229,33 @@ describe("scrape hls playback helpers", () => {
     ).toBe("video/mp2t");
   });
 
-  it("retries blocked KAA segment mirrors through the primary mirror", () => {
-    expect(
-      resolveKaaSegmentFallbackUrl(
-        "https://st1.habibikun.xyz/show/episode/213.jpg?token=abc",
-      ),
-    ).toBe(
+  it("retries blocked KAA segment mirrors across the rotation pool", () => {
+    const upstream = "https://st1.habibikun.xyz/show/episode/213.jpg?token=abc";
+    const fallbacks = resolveKaaSegmentFallbackUrls(upstream);
+
+    expect(fallbacks).toEqual([
+      "https://bl1.advancedairesearchlab.xyz/show/episode/213.jpg?token=abc",
       "https://st1.advancedairesearchlab.xyz/show/episode/213.jpg?token=abc",
-    );
+      "https://bl1.habibikun.xyz/show/episode/213.jpg?token=abc",
+      "https://bl1.babybayw.xyz/show/episode/213.jpg?token=abc",
+      "https://st1.babybayw.xyz/show/episode/213.jpg?token=abc",
+      "https://bl1.narutokun.xyz/show/episode/213.jpg?token=abc",
+      "https://st1.narutokun.xyz/show/episode/213.jpg?token=abc",
+    ]);
+    expect(fallbacks).not.toContain(upstream);
+    expect(resolveKaaSegmentFallbackUrl(upstream)).toBe(fallbacks[0]);
     expect(
       resolveKaaSegmentFallbackUrl("https://unrelated.example/213.jpg"),
     ).toBeNull();
+  });
+
+  it("includes stream identity in the player remount key", () => {
+    expect(
+      buildScrapePlayerKey({
+        playUrl: "/api/scrape/play/token/master.m3u8",
+        qualities: [{ label: "1080p", url: "https://cdn/1080.m3u8" }],
+        subtitles: [{ lang: "en", url: "https://cdn/en.vtt" }],
+      }),
+    ).toContain("en:https://cdn/en.vtt");
   });
 });

@@ -6,7 +6,11 @@ import {
   detectScrapeSubtitleType,
   parseQualityLabel,
 } from "@/lib/scrape/player-sources";
-import { buildScrapePlayUrl, convertAssToVtt } from "@/lib/scrape/playback";
+import {
+  buildScrapePlayUrl,
+  convertAssToVtt,
+  decodeScrapePlaybackToken,
+} from "@/lib/scrape/playback";
 
 describe("scrape subtitles", () => {
   it("detects vtt and srt from URLs", () => {
@@ -80,6 +84,24 @@ describe("scrape subtitles", () => {
 
     expect(track?.type).toBe("vtt");
     expect(track?.src).toMatch(/\/captions\.vtt$/);
+  });
+
+  it("keeps the scrape referer on proxied subtitle tracks", () => {
+    const tracks = buildScrapeSubtitleTracks(
+      [
+        {
+          lang: "English",
+          url: "https://subst.krussdomi.com/show/en.vtt",
+          format: "vtt",
+        },
+      ],
+      "https://krussdomi.com/",
+    );
+
+    const token = tracks[0]?.src.match(/\/api\/scrape\/play\/([^/]+)\//)?.[1];
+    expect(token).toBeTruthy();
+    const decoded = decodeScrapePlaybackToken(token ?? "");
+    expect(decoded?.referer).toBe("https://krussdomi.com/");
   });
 });
 

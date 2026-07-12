@@ -4,14 +4,17 @@ import {
   convertAssToVtt,
   contentTypeForProxiedAsset,
   decodeScrapePlaybackToken,
+  isAmbiguousPlaylistContentType,
   isDashManifestResponse,
+  isDisguisedHlsSegment,
   isPlaylistResponse,
-  resolveKaaSegmentFallbackUrl,
+  resolveKaaSegmentFallbackUrls,
   resolveDashTemplateUrl,
   rewriteDashManifest,
   rewriteManifestPlaylist,
 } from "@/lib/scrape/playback";
-import { cancelResponseBody, scrapeFetch } from "@/lib/scrape/fetch";
+import { fetchScrapePlaybackUpstream } from "@/lib/scrape/playback-fetch";
+import { cancelResponseBody } from "@/lib/scrape/fetch";
 import {
   invalidateVidKingSession,
   isRetryableVidKingUpstreamStatus,
@@ -27,22 +30,19 @@ type RouteContext = {
   }>;
 };
 
-const fetchUpstream = async (
+const fetchUpstream = (
   upstreamUrl: string,
   referer: string | undefined,
   rangeHeader: string | null,
   signal: AbortSignal,
   cookies?: string,
 ) =>
-  scrapeFetch(upstreamUrl, {
-    method: "GET",
-    curlFallback: false,
+  fetchScrapePlaybackUpstream(upstreamUrl, referer, {
+    rangeHeader,
+    cookies,
     signal,
-    headers: {
-      ...(referer ? { Referer: referer } : {}),
-      ...(rangeHeader ? { Range: rangeHeader } : {}),
-      ...(cookies ? { Cookie: cookies } : {}),
-    },
+    // Must match validation — curlFallback true for hosts that block undici.
+    curlFallback: true,
   });
 
 export async function GET(request: Request, context: RouteContext) {
@@ -74,8 +74,8 @@ export async function GET(request: Request, context: RouteContext) {
     );
 
     if (upstream.status === 403) {
-      const fallbackUrl = resolveKaaSegmentFallbackUrl(upstreamUrl);
-      if (fallbackUrl) {
+      const fallbackUrls = resolveKaaSegmentFallbackUrls(upstreamUrl);
+      for (const fallbackUrl of fallbackUrls) {
         await cancelResponseBody(upstream);
         upstreamUrl = fallbackUrl;
         upstream = await fetchUpstream(
@@ -85,6 +85,9 @@ export async function GET(request: Request, context: RouteContext) {
           request.signal,
           playback.cookies,
         );
+        if (upstream.ok || upstream.status !== 403) {
+          break;
+        }
       }
     }
 
@@ -116,24 +119,6 @@ export async function GET(request: Request, context: RouteContext) {
 
     const upstreamContentType = upstream.headers.get("content-type");
 
-    if (isPlaylistResponse(upstreamUrl, upstreamContentType)) {
-      const playlist = await upstream.text();
-      const rewritten = rewriteManifestPlaylist(
-        playlist,
-        upstreamUrl,
-        playback.referer,
-        playback.refresh,
-      );
-
-      return new NextResponse(rewritten, {
-        status: upstream.status,
-        headers: {
-          "Content-Type": "application/vnd.apple.mpegurl",
-          "Cache-Control": "no-store",
-        },
-      });
-    }
-
     if (isDashManifestResponse(upstreamUrl, upstreamContentType)) {
       const manifest = await upstream.text();
       const rewritten = rewriteDashManifest(
@@ -147,6 +132,63 @@ export async function GET(request: Request, context: RouteContext) {
         status: upstream.status,
         headers: {
           "Content-Type": "application/dash+xml",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+    const tryAsPlaylist =
+      isPlaylistResponse(upstreamUrl, upstreamContentType) ||
+      (!isDisguisedHlsSegment(upstreamUrl) &&
+        isAmbiguousPlaylistContentType(upstreamContentType));
+
+    if (tryAsPlaylist) {
+      const playlist = await upstream.text();
+      const isHls = playlist.includes("#EXTM3U");
+      const isDash =
+        !isHls && (playlist.includes("<MPD") || /\bmpd\b/i.test(playlist));
+
+      if (isHls || isPlaylistResponse(upstreamUrl, upstreamContentType)) {
+        const rewritten = rewriteManifestPlaylist(
+          playlist,
+          upstreamUrl,
+          playback.referer,
+          playback.refresh,
+        );
+
+        return new NextResponse(rewritten, {
+          status: upstream.status,
+          headers: {
+            "Content-Type": "application/vnd.apple.mpegurl",
+            "Cache-Control": "no-store",
+          },
+        });
+      }
+
+      if (isDash) {
+        const rewritten = rewriteDashManifest(
+          playlist,
+          upstreamUrl,
+          playback.referer,
+          playback.refresh,
+        );
+
+        return new NextResponse(rewritten, {
+          status: upstream.status,
+          headers: {
+            "Content-Type": "application/dash+xml",
+            "Cache-Control": "no-store",
+          },
+        });
+      }
+
+      // Ambiguous CT but not a manifest — return text as-is.
+      return new NextResponse(playlist, {
+        status: upstream.status,
+        headers: {
+          ...(upstreamContentType
+            ? { "Content-Type": upstreamContentType }
+            : {}),
           "Cache-Control": "no-store",
         },
       });

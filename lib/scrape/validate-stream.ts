@@ -1,17 +1,107 @@
 import { cancelResponseBody, scrapeFetch } from "./fetch";
+import { resolveHlsPlaylistUrl } from "./hls-url";
+import { resolveKaaSegmentFallbackUrls } from "./playback";
 import {
   parseStreamDurationSeconds,
   streamDurationMatchesExpected,
 } from "./stream-duration";
 import { looksLikeStreamUrl, type StreamKind } from "./stream-url-patterns";
+import { scrapeUpstreamHeaders } from "./upstream-headers";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
+
+export type ValidateStreamDepth = "full" | "master";
+
+export type ValidateStreamOptions = {
+  depth?: ValidateStreamDepth;
+  expectedDurationMinutes?: number | null;
+};
+
+/**
+ * Default accept depth is full (segment/key probes). Pass `depth: "master"`
+ * only for cheap candidate filters inside a provider — never as the final gate.
+ */
+export const resolveValidateStreamDepths = (
+  depth?: ValidateStreamDepth,
+): readonly ValidateStreamDepth[] => {
+  if (depth === "master") return ["master"];
+  if (depth === "full") return ["full"];
+  return ["full"];
+};
+
+/** Ordered referers to try — embed/player first (needed for segments), then CDN. */
+export const resolveStreamReferers = (
+  streamUrl: string,
+  embedReferer: string,
+): string[] => {
+  const referers: string[] = [];
+  const seen = new Set<string>();
+
+  const push = (value: string | undefined) => {
+    if (!value || seen.has(value)) {
+      return;
+    }
+    seen.add(value);
+    referers.push(value);
+  };
+
+  push(embedReferer);
+
+  try {
+    push(new URL(streamUrl).origin + "/");
+  } catch {
+    void 0;
+  }
+
+  return referers;
+};
+
+const isValidHlsMasterBody = (body: string): boolean =>
+  body.includes("#EXTM3U") &&
+  (body.includes("#EXT-X-STREAM-INF") ||
+    body.includes("#EXTINF:") ||
+    body.includes("#EXT-X-MAP") ||
+    body.includes("#EXT-X-TARGETDURATION"));
+
+/**
+ * Default: full segment probes. Pass `depth: "master"` for candidate filters
+ * where full would multiply cost — final accept must still use full / play-path.
+ */
+export async function validateStreamUrlWithReferers(
+  streamUrl: string,
+  embedReferer: string,
+  kind: StreamKind = "hls",
+  options: ValidateStreamOptions = {},
+): Promise<{ ok: boolean; referer?: string }> {
+  const depths: ValidateStreamDepth[] = [
+    ...resolveValidateStreamDepths(options.depth),
+  ];
+
+  for (const depth of depths) {
+    for (const referer of resolveStreamReferers(streamUrl, embedReferer)) {
+      if (
+        await validateStreamUrl(
+          streamUrl,
+          referer,
+          kind,
+          options.expectedDurationMinutes,
+          depth,
+        )
+      ) {
+        return { ok: true, referer };
+      }
+    }
+  }
+
+  return { ok: false };
+}
 
 const looksLikeValidBody = (body: string, kind: StreamKind): boolean => {
   if (kind === "hls") {
+    // Require a real playlist marker — rewritten HTML 404s can contain "m3u8"
+    // path fragments while still being unplayable.
     return (
       body.includes("#EXTM3U") ||
       body.includes('"playlist"') ||
-      body.includes("m3u8") ||
       body.includes("cf-master")
     );
   }
@@ -20,7 +110,7 @@ const looksLikeValidBody = (body: string, kind: StreamKind): boolean => {
     return body.includes("<MPD") || body.includes("mpd");
   }
 
-  return body.includes("ftyp") || body.length > 0;
+  return body.includes("ftyp") || (body.length > 0 && !body.includes("<html"));
 };
 
 const okContentTypesForKind = (
@@ -55,14 +145,6 @@ const okContentTypesForKind = (
 
 const HLS_URI_ATTRIBUTE_PATTERN = /\bURI=(?:"([^"]+)"|'([^']+)')/i;
 
-const resolveHlsUrl = (value: string, playlistUrl: string): string | null => {
-  try {
-    return new URL(value, playlistUrl).toString();
-  } catch {
-    return null;
-  }
-};
-
 type HlsProbeTargets = {
   childPlaylist: string | null;
   requiredAssets: string[];
@@ -83,7 +165,7 @@ export const extractHlsProbeTargets = (
     const match = line.match(HLS_URI_ATTRIBUTE_PATTERN);
     const value = match?.[1] ?? match?.[2];
     if (value) {
-      const resolved = resolveHlsUrl(value, playlistUrl);
+      const resolved = resolveHlsPlaylistUrl(value, playlistUrl);
       if (resolved && !requiredAssets.includes(resolved)) {
         requiredAssets.push(resolved);
       }
@@ -93,7 +175,7 @@ export const extractHlsProbeTargets = (
   let childPlaylist: string | null = null;
   for (const line of lines) {
     if (line && !line.startsWith("#")) {
-      const resolved = resolveHlsUrl(line, playlistUrl);
+      const resolved = resolveHlsPlaylistUrl(line, playlistUrl);
       if (!resolved) {
         continue;
       }
@@ -115,21 +197,29 @@ const probeHlsAsset = async (
   assetUrl: string,
   referer?: string,
 ): Promise<boolean> => {
-  const response = await scrapeFetch(assetUrl, {
-    method: "GET",
-    headers: {
-      Range: "bytes=0-1023",
-      ...(referer ? { Referer: referer } : {}),
-    },
-  });
-  if (!response.ok) {
-    await cancelResponseBody(response);
-    return false;
+  const candidates = [assetUrl, ...resolveKaaSegmentFallbackUrls(assetUrl)];
+
+  for (const candidate of candidates) {
+    const response = await scrapeFetch(candidate, {
+      method: "GET",
+      headers: {
+        Range: "bytes=0-1023",
+        ...scrapeUpstreamHeaders(candidate, referer),
+      },
+    });
+    if (!response.ok) {
+      await cancelResponseBody(response);
+      continue;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (isValidHlsAssetResponse(contentType, bytes)) {
+      return true;
+    }
   }
 
-  const contentType = response.headers.get("content-type") ?? "";
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  return isValidHlsAssetResponse(contentType, bytes);
+  return false;
 };
 
 export const isValidHlsAssetResponse = (
@@ -186,7 +276,7 @@ const validateHlsPlayback = async (
   if (childPlaylist) {
     const response = await scrapeFetch(childPlaylist, {
       method: "GET",
-      headers: referer ? { Referer: referer } : {},
+      headers: scrapeUpstreamHeaders(childPlaylist, referer),
     });
     if (!response.ok) {
       await cancelResponseBody(response);
@@ -253,6 +343,7 @@ export async function validateStreamUrl(
   referer?: string,
   kind: StreamKind = "hls",
   expectedDurationMinutes?: number | null,
+  depth: ValidateStreamDepth = "full",
 ): Promise<boolean> {
   if (!looksLikeStreamUrl(streamUrl, kind)) {
     return false;
@@ -262,7 +353,7 @@ export async function validateStreamUrl(
     const response = await scrapeFetch(streamUrl, {
       method: "GET",
       headers: {
-        ...(referer ? { Referer: referer } : {}),
+        ...scrapeUpstreamHeaders(streamUrl, referer),
         ...(kind === "mp4" ? { Range: "bytes=0-511" } : {}),
       },
     });
@@ -288,19 +379,25 @@ export async function validateStreamUrl(
           }
         }
 
-        return kind === "hls"
-          ? validateHlsPlayback(
-              streamUrl,
-              body,
-              referer,
-              0,
-              expectedDurationMinutes,
-            )
-          : true;
+        if (kind !== "hls") {
+          return true;
+        }
+
+        if (depth === "master" && isValidHlsMasterBody(body)) {
+          return true;
+        }
+
+        return validateHlsPlayback(
+          streamUrl,
+          body,
+          referer,
+          0,
+          expectedDurationMinutes,
+        );
       }
 
       await cancelResponseBody(response);
-      return true;
+      return false;
     }
 
     await cancelResponseBody(response);

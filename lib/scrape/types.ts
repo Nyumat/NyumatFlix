@@ -31,6 +31,23 @@ export type ScrapeSubtitle = {
 export type ScrapeQuality = {
   label: string;
   url: string;
+  subtitles?: ScrapeSubtitle[];
+  referer?: string;
+};
+
+export type ScrapeHardSub = {
+  lang: string;
+  label: string;
+  url: string;
+};
+
+export type ScrapeAudioVersion = {
+  lang: string;
+  label: string;
+  url: string;
+  original?: boolean;
+  hardSubs?: ScrapeHardSub[];
+  subtitles?: ScrapeSubtitle[];
 };
 
 export type ScrapeSuccess = {
@@ -41,6 +58,10 @@ export type ScrapeSuccess = {
   referer?: string;
   subtitles?: ScrapeSubtitle[];
   qualities?: ScrapeQuality[];
+  audioVersions?: ScrapeAudioVersion[];
+  defaultAudioLang?: string;
+  defaultHardSubLang?: string;
+  preferredAudioLang?: string;
 };
 
 export type ScrapeFailure = {

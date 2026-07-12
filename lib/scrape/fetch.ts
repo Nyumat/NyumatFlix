@@ -1,19 +1,45 @@
 import "server-only";
 
+import type { Dispatcher } from "undici";
 import {
   scrapeDirectDispatcher,
   scrapeProxyDispatcher,
   scrapeProxyUrl,
 } from "./proxy";
 import { scrapeUpstreamHeaders } from "./upstream-headers";
+import { isVidKingCdnUrl } from "./vidking-cdn-url";
 
 const FETCH_TIMEOUT_MS = 30_000;
+const FETCH_RETRY_ATTEMPTS = 3;
+const FETCH_RETRY_DELAY_MS = 750;
 const CURL_FALLBACK_HOSTS =
-  /(?:^kwik\.[a-z]+$|^api\.wingsdatabase\.com$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|shadowlemon\.site|opstream11\.com|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com)$)/i;
+  /(?:^kwik\.[a-z]+$|^api\.wingsdatabase\.com$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|opstream11\.com|opstream16\.com|goodstream\.cc|astroliteonline\.online|tripplestream\.online|glowhavenmedia\.cyou|1x2\.space|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com)$)/i;
+
+const BLOCKED_STATUSES = new Set([403, 429, 503]);
+
+type HostEgressPreference = "direct" | "proxy";
+
+/** Per-host memory: once proxy is required, skip burning a direct attempt. */
+const hostEgressPreference = new Map<string, HostEgressPreference>();
+
+export const resetScrapeHostEgressPreferences = (): void => {
+  hostEgressPreference.clear();
+};
+
+export const scrapePreferDirectEgress = (): boolean =>
+  process.env.SCRAPE_PREFER_DIRECT?.trim() !== "0";
 
 type ScrapeFetchInit = RequestInit & {
   headers?: Record<string, string>;
   curlFallback?: boolean;
+};
+
+const hostnameOf = (url: string): string => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
 };
 
 const scrapeCurlFallback = async (
@@ -30,7 +56,7 @@ const scrapeCurlFallback = async (
 
   if (
     parsed.protocol !== "https:" ||
-    !CURL_FALLBACK_HOSTS.test(parsed.hostname)
+    (!CURL_FALLBACK_HOSTS.test(parsed.hostname) && !isVidKingCdnUrl(url))
   ) {
     return null;
   }
@@ -85,6 +111,53 @@ export async function scrapeFetch(
   url: string,
   init: ScrapeFetchInit = {},
 ): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < FETCH_RETRY_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, FETCH_RETRY_DELAY_MS * attempt),
+      );
+    }
+
+    try {
+      return await scrapeFetchOnce(url, init);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`scrapeFetch failed for ${url}`);
+}
+
+async function undiciRequest(
+  url: string,
+  requestInit: {
+    method?: string;
+    headers: Record<string, string>;
+    body?: RequestInit["body"];
+    signal: AbortSignal;
+    redirect: RequestRedirect;
+  },
+  dispatcher: Dispatcher,
+): Promise<Response> {
+  const { fetch: undiciFetch } = await import("undici");
+  return (await undiciFetch(url, {
+    method: requestInit.method ?? "GET",
+    headers: requestInit.headers,
+    body: requestInit.body as import("undici").BodyInit | undefined,
+    signal: requestInit.signal,
+    redirect: requestInit.redirect,
+    dispatcher,
+  })) as unknown as Response;
+}
+
+async function scrapeFetchOnce(
+  url: string,
+  init: ScrapeFetchInit = {},
+): Promise<Response> {
   const { curlFallback = true, ...fetchInit } = init;
   const timeoutSignal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
   const signal = fetchInit.signal
@@ -94,46 +167,123 @@ export async function scrapeFetch(
   const upstreamHeaders = scrapeUpstreamHeaders(url, referer);
 
   const requestInit = {
-    ...fetchInit,
-    signal,
+    method: fetchInit.method ?? "GET",
     headers: {
       ...upstreamHeaders,
       ...fetchInit.headers,
-    },
-    redirect: fetchInit.redirect ?? ("follow" as const),
-    cache: "no-store" as const,
+    } as Record<string, string>,
+    body: fetchInit.body,
+    signal,
+    redirect: (fetchInit.redirect ?? "follow") as RequestRedirect,
   };
 
-  const { fetch: undiciFetch } = await import("undici");
+  const hostname = hostnameOf(url);
   const proxyUrl = scrapeProxyUrl();
-  const dispatcher = proxyUrl
-    ? scrapeProxyDispatcher()
-    : scrapeDirectDispatcher();
+  const proxyDispatcher = proxyUrl ? scrapeProxyDispatcher() : undefined;
+  const preferDirect =
+    Boolean(proxyUrl) &&
+    Boolean(proxyDispatcher) &&
+    scrapePreferDirectEgress() &&
+    hostEgressPreference.get(hostname) !== "proxy";
 
-  const response = (await undiciFetch(url, {
-    method: fetchInit.method ?? "GET",
-    headers: requestInit.headers,
-    body: fetchInit.body as import("undici").BodyInit | undefined,
-    signal,
-    redirect: requestInit.redirect,
-    dispatcher,
-  })) as unknown as Response;
+  const tryCurlFallback = async (
+    egressProxyUrl: string | undefined,
+    failed?: Response,
+  ) => {
+    if (!curlFallback) {
+      return failed ?? null;
+    }
 
-  if (![403, 429, 503].includes(response.status) || !curlFallback) {
-    return response;
+    const fallback = await scrapeCurlFallback(
+      url,
+      requestInit.headers,
+      egressProxyUrl,
+    );
+    if (!fallback) {
+      return failed ?? null;
+    }
+
+    if (failed) {
+      await cancelResponseBody(failed);
+    }
+
+    return fallback;
+  };
+
+  const attemptEgress = async (
+    dispatcher: Dispatcher,
+    egressProxyUrl: string | undefined,
+    preference: HostEgressPreference,
+  ): Promise<Response | "error"> => {
+    try {
+      const response = await undiciRequest(url, requestInit, dispatcher);
+
+      if (BLOCKED_STATUSES.has(response.status)) {
+        const fallback = await tryCurlFallback(egressProxyUrl, response);
+        if (fallback && fallback !== response) {
+          if (hostname) {
+            hostEgressPreference.set(hostname, preference);
+          }
+          return fallback;
+        }
+        return response;
+      }
+
+      if (hostname) {
+        hostEgressPreference.set(hostname, preference);
+      }
+      return response;
+    } catch {
+      const fallback = await tryCurlFallback(egressProxyUrl);
+      if (fallback) {
+        if (hostname) {
+          hostEgressPreference.set(hostname, preference);
+        }
+        return fallback;
+      }
+      return "error";
+    }
+  };
+
+  if (preferDirect) {
+    const directResult = await attemptEgress(
+      scrapeDirectDispatcher(),
+      undefined,
+      "direct",
+    );
+    if (
+      directResult !== "error" &&
+      !BLOCKED_STATUSES.has(directResult.status)
+    ) {
+      return directResult;
+    }
+    if (hostname) {
+      // Don't keep paying a doomed direct hop on the next request.
+      hostEgressPreference.set(hostname, "proxy");
+    }
+    if (directResult !== "error") {
+      await cancelResponseBody(directResult);
+    }
   }
 
-  const fallback = await scrapeCurlFallback(
-    url,
-    requestInit.headers as Record<string, string>,
-    proxyUrl,
+  if (proxyDispatcher && proxyUrl) {
+    const proxyResult = await attemptEgress(proxyDispatcher, proxyUrl, "proxy");
+    if (proxyResult !== "error") {
+      return proxyResult;
+    }
+    throw new Error(`scrapeFetch failed for ${url}`);
+  }
+
+  const directOnly = await attemptEgress(
+    scrapeDirectDispatcher(),
+    undefined,
+    "direct",
   );
-  if (!fallback) {
-    return response;
+  if (directOnly !== "error") {
+    return directOnly;
   }
 
-  await cancelResponseBody(response);
-  return fallback;
+  throw new Error(`scrapeFetch failed for ${url}`);
 }
 
 export async function scrapeFetchText(
