@@ -2,7 +2,6 @@ name: CI
 
 env:
   HUSKY: 0
-  NODE_ENV: production
   APP_URL: https://nyumatflix.com
   AUTH_URL: https://nyumatflix.com
   NEXTAUTH_URL: https://nyumatflix.com
@@ -80,6 +79,8 @@ jobs:
 
       - name: Build the app
         if: github.event_name == 'push'
+        env:
+          NODE_ENV: production
         run: bun run build
 
       - name: Check formatting
@@ -92,6 +93,8 @@ jobs:
         run: bun run type-check
 
       - name: Run tests
+        env:
+          NODE_ENV: test
         run: bun run test-ci
 
   build-push:
