@@ -11,7 +11,6 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const LEGACY_TAB_QUERY = "tab";
-const LEGACY_ANILIST_ID_QUERY = "anilistId";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -35,14 +34,9 @@ export function middleware(request: NextRequest) {
   }
 
   const detailOnly = pathname.match(/^\/(tvshows|movies)\/([^/]+)$/);
-  if (
-    detailOnly &&
-    (request.nextUrl.searchParams.has(LEGACY_TAB_QUERY) ||
-      request.nextUrl.searchParams.has(LEGACY_ANILIST_ID_QUERY))
-  ) {
+  if (detailOnly && request.nextUrl.searchParams.has(LEGACY_TAB_QUERY)) {
     const url = request.nextUrl.clone();
     url.searchParams.delete(LEGACY_TAB_QUERY);
-    url.searchParams.delete(LEGACY_ANILIST_ID_QUERY);
     return NextResponse.redirect(url);
   }
 

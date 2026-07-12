@@ -52,12 +52,21 @@ export function resolveTvWatchTarget(
   return null;
 }
 
-export function formatTvWatchLabel(target: TvWatchTarget): string {
-  if (target.source === "watchlist") {
-    return `Watch S${target.seasonNumber}E${target.episodeNumber}`;
-  }
+export function formatTvWatchLabel(
+  target: TvWatchTarget,
+  display?: {
+    seasonNumber?: number | null;
+    episodeNumber?: number | null;
+  },
+): string {
+  const seasonNumber = display?.seasonNumber ?? target.seasonNumber;
+  const episodeNumber =
+    display?.episodeNumber ??
+    (target.source === "watchlist"
+      ? target.episodeNumber
+      : target.episode.episode_number);
 
-  return `Watch S${target.seasonNumber}E${target.episode.episode_number}`;
+  return `Watch S${seasonNumber}E${episodeNumber}`;
 }
 
 export function isSameTvWatchTarget(

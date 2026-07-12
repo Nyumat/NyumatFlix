@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  animeSeasonNumberForEpisode,
+  buildUnknownEpisodeCountSegment,
   findSegmentForEpisode,
   inferMappingConfidence,
   relativeEpisodeInSegment,
   resolveAnimeEpisodeCoords,
+  toAnimeDisplayCoords,
 } from "@/lib/anime/tmdb-anilist-map";
 
 describe("tmdb-anilist-map", () => {
@@ -34,7 +37,20 @@ describe("tmdb-anilist-map", () => {
 
     expect(resolved.anilistId).toBe(200);
     expect(resolved.relativeEpisodeNumber).toBe(8);
+    expect(resolved.animeSeasonNumber).toBe(2);
     expect(resolved.confidence).toBe("high");
+  });
+
+  it("maps TMDB absolute episodes to anime display seasons", () => {
+    expect(toAnimeDisplayCoords(segments, 5)).toEqual({
+      seasonNumber: 1,
+      episodeNumber: 5,
+    });
+    expect(toAnimeDisplayCoords(segments, 20)).toEqual({
+      seasonNumber: 2,
+      episodeNumber: 8,
+    });
+    expect(animeSeasonNumberForEpisode(segments, 13)).toBe(2);
   });
 
   it("falls back to source AniList id when no segment matches", () => {
@@ -56,5 +72,19 @@ describe("tmdb-anilist-map", () => {
 
   it("infers low confidence for empty mappings", () => {
     expect(inferMappingConfidence([], 0)).toBe("low");
+  });
+
+  it("preserves absolute TMDB episode numbers for ongoing AniList shows", () => {
+    expect(
+      buildUnknownEpisodeCountSegment({
+        anilistMediaId: 21,
+        tmdbEpisodeCount: 26,
+        tmdbEpisodeNumbers: [382, 383, 407],
+      }),
+    ).toEqual({
+      startEpisode: 1,
+      endEpisode: 407,
+      anilistMediaId: 21,
+    });
   });
 });

@@ -17,6 +17,7 @@ import {
   toAnilistTvRouteSlug,
 } from "@/lib/anilist-route-id";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
+import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-video";
 import type {
   Actor,
   CreditsReponse as Credits,
@@ -122,6 +123,10 @@ export type AniListTvMedia = {
   format?: string | null;
   season?: string | null;
   seasonYear?: number | null;
+  trailer?: {
+    id?: string | null;
+    site?: string | null;
+  } | null;
   startDate?: {
     year?: number | null;
     month?: number | null;
@@ -177,6 +182,10 @@ const ANILIST_TV_DETAIL_QUERY = `
       format
       season
       seasonYear
+      trailer {
+        id
+        site
+      }
       startDate {
         year
         month
@@ -233,6 +242,32 @@ const ANILIST_TV_DETAIL_QUERY = `
 
 const asAniListMedia = (media: AniListTvMedia): AniListMedia =>
   media as AniListMedia;
+
+const mapAniListTrailerToVideos = (
+  media: AniListTvMedia,
+): Array<{
+  type: string;
+  key: string;
+  site: string;
+  name: string;
+  official: boolean;
+}> => {
+  const site = media.trailer?.site?.trim().toLowerCase();
+  const key = media.trailer?.id?.trim();
+  if (!key || (site && site !== "youtube")) {
+    return [];
+  }
+
+  return [
+    {
+      type: "Trailer",
+      key,
+      site: "YouTube",
+      name: "Official Trailer",
+      official: true,
+    },
+  ];
+};
 
 const toAirDate = (media: AniListTvMedia) => {
   const year = media.startDate?.year ?? media.seasonYear;
@@ -447,6 +482,10 @@ const mapResolvedShowToDetails = (
     id: 16_000 + index,
     name,
   }));
+  const trailerVideos = (() => {
+    const fromRoot = mapAniListTrailerToVideos(root);
+    return fromRoot.length > 0 ? fromRoot : mapAniListTrailerToVideos(entry);
+  })();
 
   return {
     id: franchise.rootAnilistId,
@@ -486,7 +525,7 @@ const mapResolvedShowToDetails = (
     production_countries: [{ iso_3166_1: "JP", name: "Japan" }],
     created_by: [],
     content_ratings: { results: [] },
-    videos: { results: [] },
+    videos: { results: trailerVideos },
     credits: {
       cast: mapCharactersToCast(root),
       crew: [],
@@ -511,7 +550,7 @@ const mapToAboveFoldDetail = (
     media_type: "tv",
     title: details.name,
     content_rating: details.adult ? "TV-MA" : null,
-    videos: [],
+    videos: extractVideoRowsFromMediaVideos(details.videos),
   };
 };
 
@@ -547,7 +586,7 @@ const resolveAniListTvShowUncached = async (
   const franchise = await resolveAniListFranchise(entryAnilistId);
   const seasonMedia = await Promise.all(
     franchise.seasons.map(async ({ anilistId }) => {
-      const media = await getCachedAniListTvMedia(anilistId);
+      const media = await getCachedAnilistTvMedia(anilistId);
       return [anilistId, media] as const;
     }),
   );
@@ -572,7 +611,7 @@ const resolveAniListTvShowUncached = async (
   };
 };
 
-const getCachedAniListTvMedia = cache(fetchAniListTvMediaUncached);
+export const getCachedAnilistTvMedia = cache(fetchAniListTvMediaUncached);
 const getCachedResolvedAniListTvShow = cache(resolveAniListTvShowUncached);
 
 const requireResolvedAniListTvShow = async (routeId: string) => {

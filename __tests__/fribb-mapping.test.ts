@@ -1,5 +1,19 @@
-import { resolveFribbTmdbMapping } from "@/lib/fribb-mapping";
+import {
+  normalizeFribbTmdbId,
+  resolveFribbTmdbMapping,
+} from "@/lib/fribb-mapping";
 import { describe, expect, it } from "vitest";
+
+describe("normalizeFribbTmdbId", () => {
+  it("reads the first positive id from Fribb movie arrays", () => {
+    expect(normalizeFribbTmdbId([372058])).toBe(372058);
+    expect(normalizeFribbTmdbId([0, 128])).toBe(128);
+  });
+
+  it("accepts bare numeric ids", () => {
+    expect(normalizeFribbTmdbId(95479)).toBe(95479);
+  });
+});
 
 describe("resolveFribbTmdbMapping", () => {
   it("prefers movie when AniList format is MOVIE and both IDs exist", () => {

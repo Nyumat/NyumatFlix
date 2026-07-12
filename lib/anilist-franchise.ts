@@ -1,4 +1,6 @@
 import { ANILIST_ENDPOINT } from "@/lib/anilist";
+import { normalizeAnimeTitle } from "@/lib/scrape/anime/title-match";
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
 const ANILIST_FETCH_TIMEOUT_MS = 8000;
@@ -131,7 +133,8 @@ const getAnimeRelation = (
   const matches = (media.relations?.edges ?? []).filter(
     (edge) =>
       edge.relationType === relationType &&
-      isAnimeRelationNode(edge.node ?? undefined),
+      isAnimeRelationNode(edge.node ?? undefined) &&
+      areAnimeFranchiseTitlesCompatible(media.title, edge.node?.title),
   );
 
   if (matches.length === 0) return null;
@@ -183,7 +186,7 @@ const collectSequelChain = async (rootAnilistId: number): Promise<number[]> => {
   return seasonIds;
 };
 
-export const resolveAniListFranchise = async (
+const resolveAniListFranchiseUncached = async (
   entryAnilistId: number,
 ): Promise<AniListFranchise> => {
   const rootAnilistId = await findFranchiseRoot(entryAnilistId);
@@ -204,6 +207,12 @@ export const resolveAniListFranchise = async (
   };
 };
 
+export const resolveAniListFranchise = unstable_cache(
+  resolveAniListFranchiseUncached,
+  ["anilist-franchise-resolve-v1"],
+  { revalidate: 3600 },
+);
+
 export const stripSeasonSuffix = (title: string) =>
   title
     .replace(
@@ -212,3 +221,38 @@ export const stripSeasonSuffix = (title: string) =>
     )
     .replace(/\s+\d(?:st|nd|rd|th)\s+season.*$/i, "")
     .trim();
+
+type AnimeTitle =
+  | {
+      romaji?: string | null;
+      english?: string | null;
+    }
+  | null
+  | undefined;
+
+const normalizedFranchiseTitles = (title: AnimeTitle): string[] =>
+  [...new Set([title?.english, title?.romaji])]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .map((value) => normalizeAnimeTitle(stripSeasonSuffix(value)))
+    .filter(Boolean);
+
+/**
+ * AniList can label unrelated specials as sequels. Keep a relation in the
+ * season chain only when its English or Romaji title shares the same base.
+ */
+export const areAnimeFranchiseTitlesCompatible = (
+  current: AnimeTitle,
+  related: AnimeTitle,
+): boolean => {
+  const currentTitles = normalizedFranchiseTitles(current);
+  const relatedTitles = normalizedFranchiseTitles(related);
+
+  return currentTitles.some((currentTitle) =>
+    relatedTitles.some(
+      (relatedTitle) =>
+        currentTitle === relatedTitle ||
+        relatedTitle.startsWith(`${currentTitle} `) ||
+        currentTitle.startsWith(`${relatedTitle} `),
+    ),
+  );
+};

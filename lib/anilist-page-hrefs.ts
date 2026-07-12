@@ -15,11 +15,29 @@ const isExternalHref = (href: string) =>
 export const withAnimePageHref = (item: MediaItem): MediaItem => {
   const animeItem = item as AnimePageItem;
 
+  const withAnilistQuery = (href: string) => {
+    if (
+      typeof animeItem.sourceAnilistId !== "number" ||
+      !Number.isInteger(animeItem.sourceAnilistId) ||
+      animeItem.sourceAnilistId <= 0
+    ) {
+      return href;
+    }
+
+    const url = new URL(href, "https://nyumatflix.local");
+    if (!url.searchParams.has("anilistId")) {
+      url.searchParams.set("anilistId", String(animeItem.sourceAnilistId));
+    }
+    return `${url.pathname}${url.search}`;
+  };
+
   if (animeItem.tmdbFallback) {
     const { id, type } = animeItem.tmdbFallback;
     return {
       ...item,
-      href: type === "movie" ? `/movies/${id}` : `/tvshows/${id}`,
+      href: withAnilistQuery(
+        type === "movie" ? `/movies/${id}` : `/tvshows/${id}`,
+      ),
     } as MediaItem;
   }
 
@@ -37,14 +55,17 @@ export const withAnimePageHref = (item: MediaItem): MediaItem => {
   const existingHref =
     typeof animeItem.href === "string" ? animeItem.href : undefined;
   if (existingHref && !isExternalHref(existingHref)) {
-    return item;
+    return {
+      ...item,
+      href: withAnilistQuery(existingHref),
+    } as MediaItem;
   }
 
   const id = Math.abs(item.id);
   const detailHref =
     item.media_type === "movie" ? `/movies/${id}` : `/tvshows/${id}`;
 
-  return { ...item, href: detailHref } as MediaItem;
+  return { ...item, href: withAnilistQuery(detailHref) } as MediaItem;
 };
 
 export const withAnimePageHrefs = (items: MediaItem[]) =>

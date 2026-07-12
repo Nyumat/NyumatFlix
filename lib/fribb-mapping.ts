@@ -3,13 +3,34 @@ import { unstable_cache } from "next/cache";
 export type FribbMappingItem = {
   anilist_id?: number;
   themoviedb_id?: {
-    tv?: number;
-    movie?: number;
+    tv?: number | number[];
+    movie?: number | number[];
   };
   season?: {
     tmdb?: number;
   };
 };
+
+const firstPositiveId = (
+  value: number | number[] | undefined,
+): number | null => {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === "number" && Number.isInteger(entry) && entry > 0) {
+        return entry;
+      }
+    }
+  }
+
+  return null;
+};
+
+/** Fribb stores some movie TMDB IDs as arrays — normalize to a single id. */
+export const normalizeFribbTmdbId = firstPositiveId;
 
 export type FribbTmdbEntry = {
   tv?: number;
@@ -66,8 +87,10 @@ export const getFribbMapping = unstable_cache(
       if (!item.anilist_id || !item.themoviedb_id) continue;
 
       const entry: FribbTmdbEntry = {};
-      if (item.themoviedb_id.tv) entry.tv = item.themoviedb_id.tv;
-      if (item.themoviedb_id.movie) entry.movie = item.themoviedb_id.movie;
+      const tvId = firstPositiveId(item.themoviedb_id.tv);
+      const movieId = firstPositiveId(item.themoviedb_id.movie);
+      if (tvId) entry.tv = tvId;
+      if (movieId) entry.movie = movieId;
       if (item.season?.tmdb && item.season.tmdb > 0) {
         entry.season = item.season.tmdb;
       }
@@ -79,7 +102,7 @@ export const getFribbMapping = unstable_cache(
 
     return mapping;
   },
-  ["fribb-anime-mapping-v3"],
+  ["fribb-anime-mapping-v4"],
   { revalidate: 60 * 60 * 24 },
 );
 

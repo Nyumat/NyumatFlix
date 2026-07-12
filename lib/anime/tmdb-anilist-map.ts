@@ -4,6 +4,25 @@ export type MappingSegment = {
   anilistMediaId: number;
 };
 
+export const buildUnknownEpisodeCountSegment = (input: {
+  anilistMediaId: number;
+  tmdbEpisodeCount: number;
+  tmdbEpisodeNumbers: readonly number[];
+}): MappingSegment => {
+  const lastPositiveEpisodeNumber = Math.max(
+    0,
+    ...input.tmdbEpisodeNumbers.filter(
+      (episodeNumber) => Number.isInteger(episodeNumber) && episodeNumber > 0,
+    ),
+  );
+
+  return {
+    startEpisode: 1,
+    endEpisode: Math.max(input.tmdbEpisodeCount, lastPositiveEpisodeNumber),
+    anilistMediaId: input.anilistMediaId,
+  };
+};
+
 export type MappingConfidence = "high" | "low";
 
 export type TmdbAnilistMapResponse = {
@@ -35,6 +54,35 @@ export const relativeEpisodeInSegment = (
   segment: MappingSegment,
   tmdbEpisodeNumber: number,
 ): number => tmdbEpisodeNumber - segment.startEpisode + 1;
+
+/** 1-based anime season index from AniList segments (not TMDB season_number). */
+export const animeSeasonNumberForEpisode = (
+  segments: readonly MappingSegment[],
+  tmdbEpisodeNumber: number,
+): number | null => {
+  const index = segments.findIndex(
+    (segment) =>
+      tmdbEpisodeNumber >= segment.startEpisode &&
+      tmdbEpisodeNumber <= segment.endEpisode,
+  );
+  return index >= 0 ? index + 1 : null;
+};
+
+export const toAnimeDisplayCoords = (
+  segments: readonly MappingSegment[],
+  tmdbEpisodeNumber: number,
+): { seasonNumber: number; episodeNumber: number } | null => {
+  const segment = findSegmentForEpisode(segments, tmdbEpisodeNumber);
+  const seasonNumber = animeSeasonNumberForEpisode(segments, tmdbEpisodeNumber);
+  if (!segment || seasonNumber == null) {
+    return null;
+  }
+
+  return {
+    seasonNumber,
+    episodeNumber: relativeEpisodeInSegment(segment, tmdbEpisodeNumber),
+  };
+};
 
 export const inferMappingConfidence = (
   segments: readonly MappingSegment[],
@@ -68,6 +116,8 @@ export const inferMappingConfidence = (
 export type ResolvedAnimeEpisodeCoords = {
   anilistId: number;
   relativeEpisodeNumber: number;
+  /** 1-based index among mapping segments when multi-cour TMDB seasons are split. */
+  animeSeasonNumber: number | null;
   animeInfo: {
     anilistId: number;
     startEpisode: number;
@@ -94,6 +144,10 @@ export const resolveAnimeEpisodeCoords = (input: {
         segment,
         input.tmdbEpisodeNumber,
       ),
+      animeSeasonNumber: animeSeasonNumberForEpisode(
+        input.segments,
+        input.tmdbEpisodeNumber,
+      ),
       animeInfo: {
         anilistId: segment.anilistMediaId,
         startEpisode: segment.startEpisode,
@@ -106,6 +160,7 @@ export const resolveAnimeEpisodeCoords = (input: {
   return {
     anilistId: input.fallbackAnilistId,
     relativeEpisodeNumber: input.tmdbEpisodeNumber,
+    animeSeasonNumber: null,
     animeInfo: {
       anilistId: input.fallbackAnilistId,
       startEpisode: 1,

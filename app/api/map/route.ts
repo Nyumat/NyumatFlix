@@ -5,6 +5,7 @@ import {
 } from "@/utils/anilist-helpers";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import {
+  buildUnknownEpisodeCountSegment,
   inferMappingConfidence,
   type MappingConfidence,
 } from "@/lib/anime/tmdb-anilist-map";
@@ -531,11 +532,15 @@ function resolveMappings(
 
   const segments: MappingSegment[] = [];
   if (anilistCandidates.length > 0) {
-    segments.push({
-      startEpisode: 1,
-      endEpisode: tmdbSeason.episode_count,
-      anilistMediaId: anilistCandidates[0].id,
-    });
+    segments.push(
+      buildUnknownEpisodeCountSegment({
+        anilistMediaId: anilistCandidates[0].id,
+        tmdbEpisodeCount: tmdbSeason.episode_count,
+        tmdbEpisodeNumbers: tmdbSeason.episodes.map(
+          (episode) => episode.episode_number,
+        ),
+      }),
+    );
   }
 
   return { segments, debug: debugInfo };

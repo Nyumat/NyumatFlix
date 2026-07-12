@@ -1,4 +1,5 @@
 import { MediaItem } from "@/lib/domain/typings";
+import { normalizeAnimeTitle } from "@/lib/scrape/anime/title-match";
 
 export function getSearchTitle(media: MediaItem): string | null {
   if (!media) return null;
@@ -74,15 +75,134 @@ export async function fetchAnilistId(
   }
 }
 
+type AniListSearchMedia = {
+  id?: number;
+  title?: {
+    english?: string | null;
+    romaji?: string | null;
+    native?: string | null;
+  } | null;
+  startDate?: { year?: number | null } | null;
+};
+
+const getMediaSearchTitles = (media: MediaItem): string[] => {
+  const titles: unknown[] = [
+    "original_name" in media ? media.original_name : null,
+    "original_title" in media ? media.original_title : null,
+    getSearchTitle(media),
+  ];
+
+  return [...new Set(titles)]
+    .filter(
+      (title): title is string =>
+        typeof title === "string" && title.trim().length > 0,
+    )
+    .map((title) => title.trim());
+};
+
+const getMediaReleaseYear = (media: MediaItem): number | null => {
+  const date = media.first_air_date || media.release_date;
+  const year = date ? Number.parseInt(date.slice(0, 4), 10) : Number.NaN;
+  return Number.isInteger(year) ? year : null;
+};
+
+const isExactAniListMediaMatch = (
+  candidate: AniListSearchMedia,
+  expectedTitles: readonly string[],
+  expectedYear: number | null,
+): candidate is AniListSearchMedia & { id: number } => {
+  if (!Number.isInteger(candidate.id) || Number(candidate.id) <= 0) {
+    return false;
+  }
+
+  const expected = new Set(expectedTitles.map(normalizeAnimeTitle));
+  const candidateTitles = [
+    candidate.title?.english,
+    candidate.title?.romaji,
+    candidate.title?.native,
+  ]
+    .filter((title): title is string => Boolean(title?.trim()))
+    .map(normalizeAnimeTitle);
+
+  if (!candidateTitles.some((title) => expected.has(title))) {
+    return false;
+  }
+
+  const candidateYear = candidate.startDate?.year;
+  return (
+    expectedYear == null ||
+    candidateYear == null ||
+    candidateYear === expectedYear
+  );
+};
+
+const fetchExactAnilistId = async (
+  searchTitle: string,
+  expectedTitles: readonly string[],
+  expectedYear: number | null,
+): Promise<number | null> => {
+  try {
+    const response = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `
+          query ($search: String) {
+            Media(search: $search, type: ANIME) {
+              id
+              title { english romaji native }
+              startDate { year }
+            }
+          }
+        `,
+        variables: { search: searchTitle },
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as {
+      data?: { Media?: AniListSearchMedia | null };
+    };
+    const candidate = payload.data?.Media;
+    return candidate &&
+      isExactAniListMediaMatch(candidate, expectedTitles, expectedYear)
+      ? candidate.id
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 export async function getAnilistIdForMedia(
   media: MediaItem,
 ): Promise<number | null | undefined> {
-  const searchTitle = getSearchTitle(media);
-  const genres = media.genre_ids || media.genres || [];
+  const searchTitles = getMediaSearchTitles(media);
+  const genreIds = Array.isArray(media.genre_ids) ? media.genre_ids : [];
+  const detailedGenres = Array.isArray(media.genres)
+    ? media.genres.filter(
+        (genre): genre is { id: number; name?: string } =>
+          typeof genre === "object" &&
+          genre !== null &&
+          "id" in genre &&
+          typeof genre.id === "number",
+      )
+    : [];
+  const genres = genreIds.length > 0 ? genreIds : detailedGenres;
 
-  if (!searchTitle || !isAnime(genres)) {
+  if (searchTitles.length === 0 || !isAnime(genres)) {
     return undefined;
   }
 
-  return await fetchAnilistId(searchTitle);
+  const releaseYear = getMediaReleaseYear(media);
+  for (const searchTitle of searchTitles) {
+    const anilistId = await fetchExactAnilistId(
+      searchTitle,
+      searchTitles,
+      releaseYear,
+    );
+    if (anilistId) return anilistId;
+  }
+
+  return null;
 }

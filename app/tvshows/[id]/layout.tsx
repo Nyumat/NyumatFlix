@@ -1,8 +1,9 @@
 import { DetailPageLoading } from "@/components/layout/page-loading/detail-page-loading";
 import { TvShowDetailShell } from "@/components/tvshow/tvshow-detail-shell";
 import { resolveCanonicalAnilistRoute } from "@/lib/anilist-tv-detail";
-import { resolveAnilistSeasonAnilistId } from "@/lib/anilist-tv-detail";
-import { getAnilistIdFromFribb, getTmdbIdFromFribb } from "@/lib/fribb-mapping";
+import { buildAnilistTmdbRedirectHref } from "@/lib/anilist-tmdb-redirect";
+import { resolveAnilistTvTmdbRoute } from "@/lib/anilist-tmdb-route";
+import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
 import {
   fromAnilistTvRouteId,
   isAnilistTvRouteId,
@@ -26,13 +27,40 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
+const parsePositiveInt = (value: string | null) => {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
 export default async function TVShowDetailLayout({ children, params }: Props) {
   const { id } = await params;
 
   if (isAnilistTvRouteId(id)) {
     const normalized = normalizeAnilistTvRouteSlug(id);
-    const canonical = await resolveCanonicalAnilistRoute(id);
+    if (id !== normalized) {
+      redirect(`/tvshows/${normalized}`);
+    }
 
+    const requestSearchParams = new URLSearchParams(
+      (await headers()).get("x-search-params") ?? "",
+    );
+    const entryAnilistId = fromAnilistTvRouteId(id);
+    const requestedSeason = parsePositiveInt(requestSearchParams.get("season"));
+
+    // Map → redirect first. Franchise walks are only for unmapped AniList detail.
+    const mapping = await resolveAnilistTvTmdbRoute(entryAnilistId);
+    if (mapping?.type === "tv") {
+      redirect(
+        buildAnilistTmdbRedirectHref({
+          mapping,
+          entryAnilistId,
+          requestedSeason,
+          autoplay: requestSearchParams.get("autoplay") === "true",
+        }),
+      );
+    }
+
+    const canonical = await resolveCanonicalAnilistRoute(id);
     if (canonical && normalized !== canonical.slug) {
       const searchParams = new URLSearchParams();
       if (canonical.season > 1) {
@@ -44,35 +72,6 @@ export default async function TVShowDetailLayout({ children, params }: Props) {
           ? `/tvshows/${canonical.slug}?${query}`
           : `/tvshows/${canonical.slug}`,
       );
-    }
-
-    if (id !== normalized) {
-      redirect(`/tvshows/${normalized}`);
-    }
-
-    const requestSearchParams = new URLSearchParams(
-      (await headers()).get("x-search-params") ?? "",
-    );
-    const requestedSeason = Number.parseInt(
-      requestSearchParams.get("season") ?? "1",
-      10,
-    );
-    const sourceAnilistId =
-      (Number.isInteger(requestedSeason) && requestedSeason > 0
-        ? await resolveAnilistSeasonAnilistId(id, requestedSeason)
-        : null) ?? fromAnilistTvRouteId(id);
-    const mapping = await getTmdbIdFromFribb(sourceAnilistId);
-
-    if (mapping?.type === "tv") {
-      const targetParams = new URLSearchParams();
-      if (mapping.season && mapping.season > 1) {
-        targetParams.set("season", String(mapping.season));
-      }
-      if (requestSearchParams.get("autoplay") === "true") {
-        targetParams.set("autoplay", "true");
-      }
-      const query = targetParams.toString();
-      redirect(`/tvshows/${mapping.id}${query ? `?${query}` : ""}`);
     }
   }
 
@@ -100,9 +99,18 @@ async function TvShowDetailLayoutContent({ children, params }: Props) {
   }
 
   const detailMedia = details as TvShowDetails;
+  const requestSearchParams = new URLSearchParams(
+    (await headers()).get("x-search-params") ?? "",
+  );
+  const queryAnilistId = parsePositiveInt(requestSearchParams.get("anilistId"));
+
+  const mappedAnilistId = isAnilistTvRouteId(id)
+    ? detailMedia.id
+    : await getAnilistIdFromFribb(detailMedia.id, "tv");
   const anilistId = isAnilistTvRouteId(id)
     ? detailMedia.id
-    : ((await getAnilistIdFromFribb(detailMedia.id, "tv")) ??
+    : (queryAnilistId ??
+      mappedAnilistId ??
       (await getAnilistIdForMedia(detailMedia)));
 
   const queryClient = new QueryClient();
