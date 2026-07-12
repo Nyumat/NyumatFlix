@@ -7,6 +7,8 @@ import {
   buildVidnestMediaPath,
   extractVidnestCaptions,
   extractVidnestStreams,
+  isFreshVidnestSignedUrl,
+  isVidnestClientOnlyCdn,
   mapVidnestCaptions,
   refererForVidnestStream,
   type VidNestPayload,
@@ -16,20 +18,18 @@ const VIDNEST_API_ORIGIN = "https://new.vidnest.fun";
 const VIDNEST_REFERER = "https://vidnest.fun/";
 
 const VIDNEST_SCRAPE_RESOLVERS = [
-  "ophim",
-  "moviesapi",
-  "hollymoviehd",
   "movies5f",
-  "klikxxi",
+  "moviebox",
+  "allmovies",
+  "ophim",
+  "hollymoviehd",
   "videasy",
-  "flixhq",
-  "showbox",
+  "moviesapi",
+  "klikxxi",
   "vidlink",
-  "nepu",
-  "embedsu",
+  "flixhq",
   "multiembed",
-  "vidsrc",
-  "2embed",
+  "nepu",
 ] as const;
 
 type RankedVidnestCandidate = {
@@ -60,6 +60,10 @@ const scoreStream = (url: string, language?: string): number => {
   }
   if (/\.mp4(?:[?#]|$)/i.test(url)) {
     score += 1;
+  }
+  const heightMatch = language?.match(/(\d{3,4})p/i);
+  if (heightMatch?.[1]) {
+    score += Number.parseInt(heightMatch[1], 10) / 1000;
   }
   if (/^(?:en|english|main|auto)(?:[-_]|$)/i.test(language ?? "")) {
     score += 2;
@@ -95,9 +99,6 @@ const fetchResolverCandidates = async (
 
   return streams.flatMap((stream, index) => {
     const streamUrl = stream.url;
-    if (!streamUrl?.startsWith("http")) {
-      return [];
-    }
 
     const language = stream.language?.trim();
     const type = stream.type?.trim();
@@ -111,7 +112,7 @@ const fetchResolverCandidates = async (
     return [
       {
         streamUrl,
-        referer: refererForVidnestStream(streamUrl),
+        referer: refererForVidnestStream(streamUrl, stream.referer),
         label: labelParts.join(" · "),
         subtitles: subtitles.length > 0 ? subtitles : undefined,
         score: scoreStream(streamUrl, language),
@@ -161,6 +162,15 @@ export async function scrapeVidNest(
             { depth },
           );
           if (!validation.ok) {
+            if (
+              !isVidnestClientOnlyCdn(candidate.streamUrl) ||
+              !isFreshVidnestSignedUrl(candidate.streamUrl)
+            ) {
+              continue;
+            }
+
+            seenUrls.add(candidate.streamUrl);
+            playable.push(candidate);
             continue;
           }
 
@@ -194,6 +204,13 @@ export async function scrapeVidNest(
           { depth: "full" },
         );
         if (!validation.ok) {
+          if (
+            isVidnestClientOnlyCdn(candidate.streamUrl) &&
+            isFreshVidnestSignedUrl(candidate.streamUrl)
+          ) {
+            seenUrls.add(candidate.streamUrl);
+            playable.push(candidate);
+          }
           continue;
         }
         seenUrls.add(candidate.streamUrl);

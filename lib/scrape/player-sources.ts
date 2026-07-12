@@ -254,8 +254,21 @@ export const buildScrapeQualityPlayOptions = (
   topLevelSubtitles?: ScrapeSubtitle[],
 ): ScrapeQualityPlayOption[] => {
   const refresh = extractScrapePlaybackRefreshFromPlayUrl(playUrl);
+  const directPlayback = playUrl.startsWith("http");
   const options: ScrapeQualityPlayOption[] = [];
   const seen = new Set<string>();
+
+  const resolvePlayUrl = (quality: ScrapeQuality) => {
+    if (directPlayback) {
+      return quality.url;
+    }
+
+    return buildScrapePlayUrl({
+      url: quality.url,
+      referer: quality.referer ?? referer,
+      refresh,
+    });
+  };
 
   const pushOption = (option: ScrapeQualityPlayOption) => {
     if (seen.has(option.playUrl)) {
@@ -270,11 +283,7 @@ export const buildScrapeQualityPlayOptions = (
     .sort((left, right) => qualityHeight(right) - qualityHeight(left));
 
   const primaryMatch = sorted.find((quality) => {
-    const proxied = buildScrapePlayUrl({
-      url: quality.url,
-      referer: quality.referer ?? referer,
-      refresh,
-    });
+    const proxied = resolvePlayUrl(quality);
     return proxied === playUrl || quality.url === playUrl;
   });
 
@@ -287,11 +296,7 @@ export const buildScrapeQualityPlayOptions = (
   });
 
   for (const quality of sorted) {
-    const proxied = buildScrapePlayUrl({
-      url: quality.url,
-      referer: quality.referer ?? referer,
-      refresh,
-    });
+    const proxied = resolvePlayUrl(quality);
     pushOption({
       label: quality.label,
       playUrl: proxied,

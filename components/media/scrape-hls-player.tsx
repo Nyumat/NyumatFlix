@@ -4,6 +4,7 @@ import {
   getTimeRangesEnd,
   isDASHProvider,
   isHLSProvider,
+  isVideoProvider,
   MediaAnnouncer,
   MediaPlayer,
   MediaProvider,
@@ -56,6 +57,7 @@ import {
   buildScrapeMediaPlayerSrc,
   type ScrapeStreamKind,
 } from "@/lib/scrape/stream-kind";
+import { isVidnestClientOnlyCdn } from "@/lib/scrape/vidnest-shared";
 import type {
   ScrapeAudioVersion,
   ScrapeQuality,
@@ -270,6 +272,16 @@ export function ScrapeHlsPlayer({
         return;
       }
 
+      if (
+        streamKind === "mp4" &&
+        activePlaybackUrl.startsWith("http") &&
+        isVidnestClientOnlyCdn(activePlaybackUrl) &&
+        isVideoProvider(provider)
+      ) {
+        // hakunaymatata CDN rejects range requests that carry a site referer.
+        provider.video.setAttribute("referrerpolicy", "no-referrer");
+      }
+
       if (isHLSProvider(provider)) {
         provider.library = Hls;
         provider.config = SCRAPE_VOD_HLS_CONFIG;
@@ -291,7 +303,7 @@ export function ScrapeHlsPlayer({
         provider.library = loadDashjsLibrary;
       }
     },
-    [],
+    [activePlaybackUrl, streamKind],
   );
 
   const applyResumePosition = useCallback(() => {
