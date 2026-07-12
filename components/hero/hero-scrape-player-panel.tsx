@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
 import { ScrapingOverlay } from "@/components/media/controls/scraping-overlay";
 import { ScrapePlayerShell } from "@/components/media/scrape-player-shell";
 import type { UseAnimeScrapeReturn } from "@/hooks/use-anime-scrape";
@@ -90,12 +91,22 @@ export function HeroScrapePlayerPanel({
   onFatalError,
   onEnded,
 }: HeroScrapePlayerPanelProps) {
+  const flags = useFeatureFlagsOptional();
+  const maintenanceMode = flags?.maintenanceMode ?? false;
+
   if (!isScrapeServer(selectedServer)) {
     return null;
   }
 
+  const maintenanceBanner = maintenanceMode ? (
+    <div className="absolute inset-x-0 top-0 z-40 border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-center text-sm text-amber-100 backdrop-blur-sm">
+      Playback is temporarily unavailable while maintenance is in progress.
+    </div>
+  ) : null;
+
   return (
     <>
+      {maintenanceBanner}
       {scrapeStatus === "scraping" ? (
         <ScrapingOverlay
           items={sourceOverlayItems}

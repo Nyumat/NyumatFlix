@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { filterTmdbScrapeProviderIds } from "@/lib/flags/site-flags";
 import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
 import {
   SCRAPE_PROVIDER_LABELS,
@@ -50,11 +52,25 @@ const scrapeLoopConfig = {
 } as const;
 
 export function useScrape() {
+  const flags = useFeatureFlagsOptional();
+  const config = useMemo(
+    () => ({
+      ...scrapeLoopConfig,
+      providerOrder: flags
+        ? (filterTmdbScrapeProviderIds(
+            flags,
+            SCRAPE_PROVIDER_ORDER,
+          ) as typeof SCRAPE_PROVIDER_ORDER)
+        : SCRAPE_PROVIDER_ORDER,
+    }),
+    [flags],
+  );
+
   return useProviderScrapeLoop<
     ScrapeProviderId,
     ScrapeMediaInput,
     ScrapeSuccessPayload
-  >(useMemo(() => scrapeLoopConfig, []));
+  >(config);
 }
 
 export type UseScrapeReturn = ReturnType<typeof useScrape>;

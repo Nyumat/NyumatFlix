@@ -12,6 +12,7 @@ import {
   rotateScrapeVpnEgress,
   scrapeRateLimitRotateHostname,
 } from "./vpn-rotate";
+import { getCachedRawFlagsSync } from "@/lib/flags/flipt-client";
 
 const FETCH_TIMEOUT_MS = 30_000;
 const FETCH_RETRY_ATTEMPTS = 3;
@@ -41,15 +42,19 @@ export const scrapeBypassesProxyHostname = (hostname: string): boolean =>
 
 type HostEgressPreference = "direct" | "proxy";
 
-/** Per-host memory: once proxy is required, skip burning a direct attempt. */
 const hostEgressPreference = new Map<string, HostEgressPreference>();
 
 export const resetScrapeHostEgressPreferences = (): void => {
   hostEgressPreference.clear();
 };
 
-export const scrapePreferDirectEgress = (): boolean =>
-  process.env.SCRAPE_PREFER_DIRECT?.trim() !== "0";
+export const scrapePreferDirectEgress = (): boolean => {
+  const raw = getCachedRawFlagsSync();
+  if (raw?.["global.scrape_proxy_required"]) {
+    return false;
+  }
+  return process.env.SCRAPE_PREFER_DIRECT?.trim() !== "0";
+};
 
 type ScrapeFetchInit = RequestInit & {
   headers?: Record<string, string>;
@@ -300,7 +305,6 @@ async function scrapeFetchOnce(
       return directResult;
     }
     if (hostname && !scrapeBypassesProxyHostname(hostname)) {
-      // Don't keep paying a doomed direct hop on the next request.
       hostEgressPreference.set(hostname, "proxy");
     }
     if (directResult !== "error") {

@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import {
+  isAnimeScrapeProviderEnabled,
+  isTmdbScrapeProviderEnabled,
+} from "@/lib/flags/site-flags";
 import type { HeroScrapeChrome } from "@/components/hero/hero-scrape-types";
 import { useAnimePlaybackScrape } from "@/hooks/use-anime-playback-scrape";
 import { useScrape } from "@/hooks/use-scrape";
@@ -68,6 +73,37 @@ export function useHeroScrapePlayback({
     unavailableServerIds,
   } = useServerStore();
   const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
+  const flags = useFeatureFlagsOptional();
+
+  const filterProviderOptions = useCallback(
+    (
+      options:
+        | ReturnType<typeof buildGroupedAnimePlaybackProviderOptions>
+        | typeof SCRAPE_PROVIDER_OPTIONS,
+    ) => {
+      if (!flags) return options;
+      return options.filter((provider) => {
+        if ("group" in provider && provider.group === "anime") {
+          return isAnimeScrapeProviderEnabled(flags, provider.providerId);
+        }
+        return isTmdbScrapeProviderEnabled(flags, provider.providerId);
+      });
+    },
+    [flags],
+  );
+
+  const filterProviderOrder = useCallback(
+    (order: readonly AnimePlaybackScrapeProviderId[] | ScrapeProviderId[]) => {
+      if (!flags) return [...order];
+      return order.filter((providerId) => {
+        if (providerId in flags.animeScrapeProviders) {
+          return isAnimeScrapeProviderEnabled(flags, providerId);
+        }
+        return isTmdbScrapeProviderEnabled(flags, providerId);
+      });
+    },
+    [flags],
+  );
 
   const mediaScrape = useScrape();
   const animePlaybackScrape = useAnimePlaybackScrape();
@@ -190,7 +226,7 @@ export function useHeroScrapePlayback({
       anilistId: episodeAnilistId!,
       episodeNumber: relativeEpisodeNumber!,
       translationType: animePreference,
-      query: (media.title || media.name || undefined)?.trim() || undefined,
+      query: String(media.title || media.name || "").trim() || undefined,
     };
   }, [
     animePreference,
@@ -494,9 +530,11 @@ export function useHeroScrapePlayback({
       return;
     }
 
-    const providerOrder = isAnimeScrapeMode
-      ? buildAnimePlaybackProviderOrder(animePlaybackChainContext)
-      : [...SCRAPE_PROVIDER_ORDER];
+    const providerOrder = filterProviderOrder(
+      isAnimeScrapeMode
+        ? buildAnimePlaybackProviderOrder(animePlaybackChainContext)
+        : [...SCRAPE_PROVIDER_ORDER],
+    );
 
     if (!areScrapeProvidersExhausted(activeScrape.items, providerOrder)) {
       return;
@@ -514,6 +552,7 @@ export function useHeroScrapePlayback({
     activeScrape.items,
     activeScrape.status,
     animePlaybackChainContext,
+    filterProviderOrder,
     getCurrentMediaKey,
     getFallbackEmbedServer,
     isAnimeScrapeMode,
@@ -523,9 +562,11 @@ export function useHeroScrapePlayback({
     setSelectedServer,
   ]);
 
-  const scrapeProviderOptions = isAnimeScrapeMode
-    ? buildGroupedAnimePlaybackProviderOptions(animePlaybackChainContext)
-    : SCRAPE_PROVIDER_OPTIONS;
+  const scrapeProviderOptions = filterProviderOptions(
+    isAnimeScrapeMode
+      ? buildGroupedAnimePlaybackProviderOptions(animePlaybackChainContext)
+      : SCRAPE_PROVIDER_OPTIONS,
+  );
 
   const canFindNextSource = (() => {
     if (
@@ -536,9 +577,11 @@ export function useHeroScrapePlayback({
       return false;
     }
 
-    const providerOrder = isAnimeScrapeMode
-      ? buildAnimePlaybackProviderOrder(animePlaybackChainContext)
-      : [...SCRAPE_PROVIDER_ORDER];
+    const providerOrder = filterProviderOrder(
+      isAnimeScrapeMode
+        ? buildAnimePlaybackProviderOrder(animePlaybackChainContext)
+        : [...SCRAPE_PROVIDER_ORDER],
+    );
     const currentIndex = providerOrder.indexOf(activeScrape.result.providerId);
     return currentIndex >= 0 && currentIndex < providerOrder.length - 1;
   })();
