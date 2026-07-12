@@ -65,12 +65,13 @@ ensure_network() {
 
 ensure_infra_compose() {
   cd "$ROOT"
-  sudo docker compose -f docker-compose.scrape.yml up -d
+  sudo env "GLUETUN_ENV_FILE=$HOME/apps/gluetun/.env" \
+    docker compose -f docker-compose.scrape.yml up -d --no-deps flaresolverr
   sudo docker compose -f docker-compose.ffs.yml up -d
 }
 
 serve() {
-  "$ROOT/scripts/bootstrap-scrape-vpn.sh" prod
+  "$ROOT/scripts/bootstrap-scrape-vpn.sh" prod-local
   if [[ ! -f "$ENV_FILE" ]]; then
     echo "env file not found: $ENV_FILE (set ENV_FILE=...)" >&2
     exit 1
