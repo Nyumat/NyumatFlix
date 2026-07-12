@@ -138,6 +138,8 @@ jobs:
       DOCKER_IMAGE: whotypes/nyumatflix:latest
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Set up SSH key
         run: |
           install -m 700 -d ~/.ssh
@@ -145,9 +147,29 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
+      - name: Sync deploy scripts
+        run: |
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/scripts'"
+          rsync -avz -e "ssh -p $DEPLOY_PORT" \
+            scripts/deploy.sh \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/deploy.sh"
+          rsync -avz -e "ssh -p $DEPLOY_PORT" \
+            scripts/bootstrap-scrape-vpn.sh \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/scripts/bootstrap-scrape-vpn.sh"
+          if [[ -f docker-compose.scrape.yml ]]; then
+            rsync -avz -e "ssh -p $DEPLOY_PORT" \
+              docker-compose.scrape.yml docker-compose.ffs.yml \
+              "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+          fi
+          if [[ -d flipt ]]; then
+            rsync -avz -e "ssh -p $DEPLOY_PORT" \
+              flipt/ \
+              "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/flipt/"
+          fi
+
       - name: Deploy latest image
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" <<EOF
           set -euo pipefail
-          DOCKER_IMAGE="$DOCKER_IMAGE" "$DEPLOY_PATH/deploy.sh" serve
+          NYUMATFLIX_ROOT="$DEPLOY_PATH" DOCKER_IMAGE="$DOCKER_IMAGE" "$DEPLOY_PATH/deploy.sh" serve
           EOF

@@ -12,12 +12,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$SCRIPT_DIR/scripts/bootstrap-scrape-vpn.sh" ]]; then
-  ROOT="$SCRIPT_DIR"
-elif [[ -f "$SCRIPT_DIR/bootstrap-scrape-vpn.sh" ]]; then
+if [[ -n "${NYUMATFLIX_ROOT:-}" ]]; then
+  ROOT="$NYUMATFLIX_ROOT"
+elif [[ "$(basename "$SCRIPT_DIR")" == "scripts" ]]; then
   ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 else
-  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  ROOT="$SCRIPT_DIR"
 fi
 DOCKER_IMAGE="${DOCKER_IMAGE:-whotypes/nyumatflix:latest}"
 CONTAINER_NAME="${CONTAINER_NAME:-nyumatflix}"
