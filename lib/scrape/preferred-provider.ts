@@ -52,11 +52,17 @@ export const getPreferredScrapeProvider = (mediaKey: string): string | null => {
   return entry.providerId;
 };
 
+import { UNTRUSTED_PREFERRED_SCRAPE_PROVIDERS } from "@/lib/scrape/provider-race";
+
 export const setPreferredScrapeProvider = (
   mediaKey: string,
   providerId: string,
 ): void => {
-  if (!mediaKey || !providerId) {
+  if (
+    !mediaKey ||
+    !providerId ||
+    UNTRUSTED_PREFERRED_SCRAPE_PROVIDERS.has(providerId)
+  ) {
     return;
   }
 

@@ -29,6 +29,10 @@ describe("provider registry", () => {
     ]);
   });
 
+  it("keeps vixsrc last in the TMDB scrape chain", () => {
+    expect(TMDB_SCRAPE_PROVIDER_ORDER.at(-1)).toBe("vixsrc");
+  });
+
   it("lists dual-capability providers for embed sub-picker", () => {
     expect(dualCapabilityEmbedProviderIds()).toEqual([
       "vidsrc",

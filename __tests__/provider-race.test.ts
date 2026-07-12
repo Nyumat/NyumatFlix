@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { nextRaceBatch } from "@/lib/scrape/provider-race";
+import {
+  nextRaceBatch,
+  pickRaceWinner,
+  reorderProvidersWithPreferred,
+} from "@/lib/scrape/provider-race";
 
 describe("nextRaceBatch", () => {
   const order = [
@@ -34,5 +38,43 @@ describe("nextRaceBatch", () => {
     const { batch, nextIndex } = nextRaceBatch(order, order.length, new Set());
     expect(batch).toEqual([]);
     expect(nextIndex).toBe(order.length);
+  });
+});
+
+describe("pickRaceWinner", () => {
+  const order = ["vidsrc", "vidsrc-mirror", "vixsrc"] as const;
+
+  it("prefers the earliest provider in order when several succeed", () => {
+    const winner = pickRaceWinner(order, [
+      { providerId: "vixsrc", attempt: { outcome: "success" } },
+      { providerId: "vidsrc", attempt: { outcome: "success" } },
+      { providerId: "vidsrc-mirror", attempt: { outcome: "failure" } },
+    ]);
+
+    expect(winner?.providerId).toBe("vidsrc");
+  });
+
+  it("returns undefined when no provider succeeds", () => {
+    expect(
+      pickRaceWinner(order, [
+        { providerId: "vixsrc", attempt: { outcome: "failure" } },
+      ]),
+    ).toBeUndefined();
+  });
+});
+
+describe("reorderProvidersWithPreferred", () => {
+  const order = ["vidsrc", "vidsrc-mirror", "vixsrc"] as const;
+
+  it("pins preferred to the front without dropping other providers", () => {
+    expect(reorderProvidersWithPreferred(order, "vixsrc")).toEqual([
+      "vixsrc",
+      "vidsrc",
+      "vidsrc-mirror",
+    ]);
+  });
+
+  it("returns the original order when preferred is missing", () => {
+    expect(reorderProvidersWithPreferred(order, undefined)).toEqual(order);
   });
 });

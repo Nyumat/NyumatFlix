@@ -101,16 +101,17 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
   provider("vidsrc-mirror", "VidSrc Mirror", { embed: true, tmdbScrape: true }),
-  provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
-  provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
   provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
+  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
+  provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
   provider("vidnest", "VidNest", {
     embed: true,
     tmdbScrape: true,
     animeEmbed: true,
   }),
-  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
+  // Fast API scrape but high false-positive rate on playlist probes — try last.
+  provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
 ];
 
 /**
