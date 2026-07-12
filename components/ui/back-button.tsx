@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { prepareNavigationBack } from "@/lib/navigation/route-restoration";
 
 interface BackButtonProps {
   className?: string;
@@ -23,10 +24,11 @@ export function BackButton({ className, fallbackUrl = "/" }: BackButtonProps) {
 
   const handleBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
+      prepareNavigationBack();
       router.back();
-    } else {
-      router.push(fallbackUrl);
+      return;
     }
+    router.push(fallbackUrl);
   };
 
   const handleMouseEnter = () => {
