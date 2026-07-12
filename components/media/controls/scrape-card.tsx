@@ -1,7 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-
 import {
   ScrapeStatusCircle,
   type ScrapeStatusCircleType,
@@ -15,12 +13,7 @@ const statusCircleMap: Record<ScrapeItemStatus, ScrapeStatusCircleType> = {
   success: "success",
   failure: "error",
   skipped: "noresult",
-};
-
-const statusLabelMap: Partial<Record<ScrapeItemStatus, string>> = {
-  pending: "Searching…",
-  success: "Stream found",
-  skipped: "Skipped",
+  unavailable: "noresult",
 };
 
 export type ScrapeSourceRowProps = {
@@ -34,48 +27,30 @@ export type ScrapeSourceRowProps = {
 export function ScrapeSourceRow({
   name,
   status,
-  error,
   active,
 }: ScrapeSourceRowProps) {
-  const detail = error ?? statusLabelMap[status];
+  const showIcon = status !== "waiting" || active;
 
   return (
-    <motion.div
-      layout
+    <div
       className={cn(
-        "flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors duration-200",
-        active && "bg-primary/10 ring-1 ring-inset ring-primary/25",
+        "flex items-center gap-3 py-1.5",
+        active ? "text-white/90" : "text-white/40",
+        (status === "skipped" ||
+          status === "unavailable" ||
+          status === "failure") &&
+          !active &&
+          "text-white/25",
       )}
     >
-      <ScrapeStatusCircle type={statusCircleMap[status]} />
-      <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "truncate text-sm font-medium transition-colors duration-200",
-            active ? "text-white" : "text-white/50",
-            status === "skipped" && "text-white/30",
-          )}
-        >
-          {name}
-        </p>
-        <AnimatePresence mode="wait" initial={false}>
-          {detail ? (
-            <motion.p
-              key={detail}
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.15 }}
-              className={cn(
-                "truncate text-[11px]",
-                status === "failure" ? "text-red-400/70" : "text-white/35",
-              )}
-            >
-              {detail}
-            </motion.p>
-          ) : null}
-        </AnimatePresence>
+      <div className="w-5 shrink-0">
+        {showIcon ? (
+          <ScrapeStatusCircle type={statusCircleMap[status]} />
+        ) : (
+          <span className="block size-2 rounded-full bg-white/15" />
+        )}
       </div>
-    </motion.div>
+      <p className="min-w-0 flex-1 truncate text-base">{name}</p>
+    </div>
   );
 }

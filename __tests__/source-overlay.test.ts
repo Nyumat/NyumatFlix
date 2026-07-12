@@ -31,28 +31,23 @@ describe("buildSourceOverlayItems", () => {
           name: "2Embed",
           status: "waiting",
         },
-        {
-          providerId: "vidsrc-mirror",
-          name: "VidSrc Mirror",
-          status: "waiting",
-        },
       ],
       embedServers: videoServers,
       availableServerIds: ["vidnest", "vidfast"],
       unavailableServerIds: ["superembed", "111movies"],
     });
 
-    expect(items.slice(0, 5).map((item) => item.id)).toEqual([
+    expect(items.slice(0, 4).map((item) => item.id)).toEqual([
       "vidking",
       "vidnest",
       "vidsrc",
       "2embed",
-      "vidsrc-mirror",
     ]);
 
     const embedItems = items.filter((item) => item.kind === "embed");
     expect(embedItems.map((item) => item.id)).toEqual([
       "vidfast",
+      "vidsrc-mirror",
       "videasy",
       "vidlink",
       "vidcore",

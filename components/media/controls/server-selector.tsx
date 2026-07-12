@@ -9,6 +9,15 @@ import {
 } from "@/lib/stores/server-store";
 import { sortServersByAvailability } from "@/lib/scrape/source-overlay";
 import {
+  mergeScrapeProviderMenu,
+  type ScrapeProviderMenuEntry,
+} from "@/lib/scrape/scrape-provider-menu";
+import {
+  resolveScrapeMenuDotVariant,
+  shouldDimScrapeMenuProvider,
+} from "@/lib/scrape/scrape-provider-menu-status";
+import type { ScrapeItem, ScrapeItemStatus } from "@/lib/scrape/types";
+import {
   dualCapabilityEmbedProviderIds,
   embedOnlyProviderIds,
   TMDB_SCRAPE_PROVIDER_OPTIONS,
@@ -16,18 +25,17 @@ import {
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { MediaItem } from "@/lib/domain/typings";
 import type { ScrapePlayerStatus } from "@/hooks/use-scrape";
+import { ScrapeProviderMenuDot } from "@/components/media/controls/scrape-provider-menu-dot";
 import {
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Radio,
   RefreshCw,
   Server,
-  Tv,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 import * as React from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { PulsatingButton } from "@/components/ui/pulsating-button";
 import {
   hasSeenProxyModeHint,
@@ -70,10 +78,29 @@ interface ServerSelectorProps {
   scrapeStatus?: ScrapePlayerStatus;
   activeScrapeProviderId?: string | null;
   activeScrapeProviderName?: string | null;
+  scrapeItems?: ScrapeItem[];
   scrapeProviders?: ScrapeProviderOption[];
   onSelectScrapeProvider?: (providerId: string) => void;
   onFindNextSource?: () => void;
   canFindNextSource?: boolean;
+}
+
+function ScrapeProviderStatusIcon({
+  status,
+  isActive,
+  scrapeStatus,
+}: {
+  status: ScrapeItemStatus | "idle";
+  isActive: boolean;
+  scrapeStatus: ScrapePlayerStatus;
+}) {
+  const variant = resolveScrapeMenuDotVariant({
+    liveStatus: status,
+    isActive,
+    scrapeStatus,
+  });
+
+  return <ScrapeProviderMenuDot variant={variant} />;
 }
 
 function ProxyModeHintBubble() {
@@ -235,6 +262,7 @@ export function ServerSelector({
   scrapeStatus = "idle",
   activeScrapeProviderId,
   activeScrapeProviderName,
+  scrapeItems = [],
   scrapeProviders = [],
   onSelectScrapeProvider,
   onFindNextSource,
@@ -267,6 +295,16 @@ export function ServerSelector({
         ? scrapeProviders
         : TMDB_SCRAPE_PROVIDER_OPTIONS,
     [scrapeProviders],
+  );
+
+  const directStreamMenuItems = React.useMemo(
+    () =>
+      mergeScrapeProviderMenu(
+        directStreamProviders,
+        scrapeItems,
+        activeScrapeProviderId,
+      ),
+    [activeScrapeProviderId, directStreamProviders, scrapeItems],
   );
 
   const sortedEmbedServers = React.useMemo(
@@ -397,22 +435,23 @@ export function ServerSelector({
   };
 
   const renderDirectStreamPanel = () => {
-    const animeProviders = directStreamProviders.filter(
+    const animeProviders = directStreamMenuItems.filter(
       (provider) => provider.group !== "tmdb",
     );
-    const tmdbProviders = directStreamProviders.filter(
+    const tmdbProviders = directStreamMenuItems.filter(
       (provider) => provider.group === "tmdb",
     );
     const hasGroups =
       animeProviders.length > 0 &&
       tmdbProviders.length > 0 &&
-      directStreamProviders.some((provider) => provider.group);
+      directStreamMenuItems.some((provider) => provider.group);
 
-    const renderProviderItem = (provider: ScrapeProviderOption) => {
+    const renderProviderItem = (provider: ScrapeProviderMenuEntry) => {
       const isActive =
         isScrapeActive &&
         activeScrapeProviderId === provider.providerId &&
         scrapeStatus === "playing";
+      const dimProvider = shouldDimScrapeMenuProvider(provider.status);
 
       return (
         <DropdownMenuItem
@@ -425,12 +464,17 @@ export function ServerSelector({
           }}
           className={cn(
             "flex cursor-pointer items-center justify-between rounded-none py-2",
-            isActive && "bg-primary/15 font-semibold text-primary",
+            isActive && "font-semibold",
+            dimProvider && !isActive && "text-muted-foreground",
           )}
           disabled={!onSelectScrapeProvider}
         >
           <span className="font-semibold">{provider.name}</span>
-          {isActive ? <Check className="h-4 w-4 text-primary" /> : null}
+          <ScrapeProviderStatusIcon
+            status={provider.status}
+            isActive={isActive}
+            scrapeStatus={scrapeStatus}
+          />
         </DropdownMenuItem>
       );
     };
@@ -450,7 +494,7 @@ export function ServerSelector({
             {tmdbProviders.map((provider) => renderProviderItem(provider))}
           </>
         ) : (
-          directStreamProviders.map((provider) => renderProviderItem(provider))
+          directStreamMenuItems.map((provider) => renderProviderItem(provider))
         )}
         {canFindNextSource && onFindNextSource ? (
           <DropdownMenuItem
