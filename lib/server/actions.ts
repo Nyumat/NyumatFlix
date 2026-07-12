@@ -184,13 +184,11 @@ export const getCategories = cache(async function getCategories(
   type: "movie" | "tv" | "multi",
 ): Promise<Genre[]> {
   if (type === "multi") {
-    // For multi type, combine movie and TV genres
     const [movieGenres, tvGenres] = await Promise.all([
       fetchTMDBData(`/genre/movie/list`),
       fetchTMDBData(`/genre/tv/list`),
     ]);
 
-    // Combine and deduplicate genres by ID
     const movieGenresResponse = movieGenres as unknown as TmdbGenreResponse;
     const tvGenresResponse = tvGenres as unknown as TmdbGenreResponse;
     const movieGenresData = GenreSchema.array().parse(
@@ -257,7 +255,6 @@ export const fetchAllData = async () => {
       without_genres: "10749",
     }),
 
-    // Genre-Based Rows (Movies)
     fetchTMDBData("/discover/movie", {
       with_genres: "28",
       sort_by: "popularity.desc",
@@ -306,7 +303,6 @@ export const fetchAllData = async () => {
       include_adult: "false",
     }),
 
-    // Curated Picks (Movies)
     fetchTMDBData("/discover/movie", {
       "vote_average.gte": "7.5",
       "vote_count.gte": "500",
@@ -327,7 +323,6 @@ export const fetchAllData = async () => {
       without_genres: "10749",
     }),
 
-    // Time-Based Categories (Movies)
     fetchTMDBData("/discover/movie", {
       "primary_release_date.gte": "1980-01-01",
       "primary_release_date.lte": "1989-12-31",
@@ -364,7 +359,6 @@ export const fetchAllData = async () => {
       without_genres: "10749",
     }),
 
-    // TV-Specific
     fetchTMDBData("/discover/tv", {
       with_type: "5",
       "vote_average.gte": "7.5",
@@ -373,7 +367,6 @@ export const fetchAllData = async () => {
       include_adult: "false",
       without_genres: "10749",
     }), // Limited Series
-    // Fetch for Fan Favorite Classics Hero Carousel
     fetchTMDBData("/discover/movie", {
       with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
       sort_by: "popularity.desc",
@@ -392,7 +385,6 @@ export const fetchAllData = async () => {
     popularTVShows: popularTVShows.results,
     topRatedTVShows: topRatedTVShows.results,
 
-    // Genre-Based Rows
     actionMovies: actionMovies.results,
     comedyMovies: comedyMovies.results,
     dramaMovies: dramaMovies.results,
@@ -400,17 +392,14 @@ export const fetchAllData = async () => {
     scifiFantasyMovies: scifiFantasyMovies.results,
     romComMovies: romComMovies.results,
 
-    // Curated Picks
     hiddenGems: hiddenGems.results,
     criticallyAcclaimed: criticallyAcclaimed.results,
 
-    // Time-Based Categories
     eightiesMovies: eightiesMovies.results,
     ninetiesMovies: ninetiesMovies.results,
     earlyTwosMovies: earlyTwosMovies.results,
     recentReleases: recentReleases.results,
 
-    // TV-Specific
     limitedSeries: limitedSeries.results,
     fanFavoriteClassicsForHero: fanFavoriteClassicsForHero.results,
   };
@@ -427,7 +416,6 @@ export async function fetchTMDBData<T = MediaItem>(
   }
 
   const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
-  // Only append videos and images for detail endpoints (e.g. /movie/123 or /tv/123)
   const appendItems = ["videos", "images", "external_ids"];
 
   const isDetailEndpoint = /\/(?:movie|tv)\/\d+(?:\/|$)/.test(endpoint);
@@ -437,7 +425,6 @@ export async function fetchTMDBData<T = MediaItem>(
   url.searchParams.append("api_key", apiKey);
   url.searchParams.append("page", page.toString());
 
-  // Apply romance filtering to params unless this is specifically a romance query
   const isRomanceQuery =
     params.with_genres?.includes("10749") || endpoint.includes("romance");
   const filteredParams = isRomanceQuery ? params : addRomanceFiltering(params);
@@ -476,12 +463,10 @@ export async function fetchTMDBData<T = MediaItem>(
 
   const rawData = await response.json();
 
-  // Use Zod to validate the response
   const result = TmdbResponseSchema.safeParse(rawData);
 
   if (!result.success) {
     logger.warn("TMDB response failed validation:", result.error.message);
-    // Fall back to raw data to maintain backward compatibility
     return {
       ...rawData,
       results: rawData.results || [],
@@ -510,14 +495,8 @@ export async function getNumberOfSeasons(
   return tvShowData.number_of_seasons || null;
 }
 
-/**
- * Determines if a TMDB ID belongs to a movie or TV show.
- * @param {string|number} id - The TMDB ID to check.
- * @returns {Promise<string>} - Returns 'movie', 'tv', or 'unknown'.
- */
 export async function determineMediaType(id: string | number) {
   try {
-    // Try to fetch as a movie first
     const movieResponse = await fetch(
       `${TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}`,
     );
@@ -525,12 +504,10 @@ export async function determineMediaType(id: string | number) {
     if (movieResponse.ok) {
       const movieData = await movieResponse.json();
       if (!movieData.success === false) {
-        // TMDB returns success: false for non-existent items
         return "movie";
       }
     }
 
-    // If not a movie, try to fetch as a TV show
     const tvResponse = await fetch(
       `${TMDB_BASE_URL}/tv/${id}?api_key=${TMDB_API_KEY}`,
     );
@@ -542,7 +519,6 @@ export async function determineMediaType(id: string | number) {
       }
     }
 
-    // If neither worked, return unknown
     return "unknown";
   } catch (error) {
     logger.error("Error determining media type:", error);
@@ -550,11 +526,6 @@ export async function determineMediaType(id: string | number) {
   }
 }
 
-/**
- * Fetches details for a given TMDB ID, determining its type first.
- * @param {string|number} id - The TMDB ID to fetch details for.
- * @returns {Promise<Object>} - Returns the media details or null if not found.
- */
 export async function fetchMediaDetails(id: string | number) {
   const mediaType = await determineMediaType(id);
   try {
@@ -580,7 +551,6 @@ export async function getTVGenreList() {
   return await movieDb.genreTvList();
 }
 
-// Type for combined credits items (cast or crew)
 interface CreditItem {
   id?: number | string;
   media_type?: string;
@@ -605,20 +575,13 @@ function getCreditItemKey(item: CreditItem) {
   return `${mediaType}-${String(item.id)}`;
 }
 
-/**
- * Calculates a role importance score for sorting actor filmography
- * Higher scores indicate more important/significant roles
- */
 function calculateRoleImportanceScore(item: CreditItem): number {
   let score = 0;
 
-  // Base score from movie/TV popularity (0-100 scale)
   const popularity = item.popularity || 0;
   score += Math.min(popularity * 0.1, 10); // Cap at 10 points
 
-  // Billing order bonus (lower order = higher billing = more important)
   if (item.order !== undefined && item.order !== null) {
-    // Lead roles (order 0-2) get significant bonus
     if (item.order <= 2) {
       score += 50; // Major lead role
     } else if (item.order <= 5) {
@@ -630,11 +593,9 @@ function calculateRoleImportanceScore(item: CreditItem): number {
     }
   }
 
-  // Character name analysis (lead characters often have names, extras don't)
   if (item.character && item.character.trim()) {
     const character = item.character.toLowerCase();
 
-    // Bonus for named characters (not just "Extra" or "Background")
     if (
       !character.includes("extra") &&
       !character.includes("background") &&
@@ -645,7 +606,6 @@ function calculateRoleImportanceScore(item: CreditItem): number {
       score += 10;
     }
 
-    // Special bonus for protagonist-type character names
     if (
       character.includes("protagonist") ||
       character.includes("hero") ||
@@ -655,7 +615,6 @@ function calculateRoleImportanceScore(item: CreditItem): number {
     }
   }
 
-  // Crew role importance (Directors, Producers, Writers are very important)
   if (item.job) {
     const job = item.job.toLowerCase();
     if (job.includes("director")) {
@@ -671,7 +630,6 @@ function calculateRoleImportanceScore(item: CreditItem): number {
     }
   }
 
-  // Department importance
   if (item.department) {
     const dept = item.department.toLowerCase();
     if (dept === "directing") {
@@ -685,7 +643,6 @@ function calculateRoleImportanceScore(item: CreditItem): number {
     }
   }
 
-  // Recency bonus (more recent work gets slight boost)
   if (item.release_date || item.first_air_date) {
     const releaseDate = item.release_date || item.first_air_date;
     if (releaseDate) {
@@ -703,7 +660,6 @@ function calculateRoleImportanceScore(item: CreditItem): number {
     }
   }
 
-  // Vote average bonus (well-received projects get boost)
   if (item.vote_average && item.vote_average > 0) {
     if (item.vote_average >= 8) {
       score += 8; // Excellent
@@ -740,30 +696,25 @@ function calculateFilmographyPopularityScore(item: CreditItem): number {
   return score;
 }
 
-// New function to fetch person filmography (movies and TV) - following your existing pattern
 export async function fetchPersonFilmography(
   personId: number,
   page: number = 1,
 ) {
   try {
-    // Use moviedb-promise to get combined credits directly
     const creditsData = await movieDb.personCombinedCredits({
       id: personId,
       language: "en-US",
     });
 
-    // Combine cast and crew credits
     const creditsList = [
       ...(creditsData.cast || []),
       ...(creditsData.crew || []),
     ];
 
-    // Filter out items without posters and deduplicate by ID
     const uniqueCredits = creditsList.filter(
       (item) => item.poster_path && item.id,
     );
 
-    // Deduplicate by media type and ID to avoid showing the same title multiple times.
     const deduplicatedCredits = uniqueCredits.reduce(
       (acc, current) => {
         const currentKey = getCreditItemKey(current);
@@ -773,7 +724,6 @@ export async function fetchPersonFilmography(
         if (existingIndex === -1) {
           acc.push(current);
         } else {
-          // If we find a duplicate, keep the one with higher importance score
           const existingScore = calculateRoleImportanceScore(
             acc[existingIndex],
           );
@@ -787,7 +737,6 @@ export async function fetchPersonFilmography(
       [] as typeof uniqueCredits,
     );
 
-    // Sort by durable popularity before pagination.
     const results = deduplicatedCredits.sort((a, b) => {
       const scoreA = calculateFilmographyPopularityScore(a);
       const scoreB = calculateFilmographyPopularityScore(b);
@@ -799,7 +748,6 @@ export async function fetchPersonFilmography(
       return (b.vote_count || 0) - (a.vote_count || 0);
     });
 
-    // Paginate results (20 per page)
     const startIndex = (page - 1) * 20;
     const endIndex = startIndex + 20;
     const paginatedResults = results.slice(startIndex, endIndex);
@@ -816,7 +764,6 @@ export async function fetchPersonFilmography(
   }
 }
 
-// Get person details
 const toPersonDetails = (person: TmdbPerson): PersonDetails | null => {
   if (person.id == null || !person.name) {
     return null;
@@ -917,14 +864,12 @@ export async function getTVShows(
   }
 }
 
-// Update the movie certification function
 export async function fetchMovieCertification(
   movieId: number,
 ): Promise<string | null> {
   try {
     const response = await fetchTMDBData(`/movie/${movieId}/release_dates`);
 
-    // Validate response with Zod schema
     const result = ReleaseDatesResponseSchema.safeParse(response);
 
     if (!result.success) {
@@ -934,7 +879,6 @@ export async function fetchMovieCertification(
 
     const data = result.data;
 
-    // Look for US certifications first (most common for international users)
     const usRelease = data.results?.find(
       (result) => result.iso_3166_1 === "US",
     );
@@ -943,13 +887,11 @@ export async function fetchMovieCertification(
       usRelease.release_dates &&
       usRelease.release_dates.length > 0
     ) {
-      // Find theatrical releases first (type 3)
       const theatrical = usRelease.release_dates.find((rd) => rd.type === 3);
       if (theatrical && theatrical.certification) {
         return theatrical.certification;
       }
 
-      // If no theatrical release, return any certification
       for (const release of usRelease.release_dates) {
         if (release.certification) {
           return release.certification;
@@ -957,7 +899,6 @@ export async function fetchMovieCertification(
       }
     }
 
-    // If no US certification, look for any country
     if (data.results) {
       for (const country of data.results) {
         if (country.release_dates && country.release_dates.length > 0) {
@@ -977,7 +918,6 @@ export async function fetchMovieCertification(
   }
 }
 
-// New function to fetch TV show certification
 export async function fetchTVShowCertification(
   tvShowId: number,
 ): Promise<string | null> {
@@ -990,7 +930,6 @@ export async function fetchTVShowCertification(
 
     const ratingsResponse = response as TmdbContentRatingsResponse;
 
-    // Look for US content rating first
     const usRating = ratingsResponse.results?.find(
       (rating) => rating.iso_3166_1 === "US",
     );
@@ -999,7 +938,6 @@ export async function fetchTVShowCertification(
       return usRating.rating;
     }
 
-    // If no US rating, look for any available rating
     for (const rating of ratingsResponse.results || []) {
       if (rating.rating) {
         return rating.rating;
@@ -1099,8 +1037,6 @@ export async function fetchAndEnrichMediaItems<
 
   const enrichedItems = await Promise.all(
     items.map(async (item) => {
-      // Determine media type if not provided.
-      // This is a fallback, ideally the type is known when calling this function.
       const type = mediaType || (await determineMediaType(item.id));
 
       if (type === "unknown") {
@@ -1108,21 +1044,17 @@ export async function fetchAndEnrichMediaItems<
       }
 
       try {
-        // Fetch full details for the item, which will include videos and images
-        // due to the modification in fetchTMDBData
         const detailedData = await fetchTMDBData(`/${type}/${item.id}`);
 
         let englishLogo: Logo | undefined = undefined;
         const detailedTvShowData = detailedData as TmdbTvShowDetails;
         if (detailedTvShowData.images && detailedTvShowData.images.logos) {
-          // Find English logo if available
           const logos = detailedTvShowData.images.logos;
           const englishLogoData: Logo | undefined = logos.find(
             (logo: Logo) => logo.iso_639_1 === "en",
           );
 
           if (englishLogoData) {
-            // Validate with Zod schema
             const logoResult = LogoSchema.safeParse(englishLogoData);
             if (logoResult.success) {
               englishLogo = logoResult.data;
@@ -1130,7 +1062,6 @@ export async function fetchAndEnrichMediaItems<
           }
         }
 
-        // Fetch content rating for this item
         let contentRating: string | null = null;
         try {
           if (type === "movie") {
@@ -1143,10 +1074,8 @@ export async function fetchAndEnrichMediaItems<
             `Error fetching content rating for ${type} ID ${item.id}:`,
             error,
           );
-          // Continue without rating rather than failing
         }
 
-        // Create enriched item with all the details including content rating
         const enrichedItem = {
           ...item,
           ...detailedData,
@@ -1154,7 +1083,6 @@ export async function fetchAndEnrichMediaItems<
           content_rating: contentRating,
         };
 
-        // Use appropriate schema based on media type
         if (type === "movie") {
           const result = MovieSchema.safeParse(enrichedItem);
           if (result.success) {
@@ -1167,7 +1095,6 @@ export async function fetchAndEnrichMediaItems<
           }
         }
 
-        // If validation fails, return with type assertion
         return enrichedItem as T;
       } catch (error) {
         logger.error(
@@ -1181,7 +1108,6 @@ export async function fetchAndEnrichMediaItems<
   return enrichedItems;
 }
 
-// Function to enrich media items with content ratings (lighter than fetchAndEnrichMediaItems)
 export async function enrichItemsWithContentRatings<
   T extends { id: number } & Partial<MediaItem>,
 >(items: T[], mediaType: "movie" | "tv"): Promise<T[]> {
@@ -1216,7 +1142,6 @@ export async function enrichItemsWithContentRatings<
   return enrichedItems;
 }
 
-// New function to fetch movies by production company
 export async function fetchMoviesByCompany(
   companyId: number,
   page: number = 1,
@@ -1231,7 +1156,6 @@ export async function fetchMoviesByCompany(
       page: page.toString(),
     };
 
-    // Add date filtering if provided
     if (releaseDateBefore) {
       params["primary_release_date.lte"] = releaseDateBefore;
     }
@@ -1250,38 +1174,32 @@ export async function fetchMoviesByCompany(
   }
 }
 
-// New function to fetch movies by person
 export async function fetchMoviesByPerson(
   personId: number,
   page: number = 1,
   job?: string,
 ) {
   try {
-    // Get the person's credits directly - this is more accurate for specific directors
     const creditsData = await fetchTMDBData(
       `/person/${personId}/movie_credits`,
     );
     const creditsResponse = creditsData as unknown as TmdbCreditsResponse;
     let creditsList = creditsResponse.crew || [];
 
-    // Filter for movies where the person has the specified job (if provided)
     if (job) {
       creditsList = creditsList.filter(
         (credit: { job: string }) => credit.job === job,
       );
     }
 
-    // Filter out items without posters and sort by popularity (most popular first)
     const results = creditsList
       .filter((item) => (item as unknown as MediaItem).poster_path)
       .sort((a, b) => {
-        // Sort by popularity (higher popularity first)
         const popularityA = (a as unknown as MediaItem).popularity || 0;
         const popularityB = (b as unknown as MediaItem).popularity || 0;
         return popularityB - popularityA;
       });
 
-    // Paginate results (20 per page)
     const startIndex = (page - 1) * 20;
     const endIndex = startIndex + 20;
     const paginatedResults = results.slice(startIndex, endIndex);
@@ -1337,12 +1255,10 @@ async function getCategoryEndpoint(
     page: page.toString(),
   };
 
-  // Add region param for movies only
   const params =
     type === "movie" ? { ...baseParams, region: "US" } : baseParams;
   const paramString = new URLSearchParams(params).toString();
 
-  // Map categories to endpoints - use the constant already defined
   if (category === "popular") {
     return `${TMDB_BASE_URL}/${type}/popular?${paramString}`;
   } else if (category === "top_rated") {
@@ -1355,7 +1271,6 @@ async function getCategoryEndpoint(
     return `${TMDB_BASE_URL}/tv/on_the_air?${paramString}`;
   }
 
-  // For other categories, we'll use the existing fetchPaginatedCategory function
   return null;
 }
 

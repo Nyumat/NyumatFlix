@@ -35,7 +35,17 @@ export const VideasyStreamVideo = ({
 }: VideasyStreamVideoProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const autoplayBlockedNotifiedRef = useRef(false);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  const onCanPlayRef = useRef(onCanPlay);
+  onCanPlayRef.current = onCanPlay;
+  const onAutoplayBlockedRef = useRef(onAutoplayBlocked);
+  onAutoplayBlockedRef.current = onAutoplayBlocked;
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
   const [useFallbackSource, setUseFallbackSource] = useState(false);
+  const useFallbackSourceRef = useRef(useFallbackSource);
+  useFallbackSourceRef.current = useFallbackSource;
   const primarySource =
     playback === "ambient"
       ? mp4Url
@@ -54,6 +64,8 @@ export const VideasyStreamVideo = ({
       : primarySource === "hls" && mp4Url
         ? "mp4"
         : null;
+  const fallbackSourceRef = useRef(fallbackSource);
+  fallbackSourceRef.current = fallbackSource;
   const activeSource =
     useFallbackSource && fallbackSource ? fallbackSource : primarySource;
 
@@ -62,12 +74,12 @@ export const VideasyStreamVideo = ({
   }, [playback, mp4Url, hlsUrl]);
 
   const handleSourceError = useCallback(() => {
-    if (!useFallbackSource && fallbackSource) {
+    if (!useFallbackSourceRef.current && fallbackSourceRef.current) {
       setUseFallbackSource(true);
       return;
     }
-    onError?.();
-  }, [fallbackSource, onError, useFallbackSource]);
+    onErrorRef.current?.();
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -136,7 +148,7 @@ export const VideasyStreamVideo = ({
       void v.play().catch(() => {
         if (!isMuted && !autoplayBlockedNotifiedRef.current) {
           autoplayBlockedNotifiedRef.current = true;
-          onAutoplayBlocked?.();
+          onAutoplayBlockedRef.current?.();
         }
       });
     };
@@ -145,7 +157,7 @@ export const VideasyStreamVideo = ({
     return () => {
       v.removeEventListener("loadeddata", tryPlay);
     };
-  }, [playback, mp4Url, hlsUrl, isMuted, onAutoplayBlocked]);
+  }, [playback, mp4Url, hlsUrl, isMuted]);
 
   const ambient = playback === "ambient";
 
@@ -159,9 +171,9 @@ export const VideasyStreamVideo = ({
       playsInline
       autoPlay={ambient}
       aria-hidden={ambient || undefined}
-      onEnded={onEnded}
+      onEnded={() => onEndedRef.current?.()}
       onError={handleSourceError}
-      onCanPlay={onCanPlay}
+      onCanPlay={() => onCanPlayRef.current?.()}
     />
   );
 };

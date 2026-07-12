@@ -105,7 +105,6 @@ export function CompactDock({
   );
 }
 
-// Preset component for view mode controls
 interface ViewModeCompactDockProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;

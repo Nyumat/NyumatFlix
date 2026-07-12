@@ -79,7 +79,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // use direct TMDB API call for better control
     const url = new URL("https://api.themoviedb.org/3/search/person");
     url.searchParams.append("api_key", apiKey);
     url.searchParams.append("query", query);
@@ -99,7 +98,6 @@ export async function GET(request: NextRequest) {
 
     const data: TmdbPersonSearchResponse = await response.json();
 
-    // ensure proper typing and sorting by popularity
     const mappedResults: PersonResult[] = (data.results || [])
       .filter((person: TmdbPersonSearchResult) => person.id && person.name)
       .map((person: TmdbPersonSearchResult) => ({

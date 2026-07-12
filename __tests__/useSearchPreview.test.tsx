@@ -4,7 +4,6 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-// Create a wrapper with a fresh QueryClient for each test
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -48,7 +47,6 @@ describe("useSearchPreview", () => {
       wrapper: createWrapper(),
     });
 
-    // With enabled: false, query won't run
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });

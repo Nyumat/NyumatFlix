@@ -1,6 +1,5 @@
 import type { MediaItem } from "@/lib/domain/typings";
 
-/** AniList or TMDB ids to omit from /anime surfaces. */
 export const ANIME_BLOCKLIST_IDS = [95897] as const;
 
 const blockedIds = new Set<number>(ANIME_BLOCKLIST_IDS);

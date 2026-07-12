@@ -11,5 +11,3 @@ export default function TVShowPageLayout({
     </PageContainer>
   );
 }
-
-// This file has been simplified to not render any hero by default

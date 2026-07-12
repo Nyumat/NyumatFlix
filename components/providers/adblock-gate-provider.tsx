@@ -13,6 +13,24 @@ import {
 
 type GateAction = (action: () => void) => void;
 
+const ADBLOCK_PROMPT_DISMISSED_KEY = "nyumatflix:adblock-prompt-dismissed";
+
+const hasDismissedAdblockPrompt = () => {
+  try {
+    return localStorage.getItem(ADBLOCK_PROMPT_DISMISSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+};
+
+const rememberAdblockPromptDismissal = () => {
+  try {
+    localStorage.setItem(ADBLOCK_PROMPT_DISMISSED_KEY, "true");
+  } catch {
+    void 0;
+  }
+};
+
 const AdblockGateContext = createContext<GateAction | null>(null);
 
 export function useAdblockGateAction(): GateAction {
@@ -37,7 +55,7 @@ export function AdblockGateProvider({ children }: AdblockGateProviderProps) {
 
   const gateAction = useCallback<GateAction>(
     (action) => {
-      if (adBlockDetected) {
+      if (adBlockDetected || hasDismissedAdblockPrompt()) {
         action();
         return;
       }
@@ -50,6 +68,7 @@ export function AdblockGateProvider({ children }: AdblockGateProviderProps) {
   );
 
   const handleProceed = useCallback(() => {
+    rememberAdblockPromptDismissal();
     setOpenSignal(false);
     const action = pendingActionRef.current;
     pendingActionRef.current = null;

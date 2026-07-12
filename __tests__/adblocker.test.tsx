@@ -1,4 +1,8 @@
 import { AdblockerAlert } from "@/components/content/adblocker-alert";
+import {
+  AdblockGateProvider,
+  useAdblockGateAction,
+} from "@/components/providers/adblock-gate-provider";
 import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
@@ -68,6 +72,12 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
 
 const renderWithProviders = (component: React.ReactElement) => {
   return render(component, { wrapper: AllTheProviders });
+};
+
+const GatedAction = ({ onRun }: { onRun: () => void }) => {
+  const gateAction = useAdblockGateAction();
+
+  return <button onClick={() => gateAction(onRun)}>Play</button>;
 };
 
 describe("AdblockerAlert", () => {
@@ -287,5 +297,45 @@ describe("AdblockerAlert", () => {
     });
 
     expect(mockPush).not.toHaveBeenCalled();
+  });
+});
+
+describe("AdblockGateProvider", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  test("remembers a no-thanks dismissal across provider mounts", async () => {
+    const user = userEvent.setup();
+    const firstAction = vi.fn();
+    const firstRender = renderWithProviders(
+      <AdblockGateProvider>
+        <GatedAction onRun={firstAction} />
+      </AdblockGateProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Play" }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: /proceed without ad blocker/i,
+      }),
+    );
+
+    expect(firstAction).toHaveBeenCalledOnce();
+    firstRender.unmount();
+
+    const subsequentAction = vi.fn();
+    renderWithProviders(
+      <AdblockGateProvider>
+        <GatedAction onRun={subsequentAction} />
+      </AdblockGateProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Play" }));
+
+    expect(subsequentAction).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByTestId("adblocker-alert-dialog"),
+    ).not.toBeInTheDocument();
   });
 });

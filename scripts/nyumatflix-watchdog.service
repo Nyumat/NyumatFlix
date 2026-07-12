@@ -1,0 +1,14 @@
+[Unit]
+Description=Restart NyumatFlix when its Docker health check fails
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nyumatflix-watchdog
+RuntimeDirectory=nyumatflix-watchdog
+RuntimeDirectoryMode=0750
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict

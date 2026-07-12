@@ -167,11 +167,6 @@ export const useMediaHero = ({
     handleStreamError: handleVideasyStreamError,
   } = useVideasyTrailerStream(imdbId, videasyEnabled);
 
-  const canPlayTrailer = useMemo(() => {
-    const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);
-    return Boolean(selectPrimaryTrailerKey(rows));
-  }, [currentItem]);
-
   const startPlayback = useCallback(() => {
     setIsPlayingTrailer(false);
     setIsPlayingVideo(true);
@@ -192,7 +187,8 @@ export const useMediaHero = ({
 
   useLayoutEffect(() => {
     if (searchParams.get("autoplay") !== "true" || !isWatch) return;
-    stabilizeScrollTop();
+    const stabilize = stabilizeScrollTop();
+    return () => stabilize.cancel();
   }, [searchParams, isWatch]);
 
   useEffect(() => {
@@ -200,6 +196,9 @@ export const useMediaHero = ({
     if (!shouldAutoplay || !isWatch || autoplayHandledRef.current) return;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let stabilize: { cancel: () => void } | null = null;
+    let cancelled = false;
+
     const maybeAutoplay = async () => {
       if (passedMediaType === "tv" && currentItem) {
         const firstSeason = getFirstRegularSeason(currentItem);
@@ -226,12 +225,15 @@ export const useMediaHero = ({
                 );
             }
           } catch {
-            // we could log this, but failure shouldn't block autoplay
+            void 0;
           }
         }
       }
 
+      if (cancelled) return;
+
       timer = setTimeout(() => {
+        if (cancelled) return;
         autoplayHandledRef.current = true;
         handleWatch({ skipAdblockCheck: true });
         const params = new URLSearchParams(searchParams.toString());
@@ -239,13 +241,15 @@ export const useMediaHero = ({
         const newSearch = params.toString();
         const nextUrl = `${pathname}${newSearch ? `?${newSearch}` : ""}`;
         window.history.replaceState(window.history.state, "", nextUrl);
-        stabilizeScrollTop();
+        stabilize = stabilizeScrollTop();
       }, 500);
     };
 
     void maybeAutoplay();
     return () => {
+      cancelled = true;
       if (timer) clearTimeout(timer);
+      stabilize?.cancel();
     };
   }, [
     searchParams,
@@ -260,18 +264,50 @@ export const useMediaHero = ({
   const handlePlayTrailer = useCallback(() => {
     const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);
     const ytKey = selectPrimaryTrailerKey(rows);
-    if (!ytKey) {
+    const hasVideasy =
+      videasyTrailerStatus === "ready" &&
+      (Boolean(videasyTrailerUrl?.length) ||
+        Boolean(videasyTrailerHlsUrl?.length));
+    if (!ytKey && !hasVideasy) {
       return;
     }
 
     setIsPlayingTrailer(true);
-  }, [currentItem]);
+  }, [
+    currentItem,
+    videasyTrailerHlsUrl,
+    videasyTrailerStatus,
+    videasyTrailerUrl,
+  ]);
+
+  const handleTrailerEnded = useCallback(() => {
+    onPlaybackStop?.();
+    setIsPlayingTrailer(false);
+    setIsPlayingVideo(false);
+  }, [onPlaybackStop]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       setHistoryLength(window.history.length);
     }
   }, []);
+
+  const canPlayTrailer = useMemo(() => {
+    const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);
+    if (selectPrimaryTrailerKey(rows)) {
+      return true;
+    }
+    return (
+      videasyTrailerStatus === "ready" &&
+      (Boolean(videasyTrailerUrl?.length) ||
+        Boolean(videasyTrailerHlsUrl?.length))
+    );
+  }, [
+    currentItem,
+    videasyTrailerHlsUrl,
+    videasyTrailerStatus,
+    videasyTrailerUrl,
+  ]);
 
   return {
     currentItemIndex,
@@ -285,11 +321,7 @@ export const useMediaHero = ({
     handleNext,
     handleWatch,
     handlePlayTrailer,
-    handleTrailerEnded: () => {
-      onPlaybackStop?.();
-      setIsPlayingTrailer(false);
-      setIsPlayingVideo(false);
-    },
+    handleTrailerEnded,
     setYoutubePlayer,
     videasyTrailerUrl,
     videasyTrailerHlsUrl,

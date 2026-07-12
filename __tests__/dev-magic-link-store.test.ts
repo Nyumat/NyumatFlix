@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, test } from "vitest";
 
 describe("dev-magic-link-store", () => {
   beforeEach(() => {
-    // clear any existing links by getting them (which also deletes)
     getDevMagicLink("test@example.com");
     getDevMagicLink("other@example.com");
   });
@@ -45,11 +44,9 @@ describe("dev-magic-link-store", () => {
     test("deletes the link after retrieval (one-time use)", () => {
       setDevMagicLink("test@example.com", "https://example.com/magic-link");
 
-      // first retrieval should return the link
       const firstResult = getDevMagicLink("test@example.com");
       expect(firstResult).toBe("https://example.com/magic-link");
 
-      // second retrieval should return undefined
       const secondResult = getDevMagicLink("test@example.com");
       expect(secondResult).toBeUndefined();
     });
@@ -69,10 +66,8 @@ describe("dev-magic-link-store", () => {
       setDevMagicLink("user1@example.com", "https://example.com/link1");
       setDevMagicLink("user2@example.com", "https://example.com/link2");
 
-      // get user1's link (which deletes it)
       getDevMagicLink("user1@example.com");
 
-      // user2's link should still be available
       const result = getDevMagicLink("user2@example.com");
       expect(result).toBe("https://example.com/link2");
     });

@@ -43,6 +43,40 @@ export const CatalogRowFallback = () => (
   </div>
 );
 
+export const RecentlyWatchedRowFallback = () => (
+  <section aria-label="Continue watching" aria-hidden>
+    <div className="mb-4 flex items-center justify-between gap-3 rounded-md p-2 pr-3 md:justify-start md:gap-4 md:pr-4">
+      <div className="min-w-0 flex-1 md:mr-32">
+        <Skeleton className="h-6 w-44 rounded-lg md:h-5" />
+      </div>
+      <Skeleton className="ml-auto h-8 w-20 shrink-0 rounded-lg" />
+      <div className="ml-4 hidden shrink-0 items-center gap-2 md:flex">
+        <Skeleton className="mr-4 h-4 w-10 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-lg" />
+        <Skeleton className="h-8 w-8 rounded-lg" />
+      </div>
+    </div>
+    <div className="-ml-3 flex overflow-hidden">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={index}
+          className="basis-[85%] shrink-0 pl-3 sm:basis-[70%] md:basis-[42%] lg:basis-[32%] xl:basis-[28%]"
+        >
+          <div className="relative overflow-hidden rounded-xs">
+            <Skeleton className="aspect-video w-full rounded-xs" />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-pink-500/15"
+            >
+              <div className="h-full w-[6%] bg-pink-500/40" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
 export const CatalogHeroPairFallback = () => (
   <div className="grid gap-4 md:grid-cols-2" aria-hidden>
     {[0, 1].map((key) => (

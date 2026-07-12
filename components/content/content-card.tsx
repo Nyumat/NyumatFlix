@@ -5,8 +5,6 @@ import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 
 interface ContentCardProps {
   item: MediaItem | CanonicalMediaCard;
-  // Cleanup note: ranked rendering has no current call sites; keep the props
-  // temporarily so older callers do not break while rows move to presenters.
   isRanked?: boolean;
   rank?: number;
   isMobile: boolean;

@@ -118,8 +118,6 @@ const formatPersonHeadline = (gender?: number, department?: string) => {
 const joinMeta = (parts: Array<string | undefined>, max = 3) =>
   parts.filter(Boolean).slice(0, max).join(" · ");
 
-// Satori stacks by DOM order (no z-index). Wrap backdrop + overlays in one
-// positioned box, dim the image via `opacity`, then paint a flat wash on top.
 const BackdropLayer = ({ url }: { url?: string | null }) => {
   if (!url) return null;
 
@@ -1159,7 +1157,6 @@ export async function createOgImageResponse(element: ReactElement) {
   });
 }
 
-// TMDB TV genres: News, Reality, Talk — skip for person "known for" picks.
 const EXCLUDED_KNOWN_FOR_TV_GENRE_IDS = new Set([10763, 10764, 10767]);
 
 const TALK_SHOW_TITLE_PATTERN =

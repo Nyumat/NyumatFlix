@@ -6,7 +6,9 @@ import { createOgImageResponse } from "./og-image";
 export const OG_IMAGE_REVALIDATE_SECONDS = 86400;
 
 const MAX_CONCURRENT_OG_RENDERS = 3;
+const MAX_QUEUED_OG_RENDERS = 50;
 const MAX_PNG_CACHE_ENTRIES = 250;
+const MAX_PNG_CACHE_BYTES = 48 * 1024 * 1024;
 
 type PngCacheEntry = {
   pngBase64: string;
@@ -16,11 +18,16 @@ type PngCacheEntry = {
 let activeOgRenders = 0;
 const ogRenderWaitQueue: Array<() => void> = [];
 const pngCache = new Map<string, PngCacheEntry>();
+let pngCacheBytes = 0;
 
 const acquireOgRenderSlot = async (): Promise<void> => {
   if (activeOgRenders < MAX_CONCURRENT_OG_RENDERS) {
     activeOgRenders += 1;
     return;
+  }
+
+  if (ogRenderWaitQueue.length >= MAX_QUEUED_OG_RENDERS) {
+    throw new Error("OG render queue is full");
   }
 
   await new Promise<void>((resolve) => {
@@ -49,15 +56,25 @@ const pngBase64ToResponse = (pngBase64: string): Response =>
   });
 
 const setPngCache = (cacheKey: string, pngBase64: string) => {
+  const previous = pngCache.get(cacheKey);
+  if (previous) pngCacheBytes -= Buffer.byteLength(previous.pngBase64);
+
   pngCache.set(cacheKey, {
     pngBase64,
     expiresAt: Date.now() + OG_IMAGE_REVALIDATE_SECONDS * 1000,
   });
+  pngCacheBytes += Buffer.byteLength(pngBase64);
 
-  if (pngCache.size <= MAX_PNG_CACHE_ENTRIES) return;
-
-  const oldestKey = pngCache.keys().next().value;
-  if (oldestKey) pngCache.delete(oldestKey);
+  while (
+    pngCache.size > MAX_PNG_CACHE_ENTRIES ||
+    pngCacheBytes > MAX_PNG_CACHE_BYTES
+  ) {
+    const oldestKey = pngCache.keys().next().value;
+    if (!oldestKey) break;
+    const oldest = pngCache.get(oldestKey);
+    if (oldest) pngCacheBytes -= Buffer.byteLength(oldest.pngBase64);
+    pngCache.delete(oldestKey);
+  }
 };
 
 const renderOgImageToPngBase64 = async (

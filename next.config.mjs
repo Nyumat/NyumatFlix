@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  assetPrefix:
+    process.env.NODE_ENV === "production"
+      ? "https://cdn.nyumatflix.com"
+      : undefined,
   output: "standalone",
   outputFileTracingIncludes: {
     "/api/scrape": ["./node_modules/undici/**/*"],

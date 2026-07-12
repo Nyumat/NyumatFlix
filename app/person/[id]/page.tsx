@@ -80,7 +80,6 @@ export default async function PersonPage(props: PersonPageProps) {
 
   const { deathday } = person;
 
-  // Fetch initial filmography for the client component
   const initialFilmographyResponse = await fetchPersonFilmography(personId, 1);
   let initialFilmography: MediaItem[] = [];
 

@@ -1,4 +1,3 @@
-/** Use carousel when a collection has more posters than fit in a static row. */
 export const COLLECTION_CAROUSEL_THRESHOLD = 4;
 
 export const collectionCarouselItemBasis =

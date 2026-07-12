@@ -367,14 +367,12 @@ export const CarouselDetails = React.memo(function CarouselDetails({
             </div>
             {year && <span className="text-gray-300">{year}</span>}
 
-            {/* Content rating/certification */}
             {current.content_rating && (
               <span className="px-2 py-1 bg-white/20 rounded text-xs font-medium border border-white/30 text-white">
                 {current.content_rating}
               </span>
             )}
 
-            {/* Runtime for movies */}
             {match(current)
               .with({ title: P.string, runtime: P.number }, (movie) => (
                 <span className="text-gray-300">
@@ -383,7 +381,6 @@ export const CarouselDetails = React.memo(function CarouselDetails({
               ))
               .otherwise(() => null)}
 
-            {/* Seasons and episodes for TV shows */}
             {match(current)
               .with(
                 {
@@ -516,7 +513,3 @@ export const CarouselDetails = React.memo(function CarouselDetails({
     </>
   );
 });
-
-/**
- * Props for the HeroBackground component
- */

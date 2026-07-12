@@ -1,11 +1,9 @@
 export type AniListSeason = "WINTER" | "SPRING" | "SUMMER" | "FALL";
 
 export type AnimeSeasonContext = {
-  /** Season currently on the air (e.g. Spring 2026 in June). */
   currentSeason: AniListSeason;
   currentYear: number;
   currentLabel: string;
-  /** Marquee season for the hub hero + primary rows (e.g. Summer 2026 in June). */
   featuredSeason: AniListSeason;
   featuredYear: number;
   featuredLabel: string;
@@ -21,7 +19,6 @@ const SEASON_LABELS: Record<AniListSeason, string> = {
 export const formatAnimeSeasonLabel = (season: AniListSeason, year: number) =>
   `${SEASON_LABELS[season]} ${year}`;
 
-/** AniList broadcast season for a calendar month. */
 export const getAniListSeasonForMonth = (month: number): AniListSeason => {
   if (month <= 3) return "WINTER";
   if (month <= 6) return "SPRING";

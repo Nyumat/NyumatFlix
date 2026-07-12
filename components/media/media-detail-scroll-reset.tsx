@@ -11,7 +11,8 @@ export const MediaDetailScrollReset = ({
   restoreKey,
 }: MediaDetailScrollResetProps) => {
   useLayoutEffect(() => {
-    stabilizeScrollTop([0, 50, 150, 400]);
+    const stabilize = stabilizeScrollTop([0, 50, 150, 400]);
+    return () => stabilize.cancel();
   }, [restoreKey]);
 
   return null;

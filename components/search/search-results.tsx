@@ -591,6 +591,7 @@ export default function SearchResults({
                       key={getStableCardKey(item)}
                       onNavigate={onNavigate}
                       variant="compact"
+                      interaction="row"
                       item={{
                         ...item,
                         genres:
@@ -673,6 +674,7 @@ export default function SearchResults({
                 .map((item) => (
                   <HorizontalCard
                     key={getStableCardKey(item)}
+                    interaction="row"
                     item={{
                       ...item,
                       genres:

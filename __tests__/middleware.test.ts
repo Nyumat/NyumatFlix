@@ -8,20 +8,26 @@ const getRedirectLocation = (url: string) => {
 };
 
 describe("middleware", () => {
-  test("strips legacy anilist ids from TV detail urls", () => {
+  test("keeps anilist ids on TV detail urls for reverse-lookup skip", () => {
     expect(
       getRedirectLocation(
         "http://localhost:3000/tvshows/85937?autoplay=true&anilistId=101922",
       ),
-    ).toBe("http://localhost:3000/tvshows/85937?autoplay=true");
+    ).toBeNull();
   });
 
-  test("strips legacy anilist ids from movie detail urls", () => {
+  test("keeps anilist ids on movie detail urls", () => {
     expect(
       getRedirectLocation(
         "http://localhost:3000/movies/123?anilistId=456&autoplay=true",
       ),
-    ).toBe("http://localhost:3000/movies/123?autoplay=true");
+    ).toBeNull();
+  });
+
+  test("strips legacy tab query from detail urls", () => {
+    expect(
+      getRedirectLocation("http://localhost:3000/tvshows/85937?tab=cast"),
+    ).toBe("http://localhost:3000/tvshows/85937");
   });
 
   test("redirects dev routes to home outside development", () => {

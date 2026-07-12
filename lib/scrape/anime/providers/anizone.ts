@@ -1,6 +1,7 @@
-import { extractFirstMatch, extractM3u8Urls } from "../html-utils";
+import { preferredAudioLangForTranslation } from "../audio-preference";
+import { extractHtmlSubtitleTracks, extractM3u8Urls } from "../html-utils";
 import { searchAnizoneSlug } from "../anizone-livewire";
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { scrapeFetchText } from "../../fetch";
 
@@ -12,8 +13,14 @@ export async function scrapeAnizone(
   const providerId = "anizone" as const;
 
   try {
-    const query = await resolveAnimeSearchQuery(input);
-    const slug = await searchAnizoneSlug(query);
+    const queries = await resolveAnimeSearchQueries(input);
+    let slug: string | null = null;
+    for (const query of queries) {
+      slug = await searchAnizoneSlug(query);
+      if (slug) {
+        break;
+      }
+    }
 
     if (!slug) {
       return { ok: false, providerId, error: "AniZone slug not found" };
@@ -28,7 +35,7 @@ export async function scrapeAnizone(
       return {
         ok: false,
         providerId,
-        error: `AniZone episode page failed (${episode.status})`,
+        error: `AniZone episode page failed (${episode.status}: ${slug}/${input.episodeNumber})`,
       };
     }
 
@@ -44,10 +51,7 @@ export async function scrapeAnizone(
       };
     }
 
-    const subtitleUrl = extractFirstMatch(
-      episode.text,
-      /src="(https:\/\/[^"]+\.ass)"/,
-    );
+    const subtitles = extractHtmlSubtitleTracks(episode.text);
 
     return {
       ok: true,
@@ -55,7 +59,10 @@ export async function scrapeAnizone(
       streamUrl: master,
       streamKind: "hls",
       referer: ANIZONE_ORIGIN,
-      subtitles: subtitleUrl ? [{ lang: "und", url: subtitleUrl }] : undefined,
+      subtitles: subtitles.length > 0 ? subtitles : undefined,
+      preferredAudioLang: preferredAudioLangForTranslation(
+        input.translationType,
+      ),
     };
   } catch (error) {
     return {

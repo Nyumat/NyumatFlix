@@ -4,6 +4,7 @@ import {
   CatalogHeroPairFallback,
   CatalogRowFallback,
   CatalogSpotlightFallback,
+  RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import {
   HomeCollectionsSection,
@@ -17,6 +18,7 @@ import {
   HomeTrendingTvCarousel,
   HomeTrendingTvHeroes,
 } from "@/components/home/home-sections";
+import { HomeRecentlyWatched } from "@/components/home/recently-watched-row";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { siteConfig } from "@/config/site";
@@ -69,6 +71,10 @@ export default function Home() {
             <div className="container space-y-10">
               <Suspense fallback={<CatalogSpotlightFallback />}>
                 <HomeFeaturedMovie />
+              </Suspense>
+
+              <Suspense fallback={<RecentlyWatchedRowFallback />}>
+                <HomeRecentlyWatched />
               </Suspense>
 
               <Suspense fallback={<CatalogRowFallback />}>

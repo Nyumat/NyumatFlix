@@ -47,6 +47,30 @@
   --animate-slide: slide var(--speed) ease-in-out infinite alternate;
   --animate-border-beam: border-beam calc(var(--duration) * 1s) infinite linear;
   --animate-shimmer: shimmer 2.2s ease-in-out infinite;
+  --animate-button-pulse: button-pulse var(--duration, 1.5s) ease-out infinite;
+  --animate-button-pulse-ripple: button-pulse-ripple var(--duration, 1.5s)
+    cubic-bezier(0.16, 1, 0.3, 1) infinite;
+
+  @keyframes button-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 var(--pulse-color, oklch(from var(--bg) l c h / 0.5));
+    }
+    50% {
+      box-shadow: 0 0 0 var(--distance, 8px)
+        var(--pulse-color, oklch(from var(--bg) l c h / 0.5));
+    }
+  }
+
+  @keyframes button-pulse-ripple {
+    0% {
+      box-shadow: 0 0 0 0 oklch(from var(--pulse-color, var(--bg)) l c h / 1);
+    }
+    100% {
+      box-shadow: 0 0 0 var(--distance, 8px)
+        oklch(from var(--pulse-color, var(--bg)) l c h / 0);
+    }
+  }
 
   @keyframes shimmer {
     0% {

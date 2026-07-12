@@ -130,11 +130,8 @@ export function HeroGenres({ genres, mediaType }: HeroGenresProps) {
 }
 
 interface HeroPaginationProps {
-  /** Array of items to paginate through */
   items: MediaItem[];
-  /** Index of the currently active item */
   currentIndex: number;
-  /** Optional click handler when a dot is selected */
   onItemSelect?: (index: number) => void;
 }
 
@@ -261,7 +258,8 @@ export function StaticHero({
     pathname.includes("/terms") ||
     pathname.includes("/privacy") ||
     pathname.includes("/cookie-policy") ||
-    pathname.includes("/dmca");
+    pathname.includes("/dmca") ||
+    pathname.includes("/ad-free");
   const isWatchlistPage = pathname.includes("/watchlist");
   const isFullPageBackground =
     isSearchPage ||

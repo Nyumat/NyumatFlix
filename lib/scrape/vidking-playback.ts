@@ -9,7 +9,15 @@ import {
   parseVidKingCdnUrl,
   rebuildVidKingCdnUrl,
 } from "./vidking-cdn-url";
+import type { ScrapePlaybackRefresh } from "./playback-refresh";
+import {
+  isMegaplayPlaybackRefresh,
+  isVidsrcPlaybackRefresh,
+} from "./playback-refresh";
 import type { VidKingPlaybackRefresh } from "./vidking-constants";
+import { resolveMegaplayPlaybackUrl } from "./megaplay-playback";
+import { resolveVidsrcPlaybackUrl } from "./vidsrc-playback";
+import { resolveVixsrcPlaybackUrl } from "./vixsrc-playback";
 import {
   VIDKING_PROACTIVE_REFRESH_AFTER_MS,
   VIDKING_REFRESH_BEFORE_MS,
@@ -38,6 +46,18 @@ type VidKingSession = {
 
 const sessionCache = new Map<string, VidKingSession>();
 const inflightRefreshes = new Map<string, Promise<VidKingSession | null>>();
+const MAX_SESSION_CACHE_ENTRIES = 500;
+
+const setSessionCache = (mediaKey: string, session: VidKingSession): void => {
+  sessionCache.delete(mediaKey);
+  sessionCache.set(mediaKey, session);
+
+  while (sessionCache.size > MAX_SESSION_CACHE_ENTRIES) {
+    const oldestKey = sessionCache.keys().next().value;
+    if (!oldestKey) break;
+    sessionCache.delete(oldestKey);
+  }
+};
 
 const isRetryableUpstreamStatus = (status: number) =>
   status === 401 ||
@@ -86,7 +106,7 @@ const refreshVidKingSession = async (
         referer: result.referer,
         fetchedAt: Date.now(),
       };
-      sessionCache.set(mediaKey, session);
+      setSessionCache(mediaKey, session);
       return session;
     } finally {
       inflightRefreshes.delete(mediaKey);
@@ -163,14 +183,26 @@ export async function resolveVidKingPlaybackUrl(
 
 export async function resolveScrapePlaybackUpstreamUrl(
   upstreamUrl: string,
-  refresh: VidKingPlaybackRefresh | undefined,
+  refresh: ScrapePlaybackRefresh | undefined,
   options: { force?: boolean } = {},
 ): Promise<string> {
-  if (refresh?.providerId !== "vidking") {
-    return upstreamUrl;
+  if (refresh?.providerId === "vidking") {
+    return resolveVidKingPlaybackUrl(upstreamUrl, refresh, options);
   }
 
-  return resolveVidKingPlaybackUrl(upstreamUrl, refresh, options);
+  if (isVidsrcPlaybackRefresh(refresh)) {
+    return resolveVidsrcPlaybackUrl(upstreamUrl, refresh, options);
+  }
+
+  if (refresh?.providerId === "vixsrc") {
+    return resolveVixsrcPlaybackUrl(upstreamUrl, refresh, options);
+  }
+
+  if (isMegaplayPlaybackRefresh(refresh)) {
+    return resolveMegaplayPlaybackUrl(upstreamUrl, refresh);
+  }
+
+  return upstreamUrl;
 }
 
 /** Cache CDN token from the initial scrape so playback starts inside the TTL window. */
@@ -184,7 +216,7 @@ export function primeVidKingSession(
     return;
   }
 
-  sessionCache.set(scrapeMediaKeyFor(refresh), {
+  setSessionCache(scrapeMediaKeyFor(refresh), {
     cdnToken,
     referer,
     fetchedAt: refresh.seedFetchedAt,

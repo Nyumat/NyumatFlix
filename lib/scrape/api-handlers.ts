@@ -18,7 +18,15 @@ import {
   buildScrapePlayUrl,
   type ScrapePlaybackToken,
 } from "@/lib/scrape/playback";
+import {
+  isMegaplayPlaybackRefresh,
+  isVidsrcPlaybackRefresh,
+  isVixsrcPlaybackRefresh,
+} from "@/lib/scrape/playback-refresh";
 import { primeVidKingSession } from "@/lib/scrape/vidking-playback";
+import { primeVixsrcSession } from "@/lib/scrape/vixsrc-playback";
+import { isVidnestClientOnlyCdn } from "@/lib/scrape/vidnest-shared";
+import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
 
 const tmdbProviderIds = TMDB_SCRAPE_PROVIDER_ORDER as unknown as [
   TmdbScrapeProviderId,
@@ -158,7 +166,11 @@ async function handleTmdbScrapePost(
             seedFetchedAt: Date.now(),
           },
         }
-      : {}),
+      : isVidsrcPlaybackRefresh(result.playbackRefresh)
+        ? { refresh: result.playbackRefresh }
+        : isVixsrcPlaybackRefresh(result.playbackRefresh)
+          ? { refresh: result.playbackRefresh }
+          : {}),
   };
 
   if (playbackToken.refresh?.providerId === "vidking") {
@@ -169,16 +181,28 @@ async function handleTmdbScrapePost(
     );
   }
 
+  if (playbackToken.refresh?.providerId === "vixsrc") {
+    primeVixsrcSession(playbackToken.refresh, result.streamUrl);
+  }
+
+  const playUrl = isVidnestClientOnlyCdn(result.streamUrl)
+    ? result.streamUrl
+    : buildScrapePlayUrl(playbackToken);
+  const streamKind = inferScrapeStreamKind(result.streamUrl);
+
   return NextResponse.json({
     ok: true,
     mediaKind: "tmdb",
     providerId: result.providerId,
     providerName:
       TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
-    playUrl: buildScrapePlayUrl(playbackToken),
+    playUrl,
+    streamKind,
     referer: result.referer,
     subtitles: result.subtitles,
     qualities: result.qualities,
+    audioVersions: result.audioVersions,
+    preferredAudioLang: result.preferredAudioLang,
   });
 }
 
@@ -205,8 +229,20 @@ async function handleAnimeScrapePost(
       providerId: result.providerId,
       providerName: ANIME_SCRAPE_PROVIDER_LABELS[result.providerId],
       error: result.error,
+      ...(result.unavailable ? { unavailable: true } : {}),
     });
   }
+
+  const playbackToken: ScrapePlaybackToken = {
+    url: result.streamUrl,
+    referer: result.referer,
+    ...(isMegaplayPlaybackRefresh(result.playbackRefresh)
+      ? { refresh: result.playbackRefresh }
+      : {}),
+    ...(result.cookies ? { cookies: result.cookies } : {}),
+  };
+
+  const playUrl = buildScrapePlayUrl(playbackToken);
 
   return NextResponse.json({
     ok: true,
@@ -214,13 +250,15 @@ async function handleAnimeScrapePost(
     providerId: result.providerId,
     providerName: ANIME_SCRAPE_PROVIDER_LABELS[result.providerId],
     streamKind: result.streamKind,
-    playUrl: buildScrapePlayUrl({
-      url: result.streamUrl,
-      referer: result.referer,
-    }),
+    playUrl,
     referer: result.referer,
     subtitles: result.subtitles,
     qualities: result.qualities,
+    audioVersions: result.audioVersions,
+    defaultAudioLang: result.defaultAudioLang,
+    defaultHardSubLang: result.defaultHardSubLang,
+    preferredAudioLang: result.preferredAudioLang,
+    fallbackFrom: result.fallbackFrom,
   });
 }
 

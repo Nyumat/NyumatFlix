@@ -19,12 +19,10 @@ export default async function BrowseGenrePage(props: PageProps) {
     : searchParams?.type;
   const mediaType = typeParam === "tv" ? "tv" : "movie";
 
-  // Fetch genre list to find the name
   const categories = await getCategories(mediaType);
   const matchedGenre = categories.find((g) => g.id.toString() === genreId);
   const genreName = matchedGenre ? matchedGenre.name : "Unknown Genre";
 
-  // Fetch initial content from the new API endpoint with enriched data
   const appOrigin = await getAppOrigin();
   const response = await fetch(
     `${appOrigin}/api/genre/${genreId}?type=${mediaType}&page=1`,

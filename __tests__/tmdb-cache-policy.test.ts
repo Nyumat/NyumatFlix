@@ -1,4 +1,5 @@
 import {
+  createTmdbDevelopmentCacheKey,
   redactTmdbUrl,
   shouldBypassTmdbDataCache,
   tmdbFetchInit,
@@ -32,5 +33,22 @@ describe("TMDB cache policy", () => {
     expect(
       redactTmdbUrl("https://api.themoviedb.org/3/tv/1?api_key=secret&page=1"),
     ).toBe("https://api.themoviedb.org/3/tv/1?api_key=%5Bredacted%5D&page=1");
+  });
+
+  it("creates canonical development keys without credentials", () => {
+    const first = createTmdbDevelopmentCacheKey("movie/popular", {
+      page: "1",
+      region: "US",
+      api_key: "secret",
+    });
+    const second = createTmdbDevelopmentCacheKey("/movie/popular", {
+      region: "US",
+      page: "1",
+    });
+
+    expect(first).toBe(second);
+    expect(first).toBe("tmdb:/movie/popular?page=1&region=US");
+    expect(first).not.toContain("secret");
+    expect(first).not.toContain("api_key");
   });
 });

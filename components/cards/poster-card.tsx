@@ -3,6 +3,7 @@
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { Card } from "@/components/ui/card";
 import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
+import useMedia from "@/hooks/useMedia";
 import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { tmdbImage } from "@/tmdb/utils";
@@ -34,14 +35,16 @@ type PosterCardProps = {
 
 export function PosterCard({
   item,
-  isMobile = false,
+  isMobile,
   href,
   minimal = false,
   hideTitleFallback = false,
 }: PosterCardProps) {
   const title = getDisplayTitle(item);
   const link = href || getHref(item);
-  const isInteractive = !isMobile;
+  const detectedMobile = useMedia("(max-width: 768px)", false);
+  const isMobileDevice = isMobile ?? !!detectedMobile;
+  const isInteractive = !isMobileDevice;
   const posterPath = getPosterPath(item) ?? undefined;
   const backdropPath = getBackdropPath(item);
   const backdropUrl = backdropPath
@@ -61,11 +64,70 @@ export function PosterCard({
     schedulePrefetch();
   };
 
+  const cardLink = isExternalHref(link) ? (
+    <a
+      href={link}
+      className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+      aria-label={`View ${title}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    />
+  ) : (
+    <Link
+      href={link}
+      className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+      aria-label={`View ${title}`}
+    />
+  );
+
+  const playControl = isExternalHref(link) ? (
+    <a
+      href={link}
+      className="pointer-events-auto flex size-20 cursor-pointer items-center justify-center rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+      aria-label={`View ${title}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onFocus={handleIntent}
+      onPointerEnter={handleIntent}
+    >
+      <Icons.play
+        className={cn(
+          "scale-75 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-100",
+          minimal ? "h-10 w-10" : "h-8 w-8",
+        )}
+        strokeWidth={1.5}
+      />
+    </a>
+  ) : (
+    <Link
+      href={link}
+      className="pointer-events-auto flex size-20 cursor-pointer items-center justify-center rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+      aria-label={`View ${title}`}
+      onFocus={handleIntent}
+      onPointerEnter={handleIntent}
+    >
+      <Icons.play
+        className={cn(
+          "scale-75 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-100",
+          minimal ? "h-10 w-10" : "h-8 w-8",
+        )}
+        strokeWidth={1.5}
+      />
+    </Link>
+  );
+
   if (minimal) {
     return (
-      <Card className="group relative overflow-hidden border-0 bg-card/40 backdrop-blur-md transition-all duration-300 shadow-xl cursor-pointer aspect-2/3">
+      <Card
+        className={cn(
+          "group relative aspect-2/3 cursor-grab select-none overflow-hidden border-0 bg-card/40 shadow-xl backdrop-blur-md transition-all duration-300 active:cursor-grabbing",
+        )}
+        onPointerEnter={handleIntent}
+        onPointerLeave={cancelPrefetch}
+        onTouchStart={prefetch}
+      >
         {backdropUrl && (
-          <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
+          <div className="pointer-events-none absolute inset-0 opacity-10 transition-opacity duration-500 group-hover:opacity-20">
             <Image
               src={backdropUrl}
               alt=""
@@ -75,35 +137,20 @@ export function PosterCard({
             />
           </div>
         )}
-        <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
         <div className="relative h-full">
           <Poster
             posterPath={posterPath}
             title={title}
-            className="rounded-none h-full transition-transform duration-500 group-hover:scale-[1.05]"
+            className="h-full rounded-none transition-transform duration-500 group-hover:scale-[1.05]"
           />
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-            <Icons.play
-              className="text-primary-foreground w-10 h-10 scale-75 group-hover:scale-100 transition-transform duration-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-              strokeWidth={1.5}
-            />
-          </div>
+          {isInteractive ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              {playControl}
+            </div>
+          ) : null}
         </div>
-        {isExternalHref(link) ? (
-          <a
-            href={link}
-            className="absolute inset-0 z-40"
-            aria-label={`View ${title}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          />
-        ) : (
-          <Link
-            href={link}
-            className="absolute inset-0 z-40"
-            aria-label={`View ${title}`}
-          />
-        )}
+        {isMobileDevice ? cardLink : null}
       </Card>
     );
   }
@@ -111,22 +158,18 @@ export function PosterCard({
   return (
     <div
       className={cn(
-        "group relative cursor-pointer overflow-hidden rounded-[28px] border border-white/12 bg-card/40 shadow-xl backdrop-blur-md",
+        "group relative cursor-grab select-none overflow-hidden rounded-[28px] border border-white/12 bg-card/40 shadow-xl backdrop-blur-md active:cursor-grabbing",
         isInteractive && "transition-all duration-300 hover:border-primary/50",
       )}
       style={{ aspectRatio: "2 / 3" }}
-      tabIndex={0}
-      role="button"
-      aria-label={`View ${title}`}
       onPointerEnter={handleIntent}
       onPointerLeave={cancelPrefetch}
-      onFocus={handleIntent}
       onTouchStart={prefetch}
     >
       {backdropUrl && showBackdrop && (
         <div
           className={cn(
-            "absolute inset-0 pointer-events-none opacity-10",
+            "pointer-events-none absolute inset-0 opacity-10",
             isInteractive &&
               "transition-opacity duration-500 group-hover:opacity-20",
           )}
@@ -142,7 +185,7 @@ export function PosterCard({
       )}
       <div
         className={cn(
-          "absolute inset-0 z-10 pointer-events-none rounded-[28px] bg-linear-to-t from-background/95 via-background/40 to-transparent",
+          "pointer-events-none absolute inset-0 z-10 rounded-[28px] bg-linear-to-t from-background/95 via-background/40 to-transparent",
           isInteractive
             ? "transition-opacity duration-500 md:opacity-0 md:group-hover:opacity-100"
             : "opacity-0",
@@ -159,23 +202,17 @@ export function PosterCard({
         )}
       />
 
-      <div
-        className={cn(
-          "absolute inset-0 z-20 flex items-center justify-center pointer-events-none",
-          isInteractive
-            ? "opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-            : "hidden",
-        )}
-      >
-        <Icons.play
-          className="w-8 h-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-          strokeWidth={1.5}
-        />
-      </div>
+      {isInteractive ? (
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+          {playControl}
+        </div>
+      ) : (
+        cardLink
+      )}
 
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 z-30 flex flex-col items-center p-3 text-center",
+          "pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col items-center p-3 text-center",
           isInteractive &&
             "transition-all duration-500 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:bg-linear-to-t md:from-black/90 md:via-black/60 md:to-transparent md:backdrop-blur-[2px]",
         )}
@@ -184,23 +221,23 @@ export function PosterCard({
           <MediaLogo
             logo={item.logo}
             align="center"
-            className="w-full max-h-10 mx-auto mb-2"
+            className="mx-auto mb-2 max-h-10 w-full"
             title={
               hideTitleFallback && item.logo?.file_path ? undefined : title
             }
-            fallbackClassName="text-sm font-semibold leading-tight line-clamp-2 mb-2"
+            fallbackClassName="mb-2 line-clamp-2 text-sm font-semibold leading-tight"
           />
         ) : null}
 
-        <div className="flex flex-col items-center gap-2 w-full mt-auto">
-          <div className="flex justify-center items-center gap-3 text-[10px] font-medium text-muted-foreground/80">
+        <div className="mt-auto flex w-full flex-col items-center gap-2">
+          <div className="flex items-center justify-center gap-3 text-[10px] font-medium text-muted-foreground/80">
             {year && <span>{year}</span>}
 
             {rating && (
               <>
                 <span className="opacity-40">•</span>
                 <div className="flex items-center gap-1">
-                  <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                  <Star className="h-3 w-3 fill-current text-yellow-400" />
                   <span className="text-foreground">{rating}</span>
                 </div>
               </>
@@ -209,7 +246,7 @@ export function PosterCard({
             {contentRating && (
               <>
                 <span className="opacity-40">•</span>
-                <span className="px-1 py-0 bg-white/5 border border-white/10 rounded-xs text-[8px] font-bold text-white/70 uppercase">
+                <span className="rounded-xs border border-white/10 bg-white/5 px-1 py-0 text-[8px] font-bold uppercase text-white/70">
                   {contentRating}
                 </span>
               </>
@@ -217,21 +254,6 @@ export function PosterCard({
           </div>
         </div>
       </div>
-      {isExternalHref(link) ? (
-        <a
-          href={link}
-          className="absolute inset-0 z-40"
-          aria-label={`View ${title}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        />
-      ) : (
-        <Link
-          href={link}
-          className="absolute inset-0 z-40"
-          aria-label={`View ${title}`}
-        />
-      )}
     </div>
   );
 }

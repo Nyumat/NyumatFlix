@@ -8,10 +8,15 @@ import { ScrapePlayerShell } from "@/components/media/scrape-player-shell";
 import type { UseAnimeScrapeReturn } from "@/hooks/use-anime-scrape";
 import type { UseScrapeReturn } from "@/hooks/use-scrape";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import { USE_SHAKA_DASH } from "@/lib/constants";
 import { buildScrapePlayerKey } from "@/lib/scrape/player-sources";
 import type { SourceOverlayItem } from "@/lib/scrape/source-overlay";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
-import type { ScrapeQuality, ScrapeSubtitle } from "@/lib/scrape/types";
+import type {
+  ScrapeAudioVersion,
+  ScrapeQuality,
+  ScrapeSubtitle,
+} from "@/lib/scrape/types";
 import { isScrapeServer, type VideoServer } from "@/lib/stores/server-store";
 
 const ScrapeHlsPlayer = dynamic(
@@ -29,6 +34,16 @@ const ScrapeHlsPlayer = dynamic(
   },
 );
 
+const ScrapeShakaDashPlayer = dynamic(
+  () =>
+    import("@/components/media/scrape-shaka-dash-player").then(
+      (module) => module.ScrapeShakaDashPlayer,
+    ),
+  {
+    ssr: false,
+  },
+);
+
 type HeroScrapePlayerPanelProps = {
   selectedServer: VideoServer;
   scrapeStatus: UseScrapeReturn["status"];
@@ -36,7 +51,11 @@ type HeroScrapePlayerPanelProps = {
     playUrl: string;
     qualities?: ScrapeQuality[];
     subtitles?: ScrapeSubtitle[];
+    audioVersions?: ScrapeAudioVersion[];
+    defaultAudioLang?: string;
+    defaultHardSubLang?: string;
     referer?: string;
+    preferredAudioLang?: string;
   } | null;
   scrapeError: string | null;
   activeProviderId: string | null;
@@ -44,11 +63,13 @@ type HeroScrapePlayerPanelProps = {
   playbackTitle: string;
   playbackPosterUrl: string | null;
   progressKey: PlaybackProgressKey | null;
+  imdbId: string | null;
   streamKind: StreamKind;
   isTv: boolean;
   onSelectEmbedServer: (serverId: string) => void;
+  onRetryAllScraping?: () => void;
   onFatalError: () => void;
-  onEnded?: () => void;
+  onEnded?: () => Promise<boolean>;
 };
 
 export function HeroScrapePlayerPanel({
@@ -61,9 +82,11 @@ export function HeroScrapePlayerPanel({
   playbackTitle,
   playbackPosterUrl,
   progressKey,
+  imdbId,
   streamKind,
   isTv,
   onSelectEmbedServer,
+  onRetryAllScraping,
   onFatalError,
   onEnded,
 }: HeroScrapePlayerPanelProps) {
@@ -83,40 +106,60 @@ export function HeroScrapePlayerPanel({
       ) : null}
 
       {scrapeStatus === "playing" && scrapeResult?.playUrl && progressKey ? (
-        <ScrapeHlsPlayer
-          key={buildScrapePlayerKey({
-            playUrl: scrapeResult.playUrl,
-            qualities: scrapeResult.qualities,
-            subtitles: scrapeResult.subtitles,
-          })}
-          playUrl={scrapeResult.playUrl}
-          streamKind={streamKind}
-          qualities={scrapeResult.qualities}
-          referer={scrapeResult.referer}
-          subtitles={scrapeResult.subtitles}
-          title={playbackTitle}
-          poster={playbackPosterUrl}
-          progressKey={progressKey}
-          className="h-full w-full"
-          onFatalError={onFatalError}
-          onEnded={isTv ? onEnded : undefined}
-        />
+        USE_SHAKA_DASH && streamKind === "dash" ? (
+          <ScrapeShakaDashPlayer
+            key={buildScrapePlayerKey({
+              playUrl: scrapeResult.playUrl,
+              qualities: scrapeResult.qualities,
+              subtitles: scrapeResult.subtitles,
+            })}
+            playUrl={scrapeResult.playUrl}
+            referer={scrapeResult.referer}
+            subtitles={scrapeResult.subtitles}
+            title={playbackTitle}
+            poster={playbackPosterUrl}
+            progressKey={progressKey}
+            imdbId={imdbId}
+            className="h-full w-full"
+            onFatalError={onFatalError}
+            onEnded={isTv ? onEnded : undefined}
+          />
+        ) : (
+          <ScrapeHlsPlayer
+            key={buildScrapePlayerKey({
+              playUrl: scrapeResult.playUrl,
+              qualities: scrapeResult.qualities,
+              subtitles: scrapeResult.subtitles,
+              audioVersions: scrapeResult.audioVersions,
+            })}
+            playUrl={scrapeResult.playUrl}
+            streamKind={streamKind}
+            qualities={scrapeResult.qualities}
+            referer={scrapeResult.referer}
+            subtitles={scrapeResult.subtitles}
+            audioVersions={scrapeResult.audioVersions}
+            defaultAudioLang={scrapeResult.defaultAudioLang}
+            defaultHardSubLang={scrapeResult.defaultHardSubLang}
+            preferredAudioLang={scrapeResult.preferredAudioLang}
+            title={playbackTitle}
+            poster={playbackPosterUrl}
+            progressKey={progressKey}
+            imdbId={imdbId}
+            className="h-full w-full"
+            onFatalError={onFatalError}
+            onEnded={isTv ? onEnded : undefined}
+          />
+        )
       ) : null}
 
       {scrapeStatus === "error" ? (
-        <>
-          <ScrapingOverlay
-            items={sourceOverlayItems}
-            activeProviderId={activeProviderId}
-            error={scrapeError}
-            onSelectEmbedServer={onSelectEmbedServer}
-          />
-          <div className="absolute inset-x-0 bottom-16 z-40 flex justify-center px-6">
-            <p className="max-w-sm text-center text-xs text-white/45">
-              Try another server from the menu below.
-            </p>
-          </div>
-        </>
+        <ScrapingOverlay
+          items={sourceOverlayItems}
+          activeProviderId={activeProviderId}
+          error={scrapeError}
+          onSelectEmbedServer={onSelectEmbedServer}
+          onRetryAll={onRetryAllScraping}
+        />
       ) : null}
     </>
   );

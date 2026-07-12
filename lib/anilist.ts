@@ -11,6 +11,7 @@ export const ANILIST_GENRES = [
   "Comedy",
   "Drama",
   "Fantasy",
+  "Hentai",
   "Horror",
   "Mahou Shoujo",
   "Mecha",
@@ -131,6 +132,11 @@ type AniListResponse = {
   errors?: Array<{ message: string }>;
 };
 
+const ANILIST_ADULT_GENRES = new Set(["Hentai"]);
+
+export const requiresAdultAniListContent = (genres: string[]) =>
+  genres.some((genre) => ANILIST_ADULT_GENRES.has(genre));
+
 const ANILIST_PAGE_QUERY = `
   query AniListCatalog(
     $page: Int,
@@ -143,7 +149,8 @@ const ANILIST_PAGE_QUERY = `
     $status: MediaStatus,
     $season: MediaSeason,
     $seasonYear: Int,
-    $search: String
+    $search: String,
+    $isAdult: Boolean
   ) {
     Page(page: $page, perPage: $perPage) {
       pageInfo {
@@ -163,7 +170,7 @@ const ANILIST_PAGE_QUERY = `
         season: $season,
         seasonYear: $seasonYear,
         search: $search,
-        isAdult: false
+        isAdult: $isAdult
       ) {
         id
         idMal
@@ -275,6 +282,7 @@ const fetchAniListPageUncached = async ({
     season: params.season,
     seasonYear: params.year,
     search: params.query,
+    isAdult: requiresAdultAniListContent(params.genres),
   });
 
   let response: Response;

@@ -1,6 +1,6 @@
-import { resolveAnimeSearchQuery } from "../anilist-meta";
+import { fetchAnilistTitleCandidates } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
-import { scrapeFetch } from "../../fetch";
+import { cancelResponseBody, scrapeFetch } from "../../fetch";
 
 const ONSEN_ORIGIN = "https://www.animeonsen.xyz";
 const ONSEN_AUTH = "https://auth.animeonsen.xyz/oauth/token";
@@ -12,17 +12,68 @@ const ONSEN_CLIENT_SECRET =
 
 type OnsenTokenResponse = { access_token?: string };
 type OnsenSearchResponse = {
-  result?: Array<{ content_id?: string; content_title?: string }>;
-  data?: Array<{ content_id?: string; content_title?: string }>;
+  result?: OnsenSearchResult[];
+  data?: OnsenSearchResult[];
+};
+type OnsenSearchResult = {
+  content_id?: string;
+  content_title?: string;
+  content_title_en?: string;
 };
 type OnsenVideoResponse = {
   uri?: { stream?: string; subtitles?: Record<string, string> };
   data?: {
-    uri?: { stream?: string };
+    uri?: { stream?: string; subtitles?: Record<string, string> };
   };
 };
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
+
+export const ANIMEONSEN_CATALOG_MISS_ERROR = "Not in AnimeOnsen catalog";
+
+const normalizeTitleStrict = (title: string) =>
+  title
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/** Collapse romaji spacing/particle variants (`Shite mo` vs `shitemo`). */
+const normalizeTitleLoose = (title: string) =>
+  normalizeTitleStrict(title)
+    .replace(/\b(wa|wo|ga|ni|de|to|mo|no|te|shite|shitemo)\b/g, " ")
+    .replace(/\s+/g, "")
+    .trim();
+
+export const findMatchingOnsenResult = (
+  rows: OnsenSearchResult[],
+  titles: string[],
+): OnsenSearchResult | undefined => {
+  const strictExpected = new Set(
+    titles.map(normalizeTitleStrict).filter(Boolean),
+  );
+  const strictMatch = rows.find((row) =>
+    [row.content_title, row.content_title_en].some(
+      (title) => title && strictExpected.has(normalizeTitleStrict(title)),
+    ),
+  );
+  if (strictMatch) {
+    return strictMatch;
+  }
+
+  const looseExpected = new Set(
+    titles.map(normalizeTitleLoose).filter(Boolean),
+  );
+  return rows.find((row) =>
+    [row.content_title, row.content_title_en].some((title) => {
+      if (!title) {
+        return false;
+      }
+      const loose = normalizeTitleLoose(title);
+      return loose.length > 0 && looseExpected.has(loose);
+    }),
+  );
+};
 
 const getOnsenToken = async (): Promise<string | null> => {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
@@ -42,6 +93,7 @@ const getOnsenToken = async (): Promise<string | null> => {
   });
 
   if (!response.ok) {
+    await cancelResponseBody(response);
     return null;
   }
 
@@ -69,30 +121,42 @@ export async function scrapeAnimeonsen(
       return { ok: false, providerId, error: "AnimeOnsen OAuth failed" };
     }
 
-    const query = await resolveAnimeSearchQuery(input);
     const authHeaders = {
       Authorization: `Bearer ${token}`,
       Referer: `${ONSEN_ORIGIN}/`,
     };
+    const titles = [
+      input.query?.trim(),
+      ...(await fetchAnilistTitleCandidates(input.anilistId)),
+    ].filter((title): title is string => Boolean(title));
+    const uniqueTitles = [...new Set(titles)];
+    let match: OnsenSearchResult | undefined;
 
-    const searchResponse = await scrapeFetch(
-      `${ONSEN_API}/search/${encodeURIComponent(query)}`,
-      { headers: authHeaders },
-    );
+    for (const query of uniqueTitles) {
+      const searchResponse = await scrapeFetch(
+        `${ONSEN_API}/search/${encodeURIComponent(query)}`,
+        { headers: authHeaders },
+      );
 
-    if (!searchResponse.ok) {
+      if (!searchResponse.ok) {
+        await cancelResponseBody(searchResponse);
+        continue;
+      }
+
+      const payload = (await searchResponse.json()) as OnsenSearchResponse;
+      const rows = payload.result ?? payload.data ?? [];
+      match = findMatchingOnsenResult(rows, uniqueTitles);
+      if (match) break;
+    }
+
+    const contentId = match?.content_id;
+    if (!contentId) {
       return {
         ok: false,
         providerId,
-        error: `AnimeOnsen search failed (${searchResponse.status})`,
+        error: ANIMEONSEN_CATALOG_MISS_ERROR,
+        unavailable: true,
       };
-    }
-
-    const searchPayload = (await searchResponse.json()) as OnsenSearchResponse;
-    const rows = searchPayload.result ?? searchPayload.data ?? [];
-    const contentId = rows[0]?.content_id;
-    if (!contentId) {
-      return { ok: false, providerId, error: "AnimeOnsen content not found" };
     }
 
     const videoResponse = await scrapeFetch(
@@ -101,6 +165,7 @@ export async function scrapeAnimeonsen(
     );
 
     if (!videoResponse.ok) {
+      await cancelResponseBody(videoResponse);
       return {
         ok: false,
         providerId,
@@ -111,6 +176,8 @@ export async function scrapeAnimeonsen(
     const videoPayload = (await videoResponse.json()) as OnsenVideoResponse;
     const streamUrl =
       videoPayload.uri?.stream ?? videoPayload.data?.uri?.stream;
+    const subtitleMap =
+      videoPayload.uri?.subtitles ?? videoPayload.data?.uri?.subtitles;
 
     if (!streamUrl) {
       return {
@@ -125,7 +192,14 @@ export async function scrapeAnimeonsen(
       providerId,
       streamUrl,
       streamKind: streamUrl.includes(".mpd") ? "dash" : "hls",
-      referer: ONSEN_ORIGIN,
+      referer: `${ONSEN_ORIGIN}/`,
+      subtitles: subtitleMap
+        ? Object.entries(subtitleMap).map(([lang, url]) => ({
+            lang,
+            url,
+            format: "ass" as const,
+          }))
+        : undefined,
     };
   } catch (error) {
     return {

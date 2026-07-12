@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isVidKingCdnUrl,
+  normalizeVidKingAssetHost,
   parseVidKingCdnUrl,
   rebuildVidKingCdnUrl,
   swapVidKingCdnToken,
@@ -14,6 +16,8 @@ import {
 describe("vidking-playback", () => {
   const sampleUrl =
     "https://shadowlemon.site/r2/cdn2/abc123token/720p/index.m3u8";
+  const rotatedHostUrl =
+    "https://moon.ironbubble.site/r2/cdn2/abc123token/720p/index.m3u8";
 
   it("parses shadowlemon cdn2 variant URLs", () => {
     expect(parseVidKingCdnUrl(sampleUrl)).toEqual({
@@ -21,6 +25,18 @@ describe("vidking-playback", () => {
       token: "abc123token",
       pathAfterToken: "720p/index.m3u8",
     });
+  });
+
+  it("parses rotated CDN hosts by path shape, not hostname allowlist", () => {
+    expect(isVidKingCdnUrl(rotatedHostUrl)).toBe(true);
+    expect(parseVidKingCdnUrl(rotatedHostUrl)).toEqual({
+      prefix: "https://moon.ironbubble.site/r2/cdn2",
+      token: "abc123token",
+      pathAfterToken: "720p/index.m3u8",
+    });
+    expect(swapVidKingCdnToken(rotatedHostUrl, "fresh-token")).toBe(
+      "https://moon.ironbubble.site/r2/cdn2/fresh-token/720p/index.m3u8",
+    );
   });
 
   it("parses cdn1 flat playlists", () => {
@@ -39,6 +55,33 @@ describe("vidking-playback", () => {
     expect(swapped).toBe(
       "https://shadowlemon.site/r2/cdn2/fresh-token/720p/index.m3u8",
     );
+  });
+
+  it("moves rotated asset hosts to the working playlist origin", () => {
+    expect(
+      normalizeVidKingAssetHost(
+        "https://stale.example/r2/cdn2/shared-token/1080p/a.jpg",
+        "https://working.example/r2/cdn2/shared-token/1080p/index.m3u8",
+      ),
+    ).toBe("https://working.example/r2/cdn2/shared-token/1080p/a.jpg");
+  });
+
+  it("does not move unrelated tokens or non-HTTPS assets", () => {
+    const playlist =
+      "https://working.example/r2/cdn2/expected/1080p/index.m3u8";
+
+    expect(
+      normalizeVidKingAssetHost(
+        "https://stale.example/r2/cdn2/different/1080p/a.jpg",
+        playlist,
+      ),
+    ).toBe("https://stale.example/r2/cdn2/different/1080p/a.jpg");
+    expect(
+      normalizeVidKingAssetHost(
+        "http://stale.example/r2/cdn2/expected/1080p/a.jpg",
+        playlist,
+      ),
+    ).toBe("http://stale.example/r2/cdn2/expected/1080p/a.jpg");
   });
 
   it("rebuilds URLs from parsed parts", () => {

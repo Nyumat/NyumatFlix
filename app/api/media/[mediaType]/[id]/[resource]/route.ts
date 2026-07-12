@@ -1,3 +1,11 @@
+import {
+  getCachedAnilistTvAboveFoldDetail,
+  getCachedAnilistTvAllSeasons,
+  getCachedAnilistTvCredits,
+  getCachedAnilistTvRecommendations,
+  getCachedAnilistTvShowDetail,
+} from "@/lib/anilist-tv-detail";
+import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
 import { catalogCacheHeaders, seasonCacheHeaders } from "@/lib/http-cache";
 import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
 import {
@@ -5,6 +13,7 @@ import {
   getCachedTvShowDetail,
 } from "@/lib/media-detail-cache";
 import { getCachedMediaAboveFoldDetail } from "@/lib/media-above-fold-server";
+import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-video";
 import { tmdb } from "@/tmdb/api";
 import { NextResponse } from "next/server";
 
@@ -73,14 +82,15 @@ export async function GET(
   }
 
   try {
-    const mediaApi = mediaType === "movie" ? tmdb.movie : tmdb.tv;
+    const typedMediaType = mediaType as MediaType;
+    const isAnilistTv = typedMediaType === "tv" && isAnilistTvRouteId(id);
+    const mediaApi = typedMediaType === "movie" ? tmdb.movie : tmdb.tv;
 
     switch (resource as Resource) {
       case "above-fold": {
-        const detail = await getCachedMediaAboveFoldDetail(
-          mediaType as MediaType,
-          id,
-        );
+        const detail = isAnilistTv
+          ? await getCachedAnilistTvAboveFoldDetail(id)
+          : await getCachedMediaAboveFoldDetail(typedMediaType, id);
         if (!detail) {
           return NextResponse.json(
             { error: "Media not found" },
@@ -89,18 +99,33 @@ export async function GET(
         }
         return jsonCached(detail, "above-fold");
       }
-      case "details":
-        return jsonCached(
-          mediaType === "movie"
+      case "details": {
+        const details =
+          typedMediaType === "movie"
             ? await getCachedMovieDetail(id)
-            : await getCachedTvShowDetail(id),
-          "details",
-        );
+            : isAnilistTv
+              ? await getCachedAnilistTvShowDetail(id)
+              : await getCachedTvShowDetail(id);
+        if (!details) {
+          return NextResponse.json(
+            { error: "Media not found" },
+            { status: 404 },
+          );
+        }
+        return jsonCached(details, "details");
+      }
       case "all-seasons": {
-        if (mediaType !== "tv") {
+        if (typedMediaType !== "tv") {
           return NextResponse.json(
             { error: "All seasons is only available for TV shows" },
             { status: 400 },
+          );
+        }
+
+        if (isAnilistTv) {
+          return jsonCached(
+            await getCachedAnilistTvAllSeasons(id),
+            "all-seasons",
           );
         }
 
@@ -115,22 +140,54 @@ export async function GET(
         );
       }
       case "credits":
-        return jsonCached(await mediaApi.credits({ id }), "credits");
+        return jsonCached(
+          isAnilistTv
+            ? await getCachedAnilistTvCredits(id)
+            : await mediaApi.credits({ id }),
+          "credits",
+        );
       case "images":
+        if (isAnilistTv) {
+          return jsonCached(
+            { backdrops: [], posters: [], logos: [] },
+            "images",
+          );
+        }
         return jsonCached(
           await mediaApi.images({ id, langs: "en,null" }),
           "images",
         );
       case "videos":
+        if (isAnilistTv) {
+          const detail = await getCachedAnilistTvAboveFoldDetail(id);
+          return jsonCached(
+            { results: extractVideoRowsFromMediaVideos(detail?.videos) },
+            "videos",
+          );
+        }
         return jsonCached(await mediaApi.videos({ id }), "videos");
       case "reviews":
+        if (isAnilistTv) {
+          return jsonCached(
+            { page: 1, results: [], total_pages: 0, total_results: 0 },
+            "reviews",
+          );
+        }
         return jsonCached(await mediaApi.reviews({ id, page }), "reviews");
       case "recommendations":
         return jsonCached(
-          await mediaApi.recommendations({ id, page }),
+          isAnilistTv
+            ? await getCachedAnilistTvRecommendations(id)
+            : await mediaApi.recommendations({ id, page }),
           "recommendations",
         );
       case "similar":
+        if (isAnilistTv) {
+          return jsonCached(
+            { page: 1, results: [], total_pages: 0, total_results: 0 },
+            "similar",
+          );
+        }
         return jsonCached(await mediaApi.similar({ id, page }), "similar");
     }
   } catch (error) {

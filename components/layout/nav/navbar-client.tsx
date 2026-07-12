@@ -8,6 +8,7 @@ import { NavbarSearchClient, SearchDialog } from "@/components/search/search";
 import { Button } from "@/components/ui/button";
 import { useDetailRouteParentOverride } from "@/lib/stores/detail-route-store";
 import { cn } from "@/lib/utils";
+import { prepareNavigationBack } from "@/lib/navigation/route-restoration";
 import { ChevronLeft, Search, UserRound } from "lucide-react";
 import Link from "next/link";
 import type { Session } from "next-auth";
@@ -30,7 +31,6 @@ interface NavbarClientProps {
 const DETAIL_PARENT_ROUTES: Array<{
   pattern: RegExp;
   parent: string;
-  preferHistory?: boolean;
 }> = [
   { pattern: /^\/movies\/[^/]+(?:\/.*)?$/, parent: "/movies" },
   { pattern: /^\/tvshows\/[^/]+(?:\/.*)?$/, parent: "/tvshows" },
@@ -38,7 +38,6 @@ const DETAIL_PARENT_ROUTES: Array<{
   {
     pattern: /^\/collection\/[^/]+(?:\/.*)?$/,
     parent: "/movies",
-    preferHistory: true,
   },
   { pattern: /^\/watch\/[^/]+(?:\/.*)?$/, parent: "/" },
 ];
@@ -83,7 +82,6 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
     return (
       <DetailPageActions
         parentRoute={parentRouteOverride ?? detailRouteConfig.parent}
-        preferHistory={detailRouteConfig.preferHistory}
         session={session}
         isSearchOpen={isSearchOpen}
         setIsSearchOpen={setIsSearchOpen}
@@ -98,9 +96,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
         "top-0 z-50 w-full bg-transparent",
       )}
     >
-      {!isAuthRoute(pathname) && isLiveTvEnabled() && pathname !== "/live" && (
-        <AnniversaryBanner />
-      )}
+      {!isAuthRoute(pathname) && <AnniversaryBanner />}
       <div className="site-container flex min-h-14 items-center gap-2 py-2.5 lg:gap-3">
         <div className="flex shrink-0 items-center gap-1 lg:gap-2">
           <BackButton />
@@ -161,13 +157,11 @@ const useSearchDialogShortcut = (setIsSearchOpen: (open: boolean) => void) => {
 
 const DetailPageActions = ({
   parentRoute,
-  preferHistory = false,
   session,
   isSearchOpen,
   setIsSearchOpen,
 }: {
   parentRoute: string;
-  preferHistory?: boolean;
   session: Session | null;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
@@ -175,15 +169,11 @@ const DetailPageActions = ({
   const router = useRouter();
 
   const handleBack = () => {
-    if (!preferHistory || typeof window === "undefined") {
-      router.push(parentRoute);
-      return;
-    }
-
-    const referrer = document.referrer ? new URL(document.referrer) : null;
-    const hasSameOriginReferrer = referrer?.origin === window.location.origin;
-
-    if (hasSameOriginReferrer && window.history.length > 1) {
+    if (
+      typeof window !== "undefined" &&
+      window.history.length > 1 &&
+      prepareNavigationBack()
+    ) {
       router.back();
       return;
     }
@@ -203,7 +193,7 @@ const DetailPageActions = ({
             detailNavbarActionButtonClassName,
             "shrink-0",
           )}
-          aria-label={preferHistory ? "Go back" : "Back to parent page"}
+          aria-label="Go back"
           onClick={handleBack}
         >
           <ChevronLeft className="size-6" strokeWidth={2.5} />

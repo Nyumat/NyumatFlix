@@ -5,11 +5,13 @@ import {
 import { MediaDetailLayout } from "@/components/media/media-server";
 import { hydrateMovieDetailQueries } from "@/lib/prefetch-media-detail-queries";
 import { getCachedMovieAboveFoldDetail } from "@/lib/media-above-fold-server";
+import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
 import { isUpcomingMovie } from "@/utils/movie-helpers";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { Suspense } from "react";
 import type { MediaItem } from "@/lib/domain/typings";
 
@@ -18,6 +20,11 @@ export const revalidate = 3600;
 type Props = {
   children: React.ReactNode;
   params: Promise<{ id: string }>;
+};
+
+const parsePositiveInt = (value: string | null) => {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
 async function MovieDetailLayoutContent({ children, params }: Props) {
@@ -31,7 +38,18 @@ async function MovieDetailLayoutContent({ children, params }: Props) {
   }
 
   const detailMedia = details as MediaItem;
-  const anilistId = await getAnilistIdForMedia(detailMedia);
+  const requestSearchParams = new URLSearchParams(
+    (await headers()).get("x-search-params") ?? "",
+  );
+  const queryAnilistId = parsePositiveInt(requestSearchParams.get("anilistId"));
+  const mappedAnilistId = await getAnilistIdFromFribb(
+    Number.parseInt(id, 10),
+    "movie",
+  );
+  const anilistId =
+    queryAnilistId ??
+    mappedAnilistId ??
+    (await getAnilistIdForMedia(detailMedia));
   const isUpcoming = isUpcomingMovie(detailMedia);
 
   const queryClient = new QueryClient();

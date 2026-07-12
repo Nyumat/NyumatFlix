@@ -10,9 +10,11 @@ import {
   type AnimeScrapeInput,
   type AnimeScrapeProviderId,
 } from "@/lib/scrape/anime/types";
-import type { ScrapeQuality, ScrapeSubtitle } from "@/lib/scrape/types";
-
-export type AnimeScrapePlayerStatus = "idle" | "scraping" | "playing" | "error";
+import type {
+  ScrapeAudioVersion,
+  ScrapeQuality,
+  ScrapeSubtitle,
+} from "@/lib/scrape/types";
 
 export type AnimeScrapeSuccessPayload = {
   providerId: AnimeScrapeProviderId;
@@ -22,13 +24,17 @@ export type AnimeScrapeSuccessPayload = {
   referer?: string;
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];
+  audioVersions?: ScrapeAudioVersion[];
+  defaultAudioLang?: string;
+  defaultHardSubLang?: string;
+  preferredAudioLang?: string;
 };
 
 const animeScrapeLoopConfig = {
   providerOrder: ANIME_SCRAPE_PROVIDER_ORDER,
   providerLabels: ANIME_SCRAPE_PROVIDER_LABELS,
   mediaKeyFor: animeScrapeMediaKeyFor,
-  allFailedError: "All anime sources failed. Try another server or retry.",
+  allFailedError: "No playable source found.",
   apiPath: "/api/scrape",
   buildRequestBody: (
     providerId: AnimeScrapeProviderId,

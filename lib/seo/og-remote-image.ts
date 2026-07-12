@@ -19,6 +19,7 @@ const SITE_POSTER_H = 276;
 const FETCH_TIMEOUT_MS = 8_000;
 const IMAGE_DATA_URI_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_DATA_URI_CACHE_ENTRIES = 300;
+const MAX_IMAGE_DATA_URI_CACHE_BYTES = 48 * 1024 * 1024;
 
 type ImageCacheEntry = {
   dataUri: string;
@@ -26,17 +27,28 @@ type ImageCacheEntry = {
 };
 
 const imageDataUriCache = new Map<string, ImageCacheEntry>();
+let imageDataUriCacheBytes = 0;
 
 const setImageDataUriCache = (url: string, dataUri: string) => {
+  const previous = imageDataUriCache.get(url);
+  if (previous) imageDataUriCacheBytes -= Buffer.byteLength(previous.dataUri);
+
   imageDataUriCache.set(url, {
     dataUri,
     expiresAt: Date.now() + IMAGE_DATA_URI_CACHE_TTL_MS,
   });
+  imageDataUriCacheBytes += Buffer.byteLength(dataUri);
 
-  if (imageDataUriCache.size <= MAX_IMAGE_DATA_URI_CACHE_ENTRIES) return;
-
-  const oldestKey = imageDataUriCache.keys().next().value;
-  if (oldestKey) imageDataUriCache.delete(oldestKey);
+  while (
+    imageDataUriCache.size > MAX_IMAGE_DATA_URI_CACHE_ENTRIES ||
+    imageDataUriCacheBytes > MAX_IMAGE_DATA_URI_CACHE_BYTES
+  ) {
+    const oldestKey = imageDataUriCache.keys().next().value;
+    if (!oldestKey) break;
+    const oldest = imageDataUriCache.get(oldestKey);
+    if (oldest) imageDataUriCacheBytes -= Buffer.byteLength(oldest.dataUri);
+    imageDataUriCache.delete(oldestKey);
+  }
 };
 
 export async function fetchOgImageDataUri(

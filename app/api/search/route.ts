@@ -62,7 +62,6 @@ export async function GET(request: Request) {
       language: "en-US",
     });
 
-    // fetch both movies and tv shows in parallel
     const [movieResponse, tvResponse] = await Promise.all([
       fetch(`${baseUrl}/movie?${commonParams}`),
       fetch(`${baseUrl}/tv?${commonParams}`),
@@ -83,7 +82,6 @@ export async function GET(request: Request) {
       tvResponse.json() as Promise<TmdbResponse<TvShow>>,
     ]);
 
-    // combine and sort results by popularity
     const movies: Movie[] = (movieData.results || [])
       .filter((movie: Movie) => movie.poster_path) // filter out movies without poster
       .map((movie: Movie) => ({
@@ -111,7 +109,6 @@ export async function GET(request: Request) {
       return popB - popA;
     });
 
-    // for people, we'll fetch from page 1 only to show in sidebar
     const people: Person[] = [];
     if (page === "1") {
       const peopleUrl = new URL(`${baseUrl}/person`);
@@ -153,11 +150,9 @@ export async function GET(request: Request) {
         }
       } catch (error) {
         console.error("Error fetching people:", error);
-        // continue without people results
       }
     }
 
-    // calculate total pages (use the max of movie and tv pages)
     const totalPages = Math.max(
       movieData.total_pages || 1,
       tvData.total_pages || 1,
@@ -165,7 +160,6 @@ export async function GET(request: Request) {
     const totalResults =
       (movieData.total_results || 0) + (tvData.total_results || 0);
 
-    // return structured response
     const result: SearchResult = {
       media: mapMediaListToCanonicalCardsValue(allMedia),
       people: people

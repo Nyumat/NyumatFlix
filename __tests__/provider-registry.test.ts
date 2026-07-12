@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ANIME_PLAYBACK_SCRAPE_PROVIDER_ORDER,
   ANIME_SCRAPE_PROVIDER_ORDER,
   dualCapabilityEmbedProviderIds,
   embedOnlyProviderIds,
@@ -17,20 +18,29 @@ describe("provider registry", () => {
 
   it("lists embed-only providers not in the scrape chain", () => {
     expect(embedOnlyProviderIds()).toEqual([
+      "vidsrc-mirror",
       "superembed",
       "111movies",
       "vidfast",
       "videasy",
+      "vidlink",
+      "vidcore",
+      "1embed",
+      "vidlux",
     ]);
+  });
+
+  it("keeps vixsrc last in the TMDB scrape chain", () => {
+    expect(TMDB_SCRAPE_PROVIDER_ORDER.at(-1)).toBe("vixsrc");
   });
 
   it("lists dual-capability providers for embed sub-picker", () => {
     expect(dualCapabilityEmbedProviderIds()).toEqual([
       "vidsrc",
-      "vidsrc-mirror",
       "2embed",
       "vidnest",
       "vidking",
+      "vixsrc",
     ]);
   });
 
@@ -39,5 +49,19 @@ describe("provider registry", () => {
     for (const id of ANIME_SCRAPE_PROVIDER_ORDER) {
       expect(tmdbIds.has(id)).toBe(false);
     }
+  });
+
+  it("chains anime and tmdb providers for anime playback scrape", () => {
+    expect(
+      ANIME_PLAYBACK_SCRAPE_PROVIDER_ORDER.slice(
+        0,
+        ANIME_SCRAPE_PROVIDER_ORDER.length,
+      ),
+    ).toEqual([...ANIME_SCRAPE_PROVIDER_ORDER]);
+    expect(
+      ANIME_PLAYBACK_SCRAPE_PROVIDER_ORDER.slice(
+        ANIME_SCRAPE_PROVIDER_ORDER.length,
+      ),
+    ).toEqual([...TMDB_SCRAPE_PROVIDER_ORDER]);
   });
 });

@@ -75,6 +75,29 @@ async function fetchAboveFold(
   return promise;
 }
 
+function getPrefetchId(
+  item: CanonicalMediaCard | MediaItem,
+  link: string,
+): number | string {
+  const animeItem = item as MediaItem & {
+    isAniListFallback?: boolean;
+    sourceAnilistId?: number;
+  };
+
+  if (animeItem.isAniListFallback) {
+    const match = link.match(/\/tvshows\/(anilist-\d+)/);
+    if (match?.[1]) return match[1];
+    if (
+      typeof animeItem.sourceAnilistId === "number" &&
+      Number.isInteger(animeItem.sourceAnilistId)
+    ) {
+      return `anilist-${Math.abs(animeItem.sourceAnilistId)}`;
+    }
+  }
+
+  return item.id;
+}
+
 export function useMediaCardPrefetch(
   item: CanonicalMediaCard | MediaItem,
   href?: string,
@@ -89,7 +112,8 @@ export function useMediaCardPrefetch(
 
     const link = href || getHref(item);
     if (!isInternalHref(link)) return;
-    const cacheKey = `${mediaType}:${item.id}`;
+    const prefetchId = getPrefetchId(item, link);
+    const cacheKey = `${mediaType}:${prefetchId}`;
     router.prefetch(link);
 
     if (!queryClient) return;
@@ -97,10 +121,10 @@ export function useMediaCardPrefetch(
     if (warmed.has(cacheKey)) return;
     rememberWarmed(cacheKey);
 
-    void fetchAboveFold(mediaType, item.id).then((detail) => {
+    void fetchAboveFold(mediaType, prefetchId).then((detail) => {
       if (!detail) return;
       queryClient.setQueryData(
-        queryKeys.mediaAboveFold(mediaType, String(item.id)),
+        queryKeys.mediaAboveFold(mediaType, String(prefetchId)),
         detail,
       );
       for (const url of getMediaAboveFoldImageUrls(detail)) {

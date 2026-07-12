@@ -6,18 +6,20 @@ import {
   CatalogGridFallback,
   CatalogRowFallback,
   CatalogSpotlightFallback,
+  RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import { ContentRow } from "@/components/content/content-row";
+import { RecentlyWatchedRow } from "@/components/home/recently-watched-row";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { Button } from "@/components/ui/button";
 import {
   buildAniListUrl,
-  fetchAniListPage,
   hasActiveAniListFilters,
   parseAniListSearchParams,
 } from "@/lib/anilist";
 import { enrichAniListMediaItemsLightweight } from "@/lib/anilist-tmdb";
 import { fetchAnimeHubLayout } from "@/lib/server/anime-hub-data";
+import { fetchStableAniListPage } from "@/lib/server/anilist-page";
 import { normalizeRouteSearchParams } from "@/lib/utils";
 import type { MediaItem } from "@/lib/domain/typings";
 import type { TvShowWithMediaType } from "@/tmdb/models";
@@ -84,7 +86,7 @@ const AnimeResults = async ({
   params: ParsedAniListParams;
   page: number;
 }) => {
-  const data = await fetchAniListPage({
+  const data = await fetchStableAniListPage({
     page,
     perPage: 30,
     params,
@@ -123,6 +125,10 @@ const AnimeHubSections = async () => {
           count={1}
         />
       ) : null}
+
+      <Suspense fallback={<RecentlyWatchedRowFallback />}>
+        <RecentlyWatchedRow scope="anime" />
+      </Suspense>
 
       {layout.rankedRow ? (
         <ContentRow

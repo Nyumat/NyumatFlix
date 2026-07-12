@@ -50,7 +50,10 @@ export function ExpandableCastGrid({ cast }: ExpandableCastGridProps) {
         className={cn(mediaCastGridClass, canExpand && !isExpanded && "pb-8")}
       >
         {visibleCast.map((castMember) => (
-          <MediaCastCard key={castMember.credit_id} {...castMember} />
+          <MediaCastCard
+            key={castMember.credit_id || castMember.id}
+            {...castMember}
+          />
         ))}
       </div>
 

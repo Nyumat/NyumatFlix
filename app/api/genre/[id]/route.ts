@@ -21,7 +21,6 @@ export async function GET(
   const genreId = params.id;
   const url = new URL(req.url);
   const typeParam = url.searchParams.get("type");
-  // Default to movie if no type provided or invalid value
   const mediaType = typeParam === "tv" ? "tv" : "movie";
   const pageParam = url.searchParams.get("page") || "1";
   const page = parseInt(pageParam, 10);
@@ -47,13 +46,11 @@ export async function GET(
       Boolean(item.poster_path),
     );
 
-    // Process with categories for consistent data structure
     const processedResults = await buildItemsWithCategories<MediaItem>(
       resultsWithPoster as MediaItem[],
       mediaType as "movie" | "tv",
     );
 
-    // Enrich items with full details (runtime, logos, content ratings, etc.)
     const enrichedResults = await fetchAndEnrichMediaItems(
       processedResults,
       mediaType as "movie" | "tv",

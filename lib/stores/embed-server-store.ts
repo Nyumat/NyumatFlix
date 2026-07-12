@@ -83,6 +83,10 @@ type ServerHealthResponse = {
   status: number | null;
 };
 
+type ServerHealthBatchResponse = {
+  results?: ServerHealthResponse[];
+};
+
 const availabilityKeyFor = (
   input: ServerAvailabilityInput,
   vidsrcApi: VidsrcApi,
@@ -104,6 +108,7 @@ interface EmbedServerState {
   vidnestContentType: "movie" | "tv" | "anime" | "animepahe";
   vidsrcApi: VidsrcApi;
   availabilityKey: string | null;
+  availabilityResolved: boolean;
   availableServerIds: string[];
   unavailableServerIds: string[];
   setAnimePreference: (preference: "sub" | "dub") => void;
@@ -137,6 +142,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
       vidnestContentType: "movie" as "movie" | "tv" | "anime" | "animepahe",
       vidsrcApi: "1" as VidsrcApi,
       availabilityKey: null,
+      availabilityResolved: false,
       availableServerIds: [],
       unavailableServerIds: [],
       setAnimePreference: (preference) => {
@@ -152,6 +158,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
         if (useAppSettingsStore.getState().noAdsMode) {
           set({
             availabilityKey: null,
+            availabilityResolved: false,
             availableServerIds: [],
             unavailableServerIds: [],
           });
@@ -163,58 +170,56 @@ export const useEmbedServerStore = create<EmbedServerState>()(
 
         set({
           availabilityKey,
+          availabilityResolved: false,
           availableServerIds: [],
           unavailableServerIds: [],
         });
 
-        const results = await Promise.all(
-          videoServers.map(async (server) => {
-            const url =
-              server.id === "vidnest" &&
-              input.anilistId &&
-              input.animeEpisodeNumber
-                ? `https://vidnest.fun/anime/${input.anilistId}/${input.animeEpisodeNumber}/${input.animePreference ?? "sub"}`
-                : input.mediaType === "tv" &&
-                    input.seasonNumber &&
-                    input.episodeNumber
-                  ? server.getEpisodeUrl(
-                      input.tmdbId,
-                      input.seasonNumber,
-                      input.episodeNumber,
-                    )
-                  : input.mediaType === "tv"
-                    ? server.getTvUrl(input.tmdbId)
-                    : server.getMovieUrl(input.tmdbId);
+        const checks = videoServers.map((server) => {
+          const url =
+            server.id === "vidnest" &&
+            input.anilistId &&
+            input.animeEpisodeNumber
+              ? `https://vidnest.fun/anime/${input.anilistId}/${input.animeEpisodeNumber}/${input.animePreference ?? "sub"}`
+              : input.mediaType === "tv" &&
+                  input.seasonNumber &&
+                  input.episodeNumber
+                ? server.getEpisodeUrl(
+                    input.tmdbId,
+                    input.seasonNumber,
+                    input.episodeNumber,
+                  )
+                : input.mediaType === "tv"
+                  ? server.getTvUrl(input.tmdbId)
+                  : server.getMovieUrl(input.tmdbId);
+          return { server, url };
+        });
 
-            try {
-              const response = await fetch("/api/servers/health", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url }),
-              });
-              if (!response.ok) {
-                return {
-                  server,
-                  state: "unknown" as const,
-                  unavailable: false,
-                };
-              }
+        let healthResults: ServerHealthResponse[] = [];
+        try {
+          const response = await fetch("/api/servers/health", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ urls: checks.map(({ url }) => url) }),
+          });
+          if (response.ok) {
+            const payload =
+              (await response.json()) as ServerHealthBatchResponse;
+            healthResults = payload.results ?? [];
+          }
+        } catch {
+          void 0;
+        }
 
-              const health = (await response.json()) as ServerHealthResponse;
-              return {
-                server,
-                state: health.state,
-                unavailable: health.state === "unavailable",
-              };
-            } catch {
-              return {
-                server,
-                state: "unknown" as const,
-                unavailable: false,
-              };
-            }
-          }),
-        );
+        const results = checks.map(({ server }, index) => {
+          const health = healthResults[index];
+          const state = health?.state ?? ("unknown" as const);
+          return {
+            server,
+            state,
+            unavailable: state === "unavailable",
+          };
+        });
 
         if (get().availabilityKey !== availabilityKey) return;
 
@@ -239,7 +244,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
         const nextServer =
           useAppSettingsStore.getState().noAdsMode ||
           isScrapeServer(selectedServer) ||
-          !unavailableServerIds.includes(selectedServer.id)
+          availableServerIds.includes(selectedServer.id)
             ? selectedServer
             : fallbackServer || selectedServer;
 
@@ -250,6 +255,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
         set({
           availableServerIds,
           unavailableServerIds,
+          availabilityResolved: true,
         });
       },
       getServerById: (id) => videoServers.find((server) => server.id === id),

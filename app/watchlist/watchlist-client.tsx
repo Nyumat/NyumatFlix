@@ -52,23 +52,19 @@ export function WatchlistClient({
   allItems: initialAllItems,
   watchlistItems: initialWatchlistItems,
 }: WatchlistClientProps) {
-  // State for items to handle optimistic updates
   const [allItems, setAllItems] = useState(initialAllItems);
   const [watchlistItems, setWatchlistItems] = useState(initialWatchlistItems);
 
-  // Control states
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("recently-watched");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeTab, setTypeTab] = useState<TypeTab>("all");
 
-  // Episode data state
   const [episodeData, setEpisodeData] = useState<Record<number, EpisodeInfo>>(
     {},
   );
   const [_episodeDataLoading, setEpisodeDataLoading] = useState(true);
 
-  // Fetch episode data in background
   useEffect(() => {
     const fetchEpisodeData = async () => {
       try {
@@ -76,7 +72,6 @@ export function WatchlistClient({
         const response = await fetch("/api/watchlist/check-episodes");
         if (response.ok) {
           const data = await response.json();
-          // Convert date strings back to Date objects
           const processedData: Record<number, EpisodeInfo> = {};
           Object.entries(data.episodeData || {}).forEach(
             ([contentId, info]) => {
@@ -99,7 +94,6 @@ export function WatchlistClient({
         }
       } catch (error) {
         console.error("Error fetching episode data:", error);
-        // Don't show error to user, just fail silently
       } finally {
         setEpisodeDataLoading(false);
       }
@@ -116,11 +110,9 @@ export function WatchlistClient({
     return map;
   }, [episodeData]);
 
-  // Filter and sort items
   const filteredAndSortedItems = useMemo(() => {
     let filtered = [...allItems];
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((item) => {
@@ -129,14 +121,12 @@ export function WatchlistClient({
       });
     }
 
-    // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(
         (item) => item.watchlistItem.status === statusFilter,
       );
     }
 
-    // Apply type tab filter
     if (typeTab === "movies") {
       filtered = filtered.filter(
         (item) => item.watchlistItem.mediaType === "movie",
@@ -147,7 +137,6 @@ export function WatchlistClient({
       );
     }
 
-    // Apply sorting
     filtered.sort((a, b) => {
       switch (sortOption) {
         case "recently-watched": {
@@ -158,22 +147,18 @@ export function WatchlistClient({
           return toTimestamp(bDate) - toTimestamp(aDate);
         }
         case "new-episodes": {
-          // Sort by new episodes first, then by episode air date
           const aInfo = episodeData[a.id];
           const bInfo = episodeData[b.id];
 
-          // Items with new episodes come first
           if (aInfo?.hasNewEpisodes && !bInfo?.hasNewEpisodes) return -1;
           if (!aInfo?.hasNewEpisodes && bInfo?.hasNewEpisodes) return 1;
 
-          // If both have new episodes, sort by latest episode air date
           if (aInfo?.hasNewEpisodes && bInfo?.hasNewEpisodes) {
             const aDate = aInfo.latestEpisodeAirDate?.getTime() || 0;
             const bDate = bInfo.latestEpisodeAirDate?.getTime() || 0;
             return bDate - aDate;
           }
 
-          // If neither has new episodes, sort by last watched
           const aDate =
             a.watchlistItem.lastWatchedAt || a.watchlistItem.createdAt;
           const bDate =
@@ -194,7 +179,6 @@ export function WatchlistClient({
     return filtered;
   }, [allItems, searchQuery, sortOption, statusFilter, typeTab, episodeData]);
 
-  // Group items by status
   const watchingItems = useMemo(
     () =>
       filteredAndSortedItems.filter(
@@ -219,7 +203,6 @@ export function WatchlistClient({
     [filteredAndSortedItems],
   );
 
-  // Calculate stats
   const stats = useMemo(() => {
     const movieCount = watchlistItems.filter(
       (i) => i.mediaType === "movie",
@@ -252,7 +235,6 @@ export function WatchlistClient({
     itemId: string,
     newStatus: "watching" | "waiting" | "finished",
   ) => {
-    // 1. Find item to backup
     const itemToUpdate = allItems.find(
       (item) => item.watchlistItem.id === itemId,
     );
@@ -260,7 +242,6 @@ export function WatchlistClient({
 
     const oldStatus = itemToUpdate.watchlistItem.status;
 
-    // 2. Optimistic update
     const updatedAllItems = allItems.map((item) => {
       if (item.watchlistItem.id === itemId) {
         return {
@@ -286,7 +267,6 @@ export function WatchlistClient({
     toast.success("Status updated");
 
     try {
-      // 3. API Call
       const response = await fetch(`/api/watchlist/${itemId}`, {
         method: "PATCH",
         headers: {
@@ -304,7 +284,6 @@ export function WatchlistClient({
       console.error("Error updating status:", error);
       toast.error("Failed to update status, reverting changes");
 
-      // 4. Revert on failure
       setAllItems(
         allItems.map((item) => {
           if (item.watchlistItem.id === itemId) {
@@ -330,7 +309,6 @@ export function WatchlistClient({
     }
   };
 
-  // Global Empty State
   if (watchlistItems.length === 0) {
     return (
       <div className="flex min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-center py-24 animate-in fade-in duration-700">
@@ -443,7 +421,6 @@ export function WatchlistClient({
         </div>
       )}
 
-      {/* Sections */}
       <div className="space-y-4">
         <WatchlistSection
           title="Watching"
@@ -474,7 +451,6 @@ export function WatchlistClient({
           emptyDescription="No finished titles yet."
         />
 
-        {/* Empty Search/Filter State */}
         {filteredAndSortedItems.length === 0 && (
           <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg">
             <p className="text-lg">No items match your filters</p>

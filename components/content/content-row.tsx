@@ -40,12 +40,6 @@ const VirtualizedContentRow = dynamic(
   { ssr: false, loading: LoadingRow },
 );
 
-/**
- * ContentRow is a component that displays a list of media items.
- * It can be either a standard or ranked list, depending on the variant prop.
- * @param props - The props for the ContentRow component.
- * @returns The ContentRow component.
- */
 export function ContentRow(props: ContentRowProps) {
   const { variant = "standard", ...restProps } = props;
   const isDesktop = useMedia("(min-width: 768px)", false);

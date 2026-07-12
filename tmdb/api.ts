@@ -27,7 +27,12 @@ import {
   WatchProvider,
   WatchProviders,
 } from "@/tmdb/models";
-import { tmdbFetchInit } from "@/lib/tmdb-cache-policy";
+import {
+  createTmdbDevelopmentCacheKey,
+  shouldBypassTmdbDataCache,
+  tmdbFetchInit,
+} from "@/lib/tmdb-cache-policy";
+import { withDevelopmentDataCache } from "@/lib/server/development-data-cache";
 
 export type MovieListType =
   | "popular"
@@ -354,7 +359,10 @@ const createHeaders = (init?: RequestInit): Headers => {
   return new Headers(mergedHeaders);
 };
 
-const fetcher: Fetcher = async ({ endpoint, params }, init) => {
+const fetcher: Fetcher = async <T>(
+  { endpoint, params }: FetcherOptions,
+  init?: RequestInit,
+): Promise<T> => {
   const sanitizedParams = sanitizeParams(params);
   const _params = createSearchParams(sanitizedParams);
   const _headers = createHeaders(init);
@@ -369,18 +377,32 @@ const fetcher: Fetcher = async ({ endpoint, params }, init) => {
     },
   });
 
-  const url = `${apiConfig.baseUrl}/${endpoint}?${_params}`;
-  let response: Response;
-  try {
-    response = await fetch(url, _init);
-  } catch (error) {
-    if (isNetworkFetchError(error)) {
-      return emptyListResponse;
+  const execute = async () => {
+    const url = `${apiConfig.baseUrl}/${endpoint}?${_params}`;
+    let response: Response;
+    try {
+      response = await fetch(url, _init);
+    } catch (error) {
+      if (isNetworkFetchError(error)) {
+        return { data: emptyListResponse, cacheable: false };
+      }
+      throw error;
     }
-    throw error;
+
+    return { data: await response.json(), cacheable: true };
+  };
+
+  if (shouldBypassTmdbDataCache(endpoint, sanitizedParams)) {
+    const result = await execute();
+    return result.data as T;
   }
 
-  return await response.json();
+  const result = await withDevelopmentDataCache({
+    key: createTmdbDevelopmentCacheKey(endpoint, sanitizedParams),
+    load: execute,
+    cacheResult: ({ cacheable }) => cacheable,
+  });
+  return result.data as T;
 };
 
 export const api = {

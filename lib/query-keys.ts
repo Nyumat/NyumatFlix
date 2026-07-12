@@ -18,6 +18,8 @@ export const queryKeys = {
   movieDetails: (movieId: number) =>
     [...queryKeys.media(), "movie", movieId] as const,
   tvDetails: (tvId: number) => [...queryKeys.media(), "tv", tvId] as const,
+  tvDetailsRoute: (tvRouteId: string) =>
+    [...queryKeys.media(), "tv", tvRouteId, "details"] as const,
   mediaAboveFold: (mediaType: "movie" | "tv", id: string) =>
     [...queryKeys.media(), mediaType, id, "above-fold"] as const,
 
@@ -65,6 +67,11 @@ export const queryKeys = {
     [...queryKeys.all, "server-availability", key] as const,
   mediaVideos: (mediaType: "tv" | "movie", id: number) =>
     [...queryKeys.media(), mediaType, id, "videos"] as const,
+  introDbSegments: (
+    mediaKey: string,
+    durationMs: number,
+    imdbId: string | null,
+  ) => [...queryKeys.media(), "introdb", mediaKey, durationMs, imdbId] as const,
 } as const;
 
 export type QueryKeys = typeof queryKeys;

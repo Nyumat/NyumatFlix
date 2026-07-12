@@ -1,19 +1,14 @@
+import { isVidKingCdnUrl } from "./vidking-cdn-url";
+
 export const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-/** VidKing CDN (shadowlemon) blocks our default Chrome UA via DDoS-Guard. */
-const DDOS_GUARD_BLOCKED_UA_HOSTS = /(?:^|\.)shadowlemon\.site$/i;
-
+/** VidKing CDN hosts (any rotation) block our default Chrome UA via DDoS-Guard. */
 export const userAgentForUpstreamUrl = (
   upstreamUrl: string,
 ): string | undefined => {
-  try {
-    const { hostname } = new URL(upstreamUrl);
-    if (DDOS_GUARD_BLOCKED_UA_HOSTS.test(hostname)) {
-      return undefined;
-    }
-  } catch {
-    // fall through
+  if (isVidKingCdnUrl(upstreamUrl)) {
+    return undefined;
   }
 
   return DEFAULT_USER_AGENT;
@@ -26,6 +21,7 @@ export const scrapeUpstreamHeaders = (
 ): Record<string, string> => {
   const headers: Record<string, string> = {
     Accept: "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
   };
 
   const userAgent = userAgentForUpstreamUrl(upstreamUrl);
@@ -33,13 +29,23 @@ export const scrapeUpstreamHeaders = (
     headers["User-Agent"] = userAgent;
   }
 
-  if (referer) {
-    headers.Referer = referer;
-  } else {
+  const effectiveReferer =
+    referer ??
+    (() => {
+      try {
+        return new URL(upstreamUrl).origin;
+      } catch {
+        return undefined;
+      }
+    })();
+
+  if (effectiveReferer) {
+    headers.Referer = effectiveReferer;
+
     try {
-      headers.Referer = new URL(upstreamUrl).origin;
+      headers.Origin = new URL(effectiveReferer).origin;
     } catch {
-      // no referer
+      void 0;
     }
   }
 

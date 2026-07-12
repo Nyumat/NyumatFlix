@@ -265,7 +265,7 @@ export function ShaderBackground() {
                 });
               }
             } catch {
-              // ignore devtools errors
+              void 0;
             }
           }
         }}

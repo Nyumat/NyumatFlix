@@ -1,16 +1,32 @@
-import { scrapeFetch } from "../fetch";
-import type { ScrapeMediaInput, ScrapeQuality, ScrapeResult } from "../types";
+import { cancelResponseBody, scrapeFetch } from "../fetch";
+import { attachSubtitlesToQualities } from "../linked-config";
+import { scrapeUpstreamHeaders } from "../upstream-headers";
+import type {
+  ScrapeMediaInput,
+  ScrapeQuality,
+  ScrapeResult,
+  ScrapeSubtitle,
+} from "../types";
+import { isVidKingCdnUrl } from "../vidking-cdn-url";
 
 const VIDKING_ORIGIN = "https://www.vidking.net";
 const VIDKING_API = "https://api.wingsdatabase.com";
 
+/**
+ * VidKing embed server → API endpoint map (from their VideoPlayer bundle).
+ * Prefer Oxygen: Hydrogen’s ironbubble token CDN currently 403s from our egress.
+ */
 const VIDKING_SOURCE_ENDPOINTS = [
-  "cdn/sources-with-title",
-  "downloader2/sources-with-title",
+  "neon2/sources-with-title", // Oxygen
+  "cdn/sources-with-title", // Hydrogen
+  "downloader2/sources-with-title", // Lithium
+  "tejo/sources-with-title", // Titanium
+  "1movies/sources-with-title", // Helium
 ] as const;
 
 type VidKingSource = {
   quality?: string;
+  type?: string;
   url?: string;
 };
 
@@ -61,7 +77,7 @@ export const classifyVidKingSource = (
   }
 
   if (
-    /\/playlist\.m3u8(?:[?#].*)?$/i.test(url) &&
+    /\/(?:playlist|master)\.m3u8(?:[?#].*)?$/i.test(url) &&
     (quality?.trim().toLowerCase() === "auto" || !/\/\d+p\//i.test(url))
   ) {
     return "master";
@@ -138,7 +154,7 @@ export const selectVidKingSources = (
 
     return {
       streamUrl,
-      qualities: [],
+      qualities: variants.length > 0 ? toQualities(variants) : [],
     };
   }
 
@@ -169,6 +185,90 @@ export const selectVidKingSources = (
   return null;
 };
 
+const selectVidKingMp4Source = (sources: VidKingSource[]): string | null => {
+  const ranked = dedupeSources(sources)
+    .filter((source): source is VidKingSource & { url: string } =>
+      Boolean(
+        source.url &&
+          (/\/mp4\//i.test(source.url) || /\.mp4(?:[?#]|$)/i.test(source.url)),
+      ),
+    )
+    .sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
+
+  return ranked[0]?.url ?? null;
+};
+
+const probeVidKingStream = async (
+  streamUrl: string,
+  referer: string,
+): Promise<boolean> => {
+  try {
+    const response = await scrapeFetch(streamUrl, {
+      headers: {
+        ...scrapeUpstreamHeaders(streamUrl, referer),
+        ...(/\.mp4(?:[?#]|$)|\/mp4\//i.test(streamUrl)
+          ? { Range: "bytes=0-1023" }
+          : {}),
+      },
+    });
+
+    if (!response.ok) {
+      await cancelResponseBody(response);
+      return false;
+    }
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length === 0) {
+      return false;
+    }
+
+    if (isVidKingCdnUrl(streamUrl) || /\.m3u8/i.test(streamUrl)) {
+      return Buffer.from(bytes.slice(0, 64))
+        .toString("utf8")
+        .includes("#EXTM3U");
+    }
+
+    // ISO BMFF / MP4
+    return (
+      bytes.length >= 8 &&
+      bytes[4] === 0x66 &&
+      bytes[5] === 0x74 &&
+      bytes[6] === 0x79 &&
+      bytes[7] === 0x70
+    );
+  } catch {
+    return false;
+  }
+};
+
+/** Prefer one track per language label — VidKing often repeats every lang dozens of times. */
+export const mapVidKingSubtitles = (
+  subtitles: VidKingSubtitle[],
+): ScrapeSubtitle[] => {
+  const byLang = new Map<string, ScrapeSubtitle>();
+
+  for (const track of subtitles) {
+    if (!track.url?.startsWith("http")) {
+      continue;
+    }
+
+    const lang =
+      track.label?.trim() ||
+      track.name?.trim() ||
+      track.lang?.trim() ||
+      track.kind?.trim() ||
+      "und";
+    const key = lang.toLowerCase();
+    if (byLang.has(key)) {
+      continue;
+    }
+
+    byLang.set(key, { lang, url: track.url });
+  }
+
+  return [...byLang.values()];
+};
+
 const fetchVidKingPayload = async (
   endpoint: string,
   input: ScrapeMediaInput,
@@ -196,6 +296,7 @@ const fetchVidKingPayload = async (
   );
 
   if (!encryptedResponse.ok) {
+    await cancelResponseBody(encryptedResponse);
     return null;
   }
 
@@ -218,7 +319,6 @@ export async function scrapeVidKing(
     Origin: VIDKING_ORIGIN,
     Referer: `${VIDKING_ORIGIN}/`,
   };
-
   try {
     const seedResponse = await scrapeFetch(
       `${VIDKING_API}/seed?mediaId=${input.tmdbId}`,
@@ -226,6 +326,7 @@ export async function scrapeVidKing(
     );
 
     if (!seedResponse.ok) {
+      await cancelResponseBody(seedResponse);
       return {
         ok: false,
         providerId,
@@ -238,8 +339,11 @@ export async function scrapeVidKing(
       return { ok: false, providerId, error: "Missing VidKing seed" };
     }
 
-    const mergedSources: VidKingSource[] = [];
-    let subtitles: VidKingSubtitle[] = [];
+    // Try each embed server independently. Merging first lets Hydrogen's dead
+    // tokenized HLS outrank Oxygen's working master.
+    let sawSources = false;
+    let bestSubtitles: VidKingSubtitle[] = [];
+    const referer = VIDKING_ORIGIN;
 
     for (const endpoint of VIDKING_SOURCE_ENDPOINTS) {
       const payload = await fetchVidKingPayload(
@@ -253,36 +357,54 @@ export async function scrapeVidKing(
         continue;
       }
 
-      mergedSources.push(...(payload.sources ?? []));
+      const sources = payload.sources ?? [];
+      if (sources.length > 0) {
+        sawSources = true;
+      }
 
-      if ((payload.subtitles ?? []).length > subtitles.length) {
-        subtitles = payload.subtitles ?? [];
+      if ((payload.subtitles ?? []).length > bestSubtitles.length) {
+        bestSubtitles = payload.subtitles ?? [];
+      }
+
+      const mappedSubtitles = mapVidKingSubtitles(bestSubtitles);
+      const selected = selectVidKingSources(sources);
+
+      if (selected && (await probeVidKingStream(selected.streamUrl, referer))) {
+        return {
+          ok: true,
+          providerId,
+          // Tokenized CDN URLs often flake on a second naive probe; playback uses
+          // the session/refresh path with path-based CDN host detection.
+          validated: true,
+          streamUrl: selected.streamUrl,
+          referer,
+          qualities: attachSubtitlesToQualities(
+            selected.qualities.length > 0 ? selected.qualities : undefined,
+            mappedSubtitles,
+          ),
+          subtitles: mappedSubtitles.length > 0 ? mappedSubtitles : undefined,
+        };
+      }
+
+      const mp4Url = selectVidKingMp4Source(sources);
+      if (mp4Url && (await probeVidKingStream(mp4Url, referer))) {
+        return {
+          ok: true,
+          providerId,
+          validated: true,
+          streamUrl: mp4Url,
+          referer,
+          subtitles: mappedSubtitles.length > 0 ? mappedSubtitles : undefined,
+        };
       }
     }
 
-    const selected = selectVidKingSources(mergedSources);
-    if (!selected) {
-      return {
-        ok: false,
-        providerId,
-        error: "No HLS sources in VidKing payload",
-      };
-    }
-
     return {
-      ok: true,
+      ok: false,
       providerId,
-      streamUrl: selected.streamUrl,
-      referer: VIDKING_ORIGIN,
-      qualities: selected.qualities.length > 0 ? selected.qualities : undefined,
-      subtitles: subtitles
-        .filter((track): track is VidKingSubtitle & { url: string } =>
-          Boolean(track.url),
-        )
-        .map((track) => ({
-          lang: track.label ?? track.name ?? track.kind ?? track.lang ?? "und",
-          url: track.url,
-        })),
+      error: sawSources
+        ? "VidKing CDN unreachable"
+        : "No HLS sources in VidKing payload",
     };
   } catch (error) {
     return {
