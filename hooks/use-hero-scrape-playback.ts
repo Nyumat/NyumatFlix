@@ -17,6 +17,7 @@ import {
 import { type AnimePlaybackScrapeProviderId } from "@/lib/providers/registry";
 import { animeScrapeMediaKeyFor } from "@/lib/scrape/anime/types";
 import { buildSourceOverlayItems } from "@/lib/scrape/source-overlay";
+import { areScrapeProvidersExhausted } from "@/lib/scrape/scrape-provider-menu";
 import {
   SCRAPE_PROVIDER_ORDER,
   SCRAPE_PROVIDER_OPTIONS,
@@ -189,11 +190,14 @@ export function useHeroScrapePlayback({
       anilistId: episodeAnilistId!,
       episodeNumber: relativeEpisodeNumber!,
       translationType: animePreference,
+      query: (media.title || media.name || undefined)?.trim() || undefined,
     };
   }, [
     animePreference,
     episodeAnilistId,
     isAnimeScrapeMode,
+    media.name,
+    media.title,
     relativeEpisodeNumber,
   ]);
 
@@ -374,34 +378,6 @@ export function useHeroScrapePlayback({
 
   useServerAvailabilityQuery(serverAvailabilityInput);
 
-  useEffect(() => {
-    if (
-      !isPlayingVideo ||
-      !isScrapeMode ||
-      activeScrape.status !== "error" ||
-      noAdsMode
-    ) {
-      return;
-    }
-
-    const mediaKey = getCurrentMediaKey();
-    if (!mediaKey || scrapeFallbackHandledRef.current === mediaKey) {
-      return;
-    }
-
-    scrapeFallbackHandledRef.current = mediaKey;
-    setSelectedServer(getFallbackEmbedServer());
-    toast.error("No sources found, switching select fallback.");
-  }, [
-    activeScrape.status,
-    getCurrentMediaKey,
-    getFallbackEmbedServer,
-    isPlayingVideo,
-    isScrapeMode,
-    noAdsMode,
-    setSelectedServer,
-  ]);
-
   const handleScrapedPlaybackError = useCallback(() => {
     const scrape = isAnimeScrapeMode
       ? animePlaybackScrapeRef.current
@@ -508,6 +484,45 @@ export function useHeroScrapePlayback({
     [anilistGenres, isAdultAnime, mappingConfidence],
   );
 
+  useEffect(() => {
+    if (
+      !isPlayingVideo ||
+      !isScrapeMode ||
+      activeScrape.status !== "error" ||
+      noAdsMode
+    ) {
+      return;
+    }
+
+    const providerOrder = isAnimeScrapeMode
+      ? buildAnimePlaybackProviderOrder(animePlaybackChainContext)
+      : [...SCRAPE_PROVIDER_ORDER];
+
+    if (!areScrapeProvidersExhausted(activeScrape.items, providerOrder)) {
+      return;
+    }
+
+    const mediaKey = getCurrentMediaKey();
+    if (!mediaKey || scrapeFallbackHandledRef.current === mediaKey) {
+      return;
+    }
+
+    scrapeFallbackHandledRef.current = mediaKey;
+    setSelectedServer(getFallbackEmbedServer());
+    toast.error("No sources found, switching select fallback.");
+  }, [
+    activeScrape.items,
+    activeScrape.status,
+    animePlaybackChainContext,
+    getCurrentMediaKey,
+    getFallbackEmbedServer,
+    isAnimeScrapeMode,
+    isPlayingVideo,
+    isScrapeMode,
+    noAdsMode,
+    setSelectedServer,
+  ]);
+
   const scrapeProviderOptions = isAnimeScrapeMode
     ? buildGroupedAnimePlaybackProviderOptions(animePlaybackChainContext)
     : SCRAPE_PROVIDER_OPTIONS;
@@ -534,17 +549,20 @@ export function useHeroScrapePlayback({
       activeProviderId:
         isScrapeMode && activeScrape.status === "playing"
           ? (activeScrape.result?.providerId ?? null)
-          : null,
+          : activeScrape.activeProviderId,
       activeProviderName:
         isScrapeMode && activeScrape.status === "playing"
           ? (activeScrape.result?.providerName ?? null)
           : null,
+      scrapeItems: isScrapeMode ? activeScrape.items : [],
       scrapeProviders: scrapeProviderOptions,
       onSelectScrapeProvider: isScrapeMode ? handleSelectScrapeProvider : null,
       onFindNextSource: canFindNextSource ? handleScrapedPlaybackError : null,
       canFindNextSource,
     };
   }, [
+    activeScrape.activeProviderId,
+    activeScrape.items,
     activeScrape.result?.providerId,
     activeScrape.result?.providerName,
     activeScrape.status,
@@ -554,6 +572,28 @@ export function useHeroScrapePlayback({
     isScrapeMode,
     scrapeProviderOptions,
   ]);
+
+  const handleRetryAllScraping = useCallback(() => {
+    scrapeFallbackHandledRef.current = null;
+    lastScrapeMediaKeyRef.current = null;
+
+    if (isAnimeScrapeMode) {
+      const playbackInput = buildAnimePlaybackInput();
+      if (!playbackInput) {
+        return;
+      }
+
+      animePlaybackScrapeRef.current.retryAllScraping(playbackInput);
+      return;
+    }
+
+    const input = buildScrapeInput();
+    if (!input) {
+      return;
+    }
+
+    mediaScrapeRef.current.retryAllScraping(input);
+  }, [buildAnimePlaybackInput, buildScrapeInput, isAnimeScrapeMode]);
 
   const handleScrapePlaybackEnded = useCallback(async () => {
     if (resolvedMediaType !== "tv") {
@@ -586,6 +626,7 @@ export function useHeroScrapePlayback({
     onPlaybackStop,
     handleSelectEmbedServer,
     handleScrapedPlaybackError,
+    handleRetryAllScraping,
     handleScrapePlaybackEnded,
   };
 }

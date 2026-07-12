@@ -246,13 +246,12 @@ export function HeroTvEpisodePanel({
         loadedSeasonDetails[episodeSeason]?.episodes ??
         allSeasonDetails?.[episodeSeason]?.episodes;
 
-      const segment = useAnimeSeasonGroups
-        ? (animeSegments.find(
-            (entry) =>
-              episode.episode_number >= entry.startEpisode &&
-              episode.episode_number <= entry.endEpisode,
-          ) ?? null)
-        : null;
+      const segment =
+        animeSegments.find(
+          (entry) =>
+            episode.episode_number >= entry.startEpisode &&
+            episode.episode_number <= entry.endEpisode,
+        ) ?? null;
       const animeSeasonNumber = segment
         ? animeSeasonNumberForEpisode(animeSegments, episode.episode_number)
         : null;

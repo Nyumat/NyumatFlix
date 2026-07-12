@@ -80,8 +80,6 @@ export function HeroContent({
     seasonNumber,
     clearSelectedEpisode,
     setWatchCallback,
-    animeSeasonNumber,
-    relativeEpisodeNumber,
   } = useEpisodeStore();
   const scrapeChrome = useScrapeChrome();
   const title = media.title || media.name;
@@ -231,9 +229,8 @@ export function HeroContent({
 
   const displayEpisode = selectedEpisode || initialEpisode;
   const displaySeasonNumber = seasonNumber || initialSeasonNumber;
-  const labelSeasonNumber = animeSeasonNumber ?? displaySeasonNumber;
-  const labelEpisodeNumber =
-    relativeEpisodeNumber ?? displayEpisode?.episode_number ?? null;
+  const labelSeasonNumber = displaySeasonNumber;
+  const labelEpisodeNumber = displayEpisode?.episode_number ?? null;
   const isLastWatchedEpisode =
     displayEpisode != null &&
     displaySeasonNumber != null &&
@@ -282,6 +279,7 @@ export function HeroContent({
                 activeScrapeProviderName={
                   scrapeChrome.activeProviderName ?? undefined
                 }
+                scrapeItems={scrapeChrome.scrapeItems}
                 scrapeProviders={scrapeChrome.scrapeProviders}
                 onSelectScrapeProvider={
                   scrapeChrome.onSelectScrapeProvider ?? undefined

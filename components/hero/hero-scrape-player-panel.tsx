@@ -67,6 +67,7 @@ type HeroScrapePlayerPanelProps = {
   streamKind: StreamKind;
   isTv: boolean;
   onSelectEmbedServer: (serverId: string) => void;
+  onRetryAllScraping?: () => void;
   onFatalError: () => void;
   onEnded?: () => Promise<boolean>;
 };
@@ -85,6 +86,7 @@ export function HeroScrapePlayerPanel({
   streamKind,
   isTv,
   onSelectEmbedServer,
+  onRetryAllScraping,
   onFatalError,
   onEnded,
 }: HeroScrapePlayerPanelProps) {
@@ -151,19 +153,13 @@ export function HeroScrapePlayerPanel({
       ) : null}
 
       {scrapeStatus === "error" ? (
-        <>
-          <ScrapingOverlay
-            items={sourceOverlayItems}
-            activeProviderId={activeProviderId}
-            error={scrapeError}
-            onSelectEmbedServer={onSelectEmbedServer}
-          />
-          <div className="absolute inset-x-0 bottom-16 z-40 flex justify-center px-6">
-            <p className="max-w-sm text-center text-xs text-white/45">
-              Try another server from the menu below.
-            </p>
-          </div>
-        </>
+        <ScrapingOverlay
+          items={sourceOverlayItems}
+          activeProviderId={activeProviderId}
+          error={scrapeError}
+          onSelectEmbedServer={onSelectEmbedServer}
+          onRetryAll={onRetryAllScraping}
+        />
       ) : null}
     </>
   );

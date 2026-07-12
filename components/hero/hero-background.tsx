@@ -101,6 +101,7 @@ export function HeroBackground({
     sourceOverlayItems,
     handleSelectEmbedServer,
     handleScrapedPlaybackError,
+    handleRetryAllScraping,
     handleScrapePlaybackEnded,
   } = scrapePlayback;
 
@@ -480,6 +481,7 @@ export function HeroBackground({
                       streamKind={scrapeStreamKind}
                       isTv={resolvedMediaType === "tv"}
                       onSelectEmbedServer={handleSelectEmbedServer}
+                      onRetryAllScraping={handleRetryAllScraping}
                       onFatalError={handleScrapedPlaybackError}
                       onEnded={handleScrapePlaybackEnded}
                     />

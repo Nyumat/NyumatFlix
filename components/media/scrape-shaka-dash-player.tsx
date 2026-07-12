@@ -111,6 +111,8 @@ export function ScrapeShakaDashPlayer({
         return;
       }
 
+      shaka.polyfill.installAll();
+
       if (!shaka.Player.isBrowserSupported()) {
         onFatalError?.();
         return;

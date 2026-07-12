@@ -53,8 +53,6 @@ export function HeroButtons({
     setSelectedEpisode,
     defaultAnilistId,
     defaultIsAdultAnime,
-    animeSeasonNumber,
-    relativeEpisodeNumber,
   } = useEpisodeStore();
   const router = useRouter();
   const pathname = usePathname();
@@ -202,10 +200,7 @@ export function HeroButtons({
     }
     if (mediaType === "tv") {
       if (watchTarget) {
-        return formatTvWatchLabel(watchTarget, {
-          seasonNumber: animeSeasonNumber,
-          episodeNumber: relativeEpisodeNumber,
-        });
+        return formatTvWatchLabel(watchTarget);
       }
       return "Episodes";
     }
