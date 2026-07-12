@@ -10,9 +10,11 @@ import {
   type AnimeScrapeInput,
   type AnimeScrapeProviderId,
 } from "@/lib/scrape/anime/types";
-import type { ScrapeQuality, ScrapeSubtitle } from "@/lib/scrape/types";
-
-export type AnimeScrapePlayerStatus = "idle" | "scraping" | "playing" | "error";
+import type {
+  ScrapeAudioVersion,
+  ScrapeQuality,
+  ScrapeSubtitle,
+} from "@/lib/scrape/types";
 
 export type AnimeScrapeSuccessPayload = {
   providerId: AnimeScrapeProviderId;
@@ -22,6 +24,10 @@ export type AnimeScrapeSuccessPayload = {
   referer?: string;
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];
+  audioVersions?: ScrapeAudioVersion[];
+  defaultAudioLang?: string;
+  defaultHardSubLang?: string;
+  preferredAudioLang?: string;
 };
 
 const animeScrapeLoopConfig = {

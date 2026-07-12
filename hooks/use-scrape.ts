@@ -7,6 +7,7 @@ import {
   SCRAPE_PROVIDER_LABELS,
   SCRAPE_PROVIDER_ORDER,
   scrapeMediaKeyFor,
+  type ScrapeAudioVersion,
   type ScrapeMediaInput,
   type ScrapeProviderId,
   type ScrapeQuality,
@@ -22,6 +23,10 @@ export type ScrapeSuccessPayload = {
   referer?: string;
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];
+  audioVersions?: ScrapeAudioVersion[];
+  defaultAudioLang?: string;
+  defaultHardSubLang?: string;
+  preferredAudioLang?: string;
 };
 
 const scrapeLoopConfig = {

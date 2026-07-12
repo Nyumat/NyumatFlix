@@ -11,6 +11,7 @@ import type { AnimeScrapeInput } from "@/lib/scrape/anime/types";
 import { animeScrapeMediaKeyFor } from "@/lib/scrape/anime/types";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
 import type {
+  ScrapeAudioVersion,
   ScrapeMediaInput,
   ScrapeQuality,
   ScrapeSubtitle,
@@ -42,6 +43,10 @@ export type AnimePlaybackScrapeSuccessPayload = {
   referer?: string;
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];
+  audioVersions?: ScrapeAudioVersion[];
+  defaultAudioLang?: string;
+  defaultHardSubLang?: string;
+  preferredAudioLang?: string;
 };
 
 const animePlaybackScrapeLoopConfig = {

@@ -2,6 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  clearPreferredScrapeProvider,
+  getPreferredScrapeProvider,
+  setPreferredScrapeProvider,
+} from "@/lib/scrape/preferred-provider";
+import {
+  nextRaceBatch,
+  SCRAPE_ATTEMPT_TIMEOUT_MS,
+  SCRAPE_RACE_CONCURRENCY,
+} from "@/lib/scrape/provider-race";
 import type { ScrapeItem, ScrapeItemStatus } from "@/lib/scrape/types";
 
 export type ProviderScrapePlayerStatus =
@@ -79,6 +89,14 @@ export function useProviderScrapeLoop<
   statusRef.current = status;
   const failedProvidersRef = useRef<Map<string, Set<TProviderId>>>(new Map());
   const currentInputRef = useRef<TInput | null>(null);
+  const abortControllersRef = useRef<Set<AbortController>>(new Set());
+
+  const abortActiveFetches = useCallback(() => {
+    for (const controller of abortControllersRef.current) {
+      controller.abort();
+    }
+    abortControllersRef.current.clear();
+  }, []);
 
   const resetItems = useCallback(
     (order: readonly TProviderId[]) => {
@@ -107,9 +125,9 @@ export function useProviderScrapeLoop<
       providerId: TProviderId,
       input: TInput,
       runId: number,
+      signal: AbortSignal,
     ): Promise<ScrapeAttemptResult<TPayload>> => {
       updateItem(providerId, { status: "pending", error: undefined });
-      setActiveProviderId(providerId);
 
       let response: Response;
 
@@ -118,9 +136,10 @@ export function useProviderScrapeLoop<
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(buildRequestBody(providerId, input)),
+          signal,
         });
       } catch {
-        if (runId !== runIdRef.current) {
+        if (runId !== runIdRef.current || signal.aborted) {
           return { outcome: "cancelled" };
         }
 
@@ -131,7 +150,7 @@ export function useProviderScrapeLoop<
         return { outcome: "failure" };
       }
 
-      if (runId !== runIdRef.current) {
+      if (runId !== runIdRef.current || signal.aborted) {
         return { outcome: "cancelled" };
       }
 
@@ -140,6 +159,10 @@ export function useProviderScrapeLoop<
       try {
         rawPayload = (await response.json()) as Record<string, unknown>;
       } catch {
+        if (runId !== runIdRef.current || signal.aborted) {
+          return { outcome: "cancelled" };
+        }
+
         updateItem(providerId, {
           status: "failure",
           error: "Invalid response",
@@ -147,7 +170,7 @@ export function useProviderScrapeLoop<
         return { outcome: "failure" };
       }
 
-      if (runId !== runIdRef.current) {
+      if (runId !== runIdRef.current || signal.aborted) {
         return { outcome: "cancelled" };
       }
 
@@ -175,6 +198,7 @@ export function useProviderScrapeLoop<
       options: { useFailedCache?: boolean } = {},
     ) => {
       const { useFailedCache = true } = options;
+      abortActiveFetches();
       const runId = ++runIdRef.current;
       currentInputRef.current = input;
       setStatus("scraping");
@@ -195,35 +219,144 @@ export function useProviderScrapeLoop<
         resetItems(order);
       }
 
-      for (let index = startFromIndex; index < order.length; index++) {
+      let index = startFromIndex;
+
+      while (index < order.length) {
         if (runId !== runIdRef.current) {
           return;
         }
 
-        const providerId = order[index];
-        if (!providerId || failed.has(providerId)) {
-          updateItem(providerId, { status: "skipped" });
-          continue;
+        const { batch, nextIndex } = nextRaceBatch(
+          order,
+          index,
+          failed,
+          SCRAPE_RACE_CONCURRENCY,
+        );
+
+        if (batch.length === 0) {
+          break;
         }
 
-        const attempt = await scrapeProvider(providerId, input, runId);
+        setActiveProviderId(batch[0] ?? null);
+
+        const controllers = batch.map(() => {
+          const controller = new AbortController();
+          abortControllersRef.current.add(controller);
+          const timeoutId = window.setTimeout(() => {
+            controller.abort();
+          }, SCRAPE_ATTEMPT_TIMEOUT_MS);
+          controller.signal.addEventListener(
+            "abort",
+            () => window.clearTimeout(timeoutId),
+            { once: true },
+          );
+          return controller;
+        });
+
+        type AttemptEntry = {
+          providerId: TProviderId;
+          attempt: ScrapeAttemptResult<TPayload>;
+        };
+
+        const attemptPromises = batch.map((providerId, batchIndex) =>
+          scrapeProvider(
+            providerId,
+            input,
+            runId,
+            controllers[batchIndex]!.signal,
+          ).then(
+            (attempt): AttemptEntry => ({
+              providerId,
+              attempt,
+            }),
+          ),
+        );
+
+        const settled: AttemptEntry[] = [];
+        let winner: AttemptEntry | undefined;
+
+        await new Promise<void>((resolve) => {
+          let remaining = attemptPromises.length;
+          if (remaining === 0) {
+            resolve();
+            return;
+          }
+
+          for (const promise of attemptPromises) {
+            void promise.then((entry) => {
+              settled.push(entry);
+
+              if (
+                !winner &&
+                entry.attempt.outcome === "success" &&
+                runId === runIdRef.current
+              ) {
+                winner = entry;
+                for (const controller of controllers) {
+                  if (!controller.signal.aborted) {
+                    controller.abort();
+                  }
+                }
+              }
+
+              remaining -= 1;
+              if (remaining === 0 || winner) {
+                if (winner && remaining > 0) {
+                  void Promise.allSettled(attemptPromises).then(() =>
+                    resolve(),
+                  );
+                  return;
+                }
+                resolve();
+              }
+            });
+          }
+        });
+
+        for (const controller of controllers) {
+          abortControllersRef.current.delete(controller);
+        }
+
         if (runId !== runIdRef.current) {
           return;
         }
 
-        if (attempt.outcome === "cancelled") {
-          return;
-        }
+        if (winner?.attempt.outcome === "success") {
+          for (const entry of settled) {
+            if (entry.providerId === winner.providerId) {
+              continue;
+            }
+            if (entry.attempt.outcome === "failure") {
+              failed.add(entry.providerId);
+              continue;
+            }
+            updateItem(entry.providerId, { status: "skipped" });
+          }
 
-        if (attempt.outcome === "success") {
-          setResult(attempt.payload);
+          setPreferredScrapeProvider(mediaKey, winner.providerId);
+          setResult(winner.attempt.payload);
           setStatus("playing");
-          setActiveProviderId(providerId);
+          setActiveProviderId(winner.providerId);
+          failedProvidersRef.current.set(mediaKey, failed);
           return;
         }
 
-        failed.add(providerId);
+        for (const entry of settled) {
+          if (entry.attempt.outcome === "cancelled") {
+            updateItem(entry.providerId, {
+              status: "failure",
+              error: "Timed out",
+            });
+          }
+          failed.add(entry.providerId);
+        }
+
         failedProvidersRef.current.set(mediaKey, failed);
+        index = nextIndex;
+      }
+
+      if (runId !== runIdRef.current) {
+        return;
       }
 
       setStatus("error");
@@ -231,6 +364,7 @@ export function useProviderScrapeLoop<
       setActiveProviderId(null);
     },
     [
+      abortActiveFetches,
       allFailedError,
       getOrderForInput,
       mediaKeyFor,
@@ -245,9 +379,15 @@ export function useProviderScrapeLoop<
       failedProvidersRef.current.delete(mediaKeyFor(input));
       const order = getOrderForInput(input);
       resetItems(order);
-      const preferredIndex = preferredProviderId
-        ? order.indexOf(preferredProviderId)
-        : -1;
+      const mediaKey = mediaKeyFor(input);
+      const storedPreferred = getPreferredScrapeProvider(mediaKey);
+      const preferredFromArg =
+        preferredProviderId && order.includes(preferredProviderId)
+          ? preferredProviderId
+          : undefined;
+      const preferredFromStore = order.find((id) => id === storedPreferred);
+      const preferred = preferredFromArg ?? preferredFromStore;
+      const preferredIndex = preferred ? order.indexOf(preferred) : -1;
       const startIndex = preferredIndex >= 0 ? preferredIndex : 0;
       void runScrapeLoop(input, startIndex, { useFailedCache: false });
     },
@@ -267,6 +407,7 @@ export function useProviderScrapeLoop<
       const failed = failedProvidersRef.current.get(mediaKey) ?? new Set();
       failed.add(fromProviderId);
       failedProvidersRef.current.set(mediaKey, failed);
+      clearPreferredScrapeProvider(mediaKey);
       updateItem(fromProviderId, {
         status: "failure",
         error: failureReason,
@@ -297,6 +438,7 @@ export function useProviderScrapeLoop<
     }
 
     runIdRef.current += 1;
+    abortActiveFetches();
 
     if (currentInputRef.current) {
       failedProvidersRef.current.delete(mediaKeyFor(currentInputRef.current));
@@ -308,13 +450,14 @@ export function useProviderScrapeLoop<
     setResult(null);
     setError(null);
     resetItems(providerOrder);
-  }, [mediaKeyFor, providerOrder, resetItems]);
+  }, [abortActiveFetches, mediaKeyFor, providerOrder, resetItems]);
 
   useEffect(
     () => () => {
       runIdRef.current += 1;
+      abortActiveFetches();
     },
-    [],
+    [abortActiveFetches],
   );
 
   return {
