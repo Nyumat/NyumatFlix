@@ -12,10 +12,11 @@ import {
   extractHlsProbeTargets,
   isValidHlsAssetResponse,
 } from "./validate-stream";
+import { decodeObfuscatedHlsBody } from "./hls-body";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
 
 const looksLikeHlsPlaylistBody = (body: string): boolean =>
-  body.includes("#EXTM3U");
+  decodeObfuscatedHlsBody(body).includes("#EXTM3U");
 
 const looksLikeDashManifestBody = (body: string): boolean =>
   body.includes("<MPD") || /\bmpd\b/i.test(body);
@@ -128,7 +129,9 @@ const probeHlsThroughPlaybackPath = async (
       return false;
     }
 
-    const childBody = (await response.text()).slice(0, 64_000);
+    const childBody = decodeObfuscatedHlsBody(
+      (await response.text()).slice(0, 64_000),
+    );
     return probeHlsThroughPlaybackPath(
       url,
       childBody,
@@ -194,7 +197,8 @@ export async function probeScrapePlaybackPath(
     }
 
     const contentType = response.headers.get("content-type");
-    const body = (await response.text()).slice(0, 64_000);
+    const rawBody = (await response.text()).slice(0, 64_000);
+    const body = decodeObfuscatedHlsBody(rawBody);
 
     if (kind === "dash") {
       return looksLikeDashManifestBody(body);

@@ -465,3 +465,5 @@ export {
 export type { ScrapePlaybackRefresh } from "./playback-refresh";
 export type { VidKingPlaybackRefresh } from "./vidking-constants";
 export type { VidsrcPlaybackRefresh } from "./vidsrc-constants";
+export type { VixsrcPlaybackRefresh } from "./vixsrc-constants";
+export type { MegaplayPlaybackRefresh } from "./megaplay-constants";

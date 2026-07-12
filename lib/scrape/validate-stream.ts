@@ -1,4 +1,5 @@
 import { cancelResponseBody, scrapeFetch } from "./fetch";
+import { appendAnimeCdnReferers } from "./anime/cdn-referer";
 import { resolveHlsPlaylistUrl } from "./hls-url";
 import { resolveKaaSegmentFallbackUrls } from "./playback";
 import {
@@ -52,7 +53,24 @@ export const resolveStreamReferers = (
     void 0;
   }
 
+  appendAnimeCdnReferers(streamUrl, referers, seen);
+
   return referers;
+};
+
+const HLS_PROBE_BODY_LIMIT = 64_000;
+const HLS_VOD_DURATION_BODY_LIMIT = 512_000;
+
+const sliceValidationBody = (raw: string, kind: StreamKind): string => {
+  if (
+    kind === "hls" &&
+    raw.includes("#EXT-X-PLAYLIST-TYPE:VOD") &&
+    raw.includes("#EXTINF:")
+  ) {
+    return raw.slice(0, HLS_VOD_DURATION_BODY_LIMIT);
+  }
+
+  return raw.slice(0, HLS_PROBE_BODY_LIMIT);
 };
 
 const isValidHlsMasterBody = (body: string): boolean =>
@@ -373,7 +391,8 @@ export async function validateStreamUrl(
     if (response.ok) {
       const contentType = response.headers.get("content-type") ?? "";
       if (okContentTypesForKind(contentType, kind)) {
-        const body = (await response.text()).slice(0, 64_000);
+        const rawBody = await response.text();
+        const body = sliceValidationBody(rawBody, kind);
         if (!looksLikeValidBody(body, kind, streamUrl)) {
           return false;
         }

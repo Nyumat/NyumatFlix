@@ -13,6 +13,7 @@ import {
   rewriteDashManifest,
   rewriteManifestPlaylist,
 } from "@/lib/scrape/playback";
+import { decodeObfuscatedHlsBody } from "@/lib/scrape/hls-body";
 import { fetchScrapePlaybackUpstream } from "@/lib/scrape/playback-fetch";
 import { cancelResponseBody } from "@/lib/scrape/fetch";
 import {
@@ -20,7 +21,17 @@ import {
   isRetryableVidKingUpstreamStatus,
   resolveScrapePlaybackUpstreamUrl,
 } from "@/lib/scrape/vidking-playback";
-import { isVidsrcPlaybackRefresh } from "@/lib/scrape/playback-refresh";
+import { invalidateVidsrcJwtSession } from "@/lib/scrape/vidsrc-playback";
+import {
+  invalidateVixsrcSession,
+  isRetryableVixsrcUpstreamStatus,
+} from "@/lib/scrape/vixsrc-playback";
+import { isRetryableMegaplayUpstreamStatus } from "@/lib/scrape/megaplay-playback";
+import {
+  isMegaplayPlaybackRefresh,
+  isVidsrcPlaybackRefresh,
+  isVixsrcPlaybackRefresh,
+} from "@/lib/scrape/playback-refresh";
 
 export const maxDuration = 60;
 
@@ -58,6 +69,7 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const rangeHeader = request.headers.get("range");
+  const upstreamSignal = AbortSignal.timeout(55_000);
 
   try {
     const playbackUrl = resolveDashTemplateUrl(playback.url, request.url);
@@ -66,11 +78,13 @@ export async function GET(request: Request, context: RouteContext) {
       playback.refresh,
     );
 
+    // Do not tie upstream fetches to the client request signal — Next can abort
+    // it before the CDN round-trip finishes, which breaks manifest proxying.
     let upstream = await fetchUpstream(
       upstreamUrl,
       playback.referer,
       rangeHeader,
-      request.signal,
+      upstreamSignal,
       playback.cookies,
     );
 
@@ -83,7 +97,7 @@ export async function GET(request: Request, context: RouteContext) {
           upstreamUrl,
           playback.referer,
           rangeHeader,
-          request.signal,
+          upstreamSignal,
           playback.cookies,
         );
         if (upstream.ok || upstream.status !== 403) {
@@ -108,7 +122,7 @@ export async function GET(request: Request, context: RouteContext) {
         upstreamUrl,
         playback.referer,
         rangeHeader,
-        request.signal,
+        upstreamSignal,
         playback.cookies,
       );
     }
@@ -119,6 +133,48 @@ export async function GET(request: Request, context: RouteContext) {
       upstream.status === 403
     ) {
       await cancelResponseBody(upstream);
+      invalidateVidsrcJwtSession(playback.refresh);
+      upstreamUrl = await resolveScrapePlaybackUpstreamUrl(
+        playbackUrl,
+        playback.refresh,
+        { force: true },
+      );
+      upstream = await fetchUpstream(
+        upstreamUrl,
+        playback.referer,
+        rangeHeader,
+        upstreamSignal,
+        playback.cookies,
+      );
+    }
+
+    if (
+      !upstream.ok &&
+      isVixsrcPlaybackRefresh(playback.refresh) &&
+      isRetryableVixsrcUpstreamStatus(upstream.status)
+    ) {
+      await cancelResponseBody(upstream);
+      invalidateVixsrcSession(playback.refresh);
+      upstreamUrl = await resolveScrapePlaybackUpstreamUrl(
+        playbackUrl,
+        playback.refresh,
+        { force: true },
+      );
+      upstream = await fetchUpstream(
+        upstreamUrl,
+        playback.referer,
+        rangeHeader,
+        upstreamSignal,
+        playback.cookies,
+      );
+    }
+
+    if (
+      !upstream.ok &&
+      isMegaplayPlaybackRefresh(playback.refresh) &&
+      isRetryableMegaplayUpstreamStatus(upstream.status)
+    ) {
+      await cancelResponseBody(upstream);
       upstreamUrl = await resolveScrapePlaybackUpstreamUrl(
         playbackUrl,
         playback.refresh,
@@ -127,7 +183,7 @@ export async function GET(request: Request, context: RouteContext) {
         upstreamUrl,
         playback.referer,
         rangeHeader,
-        request.signal,
+        upstreamSignal,
         playback.cookies,
       );
     }
@@ -163,7 +219,8 @@ export async function GET(request: Request, context: RouteContext) {
         isAmbiguousPlaylistContentType(upstreamContentType));
 
     if (tryAsPlaylist) {
-      const playlist = await upstream.text();
+      const rawPlaylist = await upstream.text();
+      const playlist = decodeObfuscatedHlsBody(rawPlaylist);
       const isHls = playlist.includes("#EXTM3U");
       const isDash =
         !isHls && (playlist.includes("<MPD") || /\bmpd\b/i.test(playlist));
@@ -238,10 +295,18 @@ export async function GET(request: Request, context: RouteContext) {
 
     headers.set("Cache-Control", "no-store");
 
-    const body =
+    const rawText =
       playback.subtitleFormat === "ass" ||
-      /\.ass(?:[?#].*)?$/i.test(upstreamUrl)
-        ? convertAssToVtt(await upstream.text())
+      /\.ass(?:[?#].*)?$/i.test(upstreamUrl) ||
+      /\.vtt(?:[?#].*)?$/i.test(upstreamUrl)
+        ? await upstream.text()
+        : null;
+    const body =
+      rawText !== null
+        ? playback.subtitleFormat === "ass" ||
+          /\.ass(?:[?#].*)?$/i.test(upstreamUrl)
+          ? convertAssToVtt(rawText)
+          : decodeObfuscatedHlsBody(rawText)
         : upstream.body;
 
     if (typeof body === "string") {

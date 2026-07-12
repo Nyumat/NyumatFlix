@@ -10,9 +10,14 @@ import {
   rebuildVidKingCdnUrl,
 } from "./vidking-cdn-url";
 import type { ScrapePlaybackRefresh } from "./playback-refresh";
-import { isVidsrcPlaybackRefresh } from "./playback-refresh";
+import {
+  isMegaplayPlaybackRefresh,
+  isVidsrcPlaybackRefresh,
+} from "./playback-refresh";
 import type { VidKingPlaybackRefresh } from "./vidking-constants";
+import { resolveMegaplayPlaybackUrl } from "./megaplay-playback";
 import { resolveVidsrcPlaybackUrl } from "./vidsrc-playback";
+import { resolveVixsrcPlaybackUrl } from "./vixsrc-playback";
 import {
   VIDKING_PROACTIVE_REFRESH_AFTER_MS,
   VIDKING_REFRESH_BEFORE_MS,
@@ -186,7 +191,15 @@ export async function resolveScrapePlaybackUpstreamUrl(
   }
 
   if (isVidsrcPlaybackRefresh(refresh)) {
-    return resolveVidsrcPlaybackUrl(upstreamUrl, refresh);
+    return resolveVidsrcPlaybackUrl(upstreamUrl, refresh, options);
+  }
+
+  if (refresh?.providerId === "vixsrc") {
+    return resolveVixsrcPlaybackUrl(upstreamUrl, refresh, options);
+  }
+
+  if (isMegaplayPlaybackRefresh(refresh)) {
+    return resolveMegaplayPlaybackUrl(upstreamUrl, refresh);
   }
 
   return upstreamUrl;
