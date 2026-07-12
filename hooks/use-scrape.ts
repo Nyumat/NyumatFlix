@@ -20,6 +20,7 @@ export type ScrapeSuccessPayload = {
   providerId: ScrapeProviderId;
   providerName: string;
   playUrl: string;
+  streamKind?: "hls" | "dash" | "mp4";
   referer?: string;
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];

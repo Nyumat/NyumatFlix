@@ -9,7 +9,10 @@ import {
   parseVidKingCdnUrl,
   rebuildVidKingCdnUrl,
 } from "./vidking-cdn-url";
+import type { ScrapePlaybackRefresh } from "./playback-refresh";
+import { isVidsrcPlaybackRefresh } from "./playback-refresh";
 import type { VidKingPlaybackRefresh } from "./vidking-constants";
+import { resolveVidsrcPlaybackUrl } from "./vidsrc-playback";
 import {
   VIDKING_PROACTIVE_REFRESH_AFTER_MS,
   VIDKING_REFRESH_BEFORE_MS,
@@ -175,14 +178,18 @@ export async function resolveVidKingPlaybackUrl(
 
 export async function resolveScrapePlaybackUpstreamUrl(
   upstreamUrl: string,
-  refresh: VidKingPlaybackRefresh | undefined,
+  refresh: ScrapePlaybackRefresh | undefined,
   options: { force?: boolean } = {},
 ): Promise<string> {
-  if (refresh?.providerId !== "vidking") {
-    return upstreamUrl;
+  if (refresh?.providerId === "vidking") {
+    return resolveVidKingPlaybackUrl(upstreamUrl, refresh, options);
   }
 
-  return resolveVidKingPlaybackUrl(upstreamUrl, refresh, options);
+  if (isVidsrcPlaybackRefresh(refresh)) {
+    return resolveVidsrcPlaybackUrl(upstreamUrl, refresh);
+  }
+
+  return upstreamUrl;
 }
 
 /** Cache CDN token from the initial scrape so playback starts inside the TTL window. */

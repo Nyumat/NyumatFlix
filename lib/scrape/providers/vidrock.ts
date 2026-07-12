@@ -211,7 +211,7 @@ export async function scrapeVidrock(
         streamUrl,
         referer,
         kind,
-        { depth: "full" },
+        { depth: "master" },
       );
       if (!validation.ok) {
         continue;

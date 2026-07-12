@@ -20,6 +20,7 @@ import {
   isRetryableVidKingUpstreamStatus,
   resolveScrapePlaybackUpstreamUrl,
 } from "@/lib/scrape/vidking-playback";
+import { isVidsrcPlaybackRefresh } from "@/lib/scrape/playback-refresh";
 
 export const maxDuration = 60;
 
@@ -102,6 +103,25 @@ export async function GET(request: Request, context: RouteContext) {
         playbackUrl,
         playback.refresh,
         { force: true },
+      );
+      upstream = await fetchUpstream(
+        upstreamUrl,
+        playback.referer,
+        rangeHeader,
+        request.signal,
+        playback.cookies,
+      );
+    }
+
+    if (
+      !upstream.ok &&
+      isVidsrcPlaybackRefresh(playback.refresh) &&
+      upstream.status === 403
+    ) {
+      await cancelResponseBody(upstream);
+      upstreamUrl = await resolveScrapePlaybackUpstreamUrl(
+        playbackUrl,
+        playback.refresh,
       );
       upstream = await fetchUpstream(
         upstreamUrl,

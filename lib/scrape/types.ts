@@ -50,12 +50,15 @@ export type ScrapeAudioVersion = {
   subtitles?: ScrapeSubtitle[];
 };
 
+import type { ScrapePlaybackRefresh } from "./playback-refresh";
+
 export type ScrapeSuccess = {
   ok: true;
   providerId: string;
   validated?: true;
   streamUrl: string;
   referer?: string;
+  playbackRefresh?: ScrapePlaybackRefresh;
   subtitles?: ScrapeSubtitle[];
   qualities?: ScrapeQuality[];
   audioVersions?: ScrapeAudioVersion[];

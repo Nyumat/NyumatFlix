@@ -112,6 +112,29 @@ describe("scrape stream validation", () => {
     ]);
   });
 
+  it("rejects VixSrc JSON stubs that are not real HLS playlists", async () => {
+    const { validateStreamUrl } = await import("@/lib/scrape/validate-stream");
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({ playlist: "/dead" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+
+    try {
+      await expect(
+        validateStreamUrl(
+          "https://vixsrc.to/playlist/170060?token=abc&expires=1&h=1",
+          "https://vixsrc.to/embed/1",
+          "hls",
+        ),
+      ).resolves.toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("rejects image and HTML error bodies as HLS media", () => {
     expect(
       isValidHlsAssetResponse(

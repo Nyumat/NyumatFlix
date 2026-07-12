@@ -37,7 +37,7 @@ export const resolveStreamReferers = (
   const seen = new Set<string>();
 
   const push = (value: string | undefined) => {
-    if (!value || seen.has(value)) {
+    if (value === undefined || seen.has(value)) {
       return;
     }
     seen.add(value);
@@ -95,14 +95,26 @@ export async function validateStreamUrlWithReferers(
   return { ok: false };
 }
 
-const looksLikeValidBody = (body: string, kind: StreamKind): boolean => {
+const looksLikeValidBody = (
+  body: string,
+  kind: StreamKind,
+  streamUrl?: string,
+): boolean => {
   if (kind === "hls") {
+    const hasExtM3u = body.includes("#EXTM3U");
+
+    // VixSrc can return JSON stubs with a "playlist" key that are not HLS.
+    if (/vixsrc\.to\/playlist\//i.test(streamUrl ?? "")) {
+      return (
+        hasExtM3u &&
+        (body.includes("#EXTINF") || body.includes("#EXT-X-STREAM-INF"))
+      );
+    }
+
     // Require a real playlist marker — rewritten HTML 404s can contain "m3u8"
     // path fragments while still being unplayable.
     return (
-      body.includes("#EXTM3U") ||
-      body.includes('"playlist"') ||
-      body.includes("cf-master")
+      hasExtM3u || body.includes('"playlist"') || body.includes("cf-master")
     );
   }
 
@@ -362,7 +374,7 @@ export async function validateStreamUrl(
       const contentType = response.headers.get("content-type") ?? "";
       if (okContentTypesForKind(contentType, kind)) {
         const body = (await response.text()).slice(0, 64_000);
-        if (!looksLikeValidBody(body, kind)) {
+        if (!looksLikeValidBody(body, kind, streamUrl)) {
           return false;
         }
 

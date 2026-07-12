@@ -6,6 +6,7 @@ import {
   isPlaylistResponse,
   resolveKaaSegmentFallbackUrls,
 } from "./playback";
+import { resolveScrapePlaybackUpstreamUrl } from "./vidking-playback";
 import { looksLikeHlsStreamUrl, type StreamKind } from "./stream-url-patterns";
 import {
   extractHlsProbeTargets,
@@ -164,8 +165,12 @@ export async function probeScrapePlaybackPath(
 ): Promise<boolean> {
   try {
     const rangeHeader = kind === "mp4" ? "bytes=0-511" : null;
-    const { response, url } = await fetchWithKaaFallback(
+    const resolvedUrl = await resolveScrapePlaybackUpstreamUrl(
       payload.url,
+      payload.refresh,
+    );
+    const { response, url } = await fetchWithKaaFallback(
+      resolvedUrl,
       payload.referer,
       payload.cookies,
       rangeHeader,

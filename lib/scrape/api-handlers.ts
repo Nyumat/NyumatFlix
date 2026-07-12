@@ -18,7 +18,10 @@ import {
   buildScrapePlayUrl,
   type ScrapePlaybackToken,
 } from "@/lib/scrape/playback";
+import { isVidsrcPlaybackRefresh } from "@/lib/scrape/playback-refresh";
 import { primeVidKingSession } from "@/lib/scrape/vidking-playback";
+import { isVidnestClientOnlyCdn } from "@/lib/scrape/vidnest-shared";
+import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
 
 const tmdbProviderIds = TMDB_SCRAPE_PROVIDER_ORDER as unknown as [
   TmdbScrapeProviderId,
@@ -158,7 +161,9 @@ async function handleTmdbScrapePost(
             seedFetchedAt: Date.now(),
           },
         }
-      : {}),
+      : isVidsrcPlaybackRefresh(result.playbackRefresh)
+        ? { refresh: result.playbackRefresh }
+        : {}),
   };
 
   if (playbackToken.refresh?.providerId === "vidking") {
@@ -169,7 +174,10 @@ async function handleTmdbScrapePost(
     );
   }
 
-  const playUrl = buildScrapePlayUrl(playbackToken);
+  const playUrl = isVidnestClientOnlyCdn(result.streamUrl)
+    ? result.streamUrl
+    : buildScrapePlayUrl(playbackToken);
+  const streamKind = inferScrapeStreamKind(result.streamUrl);
 
   return NextResponse.json({
     ok: true,
@@ -178,6 +186,7 @@ async function handleTmdbScrapePost(
     providerName:
       TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
     playUrl,
+    streamKind,
     referer: result.referer,
     subtitles: result.subtitles,
     qualities: result.qualities,

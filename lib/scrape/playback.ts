@@ -1,4 +1,4 @@
-import type { VidKingPlaybackRefresh } from "./vidking-constants";
+import type { ScrapePlaybackRefresh } from "./playback-refresh";
 import { resolveHlsPlaylistUrl } from "./hls-url";
 import { looksLikeHlsStreamUrl } from "./stream-url-patterns";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
@@ -8,7 +8,7 @@ const MAX_ENCODED_URL_LENGTH = 8192;
 export type ScrapePlaybackToken = {
   url: string;
   referer?: string;
-  refresh?: VidKingPlaybackRefresh;
+  refresh?: ScrapePlaybackRefresh;
   cookies?: string;
   subtitleFormat?: "ass";
 };
@@ -245,16 +245,13 @@ export const extractScrapePlaybackTokenFromPlayUrl = (
 
 export const extractScrapePlaybackRefreshFromPlayUrl = (
   playUrl: string,
-): VidKingPlaybackRefresh | undefined => {
+): ScrapePlaybackRefresh | undefined => {
   const token = extractScrapePlaybackTokenFromPlayUrl(playUrl);
   if (!token) {
     return undefined;
   }
 
-  const decoded = decodeScrapePlaybackToken(token);
-  return decoded?.refresh?.providerId === "vidking"
-    ? decoded.refresh
-    : undefined;
+  return decodeScrapePlaybackToken(token)?.refresh;
 };
 
 const resolvePlaylistLine = (line: string, manifestUrl: string) => {
@@ -272,7 +269,7 @@ const rewritePlaylistUriAttributes = (
   line: string,
   manifestUrl: string,
   referer?: string,
-  refresh?: VidKingPlaybackRefresh,
+  refresh?: ScrapePlaybackRefresh,
   proxyBaseUrl?: string,
 ) =>
   line.replace(
@@ -316,7 +313,7 @@ export const rewriteManifestPlaylist = (
   content: string,
   manifestUrl: string,
   referer?: string,
-  refresh?: VidKingPlaybackRefresh,
+  refresh?: ScrapePlaybackRefresh,
   proxyBaseUrl?: string,
 ) =>
   content
@@ -419,7 +416,7 @@ const proxyDashManifestUrl = (
   raw: string,
   manifestUrl: string,
   referer?: string,
-  refresh?: VidKingPlaybackRefresh,
+  refresh?: ScrapePlaybackRefresh,
   proxyBaseUrl?: string,
 ) => {
   const trimmed = raw.trim();
@@ -443,7 +440,7 @@ export const rewriteDashManifest = (
   content: string,
   manifestUrl: string,
   referer?: string,
-  refresh?: VidKingPlaybackRefresh,
+  refresh?: ScrapePlaybackRefresh,
   proxyBaseUrl?: string,
 ) => {
   const withAttributes = content.replace(
@@ -465,4 +462,6 @@ export {
   isDashManifestResponse,
   isPlaylistResponse,
 };
+export type { ScrapePlaybackRefresh } from "./playback-refresh";
 export type { VidKingPlaybackRefresh } from "./vidking-constants";
+export type { VidsrcPlaybackRefresh } from "./vidsrc-constants";

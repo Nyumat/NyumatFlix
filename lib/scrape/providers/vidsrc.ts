@@ -1,4 +1,5 @@
 import { scrapeFetchText } from "../fetch";
+import type { VidsrcPlaybackRefresh } from "../vidsrc-constants";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
 
 const EMBED_ORIGIN = "https://vsembed.ru";
@@ -181,11 +182,20 @@ const scrapeVidSrcEdn = async (
     .replaceAll("__TOKEN__", token)
     .replaceAll("__TOKENPG__", token);
 
+  const playbackRefresh: VidsrcPlaybackRefresh = {
+    providerId: providerId === "vidsrc-mirror" ? "vidsrc-mirror" : "vidsrc",
+    tokenHost,
+    masterTemplate,
+    playerOrigin,
+    playerReferer,
+  };
+
   return {
     ok: true,
     providerId,
     streamUrl,
     referer: `${playerOrigin}/`,
+    playbackRefresh,
   };
 };
 

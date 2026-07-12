@@ -19,6 +19,7 @@ import {
   looksLikeHlsPlaylistBody,
   shouldTreatAsHlsPlaylist,
 } from "@/lib/scrape/playback-probe";
+import { isVidKingPlaybackRefresh } from "@/lib/scrape/playback-refresh";
 import {
   buildScrapePlayerKey,
   buildScrapePlayerSrc,
@@ -67,7 +68,10 @@ describe("scrape hls playback helpers", () => {
 
     const refresh = extractScrapePlaybackRefreshFromPlayUrl(playUrl);
     expect(refresh?.providerId).toBe("vidking");
-    expect(refresh?.tmdbId).toBe(395992);
+    expect(isVidKingPlaybackRefresh(refresh)).toBe(true);
+    if (isVidKingPlaybackRefresh(refresh)) {
+      expect(refresh.tmdbId).toBe(395992);
+    }
 
     const [primary, fallback] = buildScrapeQualityPlayUrls(
       playUrl,
