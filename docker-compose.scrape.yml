@@ -1,0 +1,33 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    restart: unless-stopped
+    env_file:
+      - ${GLUETUN_ENV_FILE:-./scripts/gluetun/.env}
+    environment:
+      HTTPPROXY: "on"
+      HTTPPROXY_LOG: "off"
+    networks:
+      - betterome
+
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: ${FLARESOLVERR_LOG_LEVEL:-info}
+      CAPTCHA_SOLVER: ${FLARESOLVERR_CAPTCHA_SOLVER:-none}
+      PROXY_URL: http://gluetun:8888
+    networks:
+      - betterome
+    depends_on:
+      - gluetun
+
+networks:
+  betterome:
+    external: true
