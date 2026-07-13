@@ -102,7 +102,7 @@ jobs:
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
-      DOCKER_IMAGE: whotypes/nyumatflix:latest
+      DOCKER_REPOSITORY: whotypes/nyumatflix
 
     steps:
       - name: Checkout code
@@ -124,7 +124,9 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            ${{ env.DOCKER_REPOSITORY }}:${{ github.sha }}
+            ${{ env.DOCKER_REPOSITORY }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -132,13 +134,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ci, build-push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: nyumatflix-production
+      cancel-in-progress: false
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/home/whotypes/apps/nyumatflix' }}
       DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-      DOCKER_IMAGE: whotypes/nyumatflix:latest
+      DOCKER_IMAGE: whotypes/nyumatflix:${{ github.sha }}
 
     steps:
       - uses: actions/checkout@v4
@@ -150,20 +155,15 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
-      - name: Sync deploy scripts
+      - name: Sync deploy files
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/scripts'"
           rsync -avz -e "ssh -p $DEPLOY_PORT" \
-            scripts/deploy.sh \
-            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/deploy.sh"
+            scripts/deploy.sh docker-compose.scrape.yml docker-compose.ffs.yml \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
           rsync -avz -e "ssh -p $DEPLOY_PORT" \
-            scripts/bootstrap-scrape-vpn.sh \
-            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/scripts/bootstrap-scrape-vpn.sh"
-          if [[ -f docker-compose.scrape.yml ]]; then
-            rsync -avz -e "ssh -p $DEPLOY_PORT" \
-              docker-compose.scrape.yml docker-compose.ffs.yml \
-              "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
-          fi
+            scripts/reconcile-prod-infra.sh \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/scripts/reconcile-prod-infra.sh"
           if [[ -d flipt ]]; then
             rsync -avz -e "ssh -p $DEPLOY_PORT" \
               flipt/ \

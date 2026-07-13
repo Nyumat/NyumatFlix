@@ -30,6 +30,7 @@ BLUE_PORT="${BLUE_PORT:-8081}"
 GREEN_PORT="${GREEN_PORT:-8082}"
 HEALTH_WAIT_SECONDS="${HEALTH_WAIT_SECONDS:-60}"
 DRAIN_SECONDS="${DRAIN_SECONDS:-95}"
+DEPLOY_LOCK_FILE="${DEPLOY_LOCK_FILE:-$ROOT/.deploy.lock}"
 
 cmd="${1:-}"
 if [[ -z "$cmd" ]]; then
@@ -59,25 +60,26 @@ build_push() {
   echo "pushed $DOCKER_IMAGE"
 }
 
-ensure_network() {
-  sudo docker network create "$DOCKER_NETWORK" 2>/dev/null || true
+acquire_deploy_lock() {
+  exec 9>"$DEPLOY_LOCK_FILE"
+  if ! flock -n 9; then
+    echo "another NyumatFlix deploy is already running" >&2
+    exit 1
+  fi
 }
 
-ensure_infra_compose() {
-  cd "$ROOT"
-  sudo env "GLUETUN_ENV_FILE=$HOME/apps/gluetun/.env" \
-    docker compose -f docker-compose.scrape.yml up -d --no-deps flaresolverr
-  sudo docker compose -f docker-compose.ffs.yml up -d
+ensure_runtime_infra() {
+  NYUMATFLIX_ROOT="$ROOT" APP_ENV_FILE="$ENV_FILE" \
+    "$ROOT/scripts/reconcile-prod-infra.sh" ensure
 }
 
 serve() {
-  "$ROOT/scripts/bootstrap-scrape-vpn.sh" prod-local
+  acquire_deploy_lock
   if [[ ! -f "$ENV_FILE" ]]; then
     echo "env file not found: $ENV_FILE (set ENV_FILE=...)" >&2
     exit 1
   fi
-  ensure_network
-  ensure_infra_compose
+  ensure_runtime_infra
   sudo docker pull "$DOCKER_IMAGE"
 
   local current_port target_port candidate old_name upstream_backup
@@ -185,6 +187,7 @@ serve() {
 }
 
 stop_container() {
+  acquire_deploy_lock
   sudo docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
   sudo docker rm -f "${CONTAINER_NAME}-next" 2>/dev/null || true
   local previous

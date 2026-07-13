@@ -98,6 +98,28 @@ bun run dev
 
 7. Finally, open [http://localhost:3000](http://localhost:3000) in your browser to see the project in action!
 
+<!-- ## Production infrastructure
+
+Production uses one idempotent reconciler for Gluetun, FlareSolverr, and Flipt. The regular application deploy syncs the desired Compose files, runs the reconciler on the VPS, verifies the services over the Docker network, and then performs the blue-green NyumatFlix rollout.
+
+For first-time VPN provisioning from a workstation, populate the gitignored `.env.vpn` file and run:
+
+```bash
+./scripts/setup-vpn.sh bootstrap
+```
+
+The remaining operational commands all use the same reconciliation path:
+
+```bash
+./scripts/setup-vpn.sh ensure  # repair drift without updating images
+./scripts/setup-vpn.sh update  # explicitly pull and reconcile infrastructure images
+./scripts/setup-vpn.sh status
+./scripts/setup-vpn.sh test
+./scripts/setup-vpn.sh rotate
+```
+
+`bootstrap` securely streams the VPN seed to the VPS once. Generated control credentials are preserved on later runs. Existing standalone Gluetun or FlareSolverr containers are migrated only when they are unowned; containers owned by an unexpected Compose project fail closed instead of being deleted. -->
+
 <!--
 ## 🐳 Run with Docker
 
