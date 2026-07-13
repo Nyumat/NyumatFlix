@@ -141,6 +141,9 @@ ensure_env_files() {
   upsert_env_var "$APP_ENV_FILE" SCRAPE_VPN_CONTROL_API_KEY "$control_api_key"
   upsert_env_var "$APP_ENV_FILE" SCRAPE_VPN_ROTATE_SECRET "$rotate_secret"
   upsert_env_var "$APP_ENV_FILE" SCRAPE_VPN_ROTATE_COUNTRIES "$rotate_countries"
+  upsert_env_var "$APP_ENV_FILE" FLIPT_URL "http://flipt:8080"
+  upsert_env_var "$APP_ENV_FILE" FLIPT_ENVIRONMENT "default"
+  upsert_env_var "$APP_ENV_FILE" FLIPT_NAMESPACE "default"
 }
 
 scrape_compose() {

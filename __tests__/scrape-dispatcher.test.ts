@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isVidsrcScrapeHostname,
   resetScrapeHostEgressPreferences,
   scrapeBypassesProxyHostname,
   scrapePreferDirectEgress,
@@ -43,6 +44,32 @@ describe("scrape dispatchers", () => {
   it("prefers proxy for wingsdatabase.com", () => {
     expect(scrapePreferProxyHostname("api.wingsdatabase.com")).toBe(true);
     expect(scrapePreferProxyHostname("kaa.lt")).toBe(false);
+  });
+
+  it("routes VidSrc through VPN proxy in prod and direct egress locally", () => {
+    const previousProxy = process.env.SCRAPE_PROXY_URL;
+    delete process.env.SCRAPE_PROXY_URL;
+    resetScrapeHostEgressPreferences();
+
+    expect(isVidsrcScrapeHostname("vsembed.ru")).toBe(true);
+    expect(isVidsrcScrapeHostname("kaleidoscopekernel.space")).toBe(true);
+    expect(isVidsrcScrapeHostname("cloudorchestranova.com")).toBe(true);
+    expect(scrapeBypassesProxyHostname("vsembed.ru")).toBe(true);
+    expect(scrapePreferProxyHostname("vsembed.ru")).toBe(false);
+
+    process.env.SCRAPE_PROXY_URL = "http://gluetun:8888";
+    resetScrapeHostEgressPreferences();
+    expect(scrapeBypassesProxyHostname("vsembed.ru")).toBe(false);
+    expect(scrapeBypassesProxyHostname("kaleidoscopekernel.space")).toBe(false);
+    expect(scrapePreferProxyHostname("vsembed.ru")).toBe(true);
+    expect(scrapePreferProxyHostname("kaleidoscopekernel.space")).toBe(true);
+
+    if (previousProxy === undefined) {
+      delete process.env.SCRAPE_PROXY_URL;
+    } else {
+      process.env.SCRAPE_PROXY_URL = previousProxy;
+    }
+    resetScrapeHostEgressPreferences();
   });
 
   it("bypasses proxy for AniList metadata and anime CDN hosts", () => {
