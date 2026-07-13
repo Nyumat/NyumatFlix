@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Bootstrap Gluetun/FlareSolverr scrape egress.
-# Usage: ensure-local | local | prod | prod-local | sync-env
+# Usage: ensure-local | local | prod | sync-env
+# `prod` delegates to the idempotent workstation production setup command.
 # SKIP_SCRAPE_STACK=1 and FORCE_SCRAPE_SYNC=1 are supported.
 
 set -euo pipefail
@@ -11,12 +12,8 @@ LOCAL_ENV_FILE="${LOCAL_ENV_FILE:-$ROOT/.env.local}"
 VPN_ENV_FILE="${VPN_ENV_FILE:-$ROOT/.env.vpn}"
 SSH_HOST="${SSH_HOST:-leetbot}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-betterome}"
-PROD_NYUMAT_ENV="${PROD_NYUMAT_ENV:-\$HOME/apps/nyumatflix/.env}"
-PROD_GLUETUN_DIR="${PROD_GLUETUN_DIR:-\$HOME/apps/gluetun}"
 LOCAL_PROXY_URL="${LOCAL_PROXY_URL:-http://127.0.0.1:8888}"
 LOCAL_CONTROL_URL="${LOCAL_CONTROL_URL:-http://127.0.0.1:8000}"
-PROD_PROXY_URL="${PROD_PROXY_URL:-http://gluetun:8888}"
-PROD_CONTROL_URL="${PROD_CONTROL_URL:-http://gluetun:8000}"
 ROTATE_COUNTRIES="${ROTATE_COUNTRIES:-Germany,Netherlands,France,United States}"
 
 cmd="${1:-local}"
@@ -314,75 +311,8 @@ bootstrap_local() {
 }
 
 bootstrap_prod() {
-  local execution_mode="${1:-remote}"
-  local bootstrap_command
-  bootstrap_command="set -eu
-    PROD_NYUMAT_ENV=${PROD_NYUMAT_ENV}
-    PROD_GLUETUN_DIR=${PROD_GLUETUN_DIR}
-    PROD_PROXY_URL=${PROD_PROXY_URL}
-    PROD_CONTROL_URL=${PROD_CONTROL_URL}
-    ROTATE_COUNTRIES='${ROTATE_COUNTRIES}'
-
-    random_secret() {
-      openssl rand -base64 24 | tr -d '/+=\n' | cut -c1-32
-    }
-
-    upsert_env_var() {
-      local file=\"\$1\" key=\"\$2\" value=\"\$3\"
-      touch \"\$file\"
-      if grep -q \"^\${key}=\" \"\$file\"; then
-        sed -i \"s|^\${key}=.*|\${key}=\${value}|\" \"\$file\"
-      else
-        echo \"\${key}=\${value}\" >>\"\$file\"
-      fi
-    }
-
-  GLUETUN_CONTROL_API_KEY=\"\$(grep -E '^GLUETUN_CONTROL_API_KEY=' \"\$PROD_GLUETUN_DIR/.env\" 2>/dev/null | tail -n1 | cut -d= -f2- || true)\"
-  SCRAPE_VPN_ROTATE_SECRET=\"\$(grep -E '^SCRAPE_VPN_ROTATE_SECRET=' \"\$PROD_NYUMAT_ENV\" 2>/dev/null | tail -n1 | cut -d= -f2- || true)\"
-  if [ -z \"\$GLUETUN_CONTROL_API_KEY\" ]; then GLUETUN_CONTROL_API_KEY=\"\$(random_secret)\"; fi
-  if [ -z \"\$SCRAPE_VPN_ROTATE_SECRET\" ]; then SCRAPE_VPN_ROTATE_SECRET=\"\$(random_secret)\"; fi
-
-  if ! grep -q '^HTTP_CONTROL_SERVER_AUTH_DEFAULT_ROLE=' \"\$PROD_GLUETUN_DIR/.env\" 2>/dev/null; then
-    echo \"HTTP_CONTROL_SERVER_AUTH_DEFAULT_ROLE={\\\"auth\\\":\\\"apikey\\\",\\\"apikey\\\":\\\"\$GLUETUN_CONTROL_API_KEY\\\"}\" >>\"\$PROD_GLUETUN_DIR/.env\"
-  else
-    sed -i \"s|^HTTP_CONTROL_SERVER_AUTH_DEFAULT_ROLE=.*|HTTP_CONTROL_SERVER_AUTH_DEFAULT_ROLE={\\\"auth\\\":\\\"apikey\\\",\\\"apikey\\\":\\\"\$GLUETUN_CONTROL_API_KEY\\\"}|\" \"\$PROD_GLUETUN_DIR/.env\"
-  fi
-  upsert_env_var \"\$PROD_GLUETUN_DIR/.env\" GLUETUN_CONTROL_API_KEY \"\$GLUETUN_CONTROL_API_KEY\"
-  upsert_env_var \"\$PROD_GLUETUN_DIR/.env\" SCRAPE_VPN_ROTATE_COUNTRIES \"\$ROTATE_COUNTRIES\"
-  if ! grep -q '^SERVER_COUNTRIES=' \"\$PROD_GLUETUN_DIR/.env\"; then
-    echo \"SERVER_COUNTRIES=\$ROTATE_COUNTRIES\" >>\"\$PROD_GLUETUN_DIR/.env\"
-  fi
-
-  upsert_env_var \"\$PROD_NYUMAT_ENV\" SCRAPE_PROXY_URL \"\$PROD_PROXY_URL\"
-  upsert_env_var \"\$PROD_NYUMAT_ENV\" SCRAPE_VPN_CONTROL_URL \"\$PROD_CONTROL_URL\"
-  upsert_env_var \"\$PROD_NYUMAT_ENV\" SCRAPE_VPN_CONTROL_API_KEY \"\$GLUETUN_CONTROL_API_KEY\"
-  upsert_env_var \"\$PROD_NYUMAT_ENV\" SCRAPE_VPN_ROTATE_SECRET \"\$SCRAPE_VPN_ROTATE_SECRET\"
-  upsert_env_var \"\$PROD_NYUMAT_ENV\" SCRAPE_VPN_ROTATE_COUNTRIES \"\$ROTATE_COUNTRIES\"
-
-  sudo docker network create ${DOCKER_NETWORK} 2>/dev/null || true
-  cd \"\$PROD_GLUETUN_DIR\" && sudo docker compose pull && sudo docker compose up -d
-
-  for i in \$(seq 1 45); do
-    if sudo docker exec gluetun wget -qO- --timeout=5 \
-      --header=\"X-API-Key: \$GLUETUN_CONTROL_API_KEY\" \
-      http://127.0.0.1:8000/v1/vpn/status >/dev/null 2>&1; then
-      ip=\"\$(sudo docker exec gluetun wget -qO- --timeout=8 \
-        --header=\"X-API-Key: \$GLUETUN_CONTROL_API_KEY\" \
-        http://127.0.0.1:8000/v1/publicip/ip 2>/dev/null | sed -n 's/.*\\\"public_ip\\\":\\\"\\([^\\\"]*\\)\\\".*/\\1/p' || true)\"
-      echo \"prod gluetun ready (egress \${ip:-unknown})\"
-      exit 0
-    fi
-    sleep 2
-  done
-  echo 'prod gluetun did not become ready' >&2
-  sudo docker logs --tail 40 gluetun >&2 || true
-  exit 1"
-
-  if [[ "$execution_mode" == "local" ]]; then
-    bash -c "$bootstrap_command"
-  else
-    ssh "$SSH_HOST" "$bootstrap_command"
-  fi
+  SSH_HOST="$SSH_HOST" LOCAL_VPN_ENV="$VPN_ENV_FILE" \
+    "$ROOT/scripts/setup-vpn.sh" ensure
 }
 
 case "$cmd" in
@@ -390,9 +320,8 @@ case "$cmd" in
   ensure-local) ensure_local ;;
   local) bootstrap_local ;;
   prod) bootstrap_prod ;;
-  prod-local) bootstrap_prod local ;;
   *)
-    echo "usage: $0 ensure-local | local | prod | prod-local | sync-env" >&2
+    echo "usage: $0 ensure-local | local | prod | sync-env" >&2
     exit 1
     ;;
 esac

@@ -19,6 +19,12 @@ services:
     image: flaresolverr/flaresolverr:latest
     container_name: flaresolverr
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8191/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       LOG_LEVEL: ${FLARESOLVERR_LOG_LEVEL:-info}
       CAPTCHA_SOLVER: ${FLARESOLVERR_CAPTCHA_SOLVER:-none}
