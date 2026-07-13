@@ -1,6 +1,7 @@
 import "server-only";
 
 import { scrapeFetchText } from "./fetch";
+import { scrapeProxyUrl } from "./proxy";
 import type { VidsrcPlaybackRefresh } from "./vidsrc-constants";
 
 /** Rotating VidSrc CDN hosts — JWT from generate.php is bound to request egress IP. */
@@ -107,7 +108,8 @@ export async function resolveVidsrcPlaybackUrl(
   }
 
   const embeddedJwt = extractVidsrcJwtFromUrl(upstreamUrl);
-  if (!options.force && embeddedJwt) {
+  // Scrape may have minted on a different egress; prod re-mints via VPN proxy.
+  if (!options.force && embeddedJwt && !scrapeProxyUrl()) {
     return upstreamUrl;
   }
 
