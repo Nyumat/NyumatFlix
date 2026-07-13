@@ -20,25 +20,38 @@ const FETCH_RETRY_DELAY_MS = 750;
 const CURL_FALLBACK_HOSTS =
   /(?:^kwik\.[a-z]+$|^api\.wingsdatabase\.com$|^cloudorchestranova\.com$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|opstream11\.com|opstream16\.com|goodstream\.cc|astroliteonline\.online|tripplestream\.online|glowhavenmedia\.cyou|1x2\.space|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com|\.space)$)/i;
 
-const VIDSRC_DIRECT_HOST_PATTERN =
+const VIDSRC_SCRAPE_HOST_PATTERN =
   /(?:^|\.)vsembed\.ru$|(?:^|\.)vidsrc-embed\.ru$|^cloudorchestranova\.com$|\.space$/i;
 
 const BLOCKED_STATUSES = new Set([403, 429, 503]);
 
-export const scrapePreferProxyHostname = (hostname: string): boolean =>
-  hostname === "api.wingsdatabase.com";
+/** VidSrc embed, player, token, and CDN hosts (JWTs are bound to egress IP). */
+export const isVidsrcScrapeHostname = (hostname: string): boolean =>
+  VIDSRC_SCRAPE_HOST_PATTERN.test(hostname);
 
-export const scrapeBypassesProxyHostname = (hostname: string): boolean =>
-  hostname === "graphql.anilist.co" ||
-  hostname === "stream.animeparadise.moe" ||
-  hostname === "api.kyren.moe" ||
-  hostname === "kyren.moe" ||
-  /(?:^|\.)(?:vivibebe\.site|megaplay\.buzz)$/.test(hostname) ||
-  VIDSRC_DIRECT_HOST_PATTERN.test(hostname) ||
-  /mewstream/i.test(hostname) ||
-  /^momo\./i.test(hostname) ||
-  hostname === "momo.justanime.to" ||
-  /\.workers\.dev$/i.test(hostname);
+export const scrapePreferProxyHostname = (hostname: string): boolean =>
+  hostname === "api.wingsdatabase.com" ||
+  (Boolean(scrapeProxyUrl()) && isVidsrcScrapeHostname(hostname));
+
+export const scrapeBypassesProxyHostname = (hostname: string): boolean => {
+  // Local dev has no VPN proxy — direct egress is fine. Prod must use gluetun so
+  // JWT mint + playback share the same residential exit IP, not the VPS IP.
+  if (isVidsrcScrapeHostname(hostname)) {
+    return !scrapeProxyUrl();
+  }
+
+  return (
+    hostname === "graphql.anilist.co" ||
+    hostname === "stream.animeparadise.moe" ||
+    hostname === "api.kyren.moe" ||
+    hostname === "kyren.moe" ||
+    /(?:^|\.)(?:vivibebe\.site|megaplay\.buzz)$/.test(hostname) ||
+    /mewstream/i.test(hostname) ||
+    /^momo\./i.test(hostname) ||
+    hostname === "momo.justanime.to" ||
+    /\.workers\.dev$/i.test(hostname)
+  );
+};
 
 type HostEgressPreference = "direct" | "proxy";
 
