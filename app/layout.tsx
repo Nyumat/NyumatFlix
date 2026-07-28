@@ -8,6 +8,7 @@ import { OnboardingProvider } from "@/components/providers/onboarding-provider";
 import { AppSettingsSync } from "@/components/providers/app-settings-sync";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
+import { HoverSoundProvider } from "@/components/providers/hover-sound-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/lib/query-client";
@@ -170,7 +171,9 @@ export default async function RootLayout({
             <AuthSessionProvider session={session}>
               <OnboardingProvider>
                 <TooltipProvider>
-                  <AdblockGateProvider>{chrome}</AdblockGateProvider>
+                  <AdblockGateProvider>
+                    <HoverSoundProvider>{chrome}</HoverSoundProvider>
+                  </AdblockGateProvider>
                 </TooltipProvider>
               </OnboardingProvider>
             </AuthSessionProvider>
