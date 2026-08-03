@@ -8,6 +8,8 @@
         "@auth/drizzle-adapter": "^1.10.0",
         "@auth/neon-adapter": "^1.10.0",
         "@auth/pg-adapter": "^1.10.0",
+        "@calluspirates/shared": "file:./packages/calluspirates-shared",
+        "@cap.js/widget": "0.1.56",
         "@esbuild/linux-x64": "^0.25.4",
         "@gsap/react": "^2.1.2",
         "@hookform/resolvers": "^3.9.0",
@@ -69,6 +71,7 @@
         "lodash": "^4.17.21",
         "lucide-react": "^0.544.0",
         "media-icons": "1.1.5",
+        "movi-player": "^0.3.5",
         "moviedb-promise": "^4.0.7",
         "next": "15.5.9",
         "next-auth": "^5.0.0-beta.29",
@@ -206,6 +209,10 @@
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.2.4", "", { "os": "win32", "cpu": "x64" }, "sha512-3Y4V4zVRarVh/B/eSHczR4LYoSVyv3Dfuvm3cWs5w/HScccS0+Wt/lHOcDTRYeHjQmMYVC3rIRWqyN2EI52+zg=="],
 
     "@bytecodealliance/preview2-shim": ["@bytecodealliance/preview2-shim@0.17.6", "", {}, "sha512-n3cM88gTen5980UOBAD6xDcNNL3ocTK8keab21bpx1ONdA+ARj7uD1qoFxOWCyKlkpSi195FH+GeAut7Oc6zZw=="],
+
+    "@calluspirates/shared": ["@calluspirates/shared@file:packages/calluspirates-shared", { "devDependencies": { "tsx": "^4.16.0", "typescript": "^5.5.0" } }],
+
+    "@cap.js/widget": ["@cap.js/widget@0.1.56", "", {}, "sha512-j640dNNNIF8IWmwqmSx0ihgU8sz/6Jm9mHveeDWUk8aXVqFm+2TSsp5bawtMtgf0aa7rFkmT9p76jrqO1uSEpQ=="],
 
     "@csstools/color-helpers": ["@csstools/color-helpers@5.1.0", "", {}, "sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA=="],
 
@@ -1637,6 +1644,8 @@
 
     "motion-utils": ["motion-utils@12.36.0", "", {}, "sha512-eHWisygbiwVvf6PZ1vhaHCLamvkSbPIeAYxWUuL3a2PD/TROgE7FvfHWTIH4vMl798QLfMw15nRqIaRDXTlYRg=="],
 
+    "movi-player": ["movi-player@0.3.5", "", { "dependencies": { "dashjs": "^5.2.0", "hls.js": "^1.6.16", "shaka-player": "^4.11.2" } }, "sha512-jyJBsu7OEoB1On0fDx89um7mqRcpIPGBQPUI4o8mdqxlXsJhsOoF89u5Mx2JzzznhW74fLNIiUM8mSpxskY/lA=="],
+
     "moviedb-promise": ["moviedb-promise@4.0.8", "", { "dependencies": { "axios": "^1.4.0", "lodash": "^4.17.21", "promise-throttle": "^1.1.2" } }, "sha512-Zq8YnhPDNH20d3ir9cF9+l5uephppJffnil34BB3wH/hH7JN2gLR7fD/ayi1SG5zMO6Q/IXWmRMncCu0MS3+0A=="],
 
     "mri": ["mri@1.2.0", "", {}, "sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA=="],
@@ -2440,6 +2449,8 @@
     "micromatch/picomatch": ["picomatch@2.3.2", "", {}, "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="],
 
     "mime-types/mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
+
+    "movi-player/shaka-player": ["shaka-player@4.16.41", "", {}, "sha512-d2QqGt1heKMsbyKj3OVmSMpMI5vrYKTi1iFtz/GP4HTBCHLYwDV6VF3T+E4JUGUSTRAgbZbmc0Bo3dpAR84vbw=="],
 
     "next/postcss": ["postcss@8.4.31", "", { "dependencies": { "nanoid": "^3.3.6", "picocolors": "^1.0.0", "source-map-js": "^1.0.2" } }, "sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ=="],
 
