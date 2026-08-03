@@ -1,5 +1,5 @@
 import { WatchlistItem } from "@/lib/domain/watchlist";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type UseWatchlistItemResult = {
   watchlistItem: WatchlistItem | null;
@@ -18,36 +18,47 @@ export function useWatchlistItem(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchWatchlistItem = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const fetchWatchlistItem = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      const response = await fetch(
-        `/api/watchlist/item?contentId=${contentId}&mediaType=${mediaType}`,
-      );
+        const response = await fetch(
+          `/api/watchlist/item?contentId=${contentId}&mediaType=${mediaType}`,
+          { signal },
+        );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch watchlist item");
+        if (!response.ok) {
+          throw new Error("Failed to fetch watchlist item");
+        }
+
+        const data = await response.json();
+        setWatchlistItem(data.item);
+      } catch (err) {
+        if (signal?.aborted) {
+          return;
+        }
+        setError(err instanceof Error ? err : new Error("Unknown error"));
+      } finally {
+        if (!signal?.aborted) {
+          setIsLoading(false);
+        }
       }
-
-      const data = await response.json();
-      setWatchlistItem(data.item);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("Unknown error"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [contentId, mediaType],
+  );
 
   useEffect(() => {
-    fetchWatchlistItem();
-  }, [contentId, mediaType]);
+    const controller = new AbortController();
+    void fetchWatchlistItem(controller.signal);
+    return () => controller.abort();
+  }, [fetchWatchlistItem]);
 
   return {
     watchlistItem,
     isLoading,
     error,
-    refetch: fetchWatchlistItem,
+    refetch: () => fetchWatchlistItem(),
   };
 }
