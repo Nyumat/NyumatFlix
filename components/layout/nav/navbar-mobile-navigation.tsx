@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import type { Session } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
-import Image from "next/image";
+import { BrandLogo, BRAND_NAME } from "@/components/brand-logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -188,23 +188,9 @@ export const NavbarMobileNavigation = ({
           )}
         >
           <SheetHeader className="border-b border-white/10 px-5 py-4 text-left">
-            <div className="flex items-center gap-3 pr-10">
-              <Link
-                href="/"
-                onClick={handleLinkClick}
-                className="flex size-8 shrink-0 items-center justify-center"
-              >
-                <Image
-                  src="/logo.svg"
-                  alt=""
-                  width={32}
-                  height={32}
-                  className="size-8"
-                />
-              </Link>
-              <SheetTitle className="text-left text-lg font-semibold tracking-tight text-white">
-                NyumatFlix
-              </SheetTitle>
+            <div className="flex items-center pr-10">
+              <BrandLogo placement="mobile-menu" onClick={handleLinkClick} />
+              <SheetTitle className="sr-only">{BRAND_NAME}</SheetTitle>
             </div>
           </SheetHeader>
 

@@ -69,10 +69,10 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
 
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const onAuthRoute = isAuthRoute(pathname);
   const detailRouteConfig = getDetailRouteConfig(pathname);
   const parentRouteOverride = useDetailRouteParentOverride(pathname);
-  const isTransparentHeaderRoute =
-    isCatalogRoute(pathname) || isAuthRoute(pathname);
+  const isTransparentHeaderRoute = isCatalogRoute(pathname) || onAuthRoute;
   const headerPositionClassName = isTransparentHeaderRoute
     ? "absolute"
     : "sticky";
@@ -97,12 +97,14 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
         "top-0 z-50 w-full bg-transparent",
       )}
     >
-      {!isAuthRoute(pathname) && <AnniversaryBanner />}
+      {!onAuthRoute && <AnniversaryBanner />}
       <div className="site-container flex min-h-14 items-center gap-2 py-2.5 lg:gap-3">
-        <div className="flex shrink-0 items-center gap-1 lg:gap-2">
-          <BackButton />
-          <SiteNav />
-        </div>
+        {!onAuthRoute ? (
+          <div className="flex shrink-0 items-center gap-1 lg:gap-2">
+            <BackButton />
+            <SiteNav />
+          </div>
+        ) : null}
 
         <div className="min-w-0 flex-1" />
 

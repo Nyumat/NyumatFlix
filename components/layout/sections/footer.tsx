@@ -4,7 +4,7 @@ import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { getFooterLinks } from "@/lib/navigation";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { Cannabis, Globe, Heart } from "lucide-react";
-import Image from "next/image";
+import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 
 export const FooterSection = () => {
@@ -19,20 +19,7 @@ export const FooterSection = () => {
     >
       <div className="container mx-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between lg:gap-3">
-          <Link
-            href="/"
-            className="flex shrink-0 items-center space-x-2"
-            aria-label="NyumatFlix homepage"
-          >
-            <Image
-              src="/logo.svg"
-              alt="NyumatFlix Logo"
-              width={30}
-              height={30}
-              className="hover:scale-105 transition-transform duration-200"
-            />
-            <h3 className="text-base font-bold text-secondary">NyumatFlix</h3>
-          </Link>
+          <BrandLogo placement="footer" />
 
           <div className="flex flex-wrap items-center justify-start gap-3 sm:justify-end sm:gap-4 lg:gap-5">
             <nav aria-label="Explore" className="hidden sm:block">

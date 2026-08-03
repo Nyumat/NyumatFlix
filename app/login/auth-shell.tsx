@@ -1,6 +1,6 @@
 import { Check, Play, Plus } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import type { ReactNode } from "react";
 
 type AuthShellProps = {
@@ -108,24 +108,7 @@ export function AuthShell({
 
       <div className="relative z-10 mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 items-center gap-8 px-5 pb-8 pt-20 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:pb-10 lg:pt-16">
         <section className="hidden max-w-xl lg:block">
-          <Link
-            href="/"
-            className="mb-8 inline-flex items-center gap-3 text-white"
-            aria-label="NyumatFlix home"
-          >
-            <span className="flex size-12 items-center justify-center rounded-2xl border border-white/12 bg-white/8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md">
-              <Image
-                src="/logo.svg"
-                alt=""
-                width={28}
-                height={28}
-                className="size-7"
-              />
-            </span>
-            <span className="text-lg font-semibold tracking-tight">
-              NyumatFlix
-            </span>
-          </Link>
+          <BrandLogo placement="auth" />
 
           <p className="mb-4 text-sm font-medium leading-6 text-sky-200">
             {eyebrow}
@@ -141,26 +124,7 @@ export function AuthShell({
         </section>
 
         <section className="mx-auto w-full max-w-[27rem]">
-          <div className="mb-8 flex justify-center lg:hidden">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-3"
-              aria-label="NyumatFlix home"
-            >
-              <span className="flex size-12 items-center justify-center rounded-2xl border border-white/12 bg-white/8 backdrop-blur-md">
-                <Image
-                  src="/logo.svg"
-                  alt=""
-                  width={28}
-                  height={28}
-                  className="size-7"
-                />
-              </span>
-              <span className="text-lg font-semibold tracking-tight">
-                NyumatFlix
-              </span>
-            </Link>
-          </div>
+          <BrandLogo placement="auth-compact" />
           {children}
         </section>
       </div>
