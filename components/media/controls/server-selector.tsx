@@ -25,7 +25,7 @@ import {
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { MediaItem } from "@/lib/domain/typings";
 import type { ScrapePlayerStatus } from "@/hooks/use-scrape";
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import {
   getPlaybackModePolicy,
   isAnimeScrapeProviderEnabled,
@@ -162,22 +162,22 @@ function ModeSwitcher({
     }
 
     setHintPhase("active");
+    let exitTimer: number | null = null;
     const visibleTimer = window.setTimeout(() => {
       setHintPhase("exiting");
+      exitTimer = window.setTimeout(() => {
+        onProxyHintDismiss?.();
+        setHintPhase("idle");
+      }, PROXY_HINT_EXIT_MS);
     }, PROXY_HINT_VISIBLE_MS);
 
-    return () => window.clearTimeout(visibleTimer);
-  }, [showProxyHint]);
-
-  React.useEffect(() => {
-    if (hintPhase !== "exiting") return;
-
-    const exitTimer = window.setTimeout(() => {
-      onProxyHintDismiss?.();
-    }, PROXY_HINT_EXIT_MS);
-
-    return () => window.clearTimeout(exitTimer);
-  }, [hintPhase, onProxyHintDismiss]);
+    return () => {
+      window.clearTimeout(visibleTimer);
+      if (exitTimer) {
+        window.clearTimeout(exitTimer);
+      }
+    };
+  }, [showProxyHint, onProxyHintDismiss]);
 
   const hintEffectsVisible = hintPhase === "active" || hintPhase === "exiting";
   const pulseActive = hintPhase === "active";
@@ -276,7 +276,8 @@ export function ServerSelector({
   canFindNextSource = false,
 }: ServerSelectorProps) {
   const [detailServerId, setDetailServerId] = React.useState<string>();
-  const [menuMode, setMenuMode] = React.useState<PlaybackMenuMode>("direct");
+  const [preferredMenuMode, setPreferredMenuMode] =
+    React.useState<PlaybackMenuMode>("direct");
   const [showProxyHint, setShowProxyHint] = React.useState(false);
   const {
     selectedServer,
@@ -292,33 +293,29 @@ export function ServerSelector({
     unavailableServerIds,
   } = useServerStore();
   const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
-  const flags = useFeatureFlagsOptional();
-  const playbackPolicy = flags ? getPlaybackModePolicy(flags) : "choice";
-  const playbackModeLocked = flags?.locks.playbackMode ?? false;
+  const flags = useFeatureFlags();
+  const playbackPolicy = getPlaybackModePolicy(flags);
+  const playbackModeLocked = flags.locks.playbackMode;
+
+  const menuMode: PlaybackMenuMode =
+    playbackPolicy === "proxy"
+      ? "direct"
+      : playbackPolicy === "iframe"
+        ? "embed"
+        : preferredMenuMode;
 
   const isScrapeActive = isScrapeServer(selectedServer);
-  const hasEnabledEmbedProviders =
-    !flags ||
-    Object.entries(flags.embedProviders).some(([, enabled]) => enabled);
+  const hasEnabledEmbedProviders = Object.entries(flags.embedProviders).some(
+    ([, enabled]) => enabled,
+  );
   const showEmbedMode =
     !noAdsMode && playbackPolicy !== "proxy" && hasEnabledEmbedProviders;
-
-  React.useEffect(() => {
-    if (playbackPolicy === "proxy") {
-      setMenuMode("direct");
-      return;
-    }
-    if (playbackPolicy === "iframe") {
-      setMenuMode("embed");
-    }
-  }, [playbackPolicy]);
 
   const directStreamProviders = React.useMemo<ScrapeProviderOption[]>(() => {
     const base =
       scrapeProviders.length > 0
         ? scrapeProviders
         : TMDB_SCRAPE_PROVIDER_OPTIONS;
-    if (!flags) return base;
     return base.filter((provider) => {
       if ("group" in provider && provider.group === "anime") {
         return isAnimeScrapeProviderEnabled(flags, provider.providerId);
@@ -333,7 +330,6 @@ export function ServerSelector({
       availableServerIds,
       unavailableServerIds,
     );
-    if (!flags) return sorted;
     return sorted.filter((server) => isEmbedProviderEnabled(flags, server.id));
   }, [availableServerIds, flags, unavailableServerIds]);
 
@@ -383,7 +379,7 @@ export function ServerSelector({
   }, []);
 
   const handleModeChange = (mode: PlaybackMenuMode) => {
-    setMenuMode(mode);
+    setPreferredMenuMode(mode);
     if (mode === "direct") {
       dismissProxyHint();
       if (!isScrapeActive) {
@@ -715,11 +711,11 @@ export function ServerSelector({
       onOpenChange={(open) => {
         if (open) {
           if (playbackPolicy === "proxy") {
-            setMenuMode("direct");
+            setPreferredMenuMode("direct");
           } else if (playbackPolicy === "iframe") {
-            setMenuMode("embed");
+            setPreferredMenuMode("embed");
           } else {
-            setMenuMode(isScrapeActive ? "direct" : "embed");
+            setPreferredMenuMode(isScrapeActive ? "direct" : "embed");
           }
           if (!hasSeenProxyModeHint() && playbackPolicy === "choice") {
             setShowProxyHint(true);
