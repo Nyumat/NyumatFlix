@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import {
   isAnimeScrapeProviderEnabled,
   isTmdbScrapeProviderEnabled,
 } from "@/lib/flags/site-flags";
+import { prefetchMoviPlayer } from "@/components/media/movi-stream-player";
 import type { HeroScrapeChrome } from "@/components/hero/hero-scrape-types";
 import { useAnimePlaybackScrape } from "@/hooks/use-anime-playback-scrape";
+import { useDirectPlayback } from "@/hooks/use-direct-movie-playback";
 import { useScrape } from "@/hooks/use-scrape";
 import { useServerAvailabilityQuery } from "@/hooks/use-server-availability-query";
 import { detectMediaType } from "@/lib/media/detect-media-type";
@@ -22,7 +24,6 @@ import {
 import { type AnimePlaybackScrapeProviderId } from "@/lib/providers/registry";
 import { animeScrapeMediaKeyFor } from "@/lib/scrape/anime/types";
 import { buildSourceOverlayItems } from "@/lib/scrape/source-overlay";
-import { areScrapeProvidersExhausted } from "@/lib/scrape/scrape-provider-menu";
 import {
   SCRAPE_PROVIDER_ORDER,
   SCRAPE_PROVIDER_OPTIONS,
@@ -62,6 +63,8 @@ export function useHeroScrapePlayback({
     animeSeasonNumber,
     mappingConfidence,
     isAdultAnime,
+    defaultAnilistId,
+    animeCoordsStatus,
     advanceToNextEpisode,
   } = useEpisodeStore();
   const {
@@ -73,40 +76,80 @@ export function useHeroScrapePlayback({
     unavailableServerIds,
   } = useServerStore();
   const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
-  const flags = useFeatureFlagsOptional();
+  const flags = useFeatureFlags();
 
   const filterProviderOptions = useCallback(
     (
       options:
         | ReturnType<typeof buildGroupedAnimePlaybackProviderOptions>
         | typeof SCRAPE_PROVIDER_OPTIONS,
-    ) => {
-      if (!flags) return options;
-      return options.filter((provider) => {
+    ) =>
+      options.filter((provider) => {
         if ("group" in provider && provider.group === "anime") {
           return isAnimeScrapeProviderEnabled(flags, provider.providerId);
         }
         return isTmdbScrapeProviderEnabled(flags, provider.providerId);
-      });
-    },
+      }),
     [flags],
   );
 
   const filterProviderOrder = useCallback(
-    (order: readonly AnimePlaybackScrapeProviderId[] | ScrapeProviderId[]) => {
-      if (!flags) return [...order];
-      return order.filter((providerId) => {
+    (order: readonly AnimePlaybackScrapeProviderId[] | ScrapeProviderId[]) =>
+      order.filter((providerId) => {
         if (providerId in flags.animeScrapeProviders) {
           return isAnimeScrapeProviderEnabled(flags, providerId);
         }
         return isTmdbScrapeProviderEnabled(flags, providerId);
-      });
-    },
+      }),
     [flags],
   );
 
-  const mediaScrape = useScrape();
-  const animePlaybackScrape = useAnimePlaybackScrape();
+  const scrapeFallbackContextRef = useRef({
+    isPlayingVideo,
+    isDirectMode: false,
+    noAdsMode,
+    selectedServer,
+    getCurrentMediaKey: () => null as string | null,
+    getFallbackEmbedServer,
+    setSelectedServer,
+  });
+  const scrapeFallbackHandledRef = useRef<string | null>(null);
+  const animeDirectFallbackRef = useRef({
+    isAnimeScrapeMode: false,
+    directAvailable: false,
+  });
+
+  const onAllProvidersFailed = useCallback(() => {
+    const ctx = scrapeFallbackContextRef.current;
+    if (
+      !ctx.isPlayingVideo ||
+      !isScrapeServer(ctx.selectedServer) ||
+      ctx.noAdsMode
+    ) {
+      return;
+    }
+
+    const mediaKey = ctx.getCurrentMediaKey();
+    if (!mediaKey || scrapeFallbackHandledRef.current === mediaKey) {
+      return;
+    }
+
+    const { isAnimeScrapeMode: animeMode, directAvailable } =
+      animeDirectFallbackRef.current;
+    if (animeMode && directAvailable) {
+      scrapeFallbackHandledRef.current = mediaKey;
+      setAnimeDirectOverride(true);
+      toast.message("Anime sources unavailable — trying Direct.");
+      return;
+    }
+
+    scrapeFallbackHandledRef.current = mediaKey;
+    ctx.setSelectedServer(ctx.getFallbackEmbedServer());
+    toast.error("No sources found, switching select fallback.");
+  }, [noAdsMode]);
+
+  const mediaScrape = useScrape({ onAllProvidersFailed });
+  const animePlaybackScrape = useAnimePlaybackScrape({ onAllProvidersFailed });
 
   const mediaScrapeRef = useRef(mediaScrape);
   mediaScrapeRef.current = mediaScrape;
@@ -115,9 +158,12 @@ export function useHeroScrapePlayback({
 
   const lastScrapeMediaKeyRef = useRef<string | null>(null);
   const preferredScrapeProviderIdRef = useRef<string | null>(null);
-  const scrapeFallbackHandledRef = useRef<string | null>(null);
+  const [movieScrapeOverride, setMovieScrapeOverride] =
+    useState<ScrapeProviderId | null>(null);
+  const [animeDirectOverride, setAnimeDirectOverride] = useState(false);
   const isPlayingVideoRef = useRef(isPlayingVideo);
   isPlayingVideoRef.current = isPlayingVideo;
+  const isScrapeMode = isScrapeServer(selectedServer);
 
   const isAnimeScrapeMode =
     isAnimeEpisode &&
@@ -126,13 +172,15 @@ export function useHeroScrapePlayback({
     typeof relativeEpisodeNumber === "number" &&
     relativeEpisodeNumber > 0;
 
-  const activeScrape = isAnimeScrapeMode ? animePlaybackScrape : mediaScrape;
-  const isScrapeMode = isScrapeServer(selectedServer);
+  const isAnimeScrapeActive = isAnimeScrapeMode && !animeDirectOverride;
 
-  const stopScraping = useCallback(() => {
-    mediaScrapeRef.current.stopScraping();
-    animePlaybackScrapeRef.current.stopScraping();
-  }, []);
+  // Known anime show, but TMDB→AniList episode coords still loading — don't
+  // flash the TMDB provider list in the scrape overlay.
+  const awaitingAnimeCoords =
+    Boolean(defaultAnilistId) &&
+    Boolean(selectedEpisode) &&
+    animeCoordsStatus === "pending" &&
+    !isAnimeScrapeMode;
 
   const resolvedMediaType = useMemo(
     () =>
@@ -144,6 +192,50 @@ export function useHeroScrapePlayback({
       }),
     [media, mediaType],
   );
+
+  const isDirectMode =
+    isScrapeMode &&
+    flags.directScrapeProviderAvailable &&
+    movieScrapeOverride === null &&
+    (!isAnimeScrapeMode || animeDirectOverride);
+
+  const directPlayback = useDirectPlayback({
+    tmdbId:
+      resolvedMediaType === "tv" && tvShowId ? Number(tvShowId) : media.id,
+    mediaType: resolvedMediaType,
+    seasonNumber: seasonNumber || undefined,
+    episodeNumber:
+      providerEpisodeNumber ?? selectedEpisode?.episode_number ?? undefined,
+    enabled: isDirectMode,
+    onAllStreamsFailed: onAllProvidersFailed,
+  });
+
+  const directPlaybackRef = useRef(directPlayback);
+  directPlaybackRef.current = directPlayback;
+
+  useEffect(() => {
+    setMovieScrapeOverride(null);
+    setAnimeDirectOverride(false);
+    lastScrapeMediaKeyRef.current = null;
+  }, [
+    media.id,
+    resolvedMediaType,
+    seasonNumber,
+    selectedEpisode?.episode_number,
+  ]);
+
+  animeDirectFallbackRef.current = {
+    isAnimeScrapeMode,
+    directAvailable: flags.directScrapeProviderAvailable,
+  };
+
+  const activeScrape = isAnimeScrapeActive ? animePlaybackScrape : mediaScrape;
+
+  const stopScraping = useCallback(() => {
+    mediaScrapeRef.current.stopScraping();
+    animePlaybackScrapeRef.current.stopScraping();
+    directPlaybackRef.current.reset();
+  }, []);
 
   const playbackTitle = useMemo(
     () =>
@@ -218,7 +310,7 @@ export function useHeroScrapePlayback({
   ]);
 
   const buildAnimeScrapeInput = useCallback(() => {
-    if (!isAnimeScrapeMode) {
+    if (!isAnimeScrapeActive) {
       return null;
     }
 
@@ -231,7 +323,7 @@ export function useHeroScrapePlayback({
   }, [
     animePreference,
     episodeAnilistId,
-    isAnimeScrapeMode,
+    isAnimeScrapeActive,
     media.name,
     media.title,
     relativeEpisodeNumber,
@@ -274,21 +366,41 @@ export function useHeroScrapePlayback({
   ]);
 
   const getCurrentMediaKey = useCallback((): string | null => {
-    if (isAnimeScrapeMode) {
+    if (isAnimeScrapeActive) {
       const animeInput = buildAnimeScrapeInput();
       return animeInput ? animeScrapeMediaKeyFor(animeInput) : null;
     }
 
     const input = buildScrapeInput();
     return input ? scrapeMediaKeyFor(input) : null;
-  }, [buildAnimePlaybackInput, buildScrapeInput, isAnimeScrapeMode]);
+  }, [buildAnimeScrapeInput, buildScrapeInput, isAnimeScrapeActive]);
 
   const startScrapingForCurrentMedia = useCallback(() => {
     if (!isScrapeServer(selectedServer)) {
       return;
     }
 
-    if (isAnimeScrapeMode) {
+    prefetchMoviPlayer();
+
+    if (awaitingAnimeCoords) {
+      return;
+    }
+
+    if (isDirectMode) {
+      const input = buildScrapeInput();
+      const mediaKey = input ? scrapeMediaKeyFor(input) : String(media.id);
+      if (lastScrapeMediaKeyRef.current === mediaKey) {
+        return;
+      }
+
+      animePlaybackScrapeRef.current.stopScraping();
+      mediaScrapeRef.current.stopScraping();
+      lastScrapeMediaKeyRef.current = mediaKey;
+      void directPlaybackRef.current.loadStreams();
+      return;
+    }
+
+    if (isAnimeScrapeActive) {
       const playbackInput = buildAnimePlaybackInput();
       if (!playbackInput) {
         return;
@@ -298,6 +410,8 @@ export function useHeroScrapePlayback({
       if (lastScrapeMediaKeyRef.current === mediaKey) {
         return;
       }
+
+      mediaScrapeRef.current.stopScraping();
 
       lastScrapeMediaKeyRef.current = mediaKey;
       animePlaybackScrapeRef.current.startScraping(
@@ -325,18 +439,25 @@ export function useHeroScrapePlayback({
       preferredScrapeProviderIdRef.current as ScrapeProviderId | undefined,
     );
   }, [
+    awaitingAnimeCoords,
     buildAnimePlaybackInput,
     buildScrapeInput,
-    isAnimeScrapeMode,
+    isAnimeScrapeActive,
+    isDirectMode,
+    media.id,
     selectedServer,
   ]);
 
   const stopScrapingPlayback = useCallback(() => {
     lastScrapeMediaKeyRef.current = null;
+    if (isDirectMode && directPlayback.status !== "idle") {
+      directPlaybackRef.current.reset();
+      return;
+    }
     if (activeScrape.status !== "idle") {
       stopScraping();
     }
-  }, [activeScrape.status, stopScraping]);
+  }, [activeScrape.status, directPlayback.status, isDirectMode, stopScraping]);
 
   const onPlaybackStart = useCallback(() => {
     scrapeFallbackHandledRef.current = null;
@@ -349,6 +470,16 @@ export function useHeroScrapePlayback({
   }, [stopScrapingPlayback]);
 
   const scrapeContextKey = getCurrentMediaKey() ?? "";
+
+  scrapeFallbackContextRef.current = {
+    isPlayingVideo,
+    isDirectMode,
+    noAdsMode,
+    selectedServer,
+    getCurrentMediaKey,
+    getFallbackEmbedServer,
+    setSelectedServer,
+  };
 
   useEffect(() => {
     if (
@@ -372,11 +503,44 @@ export function useHeroScrapePlayback({
 
     stopScrapingPlayback();
   }, [
+    animeCoordsStatus,
+    animeDirectOverride,
     isScrapeMode,
+    movieScrapeOverride,
     scrapeContextKey,
     selectedServer.id,
     startScrapingForCurrentMedia,
     stopScrapingPlayback,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isPlayingVideo ||
+      !isAnimeScrapeActive ||
+      !flags.directScrapeProviderAvailable
+    ) {
+      return;
+    }
+
+    if (animePlaybackScrape.status !== "scraping") {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      if (animePlaybackScrapeRef.current.status !== "scraping") {
+        return;
+      }
+      setAnimeDirectOverride(true);
+      toast.message("Anime sources are slow — trying Direct.");
+    }, 20_000);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    animePlaybackScrape.status,
+    flags.directScrapeProviderAvailable,
+    isAnimeScrapeActive,
+    isPlayingVideo,
+    scrapeContextKey,
   ]);
 
   const serverAvailabilityInput =
@@ -415,7 +579,12 @@ export function useHeroScrapePlayback({
   useServerAvailabilityQuery(serverAvailabilityInput);
 
   const handleScrapedPlaybackError = useCallback(() => {
-    const scrape = isAnimeScrapeMode
+    if (isDirectMode) {
+      directPlaybackRef.current.tryNextStream();
+      return;
+    }
+
+    const scrape = isAnimeScrapeActive
       ? animePlaybackScrapeRef.current
       : mediaScrapeRef.current;
 
@@ -423,7 +592,7 @@ export function useHeroScrapePlayback({
       return;
     }
 
-    if (isAnimeScrapeMode) {
+    if (isAnimeScrapeActive) {
       const playbackInput = buildAnimePlaybackInput();
       if (!playbackInput) {
         return;
@@ -445,17 +614,51 @@ export function useHeroScrapePlayback({
       input,
       scrape.result.providerId as ScrapeProviderId,
     );
-  }, [buildAnimePlaybackInput, buildScrapeInput, isAnimeScrapeMode]);
+  }, [
+    buildAnimePlaybackInput,
+    buildScrapeInput,
+    isAnimeScrapeActive,
+    isDirectMode,
+  ]);
+
+  const directPlaybackScrapeItems = useMemo(() => {
+    if (!isDirectMode) {
+      return null;
+    }
+
+    const itemStatus =
+      directPlayback.status === "loading"
+        ? ("pending" as const)
+        : directPlayback.status === "playing"
+          ? ("success" as const)
+          : directPlayback.status === "error"
+            ? ("failure" as const)
+            : ("waiting" as const);
+
+    return [
+      {
+        providerId: "direct",
+        name: "Direct",
+        status: itemStatus,
+        error: directPlayback.error ?? undefined,
+      },
+    ];
+  }, [directPlayback.error, directPlayback.status, isDirectMode]);
 
   const sourceOverlayItems = useMemo(
     () =>
       buildSourceOverlayItems({
-        scrapeItems: activeScrape.items,
+        scrapeItems: directPlaybackScrapeItems ?? activeScrape.items,
         embedServers: videoServers,
         availableServerIds,
         unavailableServerIds,
       }),
-    [activeScrape.items, availableServerIds, unavailableServerIds],
+    [
+      activeScrape.items,
+      availableServerIds,
+      directPlaybackScrapeItems,
+      unavailableServerIds,
+    ],
   );
 
   const handleSelectEmbedServer = useCallback(
@@ -474,7 +677,46 @@ export function useHeroScrapePlayback({
 
   const handleSelectScrapeProvider = useCallback(
     (providerId: string) => {
-      const scrape = isAnimeScrapeMode
+      if (providerId === "direct" && flags.directScrapeProviderAvailable) {
+        if (
+          isDirectMode &&
+          (directPlayback.status === "playing" ||
+            directPlayback.status === "loading")
+        ) {
+          return;
+        }
+
+        setMovieScrapeOverride(null);
+        if (isAnimeScrapeMode) {
+          setAnimeDirectOverride(true);
+        }
+        preferredScrapeProviderIdRef.current = "direct";
+        animePlaybackScrapeRef.current.stopScraping();
+        mediaScrapeRef.current.stopScraping();
+        lastScrapeMediaKeyRef.current = null;
+        void directPlaybackRef.current.loadStreams();
+        return;
+      }
+
+      if (!isAnimeScrapeActive && flags.directScrapeProviderAvailable) {
+        setMovieScrapeOverride(providerId as ScrapeProviderId);
+        preferredScrapeProviderIdRef.current = providerId;
+        directPlaybackRef.current.reset();
+        lastScrapeMediaKeyRef.current = null;
+
+        const input = buildScrapeInput();
+        if (!input) {
+          return;
+        }
+
+        mediaScrapeRef.current.switchToProvider(
+          input,
+          providerId as ScrapeProviderId,
+        );
+        return;
+      }
+
+      const scrape = isAnimeScrapeActive
         ? animePlaybackScrapeRef.current
         : mediaScrapeRef.current;
 
@@ -485,7 +727,7 @@ export function useHeroScrapePlayback({
         return;
       }
 
-      if (isAnimeScrapeMode) {
+      if (isAnimeScrapeActive) {
         const playbackInput = buildAnimePlaybackInput();
         if (!playbackInput) {
           return;
@@ -508,7 +750,16 @@ export function useHeroScrapePlayback({
         providerId as ScrapeProviderId,
       );
     },
-    [buildAnimePlaybackInput, buildScrapeInput, isAnimeScrapeMode],
+    [
+      buildAnimePlaybackInput,
+      buildScrapeInput,
+      directPlayback.status,
+      flags.directScrapeProviderAvailable,
+      isAnimeScrapeActive,
+      isAnimeScrapeMode,
+      isDirectMode,
+      resolvedMediaType,
+    ],
   );
 
   const animePlaybackChainContext = useMemo(
@@ -520,55 +771,55 @@ export function useHeroScrapePlayback({
     [anilistGenres, isAdultAnime, mappingConfidence],
   );
 
-  useEffect(() => {
-    if (
-      !isPlayingVideo ||
-      !isScrapeMode ||
-      activeScrape.status !== "error" ||
-      noAdsMode
-    ) {
-      return;
-    }
-
-    const providerOrder = filterProviderOrder(
+  const scrapeProviderOptions = useMemo(() => {
+    const base = filterProviderOptions(
       isAnimeScrapeMode
-        ? buildAnimePlaybackProviderOrder(animePlaybackChainContext)
-        : [...SCRAPE_PROVIDER_ORDER],
+        ? buildGroupedAnimePlaybackProviderOptions(animePlaybackChainContext)
+        : SCRAPE_PROVIDER_OPTIONS,
     );
 
-    if (!areScrapeProvidersExhausted(activeScrape.items, providerOrder)) {
-      return;
+    if (
+      isAnimeScrapeMode &&
+      flags.directScrapeProviderAvailable &&
+      !base.some((option) => option.providerId === "direct")
+    ) {
+      return [
+        {
+          providerId: "direct" as AnimePlaybackScrapeProviderId,
+          name: "Direct",
+          group: "tmdb" as const,
+        },
+        ...base,
+      ];
     }
 
-    const mediaKey = getCurrentMediaKey();
-    if (!mediaKey || scrapeFallbackHandledRef.current === mediaKey) {
-      return;
-    }
-
-    scrapeFallbackHandledRef.current = mediaKey;
-    setSelectedServer(getFallbackEmbedServer());
-    toast.error("No sources found, switching select fallback.");
+    return base;
   }, [
-    activeScrape.items,
-    activeScrape.status,
     animePlaybackChainContext,
-    filterProviderOrder,
-    getCurrentMediaKey,
-    getFallbackEmbedServer,
+    filterProviderOptions,
+    flags.directScrapeProviderAvailable,
     isAnimeScrapeMode,
-    isPlayingVideo,
-    isScrapeMode,
-    noAdsMode,
-    setSelectedServer,
   ]);
 
-  const scrapeProviderOptions = filterProviderOptions(
-    isAnimeScrapeMode
-      ? buildGroupedAnimePlaybackProviderOptions(animePlaybackChainContext)
-      : SCRAPE_PROVIDER_OPTIONS,
-  );
+  const directPlaybackScrapeStatus =
+    directPlayback.status === "loading"
+      ? ("scraping" as const)
+      : directPlayback.status === "playing"
+        ? ("playing" as const)
+        : directPlayback.status === "error"
+          ? ("error" as const)
+          : ("idle" as const);
+
+  const canFindNextDirectStream =
+    isDirectMode &&
+    directPlayback.status === "playing" &&
+    directPlayback.streamIndex < directPlayback.rankedStreams.length - 1;
 
   const canFindNextSource = (() => {
+    if (canFindNextDirectStream) {
+      return true;
+    }
+
     if (
       !isScrapeMode ||
       activeScrape.status !== "playing" ||
@@ -578,7 +829,7 @@ export function useHeroScrapePlayback({
     }
 
     const providerOrder = filterProviderOrder(
-      isAnimeScrapeMode
+      isAnimeScrapeActive
         ? buildAnimePlaybackProviderOrder(animePlaybackChainContext)
         : [...SCRAPE_PROVIDER_ORDER],
     );
@@ -587,6 +838,23 @@ export function useHeroScrapePlayback({
   })();
 
   const scrapeChrome = useMemo((): HeroScrapeChrome => {
+    if (isDirectMode) {
+      return {
+        scrapeStatus: directPlaybackScrapeStatus,
+        activeProviderId:
+          directPlayback.status === "loading" ? "direct" : "direct",
+        activeProviderName:
+          directPlayback.status === "loading" ? "Direct" : "Direct",
+        scrapeItems: directPlaybackScrapeItems ?? [],
+        scrapeProviders: scrapeProviderOptions,
+        onSelectScrapeProvider: handleSelectScrapeProvider,
+        onFindNextSource: canFindNextDirectStream
+          ? handleScrapedPlaybackError
+          : null,
+        canFindNextSource: canFindNextDirectStream,
+      };
+    }
+
     return {
       scrapeStatus: activeScrape.status,
       activeProviderId:
@@ -610,8 +878,13 @@ export function useHeroScrapePlayback({
     activeScrape.result?.providerName,
     activeScrape.status,
     canFindNextSource,
+    directPlayback.status,
+    directPlaybackScrapeItems,
+    directPlaybackScrapeStatus,
+    canFindNextDirectStream,
     handleScrapedPlaybackError,
     handleSelectScrapeProvider,
+    isDirectMode,
     isScrapeMode,
     scrapeProviderOptions,
   ]);
@@ -620,7 +893,12 @@ export function useHeroScrapePlayback({
     scrapeFallbackHandledRef.current = null;
     lastScrapeMediaKeyRef.current = null;
 
-    if (isAnimeScrapeMode) {
+    if (isDirectMode) {
+      directPlaybackRef.current.retryAll();
+      return;
+    }
+
+    if (isAnimeScrapeActive) {
       const playbackInput = buildAnimePlaybackInput();
       if (!playbackInput) {
         return;
@@ -636,7 +914,35 @@ export function useHeroScrapePlayback({
     }
 
     mediaScrapeRef.current.retryAllScraping(input);
-  }, [buildAnimePlaybackInput, buildScrapeInput, isAnimeScrapeMode]);
+  }, [
+    buildAnimePlaybackInput,
+    buildScrapeInput,
+    isAnimeScrapeActive,
+    isDirectMode,
+  ]);
+
+  const effectiveActiveScrape = useMemo(() => {
+    if (!isDirectMode) {
+      return activeScrape;
+    }
+
+    return {
+      ...activeScrape,
+      status: directPlaybackScrapeStatus,
+      error: directPlayback.error,
+      activeProviderId:
+        directPlayback.status === "idle" ? null : ("direct" as const),
+      result: null,
+      items: directPlaybackScrapeItems ?? [],
+    };
+  }, [
+    activeScrape,
+    directPlayback.error,
+    directPlayback.status,
+    directPlaybackScrapeItems,
+    directPlaybackScrapeStatus,
+    isDirectMode,
+  ]);
 
   const handleScrapePlaybackEnded = useCallback(async () => {
     if (resolvedMediaType !== "tv") {
@@ -661,8 +967,10 @@ export function useHeroScrapePlayback({
     resolvedMediaType,
     playbackTitle,
     buildPlaybackProgressKey,
-    isAnimeScrapeMode,
-    activeScrape,
+    isAnimeScrapeActive,
+    isDirectMode,
+    activeScrape: effectiveActiveScrape,
+    directPlayback,
     sourceOverlayItems,
     scrapeChrome,
     onPlaybackStart,
