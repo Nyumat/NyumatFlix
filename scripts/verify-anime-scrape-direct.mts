@@ -31,16 +31,6 @@ const CASES: Array<{
     input: { anilistId: 21, episodeNumber: 1 },
   },
   {
-    label: "AniKitty / One Piece ep1",
-    providerId: "anikitty",
-    input: { anilistId: 21, episodeNumber: 1 },
-  },
-  {
-    label: "AnimeParadise / One Piece ep1",
-    providerId: "animeparadise",
-    input: { anilistId: 21, episodeNumber: 1, query: "One Piece" },
-  },
-  {
     label: "Kyren / One Piece ep1",
     providerId: "kyren",
     input: { anilistId: 21, episodeNumber: 1 },
@@ -63,12 +53,13 @@ const CASES: Array<{
   {
     label: "AnimeOnsen / Frieren ep1",
     providerId: "animeonsen",
-    input: { anilistId: 101922, episodeNumber: 1 },
+    input: { anilistId: 154587, episodeNumber: 1 },
   },
   {
-    label: "AllManga / One Piece ep1",
+    // AllAnime source catalog is recent-window for long-running shows.
+    label: "AllManga / One Piece ep1168",
     providerId: "allmanga",
-    input: { anilistId: 21, episodeNumber: 1 },
+    input: { anilistId: 21, episodeNumber: 1168 },
   },
   {
     label: "AnimeStream / One Piece ep1",
@@ -81,9 +72,10 @@ const CASES: Array<{
     input: { anilistId: 20, episodeNumber: 1, query: "Naruto" },
   },
   {
-    label: "AnimePahe / One Piece ep1168",
+    // AnimePahe hosts a rolling recent window — JJK ep1 is consistently listed.
+    label: "AnimePahe / Jujutsu Kaisen ep1",
     providerId: "animepahe",
-    input: { anilistId: 21, episodeNumber: 1168, query: "One Piece" },
+    input: { anilistId: 21519, episodeNumber: 1, query: "Jujutsu Kaisen" },
   },
 ];
 

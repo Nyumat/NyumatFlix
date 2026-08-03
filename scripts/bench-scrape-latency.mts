@@ -184,7 +184,7 @@ const benchAnime = async () => {
     },
     {
       providerId: "animeonsen",
-      input: { anilistId: 101922, episodeNumber: 1 },
+      input: { anilistId: 154587, episodeNumber: 1 },
       label: "Frieren ep1",
     },
     {
