@@ -5,6 +5,10 @@ import {
 } from "@/utils/anilist-helpers";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import {
+  buildAniBridgeSeasonSegments,
+  getAniBridgeMappings,
+} from "@/lib/anime/anibridge-mappings";
+import {
   buildUnknownEpisodeCountSegment,
   inferMappingConfidence,
   type MappingConfidence,
@@ -473,16 +477,6 @@ function resolveMappings(
       }
     : undefined;
 
-  if (tmdbShow.id === 1429 && tmdbSeason.season_number === 4) {
-    return {
-      segments: [
-        { startEpisode: 1, endEpisode: 16, anilistMediaId: 110277 },
-        { startEpisode: 17, endEpisode: 28, anilistMediaId: 131681 },
-      ],
-      debug: debugInfo,
-    };
-  }
-
   const validCandidates = anilistCandidates
     .filter((c) => c.episodes && c.episodes > 0)
     .sort((a, b) => {
@@ -638,8 +632,21 @@ export async function GET(request: NextRequest) {
 
     let segments: MappingSegment[] = [];
     let debugInfo: DebugInfo | undefined = undefined;
+    let source = "date+title heuristic";
 
-    if (tmdbSeasonData) {
+    const anibridgeMappings = await getAniBridgeMappings();
+    const resolvedSeasonNumber =
+      seasonNumber ?? tmdbSeasonData?.season_number ?? 1;
+    const anibridgeSegments = buildAniBridgeSeasonSegments(
+      anibridgeMappings,
+      showId,
+      resolvedSeasonNumber,
+    );
+
+    if (anibridgeSegments.length > 0) {
+      segments = anibridgeSegments;
+      source = "anibridge";
+    } else if (tmdbSeasonData) {
       const result = resolveMappings(
         tmdbShow,
         tmdbSeasonData,
@@ -662,11 +669,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const confidence = inferMappingConfidence(
-      segments,
-      orderedCandidates.length,
-      sourceAnilistId,
-    );
+    const confidence =
+      source === "anibridge"
+        ? "high"
+        : inferMappingConfidence(
+            segments,
+            orderedCandidates.length,
+            sourceAnilistId,
+          );
     const isAdult = orderedCandidates.some(
       (candidate) => candidate.isAdult === true,
     );
@@ -677,7 +687,7 @@ export async function GET(request: NextRequest) {
       segments,
       confidence,
       isAdult,
-      source: "date+title heuristic",
+      source,
     };
 
     if (debug && debugInfo) {
