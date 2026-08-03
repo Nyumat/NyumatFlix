@@ -191,6 +191,7 @@ export function MediaDetailHero({
         />
 
         <HeroBackground
+          key={currentItem.id}
           media={currentItem}
           mediaType={mediaType}
           isPlayingVideo={isPlayingVideo}
