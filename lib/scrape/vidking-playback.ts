@@ -1,5 +1,6 @@
 import "server-only";
 
+import { scrapeVideasy } from "./providers/videasy";
 import { scrapeVidKing } from "./providers/vidking";
 import type { ScrapeMediaInput } from "./types";
 import { scrapeMediaKeyFor } from "./types";
@@ -91,7 +92,9 @@ const refreshVidKingSession = async (
 
   const promise = (async () => {
     try {
-      const result = await scrapeVidKing(scrapeInputFromRefresh(refresh));
+      const scrape =
+        refresh.providerId === "videasy" ? scrapeVideasy : scrapeVidKing;
+      const result = await scrape(scrapeInputFromRefresh(refresh));
       if (!result.ok) {
         return null;
       }
@@ -186,7 +189,7 @@ export async function resolveScrapePlaybackUpstreamUrl(
   refresh: ScrapePlaybackRefresh | undefined,
   options: { force?: boolean } = {},
 ): Promise<string> {
-  if (refresh?.providerId === "vidking") {
+  if (refresh?.providerId === "vidking" || refresh?.providerId === "videasy") {
     return resolveVidKingPlaybackUrl(upstreamUrl, refresh, options);
   }
 

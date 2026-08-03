@@ -65,6 +65,10 @@ export type ScrapeSuccess = {
   defaultAudioLang?: string;
   defaultHardSubLang?: string;
   preferredAudioLang?: string;
+  /** calluspirates Direct: hls | direct MP4 | extended MKV/HEVC */
+  directPlayback?: "hls" | "direct" | "extended";
+  /** MediaFlow HLS transcode URL when directPlayback is extended */
+  directFallbackUrl?: string;
 };
 
 export type ScrapeFailure = {

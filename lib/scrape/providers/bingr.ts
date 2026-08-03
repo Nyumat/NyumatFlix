@@ -1,8 +1,12 @@
 import { scrapeFetch, scrapeFetchText } from "../fetch";
 import { extractAbrQualitiesFromMaster } from "../abr-qualities";
 import { attachSubtitlesToQualities } from "../linked-config";
+import {
+  isHlsSourceUrl,
+  rankSourcesHlsFirst,
+  unwrapProxyUrl,
+} from "../source-resolve";
 import type { ScrapeMediaInput, ScrapeResult, ScrapeSubtitle } from "../types";
-import { looksLikeHlsStreamUrl } from "../stream-url-patterns";
 
 const BINGR_ORIGIN = "https://bingr.one";
 const BINGR_API = "https://api.bingr.one/api";
@@ -56,37 +60,8 @@ const encodeLooseUrl = (url: string): string => {
   }
 };
 
-const isProxyHost = (hostname: string, pathname: string): boolean =>
-  /proxy/i.test(pathname) ||
-  /wormhole\.filmu\.in$/i.test(hostname) ||
-  /\.workers\.dev$/i.test(hostname);
-
-/** Peel Bingr/wormhole/workers `?url=` wrappers down to the playable origin. */
-export const unwrapBingrProxyUrl = (url: string): string => {
-  let current = url;
-
-  for (let depth = 0; depth < 6; depth++) {
-    let parsed: URL;
-    try {
-      parsed = new URL(current);
-    } catch {
-      break;
-    }
-
-    const nested = parsed.searchParams.get("url");
-    if (!nested) {
-      break;
-    }
-
-    if (!isProxyHost(parsed.hostname, parsed.pathname)) {
-      break;
-    }
-
-    current = nested;
-  }
-
-  return encodeLooseUrl(current);
-};
+/** @deprecated Use unwrapProxyUrl from source-resolve */
+export const unwrapBingrProxyUrl = unwrapProxyUrl;
 
 const headersFromProxyQuery = (
   url: string,
@@ -112,18 +87,6 @@ const headersFromProxyQuery = (
   }
 };
 
-const isHlsSource = (source: BingrSource, url: string): boolean => {
-  const declared = source.type?.toLowerCase() ?? "";
-  return (
-    declared.includes("mpegurl") ||
-    declared.includes("hls") ||
-    looksLikeHlsStreamUrl(url) ||
-    /\.m3u8(?:[?#]|$)/i.test(url) ||
-    /\/pl\//i.test(url) ||
-    /\/playlist\//i.test(url)
-  );
-};
-
 const resolvePlayable = (
   source: BingrSource,
 ): { streamUrl: string; referer: string; hls: boolean } | null => {
@@ -133,8 +96,9 @@ const resolvePlayable = (
   }
 
   const proxyHeaders = headersFromProxyQuery(rawUrl);
-  const unwrapped = unwrapBingrProxyUrl(rawUrl);
-  const hls = isHlsSource(source, unwrapped) || isHlsSource(source, rawUrl);
+  const unwrapped = unwrapProxyUrl(rawUrl);
+  const hls =
+    isHlsSourceUrl(source, unwrapped) || isHlsSourceUrl(source, rawUrl);
 
   // MP4 CDNs behind Bingr workers often 403 without the worker proxy.
   if (!hls && /\.workers\.dev$/i.test(new URL(rawUrl).hostname)) {
@@ -268,12 +232,7 @@ export async function scrapeBingr(
       }
 
       const subtitles = mapSubtitles(payload?.subtitles);
-
-      const ranked = [...sources].sort((a, b) => {
-        const aResolved = resolvePlayable(a);
-        const bResolved = resolvePlayable(b);
-        return Number(bResolved?.hls) - Number(aResolved?.hls);
-      });
+      const ranked = rankSourcesHlsFirst(sources);
 
       for (const source of ranked) {
         const resolved = resolvePlayable(source);

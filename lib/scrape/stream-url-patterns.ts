@@ -6,9 +6,9 @@ export const looksLikeHlsStreamUrl = (url: string): boolean =>
   /goodstream\.cc\/(?:streamsvr|pl)\//i.test(url) ||
   /1x2\.space\/playlist\//i.test(url) ||
   /api\.kyren\.moe\/v1\/hls\//i.test(url) ||
-  /stream\.animeparadise\.moe\/m3u8\?/i.test(url) ||
   /vixsrc\.to\/playlist\//i.test(url) ||
   /wormhole\.filmu\.in\/proxy\/m3u8/i.test(url) ||
+  /ani\.pm\/api\/anime\/src\/hls(?:[?#].*|$)/i.test(url) ||
   /\/pl\/[A-Za-z0-9._-]{20,}/i.test(url);
 
 /** Tokenized masters often block child playlist probes from datacenter IPs. */
@@ -36,7 +36,11 @@ export const looksLikeStreamUrl = (
     return (
       /\.mp4(?:[?#].*|$)/i.test(url) ||
       /\/api\/hen\/o8\/mp4(?:[?#].*|$)/i.test(url) ||
-      /\/api\/anime\/src\/file(?:[?#].*|$)/i.test(url)
+      /\/api\/anime\/src\/file(?:[?#].*|$)/i.test(url) ||
+      // AllAnime Yt-mp4: extensionless progressive URLs on fast4speed.
+      /tools\.fast4speed\.rsvp\/media\d*\/videos\//i.test(url) ||
+      // AllAnime S-mp4: SharePoint download.aspx with tempauth JWT.
+      /sharepoint\.com\/.*\/download\.aspx/i.test(url)
     );
   }
 

@@ -71,6 +71,26 @@ describe("vidnest scrape helpers", () => {
     ).toBe(true);
   });
 
+  it("skips non-string stream urls without throwing", () => {
+    expect(() =>
+      extractVidnestStreams({
+        streams: [
+          { url: { nested: true } as unknown as string },
+          { link: ["https://cdn.example/a.m3u8"] as unknown as string },
+          { url: "https://cdn.example/ok.m3u8" },
+        ],
+      }),
+    ).not.toThrow();
+    expect(
+      extractVidnestStreams({
+        streams: [
+          { url: { nested: true } as unknown as string },
+          { url: "https://cdn.example/ok.m3u8" },
+        ],
+      }),
+    ).toEqual([{ url: "https://cdn.example/ok.m3u8" }]);
+  });
+
   it("normalizes movies5f downloads and moviebox url payloads", () => {
     expect(
       extractVidnestStreams({

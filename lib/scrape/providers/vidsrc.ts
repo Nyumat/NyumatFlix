@@ -1,4 +1,5 @@
 import { scrapeFetchText } from "../fetch";
+import { flareSolverrGet } from "../flaresolverr";
 import type { VidsrcPlaybackRefresh } from "../vidsrc-constants";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
 
@@ -115,15 +116,38 @@ const tokenHostFromUrl = (url: string): string | null => {
   }
 };
 
+const fetchVidsrcEmbedHtml = async (
+  embedUrl: string,
+  embedOrigin: string,
+): Promise<{ status: number; text: string }> => {
+  const embed = await scrapeFetchText(embedUrl, {
+    Referer: `${embedOrigin}/`,
+  });
+  if (
+    embed.status === 200 &&
+    !/Attention Required|Just a moment/i.test(embed.text)
+  ) {
+    return embed;
+  }
+
+  // Cloudflare intermittently 403s movie embeds — FlareSolverr clears the challenge.
+  if (embed.status === 403 || embed.status === 503 || embed.status === 429) {
+    const solved = await flareSolverrGet(embedUrl, 60_000);
+    if (solved && solved.status === 200 && solved.body.length > 0) {
+      return { status: solved.status, text: solved.body };
+    }
+  }
+
+  return embed;
+};
+
 const scrapeVidSrcEdn = async (
   input: ScrapeMediaInput,
   embedOrigin: string,
 ): Promise<ScrapeResult> => {
   const providerId = "vidsrc";
   const embedUrl = buildEmbedUrl(input, embedOrigin);
-  const embed = await scrapeFetchText(embedUrl, {
-    Referer: `${embedOrigin}/`,
-  });
+  const embed = await fetchVidsrcEmbedHtml(embedUrl, embedOrigin);
 
   if (embed.status !== 200) {
     return {
@@ -214,18 +238,34 @@ export async function scrapeVidSrc(
   const providerId = "vidsrc";
   let lastError = "VidSrc scrape failed";
 
-  for (const embedOrigin of VIDSRC_SCRAPE_EMBED_ORIGINS) {
-    try {
-      const result = await scrapeVidSrcEdn(input, embedOrigin);
-      if (result.ok) {
-        return result;
+  const settled = await Promise.all(
+    VIDSRC_SCRAPE_EMBED_ORIGINS.map(async (embedOrigin) => {
+      try {
+        const result = await scrapeVidSrcEdn(input, embedOrigin);
+        return { embedOrigin, result };
+      } catch (error) {
+        return {
+          embedOrigin,
+          result: {
+            ok: false as const,
+            providerId,
+            error:
+              error instanceof Error
+                ? error.message
+                : "VidSrc scrape failed unexpectedly",
+          },
+        };
       }
-      lastError = result.error ?? lastError;
-    } catch (error) {
-      lastError =
-        error instanceof Error
-          ? error.message
-          : "VidSrc scrape failed unexpectedly";
+    }),
+  );
+
+  for (const embedOrigin of VIDSRC_SCRAPE_EMBED_ORIGINS) {
+    const entry = settled.find((row) => row.embedOrigin === embedOrigin);
+    if (entry?.result.ok) {
+      return entry.result;
+    }
+    if (entry && !entry.result.ok) {
+      lastError = entry.result.error ?? lastError;
     }
   }
 

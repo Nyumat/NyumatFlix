@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requestHasCapSession } from "@/lib/cap/server";
 
 import {
   ANIME_SCRAPE_PROVIDER_LABELS,
@@ -34,6 +35,8 @@ import {
   isTmdbScrapeProviderEnabled,
 } from "@/lib/flags/site-flags";
 import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
+import { isDirectScrapeProviderConfigured } from "@/lib/scrape/calluspirates-config";
+import { inferDirectStreamKind } from "@/lib/scrape/providers/direct";
 
 const tmdbProviderIds = TMDB_SCRAPE_PROVIDER_ORDER as unknown as [
   TmdbScrapeProviderId,
@@ -62,6 +65,13 @@ const legacyTmdbScrapeBodySchema = z.object({
   episodeNumber: z.number().int().positive().optional(),
 });
 
+const animeTmdbSubtitleLookupSchema = z.object({
+  mediaType: z.enum(["movie", "tv"]),
+  tmdbId: z.number().int().positive(),
+  seasonNumber: z.number().int().positive().optional(),
+  episodeNumber: z.number().int().positive().optional(),
+});
+
 const animeScrapeBodySchema = z.object({
   mediaKind: z.literal("anime"),
   providerId: z.enum(animeProviderIds).optional(),
@@ -70,6 +80,7 @@ const animeScrapeBodySchema = z.object({
   translationType: z.enum(["sub", "dub"]).optional(),
   query: z.string().min(1).optional(),
   tryAll: z.boolean().optional(),
+  tmdb: animeTmdbSubtitleLookupSchema.optional(),
 });
 
 const legacyAnimeScrapeBodySchema = z.object({
@@ -79,6 +90,7 @@ const legacyAnimeScrapeBodySchema = z.object({
   translationType: z.enum(["sub", "dub"]).optional(),
   query: z.string().min(1).optional(),
   tryAll: z.boolean().optional(),
+  tmdb: animeTmdbSubtitleLookupSchema.optional(),
 });
 
 const unifiedScrapeBodySchema = z.discriminatedUnion("mediaKind", [
@@ -115,6 +127,13 @@ const parseScrapeBody = (body: unknown): ParsedScrapeBody | null => {
 };
 
 export async function handleScrapePost(request: Request) {
+  if (!requestHasCapSession(request)) {
+    return NextResponse.json(
+      { error: "Human verification required" },
+      { status: 403, headers: { "X-Cap-Required": "1" } },
+    );
+  }
+
   let body: unknown;
 
   try {
@@ -142,6 +161,19 @@ async function handleTmdbScrapePost(
   input: z.infer<typeof tmdbScrapeBodySchema> & { mediaKind?: "tmdb" },
 ) {
   const flags = await getSiteFlags();
+  if (input.providerId === "direct" && !isDirectScrapeProviderConfigured()) {
+    return NextResponse.json(
+      {
+        ok: false,
+        mediaKind: "tmdb",
+        providerId: input.providerId,
+        providerName: TMDB_SCRAPE_PROVIDER_LABELS.direct,
+        error: "Direct provider is not available on this site",
+      },
+      { status: 403 },
+    );
+  }
+
   if (!isTmdbScrapeProviderEnabled(flags, input.providerId)) {
     return NextResponse.json(
       {
@@ -177,10 +209,10 @@ async function handleTmdbScrapePost(
   const playbackToken: ScrapePlaybackToken = {
     url: result.streamUrl,
     referer: result.referer,
-    ...(result.providerId === "vidking"
+    ...(result.providerId === "vidking" || result.providerId === "videasy"
       ? {
           refresh: {
-            providerId: "vidking" as const,
+            providerId: result.providerId,
             mediaType: input.mediaType,
             tmdbId: input.tmdbId,
             seasonNumber: input.seasonNumber,
@@ -195,7 +227,10 @@ async function handleTmdbScrapePost(
           : {}),
   };
 
-  if (playbackToken.refresh?.providerId === "vidking") {
+  if (
+    playbackToken.refresh?.providerId === "vidking" ||
+    playbackToken.refresh?.providerId === "videasy"
+  ) {
     primeVidKingSession(
       playbackToken.refresh,
       result.streamUrl,
@@ -207,10 +242,14 @@ async function handleTmdbScrapePost(
     primeVixsrcSession(playbackToken.refresh, result.streamUrl);
   }
 
-  const playUrl = isVidnestClientOnlyCdn(result.streamUrl)
-    ? result.streamUrl
-    : buildScrapePlayUrl(playbackToken);
-  const streamKind = inferScrapeStreamKind(result.streamUrl);
+  const playUrl =
+    isVidnestClientOnlyCdn(result.streamUrl) || result.providerId === "direct"
+      ? result.streamUrl
+      : buildScrapePlayUrl(playbackToken);
+  const streamKind =
+    result.providerId === "direct"
+      ? inferDirectStreamKind(result.streamUrl, result.directPlayback)
+      : inferScrapeStreamKind(result.streamUrl);
 
   return NextResponse.json({
     ok: true,
@@ -225,6 +264,12 @@ async function handleTmdbScrapePost(
     qualities: result.qualities,
     audioVersions: result.audioVersions,
     preferredAudioLang: result.preferredAudioLang,
+    ...(result.providerId === "direct" && result.directPlayback
+      ? {
+          directPlayback: result.directPlayback,
+          directFallbackUrl: result.directFallbackUrl,
+        }
+      : {}),
   });
 }
 
@@ -256,6 +301,7 @@ async function handleAnimeScrapePost(
     episodeNumber: input.episodeNumber,
     translationType: input.translationType,
     query: input.query,
+    ...(input.tmdb ? { tmdb: input.tmdb } : {}),
   };
 
   const result = input.tryAll
@@ -359,12 +405,12 @@ export async function handleAnimeScrapeGet() {
         },
       },
       frieren: {
-        anilistId: 101922,
+        anilistId: 154587,
         tmdbTvId: 85937,
         nyumatflix: "http://localhost:3000/tvshows/85937",
         episode1Api: {
           providerId: "anizone",
-          anilistId: 101922,
+          anilistId: 154587,
           episodeNumber: 1,
         },
       },
