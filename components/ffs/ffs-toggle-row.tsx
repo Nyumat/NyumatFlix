@@ -21,6 +21,7 @@ export function FfsToggleRow({
   return (
     <button
       type="button"
+      aria-pressed={enabled}
       disabled={disabled}
       onClick={() => onToggle(!enabled)}
       className={cn(
