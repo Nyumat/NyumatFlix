@@ -1,25 +1,11 @@
 "use client";
 
 import { PersonCollage } from "@/components/search/person-collage";
+import { usePeopleSearch } from "@/hooks/use-people-search";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useInView } from "react-intersection-observer";
-
-interface KnownForItem {
-  id: number;
-  title?: string;
-  name?: string;
-  poster_path?: string | null;
-  media_type: string;
-}
-
-interface Person {
-  id: number;
-  name: string;
-  profile_path?: string | null;
-  known_for?: KnownForItem[];
-}
 
 interface SearchDialogPeopleProps {
   query: string;
@@ -32,14 +18,40 @@ export function SearchDialogPeople({
   className,
   onNavigate,
 }: SearchDialogPeopleProps) {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return null;
+  }
+
+  return (
+    <SearchDialogPeopleResults
+      key={trimmedQuery}
+      trimmedQuery={trimmedQuery}
+      className={className}
+      onNavigate={onNavigate}
+    />
+  );
+}
+
+function SearchDialogPeopleResults({
+  trimmedQuery,
+  className,
+  onNavigate,
+}: {
+  trimmedQuery: string;
+  className?: string;
+  onNavigate?: () => void;
+}) {
   const router = useRouter();
-  const trimmedQuery = useMemo(() => query.trim(), [query]);
-  const [people, setPeople] = useState<Person[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const initialLoadRef = useRef(false);
+  const {
+    people,
+    currentPage,
+    totalPages,
+    isLoading,
+    error,
+    loadMore,
+    hasMore,
+  } = usePeopleSearch({ query: trimmedQuery });
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0.1,
@@ -47,92 +59,15 @@ export function SearchDialogPeople({
   });
 
   useEffect(() => {
-    setPeople([]);
-    setCurrentPage(1);
-    setTotalPages(1);
-    setError(null);
-    initialLoadRef.current = false;
-  }, [trimmedQuery]);
-
-  const fetchPage = useCallback(
-    async (page: number) => {
-      if (!trimmedQuery) return { results: [], page: 1, total_pages: 0 };
-
-      const url = new URL("/api/person-search", window.location.origin);
-      url.searchParams.set("query", trimmedQuery);
-      url.searchParams.set("page", String(page));
-
-      const res = await fetch(url.toString());
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        throw new Error(body.error || "Failed to fetch people");
-      }
-
-      const json = (await res.json()) as {
-        results: Person[];
-        page: number;
-        total_pages: number;
-      };
-
-      return {
-        results: json.results || [],
-        page: json.page || page,
-        total_pages: json.total_pages || 0,
-      };
-    },
-    [trimmedQuery],
-  );
-
-  const loadInitial = useCallback(async () => {
-    if (initialLoadRef.current || isLoading || !trimmedQuery) return;
-    initialLoadRef.current = true;
-
-    try {
-      setIsLoading(true);
-      const { results, page, total_pages } = await fetchPage(1);
-      setPeople(results);
-      setCurrentPage(page);
-      setTotalPages(total_pages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchPage, isLoading, trimmedQuery]);
-
-  const loadMore = useCallback(async () => {
-    if (isLoading || currentPage >= totalPages) return;
-
-    try {
-      setIsLoading(true);
-      const nextPage = currentPage + 1;
-      const { results, page, total_pages } = await fetchPage(nextPage);
-      setPeople((prev) => [...prev, ...results]);
-      setCurrentPage(page);
-      setTotalPages(total_pages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage, fetchPage, isLoading, totalPages]);
-
-  useEffect(() => {
-    void loadInitial();
-  }, [loadInitial]);
-
-  useEffect(() => {
-    if (inView && !isLoading && currentPage < totalPages) {
+    if (inView && !isLoading && hasMore) {
       void loadMore();
     }
-  }, [inView, isLoading, currentPage, totalPages, loadMore]);
+  }, [hasMore, inView, isLoading, loadMore]);
 
   const handlePersonClick = (personId: number) => {
     onNavigate?.();
     router.push(`/person/${personId}`);
   };
-
-  if (!trimmedQuery) return null;
 
   if (error) {
     return (
@@ -156,7 +91,9 @@ export function SearchDialogPeople({
     );
   }
 
-  if (people.length === 0) return null;
+  if (people.length === 0) {
+    return null;
+  }
 
   return (
     <div className={cn("space-y-2.5", className)}>

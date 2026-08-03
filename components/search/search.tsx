@@ -172,6 +172,7 @@ export function SearchPageClient() {
 
   return (
     <SearchExperience
+      key={urlQuery}
       initialQuery={urlQuery}
       onSubmit={(trimmedQuery) => {
         gateAction(() => {
@@ -291,11 +292,6 @@ function SearchExperience({
   );
 
   useClickOutside(containerRef, showAutocomplete, () => setIsFocused(false));
-
-  useEffect(() => {
-    setQuery(initialQuery);
-    setSearchQuery(initialQuery);
-  }, [initialQuery]);
 
   useEffect(() => {
     if (autoFocus) {
@@ -595,9 +591,16 @@ export function SearchDialog({
   const pathnameRef = useRef(pathname);
   const setSearchDialogOpen = useSearchDialogStore((state) => state.setIsOpen);
 
+  const handleDialogOpenChange = useCallback(
+    (next: boolean) => {
+      setSearchDialogOpen(next);
+      onOpenChange(next);
+    },
+    [onOpenChange, setSearchDialogOpen],
+  );
+
   useEffect(() => {
     setSearchDialogOpen(open);
-    return () => setSearchDialogOpen(false);
   }, [open, setSearchDialogOpen]);
 
   useEffect(() => {
@@ -607,7 +610,7 @@ export function SearchDialog({
   }, [pathname, onOpenChange]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogPortal>
         <DialogOverlay className="bg-black/70 backdrop-blur-sm" />
         <DialogPrimitive.Content

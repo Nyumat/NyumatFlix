@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/pagination";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
+import { usePeopleSearch } from "@/hooks/use-people-search";
 import { useSearchResults } from "@/hooks/useSearchResults";
 import { getStableCardKey } from "@/lib/cards/selectors";
 import { cn } from "@/lib/utils";
@@ -24,36 +25,39 @@ import { PersonCollage } from "./person-collage";
 import { SearchDialogPeople } from "./search-dialog-people";
 import { SearchGenreChips } from "./search-genre-chips";
 
-interface KnownForItem {
-  id: number;
-  title?: string;
-  name?: string;
-  poster_path?: string | null;
-  media_type: string;
-}
-
-interface Person {
-  id: number;
-  name: string;
-  profile_path?: string | null;
-  popularity?: number;
-  known_for_department?: string;
-  known_for?: KnownForItem[];
-}
-
 interface PeopleInfiniteScrollProps {
   query: string;
 }
 
 export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return null;
+  }
+
+  return (
+    <PeopleInfiniteScrollResults
+      key={trimmedQuery}
+      trimmedQuery={trimmedQuery}
+    />
+  );
+}
+
+function PeopleInfiniteScrollResults({
+  trimmedQuery,
+}: {
+  trimmedQuery: string;
+}) {
   const router = useRouter();
-  const trimmedQuery = useMemo(() => query.trim(), [query]);
-  const [people, setPeople] = useState<Person[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const initialLoadRef = useRef(false);
+  const {
+    people,
+    currentPage,
+    totalPages,
+    isLoading,
+    error,
+    loadMore,
+    hasMore,
+  } = usePeopleSearch({ query: trimmedQuery });
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0.1,
@@ -61,92 +65,14 @@ export function PeopleInfiniteScroll({ query }: PeopleInfiniteScrollProps) {
   });
 
   useEffect(() => {
-    setPeople([]);
-    setCurrentPage(1);
-    setTotalPages(1);
-    setError(null);
-    initialLoadRef.current = false;
-  }, [trimmedQuery]);
-
-  const fetchPage = useCallback(
-    async (page: number) => {
-      if (!trimmedQuery) return { results: [], page: 1, total_pages: 0 };
-
-      const url = new URL("/api/person-search", window.location.origin);
-      url.searchParams.set("query", trimmedQuery);
-      url.searchParams.set("page", String(page));
-
-      const res = await fetch(url.toString());
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        throw new Error(body.error || "Failed to fetch people");
-      }
-
-      const json = (await res.json()) as {
-        results: Person[];
-        page: number;
-        total_pages: number;
-        total_results: number;
-      };
-
-      return {
-        results: json.results || [],
-        page: json.page || page,
-        total_pages: json.total_pages || 0,
-      };
-    },
-    [trimmedQuery],
-  );
-
-  const loadInitial = useCallback(async () => {
-    if (initialLoadRef.current || isLoading || !trimmedQuery) return;
-    initialLoadRef.current = true;
-
-    try {
-      setIsLoading(true);
-      const { results, page, total_pages } = await fetchPage(1);
-      setPeople(results);
-      setCurrentPage(page);
-      setTotalPages(total_pages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchPage, isLoading, trimmedQuery]);
-
-  const loadMore = useCallback(async () => {
-    if (isLoading || currentPage >= totalPages) return;
-
-    try {
-      setIsLoading(true);
-      const nextPage = currentPage + 1;
-      const { results, page, total_pages } = await fetchPage(nextPage);
-      setPeople((prev) => [...prev, ...results]);
-      setCurrentPage(page);
-      setTotalPages(total_pages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage, fetchPage, isLoading, totalPages]);
-
-  useEffect(() => {
-    void loadInitial();
-  }, [loadInitial]);
-
-  useEffect(() => {
-    if (inView && !isLoading && currentPage < totalPages) {
+    if (inView && !isLoading && hasMore) {
       void loadMore();
     }
-  }, [inView, isLoading, currentPage, totalPages, loadMore]);
+  }, [hasMore, inView, isLoading, loadMore]);
 
   const handlePersonClick = (personId: number) => {
     router.push(`/person/${personId}`);
   };
-
-  if (!trimmedQuery) return null;
 
   if (error) {
     return (
@@ -402,18 +328,11 @@ export default function SearchResults({
   const [accumulatedItems, setAccumulatedItems] = useState<
     CanonicalMediaCard[]
   >([]);
-  const trimmedQuery = query.trim();
 
   const { ref: loadMoreRef, inView: loadMoreInView } = useInView({
     threshold: 0,
     rootMargin: "160px",
   });
-
-  useEffect(() => {
-    if (!isDialogLayout) return;
-    setAccumulatedItems([]);
-    setCurrentPage(1);
-  }, [trimmedQuery, isDialogLayout, setCurrentPage]);
 
   useEffect(() => {
     if (!isDialogLayout) return;
