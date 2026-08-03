@@ -1,6 +1,20 @@
 export const SCRAPE_RACE_CONCURRENCY = 3;
 /** Covers typical 2Embed wins (~15s p50) without waiting out slow VidNest hangs. */
 export const SCRAPE_ATTEMPT_TIMEOUT_MS = 18_000;
+/** Direct probes calluspirates streams server-side — match that budget on the client. */
+export const SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS = 120_000;
+
+/** Run alone before parallel races — mirrors calluspirates (try direct streams first). */
+export const SOLO_FIRST_SCRAPE_PROVIDERS = new Set<string>(["direct"]);
+
+/** Never push to the tail on session failure — always retry direct on the next watch. */
+export const NEVER_DEPRIORITIZE_SCRAPE_PROVIDERS = new Set<string>(["direct"]);
+
+export function getScrapeAttemptTimeoutMs(providerId: string): number {
+  return providerId === "direct"
+    ? SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS
+    : SCRAPE_ATTEMPT_TIMEOUT_MS;
+}
 
 /** Fast scrapers that often pass probes but fail in the player — never pin as preferred. */
 export const UNTRUSTED_PREFERRED_SCRAPE_PROVIDERS = new Set<string>(["vixsrc"]);
@@ -61,7 +75,10 @@ export function deprioritizeProviders<T extends string>(
   const head: T[] = [];
 
   for (const providerId of order) {
-    if (failed.has(providerId)) {
+    if (
+      failed.has(providerId) &&
+      !NEVER_DEPRIORITIZE_SCRAPE_PROVIDERS.has(providerId)
+    ) {
       tail.push(providerId);
     } else {
       head.push(providerId);
@@ -71,7 +88,7 @@ export function deprioritizeProviders<T extends string>(
   return [...head, ...tail];
 }
 
-export function nextRaceBatch<T>(
+export function nextRaceBatch<T extends string>(
   order: readonly T[],
   startIndex: number,
   failed: ReadonlySet<T>,
@@ -80,12 +97,32 @@ export function nextRaceBatch<T>(
   const batch: T[] = [];
   let index = Math.max(0, startIndex);
 
+  while (index < order.length && batch.length === 0) {
+    const providerId = order[index];
+    index += 1;
+
+    if (providerId === undefined || failed.has(providerId)) {
+      continue;
+    }
+
+    batch.push(providerId);
+
+    if (SOLO_FIRST_SCRAPE_PROVIDERS.has(providerId)) {
+      return { batch, nextIndex: index };
+    }
+  }
+
   while (index < order.length && batch.length < concurrency) {
     const providerId = order[index];
     index += 1;
 
     if (providerId === undefined || failed.has(providerId)) {
       continue;
+    }
+
+    if (SOLO_FIRST_SCRAPE_PROVIDERS.has(providerId)) {
+      index -= 1;
+      break;
     }
 
     batch.push(providerId);
