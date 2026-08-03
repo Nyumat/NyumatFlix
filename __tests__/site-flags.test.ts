@@ -78,6 +78,7 @@ describe("site-flags", () => {
     const defaults = getDefaultSiteFlags();
     expect(defaults.liveTvEnabled).toBe(false);
     expect(defaults.authEnabled).toBe(true);
+    expect(defaults.announcementBanner.enabled).toBe(false);
     expect(getPlaybackModePolicy(defaults)).toBe("choice");
   });
 

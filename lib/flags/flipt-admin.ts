@@ -2,6 +2,7 @@ export {
   readAdminFlagState,
   writeAdminFlagState,
   invalidateFlagCache,
+  readAnnouncementBannerConfig,
 } from "@/lib/flags/flipt-client";
 
 export {

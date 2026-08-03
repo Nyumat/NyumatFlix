@@ -4,6 +4,11 @@ import {
   type AdminFlagState,
   type FlagDefinition,
 } from "@/lib/flags/flag-catalog";
+import {
+  DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+  sanitizeAnnouncementBannerConfig,
+  type AnnouncementBannerConfig,
+} from "@/lib/flags/announcement-banner";
 
 export const FLIPT_URL =
   process.env.FLIPT_URL?.replace(/\/$/, "") ??
@@ -119,6 +124,7 @@ function flagPayload(
   def: FlagDefinition,
   enabled: boolean,
   current?: FliptFlag,
+  metadata?: Record<string, unknown>,
 ): FliptFlag {
   return {
     ...current,
@@ -128,6 +134,7 @@ function flagPayload(
     description: def.description ?? "",
     enabled,
     type: "BOOLEAN_FLAG_TYPE",
+    ...(metadata ? { metadata } : {}),
   };
 }
 
@@ -137,6 +144,7 @@ async function mutateFlag(
   enabled: boolean,
   revision: string | undefined,
   current?: FliptFlag,
+  metadata?: Record<string, unknown>,
 ): Promise<string | undefined> {
   const action = method === "POST" ? "create" : "update";
   const res = await fliptFetch(flagsResourcePath(), {
@@ -144,7 +152,7 @@ async function mutateFlag(
     body: JSON.stringify({
       key: toFliptStorageKey(def.key),
       revision,
-      payload: flagPayload(def, enabled, current),
+      payload: flagPayload(def, enabled, current, metadata),
     }),
   });
   if (!res.ok) {
@@ -199,6 +207,7 @@ export async function readAdminFlagState(): Promise<AdminFlagState> {
 
 export async function writeAdminFlagState(
   state: AdminFlagState,
+  announcementBanner?: AnnouncementBannerConfig,
 ): Promise<void> {
   const listed = await listFlags();
   const existing = new Map(
@@ -212,14 +221,60 @@ export async function writeAdminFlagState(
   for (const def of ALL_FLAG_DEFINITIONS) {
     const enabled = state[def.key] ?? def.defaultValue;
     const current = existing.get(toFliptStorageKey(def.key));
+    const isAnnouncement = def.key === "global.announcement_banner";
+    const bannerConfig =
+      isAnnouncement && announcementBanner
+        ? sanitizeAnnouncementBannerConfig(announcementBanner)
+        : undefined;
+    const metadata = bannerConfig
+      ? { ...(current?.metadata ?? {}), announcementBanner: bannerConfig }
+      : undefined;
+    const configChanged = Boolean(
+      bannerConfig &&
+        JSON.stringify(current?.metadata?.announcementBanner) !==
+          JSON.stringify(bannerConfig),
+    );
     if (!current) {
-      revision = await mutateFlag("POST", def, enabled, revision);
-    } else if (current.enabled !== enabled) {
-      revision = await mutateFlag("PUT", def, enabled, revision, current);
+      revision = await mutateFlag(
+        "POST",
+        def,
+        enabled,
+        revision,
+        undefined,
+        metadata,
+      );
+    } else if (current.enabled !== enabled || configChanged) {
+      revision = await mutateFlag(
+        "PUT",
+        def,
+        enabled,
+        revision,
+        current,
+        metadata,
+      );
     }
   }
 
   invalidateFlagCache();
+}
+
+export async function readAnnouncementBannerConfig(): Promise<AnnouncementBannerConfig> {
+  try {
+    const listed = await listFlags();
+    const banner = (listed.resources ?? []).find(
+      (resource) =>
+        resource.key === toFliptStorageKey("global.announcement_banner"),
+    );
+    return sanitizeAnnouncementBannerConfig(
+      banner?.payload.metadata?.announcementBanner,
+    );
+  } catch (error) {
+    console.warn(
+      "[flipt] announcement config read failed, using defaults:",
+      error,
+    );
+    return { ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG };
+  }
 }
 
 export async function evaluateBooleanFlag(
