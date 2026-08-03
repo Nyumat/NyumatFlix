@@ -37,6 +37,11 @@ interface EpisodeState {
   isAdultAnime: boolean;
   defaultAnilistId: number | null;
   defaultIsAdultAnime: boolean;
+  /**
+   * Whether TMDB→AniList episode coords are still loading for an anime show.
+   * Used to avoid starting the TMDB scrape overlay before anime hosts are ready.
+   */
+  animeCoordsStatus: "idle" | "pending" | "resolved" | "miss";
   watchCallback: (() => void) | null;
   setSelectedEpisode: (
     episode: Episode,
@@ -53,6 +58,7 @@ interface EpisodeState {
       confidence: MappingConfidence;
       isAdult: boolean;
       animeSeasonNumber?: number | null;
+      relativeEpisodeNumber?: number;
     },
   ) => void;
   applyAnimeEpisodeMapping: (mapping: {
@@ -64,7 +70,9 @@ interface EpisodeState {
     confidence: MappingConfidence;
     isAdult: boolean;
     animeSeasonNumber?: number | null;
+    relativeEpisodeNumber?: number;
   }) => void;
+  setAnimeCoordsStatus: (status: EpisodeState["animeCoordsStatus"]) => void;
   clearSelectedEpisode: () => void;
   setDefaultAnilistId: (anilistId: number | null, isAdult?: boolean) => void;
   getEmbedUrl: () => string | null;
@@ -122,6 +130,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   isAdultAnime: false,
   defaultAnilistId: null,
   defaultIsAdultAnime: false,
+  animeCoordsStatus: "idle",
   watchCallback: null,
   setSelectedEpisode: (
     episode,
@@ -136,11 +145,15 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     const isAnimeEpisode = !!effectiveAnimeInfo;
     const anilistId = effectiveAnimeInfo?.anilistId || null;
     const relativeEpisodeNumber = effectiveAnimeInfo
-      ? episode.episode_number - effectiveAnimeInfo.startEpisode + 1
+      ? (mapping?.relativeEpisodeNumber ??
+        episode.episode_number - effectiveAnimeInfo.startEpisode + 1)
       : null;
     const providerEpisodeNumber = seasonEpisodes?.length
       ? episodeNumberForProviders(seasonEpisodes, episode.episode_number)
       : episode.episode_number;
+    const { defaultAnilistId } = get();
+    const animeCoordsStatus: EpisodeState["animeCoordsStatus"] =
+      effectiveAnimeInfo ? "resolved" : defaultAnilistId ? "pending" : "idle";
 
     set({
       selectedEpisode: episode,
@@ -158,6 +171,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       animeSegmentEnd: effectiveAnimeInfo?.endEpisode ?? null,
       mappingConfidence: mapping?.confidence ?? (isAnimeEpisode ? "low" : null),
       isAdultAnime: mapping?.isAdult ?? false,
+      animeCoordsStatus,
     });
 
     if (tvShowId && seasonNumber && episode.episode_number) {
@@ -207,6 +221,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       animeSegmentEnd: null,
       mappingConfidence: null,
       isAdultAnime: false,
+      animeCoordsStatus: "idle",
     });
   },
   applyAnimeEpisodeMapping: (mapping) => {
@@ -216,6 +231,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     }
 
     const relativeEpisodeNumber =
+      mapping.relativeEpisodeNumber ??
       selectedEpisode.episode_number - mapping.animeInfo.startEpisode + 1;
 
     set({
@@ -226,9 +242,11 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       animeSegmentEnd: mapping.animeInfo.endEpisode,
       isAnimeEpisode: true,
       mappingConfidence: mapping.confidence,
-      isAdultAnime: mapping.isAdult,
+      isAdultAnime: mapping.isAdult || get().defaultIsAdultAnime,
+      animeCoordsStatus: "resolved",
     });
   },
+  setAnimeCoordsStatus: (animeCoordsStatus) => set({ animeCoordsStatus }),
   setDefaultAnilistId: (defaultAnilistId, isAdult = false) =>
     set({
       defaultAnilistId,
