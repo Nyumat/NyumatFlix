@@ -174,6 +174,18 @@ html {
   color-scheme: dark;
 }
 
+/*
+ * Keep wide-screen browsing intentionally dense. This recreates the clearer,
+ * zoomed-out composition without scaling the rendered page or affecting
+ * tablet/mobile layouts. Rem-based type and spacing follow this proportion,
+ * while browser zoom and user accessibility settings continue to work.
+ */
+@media (width >= 80rem) {
+  html {
+    font-size: 82.5%;
+  }
+}
+
 /* *=========== Default theme =========== */
 @layer base {
   /* :root {
@@ -427,18 +439,18 @@ html {
   }
 
   @media (width >= 80rem) {
-    max-width: 80rem;
+    max-width: 1120px;
   }
 
   @media (width >= 96rem) {
-    max-width: 1400px;
+    max-width: 1120px;
   }
 }
 
 @utility site-container {
   margin-inline: auto;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1120px;
   padding-inline: 1rem;
 
   @media (width >= 40rem) {
@@ -472,7 +484,7 @@ html {
   }
 
   @media (width >= 64rem) {
-    height: min(64vh, 860px);
+    height: min(56vh, 700px);
   }
 }
 

@@ -75,7 +75,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
   const isTransparentHeaderRoute = isCatalogRoute(pathname) || onAuthRoute;
   const headerPositionClassName = isTransparentHeaderRoute
     ? "absolute"
-    : "sticky";
+    : "relative md:sticky";
 
   useSearchDialogShortcut(setIsSearchOpen);
 
@@ -98,7 +98,7 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
       )}
     >
       {!onAuthRoute && <AnniversaryBanner />}
-      <div className="site-container flex min-h-14 items-center gap-2 py-2.5 lg:gap-3">
+      <div className="site-container flex min-h-16 items-center gap-2 md:min-h-20 lg:gap-3">
         {!onAuthRoute ? (
           <div className="flex shrink-0 items-center gap-1 lg:gap-2">
             <BackButton />
