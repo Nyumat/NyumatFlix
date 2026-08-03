@@ -6,7 +6,10 @@ import {
 } from "@/lib/flags/flag-catalog";
 
 export const FLIPT_URL =
-  process.env.FLIPT_URL?.replace(/\/$/, "") ?? "http://flipt:8080";
+  process.env.FLIPT_URL?.replace(/\/$/, "") ??
+  (process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:8090"
+    : "http://flipt:8080");
 export const FLIPT_ENVIRONMENT = process.env.FLIPT_ENVIRONMENT ?? "default";
 export const FLIPT_NAMESPACE = process.env.FLIPT_NAMESPACE ?? "default";
 export const FLIPT_API_TOKEN = process.env.FLIPT_API_TOKEN ?? "";
@@ -30,6 +33,8 @@ if (FLAG_DEFINITIONS_BY_STORAGE_KEY.size !== ALL_FLAG_DEFINITIONS.length) {
 type CacheEntry = { expiresAt: number; state: AdminFlagState };
 
 let flagCache: CacheEntry | null = null;
+let failureCacheExpiresAt = 0;
+const FAILURE_CACHE_TTL_MS = 5000;
 
 type FliptFlag = {
   "@type"?: typeof FLAG_TYPE_URL;
@@ -167,6 +172,9 @@ export async function readAdminFlagState(): Promise<AdminFlagState> {
   if (flagCache && flagCache.expiresAt > now) {
     return flagCache.state;
   }
+  if (failureCacheExpiresAt > now) {
+    return { ...DEFAULT_FLAG_VALUES };
+  }
 
   try {
     await ensureFlagsSeeded();
@@ -179,9 +187,11 @@ export async function readAdminFlagState(): Promise<AdminFlagState> {
         state[def.key] = flag.enabled;
       }
     }
+    failureCacheExpiresAt = 0;
     flagCache = { expiresAt: now + CACHE_TTL_MS, state };
     return state;
   } catch (error) {
+    failureCacheExpiresAt = now + FAILURE_CACHE_TTL_MS;
     console.warn("[flipt] read failed, using defaults:", error);
     return { ...DEFAULT_FLAG_VALUES };
   }
