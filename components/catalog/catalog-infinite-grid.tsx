@@ -129,6 +129,7 @@ const CatalogInfiniteGridBody = ({
         items={items}
         type={mediaType}
         showViewModeControls
+        hideViewModeControlsOnMobile
         gridColumns="auto"
         showDock={false}
       />
