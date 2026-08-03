@@ -84,11 +84,11 @@ const tv = {
 const people = {
   root: {
     title: "People",
-    link: "/people/popular",
+    link: "/people",
   },
   popular: {
     title: "Popular People",
-    link: "/people/popular",
+    link: "/people",
   },
   search: {
     title: "Search People",
@@ -96,15 +96,15 @@ const people = {
   },
   popularActors: {
     title: "Popular Actors",
-    link: "/people/popular?department=Acting&gender=2",
+    link: "/people?department=Acting&gender=2",
   },
   popularActresses: {
     title: "Popular Actresses",
-    link: "/people/popular?department=Acting&gender=1",
+    link: "/people?department=Acting&gender=1",
   },
   popularDirectors: {
     title: "Popular Directors",
-    link: "/people/popular?department=Directing",
+    link: "/people?department=Directing",
   },
 };
 

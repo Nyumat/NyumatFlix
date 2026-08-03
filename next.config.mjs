@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
+const moviPlayerResolveAliases = {
+  "movi-player/element": false,
+  "movi-player": false,
+};
+
 const nextConfig = {
   assetPrefix:
     process.env.NODE_ENV === "production"
@@ -86,6 +91,11 @@ const nextConfig = {
         hostname: "s4.anilist.co",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "media.kitsu.app",
+        pathname: "/**",
+      },
     ],
   },
   experimental: {
@@ -94,6 +104,26 @@ const nextConfig = {
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
+  },
+  turbopack: {
+    resolveAlias: {
+      "movi-player/element": {
+        browser: "./lib/movi/movi-player-bundle-stub.ts",
+      },
+      "movi-player": {
+        browser: "./lib/movi/movi-player-bundle-stub.ts",
+      },
+    },
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        // movi-player must load via <script type="module"> — bundling breaks WASM literals.
+        ...moviPlayerResolveAliases,
+      };
+    }
+    return config;
   },
 };
 
