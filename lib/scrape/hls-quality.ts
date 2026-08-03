@@ -82,6 +82,10 @@ export const configureScrapeHlsInstance = (hls: Hls) => {
     }
 
     lastStallRecoveryAt = now;
-    hls.startLoad(0);
+    // resume from the media clock — startLoad(0) rewinds to t=0 and desyncs seeks
+    const resumeAt = hls.media?.currentTime;
+    hls.startLoad(
+      typeof resumeAt === "number" && Number.isFinite(resumeAt) ? resumeAt : -1,
+    );
   });
 };
