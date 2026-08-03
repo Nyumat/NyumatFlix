@@ -4,7 +4,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { scrapeServer, useServerStore } from "@/lib/stores/server-store";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ const settingRowClassName =
   "flex w-full cursor-pointer items-start gap-3 rounded-md border border-white/10 bg-card/45 p-3 text-left text-white outline-hidden transition-all hover:border-white/25 hover:bg-white/8";
 
 export function BrowseSettings({ variant }: BrowseSettingsProps) {
-  const flags = useFeatureFlagsOptional();
+  const flags = useFeatureFlags();
   const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
   const disableHeroTrailers = useAppSettingsStore(
     (state) => state.disableHeroTrailers,

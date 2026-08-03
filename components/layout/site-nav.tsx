@@ -16,6 +16,7 @@ const SiteNav = () => {
           width={28}
           height={28}
           className="size-7 shrink-0"
+          priority
         />
         <span className="sr-only">NyumatFlix</span>
       </Link>

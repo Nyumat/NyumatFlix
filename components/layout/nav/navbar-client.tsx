@@ -1,6 +1,6 @@
 "use client";
 
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { SiteNav } from "@/components/layout/site-nav";
 import { SiteNavDesktop } from "@/components/layout/site-nav-desktop";
 import { AnniversaryBanner } from "@/components/layout/anniversary-banner";
@@ -34,7 +34,7 @@ const DETAIL_PARENT_ROUTES: Array<{
 }> = [
   { pattern: /^\/movies\/[^/]+(?:\/.*)?$/, parent: "/movies" },
   { pattern: /^\/tvshows\/[^/]+(?:\/.*)?$/, parent: "/tvshows" },
-  { pattern: /^\/person\/[^/]+(?:\/.*)?$/, parent: "/people/popular" },
+  { pattern: /^\/person\/[^/]+(?:\/.*)?$/, parent: "/people" },
   {
     pattern: /^\/collection\/[^/]+(?:\/.*)?$/,
     parent: "/movies",
@@ -52,8 +52,7 @@ const detailNavbarActionButtonClassName =
   "border-white/25 bg-black/35 text-white shadow-lg shadow-black/35 ring-white/20 hover:border-white/35 hover:bg-black/45 hover:ring-white/30";
 
 export const NavbarClient = ({ session }: NavbarClientProps) => {
-  const flags = useFeatureFlagsOptional();
-  const liveTvEnabled = flags?.liveTvEnabled ?? false;
+  const { liveTvEnabled } = useFeatureFlags();
   const isCatalogRoute = (pathname: string) => {
     const patterns = [
       /^\/$/,
@@ -169,8 +168,7 @@ const DetailPageActions = ({
   setIsSearchOpen: (open: boolean) => void;
 }) => {
   const router = useRouter();
-  const flags = useFeatureFlagsOptional();
-  const authEnabled = flags?.authEnabled ?? true;
+  const { authEnabled } = useFeatureFlags();
 
   const handleBack = () => {
     if (

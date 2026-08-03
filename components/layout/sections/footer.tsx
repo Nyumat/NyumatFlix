@@ -1,6 +1,6 @@
 "use client";
 
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { getFooterLinks } from "@/lib/navigation";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { Cannabis, Globe, Heart } from "lucide-react";
@@ -8,8 +8,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 export const FooterSection = () => {
-  const flags = useFeatureFlagsOptional();
-  const footerLinks = getFooterLinks(flags?.liveTvEnabled ?? false);
+  const flags = useFeatureFlags();
+  const footerLinks = getFooterLinks(flags.liveTvEnabled);
   return (
     <footer
       id="footer"
