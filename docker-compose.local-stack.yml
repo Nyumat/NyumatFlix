@@ -1,0 +1,50 @@
+name: nyumatflix
+
+services:
+  app:
+    extends:
+      file: docker-compose.yml
+      service: app
+
+  flaresolverr:
+    extends:
+      file: docker-compose.yml
+      service: flaresolverr
+
+  gluetun:
+    extends:
+      file: scripts/gluetun/docker-compose.yml
+      service: gluetun
+    env_file:
+      - scripts/gluetun/.env
+    ports:
+      - "8888:8888"
+      - "8000:8000"
+
+  flipt:
+    extends:
+      file: docker-compose.ffs.yml
+      service: flipt
+    ports:
+      - "127.0.0.1:8090:8080"
+
+  cap:
+    extends:
+      file: docker-compose.cap.yml
+      service: cap
+
+  cap-valkey:
+    extends:
+      file: docker-compose.cap.yml
+      service: cap-valkey
+
+networks:
+  betterome:
+    external: true
+  cap:
+    name: nyumatflix-cap
+
+volumes:
+  flipt-data:
+  cap-valkey-data:
+    name: nyumatflix-cap-valkey-data
