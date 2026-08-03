@@ -1,5 +1,5 @@
 import { signIn } from "@/auth";
-import { Button } from "@/components/ui/button";
+import { FloatingCapLoginForm } from "@/components/auth/floating-cap-login-form";
 import {
   Card,
   CardContent,
@@ -7,8 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { getCapApiEndpoint } from "@/lib/cap/config";
+import { withCapVerifiedSignIn } from "@/lib/cap/auth-authorization";
+import { verifyCapToken } from "@/lib/cap/server";
 import { getDevMagicLink } from "@/lib/dev-magic-link-store";
 import { SITE_URL } from "@/lib/constants";
 import {
@@ -16,7 +17,7 @@ import {
   DEFAULT_OG_IMAGE_TYPE,
   OG_IMAGE_SIZE,
 } from "@/lib/seo/constants";
-import { ArrowRight, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -76,16 +77,20 @@ export default async function LoginPage() {
     "use server";
 
     const email = formData.get("email") as string;
+    const capToken = formData.get("cap-token");
 
-    if (!email) {
+    if (!email || !(await verifyCapToken(capToken))) {
+      redirect("/login/error?error=Captcha");
       return;
     }
 
     try {
-      await signIn("resend", {
-        email,
-        redirect: false,
-      });
+      await withCapVerifiedSignIn(() =>
+        signIn("resend", {
+          email,
+          redirect: false,
+        }),
+      );
     } catch (error) {
       console.error("Sign in error:", error);
       throw error;
@@ -122,33 +127,10 @@ export default async function LoginPage() {
           </div>
         </CardHeader>
         <CardContent className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
-          <form action={handleLogin} className="space-y-5">
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="email"
-                className="text-sm font-medium text-zinc-200"
-              >
-                Email address
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                className="h-12 rounded-xl border-white/12 bg-black/35 px-4 text-base text-white shadow-none placeholder:text-zinc-600 focus-visible:ring-sky-300/80 focus-visible:ring-offset-0 dark:border-white/12 dark:bg-black/35"
-              />
-            </div>
-            <Button
-              type="submit"
-              size="lg"
-              className="h-12 w-full rounded-xl border-sky-300/20 bg-sky-300/15 px-5 text-sm font-semibold text-sky-50 shadow-none hover:border-sky-300/35 hover:bg-sky-300/22"
-            >
-              <Mail className="mr-2 size-4" />
-              Continue with email
-              <ArrowRight className="ml-2 size-4 transition-transform group-hover/arrow:translate-x-0.5" />
-            </Button>
-          </form>
+          <FloatingCapLoginForm
+            action={handleLogin}
+            endpoint={getCapApiEndpoint()}
+          />
           <p className="mt-5 text-center text-xs leading-5 text-zinc-500">
             By continuing, you agree to the{" "}
             <Link
