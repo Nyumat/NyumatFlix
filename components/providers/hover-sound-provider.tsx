@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef } from "react";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 
 const HOVER_SOUND_SRC = "/sounds/movie-hover.mp3";
 
@@ -16,6 +17,10 @@ export function HoverSoundProvider({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const play = useCallback(() => {
+    if (useAppSettingsStore.getState().disableHoverSound) {
+      return;
+    }
+
     if (!audioRef.current) {
       audioRef.current = new Audio(HOVER_SOUND_SRC);
       audioRef.current.volume = 0.4;

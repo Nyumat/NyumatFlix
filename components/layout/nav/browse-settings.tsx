@@ -8,7 +8,7 @@ import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-pr
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { scrapeServer, useServerStore } from "@/lib/stores/server-store";
 import { cn } from "@/lib/utils";
-import { Check, ImageIcon, ShieldOff } from "lucide-react";
+import { Check, ImageIcon, ShieldOff, Volume2 } from "lucide-react";
 
 type BrowseSettingsProps = {
   variant: "desktop" | "mobile";
@@ -23,17 +23,24 @@ export function BrowseSettings({ variant }: BrowseSettingsProps) {
   const disableHeroTrailers = useAppSettingsStore(
     (state) => state.disableHeroTrailers,
   );
+  const disableHoverSound = useAppSettingsStore(
+    (state) => state.disableHoverSound,
+  );
   const setNoAdsMode = useAppSettingsStore((state) => state.setNoAdsMode);
   const setDisableHeroTrailers = useAppSettingsStore(
     (state) => state.setDisableHeroTrailers,
+  );
+  const setDisableHoverSound = useAppSettingsStore(
+    (state) => state.setDisableHoverSound,
   );
   const setSelectedServer = useServerStore((state) => state.setSelectedServer);
 
   const hideAll = flags?.locks.browseSettings ?? false;
   const hideNoAds = hideAll || flags?.locks.playbackMode;
   const hideHero = hideAll || flags?.locks.heroTrailers;
+  const hideHoverSound = hideAll;
 
-  if (hideNoAds && hideHero) {
+  if (hideNoAds && hideHero && hideHoverSound) {
     return null;
   }
 
@@ -82,6 +89,21 @@ export function BrowseSettings({ variant }: BrowseSettingsProps) {
               </div>
             </DropdownMenuCheckboxItem>
           ) : null}
+          {!hideHoverSound ? (
+            <DropdownMenuCheckboxItem
+              checked={!disableHoverSound}
+              onCheckedChange={(enabled) => setDisableHoverSound(!enabled)}
+              onSelect={(event) => event.preventDefault()}
+              className="cursor-pointer rounded-md pl-8 focus:bg-white/8 focus:text-white"
+            >
+              <div className="space-y-0.5">
+                <span className="font-medium">Hover sound</span>
+                <p className="text-xs text-muted-foreground">
+                  Play a sound when hovering movie, TV, or people cards
+                </p>
+              </div>
+            </DropdownMenuCheckboxItem>
+          ) : null}
         </div>
       </>
     );
@@ -107,6 +129,15 @@ export function BrowseSettings({ variant }: BrowseSettingsProps) {
             description="Backdrop image instead of autoplay trailers"
             enabled={disableHeroTrailers}
             onToggle={() => setDisableHeroTrailers(!disableHeroTrailers)}
+          />
+        ) : null}
+        {!hideHoverSound ? (
+          <MobileSettingRow
+            icon={Volume2}
+            title="Hover sound"
+            description="Play a sound when hovering movie, TV, or people cards"
+            enabled={!disableHoverSound}
+            onToggle={() => setDisableHoverSound(!disableHoverSound)}
           />
         ) : null}
       </div>
