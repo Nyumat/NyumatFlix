@@ -2,7 +2,12 @@ import { extractFirstMatch } from "../html-utils";
 import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
-import { animeSearchLabelMatches } from "../title-match";
+import { flareSolverrGet } from "../../flaresolverr";
+import {
+  animeSearchLabelMatches,
+  isExactAnimeTitleMatch,
+  stripAnimeSearchMetadata,
+} from "../title-match";
 
 const ANIMEGG_ORIGIN = "https://www.animegg.org";
 
@@ -11,22 +16,72 @@ const extractAnimeggSources = (html: string) =>
     .map((match) => ({ path: match[1] ?? "", label: match[2] ?? "" }))
     .filter((source) => source.path.startsWith("/play/") && source.label);
 
+const isUsableAnimeggHtml = (status: number, text: string): boolean =>
+  status === 200 &&
+  text.length > 2_000 &&
+  !/Attention Required|Just a moment/i.test(text) &&
+  !/504: Gateway time-out|Error 504/i.test(text);
+
+const fetchAnimeggHtml = async (
+  url: string,
+): Promise<{ status: number; text: string }> => {
+  try {
+    const page = await scrapeFetchText(
+      url,
+      { Referer: `${ANIMEGG_ORIGIN}/` },
+      { timeoutMs: 12_000 },
+    );
+    if (isUsableAnimeggHtml(page.status, page.text)) {
+      return page;
+    }
+  } catch {
+    void 0;
+  }
+
+  const flared = await flareSolverrGet(url, 45_000);
+  if (flared && isUsableAnimeggHtml(flared.status, flared.body)) {
+    return { status: flared.status, text: flared.body };
+  }
+
+  return { status: 0, text: "" };
+};
+
 const findSeriesSlugFromSearch = async (
   titles: readonly string[],
 ): Promise<string | null> => {
+  type Candidate = { slug: string; label: string; exact: boolean };
+
+  const candidates: Candidate[] = [];
+
   for (const title of titles) {
-    const searchPage = await scrapeFetchText(
+    const searchPage = await fetchAnimeggHtml(
       `${ANIMEGG_ORIGIN}/search/?q=${encodeURIComponent(title)}`,
-      { Referer: `${ANIMEGG_ORIGIN}/` },
     );
     for (const match of searchPage.text.matchAll(
       /<a\b[^>]*href="\/series\/([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi,
     )) {
+      const slug = match[1];
       const label = match[2] ?? "";
-      if (match[1] && animeSearchLabelMatches(label, titles)) return match[1];
+      if (!slug || !animeSearchLabelMatches(label, titles)) {
+        continue;
+      }
+      const cleaned = stripAnimeSearchMetadata(label);
+      candidates.push({
+        slug,
+        label: cleaned,
+        exact: isExactAnimeTitleMatch(cleaned, titles),
+      });
     }
   }
-  return null;
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const exact = candidates.filter((candidate) => candidate.exact);
+  const pool = exact.length > 0 ? exact : candidates;
+  pool.sort((left, right) => left.slug.length - right.slug.length);
+  return pool[0]?.slug ?? null;
 };
 
 export async function scrapeAnimegg(
@@ -46,17 +101,15 @@ export async function scrapeAnimegg(
     }
     let episodeSlug = `${seriesSlug}-episode-${input.episodeNumber}`;
 
-    let episodePage = await scrapeFetchText(
+    let episodePage = await fetchAnimeggHtml(
       `${ANIMEGG_ORIGIN}/${episodeSlug}`,
-      { Referer: `${ANIMEGG_ORIGIN}/` },
     );
 
     if (episodePage.status !== 200) {
       let fallbackEpisode: string | null = null;
       for (const candidateSlug of [seriesSlug]) {
-        const seriesPage = await scrapeFetchText(
+        const seriesPage = await fetchAnimeggHtml(
           `${ANIMEGG_ORIGIN}/series/${candidateSlug}`,
-          { Referer: `${ANIMEGG_ORIGIN}/` },
         );
         fallbackEpisode = extractFirstMatch(
           seriesPage.text,
@@ -78,9 +131,7 @@ export async function scrapeAnimegg(
         };
       }
 
-      episodePage = await scrapeFetchText(`${ANIMEGG_ORIGIN}/${episodeSlug}`, {
-        Referer: `${ANIMEGG_ORIGIN}/`,
-      });
+      episodePage = await fetchAnimeggHtml(`${ANIMEGG_ORIGIN}/${episodeSlug}`);
     }
 
     const version = input.translationType === "dub" ? "dubbed" : "subbed";
@@ -95,9 +146,8 @@ export async function scrapeAnimegg(
       return { ok: false, providerId, error: "AnimeGG embed id missing" };
     }
 
-    const embedPage = await scrapeFetchText(
+    const embedPage = await fetchAnimeggHtml(
       `${ANIMEGG_ORIGIN}/embed/${embedId}`,
-      { Referer: `${ANIMEGG_ORIGIN}/` },
     );
 
     const sources = extractAnimeggSources(embedPage.text).sort(
@@ -116,35 +166,40 @@ export async function scrapeAnimegg(
       };
     }
 
-    const playResponse = await scrapeFetch(`${ANIMEGG_ORIGIN}${playPath}`, {
-      method: "GET",
-      redirect: "manual",
-      headers: { Referer: `${ANIMEGG_ORIGIN}/` },
-    });
-
-    const redirectUrl = playResponse.headers.get("location");
-    await cancelResponseBody(playResponse);
-    const streamUrl = redirectUrl?.startsWith("http")
-      ? redirectUrl
-      : `${ANIMEGG_ORIGIN}${playPath}`;
-
-    const qualities = await Promise.all(
-      sources.slice(1).map(async (source) => {
-        const response = await scrapeFetch(`${ANIMEGG_ORIGIN}${source.path}`, {
+    const resolvePlayUrl = async (path: string): Promise<string> => {
+      const absolute = `${ANIMEGG_ORIGIN}${path}`;
+      try {
+        const playResponse = await scrapeFetch(absolute, {
           method: "GET",
           redirect: "manual",
           headers: { Referer: `${ANIMEGG_ORIGIN}/` },
+          retryAttempts: 1,
+          timeoutMs: 12_000,
         });
-        const location = response.headers.get("location");
-        await cancelResponseBody(response);
-        return {
+        const redirectUrl = playResponse.headers.get("location");
+        await cancelResponseBody(playResponse);
+        if (redirectUrl?.startsWith("http")) {
+          return redirectUrl;
+        }
+      } catch {
+        void 0;
+      }
+
+      // CF / proxy often kills the redirect hop — the /play/ path itself is
+      // playable with the AnimeGG referer.
+      return absolute;
+    };
+
+    const streamUrl = await resolvePlayUrl(playPath);
+
+    const qualities = (
+      await Promise.all(
+        sources.slice(1).map(async (source) => ({
           label: source.label,
-          url: location?.startsWith("http")
-            ? location
-            : `${ANIMEGG_ORIGIN}${source.path}`,
-        };
-      }),
-    );
+          url: await resolvePlayUrl(source.path),
+        })),
+      )
+    ).filter((quality) => quality.url !== streamUrl);
 
     return {
       ok: true,

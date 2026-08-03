@@ -11,6 +11,10 @@ import {
   resolveMegaplayEmbedStream,
   resolveMegaplaySourcesById,
 } from "../../megaplay-sources";
+import {
+  refererForJustanimeStreamUrl,
+  wrapJustanimeMegaplayStreamUrl,
+} from "../../justanime-momo-proxy";
 
 /** Official domains per https://animepahe.ch/ */
 const ANIMEPAHE_ORIGINS = [
@@ -29,7 +33,10 @@ let cachedOrigin: CachedOrigin | null = null;
 
 const cleanSearchLabel = (raw: string): string =>
   stripAnimeSearchMetadata(raw)
-    .replace(/\b(Anime|Ongoing|Completed|Upcoming|Sub|Dub)\b/gi, " ")
+    .replace(
+      /\b(?:Anime|Ongoing|Completed|Upcoming|Sub|Dub|Movie|TV|ONA|OVA)\b/gi,
+      " ",
+    )
     .replace(/\s+/g, " ")
     .trim();
 
@@ -213,11 +220,26 @@ const findSeriesPath = async (
     }
 
     const candidates = parseSeriesCandidates(searchPage.text, origin);
-    const matched = pickSeriesCandidate(
+    let matched = pickSeriesCandidate(
       candidates,
       expectedTitles,
       translationType,
     );
+    if (!matched) {
+      matched = candidates.find((candidate) => {
+        const slug = candidate.seriesPath
+          .replace(/^\/series\//, "")
+          .replace(/\/$/, "");
+        return expectedTitles.some((title) => {
+          const base = slugifyTitle(title);
+          return (
+            slug === base ||
+            slug.startsWith(`${base}-`) ||
+            base.startsWith(`${slug}-`)
+          );
+        });
+      });
+    }
     if (!matched) {
       continue;
     }
@@ -279,6 +301,47 @@ const episodePathPatterns = (
   return preferDub
     ? [...dubPatterns, ...subPatterns]
     : [...subPatterns, ...dubPatterns];
+};
+
+const listedEpisodeNumbers = (
+  seriesHtml: string,
+  seriesSlug: string,
+): number[] => {
+  const numbers = new Set<number>();
+  const pattern = new RegExp(`/${seriesSlug}-episode-(\\d+)`, "gi");
+  for (const match of seriesHtml.matchAll(pattern)) {
+    const episodeNumber = Number(match[1]);
+    if (Number.isFinite(episodeNumber) && episodeNumber > 0) {
+      numbers.add(episodeNumber);
+    }
+  }
+  return [...numbers];
+};
+
+const hostedEpisodeRangeError = (
+  seriesHtml: string,
+  seriesSlug: string,
+  episodeNumber: number,
+): string | null => {
+  const listed = listedEpisodeNumbers(seriesHtml, seriesSlug);
+  // Long-running shows only render a page of links — a tiny listing is not an
+  // authoritative hosted window (e.g. One Piece showing just ep 1).
+  if (listed.length < 3) {
+    return null;
+  }
+
+  const min = Math.min(...listed);
+  const max = Math.max(...listed);
+  const span = max - min;
+  if (span < 2 && listed.length < 8) {
+    return null;
+  }
+
+  if (episodeNumber < min || episodeNumber > max) {
+    return `AnimePahe episode ${episodeNumber} not in hosted range (${min}–${max} on series listing)`;
+  }
+
+  return null;
 };
 
 const findEpisodeUrl = (
@@ -562,10 +625,16 @@ export async function scrapeAnimepahe(
     }
 
     if (!episodeUrl || !episodeHtml) {
+      const rangeError = hostedEpisodeRangeError(
+        seriesPage.text,
+        seriesSlug,
+        input.episodeNumber,
+      );
       return {
         ok: false,
         providerId,
-        error: `AnimePahe episode ${input.episodeNumber} not found`,
+        error:
+          rangeError ?? `AnimePahe episode ${input.episodeNumber} not found`,
       };
     }
 
@@ -578,14 +647,28 @@ export async function scrapeAnimepahe(
       };
     }
 
+    const streamUrl = wrapJustanimeMegaplayStreamUrl(resolved.streamUrl);
+    const referer = refererForJustanimeStreamUrl(
+      streamUrl,
+      resolved.referer,
+      `${MEGAPLAY_ORIGIN}/`,
+    );
+
     return {
       ok: true,
       providerId,
-      streamUrl: resolved.streamUrl,
+      validated: streamUrl.includes("momo.justanime.to") ? true : undefined,
+      streamUrl,
       streamKind: "hls",
-      referer: resolved.referer,
+      referer,
       ...(resolved.playbackRefresh
-        ? { playbackRefresh: resolved.playbackRefresh }
+        ? {
+            playbackRefresh: {
+              ...resolved.playbackRefresh,
+              referer,
+              seedStreamUrl: resolved.streamUrl,
+            },
+          }
         : {}),
       ...(resolved.subtitles ? { subtitles: resolved.subtitles } : {}),
     };

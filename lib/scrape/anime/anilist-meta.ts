@@ -26,6 +26,7 @@ export type AnilistMediaMeta = {
   episodes: number | null;
   isAdult: boolean;
   genres: string[];
+  format: string | null;
 };
 
 const titleCache = new Map<number, string>();
@@ -150,6 +151,7 @@ export const fetchAnilistMediaMeta = async (
         (genre): genre is string =>
           typeof genre === "string" && genre.length > 0,
       ),
+      format: typeof media.format === "string" ? media.format : null,
     };
 
     setBounded(mediaMetaCache, anilistId, meta);

@@ -186,28 +186,49 @@ const scrapeAnipmAnime = async (
     input.translationType === "dub"
       ? (serversPayload.dub ?? [])
       : (serversPayload.sub ?? []);
-  const files = lane.filter((server) => server.kind === "file" && server.url);
-
-  if (files.length === 0) {
-    return { ok: false, providerId, error: "ani.pm direct file missing" };
-  }
 
   const toAbsolute = (url: string) =>
     url.startsWith("http") ? url : `${ANIPM_ORIGIN}${url}`;
 
-  const primary = files[0]!;
+  const rankKind = (kind: string | undefined): number => {
+    switch (kind) {
+      case "file":
+        return 3;
+      case "hls":
+        return 2;
+      case "dash":
+        return 1;
+      default:
+        return 0;
+    }
+  };
+
+  const playable = lane
+    .filter((server) => Boolean(server.url) && rankKind(server.kind) > 0)
+    .sort((left, right) => rankKind(right.kind) - rankKind(left.kind));
+
+  if (playable.length === 0) {
+    return { ok: false, providerId, error: "ani.pm direct file missing" };
+  }
+
+  const primary = playable[0]!;
   const streamUrl = toAbsolute(primary.url!);
-  const qualities: ScrapeQuality[] = files.slice(1).map((server, index) => ({
-    label:
-      server.name?.trim() || server.provider?.trim() || `Source ${index + 2}`,
-    url: toAbsolute(server.url!),
-  }));
+  const streamKind: StreamKind =
+    primary.kind === "hls" ? "hls" : primary.kind === "dash" ? "dash" : "mp4";
+  const qualities: ScrapeQuality[] = playable
+    .slice(1)
+    .filter((server) => server.kind === primary.kind)
+    .map((server, index) => ({
+      label:
+        server.name?.trim() || server.provider?.trim() || `Source ${index + 2}`,
+      url: toAbsolute(server.url!),
+    }));
 
   return {
     ok: true,
     providerId,
     streamUrl,
-    streamKind: "mp4",
+    streamKind,
     referer: `${ANIPM_ORIGIN}/`,
     qualities: qualities.length > 0 ? qualities : undefined,
   };
