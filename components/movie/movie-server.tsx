@@ -139,6 +139,7 @@ interface MovieHeroItemProps {
   label?: string;
   priority?: boolean;
   hideGenre?: boolean;
+  backdropImageClassName?: string;
 }
 
 export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
@@ -146,6 +147,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
   label,
   priority,
   hideGenre,
+  backdropImageClassName,
 }) => {
   const item = await tmdb.movie.detail<WithImages>({ id, append: "images" });
   const logo = item.images?.logos.find((logo) => logo.iso_639_1 === "en");
@@ -158,6 +160,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
           alt={item.title}
           priority={priority}
           className="h-full min-h-0"
+          imageClassName={backdropImageClassName}
           size="w1280"
         />
       </div>
@@ -167,6 +170,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
           alt={item.title}
           priority={priority}
           className="h-full min-h-0"
+          imageClassName={backdropImageClassName}
           size="w1280"
         />
       </div>
@@ -245,6 +249,7 @@ interface MovieHeroProps {
   priority?: boolean;
   pick?: "random" | "first";
   hideGenre?: boolean;
+  backdropImageClassName?: string;
 }
 
 export const MovieHero: React.FC<MovieHeroProps> = ({
@@ -254,6 +259,7 @@ export const MovieHero: React.FC<MovieHeroProps> = ({
   priority,
   pick = "random",
   hideGenre,
+  backdropImageClassName,
 }) => {
   const items =
     pick === "first"
@@ -267,6 +273,7 @@ export const MovieHero: React.FC<MovieHeroProps> = ({
       label={label}
       priority={priority}
       hideGenre={hideGenre}
+      backdropImageClassName={backdropImageClassName}
     />
   ));
 };
