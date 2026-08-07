@@ -41,6 +41,57 @@ let flagCache: CacheEntry | null = null;
 let failureCacheExpiresAt = 0;
 const FAILURE_CACHE_TTL_MS = 5000;
 
+let fliptUnavailableLogged = false;
+
+function isFliptConnectionError(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === "fetch failed") {
+    return true;
+  }
+
+  const cause =
+    error && typeof error === "object" && "cause" in error
+      ? (error as { cause?: unknown }).cause
+      : null;
+
+  if (cause && typeof cause === "object" && "code" in cause) {
+    const code = (cause as { code?: string }).code;
+    return code === "ECONNREFUSED" || code === "ENOTFOUND";
+  }
+
+  return false;
+}
+
+function logFliptFallback(error: unknown): void {
+  if (fliptUnavailableLogged) {
+    return;
+  }
+
+  fliptUnavailableLogged = true;
+
+  if (isFliptConnectionError(error)) {
+    console.info(
+      `[flipt] not reachable at ${FLIPT_URL}, using defaults (start the container when you need live flags)`,
+    );
+    return;
+  }
+
+  console.warn("[flipt] read failed, using defaults:", error);
+}
+
+function enterFailureCooldown(now: number, error: unknown): void {
+  if (failureCacheExpiresAt > now) {
+    return;
+  }
+
+  logFliptFallback(error);
+  failureCacheExpiresAt = now + FAILURE_CACHE_TTL_MS;
+}
+
+function clearFailureCooldown(): void {
+  failureCacheExpiresAt = 0;
+  fliptUnavailableLogged = false;
+}
+
 type FliptFlag = {
   "@type"?: typeof FLAG_TYPE_URL;
   key: string;
@@ -195,12 +246,11 @@ export async function readAdminFlagState(): Promise<AdminFlagState> {
         state[def.key] = flag.enabled;
       }
     }
-    failureCacheExpiresAt = 0;
+    clearFailureCooldown();
     flagCache = { expiresAt: now + CACHE_TTL_MS, state };
     return state;
   } catch (error) {
-    failureCacheExpiresAt = now + FAILURE_CACHE_TTL_MS;
-    console.warn("[flipt] read failed, using defaults:", error);
+    enterFailureCooldown(now, error);
     return { ...DEFAULT_FLAG_VALUES };
   }
 }
@@ -259,6 +309,11 @@ export async function writeAdminFlagState(
 }
 
 export async function readAnnouncementBannerConfig(): Promise<AnnouncementBannerConfig> {
+  const now = Date.now();
+  if (failureCacheExpiresAt > now) {
+    return { ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG };
+  }
+
   try {
     const listed = await listFlags();
     const banner = (listed.resources ?? []).find(
@@ -269,10 +324,7 @@ export async function readAnnouncementBannerConfig(): Promise<AnnouncementBanner
       banner?.payload.metadata?.announcementBanner,
     );
   } catch (error) {
-    console.warn(
-      "[flipt] announcement config read failed, using defaults:",
-      error,
-    );
+    enterFailureCooldown(now, error);
     return { ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG };
   }
 }
