@@ -137,8 +137,21 @@ export const NavbarMobileNavigation = ({
   const searchContent =
     isValidElement(children) && typeof children.type !== "string"
       ? cloneElement(children as React.ReactElement<NavbarSearchClientProps>, {
-          onAfterNavigation: handleLinkClick,
+          onAfterNavigation: () => {
+            handleLinkClick();
+            (
+              children as React.ReactElement<NavbarSearchClientProps>
+            ).props.onAfterNavigation?.();
+          },
           className: "mx-0 max-w-none",
+          onOpenDialog: () => {
+            handleLinkClick();
+            (
+              children as React.ReactElement<NavbarSearchClientProps>
+            ).props.onOpenDialog?.();
+          },
+          mode: (children as React.ReactElement<NavbarSearchClientProps>).props
+            .mode,
         })
       : children;
 

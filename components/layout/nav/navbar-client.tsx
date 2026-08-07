@@ -130,7 +130,10 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
           </div>
           <div className={cn("flex shrink-0", navMobileMenuClassName)}>
             <NavbarMobileNavigation session={session}>
-              <NavbarSearchClient />
+              <NavbarSearchClient
+                mode="trigger"
+                onOpenDialog={() => setIsSearchOpen(true)}
+              />
             </NavbarMobileNavigation>
           </div>
         </div>
