@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type PersonSearchResult = {
@@ -26,6 +27,8 @@ export function usePeopleSearch({
   enabled = true,
 }: UsePeopleSearchOptions) {
   const trimmedQuery = query.trim();
+  const debouncedQuery = useDebouncedValue(trimmedQuery, 300);
+  const isDebouncing = trimmedQuery !== debouncedQuery;
   const [people, setPeople] = useState<PersonSearchResult[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -35,12 +38,12 @@ export function usePeopleSearch({
 
   const fetchPage = useCallback(
     async (page: number, signal: AbortSignal) => {
-      if (!trimmedQuery) {
+      if (!debouncedQuery) {
         return { results: [] as PersonSearchResult[], page: 1, total_pages: 0 };
       }
 
       const url = new URL("/api/person-search", window.location.origin);
-      url.searchParams.set("query", trimmedQuery);
+      url.searchParams.set("query", debouncedQuery);
       url.searchParams.set("page", String(page));
 
       const res = await fetch(url.toString(), { signal });
@@ -61,11 +64,11 @@ export function usePeopleSearch({
         total_pages: json.total_pages ?? 0,
       };
     },
-    [trimmedQuery],
+    [debouncedQuery],
   );
 
   useEffect(() => {
-    if (!enabled || !trimmedQuery) {
+    if (!enabled || !debouncedQuery) {
       setPeople([]);
       setCurrentPage(1);
       setTotalPages(1);
@@ -106,10 +109,10 @@ export function usePeopleSearch({
     })();
 
     return () => controller.abort();
-  }, [enabled, fetchPage, trimmedQuery]);
+  }, [enabled, fetchPage, debouncedQuery]);
 
   const loadMore = useCallback(async () => {
-    if (!trimmedQuery || isLoading || currentPage >= totalPages) {
+    if (!debouncedQuery || isLoading || currentPage >= totalPages) {
       return;
     }
 
@@ -141,14 +144,14 @@ export function usePeopleSearch({
         setIsLoading(false);
       }
     }
-  }, [currentPage, fetchPage, isLoading, totalPages, trimmedQuery]);
+  }, [currentPage, debouncedQuery, fetchPage, isLoading, totalPages]);
 
   return {
-    trimmedQuery,
+    trimmedQuery: debouncedQuery,
     people,
     currentPage,
     totalPages,
-    isLoading,
+    isLoading: isDebouncing || isLoading,
     error,
     loadMore,
     hasMore: currentPage < totalPages,
