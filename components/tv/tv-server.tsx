@@ -59,7 +59,10 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
   const logo = item.images?.logos.find((logo) => logo.iso_639_1 === "en");
 
   return (
-    <div className="h-hero relative isolate" key={item.id}>
+    <div
+      className="h-hero relative isolate overflow-hidden rounded-2xl"
+      key={item.id}
+    >
       <div className="absolute inset-0">
         <MediaBackdrop
           image={item.backdrop_path}

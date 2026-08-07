@@ -22,6 +22,7 @@ type CardMetaProps = {
   showRuntime?: boolean;
   showContentRating?: boolean;
   maxGenres?: number;
+  showGenres?: boolean;
   className?: string;
   variant?: "default" | "compact";
 };
@@ -32,6 +33,7 @@ export function CardMeta({
   showRuntime = true,
   showContentRating = true,
   maxGenres = 2,
+  showGenres = true,
   className,
   variant = "default",
 }: CardMetaProps) {
@@ -82,7 +84,9 @@ export function CardMeta({
         ) : null}
       </div>
 
-      {(showType || countryCodes.length > 0 || genreIds.length > 0) && (
+      {(showType ||
+        countryCodes.length > 0 ||
+        (showGenres && genreIds.length > 0)) && (
         <div
           className={cn(
             "flex flex-wrap items-center gap-1.5",
@@ -117,11 +121,11 @@ export function CardMeta({
             />
           ) : null}
 
-          {genreIds.length > 0 ? (
+          {showGenres && genreIds.length > 0 ? (
             <SmartGenreBadgeGroup
               genreIds={genreIds}
               mediaType={item.media_type as "movie" | "tv"}
-              maxVisible={isCompact ? genreIds.length : maxGenres}
+              maxVisible={isCompact ? maxGenres || genreIds.length : maxGenres}
               className="flex flex-wrap gap-1"
               badgeClassName={cn(
                 "h-5 rounded-md border-white/8 bg-white/[0.03] font-normal normal-case tracking-normal text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
