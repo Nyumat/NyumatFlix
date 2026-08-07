@@ -119,10 +119,7 @@ export async function GET(request: NextRequest) {
       }));
 
     const results: PersonResult[] = mappedResults
-      .filter((person: PersonResult) => {
-        const knownForCount = person.known_for?.length || 0;
-        return knownForCount > 0;
-      })
+      .filter((person: PersonResult) => Boolean(person.profile_path))
       .sort(
         (a: PersonResult, b: PersonResult) =>
           (b.popularity || 0) - (a.popularity || 0),
