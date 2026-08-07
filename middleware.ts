@@ -1,8 +1,4 @@
 import {
-  isLegacyMovieDetailTabPathSegment,
-  isLegacyTvDetailTabPathSegment,
-} from "@/lib/media-detail-tab-query";
-import {
   isAnilistTvRouteId,
   normalizeAnilistTvRouteSlug,
 } from "@/lib/anilist-route-id";
@@ -13,6 +9,28 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const LEGACY_TAB_QUERY = "tab";
+
+const LEGACY_TV_DETAIL_TAB_SEGMENTS = new Set([
+  "overview",
+  "seasons-episodes",
+  "credits",
+  "reviews",
+  "series-graph",
+  "images",
+  "videos",
+  "recommendations",
+  "similar",
+  "seasons",
+]);
+
+const LEGACY_MOVIE_DETAIL_TAB_SEGMENTS = new Set([
+  "credits",
+  "reviews",
+  "images",
+  "videos",
+  "recommendations",
+  "similar",
+]);
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -75,7 +93,7 @@ export async function middleware(request: NextRequest) {
   const tvLegacy = pathname.match(/^\/tvshows\/([^/]+)\/([^/]+)$/);
   if (tvLegacy) {
     const [, id, segment] = tvLegacy;
-    if (isLegacyTvDetailTabPathSegment(segment)) {
+    if (LEGACY_TV_DETAIL_TAB_SEGMENTS.has(segment)) {
       const url = request.nextUrl.clone();
       url.pathname = `/tvshows/${id}`;
       url.searchParams.delete(LEGACY_TAB_QUERY);
@@ -86,7 +104,7 @@ export async function middleware(request: NextRequest) {
   const movieLegacy = pathname.match(/^\/movies\/([^/]+)\/([^/]+)$/);
   if (movieLegacy) {
     const [, id, segment] = movieLegacy;
-    if (isLegacyMovieDetailTabPathSegment(segment)) {
+    if (LEGACY_MOVIE_DETAIL_TAB_SEGMENTS.has(segment)) {
       const url = request.nextUrl.clone();
       url.pathname = `/movies/${id}`;
       url.searchParams.delete(LEGACY_TAB_QUERY);
