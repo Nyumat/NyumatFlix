@@ -8,6 +8,7 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 exec docker compose \
   --project-directory "$ROOT" \
+  --env-file "$ROOT/.env" \
   --env-file "$ROOT/.env.local" \
   -f "$ROOT/docker-compose.local-stack.yml" \
   "$@"
