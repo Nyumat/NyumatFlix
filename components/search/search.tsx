@@ -24,6 +24,7 @@ import {
   useSearchAutocomplete,
   shouldKeepSearchFocusWithinContainer,
 } from "@/hooks/use-search-autocomplete";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useClickOutside } from "@/hooks/use-click-outside";
 import { useSearchKeyboardShortcuts } from "@/hooks/use-search-keyboard-shortcuts";
 import { useSearchRecents } from "@/hooks/use-search-recents";
@@ -33,7 +34,7 @@ import { useSearchDialogStore } from "@/lib/stores/search-dialog-store";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Clock3, Search, X } from "lucide-react";
+import { ArrowRight, Search, X } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -42,6 +43,7 @@ import {
   type SearchAutocompleteFooter,
   type SearchAutocompleteSelection,
 } from "./search-autocomplete";
+import { SearchDialogEmpty } from "./search-dialog-empty";
 import SearchResults from "./search-results";
 
 interface SearchComponentProps {
@@ -55,17 +57,15 @@ interface SearchExperienceProps {
   inputClassName?: string;
   formClassName?: string;
   iconClassName?: string;
-  submitButtonClassName?: string;
-  submitIconClassName?: string;
   placeholder?: string;
   autoFocus?: boolean;
   variant?: "page" | "dialog";
+  onResultsVisibleChange?: (hasResults: boolean) => void;
 }
 
-const SEARCH_FORM_CLASSNAME =
-  "relative max-w-sm md:max-w-lg mx-auto md:scale-150";
+const SEARCH_FORM_CLASSNAME = "relative mx-auto w-full max-w-2xl";
 const SEARCH_INPUT_CLASSNAME =
-  "bg-black/30 backdrop-blur-md border-white/20 focus:border-primary focus:bg-black/40 shadow-xl";
+  "border-white/10 bg-white/[0.04] shadow-none backdrop-blur-sm placeholder:text-muted-foreground/70 focus-visible:border-white/15 focus-visible:bg-white/[0.06] focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0";
 
 const SEARCH_DIALOG_SPRING = {
   type: "spring" as const,
@@ -73,17 +73,6 @@ const SEARCH_DIALOG_SPRING = {
   damping: 32,
   mass: 0.9,
 };
-
-const searchSubmitButtonClassName = (isDialog: boolean) =>
-  cn(
-    "rounded-full bg-primary text-primary-foreground hover:bg-primary/90",
-    isDialog
-      ? "h-10 min-w-12 px-3 sm:h-11 sm:min-w-14 sm:px-3.5"
-      : "h-9 min-w-11 px-2.5 sm:h-10 sm:min-w-12 sm:px-3",
-  );
-
-const searchSubmitIconClassName = (isDialog: boolean) =>
-  isDialog ? "size-5 sm:size-[1.35rem]" : "size-4 sm:size-5";
 
 export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
   const [query, setQuery] = useState("");
@@ -192,106 +181,43 @@ function SearchExperience({
   inputClassName,
   formClassName,
   iconClassName,
-  submitButtonClassName,
-  submitIconClassName,
   placeholder = "Search movies and TV shows...",
   autoFocus = false,
   variant = "page",
+  onResultsVisibleChange,
 }: SearchExperienceProps) {
   const [query, setQuery] = useState(initialQuery);
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [isClearRecentsDialogOpen, setIsClearRecentsDialogOpen] =
     useState(false);
-  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const isDialog = variant === "dialog";
   const { recentSearches, saveRecentSearch, clearRecentSearches } =
-    useSearchRecents(isDialog);
-  const autocompleteFooter: SearchAutocompleteFooter = isDialog
-    ? "view-all"
-    : "none";
-  const showCommittedResults =
-    Boolean(searchQuery.trim()) && query.trim() === searchQuery.trim();
-  const { results, suggestions, isLoading } = useSearchPreview(query);
-  const showAutocomplete =
-    isFocused && query.trim().length >= 2 && !showCommittedResults;
+    useSearchRecents(true);
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const activeResultsQuery = debouncedQuery.trim();
+  const showResults = activeResultsQuery.length >= 2;
+  const showEmptyState = !showResults && query.trim().length === 0;
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
       const trimmedQuery = query.trim();
-      setSearchQuery(trimmedQuery);
-      if (isDialog) {
-        saveRecentSearch(trimmedQuery);
-      }
+      saveRecentSearch(trimmedQuery);
       onSubmit?.(trimmedQuery);
     }
-  }, [query, isDialog, onSubmit, saveRecentSearch]);
-
-  const handleAutocompleteSelect = useCallback(
-    (selection: SearchAutocompleteSelection) => {
-      if (selection.type === "suggestion") {
-        const trimmedQuery = selection.value.trim();
-        setQuery(trimmedQuery);
-        setSearchQuery(trimmedQuery);
-        if (isDialog) {
-          saveRecentSearch(trimmedQuery);
-        }
-        onSubmit?.(trimmedQuery);
-        return;
-      }
-
-      if (selection.type === "result") {
-        onAfterNavigation?.();
-        router.push(getSearchResultHref(selection.value));
-        return;
-      }
-
-      handleSearch();
-    },
-    [
-      handleSearch,
-      isDialog,
-      onAfterNavigation,
-      onSubmit,
-      router,
-      saveRecentSearch,
-    ],
-  );
-
-  const {
-    selectedIndex,
-    setSelectedIndex,
-    handleKeyDown: handleAutocompleteKeyDown,
-    handleOptionKeyDown,
-    handleInputFocus,
-    listboxId,
-    comboboxInputProps,
-  } = useSearchAutocomplete({
-    query,
-    results,
-    suggestions,
-    isOpen: showAutocomplete,
-    footer: autocompleteFooter,
-    ariaLabel: placeholder,
-    inputRef,
-    onSelect: handleAutocompleteSelect,
-    onClose: () => setIsFocused(false),
-    onBlurInput: () => inputRef.current?.blur(),
-  });
+  }, [query, onSubmit, saveRecentSearch]);
 
   const handleRecentSearch = useCallback(
     (recentSearch: string) => {
       setQuery(recentSearch);
-      setSearchQuery(recentSearch);
       saveRecentSearch(recentSearch);
       onSubmit?.(recentSearch);
     },
     [onSubmit, saveRecentSearch],
   );
 
-  useClickOutside(containerRef, showAutocomplete, () => setIsFocused(false));
+  useEffect(() => {
+    onResultsVisibleChange?.(showResults);
+  }, [onResultsVisibleChange, showResults]);
 
   useEffect(() => {
     if (autoFocus) {
@@ -302,33 +228,34 @@ function SearchExperience({
   useSearchKeyboardShortcuts({
     inputRef,
     focusOnModK: true,
+    focusOnSlash: !isDialog,
   });
 
   return (
     <motion.div
       className={cn(
         "w-full flex flex-col",
-        isDialog ? "h-full min-h-0 max-h-full overflow-hidden gap-3" : "gap-8",
+        isDialog ? "h-full min-h-0 max-h-full overflow-hidden gap-3" : "gap-6",
       )}
       transition={{ type: "spring", stiffness: 260, damping: 30 }}
     >
       {isDialog && (
         <div className="mx-auto flex w-full max-w-none shrink-0 items-center justify-between gap-4 px-1">
-          {showCommittedResults ? (
+          {showResults ? (
             <motion.p
               layout
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="text-sm text-muted-foreground"
+              className="text-base text-muted-foreground"
             >
               Results for{" "}
-              <span className="font-medium text-foreground">
-                &quot;{searchQuery}&quot;
+              <span className="text-lg font-semibold text-foreground">
+                &quot;{activeResultsQuery}&quot;
               </span>
             </motion.p>
           ) : (
-            <DialogTitle className="text-lg font-semibold tracking-tight text-white">
+            <DialogTitle className="text-2xl font-semibold tracking-tight text-white">
               Search
             </DialogTitle>
           )}
@@ -347,7 +274,6 @@ function SearchExperience({
         }}
       >
         <motion.div
-          ref={containerRef}
           className={cn(
             isDialog
               ? "relative w-full"
@@ -359,7 +285,7 @@ function SearchExperience({
             <Search
               className={cn(
                 "absolute top-1/2 z-10 -translate-y-1/2 text-muted-foreground",
-                isDialog ? "left-3.5 size-4" : "left-3 h-4 w-4",
+                isDialog ? "left-3.5 size-4" : "left-3.5 size-4",
                 iconClassName,
               )}
             />
@@ -369,28 +295,9 @@ function SearchExperience({
               placeholder={placeholder}
               value={query}
               autoComplete="off"
-              {...comboboxInputProps}
+              aria-label={placeholder}
               onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => {
-                setIsFocused(true);
-                handleInputFocus();
-              }}
-              onBlur={(event) => {
-                if (
-                  shouldKeepSearchFocusWithinContainer(
-                    event,
-                    containerRef.current,
-                  )
-                ) {
-                  return;
-                }
-                setIsFocused(false);
-              }}
               onKeyDown={(e) => {
-                if (handleAutocompleteKeyDown(e)) {
-                  return;
-                }
-
                 if (e.key === "Enter") {
                   e.preventDefault();
                   handleSearch();
@@ -399,18 +306,17 @@ function SearchExperience({
               className={cn(
                 "w-full border text-base transition-all duration-200 placeholder:text-muted-foreground/60 text-foreground",
                 isDialog
-                  ? "h-11 rounded-lg pl-10 pr-10 text-sm [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
-                  : "rounded-xl py-3 pl-10 pr-[3.25rem] sm:pr-[3.75rem] md:pr-16",
+                  ? "h-12 rounded-md pl-10 pr-10 text-base [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                  : "h-12 rounded-md pl-10 pr-10 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden",
                 inputClassName,
               )}
             />
-            {isDialog && query ? (
+            {query ? (
               <button
                 type="button"
                 aria-label="Clear search"
                 onClick={() => {
                   setQuery("");
-                  setSearchQuery("");
                   inputRef.current?.focus();
                 }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
@@ -418,146 +324,61 @@ function SearchExperience({
                 <X className="size-4" />
               </button>
             ) : null}
-            {!isDialog ? (
-              <div className="absolute top-1/2 -translate-y-1/2 right-1.5 md:right-2 md:scale-50">
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  aria-label="Search"
-                  className={cn(
-                    searchSubmitButtonClassName(isDialog),
-                    submitButtonClassName,
-                  )}
-                  disabled={!query.trim()}
-                >
-                  <ArrowRight
-                    className={cn(
-                      searchSubmitIconClassName(isDialog),
-                      submitIconClassName,
-                    )}
-                  />
-                </Button>
-              </div>
-            ) : null}
           </div>
-
-          {showAutocomplete && (
-            <AnimatePresence initial={false}>
-              <motion.div
-                key="search-autocomplete-panel"
-                initial={isDialog ? { opacity: 0, y: 8 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                exit={isDialog ? { opacity: 0, y: 6 } : undefined}
-                transition={
-                  isDialog
-                    ? SEARCH_DIALOG_SPRING
-                    : { duration: 0.15, ease: "easeOut" }
-                }
-              >
-                <SearchAutocomplete
-                  query={query}
-                  results={results}
-                  suggestions={suggestions}
-                  isLoading={isLoading}
-                  selectedIndex={selectedIndex}
-                  footer={autocompleteFooter}
-                  listboxId={listboxId}
-                  placement={isDialog ? "panel" : "popover"}
-                  onOptionFocus={setSelectedIndex}
-                  onOptionKeyDown={handleOptionKeyDown}
-                  onSelectSuggestion={(suggestion) =>
-                    handleAutocompleteSelect({
-                      type: "suggestion",
-                      value: suggestion,
-                    })
-                  }
-                  onSelectResult={(result) =>
-                    handleAutocompleteSelect({ type: "result", value: result })
-                  }
-                  onFooterAction={handleSearch}
-                  onPrefetchResult={(href) => router.prefetch(href)}
-                />
-              </motion.div>
-            </AnimatePresence>
-          )}
         </motion.div>
       </form>
 
-      {isDialog &&
-        !showCommittedResults &&
-        !showAutocomplete &&
-        query.trim().length === 0 &&
-        recentSearches.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            className="mx-auto w-full max-w-none shrink-0"
-          >
-            <div className="mb-3 flex items-center justify-between px-1.5">
-              <p className="text-sm font-medium text-muted-foreground">
-                Recent
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsClearRecentsDialogOpen(true)}
-                className="text-sm text-muted-foreground transition-colors hover:text-white"
-              >
-                Clear
-              </button>
-            </div>
-            <div
-              className="space-y-1.5"
-              role="list"
-              aria-label="Recent searches"
-            >
-              {recentSearches.map((recentSearch) => (
-                <button
-                  type="button"
-                  role="listitem"
-                  key={recentSearch}
-                  onClick={() => handleRecentSearch(recentSearch)}
-                  className="flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left text-base text-foreground/90 transition-colors hover:bg-white/10"
-                >
-                  <Clock3 className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{recentSearch}</span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-      {isDialog && (
-        <AlertDialog
-          open={isClearRecentsDialogOpen}
-          onOpenChange={setIsClearRecentsDialogOpen}
+      {showEmptyState && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={SEARCH_DIALOG_SPRING}
+          className={cn(
+            "mx-auto w-full max-w-none shrink-0",
+            !isDialog && "max-w-2xl",
+          )}
         >
-          <AlertDialogContent className="z-[60]">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Clear recent searches?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This removes your recent searches from this device. You
-                can&apos;t undo this action.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  clearRecentSearches();
-                }}
-              >
-                Clear
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          <SearchDialogEmpty
+            recentSearches={recentSearches}
+            onSelectQuery={handleRecentSearch}
+            onClearRecents={
+              recentSearches.length > 0
+                ? () => setIsClearRecentsDialogOpen(true)
+                : undefined
+            }
+          />
+        </motion.div>
       )}
 
+      <AlertDialog
+        open={isClearRecentsDialogOpen}
+        onOpenChange={setIsClearRecentsDialogOpen}
+      >
+        <AlertDialogContent className={cn(isDialog && "z-[60]")}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear recent searches?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes your recent searches from this device. You can&apos;t
+              undo this action.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                clearRecentSearches();
+              }}
+            >
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AnimatePresence mode="wait">
-        {showCommittedResults && (
+        {showResults && (
           <motion.div
-            key={searchQuery}
+            key={activeResultsQuery}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
@@ -567,10 +388,8 @@ function SearchExperience({
             )}
           >
             <SearchResults
-              query={searchQuery}
+              query={activeResultsQuery}
               hideTitle={isDialog}
-              hidePaginationInfo={isDialog}
-              variant={isDialog ? "dialog" : "page"}
               onNavigate={isDialog ? onAfterNavigation : undefined}
             />
           </motion.div>
@@ -587,6 +406,7 @@ export function SearchDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [hasVisibleResults, setHasVisibleResults] = useState(false);
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
   const setSearchDialogOpen = useSearchDialogStore((state) => state.setIsOpen);
@@ -604,6 +424,12 @@ export function SearchDialog({
   }, [open, setSearchDialogOpen]);
 
   useEffect(() => {
+    if (!open) {
+      setHasVisibleResults(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
     if (pathnameRef.current === pathname) return;
     pathnameRef.current = pathname;
     onOpenChange(false);
@@ -612,10 +438,13 @@ export function SearchDialog({
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="bg-black/70 backdrop-blur-sm" />
+        <DialogOverlay className="bg-black/70 backdrop-blur-md" />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-[8vh] z-50 flex w-[min(100%-1.5rem,72rem)] max-h-[min(84vh,920px)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#09090b]/95 p-4 shadow-2xl shadow-black/50 outline-none sm:p-5",
+            "fixed left-1/2 top-[8vh] z-50 flex -translate-x-1/2 flex-col overflow-hidden rounded-lg border border-white/8 bg-[#09090b]/90 p-4 shadow-2xl shadow-black/50 outline-none backdrop-blur-xl sm:p-5",
+            hasVisibleResults
+              ? "w-[min(100%-1.5rem,68rem)] max-h-[min(88vh,940px)]"
+              : "w-[min(100%-1.5rem,48rem)] max-h-[min(65vh,640px)]",
             "duration-300 ease-out",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
@@ -630,6 +459,7 @@ export function SearchDialog({
           <SearchExperience
             autoFocus={open}
             variant="dialog"
+            onResultsVisibleChange={setHasVisibleResults}
             onAfterNavigation={() => onOpenChange(false)}
             formClassName="w-full"
             iconClassName="left-3.5 size-4 text-muted-foreground"
@@ -645,12 +475,14 @@ export function SearchDialog({
 export interface NavbarSearchClientProps {
   className?: string;
   onAfterNavigation?: () => void;
+  onOpenDialog?: () => void;
+  mode?: "inline" | "trigger";
 }
 
 export const NavbarSearchClient = forwardRef<
   HTMLInputElement,
   NavbarSearchClientProps
->(({ className, onAfterNavigation }, ref) => {
+>(({ className, onAfterNavigation, onOpenDialog, mode = "inline" }, ref) => {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -661,7 +493,7 @@ export const NavbarSearchClient = forwardRef<
 
   const inputRef = (ref as React.RefObject<HTMLInputElement>) || innerRef;
 
-  const { results, suggestions, isLoading } = useSearchPreview(query);
+  const { results, isLoading, error: previewError } = useSearchPreview(query);
   const showAutocomplete = isFocused && query.trim().length >= 2;
 
   const handleSearch = useCallback(() => {
@@ -675,16 +507,6 @@ export const NavbarSearchClient = forwardRef<
 
   const handleAutocompleteSelect = useCallback(
     (selection: SearchAutocompleteSelection) => {
-      if (selection.type === "suggestion") {
-        const trimmedQuery = selection.value.trim();
-        setQuery(trimmedQuery);
-        gateAction(() => {
-          onAfterNavigation?.();
-          router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
-        });
-        return;
-      }
-
       if (selection.type === "result") {
         onAfterNavigation?.();
         router.push(getSearchResultHref(selection.value));
@@ -707,7 +529,6 @@ export const NavbarSearchClient = forwardRef<
   } = useSearchAutocomplete({
     query,
     results,
-    suggestions,
     isOpen: showAutocomplete,
     footer: "go-to-search",
     ariaLabel: "Search movies and TV shows",
@@ -727,6 +548,29 @@ export const NavbarSearchClient = forwardRef<
     inputRef,
     focusOnModK: true,
   });
+
+  if (mode === "trigger") {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          onAfterNavigation?.();
+          onOpenDialog?.();
+        }}
+        className={cn(
+          "flex h-11 w-full items-center gap-3 rounded-md border border-border/30 bg-background/60 px-4 text-left text-sm text-muted-foreground shadow-sm backdrop-blur-md transition-colors hover:bg-muted/60 dark:border-white/15 dark:bg-black/40 dark:hover:bg-white/15",
+          className,
+        )}
+        aria-label="Open search"
+      >
+        <Search className="size-4 shrink-0" aria-hidden />
+        <span className="flex-1 truncate">Search movies, TV, people...</span>
+        <kbd className="hidden rounded border border-border/30 bg-muted/20 px-1.5 py-0.5 text-[10px] sm:inline-block">
+          ⌘K
+        </kbd>
+      </button>
+    );
+  }
 
   return (
     <div
@@ -795,19 +639,13 @@ export const NavbarSearchClient = forwardRef<
           <SearchAutocomplete
             query={query}
             results={results}
-            suggestions={suggestions}
             isLoading={isLoading}
+            error={previewError}
             selectedIndex={selectedIndex}
             footer="go-to-search"
             listboxId={listboxId}
             onOptionFocus={setSelectedIndex}
             onOptionKeyDown={handleOptionKeyDown}
-            onSelectSuggestion={(suggestion) =>
-              handleAutocompleteSelect({
-                type: "suggestion",
-                value: suggestion,
-              })
-            }
             onSelectResult={(result) =>
               handleAutocompleteSelect({ type: "result", value: result })
             }
