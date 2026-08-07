@@ -6,7 +6,6 @@ import type { SearchPreviewResult } from "@/lib/api";
 import { describe, expect, test } from "vitest";
 
 describe("search autocomplete helpers", () => {
-  const suggestions = ["Inception", "Interstellar"];
   const results = [
     {
       id: 1,
@@ -23,26 +22,26 @@ describe("search autocomplete helpers", () => {
   ] as SearchPreviewResult[];
 
   test("excludes footer from item count by default", () => {
-    expect(getSearchAutocompleteItemCount(suggestions, results)).toBe(4);
+    expect(getSearchAutocompleteItemCount(results)).toBe(2);
   });
 
   test("includes footer in item count when enabled", () => {
     expect(
-      getSearchAutocompleteItemCount(suggestions, results, {
+      getSearchAutocompleteItemCount(results, {
         includeFooter: true,
       }),
-    ).toBe(5);
+    ).toBe(3);
   });
 
   test("resolves footer selection only when footer is enabled", () => {
     expect(
-      resolveSearchAutocompleteSelection(suggestions, results, 4, {
+      resolveSearchAutocompleteSelection(results, 2, {
         includeFooter: true,
       }),
     ).toEqual({ type: "footer" });
 
     expect(
-      resolveSearchAutocompleteSelection(suggestions, results, 4, {
+      resolveSearchAutocompleteSelection(results, 2, {
         includeFooter: false,
       }),
     ).toBeNull();

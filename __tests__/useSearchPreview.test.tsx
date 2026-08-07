@@ -37,7 +37,6 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual([]);
-    expect(result.current.suggestions).toEqual([]);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -88,7 +87,6 @@ describe("useSearchPreview", () => {
       ok: true,
       json: async () => ({
         results: mockResults,
-        suggestions: ["Test Movie", "Test Show"],
       }),
     } as Response);
 
@@ -101,7 +99,6 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual(mockResults);
-    expect(result.current.suggestions).toEqual(["Test Movie", "Test Show"]);
     expect(result.current.error).toBeNull();
   });
 
@@ -120,8 +117,7 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual([]);
-    expect(result.current.suggestions).toEqual([]);
-    expect(result.current.error).toBe("Failed to load search suggestions");
+    expect(result.current.error).toBe("Failed to load search preview");
   });
 
   test("handles network errors", async () => {
@@ -138,8 +134,7 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual([]);
-    expect(result.current.suggestions).toEqual([]);
-    expect(result.current.error).toBe("Failed to load search suggestions");
+    expect(result.current.error).toBe("Failed to load search preview");
   });
 
   test("handles missing results in response", async () => {
@@ -157,6 +152,5 @@ describe("useSearchPreview", () => {
     });
 
     expect(result.current.results).toEqual([]);
-    expect(result.current.suggestions).toEqual([]);
   });
 });
