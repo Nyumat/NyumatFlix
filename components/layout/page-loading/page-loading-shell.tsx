@@ -6,20 +6,33 @@ import type { ReactNode } from "react";
 interface PageLoadingShellProps {
   children: ReactNode;
   className?: string;
+  withPageContainer?: boolean;
+  contentTopSpacing?: boolean;
 }
 
 export function PageLoadingShell({
   children,
   className,
+  withPageContainer = true,
+  contentTopSpacing = true,
 }: PageLoadingShellProps) {
-  return (
-    <PageContainer className={className}>
+  const content = (
+    <>
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
-      <ContentContainer className="relative z-10 flex w-full flex-col items-center">
+      <ContentContainer
+        topSpacing={contentTopSpacing}
+        className="relative z-10 flex w-full flex-col items-center"
+      >
         {children}
       </ContentContainer>
-    </PageContainer>
+    </>
   );
+
+  if (!withPageContainer) {
+    return <div className={className}>{content}</div>;
+  }
+
+  return <PageContainer className={className}>{content}</PageContainer>;
 }
 
 export function WatchlistLoadingShell({ children }: { children: ReactNode }) {
