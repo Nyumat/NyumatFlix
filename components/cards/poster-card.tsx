@@ -1,5 +1,6 @@
 "use client";
 
+import { useHoverSound } from "@/components/providers/hover-sound-provider";
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { Card } from "@/components/ui/card";
 import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
@@ -58,10 +59,12 @@ export function PosterCard({
     item,
     link,
   );
+  const playHoverSound = useHoverSound();
 
   const handleIntent = () => {
     setShowBackdrop(true);
     schedulePrefetch();
+    playHoverSound?.();
   };
 
   const cardLink = isExternalHref(link) ? (

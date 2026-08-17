@@ -1,6 +1,7 @@
 "use client";
 
 import { MediaCard, MediaPoster } from "@/components/media/media-display";
+import { useHoverSound } from "@/components/providers/hover-sound-provider";
 import { hasProfilePath } from "@/lib/media-poster-path";
 import { isDeceasedAsOfToday } from "@/lib/utils";
 import type { CanonicalPersonCard } from "@/lib/domain/typings";
@@ -17,6 +18,7 @@ export function PersonCardPresenter({
 }: CanonicalPersonCard) {
   const displayName = name || title;
   const monochrome = isDeceasedAsOfToday(deathday);
+  const playHoverSound = useHoverSound();
 
   if (!hasProfilePath({ profile_path })) {
     return null;
@@ -28,6 +30,7 @@ export function PersonCardPresenter({
       key={id}
       className="w-full"
       prefetch={false}
+      onPointerEnter={() => playHoverSound?.()}
     >
       <MediaCard.Root>
         <MediaPoster
