@@ -13,7 +13,6 @@
     "build": "turbo build",
     "test": "turbo test",
     "test:ci": "turbo test --filter=@nyumatflix/web",
-    "test:e2e": "turbo test:e2e --filter=@nyumatflix/web",
     "typecheck": "turbo typecheck",
     "type-check": "turbo typecheck",
     "lint": "turbo lint",

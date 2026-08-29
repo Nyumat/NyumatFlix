@@ -35,8 +35,6 @@
   ],
   "exclude": [
     "node_modules",
-    "../../packages/**",
-    "e2e",
-    "playwright.config.ts"
+    "../../packages/**"
   ]
 }

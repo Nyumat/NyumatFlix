@@ -32,9 +32,9 @@ export const filterReleasedMovies = <
     poster_path?: string | null;
   },
 >(
-  items: T[],
+  items: T[] | null | undefined,
 ): T[] =>
-  items.filter(
+  (items ?? []).filter(
     (m) => isReleasedMovieByDate(m.release_date) && hasPosterPath(m),
   );
 
@@ -44,9 +44,9 @@ export const filterReleasedTvShows = <
     poster_path?: string | null;
   },
 >(
-  items: T[],
+  items: T[] | null | undefined,
 ): T[] =>
-  items.filter(
+  (items ?? []).filter(
     (s) => isPremieredTvByDate(s.first_air_date) && hasPosterPath(s),
   );
 

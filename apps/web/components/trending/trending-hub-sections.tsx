@@ -10,7 +10,6 @@ import { TrendingSpotlight } from "@/components/trend/trending-spotlight";
 import { TvHero } from "@/components/tv/tv-server";
 import { pages } from "@/config/pages";
 import { tmdb } from "@/tmdb/api";
-import { notFound } from "next/navigation";
 
 const ABOVE_FOLD_LOGO_COUNT = 8;
 
@@ -23,7 +22,7 @@ export async function TrendingMoviesSection() {
   const featured = movies.find((m) => Boolean(m.poster_path)) ?? movies[0];
 
   if (!featured) {
-    notFound();
+    return null;
   }
 
   const moviesForTrendCarousel = await enrichAboveFoldMediaItemsWithLogos(
@@ -90,7 +89,7 @@ export async function TrendingPeopleSection() {
         type="person"
         title={pages.trending.people.title}
         link={pages.trending.people.link}
-        items={people}
+        items={people ?? []}
       />
     </ContentReveal>
   );

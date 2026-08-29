@@ -28,7 +28,7 @@ export default defineConfig({
     setupFiles: ["./setupTests.ts"],
     globals: true,
     silent: false,
-    exclude: ["**/node_modules/**", "**/dist/**", "e2e/**", "packages/**"],
+    exclude: ["**/node_modules/**", "**/dist/**", "packages/**"],
     env: loadEnv("", process.cwd(), ""),
     server: {
       deps: {
