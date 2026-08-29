@@ -1,5 +1,5 @@
-import { access } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,26 +9,16 @@ const webRoot = path.resolve(
 );
 const repoRoot = path.resolve(webRoot, "../..");
 const vendorElement = path.join(webRoot, "public/vendor/player/element.js");
-const wasmMovi = path.join(repoRoot, "packages/player/dist/wasm/movi.js");
+const vendorWasm = path.join(webRoot, "public/vendor/player/wasm/movi.js");
 
-const pathsExist = async (...files) => {
-  for (const file of files) {
-    try {
-      await access(file);
-    } catch {
-      return false;
-    }
-  }
-  return true;
-};
-
-if (await pathsExist(vendorElement, wasmMovi)) {
+if (existsSync(vendorElement) && existsSync(vendorWasm)) {
   process.exit(0);
 }
 
 console.log(
-  "player vendor missing — building @nyumatflix/player (wasm + bundle)...",
+  "[ensure-player] vendor player missing — building @nyumatflix/player (needs docker)",
 );
+
 const result = spawnSync(
   "bunx",
   ["turbo", "build", "--filter=@nyumatflix/player"],
