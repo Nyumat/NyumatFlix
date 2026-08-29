@@ -2,7 +2,9 @@
 
 import { MarkContinueWatchingCompleteControl } from "@/components/home/mark-continue-watching-complete-control";
 import { useHoverSound } from "@/components/providers/hover-sound-provider";
+import { EpisodeIndicator } from "@/components/watchlist/watchlist";
 import { Icons } from "@/lib/icons";
+import type { EpisodeInfo } from "@/lib/domain/episodes";
 import type { RecentlyWatchedItem } from "@/lib/playback/recently-watched";
 import { cn } from "@/lib/utils";
 import { tmdbImage } from "@/tmdb/utils";
@@ -15,6 +17,9 @@ export interface RecentlyWatchedCardProps {
   priority?: boolean;
   isMarkCompletePending?: boolean;
   onMarkComplete?: () => void | Promise<void>;
+  showProgress?: boolean;
+  playAriaLabel?: string;
+  episodeInfo?: EpisodeInfo | null;
 }
 
 const continueWatchingProgressFillClass = "bg-pink-500";
@@ -26,6 +31,9 @@ export function RecentlyWatchedCard({
   priority = false,
   isMarkCompletePending = false,
   onMarkComplete,
+  showProgress = true,
+  playAriaLabel,
+  episodeInfo = null,
 }: RecentlyWatchedCardProps) {
   const playHoverSound = useHoverSound();
   const backdropUrl = item.backdropPath
@@ -92,38 +100,49 @@ export function RecentlyWatchedCard({
               </>
             ) : null}
           </div>
+          {episodeInfo && item.mediaType === "tv" ? (
+            <div className="pointer-events-none pt-0.5">
+              <EpisodeIndicator
+                contentId={item.contentId}
+                mediaType="tv"
+                episodeInfo={episodeInfo}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <div
-        className={cn(
-          "pointer-events-none absolute inset-x-0 bottom-0 z-30 h-[3px]",
-          continueWatchingProgressTrackClass,
-        )}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={progressPercent ?? undefined}
-        aria-label={
-          progressPercent != null
-            ? `${progressPercent}% watched`
-            : "Watch progress unavailable"
-        }
-      >
+      {showProgress ? (
         <div
           className={cn(
-            "h-full transition-[width] duration-500",
-            progressPercent == null
-              ? cn("w-[6%]", continueWatchingProgressFallbackFillClass)
-              : continueWatchingProgressFillClass,
+            "pointer-events-none absolute inset-x-0 bottom-0 z-30 h-[3px]",
+            continueWatchingProgressTrackClass,
           )}
-          style={
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPercent ?? undefined}
+          aria-label={
             progressPercent != null
-              ? { width: `${Math.max(progressPercent, 2)}%` }
-              : undefined
+              ? `${progressPercent}% watched`
+              : "Watch progress unavailable"
           }
-        />
-      </div>
+        >
+          <div
+            className={cn(
+              "h-full transition-[width] duration-500",
+              progressPercent == null
+                ? cn("w-[6%]", continueWatchingProgressFallbackFillClass)
+                : continueWatchingProgressFillClass,
+            )}
+            style={
+              progressPercent != null
+                ? { width: `${Math.max(progressPercent, 2)}%` }
+                : undefined
+            }
+          />
+        </div>
+      ) : null}
 
       {onMarkComplete ? (
         <MarkContinueWatchingCompleteControl
@@ -138,7 +157,7 @@ export function RecentlyWatchedCard({
         <Link
           href={item.href}
           className="pointer-events-auto flex size-20 cursor-pointer items-center justify-center rounded-full opacity-100 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100"
-          aria-label={`Continue watching ${item.title}`}
+          aria-label={playAriaLabel ?? `Continue watching ${item.title}`}
           prefetch={false}
         >
           <Icons.play

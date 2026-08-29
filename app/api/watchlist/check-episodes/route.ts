@@ -57,14 +57,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const scope = request.nextUrl.searchParams.get("scope");
     const tvShows = await db
       .select()
       .from(watchlist)
       .where(and(eq(watchlist.userId, userId), eq(watchlist.mediaType, "tv")));
 
+    const scopedShows =
+      scope === "watching"
+        ? tvShows.filter((item) => item.status === "watching")
+        : tvShows;
+
     const episodeData: Record<number, EpisodeInfo> = {};
 
-    const resolved = await runInChunks(tvShows, async (item) => {
+    const resolved = await runInChunks(scopedShows, async (item) => {
       const cacheKey = makeCacheKey(userId, item);
       let episodeInfo = getCached(cacheKey);
 

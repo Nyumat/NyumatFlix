@@ -6,6 +6,7 @@ import {
   CatalogSpotlightFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
+import { HomeBecauseYouWatched } from "@/components/home/because-you-watched-row";
 import {
   HomeCollectionsSection,
   HomeFeaturedMovie,
@@ -19,6 +20,7 @@ import {
   HomeTrendingTvHeroes,
 } from "@/components/home/home-sections";
 import { HomeRecentlyWatched } from "@/components/home/recently-watched-row";
+import { HomeUpNextInbox } from "@/components/home/up-next-inbox-row";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { siteConfig } from "@/config/site";
@@ -75,6 +77,14 @@ export default function Home() {
 
               <Suspense fallback={<RecentlyWatchedRowFallback />}>
                 <HomeRecentlyWatched />
+              </Suspense>
+
+              <Suspense fallback={<RecentlyWatchedRowFallback />}>
+                <HomeUpNextInbox />
+              </Suspense>
+
+              <Suspense fallback={<CatalogRowFallback />}>
+                <HomeBecauseYouWatched />
               </Suspense>
 
               <Suspense fallback={<CatalogRowFallback />}>

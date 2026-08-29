@@ -265,12 +265,14 @@ export function StaticHero({
     pathname.includes("/ad-free");
   const isWatchlistPage = pathname.includes("/watchlist");
   const isSettingsPage = pathname.includes("/settings");
+  const isHistoryPage = pathname.startsWith("/history");
   const isFullPageBackground =
     isSearchPage ||
     isBrowsePage ||
     isLegalPage ||
     isWatchlistPage ||
     isSettingsPage ||
+    isHistoryPage ||
     isCatalogPage;
 
   return (
@@ -281,7 +283,7 @@ export function StaticHero({
       logo={logo}
       hideTitle={hideTitle}
       overlayClassName={
-        isWatchlistPage || isSettingsPage
+        isWatchlistPage || isSettingsPage || isHistoryPage
           ? "bg-black/90"
           : isCatalogPage
             ? "bg-black/80"
