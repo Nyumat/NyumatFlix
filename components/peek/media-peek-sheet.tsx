@@ -34,6 +34,7 @@ import {
   resolveTvWatchTarget,
 } from "@/lib/tv-watch-target";
 import { formatRuntime, formatYear } from "@/lib/cards/formatters";
+import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
 import { cn } from "@/lib/utils";
 import type { ListResponse } from "@/tmdb/api";
 import type {
@@ -193,7 +194,7 @@ const MediaPeekBody = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const isTrailerPlaying = Boolean(activeTrailerKey);
 
-  const aboveFold = queryClient.getQueryData(
+  const aboveFold = queryClient.getQueryData<MediaAboveFoldDetail>(
     queryKeys.mediaAboveFold(target.mediaType, target.id),
   );
 
@@ -205,6 +206,9 @@ const MediaPeekBody = ({
       target.id,
       "details",
     ] as const,
+    initialData: aboveFold as unknown as
+      | (MovieDetails | TvShowDetails)
+      | undefined,
     queryFn: async (): Promise<MovieDetails | TvShowDetails> => {
       if (target.mediaType === "movie") {
         return fetchMovieDetailsClient(target.id);
@@ -221,6 +225,7 @@ const MediaPeekBody = ({
       target.id,
       "credits",
     ] as const,
+    initialData: aboveFold?.credits as Credits | undefined,
     queryFn: async (): Promise<Credits> => {
       if (target.mediaType === "movie") {
         return fetchMovieCreditsClient(target.id);
@@ -237,6 +242,7 @@ const MediaPeekBody = ({
       target.id,
       "similar",
     ] as const,
+    initialData: aboveFold?.similar as ListResponse<Movie | TvShow> | undefined,
     queryFn: async (): Promise<ListResponse<Movie | TvShow>> => {
       if (target.mediaType === "movie") {
         return fetchMovieSimilarPageClient(target.id, "1");
@@ -512,15 +518,13 @@ const MediaPeekBody = ({
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]"
           onScroll={(event) => {
             if (isTrailerPlaying) return;
-            setStuck(event.currentTarget.scrollTop > 140);
+            setStuck(event.currentTarget.scrollTop > 190);
           }}
         >
           <section
             className={cn(
               "relative w-full overflow-hidden",
-              isTrailerPlaying
-                ? "aspect-video min-h-0 bg-black"
-                : "min-h-[clamp(260px,36vh,420px)] md:min-h-[340px] md:max-h-[420px]",
+              isTrailerPlaying ? "aspect-video min-h-0 bg-black" : "relative",
             )}
           >
             {backdropUrl && !isTrailerPlaying ? (
@@ -564,7 +568,7 @@ const MediaPeekBody = ({
                   <X className="size-5" strokeWidth={2.2} />
                 </DialogPrimitive.Close>
 
-                <div className="absolute inset-x-0 bottom-0 z-[2] px-4 pb-6 md:px-8 md:pb-8">
+                <div className="relative z-[2] px-4 pb-6 pt-16 md:px-8 md:pb-7 md:pt-20">
                   <div className="max-w-2xl motion-safe:animate-peek-rise">
                     {logo?.file_path ? (
                       <Image

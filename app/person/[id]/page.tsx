@@ -58,6 +58,7 @@ export async function generateMetadata(
       ogType: "profile",
       imageAlt: `${person.name} on NyumatFlix`,
       includeDefaultImage: false,
+      noIndex: true,
     });
   } catch {
     return buildNotFoundMetadata("Person Not Found");
