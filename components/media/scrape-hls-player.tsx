@@ -76,7 +76,10 @@ import type {
 } from "@/lib/scrape/types";
 import { VIDKING_PROACTIVE_REFRESH_AFTER_MS } from "@/lib/scrape/vidking-constants";
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
-import { decidePlaybackAutoStart } from "@/lib/playback/playbackStart";
+import {
+  decidePlaybackAutoStart,
+  PLAYBACK_START_TIMEOUT_MS,
+} from "@/lib/playback/playbackStart";
 import { cn } from "@/lib/utils";
 
 import "./scrape-hls-player.css";
@@ -670,7 +673,7 @@ export function ScrapeHlsPlayer({
       }
       fatalReportedRef.current = true;
       onFatalError?.();
-    }, 45_000);
+    }, PLAYBACK_START_TIMEOUT_MS);
 
     return () => window.clearTimeout(failTimeout);
   }, [activePlayUrl, autoPlay, duration, onFatalError]);

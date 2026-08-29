@@ -25,3 +25,8 @@ export const getCapApiEndpoint = (): string => {
   if (!endpoint.pathname.endsWith("/")) endpoint.pathname += "/";
   return endpoint.toString();
 };
+
+export const getCapWasmUrl = (): string => {
+  const endpoint = new URL(getCapApiEndpoint());
+  return new URL("assets/cap_wasm_bg.wasm", endpoint).toString();
+};

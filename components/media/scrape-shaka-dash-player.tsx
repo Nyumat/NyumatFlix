@@ -9,9 +9,13 @@ import { useNativeSubtitleOffset } from "@/hooks/use-native-subtitle-offset";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
 import { buildIntroDbChaptersVtt } from "@/lib/playback/introdb";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import { createMediaReadyHandler } from "@/lib/playback/media-ready";
+import {
+  decidePlaybackAutoStart,
+  PLAYBACK_START_TIMEOUT_MS,
+} from "@/lib/playback/playbackStart";
 import { buildScrapeSubtitleTracks } from "@/lib/scrape/player-sources";
 import type { ScrapeSubtitle } from "@/lib/scrape/types";
-import { createMediaReadyHandler } from "@/lib/playback/media-ready";
 import { cn } from "@/lib/utils";
 
 type ScrapeShakaDashPlayerProps = {
@@ -23,10 +27,13 @@ type ScrapeShakaDashPlayerProps = {
   progressKey: PlaybackProgressKey;
   imdbId?: string | null;
   className?: string;
+  autoPlay?: boolean;
   onFatalError?: () => void;
   onMediaReady?: () => void;
   onEnded?: () => Promise<boolean>;
 };
+
+const LOAD_TIMEOUT_MS = PLAYBACK_START_TIMEOUT_MS;
 
 const absolutizeUrl = (url: string): string => {
   if (!url.startsWith("/")) {
@@ -53,6 +60,7 @@ function ScrapeShakaDashPlayerInstance({
   progressKey,
   imdbId = null,
   className,
+  autoPlay = true,
   onFatalError,
   onMediaReady,
   onEnded,
@@ -60,12 +68,56 @@ function ScrapeShakaDashPlayerInstance({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<import("shaka-player").default.Player | null>(null);
   const readyRef = useRef(false);
+  const startedRef = useRef(false);
+  const fatalReportedRef = useRef(false);
   const onMediaReadyRef = useRef(onMediaReady);
   onMediaReadyRef.current = onMediaReady;
 
   const markMediaReady = useCallback(() => {
     createMediaReadyHandler(() => onMediaReadyRef.current?.(), readyRef)();
   }, []);
+
+  const reportFatal = useCallback(() => {
+    if (fatalReportedRef.current) {
+      return;
+    }
+    fatalReportedRef.current = true;
+    onFatalError?.();
+  }, [onFatalError]);
+
+  const attemptPlaybackStart = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !autoPlay) {
+      return;
+    }
+
+    const decision = decidePlaybackAutoStart({
+      autoPlay,
+      hasStarted: startedRef.current,
+      isCurrentlyPlaying: !video.paused && video.currentTime > 0,
+    });
+
+    if (decision === "already-playing") {
+      startedRef.current = true;
+      markMediaReady();
+      return;
+    }
+
+    if (decision === "skip") {
+      return;
+    }
+
+    void video
+      .play()
+      .then(() => {
+        if (!video.paused) {
+          startedRef.current = true;
+          markMediaReady();
+        }
+      })
+      .catch(() => undefined);
+  }, [autoPlay, markMediaReady]);
+
   const [playbackState, setPlaybackState] = useState({
     currentTime: 0,
     duration: 0,
@@ -123,6 +175,8 @@ function ScrapeShakaDashPlayerInstance({
 
   useEffect(() => {
     readyRef.current = false;
+    startedRef.current = false;
+    fatalReportedRef.current = false;
     let cancelled = false;
 
     const setup = async () => {
@@ -141,7 +195,7 @@ function ScrapeShakaDashPlayerInstance({
       shaka.polyfill.installAll();
 
       if (!shaka.Player.isBrowserSupported()) {
-        onFatalError?.();
+        reportFatal();
         return;
       }
 
@@ -149,14 +203,36 @@ function ScrapeShakaDashPlayerInstance({
       playerRef.current = player;
 
       player.addEventListener("error", () => {
-        onFatalError?.();
+        reportFatal();
       });
 
       try {
-        await player.load(playbackUrl);
+        const loadPromise = player.load(playbackUrl);
+        let loadTimeoutId: ReturnType<typeof setTimeout> | undefined;
+        const loadTimeout = new Promise<never>((_, reject) => {
+          loadTimeoutId = setTimeout(
+            () => reject(new Error("DASH load timed out")),
+            LOAD_TIMEOUT_MS,
+          );
+        });
+
+        try {
+          await Promise.race([loadPromise, loadTimeout]);
+        } finally {
+          if (loadTimeoutId) {
+            clearTimeout(loadTimeoutId);
+          }
+        }
       } catch {
-        onFatalError?.();
+        reportFatal();
+        return;
       }
+
+      if (cancelled) {
+        return;
+      }
+
+      attemptPlaybackStart();
     };
 
     void setup();
@@ -165,7 +241,43 @@ function ScrapeShakaDashPlayerInstance({
       cancelled = true;
       void destroyPlayer();
     };
-  }, [destroyPlayer, onFatalError, playbackUrl]);
+  }, [attemptPlaybackStart, destroyPlayer, playbackUrl, reportFatal]);
+
+  useEffect(() => {
+    if (!autoPlay) {
+      return undefined;
+    }
+
+    const tick = () => {
+      attemptPlaybackStart();
+    };
+
+    tick();
+    const interval = window.setInterval(tick, 1500);
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+    }, PLAYBACK_START_TIMEOUT_MS);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [attemptPlaybackStart, autoPlay, playbackUrl]);
+
+  useEffect(() => {
+    if (!autoPlay) {
+      return undefined;
+    }
+
+    const failTimeout = window.setTimeout(() => {
+      if (fatalReportedRef.current || readyRef.current) {
+        return;
+      }
+      reportFatal();
+    }, PLAYBACK_START_TIMEOUT_MS);
+
+    return () => window.clearTimeout(failTimeout);
+  }, [autoPlay, playbackUrl, reportFatal]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -184,8 +296,6 @@ function ScrapeShakaDashPlayerInstance({
     return () => video.removeEventListener("loadedmetadata", apply);
   }, [resumeTime]);
 
-  // Native <video controls> only — DefaultVideoLayout requires a Vidstack
-  // MediaPlayer parent and throws `$props` if rendered here.
   return (
     <div className={cn("relative h-full w-full", className)}>
       <video
@@ -202,6 +312,10 @@ function ScrapeShakaDashPlayerInstance({
             currentTime: video.currentTime,
             duration: video.duration || 0,
           });
+          attemptPlaybackStart();
+        }}
+        onCanPlay={() => {
+          attemptPlaybackStart();
         }}
         onDurationChange={(event) => {
           const video = event.currentTarget;
@@ -211,6 +325,7 @@ function ScrapeShakaDashPlayerInstance({
           }));
         }}
         onPlaying={() => {
+          startedRef.current = true;
           markMediaReady();
         }}
         onTimeUpdate={(e) => {

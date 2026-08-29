@@ -21,10 +21,18 @@ describe("justanime momo proxy", () => {
     expect(unwrapJustanimeMomoProxyUrl(wrapped)).toBe(kotocdn);
   });
 
-  it("wraps mewstream masters for megaplay playback", () => {
-    const wrapped = wrapJustanimeMegaplayStreamUrl(master);
+  it("wraps megap mirror hosts for momo fallback", () => {
+    const mikora =
+      "https://megap.mikora.top/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/master.m3u8";
+    const wrapped = wrapJustanimeMegaplayStreamUrl(mikora);
     expect(wrapped).toContain("momo.justanime.to/proxy?url=");
-    expect(unwrapJustanimeMomoProxyUrl(wrapped)).toBe(master);
+    expect(unwrapJustanimeMomoProxyUrl(wrapped)).toBe(mikora);
+  });
+
+  it("does not wrap watching.onl masters", () => {
+    const watching =
+      "https://cdn.watching.onl/anime/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/master.m3u8";
+    expect(wrapJustanimeMegaplayStreamUrl(watching)).toBe(watching);
   });
 
   it("detects momo proxy URLs from workers.dev mirrors", () => {

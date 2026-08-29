@@ -1,14 +1,14 @@
+import { allowsCapProtectedAccess } from "@/lib/cap/access";
 import {
   CAP_SESSION_COOKIE,
   CAP_SESSION_TTL_SECONDS,
   createCapSessionToken,
-  requestHasCapSession,
   verifyCapToken,
 } from "@/lib/cap/server";
 import { NextResponse } from "next/server";
 
-export function GET(request: Request) {
-  if (!requestHasCapSession(request)) {
+export async function GET(request: Request) {
+  if (!(await allowsCapProtectedAccess(request))) {
     return NextResponse.json({ verified: false }, { status: 401 });
   }
   return NextResponse.json({ verified: true });

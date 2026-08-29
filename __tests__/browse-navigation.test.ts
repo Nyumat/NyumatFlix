@@ -34,4 +34,24 @@ describe("browse navigation", () => {
     expect(isInNavGroup("/people/popular", people!)).toBe(true);
     expect(isInNavGroup("/movies/123", movies!)).toBe(true);
   });
+
+  test("uses parent route override for anime TV detail pages", () => {
+    const anime = navigation.items.find((item) => item.title === "Anime");
+    const tvShows = navigation.items.find((item) => item.title === "TV Shows");
+
+    expect(anime).toBeDefined();
+    expect(tvShows).toBeDefined();
+    expect(isInNavGroup("/tvshows/207840", anime!, "/anime")).toBe(true);
+    expect(isInNavGroup("/tvshows/207840", tvShows!, "/anime")).toBe(false);
+  });
+
+  test("uses parent route override for anime movie detail pages", () => {
+    const anime = navigation.items.find((item) => item.title === "Anime");
+    const movies = navigation.items.find((item) => item.title === "Movies");
+
+    expect(anime).toBeDefined();
+    expect(movies).toBeDefined();
+    expect(isInNavGroup("/movies/12345", anime!, "/anime")).toBe(true);
+    expect(isInNavGroup("/movies/12345", movies!, "/anime")).toBe(false);
+  });
 });

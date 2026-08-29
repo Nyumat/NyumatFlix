@@ -23,13 +23,18 @@ export const SITE_TAGLINE = "Watch Movies and TV Shows";
 export const SITE_HERO_BANNER_PATH = "/movie-banner.webp";
 export const SITE_HERO_BANNER_URL = cdnUrl(SITE_HERO_BANNER_PATH);
 export const SITE_OG_HEADLINE = "Find where anything streams.";
-/** AnimeOnsen (and ani.pm) serve MPEG-DASH; Shaka handles MPD more reliably than Vidstack+dashjs. */
-export const USE_SHAKA_DASH = true;
+/**
+ * AnimeOnsen (and ani.pm) serve MPEG-DASH. Vidstack+dashjs gives the full
+ * player UI (Shaka fell back to bare native <video> controls); flip to true
+ * only if dashjs proves unreliable for MPD again.
+ */
+export const USE_SHAKA_DASH = false;
 export const MAGIC_LINK_RESEND_FROM =
-  process.env.NODE_ENV === "production"
-    ? "Nyumatflix <login@auth.nyumatflix.com>"
-    : process.env.RESEND_FROM_EMAIL || "Nyumatflix <delivered@resend.dev>";
-export const MAGIC_LINK_RESEND_SUBJECT = "Here's your magic link to sign in";
+  process.env.RESEND_FROM_EMAIL ||
+  (process.env.NODE_ENV === "production"
+    ? "NyumatFlix <hello@nyumatflix.com>"
+    : "NyumatFlix <delivered@resend.dev>");
+export const MAGIC_LINK_RESEND_SUBJECT = "Sign in to NyumatFlix";
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 export const LARGE_SERIES_GRAPH_NODE_THRESHOLD = 75;

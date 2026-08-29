@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import {
   readAdminFlagState,
   readAnnouncementBannerConfig,
+  readProviderMenuOrderConfig,
   writeAdminFlagState,
 } from "@/lib/flags/flipt-admin";
 import {
@@ -11,11 +12,17 @@ import {
   type AnnouncementBannerConfig,
 } from "@/lib/flags/announcement-banner";
 import {
+  DEFAULT_PROVIDER_MENU_ORDER,
+  sanitizeProviderMenuOrderConfig,
+  type ProviderMenuOrderConfig,
+} from "@/lib/flags/provider-menu-order";
+import {
   applyPlaybackMutualExclusion,
   buildDefaultAdminFlagState,
   type AdminFlagState,
 } from "@/lib/flags/flag-catalog";
 import { assertFfsHost } from "@/lib/ffs/require-ffs-host";
+import { revalidateSiteFlagsCache } from "@/lib/flags/revalidate-site-flags";
 
 export async function GET(request: NextRequest) {
   if (!assertFfsHost(request)) {
@@ -23,17 +30,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [flags, announcementBanner] = await Promise.all([
+    const [flags, announcementBanner, providerMenuOrder] = await Promise.all([
       readAdminFlagState(),
       readAnnouncementBannerConfig(),
+      readProviderMenuOrderConfig(),
     ]);
-    return NextResponse.json({ flags, announcementBanner });
+    return NextResponse.json({ flags, announcementBanner, providerMenuOrder });
   } catch (error) {
     console.error("[ffs] GET flags failed:", error);
     return NextResponse.json(
       {
         flags: buildDefaultAdminFlagState(),
         announcementBanner: DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+        providerMenuOrder: DEFAULT_PROVIDER_MENU_ORDER,
         degraded: true,
       },
       { status: 200 },
@@ -49,9 +58,14 @@ export async function PATCH(request: NextRequest) {
   let body: {
     flags?: AdminFlagState;
     announcementBanner?: AnnouncementBannerConfig;
+    providerMenuOrder?: ProviderMenuOrderConfig;
   };
   try {
-    body = (await request.json()) as { flags?: AdminFlagState };
+    body = (await request.json()) as {
+      flags?: AdminFlagState;
+      announcementBanner?: AnnouncementBannerConfig;
+      providerMenuOrder?: ProviderMenuOrderConfig;
+    };
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -63,6 +77,9 @@ export async function PATCH(request: NextRequest) {
   const flags = applyPlaybackMutualExclusion(body.flags);
   const announcementBanner = sanitizeAnnouncementBannerConfig(
     body.announcementBanner,
+  );
+  const providerMenuOrder = sanitizeProviderMenuOrderConfig(
+    body.providerMenuOrder,
   );
 
   if (
@@ -77,8 +94,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    await writeAdminFlagState(flags, announcementBanner);
-    return NextResponse.json({ flags, announcementBanner, ok: true });
+    await writeAdminFlagState(flags, announcementBanner, providerMenuOrder);
+    revalidateSiteFlagsCache();
+    return NextResponse.json({
+      flags,
+      announcementBanner,
+      providerMenuOrder,
+      ok: true,
+    });
   } catch (error) {
     console.error("[ffs] PATCH flags failed:", error);
     return NextResponse.json(

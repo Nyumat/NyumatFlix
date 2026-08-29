@@ -1,16 +1,5 @@
 "use client";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -25,17 +14,20 @@ import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { type NavItem } from "@/config/site";
 import { getNavigationItems } from "@/lib/navigation";
 import { useWatchlistSummary } from "@/hooks/useWatchlistSummary";
+import { useDetailRouteParentOverride } from "@/lib/stores/detail-route-store";
 import { getNavIcon, isInNavGroup, toTitleCase } from "@/lib/nav/browse";
+import { ProfileAvatar } from "@/components/user/profile-avatar";
+import { loginHref } from "@/lib/auth/callback-url";
+import { resolveAuthSession } from "@/lib/auth/session-state";
 import { cn } from "@/lib/utils";
 import {
   Check,
   ChevronRight,
   List,
-  Loader2,
   LogIn,
   LogOut,
   Menu,
-  Trash2,
+  Settings,
 } from "lucide-react";
 import type { Session } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
@@ -49,8 +41,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
-import { BrowseSettings } from "@/components/layout/nav/browse-settings";
 import {
   navMobileMenuClassName,
   navbarActionButtonClassName,
@@ -63,20 +53,26 @@ interface NavbarMobileNavigationProps {
   triggerClassName?: string;
 }
 
-const getInitials = (email: string, name?: string | null) => {
-  if (name) {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  }
-  return email.slice(0, 2).toUpperCase();
-};
-
 const drawerSurfaceClassName =
   "border border-white/10 bg-card/45 backdrop-blur-md dark:border-white/30 dark:bg-white/10";
+
+const mobileNavTileClassName = (isActive: boolean) =>
+  cn(
+    "group flex h-20 w-full flex-col justify-between rounded-xl p-3.5 text-left text-white outline-hidden transition-all duration-150",
+    drawerSurfaceClassName,
+    "hover:border-white/20 hover:bg-white/10 active:scale-[0.98]",
+    isActive &&
+      "border-primary/40 bg-primary/10 text-primary ring-1 ring-primary/20",
+  );
+
+const mobileNavActionClassName = (isActive = false) =>
+  cn(
+    "flex w-full items-center justify-between gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-white transition-colors duration-150",
+    drawerSurfaceClassName,
+    "hover:border-white/20 hover:bg-white/10",
+    isActive &&
+      "border-primary/40 bg-primary/10 text-primary ring-1 ring-primary/20",
+  );
 
 export const NavbarMobileNavigation = ({
   children,
@@ -87,12 +83,11 @@ export const NavbarMobileNavigation = ({
   const navigationItems = getNavigationItems(liveTvEnabled);
   const [open, setOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
-  const { data: clientSession } = useSession();
-  const activeSession = clientSession ?? session;
+  const parentRouteOverride = useDetailRouteParentOverride(pathname);
+  const { data: clientSession, status } = useSession();
+  const activeSession = resolveAuthSession(clientSession, status, session);
 
   const { data: watchlistSummary, isLoading: isWatchlistLoading } =
     useWatchlistSummary(open && Boolean(activeSession));
@@ -104,26 +99,6 @@ export const NavbarMobileNavigation = ({
   const handleSignOut = async () => {
     setOpen(false);
     await signOut({ callbackUrl: "/" });
-  };
-
-  const handleDeleteAccount = async () => {
-    setIsDeletingAccount(true);
-
-    try {
-      const response = await fetch("/api/user", { method: "DELETE" });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete account");
-      }
-
-      toast.success("Account deleted");
-      setOpen(false);
-      await signOut({ callbackUrl: "/" });
-    } catch (error) {
-      console.error("Error deleting account:", error);
-      toast.error("Failed to delete account");
-      setIsDeletingAccount(false);
-    }
   };
 
   const handleLinkClick = () => {
@@ -156,8 +131,9 @@ export const NavbarMobileNavigation = ({
       : children;
 
   const activeItem = navigationItems.find((item) =>
-    isInNavGroup(pathname, item),
+    isInNavGroup(pathname, item, parentRouteOverride),
   );
+  const isSettingsActive = pathname.startsWith("/settings");
 
   if (!isMounted) {
     return (
@@ -232,40 +208,42 @@ export const NavbarMobileNavigation = ({
                 />
               </section>
 
-              <BrowseSettings variant="mobile" />
+              <Link
+                href="/settings"
+                onClick={handleLinkClick}
+                className={mobileNavActionClassName(isSettingsActive)}
+              >
+                <span className="inline-flex items-center gap-2.5">
+                  <Settings
+                    className={cn(
+                      "size-4 shrink-0",
+                      isSettingsActive ? "text-primary" : "text-white/80",
+                    )}
+                  />
+                  Settings
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-white/45" />
+              </Link>
             </div>
           </div>
 
           <div className="border-t border-white/10 bg-black/40 px-4 py-4 backdrop-blur-md">
             {activeSession ? (
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-white/85 transition",
-                    drawerSurfaceClassName,
-                    "hover:border-white/25 hover:bg-white/15 hover:text-white",
-                  )}
-                >
-                  <LogOut className="size-4" />
-                  Sign out
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm font-medium text-red-300 backdrop-blur-md transition",
-                    "hover:border-red-500/35 hover:bg-red-500/15 hover:text-red-200",
-                  )}
-                >
-                  <Trash2 className="size-4" />
-                  Delete account
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className={cn(
+                  "flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-white/85 transition",
+                  drawerSurfaceClassName,
+                  "hover:border-white/25 hover:bg-white/15 hover:text-white",
+                )}
+              >
+                <LogOut className="size-4" />
+                Sign out
+              </button>
             ) : authEnabled ? (
               <Button asChild variant="chrome" className="w-full gap-2">
-                <Link href="/login" onClick={handleLinkClick}>
+                <Link href={loginHref(pathname)} onClick={handleLinkClick}>
                   Sign in
                   <LogIn className="size-4 shrink-0" />
                 </Link>
@@ -274,41 +252,6 @@ export const NavbarMobileNavigation = ({
           </div>
         </SheetContent>
       </Sheet>
-
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={(nextOpen) => {
-          if (!isDeletingAccount) setIsDeleteDialogOpen(nextOpen);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes your account and watchlist. This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingAccount}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-500 text-white hover:bg-red-600 focus:ring-red-500"
-              disabled={isDeletingAccount}
-              onClick={(event) => {
-                event.preventDefault();
-                handleDeleteAccount();
-              }}
-            >
-              {isDeletingAccount && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Delete account
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
@@ -336,12 +279,12 @@ const LoggedInProfileCard = ({
   <div className={cn("overflow-hidden rounded-xl", drawerSurfaceClassName)}>
     <div className="border-b border-white/10 px-4 py-3.5">
       <div className="flex items-center gap-3">
-        <Avatar className="size-12 border border-white/20">
-          <AvatarImage src={userImage || ""} alt={userName || userEmail} />
-          <AvatarFallback className="bg-white/10 text-sm font-semibold text-white">
-            {getInitials(userEmail, userName)}
-          </AvatarFallback>
-        </Avatar>
+        <ProfileAvatar
+          image={userImage}
+          name={userName}
+          email={userEmail}
+          size={48}
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-white">
             {userName || "Your account"}
@@ -419,35 +362,84 @@ const MobileBrowseRoot = ({
   items: NavItem[];
   activeTitle?: string;
   onNavigate: () => void;
-}) => (
-  <div className="grid grid-cols-2 gap-2">
-    {items.map((item) => {
-      const Icon = getNavIcon(item);
-      const isActive = item.title === activeTitle;
-      const tileClassName = cn(
-        "group flex h-[72px] flex-col items-start justify-between rounded-xl p-3 text-left text-white outline-hidden transition-all",
-        drawerSurfaceClassName,
-        "hover:border-white/25 hover:bg-white/15 active:scale-[0.98]",
-        isActive &&
-          "border-primary/35 bg-primary/10 text-primary ring-1 ring-primary/20",
-      );
+}) => {
+  const isTrending = (title: string) => title.toLowerCase() === "trending";
 
-      return (
-        <Link
-          key={item.title}
-          href={item.href}
-          onClick={onNavigate}
-          className={tileClassName}
-        >
-          <div className="flex w-full items-center justify-between">
-            <Icon className="size-5" strokeWidth={1.65} />
-            {isActive ? <Check className="size-4" strokeWidth={1.75} /> : null}
-          </div>
-          <span className="text-sm font-medium text-white">
-            {toTitleCase(item.title)}
-          </span>
-        </Link>
-      );
-    })}
-  </div>
-);
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {items.map((item) => {
+        const Icon = getNavIcon(item);
+        const isActive = item.title === activeTitle;
+        const trendingItem = isTrending(item.title);
+
+        if (trendingItem) {
+          return (
+            <Link
+              key={item.title}
+              href={item.href}
+              onClick={onNavigate}
+              className={cn(
+                "col-span-2 group flex h-12 w-full items-center justify-between rounded-xl p-3.5 text-left text-white outline-hidden transition-all duration-150",
+                drawerSurfaceClassName,
+                "hover:border-white/20 hover:bg-white/10 active:scale-[0.98]",
+                isActive &&
+                  "border-primary/40 bg-primary/10 text-primary ring-1 ring-primary/20",
+              )}
+            >
+              <div className="flex items-center gap-2.5">
+                <Icon
+                  className="size-5 shrink-0 text-amber-400"
+                  strokeWidth={1.75}
+                />
+                <span
+                  className={cn(
+                    "text-sm font-medium",
+                    isActive ? "text-primary font-semibold" : "text-white",
+                  )}
+                >
+                  {toTitleCase(item.title)}
+                </span>
+              </div>
+              {isActive ? (
+                <Check
+                  className="size-4 shrink-0 text-primary"
+                  strokeWidth={1.75}
+                />
+              ) : null}
+            </Link>
+          );
+        }
+
+        return (
+          <Link
+            key={item.title}
+            href={item.href}
+            onClick={onNavigate}
+            className={mobileNavTileClassName(isActive)}
+          >
+            <div className="flex w-full items-center justify-between">
+              <Icon
+                className="size-5 shrink-0 text-white/70 group-hover:text-white"
+                strokeWidth={1.65}
+              />
+              {isActive ? (
+                <Check
+                  className="size-3.5 shrink-0 text-primary"
+                  strokeWidth={2}
+                />
+              ) : null}
+            </div>
+            <span
+              className={cn(
+                "text-xs font-semibold tracking-tight",
+                isActive ? "text-primary" : "text-white",
+              )}
+            >
+              {toTitleCase(item.title)}
+            </span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+};

@@ -1,25 +1,61 @@
 "use client";
 
-import { createContext, useCallback, useContext, useRef } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 
 const HOVER_SOUND_SRC = "/sounds/movie-hover.mp3";
+const MIN_PLAY_INTERVAL_MS = 100;
 
 type PlayHoverSound = () => void;
 
 const HoverSoundContext = createContext<PlayHoverSound | null>(null);
+
+function isCardHoverSoundEnabled(): boolean {
+  return !useAppSettingsStore.getState().disableHoverSound;
+}
+
+function pauseHoverSound(audio: HTMLAudioElement | null) {
+  if (!audio) {
+    return;
+  }
+  audio.pause();
+  audio.currentTime = 0;
+}
 
 export function HoverSoundProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const disableHoverSound = useAppSettingsStore(
+    (state) => state.disableHoverSound,
+  );
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastPlayedAtRef = useRef(0);
+
+  useEffect(() => {
+    if (disableHoverSound) {
+      pauseHoverSound(audioRef.current);
+    }
+  }, [disableHoverSound]);
 
   const play = useCallback(() => {
-    if (useAppSettingsStore.getState().disableHoverSound) {
+    if (!isCardHoverSoundEnabled()) {
       return;
     }
+
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - lastPlayedAtRef.current < MIN_PLAY_INTERVAL_MS) {
+      return;
+    }
+    lastPlayedAtRef.current = now;
 
     if (!audioRef.current) {
       audioRef.current = new Audio(HOVER_SOUND_SRC);
@@ -28,7 +64,7 @@ export function HoverSoundProvider({
 
     const audio = audioRef.current;
     audio.currentTime = 0;
-    void audio.play().catch(() => {
+    void Promise.resolve(audio.play()).catch(() => {
       // Rejects if the browser blocks autoplay before any user gesture; safe to ignore.
     });
   }, []);
@@ -41,5 +77,14 @@ export function HoverSoundProvider({
 }
 
 export function useHoverSound(): PlayHoverSound | null {
-  return useContext(HoverSoundContext);
+  const play = useContext(HoverSoundContext);
+  const disableHoverSound = useAppSettingsStore(
+    (state) => state.disableHoverSound,
+  );
+
+  if (!play || disableHoverSound) {
+    return null;
+  }
+
+  return play;
 }

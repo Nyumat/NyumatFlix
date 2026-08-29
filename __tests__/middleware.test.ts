@@ -1,10 +1,15 @@
 import { DEFAULT_FLAG_VALUES } from "@/lib/flags/flag-catalog";
+import {
+  getCachedRawFlagsSync,
+  readAdminFlagState,
+} from "@/lib/flags/flipt-client";
 import { middleware } from "@/middleware";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@/lib/flags/flipt-client", () => ({
   readAdminFlagState: vi.fn(async () => ({ ...DEFAULT_FLAG_VALUES })),
+  getCachedRawFlagsSync: vi.fn(() => ({ ...DEFAULT_FLAG_VALUES })),
 }));
 
 const getRedirectLocation = async (url: string) => {
@@ -57,5 +62,26 @@ describe("middleware", () => {
     expect(
       await getRedirectLocation("http://localhost:3000/live?ch=espn"),
     ).toBe("http://localhost:3000/");
+  });
+
+  test("does not await Flipt on scrape routes", async () => {
+    (readAdminFlagState as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(() => undefined),
+    );
+    (getCachedRawFlagsSync as ReturnType<typeof vi.fn>).mockReturnValue(null);
+
+    const raced = await Promise.race([
+      middleware(
+        new NextRequest("http://localhost:3000/api/scrape", { method: "POST" }),
+      ).then((response) => ({
+        kind: "done" as const,
+        status: response.status,
+      })),
+      new Promise<{ kind: "slow" }>((resolve) => {
+        setTimeout(() => resolve({ kind: "slow" }), 100);
+      }),
+    ]);
+
+    expect(raced).toEqual({ kind: "done", status: 200 });
   });
 });

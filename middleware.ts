@@ -1,10 +1,10 @@
-import {
-  isAnilistTvRouteId,
-  normalizeAnilistTvRouteSlug,
-} from "@/lib/anilist-route-id";
 import { isFfsHost } from "@/lib/ffs/require-ffs-host";
+import { DEFAULT_FLAG_VALUES } from "@/lib/flags/flag-catalog";
 import { resolveSiteFlags } from "@/lib/flags/site-flags";
-import { readAdminFlagState } from "@/lib/flags/flipt-client";
+import {
+  getCachedRawFlagsSync,
+  readAdminFlagState,
+} from "@/lib/flags/flipt-client";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -52,7 +52,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  const siteFlags = resolveSiteFlags(await readAdminFlagState());
+  if (!getCachedRawFlagsSync()) {
+    void readAdminFlagState().catch(() => undefined);
+  }
+
+  const rawFlags = getCachedRawFlagsSync() ?? DEFAULT_FLAG_VALUES;
+  const siteFlags = resolveSiteFlags(rawFlags);
 
   if (
     !ffsHost &&
@@ -71,16 +76,6 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/dev") && process.env.NODE_ENV !== "development") {
     return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  const tvDetail = pathname.match(/^\/tvshows\/([^/]+)$/);
-  if (tvDetail) {
-    const [, rawId] = tvDetail;
-    if (rawId.startsWith("-") && isAnilistTvRouteId(rawId)) {
-      const url = request.nextUrl.clone();
-      url.pathname = `/tvshows/${normalizeAnilistTvRouteSlug(rawId)}`;
-      return NextResponse.redirect(url);
-    }
   }
 
   const detailOnly = pathname.match(/^\/(tvshows|movies)\/([^/]+)$/);
@@ -128,5 +123,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/healthz).*)"],
 };
