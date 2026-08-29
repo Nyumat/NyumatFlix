@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import {
   Check,
   ChevronRight,
+  History,
   List,
   LogIn,
   LogOut,
@@ -325,6 +326,18 @@ const LoggedInProfileCard = ({
             {watchlistSummary.total}
           </span>
         ) : null}
+      </span>
+      <ChevronRight className="size-4 text-white/45" />
+    </Link>
+
+    <Link
+      href="/history"
+      onClick={onNavigate}
+      className="flex items-center justify-between border-t border-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+    >
+      <span className="inline-flex items-center gap-2">
+        <History className="size-4 text-primary" />
+        Watch History
       </span>
       <ChevronRight className="size-4 text-white/45" />
     </Link>
