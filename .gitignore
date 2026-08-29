@@ -11,6 +11,7 @@
 # next.js
 /.next/
 /out/
+/public/vendor/movi-player/
 
 # production
 /build
@@ -45,6 +46,12 @@ yarn-error.log*
 next-env.d.ts
 certificates
 .cursor
+
+# script caches
+scripts/.cache/
+
+# vendored calluspirates shared (synced at build)
+/packages/calluspirates-shared/
 
 # local notes
 SCRAPING.md

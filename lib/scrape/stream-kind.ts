@@ -25,6 +25,13 @@ export const inferScrapeStreamKind = (
     return "mp4";
   }
 
+  if (
+    /\/transcode\/playlist(?:[?#]|$)/i.test(playUrl) ||
+    /\/direct\/transcode\/playlist(?:[?#]|$)/i.test(playUrl)
+  ) {
+    return "hls";
+  }
+
   return "hls";
 };
 
@@ -38,6 +45,6 @@ export const buildScrapeMediaPlayerSrc = (
     case "mp4":
       return { src: playUrl, type: "video/mp4" };
     default:
-      return playUrl;
+      return { src: playUrl, type: "application/vnd.apple.mpegurl" };
   }
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { LogIn, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Session } from "next-auth";
@@ -23,8 +23,7 @@ export const NavbarAuth = ({
   isMobile = false,
   onMobileLinkClick,
 }: NavbarAuthProps) => {
-  const flags = useFeatureFlagsOptional();
-  const authEnabled = flags?.authEnabled ?? true;
+  const { authEnabled } = useFeatureFlags();
 
   if (!authEnabled) {
     return null;
