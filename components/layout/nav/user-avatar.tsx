@@ -1,6 +1,6 @@
 "use client";
 
-import { List, LogOut, Settings } from "lucide-react";
+import { History, List, LogOut, Settings } from "lucide-react";
 import { Session } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -102,6 +102,15 @@ export const UserAvatar = ({ session, triggerClassName }: UserAvatarProps) => {
           >
             <List className="mr-2 h-4 w-4" />
             <span>Watchlist</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className={userMenuItemClassName}>
+          <Link
+            href="/history"
+            className="flex w-full cursor-pointer items-center"
+          >
+            <History className="mr-2 h-4 w-4" />
+            <span>Watch history</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem

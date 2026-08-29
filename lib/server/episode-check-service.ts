@@ -1,9 +1,44 @@
 import "server-only";
 
-import type { EpisodeInfo } from "@/lib/domain/episodes";
+import type { EpisodeCoordinates, EpisodeInfo } from "@/lib/domain/episodes";
 import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
 import { formatCountdown } from "@/lib/utils/countdown";
 import { tmdb } from "@/tmdb/api";
+
+const isEpisodeAfterLastWatched = (
+  seasonNumber: number,
+  episodeNumber: number,
+  lastWatchedSeason: number | null,
+  lastWatchedEpisode: number | null,
+): boolean => {
+  if (lastWatchedSeason === null || lastWatchedEpisode === null) {
+    return true;
+  }
+
+  if (seasonNumber > lastWatchedSeason) {
+    return true;
+  }
+
+  if (
+    seasonNumber === lastWatchedSeason &&
+    episodeNumber > lastWatchedEpisode
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+const compareEpisodeCoordinates = (
+  left: EpisodeCoordinates,
+  right: EpisodeCoordinates,
+): number => {
+  if (left.seasonNumber !== right.seasonNumber) {
+    return left.seasonNumber - right.seasonNumber;
+  }
+
+  return left.episodeNumber - right.episodeNumber;
+};
 
 export async function checkEpisodesForShow(
   contentId: number,
@@ -29,6 +64,8 @@ export async function checkEpisodesForShow(
     }
 
     let newEpisodeCount = 0;
+    let unwatchedEpisodeCount = 0;
+    let nextUnwatchedEpisode: EpisodeCoordinates | null = null;
     let latestEpisodeAirDate: Date | null = null;
     let nextEpisodeDate: Date | null = null;
 
@@ -74,13 +111,29 @@ export async function checkEpisodesForShow(
         if (!episode.air_date) continue;
 
         const episodeDate = new Date(episode.air_date);
-        const isNewEpisode =
-          episodeDate >= sevenDaysAgo &&
-          (lastWatchedSeason === null ||
-            lastWatchedEpisode === null ||
-            season.season_number > lastWatchedSeason ||
-            (season.season_number === lastWatchedSeason &&
-              episode.episode_number > lastWatchedEpisode));
+        const isAfterLastWatched = isEpisodeAfterLastWatched(
+          season.season_number,
+          episode.episode_number,
+          lastWatchedSeason,
+          lastWatchedEpisode,
+        );
+
+        if (isAfterLastWatched) {
+          unwatchedEpisodeCount++;
+          const candidate: EpisodeCoordinates = {
+            seasonNumber: season.season_number,
+            episodeNumber: episode.episode_number,
+          };
+
+          if (
+            !nextUnwatchedEpisode ||
+            compareEpisodeCoordinates(candidate, nextUnwatchedEpisode) < 0
+          ) {
+            nextUnwatchedEpisode = candidate;
+          }
+        }
+
+        const isNewEpisode = episodeDate >= sevenDaysAgo && isAfterLastWatched;
 
         if (isNewEpisode) {
           newEpisodeCount++;
@@ -96,10 +149,6 @@ export async function checkEpisodesForShow(
           nextEpisodeDate = new Date(nextEpisode.air_date);
         }
       }
-
-      if (newEpisodeCount > 0 && nextEpisodeDate) {
-        break;
-      }
     }
 
     let countdown: string | null = null;
@@ -110,6 +159,9 @@ export async function checkEpisodesForShow(
     return {
       hasNewEpisodes: newEpisodeCount > 0,
       newEpisodeCount,
+      hasUnwatchedEpisodes: unwatchedEpisodeCount > 0,
+      unwatchedEpisodeCount,
+      nextUnwatchedEpisode,
       nextEpisodeDate,
       countdown,
       latestEpisodeAirDate,

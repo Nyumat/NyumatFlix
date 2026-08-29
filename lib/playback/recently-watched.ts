@@ -13,6 +13,7 @@ import {
 } from "@/lib/playback/progress-storage";
 
 export const RECENTLY_WATCHED_LIMIT = 12;
+export const WATCH_HISTORY_LIMIT = 100;
 export const VIDSRC_PROGRESS_STORAGE_KEY = "vidsrcwtf-Progress";
 
 export type RecentlyWatchedStub = {
@@ -216,6 +217,88 @@ const stubsFromWatchlist = (items: WatchlistItem[]): RecentlyWatchedStub[] =>
       };
     });
 
+const stubsFromWatchlistHistory = (
+  items: WatchlistItem[],
+): RecentlyWatchedStub[] =>
+  items
+    .filter(
+      (item) =>
+        item.lastWatchedAt != null ||
+        item.lastWatchedSeason != null ||
+        item.lastWatchedEpisode != null,
+    )
+    .map((item) => {
+      const updatedAt = item.lastWatchedAt
+        ? new Date(item.lastWatchedAt).getTime()
+        : new Date(item.updatedAt).getTime();
+
+      return {
+        mediaType: item.mediaType,
+        contentId: item.contentId,
+        seasonNumber: item.lastWatchedSeason ?? undefined,
+        episodeNumber: item.lastWatchedEpisode ?? undefined,
+        progressRatio: null,
+        updatedAt: Number.isFinite(updatedAt) ? updatedAt : 0,
+      };
+    });
+
+const stubsFromPlaybackHistory = (
+  playback: ListedPlaybackProgress[],
+): RecentlyWatchedStub[] =>
+  playback.map((entry) => ({
+    mediaType: entry.mediaType,
+    contentId: entry.contentId,
+    seasonNumber: entry.seasonNumber,
+    episodeNumber: entry.episodeNumber,
+    progressRatio: playbackProgressRatio(entry),
+    updatedAt: entry.updatedAt,
+  }));
+
+const stubsFromVidsrcHistory = (
+  entries: VidsrcProgressEntry[],
+): RecentlyWatchedStub[] => {
+  const stubs: RecentlyWatchedStub[] = [];
+
+  for (const entry of entries) {
+    const contentId = Number.parseInt(entry.id, 10);
+    if (!Number.isFinite(contentId) || contentId <= 0) {
+      continue;
+    }
+
+    const seasonNumber =
+      entry.type === "tv"
+        ? parseOptionalInt(entry.last_season_watched)
+        : undefined;
+    const episodeNumber =
+      entry.type === "tv"
+        ? parseOptionalInt(entry.last_episode_watched)
+        : undefined;
+
+    const progress = entry.progress;
+    const progressRatio =
+      progress &&
+      Number.isFinite(progress.watched) &&
+      Number.isFinite(progress.duration) &&
+      progress.duration > 0
+        ? playbackProgressRatio(progress)
+        : null;
+
+    stubs.push({
+      mediaType: entry.type,
+      contentId,
+      seasonNumber,
+      episodeNumber,
+      progressRatio,
+      updatedAt: entry.last_updated ?? 0,
+      title: entry.title,
+      backdropPath: entry.backdrop_path ?? null,
+      posterPath: entry.poster_path ?? null,
+    });
+  }
+
+  return stubs;
+};
+
 const mergeStub = (
   current: RecentlyWatchedStub | undefined,
   next: RecentlyWatchedStub,
@@ -297,6 +380,47 @@ export const collectLocalRecentlyWatchedStubs = (
     watchlist,
     dismissals: options.dismissals ?? readContinueWatchingDismissals(),
     limit: options.limit ?? RECENTLY_WATCHED_LIMIT,
+    mediaTypes: options.mediaTypes,
+  });
+
+export const collectWatchHistoryStubs = (input: {
+  playback?: ListedPlaybackProgress[];
+  vidsrc?: VidsrcProgressEntry[];
+  watchlist?: WatchlistItem[];
+  limit?: number;
+  mediaTypes?: readonly PlaybackMediaType[];
+}): RecentlyWatchedStub[] => {
+  const merged = new Map<string, RecentlyWatchedStub>();
+  const mediaTypes = input.mediaTypes;
+
+  const sources = [
+    ...stubsFromPlaybackHistory(input.playback ?? []),
+    ...stubsFromVidsrcHistory(input.vidsrc ?? []),
+    ...stubsFromWatchlistHistory(input.watchlist ?? []),
+  ].filter((stub) => !mediaTypes || mediaTypes.includes(stub.mediaType));
+
+  for (const stub of sources) {
+    const key = titleKey(stub.mediaType, stub.contentId);
+    merged.set(key, mergeStub(merged.get(key), stub));
+  }
+
+  return [...merged.values()]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, input.limit ?? WATCH_HISTORY_LIMIT);
+};
+
+export const collectLocalWatchHistoryStubs = (
+  watchlist: WatchlistItem[] = [],
+  options: {
+    limit?: number;
+    mediaTypes?: readonly PlaybackMediaType[];
+  } = {},
+): RecentlyWatchedStub[] =>
+  collectWatchHistoryStubs({
+    playback: listPlaybackProgress(),
+    vidsrc: readVidsrcProgressEntries(),
+    watchlist,
+    limit: options.limit ?? WATCH_HISTORY_LIMIT,
     mediaTypes: options.mediaTypes,
   });
 
