@@ -246,7 +246,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
 };
 
 interface MovieHeroProps {
-  movies: Movie[];
+  movies: Array<Pick<Movie, "id">>;
   label: string;
   count?: number;
   priority?: boolean;

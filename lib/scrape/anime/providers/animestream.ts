@@ -1,6 +1,6 @@
 import {
   fetchAnilistMediaMeta,
-  resolveAnimeSearchQueries,
+  resolveAnimeSearchContext,
 } from "../anilist-meta";
 import {
   animeFranchisePrefixMatch,
@@ -253,18 +253,19 @@ export async function scrapeAnimestream(
   const providerId = "animestream" as const;
 
   try {
-    const expectedTitles = await resolveAnimeSearchQueries(input);
+    const { searchQueries, matchTitles } =
+      await resolveAnimeSearchContext(input);
     const mediaMeta = await fetchAnilistMediaMeta(input.anilistId);
     const preferMovie =
       mediaMeta?.format === "MOVIE" || mediaMeta?.episodes === 1;
 
     const cookie = await warmAnimestreamSession();
     const searches = await Promise.all(
-      expectedTitles.map((title) => searchAnimestream(title, cookie)),
+      searchQueries.map((title) => searchAnimestream(title, cookie)),
     );
     let hit: AnimestreamSearchHit | undefined;
     for (const results of searches) {
-      hit = selectSearchHit(results, expectedTitles, preferMovie);
+      hit = selectSearchHit(results, matchTitles, preferMovie);
       if (hit?.slug) {
         break;
       }
@@ -273,7 +274,7 @@ export async function scrapeAnimestream(
     let seriesSlug = hit?.slug ? normalizeSeriesSlug(hit.slug) : "";
 
     if (!seriesSlug) {
-      const slugHit = await raceFirstOk(expectedTitles, async (title) => {
+      const slugHit = await raceFirstOk(matchTitles, async (title) => {
         const slug = slugifyTitle(title);
         if (!slug) {
           return null;

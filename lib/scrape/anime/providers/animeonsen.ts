@@ -1,4 +1,4 @@
-import { fetchAnilistTitleCandidates } from "../anilist-meta";
+import { resolveAnimeSearchContext } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
 
@@ -125,14 +125,11 @@ export async function scrapeAnimeonsen(
       Authorization: `Bearer ${token}`,
       Referer: `${ONSEN_ORIGIN}/`,
     };
-    const titles = [
-      input.query?.trim(),
-      ...(await fetchAnilistTitleCandidates(input.anilistId)),
-    ].filter((title): title is string => Boolean(title));
-    const uniqueTitles = [...new Set(titles)];
+    const { searchQueries, matchTitles } =
+      await resolveAnimeSearchContext(input);
     let match: OnsenSearchResult | undefined;
 
-    for (const query of uniqueTitles) {
+    for (const query of searchQueries) {
       const searchResponse = await scrapeFetch(
         `${ONSEN_API}/search/${encodeURIComponent(query)}`,
         { headers: authHeaders },
@@ -145,7 +142,7 @@ export async function scrapeAnimeonsen(
 
       const payload = (await searchResponse.json()) as OnsenSearchResponse;
       const rows = payload.result ?? payload.data ?? [];
-      match = findMatchingOnsenResult(rows, uniqueTitles);
+      match = findMatchingOnsenResult(rows, matchTitles);
       if (match) break;
     }
 

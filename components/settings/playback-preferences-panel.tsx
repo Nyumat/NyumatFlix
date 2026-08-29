@@ -71,18 +71,19 @@ export function PlaybackPreferencesPanel() {
         label="Audio"
         value={playbackAudio}
         options={[
-          { value: "sub", label: "Sub" },
-          { value: "dub", label: "Dub" },
+          { value: "sub", label: "Japanese (sub)" },
+          { value: "dub", label: "English (dub)" },
         ]}
         onChange={setPlaybackAudio}
       />
 
       <PreferenceOptionGroup<PlaybackQualityPreference>
-        label="Quality"
+        label="Resolution"
         value={playbackQuality}
         options={[
-          { value: "best", label: "Best available" },
-          { value: "save-data", label: "Save data" },
+          { value: "1080p", label: "1080p" },
+          { value: "720p", label: "720p" },
+          { value: "480p", label: "480p" },
         ]}
         onChange={setPlaybackQuality}
       />

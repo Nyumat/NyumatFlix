@@ -9,6 +9,11 @@ import {
 } from "@/lib/flags/site-flags";
 import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
 import {
+  scoreAnimeScrapePayload,
+  type PlaybackPreferences,
+} from "@/lib/playback/playback-preferences";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
+import {
   ANIME_SCRAPE_PROVIDER_LABELS,
   ANIME_SCRAPE_PROVIDER_ORDER,
   animeScrapeMediaKeyFor,
@@ -30,6 +35,8 @@ export type AnimeScrapeSuccessPayload = {
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];
   audioVersions?: ScrapeAudioVersion[];
+  nativeAudioTrackCount?: number;
+  nativeSubtitleTrackCount?: number;
   defaultAudioLang?: string;
   defaultHardSubLang?: string;
   preferredAudioLang?: string;
@@ -65,16 +72,29 @@ const animeScrapeLoopConfig = {
 
 export function useAnimeScrape() {
   const flags = useFeatureFlags();
-  const config = useMemo(
-    () => ({
+  const playbackAudio = useAppSettingsStore((state) => state.playbackAudio);
+  const playbackQuality = useAppSettingsStore((state) => state.playbackQuality);
+  const playbackEnglishSubtitles = useAppSettingsStore(
+    (state) => state.playbackEnglishSubtitles,
+  );
+  const config = useMemo(() => {
+    const playbackPreferences: PlaybackPreferences = {
+      playbackAudio,
+      playbackQuality,
+      playbackEnglishSubtitles,
+    };
+
+    return {
       ...animeScrapeLoopConfig,
       providerOrder: filterAnimeScrapeProviderIds(
         flags,
         getAnimeScrapeProviderMenuOrder(flags),
       ) as typeof ANIME_SCRAPE_PROVIDER_ORDER,
-    }),
-    [flags],
-  );
+      raceFirstWin: false,
+      scoreRacePayload: (payload: AnimeScrapeSuccessPayload) =>
+        scoreAnimeScrapePayload(payload, playbackPreferences),
+    };
+  }, [flags, playbackAudio, playbackEnglishSubtitles, playbackQuality]);
 
   return useProviderScrapeLoop<
     AnimeScrapeProviderId,

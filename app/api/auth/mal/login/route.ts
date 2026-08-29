@@ -9,8 +9,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(url);
   } catch (error) {
     console.error("Error initiating MAL OAuth:", error);
+    const baseUrl = getBaseUrl(request.url);
     return NextResponse.redirect(
-      new URL("/login/error?error=Configuration", request.url),
+      new URL("/login/error?error=Configuration", baseUrl),
     );
   }
 }

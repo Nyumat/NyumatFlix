@@ -11,11 +11,9 @@ import {
 } from "./client";
 import { resolveAnilistToMal } from "./id-resolver-anilist";
 import { resolveMalToTmdb, resolveTmdbToMal } from "./id-resolver";
+import { buildMalScrobblePayload } from "./scrobble-payload";
 import type { MalMyListStatus, MalSyncResult } from "./types";
-import {
-  mapMalStatusToWatchlistStatus,
-  mapWatchlistStatusToMalStatus,
-} from "./status-maps";
+import { mapMalStatusToWatchlistStatus } from "./status-maps";
 
 /**
  * Pulls all user anime from MAL and upserts into the user's NyumatFlix watchlist.
@@ -173,6 +171,7 @@ export async function scrobbleToMal(
     seasonNumber?: number;
     episodeNumber?: number;
     status?: WatchlistStatus;
+    episodeCompleted?: boolean;
     /**
      * AniList id, when known. `tmdbId` is sometimes actually an AniList id
      * (e.g. progress reported from `/anime/[id]` pages, which are keyed by
@@ -220,8 +219,6 @@ export async function scrobbleToMal(
     return false;
   }
 
-  const malPayload: MalMyListStatus = {};
-
   let currentListStatus: MalMyListStatus | null = null;
   try {
     const entry = await getMalAnimeEntry(authInfo.accessToken, malId);
@@ -230,29 +227,15 @@ export async function scrobbleToMal(
     currentListStatus = null;
   }
 
-  if (params.status) {
-    malPayload.status = mapWatchlistStatusToMalStatus(params.status);
-  } else if (params.episodeNumber !== undefined) {
-    const currentStatus = currentListStatus?.status;
-    if (currentStatus === "completed") {
-      malPayload.is_rewatching = true;
-    } else if (!currentStatus) {
-      malPayload.status = "watching";
-    }
-  }
+  const malPayload = buildMalScrobblePayload({
+    status: params.status,
+    episodeNumber: params.episodeNumber,
+    episodeCompleted: params.episodeCompleted,
+    currentListStatus,
+  });
 
-  if (params.episodeNumber !== undefined && params.episodeNumber > 0) {
-    const currentWatched = currentListStatus?.num_episodes_watched;
-    if (currentListStatus?.status === "completed") {
-      if (
-        typeof currentWatched !== "number" ||
-        params.episodeNumber > currentWatched
-      ) {
-        malPayload.num_episodes_watched = params.episodeNumber;
-      }
-    } else {
-      malPayload.num_episodes_watched = params.episodeNumber;
-    }
+  if (Object.keys(malPayload).length === 0) {
+    return true;
   }
 
   try {

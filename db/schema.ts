@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { AdapterAccountType } from "@auth/core/adapters";
 import {
   boolean,

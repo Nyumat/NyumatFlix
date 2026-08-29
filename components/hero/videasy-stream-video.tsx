@@ -31,7 +31,7 @@ export const VideasyStreamVideo = ({
   onError,
   onCanPlay,
   onAutoplayBlocked,
-  isMuted = true,
+  isMuted = false,
 }: VideasyStreamVideoProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const autoplayBlockedNotifiedRef = useRef(false);
@@ -159,6 +159,17 @@ export const VideasyStreamVideo = ({
     };
   }, [playback, mp4Url, hlsUrl, isMuted]);
 
+  useEffect(() => {
+    if (playback === "ambient") {
+      return;
+    }
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    video.muted = isMuted;
+  }, [playback, isMuted]);
+
   const ambient = playback === "ambient";
 
   return (
@@ -166,7 +177,7 @@ export const VideasyStreamVideo = ({
       ref={videoRef}
       className={cn(className)}
       controls={!ambient}
-      muted={ambient ? isMuted : false}
+      muted={isMuted}
       loop={ambient}
       playsInline
       autoPlay={ambient}

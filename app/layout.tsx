@@ -1,3 +1,4 @@
+import { ApiFetchBootstrap } from "@/components/providers/api-fetch-bootstrap";
 import { CapWarmup } from "@/components/cap/cap-warmup";
 import { JsonLdScript } from "@/components/seo/json-ld-script";
 import { buildWebsiteStructuredData } from "@/lib/seo/structured-data";
@@ -26,6 +27,7 @@ import {
   DEFAULT_OG_IMAGE_TYPE,
   OG_IMAGE_SIZE,
 } from "@/lib/seo/constants";
+import { DevtoolsTrollProvider } from "@/components/providers/devtools-troll-provider";
 import { FeatureFlagsProvider } from "@/components/providers/feature-flags-provider";
 import { getCdnOrigin } from "@/lib/cdn";
 
@@ -131,6 +133,7 @@ export default function RootLayout({
       </head>
       <body className={cn("flex min-h-dvh flex-col bg-background font-sans")}>
         <JsonLdScript data={buildWebsiteStructuredData()} />
+        <ApiFetchBootstrap />
         <CapWarmup />
         <RouteScrollReset />
         <QueryProvider>
@@ -139,7 +142,9 @@ export default function RootLayout({
               <TooltipProvider>
                 <AdblockGateProvider>
                   <HoverSoundProvider>
-                    <AppChrome>{children}</AppChrome>
+                    <DevtoolsTrollProvider>
+                      <AppChrome>{children}</AppChrome>
+                    </DevtoolsTrollProvider>
                   </HoverSoundProvider>
                 </AdblockGateProvider>
               </TooltipProvider>

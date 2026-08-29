@@ -1,3 +1,4 @@
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextResponse } from "next/server";
 
 import {
@@ -21,6 +22,9 @@ const parseEpisodeCoordinate = (value: string | null): number | null => {
 };
 
 export async function GET(request: Request) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const requestUrl = new URL(request.url);
   const imdbId = normalizeIntroDbImdbId(requestUrl.searchParams.get("imdb_id"));
   const seasonNumber = parseEpisodeCoordinate(

@@ -1,3 +1,4 @@
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextResponse } from "next/server";
 import { movieDb } from "@/lib/constants";
@@ -6,6 +7,9 @@ export async function GET(
   request: Request,
   props: { params: Promise<{ id: string }> },
 ) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const params = await props.params;
   const id = params.id;
 

@@ -5,7 +5,6 @@ import type { AnilistMediaMeta } from "./anilist-meta";
 export const HENTAIGASM_PROVIDER_ID = "hentaigasm" as const;
 export const ADULT_ONLY_ANIME_PROVIDER_IDS = [
   "anipm",
-  "hentaini",
   HENTAIGASM_PROVIDER_ID,
 ] as const;
 

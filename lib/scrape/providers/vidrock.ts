@@ -15,8 +15,7 @@ export const VIDROCK_SUBTITLE_ORIGIN = "https://sub.vdrk.site";
 export { buildVdrkCatalogSubtitleApiUrl as buildVidrockSubtitleApiUrl } from "../subtitles";
 export { parseVdrkCatalogSubtitleEntries as parseVidrockSubtitleEntries } from "../subtitles";
 export { fetchVdrkCatalogSubtitles as fetchVidrockSubtitles } from "../subtitles";
-export const VIDROCK_PLAYABLE_CANDIDATE_LIMIT = 4;
-export const VIDROCK_PLAYABLE_CANDIDATE_BATCH = 2;
+export const VIDROCK_PLAYABLE_CANDIDATE_BATCH = 3;
 
 /** Static AES-256-GCM key embedded in VidRock frontend bundle. */
 const VIDROCK_AES_KEY = Buffer.from(
@@ -206,7 +205,7 @@ export async function scrapeVidrock(
     const subtitlesPromise = fetchVdrkCatalogSubtitles(input);
 
     const winner = await firstOkInBatches(
-      sources.slice(0, VIDROCK_PLAYABLE_CANDIDATE_LIMIT),
+      sources,
       async (source) => {
         let streamUrl = source.url;
 

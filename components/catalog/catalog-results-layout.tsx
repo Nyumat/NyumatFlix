@@ -21,6 +21,7 @@ type CatalogResultsLayoutProps = {
   emptyTitle: string;
   emptyDescription?: string;
   indexHref?: string;
+  includeChrome?: boolean;
 };
 
 export const CatalogResultsLayout = ({
@@ -37,15 +38,16 @@ export const CatalogResultsLayout = ({
   emptyTitle,
   emptyDescription,
   indexHref,
+  includeChrome = true,
 }: CatalogResultsLayoutProps) => {
   const serverDiscoverFilters = filterDiscoverParams(queryParams);
-
-  return items.length ? (
+  const chrome = includeChrome ? (
     <>
       <QueryPageHeader
         title={title}
         description={description}
         backHref={indexHref}
+        className={items.length ? undefined : "mx-auto max-w-2xl"}
       />
 
       <CatalogDiscoverToolbarDynamic
@@ -55,7 +57,12 @@ export const CatalogResultsLayout = ({
         serverDiscoverFilters={serverDiscoverFilters}
         resultCount={resultCount}
       />
+    </>
+  ) : null;
 
+  return items.length ? (
+    <>
+      {chrome}
       <Suspense fallback={<CatalogGridFallback />}>
         <CatalogInfiniteGrid
           mediaType={mediaType}
@@ -68,21 +75,7 @@ export const CatalogResultsLayout = ({
     </>
   ) : (
     <>
-      <QueryPageHeader
-        title={title}
-        description={description}
-        backHref={indexHref}
-        className="mx-auto max-w-2xl"
-      />
-
-      <CatalogDiscoverToolbarDynamic
-        mediaType={mediaType}
-        genres={genres}
-        providers={providers}
-        serverDiscoverFilters={serverDiscoverFilters}
-        resultCount={resultCount}
-      />
-
+      {chrome}
       <div className="rounded-lg border border-dashed p-12 text-center">
         <p className="font-medium">{emptyTitle}</p>
         {emptyDescription ? (

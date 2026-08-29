@@ -4,6 +4,10 @@ import { movieDb, TMDB_API_KEY, TMDB_BASE_URL } from "@/lib/constants";
 import { filterZeroRevenueMovies } from "@/lib/movie-revenue-filter";
 import { addRomanceFiltering, filterRomanceContent } from "@/lib/romance-media";
 import { redactTmdbUrl, tmdbFetchInit } from "@/lib/tmdb-cache-policy";
+import {
+  isMovieDiscoverEndpoint,
+  withMovieDiscoverIncludeVideo,
+} from "@/lib/tmdb-discover-defaults";
 import { logger } from "@/lib/utils";
 import {
   mapItemsToCanonicalCardsValue,
@@ -427,7 +431,10 @@ export async function fetchTMDBData<T = MediaItem>(
 
   const isRomanceQuery =
     params.with_genres?.includes("10749") || endpoint.includes("romance");
-  const filteredParams = isRomanceQuery ? params : addRomanceFiltering(params);
+  const romanceFiltered = isRomanceQuery ? params : addRomanceFiltering(params);
+  const filteredParams = isMovieDiscoverEndpoint(endpoint)
+    ? withMovieDiscoverIncludeVideo(romanceFiltered)
+    : romanceFiltered;
 
   for (const [key, value] of Object.entries(filteredParams)) {
     if (typeof key === "string" && typeof value === "string") {

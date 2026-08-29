@@ -6,6 +6,7 @@ import {
   buildIntroDbMediaUrl,
   fetchIntroDbSegments,
   findActiveIntroDbSegment,
+  isIntroDbCloserSegment,
   isIntroDbLookupReady,
   isTerminalIntroDbCredit,
   mergeIntroDbSegments,
@@ -147,14 +148,44 @@ describe("IntroDB playback helpers", () => {
     expect(findActiveIntroDbSegment(segments ?? [], 90)).toBeNull();
   });
 
-  it("only treats the final end-of-media credit range as terminal", () => {
+  it("treats credits and preview as closer segments", () => {
+    expect(
+      isIntroDbCloserSegment({
+        id: "credits",
+        type: "credits",
+        startSeconds: 500,
+        endSeconds: 540,
+        endsAtMediaEnd: false,
+      }),
+    ).toBe(true);
+    expect(
+      isIntroDbCloserSegment({
+        id: "preview",
+        type: "preview",
+        startSeconds: 540,
+        endSeconds: 580,
+        endsAtMediaEnd: false,
+      }),
+    ).toBe(true);
+    expect(
+      isIntroDbCloserSegment({
+        id: "intro",
+        type: "intro",
+        startSeconds: 0,
+        endSeconds: 30,
+        endsAtMediaEnd: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("treats the last closer as terminal even when it does not reach media end", () => {
     const segments = parseIntroDbSegments(
       {
         tmdb_id: movieKey.contentId,
         type: "movie",
         credits: [
           { start_ms: 80_000, end_ms: 90_000 },
-          { start_ms: 95_000, end_ms: null },
+          { start_ms: 95_000, end_ms: 98_000 },
         ],
       },
       movieKey,
@@ -163,6 +194,7 @@ describe("IntroDB playback helpers", () => {
 
     expect(isTerminalIntroDbCredit(segments?.[0]!, segments ?? [])).toBe(false);
     expect(isTerminalIntroDbCredit(segments?.[1]!, segments ?? [])).toBe(true);
+    expect(segments?.[1]?.endsAtMediaEnd).toBe(false);
   });
 
   it("creates a Vidstack-compatible chapters track", () => {
@@ -289,7 +321,10 @@ describe("IntroDB playback helpers", () => {
 
     expect(segments.map((segment) => segment.type)).toEqual(["intro"]);
     expect(global.fetch).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(global.fetch).mock.calls[1]?.[0]).toBe(
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toBe(
+      "/api/introdb/media?tmdb_id=12345&duration_ms=600000&season=1&episode=2",
+    );
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[0]).toBe(
       "/api/introdb/segments?imdb_id=tt0903747&season=1&episode=2",
     );
   });

@@ -2,7 +2,7 @@
 
 import { VIDSRC_PROGRESS_STORAGE_KEY } from "@/lib/playback/recently-watched";
 import { logger } from "@/lib/utils";
-import { getSession } from "next-auth/react";
+import { postWatchProgressIfSignedIn } from "@/lib/watchlist/post-watch-progress";
 import { useEffect, useRef } from "react";
 
 export { VIDSRC_PROGRESS_STORAGE_KEY };
@@ -122,19 +122,13 @@ export function useVidsrcProgress(): void {
       const syncKey = `${contentId}-${entry.type}-${seasonNumber ?? ""}-${episodeNumber ?? ""}`;
       if (lastSyncedRef.current === syncKey) return;
 
-      const session = await getSession();
-      if (!session?.user?.id) return;
-
       lastSyncedRef.current = syncKey;
 
-      await fetch("/api/watchlist/progress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contentId,
-          mediaType: entry.type,
-          ...(entry.type === "tv" ? { seasonNumber, episodeNumber } : {}),
-        }),
+      await postWatchProgressIfSignedIn({
+        contentId,
+        mediaType: entry.type,
+        seasonNumber,
+        episodeNumber,
       });
     };
 

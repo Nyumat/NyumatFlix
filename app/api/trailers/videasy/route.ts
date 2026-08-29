@@ -5,6 +5,7 @@ import {
   pickBestVideasyHlsStream,
   pickBestVideasyMp4Stream,
 } from "@/lib/videasy-trailer";
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,9 @@ export const dynamic = "force-dynamic";
 const IMDB_ID_PATTERN = /^tt\d+$/;
 
 export async function GET(request: Request) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const flags = await getSiteFlags();
   if (flags.staticHeroBackdrops) {
     return NextResponse.json(

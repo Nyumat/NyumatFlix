@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requestHasCapSession } from "@/lib/cap/server";
+import { allowsCapProtectedAccess } from "@/lib/cap/access";
 
 import {
   ANIME_SCRAPE_PROVIDER_LABELS,
@@ -25,6 +25,7 @@ import {
   isVixsrcPlaybackRefresh,
 } from "@/lib/scrape/playback-refresh";
 import { primeVidKingSession } from "@/lib/scrape/vidking-playback";
+import { primeVidsrcJwtSession } from "@/lib/scrape/vidsrc-playback";
 import { primeVixsrcSession } from "@/lib/scrape/vixsrc-playback";
 import { isVidnestClientOnlyCdn } from "@/lib/scrape/vidnest-shared";
 import {
@@ -131,7 +132,7 @@ const parseScrapeBody = (body: unknown): ParsedScrapeBody | null => {
 };
 
 export async function handleScrapePost(request: Request) {
-  if (!requestHasCapSession(request)) {
+  if (!(await allowsCapProtectedAccess(request))) {
     return NextResponse.json(
       { error: "Human verification required" },
       { status: 403, headers: { "X-Cap-Required": "1" } },
@@ -250,6 +251,10 @@ async function handleTmdbScrapePost(
     primeVixsrcSession(playbackToken.refresh, result.streamUrl);
   }
 
+  if (isVidsrcPlaybackRefresh(result.playbackRefresh)) {
+    primeVidsrcJwtSession(result.playbackRefresh, result.streamUrl);
+  }
+
   const playUrl =
     isVidnestClientOnlyCdn(result.streamUrl) || result.providerId === "direct"
       ? result.streamUrl
@@ -275,6 +280,8 @@ async function handleTmdbScrapePost(
     }),
     qualities: result.qualities,
     audioVersions: result.audioVersions,
+    nativeAudioTrackCount: result.nativeAudioTrackCount,
+    nativeSubtitleTrackCount: result.nativeSubtitleTrackCount,
     preferredAudioLang: result.preferredAudioLang,
     ...(result.providerId === "direct" && result.directPlayback
       ? {
@@ -360,6 +367,8 @@ async function handleAnimeScrapePost(
     }),
     qualities: result.qualities,
     audioVersions: result.audioVersions,
+    nativeAudioTrackCount: result.nativeAudioTrackCount,
+    nativeSubtitleTrackCount: result.nativeSubtitleTrackCount,
     defaultAudioLang: result.defaultAudioLang,
     defaultHardSubLang: result.defaultHardSubLang,
     preferredAudioLang:

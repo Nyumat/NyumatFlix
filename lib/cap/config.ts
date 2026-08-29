@@ -1,6 +1,15 @@
+import {
+  CAP_WASM_CDN_VERSION,
+  isCapDevBypassEnabled,
+} from "@/lib/cap/constants";
+
 const CAP_ENDPOINT_ENV = "CAP_API_ENDPOINT";
 
 export const getCapApiEndpoint = (): string => {
+  if (isCapDevBypassEnabled()) {
+    return "http://localhost:3030/dev-bypass/";
+  }
+
   const rawEndpoint = process.env[CAP_ENDPOINT_ENV]?.trim();
   if (!rawEndpoint) {
     throw new Error(`${CAP_ENDPOINT_ENV} is not configured`);
@@ -26,7 +35,5 @@ export const getCapApiEndpoint = (): string => {
   return endpoint.toString();
 };
 
-export const getCapWasmUrl = (): string => {
-  const endpoint = new URL(getCapApiEndpoint());
-  return new URL("assets/cap_wasm_bg.wasm", endpoint).toString();
-};
+export const getCapWasmUrl = (): string =>
+  `https://cdn.jsdelivr.net/npm/@cap.js/wasm@${CAP_WASM_CDN_VERSION}/browser/cap_wasm_bg.wasm`;

@@ -16,6 +16,7 @@ const updateProgressSchema = z.object({
    * MAL scrobbling resolve reliably regardless of which id `contentId` is.
    */
   anilistId: z.number().int().positive().optional(),
+  episodeCompleted: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
         mediaType: validatedData.mediaType,
         seasonNumber: validatedData.seasonNumber,
         episodeNumber: validatedData.episodeNumber,
+        episodeCompleted: validatedData.episodeCompleted === true,
         anilistId: validatedData.anilistId,
       });
 
@@ -111,6 +113,7 @@ export async function POST(request: NextRequest) {
         mediaType: validatedData.mediaType,
         seasonNumber: validatedData.seasonNumber,
         episodeNumber: validatedData.episodeNumber,
+        episodeCompleted: validatedData.episodeCompleted === true,
         anilistId: validatedData.anilistId,
       });
 

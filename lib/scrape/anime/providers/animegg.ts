@@ -1,5 +1,9 @@
 import { extractFirstMatch } from "../html-utils";
-import { resolveAnimeSearchQueries } from "../anilist-meta";
+import { resolveAnimeSearchContext } from "../anilist-meta";
+import {
+  buildSubDubAudioVersions,
+  defaultAudioLangForTranslation,
+} from "../audio-versions";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
 import { flareSolverrGet } from "../../flaresolverr";
@@ -67,13 +71,14 @@ const fetchAnimeggHtml = async (
 };
 
 const findSeriesSlugFromSearch = async (
-  titles: readonly string[],
+  searchQueries: readonly string[],
+  matchTitles: readonly string[],
 ): Promise<string | null> => {
   type Candidate = { slug: string; label: string; exact: boolean };
 
   const candidates: Candidate[] = [];
 
-  for (const title of titles) {
+  for (const title of searchQueries) {
     const searchPage = await fetchAnimeggHtml(
       `${ANIMEGG_ORIGIN}/search/?q=${encodeURIComponent(title)}`,
     );
@@ -82,14 +87,14 @@ const findSeriesSlugFromSearch = async (
     )) {
       const slug = match[1];
       const label = match[2] ?? "";
-      if (!slug || !animeSearchLabelMatches(label, titles)) {
+      if (!slug || !animeSearchLabelMatches(label, matchTitles)) {
         continue;
       }
       const cleaned = stripAnimeSearchMetadata(label);
       candidates.push({
         slug,
         label: cleaned,
-        exact: isExactAnimeTitleMatch(cleaned, titles),
+        exact: isExactAnimeTitleMatch(cleaned, matchTitles),
       });
     }
   }
@@ -110,8 +115,12 @@ export async function scrapeAnimegg(
   const providerId = "animegg" as const;
 
   try {
-    const titles = await resolveAnimeSearchQueries(input);
-    const seriesSlug = await findSeriesSlugFromSearch(titles);
+    const { searchQueries, matchTitles } =
+      await resolveAnimeSearchContext(input);
+    const seriesSlug = await findSeriesSlugFromSearch(
+      searchQueries,
+      matchTitles,
+    );
     if (!seriesSlug) {
       return {
         ok: false,
@@ -153,43 +162,30 @@ export async function scrapeAnimegg(
     }
 
     const version = input.translationType === "dub" ? "dubbed" : "subbed";
-    const extractEmbedId = (html: string): string | null =>
+    const alternateVersion = version === "dubbed" ? "subbed" : "dubbed";
+    const extractEmbedId = (
+      html: string,
+      embedVersion: string,
+    ): string | null =>
       extractFirstMatch(
         html,
         new RegExp(
-          `data-id=['"](\\d+)['"][^>]*data-mirror=['"]Animegg['"][^>]*data-version=['"]${version}['"]`,
+          `data-id=['"](\\d+)['"][^>]*data-mirror=['"]Animegg['"][^>]*data-version=['"]${embedVersion}['"]`,
           "i",
         ),
       );
 
-    let embedId = extractEmbedId(episodePage.text);
+    let embedId = extractEmbedId(episodePage.text, version);
     if (!embedId) {
       const recovered = await loadEpisodeFromSeriesPage();
-      embedId = recovered ? extractEmbedId(episodePage.text) : null;
+      embedId = recovered ? extractEmbedId(episodePage.text, version) : null;
     }
     if (!embedId) {
       return { ok: false, providerId, error: "AnimeGG embed id missing" };
     }
-
-    const embedPage = await fetchAnimeggHtml(
-      `${ANIMEGG_ORIGIN}/embed/${embedId}`,
-    );
-
-    const sources = extractAnimeggSources(embedPage.text).sort(
-      (left, right) =>
-        Number.parseInt(right.label) - Number.parseInt(left.label),
-    );
-    const playPath =
-      sources[0]?.path ??
-      extractFirstMatch(embedPage.text, /(\/play\/\d+\/video\.mp4[^"']*)/);
-
-    if (!playPath) {
-      return {
-        ok: false,
-        providerId,
-        error: "AnimeGG play URL missing in embed page",
-      };
-    }
+    // The episode page lists both translations side by side — the other
+    // version powers the in-player Audio menu (no re-scrape to switch).
+    const alternateEmbedId = extractEmbedId(episodePage.text, alternateVersion);
 
     const resolvePlayUrl = async (path: string): Promise<string> => {
       const absolute = `${ANIMEGG_ORIGIN}${path}`;
@@ -215,24 +211,75 @@ export async function scrapeAnimegg(
       return absolute;
     };
 
-    const streamUrl = await resolvePlayUrl(playPath);
+    const resolveEmbedStream = async (
+      id: string,
+    ): Promise<{
+      streamUrl: string;
+      qualities: { label: string; url: string }[];
+    } | null> => {
+      const embedPage = await fetchAnimeggHtml(`${ANIMEGG_ORIGIN}/embed/${id}`);
+      const sources = extractAnimeggSources(embedPage.text).sort(
+        (left, right) =>
+          Number.parseInt(right.label) - Number.parseInt(left.label),
+      );
+      const playPath =
+        sources[0]?.path ??
+        extractFirstMatch(embedPage.text, /(\/play\/\d+\/video\.mp4[^"']*)/);
 
-    const qualities = (
-      await Promise.all(
-        sources.slice(1).map(async (source) => ({
-          label: source.label,
-          url: await resolvePlayUrl(source.path),
-        })),
-      )
-    ).filter((quality) => quality.url !== streamUrl);
+      if (!playPath) {
+        return null;
+      }
+
+      const streamUrl = await resolvePlayUrl(playPath);
+      const qualities = (
+        await Promise.all(
+          sources.slice(1).map(async (source) => ({
+            label: source.label,
+            url: await resolvePlayUrl(source.path),
+          })),
+        )
+      ).filter((quality) => quality.url !== streamUrl);
+
+      return { streamUrl, qualities };
+    };
+
+    const [primary, alternate] = await Promise.all([
+      resolveEmbedStream(embedId),
+      alternateEmbedId
+        ? resolveEmbedStream(alternateEmbedId).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    if (!primary) {
+      return {
+        ok: false,
+        providerId,
+        error: "AnimeGG play URL missing in embed page",
+      };
+    }
+
+    const alternateStream = alternate ? { url: alternate.streamUrl } : null;
+    const audioVersions = buildSubDubAudioVersions(
+      version === "subbed"
+        ? { sub: { url: primary.streamUrl }, dub: alternateStream }
+        : { sub: alternateStream, dub: { url: primary.streamUrl } },
+    );
 
     return {
       ok: true,
       providerId,
-      streamUrl,
+      streamUrl: primary.streamUrl,
       streamKind: "mp4",
       referer: ANIMEGG_ORIGIN,
-      qualities: qualities.length > 0 ? qualities : undefined,
+      qualities: primary.qualities.length > 0 ? primary.qualities : undefined,
+      ...(audioVersions
+        ? {
+            audioVersions,
+            defaultAudioLang: defaultAudioLangForTranslation(
+              input.translationType,
+            ),
+          }
+        : {}),
     };
   } catch (error) {
     return {

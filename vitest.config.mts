@@ -31,6 +31,7 @@ export default defineConfig({
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
+      "e2e/**",
       "packages/calluspirates-shared/**",
     ],
     env: loadEnv("", process.cwd(), ""),

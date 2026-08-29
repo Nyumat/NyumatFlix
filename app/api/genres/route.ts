@@ -1,3 +1,4 @@
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { Genre } from "@/lib/domain/typings";
 import { NextResponse } from "next/server";
 
@@ -24,6 +25,9 @@ async function fetchGenresFromTMDB(
 }
 
 export async function GET(request: Request) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") as "movie" | "tv" | null;
 

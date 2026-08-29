@@ -3,6 +3,8 @@
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { Card } from "@/components/ui/card";
 import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
+import { useOpenMediaPeek } from "@/hooks/use-open-media-peek";
+import { resolveMediaPeekTarget } from "@/lib/peek/media-peek-target";
 import useMedia from "@/hooks/useMedia";
 import { Icons } from "@/lib/icons";
 import {
@@ -16,6 +18,7 @@ import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
+import { type KeyboardEvent, type MouseEvent } from "react";
 import { useHoverSound } from "@/components/providers/hover-sound-provider";
 import { CardMeta } from "./card-meta";
 
@@ -52,6 +55,18 @@ export function HorizontalCard({
     href,
   );
   const playHoverSound = useHoverSound();
+  const openMediaPeek = useOpenMediaPeek();
+  const peekItem = item as Parameters<typeof resolveMediaPeekTarget>[0];
+
+  const handlePeekActivate = (event: MouseEvent | KeyboardEvent) => {
+    openMediaPeek(event, peekItem, href);
+    if (!event.defaultPrevented) onNavigate?.();
+  };
+
+  const handlePeekKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    handlePeekActivate(event);
+  };
 
   const handlePointerEnter = () => {
     schedulePrefetch();
@@ -136,18 +151,14 @@ export function HorizontalCard({
             />
             {!isMobile && !isRowInteraction ? (
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/0 transition-all duration-500 group-hover:bg-black/20">
-                <Link
-                  href={href}
-                  onClick={onNavigate}
-                  onFocus={schedulePrefetch}
-                  onPointerEnter={schedulePrefetch}
+                <span
                   className={cn(
-                    "pointer-events-auto flex cursor-pointer items-center justify-center rounded-full",
+                    "pointer-events-none flex items-center justify-center rounded-full",
                     isCompact
                       ? "size-12 opacity-90"
                       : "size-20 scale-75 opacity-0 transition-all duration-500 group-hover:scale-100 group-hover:opacity-100",
                   )}
-                  aria-label={`View ${title}`}
+                  aria-hidden
                 >
                   <Icons.play
                     className={cn(
@@ -156,7 +167,7 @@ export function HorizontalCard({
                     )}
                     strokeWidth={1.5}
                   />
-                </Link>
+                </span>
               </div>
             ) : null}
           </div>
@@ -201,21 +212,27 @@ export function HorizontalCard({
           ) : null}
         </div>
       </div>
-      {isMobile || isRowInteraction ? (
+      {isRowInteraction ? (
         <Link
           href={href}
-          onClick={onNavigate}
+          onClick={(event) => {
+            openMediaPeek(event, peekItem, href);
+            if (!event.defaultPrevented) onNavigate?.();
+          }}
           onFocus={schedulePrefetch}
           onPointerEnter={schedulePrefetch}
-          className={cn(
-            "absolute inset-0 z-40",
-            isRowInteraction
-              ? "cursor-pointer"
-              : "cursor-grab active:cursor-grabbing",
-          )}
+          className="absolute inset-0 z-40 cursor-pointer"
           aria-label={`View ${title}`}
         />
-      ) : null}
+      ) : (
+        <button
+          type="button"
+          className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+          aria-label={`View ${title}`}
+          onClick={handlePeekActivate}
+          onKeyDown={handlePeekKeyDown}
+        />
+      )}
     </Card>
   );
 }

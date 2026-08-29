@@ -27,6 +27,7 @@ import {
   WatchProvider,
   WatchProviders,
 } from "@/tmdb/models";
+import { defaultMovieDiscoverIncludeVideo } from "@/lib/tmdb-discover-defaults";
 import {
   createTmdbDevelopmentCacheKey,
   shouldBypassTmdbDataCache,
@@ -629,7 +630,10 @@ export const discover = {
   movie: (args: DiscoverMovieRequestParams) =>
     api.fetcher<ListResponse<Movie>>({
       endpoint: "discover/movie",
-      params: args as Record<string, string>,
+      params: {
+        ...(args as Record<string, string>),
+        include_video: defaultMovieDiscoverIncludeVideo(args.include_video),
+      },
     }),
 
   tv: (args: DiscoverTvRequestParams) =>

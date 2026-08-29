@@ -19,7 +19,13 @@ elif [[ "$(basename "$SCRIPT_DIR")" == "scripts" ]]; then
 else
   ROOT="$SCRIPT_DIR"
 fi
-DOCKER_IMAGE="${DOCKER_IMAGE:-whotypes/nyumatflix:latest}"
+
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/deploy-lib.sh"
+
+DOCKER_REPO="${DOCKER_REPO:-whotypes/nyumatflix}"
+DOCKER_IMAGE="${DOCKER_IMAGE:-$DOCKER_REPO:latest}"
+DEPLOY_HISTORY_FILE="${DEPLOY_HISTORY_FILE:-$ROOT/deployments.jsonl}"
 CONTAINER_NAME="${CONTAINER_NAME:-nyumatflix}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-betterome}"
 ENV_FILE="${ENV_FILE:-$HOME/apps/nyumatflix/.env}"
@@ -41,7 +47,7 @@ CONTAINER_HEALTH_START_PERIOD="${CONTAINER_HEALTH_START_PERIOD:-45s}"
 
 cmd="${1:-}"
 if [[ -z "$cmd" ]]; then
-  echo "usage: $0 bp | serve | stop" >&2
+  echo "usage: $0 bp | serve | stop | history | current" >&2
   exit 1
 fi
 
@@ -57,15 +63,30 @@ load_build_env() {
 }
 
 build_push() {
+  resolve_deploy_git_meta || true
+  if [[ -n "${DEPLOY_SHA:-}" ]]; then
+    DOCKER_IMAGE="$DOCKER_REPO:$DEPLOY_SHA"
+  fi
+
   "$ROOT/scripts/bootstrap-scrape-vpn.sh" ensure-local
   "$ROOT/scripts/sync-calluspirates-shared.sh"
   cd "$ROOT"
   load_build_env
+
+  local -a tags=(-t "$DOCKER_IMAGE")
+  if [[ -n "${DEPLOY_SHA:-}" && "$DOCKER_IMAGE" != "$DOCKER_REPO:latest" ]]; then
+    tags+=(-t "$DOCKER_REPO:latest")
+  fi
+
   docker build --platform linux/amd64 \
     --build-arg TMDB_API_KEY="${TMDB_API_KEY:-}" \
     --build-arg CAP_API_ENDPOINT="${CAP_API_ENDPOINT:-}" \
-    -t "$DOCKER_IMAGE" .
+    "${tags[@]}" .
+
   docker push "$DOCKER_IMAGE"
+  if [[ -n "${DEPLOY_SHA:-}" && "$DOCKER_IMAGE" != "$DOCKER_REPO:latest" ]]; then
+    docker push "$DOCKER_REPO:latest"
+  fi
   echo "pushed $DOCKER_IMAGE"
 }
 
@@ -77,10 +98,38 @@ acquire_deploy_lock() {
   fi
 }
 
+sync_nginx_site_configs() {
+  local limits_src="$ROOT/scripts/nginx-nyumatflix-limits.conf"
+  local site_src="$ROOT/scripts/nginx-nyumatflix.conf"
+  local crowdsec_src="$ROOT/scripts/nginx-crowdsec-bouncer.conf"
+  local limits_dest="/etc/nginx/conf.d/nyumatflix-limits.conf"
+  local crowdsec_dest="/etc/nginx/conf.d/crowdsec-bouncer.conf"
+  local site_dest="/etc/nginx/sites-available/nyumatflix"
+
+  if [[ -f "$limits_src" ]]; then
+    sudo cp "$limits_src" "$limits_dest"
+  fi
+  if [[ -f "$crowdsec_src" ]]; then
+    sudo cp "$crowdsec_src" "$crowdsec_dest"
+  fi
+  if [[ -f "$site_src" ]]; then
+    sudo cp "$site_src" "$site_dest"
+    sudo ln -sf "$site_dest" /etc/nginx/sites-enabled/nyumatflix 2>/dev/null || true
+  fi
+}
+
 ensure_runtime_infra() {
+  sync_nginx_site_configs
   NYUMATFLIX_ROOT="$ROOT" APP_ENV_FILE="$ENV_FILE" \
     "$ROOT/scripts/reconcile-prod-infra.sh" ensure
   CAP_ENV_FILE="$ENV_FILE" "$ROOT/scripts/reconcile-cap.sh" ensure
+  chmod +x "$ROOT/scripts/reconcile-crowdsec.sh" "$ROOT/scripts/lock-cap-cors.sh" 2>/dev/null || true
+  if [[ -x "$ROOT/scripts/reconcile-crowdsec.sh" ]]; then
+    CROWDSEC_ENV_FILE="$ENV_FILE" "$ROOT/scripts/reconcile-crowdsec.sh" ensure || true
+  fi
+  if [[ -x "$ROOT/scripts/lock-cap-cors.sh" ]]; then
+    CAP_ENV_FILE="$ENV_FILE" "$ROOT/scripts/lock-cap-cors.sh" "$ENV_FILE" || true
+  fi
 }
 
 serve() {
@@ -89,6 +138,17 @@ serve() {
     echo "env file not found: $ENV_FILE (set ENV_FILE=...)" >&2
     exit 1
   fi
+
+  if [[ -z "${DEPLOY_SHA:-}" && "$DOCKER_IMAGE" == *:* ]]; then
+    DEPLOY_SHA="${DOCKER_IMAGE##*:}"
+  fi
+  if [[ -n "${DEPLOY_SHA:-}" && -z "${DEPLOY_SHORT_SHA:-}" ]]; then
+    DEPLOY_SHORT_SHA="${DEPLOY_SHA:0:7}"
+  fi
+  DEPLOY_MESSAGE="${DEPLOY_MESSAGE:-}"
+  DEPLOY_AUTHOR="${DEPLOY_AUTHOR:-}"
+  DEPLOY_SOURCE="${DEPLOY_SOURCE:-local}"
+
   ensure_runtime_infra
   if [[ "${SKIP_DOCKER_PULL:-}" != "1" ]]; then
     sudo docker pull "$DOCKER_IMAGE"
@@ -110,6 +170,11 @@ serve() {
     exit 1
   fi
 
+  local deploy_at safe_message safe_author
+  deploy_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  safe_message="$(label_safe "${DEPLOY_MESSAGE:-}")"
+  safe_author="$(label_safe "${DEPLOY_AUTHOR:-}")"
+
   sudo docker run -d \
     --name "$candidate" \
     --restart unless-stopped \
@@ -118,6 +183,12 @@ serve() {
     --memory-swap "${CONTAINER_MEMORY_SWAP}" \
     --pids-limit 256 \
     --stop-timeout 30 \
+    --label "nyumatflix.deploy.sha=${DEPLOY_SHA:-unknown}" \
+    --label "nyumatflix.deploy.short_sha=${DEPLOY_SHORT_SHA:-${DEPLOY_SHA:-unknown}}" \
+    --label "nyumatflix.deploy.message=${safe_message}" \
+    --label "nyumatflix.deploy.author=${safe_author}" \
+    --label "nyumatflix.deploy.at=${deploy_at}" \
+    --label "nyumatflix.deploy.source=${DEPLOY_SOURCE:-local}" \
     --health-cmd "curl -fsS --max-time 5 http://127.0.0.1:${CONTAINER_APP_PORT}/api/healthz || exit 1" \
     --health-interval "${CONTAINER_HEALTH_INTERVAL}" \
     --health-timeout "${CONTAINER_HEALTH_TIMEOUT}" \
@@ -161,7 +232,7 @@ serve() {
   if sudo test -f "$NGINX_UPSTREAM_FILE"; then
     sudo cp "$NGINX_UPSTREAM_FILE" "$upstream_backup"
   fi
-  printf '# Managed by scripts/deploy.sh. This file is loaded from nginx\047s http context.\nupstream nyumatflix_app {\n    server 127.0.0.1:%s;\n    keepalive 64;\n}\n' "$target_port" \
+  printf '# Managed by scripts/deploy.sh. This file is loaded from nginx\047s http context.\nupstream nyumatflix_app {\n    server 127.0.0.1:%s;\n    keepalive 64;\n}\n\nupstream nyumatflix_imgproxy {\n    server 127.0.0.1:9081;\n    keepalive 32;\n}\n' "$target_port" \
     | sudo tee "${NGINX_UPSTREAM_FILE}.next" >/dev/null
   sudo mv "${NGINX_UPSTREAM_FILE}.next" "$NGINX_UPSTREAM_FILE"
 
@@ -197,9 +268,25 @@ serve() {
     sudo sh -c "(sleep '$DRAIN_SECONDS'; docker rm -f '$old_name') >>/var/log/nyumatflix-deploy-cleanup.log 2>&1 &"
   fi
 
+  DEPLOY_TARGET_PORT="$target_port"
+  record_deployment
+
   echo "running $CONTAINER_NAME from $DOCKER_IMAGE (127.0.0.1:${target_port}->:${CONTAINER_APP_PORT})"
+  echo "deploy ${DEPLOY_SHORT_SHA:-unknown} ${DEPLOY_MESSAGE:-}"
   sudo docker logs --tail 20 "$CONTAINER_NAME"
   sudo docker ps --filter "name=${CONTAINER_NAME}" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+}
+
+show_current() {
+  local labels sha short_sha message author deployed_at source image
+  labels="$(current_deploy_labels)"
+  if [[ -z "$labels" ]]; then
+    echo "no running deployment"
+    return 0
+  fi
+  IFS='|' read -r sha short_sha message author deployed_at source image <<<"$labels"
+  printf 'sha=%s\nshortSha=%s\nmessage=%s\nauthor=%s\ndeployedAt=%s\nsource=%s\nimage=%s\n' \
+    "$sha" "$short_sha" "$message" "$author" "$deployed_at" "$source" "$image"
 }
 
 stop_container() {
@@ -217,8 +304,10 @@ case "$cmd" in
   build-push | bp) build_push ;;
   serve | deploy) serve ;;
   stop) stop_container ;;
+  history) print_deploy_history "${2:-20}" ;;
+  current) show_current ;;
   *)
-    echo "unknown command: $cmd (use bp, serve, or stop)" >&2
+    echo "unknown command: $cmd (use bp, serve, stop, history, or current)" >&2
     exit 1
     ;;
 esac

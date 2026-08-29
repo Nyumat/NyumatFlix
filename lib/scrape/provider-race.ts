@@ -24,17 +24,14 @@ export const NEVER_DEPRIORITIZE_SCRAPE_PROVIDERS = new Set<string>(["direct"]);
 /** Client-side attempt caps — shorter than upstream when failures are predictable. */
 const PROVIDER_ATTEMPT_TIMEOUT_MS: Partial<Record<string, number>> = {
   vidrock: 8_000,
-  vixsrc: 12_000,
   "2embed": 25_000,
   bingr: 30_000,
   vidsrc: 20_000,
   vidnest: 30_000,
   videasy: 60_000,
   vidking: 30_000,
-  anikuro: 25_000,
   animestream: 20_000,
   animegg: 18_000,
-  animepahe: 20_000,
   anizone: 20_000,
   kickassanime: 20_000,
   animeonsen: 15_000,
@@ -62,7 +59,9 @@ export function getScrapeAttemptTimeoutMs(
 }
 
 /** Fast scrapers that often pass probes but fail in the player — never pin as preferred. */
-export const UNTRUSTED_PREFERRED_SCRAPE_PROVIDERS = new Set<string>(["vixsrc"]);
+export const UNTRUSTED_PREFERRED_SCRAPE_PROVIDERS = new Set<string>([
+  "vidrock",
+]);
 
 export type RaceBatchResult<T> = {
   batch: T[];

@@ -10,10 +10,14 @@ import {
   defaultLayoutIcons,
 } from "@vidstack/react/player/layouts/default";
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
-import { useMemo } from "react";
 
 import {
   isDefaultSubtitleAppearance,
+  resolveSubtitleAppearancePreset,
+  resolveSubtitleColorLabel,
+  resolveSubtitleColorRadioValue,
+  SUBTITLE_APPEARANCE_PRESETS,
+  SUBTITLE_COLOR_SWATCHES,
   SUBTITLE_FONT_FAMILY_OPTIONS,
   SUBTITLE_TEXT_SHADOW_OPTIONS,
   type SubtitleAppearance,
@@ -36,6 +40,156 @@ export type ScrapeSubtitleConfigureSubmenuProps = {
   hasOffsetTracks?: boolean;
 };
 
+const formatPercent = (value: number): string => `${Math.round(value)}%`;
+
+const formatPx = (value: number): string => `${value.toFixed(1)}px`;
+
+const SettingsRadioSubmenu = ({
+  label,
+  hint,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) => {
+  const Icons = defaultLayoutIcons;
+
+  return (
+    <Menu.Root className="vds-menu">
+      <DefaultMenuButton label={label} hint={hint} />
+      <Menu.Items className="vds-menu-items">
+        <Menu.RadioGroup
+          className="vds-radio-group"
+          value={value}
+          onChange={onChange}
+        >
+          {options.map((option) => (
+            <Menu.Radio
+              key={option.value}
+              className="vds-radio"
+              value={option.value}
+            >
+              <Icons.Menu.RadioCheck className="vds-icon" />
+              <span className="vds-radio-label">{option.label}</span>
+            </Menu.Radio>
+          ))}
+        </Menu.RadioGroup>
+      </Menu.Items>
+    </Menu.Root>
+  );
+};
+
+const SettingsColorSubmenu = ({
+  label,
+  color,
+  onColorChange,
+}: {
+  label: string;
+  color: string;
+  onColorChange: (color: string) => void;
+}) => {
+  const Icons = defaultLayoutIcons;
+  const radioValue = resolveSubtitleColorRadioValue(color);
+  const pickerValue = /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#ffffff";
+
+  return (
+    <Menu.Root className="vds-menu">
+      <DefaultMenuButton
+        label={label}
+        hint={resolveSubtitleColorLabel(color)}
+      />
+      <Menu.Items className="vds-menu-items">
+        <Menu.RadioGroup
+          className="vds-radio-group"
+          value={radioValue === "custom" ? "" : radioValue}
+          onChange={onColorChange}
+        >
+          {SUBTITLE_COLOR_SWATCHES.map((swatch) => (
+            <Menu.Radio
+              key={swatch.value}
+              className="vds-radio"
+              value={swatch.value}
+            >
+              <Icons.Menu.RadioCheck className="vds-icon" />
+              <span className="vds-radio-label">{swatch.label}</span>
+            </Menu.Radio>
+          ))}
+        </Menu.RadioGroup>
+        <div className="vds-menu-item flex items-center justify-between px-3 py-2">
+          <span className="vds-radio-label">Custom</span>
+          <input
+            type="color"
+            aria-label={`${label} custom`}
+            value={pickerValue}
+            onChange={(event) => onColorChange(event.target.value)}
+            className="h-6 w-8 cursor-pointer rounded border border-white/20 bg-transparent p-0"
+          />
+        </div>
+      </Menu.Items>
+    </Menu.Root>
+  );
+};
+
+const SettingsSliderSubmenu = ({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  step,
+  keyStep,
+  ariaLabel,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  keyStep: number;
+  ariaLabel: string;
+  onChange: (value: number) => void;
+}) => {
+  const Icons = defaultLayoutIcons;
+
+  return (
+    <Menu.Root className="vds-menu">
+      <DefaultMenuButton label={label} hint={hint} />
+      <Menu.Items className="vds-menu-items">
+        <DefaultMenuSliderItem
+          label={label}
+          value={hint}
+          UpIcon={Icons.Menu.FontSizeUp}
+          DownIcon={Icons.Menu.FontSizeDown}
+          isMin={value <= min}
+          isMax={value >= max}
+        >
+          <Slider.Root
+            className="vds-slider"
+            min={min}
+            max={max}
+            step={step}
+            keyStep={keyStep}
+            value={value}
+            aria-label={ariaLabel}
+            onValueChange={onChange}
+            onDragValueChange={onChange}
+          >
+            <DefaultSliderParts />
+            <DefaultSliderSteps />
+          </Slider.Root>
+        </DefaultMenuSliderItem>
+      </Menu.Items>
+    </Menu.Root>
+  );
+};
+
 export function ScrapeSubtitleConfigureSubmenu({
   appearance,
   onAppearanceChange,
@@ -45,377 +199,193 @@ export function ScrapeSubtitleConfigureSubmenu({
   hasOffsetTracks = false,
 }: ScrapeSubtitleConfigureSubmenuProps) {
   const isDefault = isDefaultSubtitleAppearance(appearance);
-  const Icons = defaultLayoutIcons;
+  const matchedPreset = resolveSubtitleAppearancePreset(appearance);
+  const fontFamilyHint =
+    SUBTITLE_FONT_FAMILY_OPTIONS.find(
+      (option) => option.value === appearance.fontFamily,
+    )?.label ?? "Sans Serif";
+  const edgeHint =
+    SUBTITLE_TEXT_SHADOW_OPTIONS.find(
+      (option) => option.value === appearance.textShadow,
+    )?.label ?? "None";
 
-  const previewStyle = useMemo(() => {
-    return {
-      fontFamily:
-        appearance.fontFamily === "mono-serif"
-          ? '"Courier New", Courier, monospace'
-          : appearance.fontFamily === "mono-sans"
-            ? '"DejaVu Sans Mono", monospace'
-            : appearance.fontFamily === "pro-serif"
-              ? '"Times New Roman", Times, serif'
-              : appearance.fontFamily === "casual"
-                ? '"Comic Sans MS", cursive'
-                : appearance.fontFamily === "cursive"
-                  ? '"Dancing Script", cursive'
-                  : 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      fontSize: `${Math.max(12, Math.min(24, Math.round((appearance.fontSize / 100) * 15)))}px`,
-      lineHeight: `${appearance.lineHeight}%`,
-      color: appearance.textColor,
-      opacity: appearance.textOpacity / 100,
-      textShadow:
-        appearance.textShadow === "drop-shadow"
-          ? "rgb(0 0 0 / 0.9) 1px 1px 2px, rgb(0 0 0 / 0.8) 0px 0px 4px"
-          : appearance.textShadow === "outline"
-            ? "rgb(0 0 0) 1px 1px 0px, rgb(0 0 0) -1px -1px 0px, rgb(0 0 0) 1px -1px 0px, rgb(0 0 0) -1px 1px 0px"
-            : appearance.textShadow === "raised"
-              ? "rgb(0 0 0 / 0.9) 1px 1px 0px, rgb(0 0 0 / 0.7) 2px 2px 0px"
-              : appearance.textShadow === "depressed"
-                ? "rgb(255 255 255 / 0.3) 1px 1px 0px, rgb(0 0 0 / 0.9) -1px -1px 0px"
-                : "none",
-      backgroundColor:
-        appearance.textBgOpacity > 0
-          ? `color-mix(in srgb, ${appearance.textBgColor} ${appearance.textBgOpacity}%, transparent)`
-          : "transparent",
-      padding: `${Math.max(2, Math.round((appearance.paddingScale / 100) * 4))}px ${Math.max(4, Math.round((appearance.paddingScale / 100) * 8))}px`,
-      borderRadius: `${appearance.borderRadius}px`,
-      backdropFilter:
-        appearance.backdropBlur > 0
-          ? `blur(${appearance.backdropBlur}px)`
-          : undefined,
-    };
-  }, [appearance]);
+  const handlePresetChange = (presetId: string) => {
+    const preset = SUBTITLE_APPEARANCE_PRESETS.find(
+      (entry) => entry.id === presetId,
+    );
+    if (!preset) {
+      return;
+    }
+    onAppearanceChange(preset.appearance);
+  };
 
   return (
     <Menu.Root className="vds-subtitle-config-menu vds-menu">
-      <DefaultMenuButton
-        label="Configure Subtitles"
-        hint={`${appearance.fontSize}%`}
-        Icon={SlidersHorizontal}
-      />
+      <DefaultMenuButton label="Subtitle Settings" Icon={SlidersHorizontal} />
       <Menu.Items className="vds-subtitle-config-items vds-menu-items">
-        {/* Live Mini Preview Cinema Box */}
-        <div className="mx-2 my-2 overflow-hidden rounded-md border border-white/10 bg-black/70 p-3 shadow-inner">
-          <div className="mb-1.5 flex items-center justify-between text-[10px] font-medium tracking-wide uppercase text-zinc-400">
-            <span>Preview</span>
-            <span>Live Style</span>
-          </div>
-          <div className="flex min-h-12 w-full items-center justify-center rounded bg-black/40 p-2 text-center">
-            <span
-              className="inline-block max-w-[95%] text-center font-medium select-none"
-              style={previewStyle}
-            >
-              The quick brown fox jumps over the lazy dog.
-            </span>
-          </div>
-        </div>
-
-        {/* Timing Section (Subtitle Delay) */}
+        <SettingsRadioSubmenu
+          label="Preset"
+          hint={matchedPreset?.name ?? "Custom"}
+          value={matchedPreset?.id ?? ""}
+          options={SUBTITLE_APPEARANCE_PRESETS.map((preset) => ({
+            value: preset.id,
+            label: preset.name,
+          }))}
+          onChange={handlePresetChange}
+        />
+        <SettingsColorSubmenu
+          label="Font Color"
+          color={appearance.textColor}
+          onColorChange={(textColor) => onAppearanceChange({ textColor })}
+        />
+        <SettingsSliderSubmenu
+          label="Font Opacity"
+          hint={formatPercent(appearance.textOpacity)}
+          value={appearance.textOpacity}
+          min={10}
+          max={100}
+          step={1}
+          keyStep={5}
+          ariaLabel="Font Opacity"
+          onChange={(textOpacity) => onAppearanceChange({ textOpacity })}
+        />
+        <SettingsSliderSubmenu
+          label="Font Size"
+          hint={formatPercent(appearance.fontSize)}
+          value={appearance.fontSize}
+          min={50}
+          max={200}
+          step={1}
+          keyStep={5}
+          ariaLabel="Font Size"
+          onChange={(fontSize) => onAppearanceChange({ fontSize })}
+        />
+        <SettingsRadioSubmenu
+          label="Font Family"
+          hint={fontFamilyHint}
+          value={appearance.fontFamily}
+          options={SUBTITLE_FONT_FAMILY_OPTIONS}
+          onChange={(fontFamily) =>
+            onAppearanceChange({
+              fontFamily: fontFamily as SubtitleFontFamily,
+            })
+          }
+        />
+        <SettingsRadioSubmenu
+          label="Character Edge"
+          hint={edgeHint}
+          value={appearance.textShadow}
+          options={SUBTITLE_TEXT_SHADOW_OPTIONS}
+          onChange={(textShadow) =>
+            onAppearanceChange({
+              textShadow: textShadow as SubtitleTextShadow,
+            })
+          }
+        />
+        <SettingsColorSubmenu
+          label="Background Color"
+          color={appearance.textBgColor}
+          onColorChange={(textBgColor) => onAppearanceChange({ textBgColor })}
+        />
+        <SettingsSliderSubmenu
+          label="Background Opacity"
+          hint={formatPercent(appearance.textBgOpacity)}
+          value={appearance.textBgOpacity}
+          min={0}
+          max={100}
+          step={1}
+          keyStep={5}
+          ariaLabel="Background Opacity"
+          onChange={(textBgOpacity) => onAppearanceChange({ textBgOpacity })}
+        />
         {hasOffsetTracks && onOffsetChange ? (
-          <DefaultMenuSection
-            label="Timing & Delay"
-            value={formatSubtitleOffsetLabel(offsetSeconds)}
-          >
-            <DefaultMenuSliderItem
-              label="Subtitle Delay"
-              value={formatSubtitleOffsetLabel(offsetSeconds)}
-              UpIcon={Icons.Menu.FontSizeUp}
-              DownIcon={Icons.Menu.FontSizeDown}
-              isMin={offsetSeconds <= SUBTITLE_OFFSET_MIN_SECONDS}
-              isMax={offsetSeconds >= SUBTITLE_OFFSET_MAX_SECONDS}
-            >
-              <Slider.Root
-                className="vds-slider"
-                min={SUBTITLE_OFFSET_MIN_SECONDS}
-                max={SUBTITLE_OFFSET_MAX_SECONDS}
-                step={SUBTITLE_OFFSET_STEP_SECONDS}
-                keyStep={SUBTITLE_OFFSET_STEP_SECONDS}
-                value={offsetSeconds}
-                aria-label="Subtitle Delay"
-                onValueChange={onOffsetChange}
-                onDragValueChange={onOffsetChange}
-              >
-                <DefaultSliderParts />
-                <DefaultSliderSteps />
-              </Slider.Root>
-            </DefaultMenuSliderItem>
-          </DefaultMenuSection>
+          <SettingsSliderSubmenu
+            label="Subtitle Delay"
+            hint={formatSubtitleOffsetLabel(offsetSeconds)}
+            value={offsetSeconds}
+            min={SUBTITLE_OFFSET_MIN_SECONDS}
+            max={SUBTITLE_OFFSET_MAX_SECONDS}
+            step={SUBTITLE_OFFSET_STEP_SECONDS}
+            keyStep={SUBTITLE_OFFSET_STEP_SECONDS}
+            ariaLabel="Subtitle Delay"
+            onChange={onOffsetChange}
+          />
         ) : null}
 
-        {/* Typography Section */}
-        <DefaultMenuSection label="Typography">
-          {/* Font Family Selection Menu */}
-          <Menu.Root className="vds-menu">
-            <DefaultMenuButton
-              label="Font Family"
-              hint={
-                SUBTITLE_FONT_FAMILY_OPTIONS.find(
-                  (opt) => opt.value === appearance.fontFamily,
-                )?.label ?? "Sans Serif"
-              }
-            />
-            <Menu.Items className="vds-menu-items">
-              <Menu.RadioGroup
-                className="vds-radio-group"
-                value={appearance.fontFamily}
-                onChange={(val) =>
-                  onAppearanceChange({ fontFamily: val as SubtitleFontFamily })
-                }
-              >
-                {SUBTITLE_FONT_FAMILY_OPTIONS.map((opt) => (
-                  <Menu.Radio
-                    key={opt.value}
-                    className="vds-radio"
-                    value={opt.value}
-                  >
-                    <Icons.Menu.RadioCheck className="vds-icon" />
-                    <span className="vds-radio-label">{opt.label}</span>
-                  </Menu.Radio>
-                ))}
-              </Menu.RadioGroup>
-            </Menu.Items>
-          </Menu.Root>
-
-          {/* Continuous Font Size Slider */}
-          <DefaultMenuSliderItem
-            label="Font Size"
-            value={`${Math.round(appearance.fontSize)}%`}
-            UpIcon={Icons.Menu.FontSizeUp}
-            DownIcon={Icons.Menu.FontSizeDown}
-            isMin={appearance.fontSize <= 50}
-            isMax={appearance.fontSize >= 200}
-          >
-            <Slider.Root
-              className="vds-slider"
-              min={50}
-              max={200}
-              step={1}
-              keyStep={5}
-              value={appearance.fontSize}
-              aria-label="Font Size"
-              onValueChange={(fontSize) => onAppearanceChange({ fontSize })}
-              onDragValueChange={(fontSize) => onAppearanceChange({ fontSize })}
-            >
-              <DefaultSliderParts />
-              <DefaultSliderSteps />
-            </Slider.Root>
-          </DefaultMenuSliderItem>
-
-          {/* Line Height Slider */}
-          <DefaultMenuSliderItem
-            label="Line Height"
-            value={`${Math.round(appearance.lineHeight)}%`}
-            UpIcon={Icons.Menu.FontSizeUp}
-            DownIcon={Icons.Menu.FontSizeDown}
-            isMin={appearance.lineHeight <= 100}
-            isMax={appearance.lineHeight >= 200}
-          >
-            <Slider.Root
-              className="vds-slider"
+        <Menu.Root className="vds-menu">
+          <DefaultMenuButton label="Layout" />
+          <Menu.Items className="vds-menu-items">
+            <SettingsSliderSubmenu
+              label="Line Height"
+              hint={formatPercent(appearance.lineHeight)}
+              value={appearance.lineHeight}
               min={100}
               max={200}
               step={1}
               keyStep={5}
-              value={appearance.lineHeight}
-              aria-label="Line Height"
-              onValueChange={(lineHeight) => onAppearanceChange({ lineHeight })}
-              onDragValueChange={(lineHeight) =>
-                onAppearanceChange({ lineHeight })
-              }
-            >
-              <DefaultSliderParts />
-              <DefaultSliderSteps />
-            </Slider.Root>
-          </DefaultMenuSliderItem>
-        </DefaultMenuSection>
-
-        {/* Text & Colors Section */}
-        <DefaultMenuSection label="Color & Shadow">
-          {/* Text Color Picker */}
-          <div className="vds-menu-item flex items-center justify-between px-3 py-2">
-            <span className="vds-menu-item-label text-xs">Text Color</span>
-            <input
-              type="color"
-              aria-label="Text Color"
-              value={appearance.textColor}
-              onChange={(e) =>
-                onAppearanceChange({ textColor: e.target.value })
-              }
-              className="h-6 w-8 cursor-pointer rounded border border-white/20 bg-transparent p-0"
+              ariaLabel="Line Height"
+              onChange={(lineHeight) => onAppearanceChange({ lineHeight })}
             />
-          </div>
-
-          {/* Text Opacity Slider */}
-          <DefaultMenuSliderItem
-            label="Text Opacity"
-            value={`${Math.round(appearance.textOpacity)}%`}
-            UpIcon={Icons.Menu.OpacityUp}
-            DownIcon={Icons.Menu.OpacityDown}
-            isMin={appearance.textOpacity <= 10}
-            isMax={appearance.textOpacity >= 100}
-          >
-            <Slider.Root
-              className="vds-slider"
-              min={10}
-              max={100}
+            <SettingsSliderSubmenu
+              label="Padding"
+              hint={formatPercent(appearance.paddingScale)}
+              value={appearance.paddingScale}
+              min={50}
+              max={150}
               step={1}
               keyStep={5}
-              value={appearance.textOpacity}
-              aria-label="Text Opacity"
-              onValueChange={(textOpacity) =>
-                onAppearanceChange({ textOpacity })
-              }
-              onDragValueChange={(textOpacity) =>
-                onAppearanceChange({ textOpacity })
-              }
-            >
-              <DefaultSliderParts />
-              <DefaultSliderSteps />
-            </Slider.Root>
-          </DefaultMenuSliderItem>
-
-          {/* Text Shadow Submenu */}
-          <Menu.Root className="vds-menu">
-            <DefaultMenuButton
-              label="Text Shadow"
-              hint={
-                SUBTITLE_TEXT_SHADOW_OPTIONS.find(
-                  (opt) => opt.value === appearance.textShadow,
-                )?.label ?? "None"
-              }
+              ariaLabel="Padding"
+              onChange={(paddingScale) => onAppearanceChange({ paddingScale })}
             />
-            <Menu.Items className="vds-menu-items">
-              <Menu.RadioGroup
-                className="vds-radio-group"
-                value={appearance.textShadow}
-                onChange={(val) =>
-                  onAppearanceChange({ textShadow: val as SubtitleTextShadow })
-                }
-              >
-                {SUBTITLE_TEXT_SHADOW_OPTIONS.map((opt) => (
-                  <Menu.Radio
-                    key={opt.value}
-                    className="vds-radio"
-                    value={opt.value}
-                  >
-                    <Icons.Menu.RadioCheck className="vds-icon" />
-                    <span className="vds-radio-label">{opt.label}</span>
-                  </Menu.Radio>
-                ))}
-              </Menu.RadioGroup>
-            </Menu.Items>
-          </Menu.Root>
-
-          {/* Background Color Picker */}
-          <div className="vds-menu-item flex items-center justify-between px-3 py-2">
-            <span className="vds-menu-item-label text-xs">
-              Background Color
-            </span>
-            <input
-              type="color"
-              aria-label="Background Color"
-              value={appearance.textBgColor}
-              onChange={(e) =>
-                onAppearanceChange({ textBgColor: e.target.value })
-              }
-              className="h-6 w-8 cursor-pointer rounded border border-white/20 bg-transparent p-0"
-            />
-          </div>
-
-          {/* Background Opacity Slider */}
-          <DefaultMenuSliderItem
-            label="Background Opacity"
-            value={`${Math.round(appearance.textBgOpacity)}%`}
-            UpIcon={Icons.Menu.OpacityUp}
-            DownIcon={Icons.Menu.OpacityDown}
-            isMin={appearance.textBgOpacity <= 0}
-            isMax={appearance.textBgOpacity >= 100}
-          >
-            <Slider.Root
-              className="vds-slider"
+            <SettingsSliderSubmenu
+              label="Corner Radius"
+              hint={formatPx(appearance.borderRadius)}
+              value={appearance.borderRadius}
               min={0}
-              max={100}
-              step={1}
-              keyStep={5}
-              value={appearance.textBgOpacity}
-              aria-label="Background Opacity"
-              onValueChange={(textBgOpacity) =>
-                onAppearanceChange({ textBgOpacity })
-              }
-              onDragValueChange={(textBgOpacity) =>
-                onAppearanceChange({ textBgOpacity })
-              }
-            >
-              <DefaultSliderParts />
-              <DefaultSliderSteps />
-            </Slider.Root>
-          </DefaultMenuSliderItem>
-        </DefaultMenuSection>
-
-        {/* Layout & Position Section */}
-        <DefaultMenuSection label="Layout & Position">
-          {/* Bottom Inset Slider */}
-          <DefaultMenuSliderItem
-            label="Bottom Inset"
-            value={`${appearance.bottomOffset.toFixed(1)}%`}
-            UpIcon={Icons.Menu.FontSizeUp}
-            DownIcon={Icons.Menu.FontSizeDown}
-            isMin={appearance.bottomOffset <= 0}
-            isMax={appearance.bottomOffset >= 12}
-          >
-            <Slider.Root
-              className="vds-slider"
-              min={0}
-              max={12}
-              step={0.1}
+              max={16}
+              step={0.5}
               keyStep={0.5}
-              value={appearance.bottomOffset}
-              aria-label="Bottom Inset"
-              onValueChange={(bottomOffset) =>
-                onAppearanceChange({ bottomOffset })
-              }
-              onDragValueChange={(bottomOffset) =>
-                onAppearanceChange({ bottomOffset })
-              }
-            >
-              <DefaultSliderParts />
-              <DefaultSliderSteps />
-            </Slider.Root>
-          </DefaultMenuSliderItem>
-
-          {/* Backdrop Blur Slider */}
-          <DefaultMenuSliderItem
-            label="Backdrop Blur"
-            value={`${appearance.backdropBlur.toFixed(1)}px`}
-            UpIcon={Icons.Menu.FontSizeUp}
-            DownIcon={Icons.Menu.FontSizeDown}
-            isMin={appearance.backdropBlur <= 0}
-            isMax={appearance.backdropBlur >= 24}
-          >
-            <Slider.Root
-              className="vds-slider"
+              ariaLabel="Corner Radius"
+              onChange={(borderRadius) => onAppearanceChange({ borderRadius })}
+            />
+            <SettingsSliderSubmenu
+              label="Backdrop Blur"
+              hint={formatPx(appearance.backdropBlur)}
+              value={appearance.backdropBlur}
               min={0}
               max={24}
               step={0.5}
               keyStep={1}
-              value={appearance.backdropBlur}
-              aria-label="Backdrop Blur"
-              onValueChange={(backdropBlur) =>
-                onAppearanceChange({ backdropBlur })
+              ariaLabel="Backdrop Blur"
+              onChange={(backdropBlur) => onAppearanceChange({ backdropBlur })}
+            />
+            <SettingsSliderSubmenu
+              label="Bottom Inset"
+              hint={`${appearance.bottomOffset.toFixed(1)}%`}
+              value={appearance.bottomOffset}
+              min={0}
+              max={12}
+              step={0.1}
+              keyStep={0.5}
+              ariaLabel="Bottom Inset"
+              onChange={(bottomOffset) => onAppearanceChange({ bottomOffset })}
+            />
+            <SettingsSliderSubmenu
+              label="Viewport Scale"
+              hint={`${appearance.baseFontScale.toFixed(2)}vh`}
+              value={appearance.baseFontScale}
+              min={2}
+              max={8}
+              step={0.05}
+              keyStep={0.25}
+              ariaLabel="Viewport Scale"
+              onChange={(baseFontScale) =>
+                onAppearanceChange({ baseFontScale })
               }
-              onDragValueChange={(backdropBlur) =>
-                onAppearanceChange({ backdropBlur })
-              }
-            >
-              <DefaultSliderParts />
-              <DefaultSliderSteps />
-            </Slider.Root>
-          </DefaultMenuSliderItem>
-        </DefaultMenuSection>
+            />
+          </Menu.Items>
+        </Menu.Root>
 
-        {/* Reset Action */}
         <DefaultMenuSection>
           <button
             type="button"

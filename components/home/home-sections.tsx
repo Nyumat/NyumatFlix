@@ -1,3 +1,10 @@
+import {
+  catalogCardToMediaItem,
+  homeCollectionPartToMediaItem,
+  slimMediaItemsForRsc,
+  toHeroMovieRefs,
+  toHeroTvRefs,
+} from "@/lib/cards/catalog-dto";
 import { CollectionShowcase } from "@/components/collections/collection-showcase";
 import { ContentReveal } from "@/components/layout/page-loading/content-reveal";
 import { MovieHero } from "@/components/movie/movie-server";
@@ -21,7 +28,7 @@ export async function HomeFeaturedMovie() {
   return (
     <ContentReveal>
       <MovieHero
-        movies={movies.slice(0, 1)}
+        movies={toHeroMovieRefs(movies.slice(0, 1))}
         label="Trending now"
         priority
         pick="first"
@@ -46,7 +53,7 @@ export async function HomeTrendingMoviesCarousel() {
         type="movie"
         title="Trending Movies"
         link={pages.trending.movie.link}
-        items={items}
+        items={toSlimCarouselItems(items)}
       />
     </ContentReveal>
   );
@@ -59,7 +66,7 @@ export async function HomeTrendingMovieHeroes() {
     <ContentReveal>
       <div className="grid gap-4 md:grid-cols-2">
         <MovieHero
-          movies={movies.slice(1, 3)}
+          movies={toHeroMovieRefs(movies.slice(1, 3))}
           label="Trending now"
           count={2}
           pick="first"
@@ -72,11 +79,9 @@ export async function HomeTrendingMovieHeroes() {
 
 const toCollectionMediaItems = (
   parts: Awaited<ReturnType<typeof getHomeCollections>>[number]["parts"],
-) =>
-  parts.map((part) => ({
-    ...part,
-    media_type: "movie" as const,
-  }));
+) => parts.map(homeCollectionPartToMediaItem);
+
+const toSlimCarouselItems = slimMediaItemsForRsc;
 
 export async function HomeCollectionsSection() {
   const collections = await getHomeCollections();
@@ -120,7 +125,7 @@ export async function HomePopularMoviesCarousel() {
         type="movie"
         title="Popular Movies"
         link={pages.movie.popular.link}
-        items={items}
+        items={toSlimCarouselItems(items)}
       />
     </ContentReveal>
   );
@@ -133,7 +138,7 @@ export async function HomeTrendingTvHeroes() {
     <ContentReveal>
       <div className="grid gap-4 md:grid-cols-2">
         <TvHero
-          tvShows={tvShows.slice(0, 2)}
+          tvShows={toHeroTvRefs(tvShows.slice(0, 2))}
           label="Trending now"
           count={2}
           pick="first"
@@ -158,7 +163,7 @@ export async function HomeTrendingTvCarousel() {
         type="tv"
         title="Trending TV"
         link={pages.trending.tv.link}
-        items={items}
+        items={toSlimCarouselItems(items)}
       />
     </ContentReveal>
   );
@@ -171,7 +176,7 @@ export async function HomePopularMovieHeroes() {
     <ContentReveal>
       <div className="grid gap-4 md:grid-cols-2">
         <MovieHero
-          movies={popularMovies.slice(0, 2)}
+          movies={toHeroMovieRefs(popularMovies.slice(0, 2))}
           label="Popular now"
           count={2}
           pick="first"
@@ -196,7 +201,7 @@ export async function HomePopularTvCarousel() {
         type="tv"
         title="Popular TV"
         link={pages.tv.popular.link}
-        items={items}
+        items={toSlimCarouselItems(items)}
       />
     </ContentReveal>
   );
@@ -209,7 +214,7 @@ export async function HomePopularTvHeroes() {
     <ContentReveal>
       <div className="grid gap-4 md:grid-cols-2">
         <TvHero
-          tvShows={popularTv.slice(0, 2)}
+          tvShows={toHeroTvRefs(popularTv.slice(0, 2))}
           label="Popular now"
           count={2}
           pick="first"

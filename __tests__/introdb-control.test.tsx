@@ -13,6 +13,14 @@ const intro: IntroDbSegment = {
   endsAtMediaEnd: false,
 };
 
+const closer: IntroDbSegment = {
+  id: "credits:500:540:0",
+  type: "credits",
+  startSeconds: 500,
+  endSeconds: 540,
+  endsAtMediaEnd: false,
+};
+
 const finalCredits: IntroDbSegment = {
   id: "credits:580:end:0",
   type: "credits",
@@ -40,6 +48,24 @@ describe("IntroDbSegmentControl", () => {
     expect(onSeek).toHaveBeenCalledWith(90);
   });
 
+  it("seeks to the closer end on movies", async () => {
+    const onSeek = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <IntroDbSegmentControl
+        segments={[closer]}
+        currentTime={510}
+        duration={600}
+        isTv={false}
+        onSeek={onSeek}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /skip closer/i }));
+    expect(onSeek).toHaveBeenCalledWith(540);
+  });
+
   it("does not render outside a segment", () => {
     render(
       <IntroDbSegmentControl
@@ -52,6 +78,30 @@ describe("IntroDbSegmentControl", () => {
     );
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("advances to the next TV episode from closer even when credits do not reach the end", async () => {
+    const onSeek = vi.fn();
+    const onAdvanceToNextEpisode = vi.fn().mockResolvedValue(true);
+    const user = userEvent.setup();
+
+    render(
+      <IntroDbSegmentControl
+        segments={[closer]}
+        currentTime={510}
+        duration={600}
+        isTv
+        onSeek={onSeek}
+        onAdvanceToNextEpisode={onAdvanceToNextEpisode}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /next episode/i }));
+
+    await waitFor(() => {
+      expect(onAdvanceToNextEpisode).toHaveBeenCalledOnce();
+    });
+    expect(onSeek).not.toHaveBeenCalled();
   });
 
   it("advances at final TV credits and falls back to the end when unavailable", async () => {

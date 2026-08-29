@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasEnglishSubtitles,
   matchesAudioPreference,
+  payloadMatchesPlaybackPreferences,
   pickScrapeQualityIndexForPreference,
   scoreAnimeScrapePayload,
   DEFAULT_PLAYBACK_PREFERENCES,
@@ -17,10 +18,32 @@ describe("playback preferences", () => {
     expect(matchesAudioPreference("jpn", "sub")).toBe(true);
   });
 
-  it("favors higher max quality when best available is selected", () => {
+  it("requires explicit resolution height for hard quality prefs", () => {
+    expect(
+      payloadMatchesPlaybackPreferences(
+        {
+          qualities: [{ label: "1080p", url: "https://cdn.example/1080.m3u8" }],
+          preferredAudioLang: "jpn",
+        },
+        DEFAULT_PLAYBACK_PREFERENCES,
+      ),
+    ).toBe(true);
+
+    expect(
+      payloadMatchesPlaybackPreferences(
+        {
+          qualities: [{ label: "720p", url: "https://cdn.example/720.m3u8" }],
+          preferredAudioLang: "jpn",
+        },
+        DEFAULT_PLAYBACK_PREFERENCES,
+      ),
+    ).toBe(false);
+  });
+
+  it("favors higher max quality when target is 1080p", () => {
     const preferences = {
       ...DEFAULT_PLAYBACK_PREFERENCES,
-      playbackQuality: "best" as const,
+      playbackQuality: "1080p" as const,
     };
 
     const high = scoreAnimeScrapePayload(
@@ -47,10 +70,10 @@ describe("playback preferences", () => {
     expect(high).toBeGreaterThan(low);
   });
 
-  it("favors lower max quality when save data is selected", () => {
+  it("favors closer-to-target quality when 720p is required", () => {
     const preferences = {
       ...DEFAULT_PLAYBACK_PREFERENCES,
-      playbackQuality: "save-data" as const,
+      playbackQuality: "720p" as const,
     };
 
     const high = scoreAnimeScrapePayload(
@@ -74,7 +97,7 @@ describe("playback preferences", () => {
       preferences,
     );
 
-    expect(low).toBeGreaterThan(high);
+    expect(high).toBeGreaterThan(low);
   });
 
   it("detects english subtitles", () => {
@@ -91,10 +114,102 @@ describe("playback preferences", () => {
     ).toBe(false);
   });
 
-  it("picks the lowest quality rung in save-data mode", () => {
+  it("picks the closest quality rung to the hard resolution pref", () => {
     const options = [{ label: "1080p" }, { label: "720p" }, { label: "480p" }];
 
-    expect(pickScrapeQualityIndexForPreference(options, "save-data")).toBe(2);
-    expect(pickScrapeQualityIndexForPreference(options, "best")).toBe(0);
+    expect(pickScrapeQualityIndexForPreference(options, "720p")).toBe(1);
+    expect(pickScrapeQualityIndexForPreference(options, "1080p")).toBe(0);
+  });
+
+  it("prefers a title's native multi-audio HLS over a single-track stream", () => {
+    const preferences = {
+      ...DEFAULT_PLAYBACK_PREFERENCES,
+      playbackAudio: "dub" as const,
+    };
+
+    const singleTrack = scoreAnimeScrapePayload(
+      {
+        streamKind: "hls",
+        preferredAudioLang: "en",
+        nativeAudioTrackCount: 1,
+        qualities: [{ label: "1080p", url: "https://cdn.example/1080.m3u8" }],
+      },
+      preferences,
+    );
+
+    const multiAudio = scoreAnimeScrapePayload(
+      {
+        streamKind: "hls",
+        preferredAudioLang: "en",
+        nativeAudioTrackCount: 2,
+        nativeSubtitleTrackCount: 1,
+        qualities: [{ label: "720p", url: "https://cdn.example/720.m3u8" }],
+      },
+      preferences,
+    );
+
+    expect(multiAudio).toBeGreaterThan(singleTrack);
+  });
+
+  it("boosts separate sub and dub audio versions regardless of provider", () => {
+    const preferences = DEFAULT_PLAYBACK_PREFERENCES;
+
+    const withMenu = scoreAnimeScrapePayload(
+      {
+        streamKind: "mp4",
+        audioVersions: [
+          {
+            lang: "ja",
+            label: "Japanese (Sub)",
+            url: "https://cdn.example/sub.mp4",
+          },
+          {
+            lang: "en",
+            label: "English (Dub)",
+            url: "https://cdn.example/dub.mp4",
+          },
+        ],
+      },
+      preferences,
+    );
+
+    const withoutMenu = scoreAnimeScrapePayload(
+      {
+        streamKind: "hls",
+        preferredAudioLang: "ja",
+        nativeAudioTrackCount: 1,
+      },
+      preferences,
+    );
+
+    expect(withMenu).toBeGreaterThan(withoutMenu);
+  });
+
+  it("does not treat catalog-only subtitles as in-player track switching", () => {
+    const withCatalogOnly = scoreAnimeScrapePayload(
+      {
+        streamKind: "hls",
+        nativeAudioTrackCount: 1,
+        subtitles: [
+          {
+            lang: "English",
+            url: "https://sub.1x2.space/en.vtt",
+            format: "vtt",
+          },
+        ],
+      },
+      DEFAULT_PLAYBACK_PREFERENCES,
+    );
+
+    const withNativeSubs = scoreAnimeScrapePayload(
+      {
+        streamKind: "hls",
+        nativeAudioTrackCount: 1,
+        nativeSubtitleTrackCount: 2,
+      },
+      DEFAULT_PLAYBACK_PREFERENCES,
+    );
+
+    expect(withNativeSubs).toBeGreaterThan(withCatalogOnly);
   });
 });

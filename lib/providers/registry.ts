@@ -7,10 +7,8 @@ export type TmdbScrapeProviderId =
   | "direct"
   | "videasy"
   | "vidking"
-  | "vidnest"
   | "vidsrc"
   | "2embed"
-  | "vixsrc"
   | "vidrock"
   | "bingr";
 
@@ -18,16 +16,16 @@ export type AnimeScrapeProviderId =
   | "anizone"
   | "anipm"
   | "hentaigasm"
-  | "hentaini"
   | "kickassanime"
   | "animeonsen"
   | "allmanga"
   | "animestream"
   | "animegg"
-  | "animepahe"
   | "justanime"
+  | "kyren"
   | "anikuro"
-  | "kyren";
+  | "animepahe"
+  | "hentaini";
 
 export type EmbedProviderId =
   | "vidsrc"
@@ -77,75 +75,72 @@ const provider = (
 
 export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
+  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
   provider("vidsrc-mirror", "VidSrc Mirror", { embed: true }),
   provider("superembed", "SuperEmbed", { embed: true }),
-  provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
   provider("111movies", "111Movies", { embed: true }),
-  provider("vidnest", "VidNest", {
-    embed: true,
-    tmdbScrape: true,
-    animeEmbed: true,
-  }),
   provider("vidfast", "VidFast", { embed: true }),
   provider("videasy", "VidEasy", {
     embed: true,
     tmdbScrape: true,
     animeEmbed: true,
   }),
-  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
-  provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
+  provider("vidnest", "VidNest", {
+    embed: true,
+    tmdbScrape: true,
+    animeEmbed: true,
+  }),
+  provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
   provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
   provider("vidlink", "VidLink", { embed: true }),
   provider("vidcore", "VidCore", { embed: true }),
   provider("1embed", "1Embed", { embed: true }),
   provider("vidlux", "VidLux", { embed: true }),
+  provider("vixsrc", "VixSrc", { embed: true }),
   provider("hentaini", "Hentaini", { embed: true, animeEmbed: true }),
 ];
 
-/** Order from latency bench (scripts/bench-scrape-latency.mts); client races batches of 3. */
+/**
+ * Order from latency bench + reliability audits.
+ * VidNest scrape removed (resolvers down / poisoned streams). VixSrc is embed-only
+ * in the iframe chain, not listed here.
+ */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
-  provider("direct", "Direct", { embed: false, tmdbScrape: true }),
-  provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
+  provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
+  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
   provider("videasy", "VidEasy", {
     embed: true,
     tmdbScrape: true,
     animeEmbed: true,
   }),
-  provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
-  provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
-  provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
-  // Fast API scrape but high false-positive rate on playlist probes — try last.
-  provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
-  provider("vidnest", "VidNest", {
-    embed: true,
-    tmdbScrape: true,
-    animeEmbed: true,
-  }),
+  provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
+  provider("direct", "Direct", { embed: false, tmdbScrape: true }),
+  provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
 ];
 
 /**
- * Order from latency bench (non-adult). Client races batches of 3 via
- * useProviderScrapeLoop; all providers pass full validate + play-path gates.
- * Adult-only `anipm` / `hentaigasm` / `hentaini` stay last — `buildAnimePlaybackProviderOrder`
- * promotes them when eligible, then races Direct with the first two anime scrapers
- * on high-confidence TMDB mappings.
+ * Race order is a fallback only. Anime playback waits for the batch and picks
+ * the highest-scored success from what that title actually returned (multi-audio
+ * HLS groups, in-player sub/dub menus, native subs). Adult-only providers stay
+ * last — `buildAnimePlaybackProviderOrder` promotes them when eligible, then
+ * races Direct with the first two anime scrapers on high-confidence TMDB mappings.
+ *
+ * Embed-only (not scraped): hentaini (iframe), animepahe (VidNest animepahe route).
+ * Removed from scrape: anikuro (redundant allmanga wrapper).
  */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
-  provider("justanime", "JustAnime", { embed: false, animeScrape: true }),
-  provider("kyren", "Kyren", { embed: false, animeScrape: true }),
-  provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),
-  provider("allmanga", "AllManga", { embed: false, animeScrape: true }),
-  provider("animegg", "AnimeGG", { embed: false, animeScrape: true }),
   provider("kickassanime", "KickAssAnime", { embed: false, animeScrape: true }),
   provider("anizone", "AniZone", { embed: false, animeScrape: true }),
+  provider("allmanga", "AllManga", { embed: false, animeScrape: true }),
+  provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),
   provider("animestream", "AnimeStream", { embed: false, animeScrape: true }),
-  provider("animepahe", "AnimePahe", { embed: false, animeScrape: true }),
-  provider("anikuro", "AniKuro", { embed: false, animeScrape: true }),
+  provider("animegg", "AnimeGG", { embed: false, animeScrape: true }),
+  provider("kyren", "Kyren", { embed: false, animeScrape: true }),
+  provider("justanime", "JustAnime", { embed: false, animeScrape: true }),
   provider("anipm", "ani.pm", { embed: false, animeScrape: true }),
   provider("hentaigasm", "Hentaigasm", { embed: false, animeScrape: true }),
-  provider("hentaini", "Hentaini", { embed: false, animeScrape: true }),
 ];
 
 export const TMDB_SCRAPE_PROVIDER_ORDER = TMDB_SCRAPE_PROVIDER_REGISTRY.map(
