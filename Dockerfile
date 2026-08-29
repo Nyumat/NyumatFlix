@@ -23,8 +23,8 @@ COPY packages ./packages
 RUN test -f packages/player/dist/wasm/movi.js || (echo "missing packages/player/dist/wasm/movi.js — run: bunx turbo build:wasm --filter=@nyumatflix/player" && exit 1)
 RUN node apps/web/scripts/prepare-anime-mappings.mjs
 RUN bunx turbo build --filter=@calluspirates/shared --filter=@nyumatflix/playback
-RUN bun --cwd packages/player run build
-RUN bun --cwd apps/web run build
+RUN cd packages/player && bun run build
+RUN cd apps/web && bun run build
 
 FROM node:24.15.0-slim AS runner
 WORKDIR /app
