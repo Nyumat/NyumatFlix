@@ -249,24 +249,58 @@ export const fetchAnilistIdByMal = async (
   }
 };
 
-export const resolveAnimeSearchQueries = async (input: {
+export type AnimeSearchContext = {
+  /** Keywords to submit to a provider's search endpoint (generic query first). */
+  searchQueries: string[];
+  /**
+   * Titles a search hit must match — season-specific AniList titles only.
+   * The generic route query ("Attack on Titan") exact-matches the Season 1
+   * entry of multi-season franchises, which plays the wrong episode since
+   * episode numbers are relative to the AniList entry. Falls back to the
+   * query only when AniList returns no titles.
+   */
+  matchTitles: string[];
+};
+
+/** Pure core of {@link resolveAnimeSearchContext}, split out for tests. */
+export const buildAnimeSearchContext = (
+  query: string | undefined,
+  anilistTitles: readonly string[],
+): AnimeSearchContext => {
+  const trimmed = query?.trim();
+  const searchQueries = [
+    ...new Set(
+      [trimmed, ...anilistTitles].filter((title): title is string =>
+        Boolean(title),
+      ),
+    ),
+  ];
+  const matchTitles =
+    anilistTitles.length > 0 ? [...anilistTitles] : trimmed ? [trimmed] : [];
+
+  return { searchQueries, matchTitles };
+};
+
+export const resolveAnimeSearchContext = async (input: {
   anilistId: number;
   query?: string;
-}): Promise<string[]> => {
+}): Promise<AnimeSearchContext> => {
   const fromAnilist = await fetchAnilistTitleCandidates(input.anilistId);
-  const queries = input.query?.trim()
-    ? [input.query.trim(), ...fromAnilist]
-    : fromAnilist;
-  const unique = [...new Set(queries.filter(Boolean))];
+  const context = buildAnimeSearchContext(input.query, fromAnilist);
 
-  if (unique.length === 0) {
+  if (context.searchQueries.length === 0) {
     throw new Error(
       `Unable to resolve search title for AniList ${input.anilistId}`,
     );
   }
 
-  return unique;
+  return context;
 };
+
+export const resolveAnimeSearchQueries = async (input: {
+  anilistId: number;
+  query?: string;
+}): Promise<string[]> => (await resolveAnimeSearchContext(input)).searchQueries;
 
 export const resolveAnimeSearchQuery = async (input: {
   anilistId: number;

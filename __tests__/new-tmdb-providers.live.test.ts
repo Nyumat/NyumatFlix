@@ -6,7 +6,6 @@ import {
   decryptVidrockUrl,
   scrapeVidrock,
 } from "@/lib/scrape/providers/vidrock";
-import { scrapeVixsrc } from "@/lib/scrape/providers/vixsrc";
 import { scrapeProvider } from "@/lib/scrape";
 
 const VIDROCK_AES_KEY = Buffer.from(
@@ -45,16 +44,6 @@ describe("bingr proxy unwrap", () => {
 const runLive = process.env.LIVE_SCRAPE === "1";
 
 describe.skipIf(!runLive)("new tmdb providers (live)", () => {
-  it("VixSrc scrapes Fight Club", async () => {
-    const result = await scrapeVixsrc({ mediaType: "movie", tmdbId: 550 });
-    if (!result.ok) {
-      console.warn("VixSrc live scrape soft-fail:", result.error);
-      return;
-    }
-    expect(result.streamUrl).toMatch(/vixsrc\.to\/playlist\//);
-    expect(result.streamUrl).toMatch(/[?&]h=1(?:&|$)/);
-  }, 45_000);
-
   it("VidRock scrapes Fight Club", async () => {
     const result = await scrapeVidrock({ mediaType: "movie", tmdbId: 550 });
     if (!result.ok) {
@@ -63,18 +52,6 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
     }
     expect(result.streamUrl).toMatch(/\.m3u8(?:[?#]|$)/i);
   }, 60_000);
-
-  it("full scrapeProvider validates VixSrc", async () => {
-    const result = await scrapeProvider("vixsrc", {
-      mediaType: "movie",
-      tmdbId: 550,
-    });
-    if (!result.ok) {
-      console.warn("VixSrc scrapeProvider live soft-fail:", result.error);
-      return;
-    }
-    expect(result.ok).toBe(true);
-  }, 90_000);
 
   it("full scrapeProvider validates VidSrc", async () => {
     const result = await scrapeProvider("vidsrc", {

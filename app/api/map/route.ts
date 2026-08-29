@@ -3,6 +3,7 @@ import {
   getSearchTitle,
   isAnime,
 } from "@/utils/anilist-helpers";
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import {
   buildAniBridgeSeasonSegments,
@@ -546,6 +547,9 @@ function resolveMappings(
 }
 
 export async function GET(request: NextRequest) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const { searchParams } = new URL(request.url);
   const tmdbShowId = searchParams.get("tmdbShowId");
   const tmdbSeason = searchParams.get("tmdbSeason");

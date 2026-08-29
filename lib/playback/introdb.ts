@@ -125,6 +125,23 @@ export function introDbDurationMs(durationSeconds: number): number | null {
   return Math.round(durationSeconds * 1000);
 }
 
+const buildIntroDbMediaSearchParams = (
+  key: PlaybackProgressKey,
+  durationMs: number,
+): URLSearchParams => {
+  const params = new URLSearchParams({
+    tmdb_id: String(key.contentId),
+    duration_ms: String(durationMs),
+  });
+
+  if (key.mediaType === "tv") {
+    params.set("season", String(key.seasonNumber));
+    params.set("episode", String(key.episodeNumber));
+  }
+
+  return params;
+};
+
 export function buildIntroDbMediaUrl(
   key: PlaybackProgressKey,
   durationSeconds: number,
@@ -135,15 +152,46 @@ export function buildIntroDbMediaUrl(
   }
 
   const url = new URL(THE_INTRO_DB_MEDIA_ENDPOINT);
-  url.searchParams.set("tmdb_id", String(key.contentId));
-  url.searchParams.set("duration_ms", String(durationMs));
+  url.search = buildIntroDbMediaSearchParams(key, durationMs).toString();
+  return url.toString();
+}
 
-  if (key.mediaType === "tv") {
-    url.searchParams.set("season", String(key.seasonNumber));
-    url.searchParams.set("episode", String(key.episodeNumber));
+export function buildIntroDbMediaProxyUrl(
+  key: PlaybackProgressKey,
+  durationSeconds: number,
+): string | null {
+  const durationMs = introDbDurationMs(durationSeconds);
+  if (!isIntroDbLookupReady(key) || durationMs === null) {
+    return null;
   }
 
-  return url.toString();
+  return `/api/introdb/media?${buildIntroDbMediaSearchParams(key, durationMs).toString()}`;
+}
+
+export function buildEmptyIntroDbMediaResponse(
+  key: PlaybackProgressKey,
+): IntroDbMediaResponse {
+  if (key.mediaType === "movie") {
+    return {
+      tmdb_id: key.contentId,
+      type: "movie",
+      intro: [],
+      recap: [],
+      credits: [],
+      preview: [],
+    };
+  }
+
+  return {
+    tmdb_id: key.contentId,
+    type: "tv",
+    season: key.seasonNumber ?? null,
+    episode: key.episodeNumber ?? null,
+    intro: [],
+    recap: [],
+    credits: [],
+    preview: [],
+  };
 }
 
 const responseMatchesLookup = (
@@ -245,20 +293,16 @@ export async function fetchTheIntroDbSegments(
   durationSeconds: number,
   signal?: AbortSignal,
 ): Promise<IntroDbSegment[]> {
-  const url = buildIntroDbMediaUrl(key, durationSeconds);
+  const url = buildIntroDbMediaProxyUrl(key, durationSeconds);
   if (!url) {
     return [];
   }
 
   const response = await fetch(url, {
-    credentials: "omit",
-    referrerPolicy: "no-referrer",
+    credentials: "same-origin",
     signal,
   });
 
-  if (response.status === 404) {
-    return [];
-  }
   if (!response.ok) {
     throw new Error(`IntroDB request failed: ${response.status}`);
   }
@@ -439,17 +483,21 @@ export function findActiveIntroDbSegment(
   );
 }
 
+export function isIntroDbCloserSegment(segment: IntroDbSegment): boolean {
+  return segment.type === "credits" || segment.type === "preview";
+}
+
 export function isTerminalIntroDbCredit(
   segment: IntroDbSegment,
   segments: IntroDbSegment[],
 ): boolean {
-  if (segment.type !== "credits" || !segment.endsAtMediaEnd) {
+  if (!isIntroDbCloserSegment(segment)) {
     return false;
   }
 
   return !segments.some(
     (candidate) =>
-      candidate.type === "credits" &&
+      isIntroDbCloserSegment(candidate) &&
       candidate.startSeconds > segment.startSeconds,
   );
 }

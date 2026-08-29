@@ -6,6 +6,23 @@ import {
 
 export type ScrapeCancelReason = "winner" | "timeout" | "run";
 
+/** First success that satisfies hard playback preferences wins — no batch wait. */
+export function shouldFinalizeFirstPreferenceMatch<T extends string, TPayload>(
+  successes: ReadonlyArray<RaceAttemptEntry<T, TPayload>>,
+  matchesPayload: (payload: TPayload) => boolean,
+): RaceAttemptEntry<T, TPayload> | undefined {
+  return successes.find(
+    (
+      entry,
+    ): entry is RaceAttemptEntry<T, TPayload> & {
+      attempt: { outcome: "success"; payload: TPayload };
+    } =>
+      entry.attempt.outcome === "success" &&
+      entry.attempt.payload !== undefined &&
+      matchesPayload(entry.attempt.payload),
+  );
+}
+
 export function shouldFinalizeBatchWinner<T extends string, TPayload>(
   order: readonly T[],
   successes: ReadonlyArray<RaceAttemptEntry<T, TPayload>>,

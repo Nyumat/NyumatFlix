@@ -1,6 +1,5 @@
 "use client";
 
-import { getSession } from "next-auth/react";
 import { useCallback, useRef } from "react";
 
 import {
@@ -11,6 +10,7 @@ import {
   shouldPersistPlaybackProgress,
   type PlaybackProgressKey,
 } from "@/lib/playback/progress-storage";
+import { postWatchProgressIfSignedIn } from "@/lib/watchlist/post-watch-progress";
 import { logger } from "@/lib/utils";
 
 const SAVE_INTERVAL_MS = 5_000;
@@ -25,25 +25,12 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
   const resumeTime = resolveResumeTime(savedEntryRef.current);
 
   const syncWatchlist = useCallback(async () => {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return;
-    }
-
-    await fetch("/api/watchlist/progress", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contentId: key.contentId,
-        mediaType: key.mediaType,
-        ...(key.mediaType === "tv"
-          ? {
-              seasonNumber: key.seasonNumber,
-              episodeNumber: key.episodeNumber,
-            }
-          : {}),
-        ...(key.anilistId ? { anilistId: key.anilistId } : {}),
-      }),
+    await postWatchProgressIfSignedIn({
+      contentId: key.contentId,
+      mediaType: key.mediaType,
+      seasonNumber: key.seasonNumber,
+      episodeNumber: key.episodeNumber,
+      anilistId: key.anilistId,
     });
   }, [
     key.anilistId,

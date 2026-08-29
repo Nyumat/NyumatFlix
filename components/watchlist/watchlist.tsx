@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { loginHref } from "@/lib/auth/callback-url";
 import { cn } from "@/lib/utils";
 import { formatCountdown } from "@/lib/utils/countdown";
 import { tmdbImage } from "@/tmdb/utils";
@@ -48,6 +49,7 @@ import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { type DragEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -173,6 +175,7 @@ export function WatchlistButton({
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
   const session = useSession();
+  const pathname = usePathname();
   const isSignedIn = Boolean(session.data?.user?.id);
 
   useEffect(() => {
@@ -204,10 +207,17 @@ export function WatchlistButton({
 
   const handleToggle = async () => {
     if (isLoading || isToggling) return;
-    if (!isSignedIn)
-      return toast.error(
-        "To add items to your watchlist, you must be logged in.",
-      );
+    if (!isSignedIn) {
+      toast.error("To add items to your watchlist, you must be logged in.", {
+        action: {
+          label: "Sign in",
+          onClick: () => {
+            window.location.assign(loginHref(pathname));
+          },
+        },
+      });
+      return;
+    }
 
     setIsToggling(true);
     try {

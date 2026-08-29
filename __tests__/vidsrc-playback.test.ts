@@ -32,6 +32,7 @@ describe("vidsrc playback refresh", () => {
 
   it("detects VidSrc CDN hostnames", () => {
     expect(isVidsrcCdnHostname("kaleidoscopekernel.space")).toBe(true);
+    expect(isVidsrcCdnHostname("comityofcognomen.site")).toBe(true);
     expect(isVidsrcCdnHostname("vsembed.ru")).toBe(false);
   });
 

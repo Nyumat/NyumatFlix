@@ -2,6 +2,7 @@
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
+import { normalizePlaybackQualityPreference } from "@/lib/playback/playback-preferences";
 import {
   isScrapeServer,
   scrapeServer,
@@ -41,6 +42,38 @@ export function AppSettingsSync() {
   const seededProxyFromFlagRef = useRef(false);
   const seededHeroTrailersRef = useRef(false);
   const seededPlaybackAudioRef = useRef(false);
+  const seededPlaybackQualityRef = useRef(false);
+
+  useEffect(() => {
+    const migratePlaybackQuality = () => {
+      if (seededPlaybackQualityRef.current) {
+        return;
+      }
+
+      seededPlaybackQualityRef.current = true;
+
+      try {
+        const raw = localStorage.getItem("app-settings-storage");
+        const parsed = raw
+          ? (JSON.parse(raw) as { state?: { playbackQuality?: string } })
+          : null;
+        const quality = parsed?.state?.playbackQuality;
+        if (quality === "best" || quality === "save-data") {
+          useAppSettingsStore.setState({
+            playbackQuality: normalizePlaybackQualityPreference(quality),
+          });
+        }
+      } catch {
+        void 0;
+      }
+    };
+
+    migratePlaybackQuality();
+    const unsub = useAppSettingsStore.persist.onFinishHydration(
+      migratePlaybackQuality,
+    );
+    return unsub;
+  }, []);
 
   useEffect(() => {
     const migratePlaybackAudio = () => {

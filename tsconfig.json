@@ -33,5 +33,11 @@
     "setupTests.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "packages/player"]
+  "exclude": [
+    "node_modules",
+    "packages/player",
+    "packages/calluspirates-shared",
+    "e2e",
+    "playwright.config.ts"
+  ]
 }

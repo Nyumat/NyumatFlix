@@ -96,7 +96,7 @@ describe("nextRaceBatch", () => {
 });
 
 describe("pickScoredRaceWinner", () => {
-  const order = ["justanime", "animegg", "animepahe"] as const;
+  const order = ["justanime", "animegg", "kyren"] as const;
 
   it("prefers the highest score and breaks ties on order", () => {
     const winner = pickScoredRaceWinner(
@@ -110,7 +110,7 @@ describe("pickScoredRaceWinner", () => {
           },
         },
         {
-          providerId: "animepahe",
+          providerId: "kyren",
           attempt: {
             outcome: "success",
             payload: { score: 5 },
@@ -120,7 +120,7 @@ describe("pickScoredRaceWinner", () => {
       (payload) => payload.score,
     );
 
-    expect(winner?.providerId).toBe("animepahe");
+    expect(winner?.providerId).toBe("kyren");
   });
 });
 
@@ -209,7 +209,7 @@ describe("getScrapeAttemptTimeoutMs", () => {
 
   it("short-caps slow-fail scrapers", () => {
     expect(getScrapeAttemptTimeoutMs("vidrock", true)).toBe(8_000);
-    expect(getScrapeAttemptTimeoutMs("vixsrc", true)).toBe(12_000);
+    expect(getScrapeAttemptTimeoutMs("2embed", true)).toBe(25_000);
     expect(getScrapeAttemptTimeoutMs("videasy", true)).toBe(60_000);
     expect(getScrapeAttemptTimeoutMs("vidking", true)).toBe(30_000);
     expect(getScrapeAttemptTimeoutMs("bingr", true)).toBe(30_000);

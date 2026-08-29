@@ -1,0 +1,42 @@
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.6.2
+    container_name: nyumatflix-crowdsec
+    restart: unless-stopped
+    environment:
+      COLLECTIONS: crowdsecurity/nginx crowdsecurity/http-cve crowdsecurity/base-http-scenarios
+      DISABLE_ONLINE_API: "true"
+      GID: "${CROWDSEC_GID:-}"
+    volumes:
+      - crowdsec-config:/etc/crowdsec
+      - crowdsec-data:/var/lib/crowdsec/data
+      - /var/log/nginx:/var/log/nginx:ro
+      - ${CROWDSEC_ACQUIS_DIR:-./scripts/crowdsec/acquis.d}:/etc/crowdsec/acquis.d:ro
+    networks:
+      - crowdsec
+
+  crowdsec-nginx-bouncer:
+    image: fbonalair/traefik-crowdsec-bouncer:latest
+    container_name: nyumatflix-crowdsec-nginx-bouncer
+    restart: unless-stopped
+    profiles:
+      - bouncer
+    depends_on:
+      - crowdsec
+    environment:
+      GIN_MODE: release
+      CROWDSEC_BOUNCER_API_KEY: "${CROWDSEC_BOUNCER_KEY:-}"
+      CROWDSEC_AGENT_HOST: crowdsec:8080
+      CROWDSEC_BOUNCER_LOG_LEVEL: "2"
+    ports:
+      - "127.0.0.1:7443:8080"
+    networks:
+      - crowdsec
+
+volumes:
+  crowdsec-config:
+  crowdsec-data:
+
+networks:
+  crowdsec:
+    name: nyumatflix-crowdsec

@@ -17,6 +17,12 @@ import type { AnimeScrapeInput } from "@/lib/scrape/anime/types";
 import { animeScrapeMediaKeyFor } from "@/lib/scrape/anime/types";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
 import { preferredAudioLangForTranslation } from "@/lib/scrape/anime/audio-preference";
+import {
+  scoreAnimeScrapePayload,
+  payloadMatchesPlaybackPreferences,
+  type PlaybackPreferences,
+} from "@/lib/playback/playback-preferences";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import type {
   ScrapeAudioVersion,
   ScrapeMediaInput,
@@ -53,6 +59,8 @@ export type AnimePlaybackScrapeSuccessPayload = {
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];
   audioVersions?: ScrapeAudioVersion[];
+  nativeAudioTrackCount?: number;
+  nativeSubtitleTrackCount?: number;
   defaultAudioLang?: string;
   defaultHardSubLang?: string;
   preferredAudioLang?: string;
@@ -121,8 +129,19 @@ export function useAnimePlaybackScrape(options?: {
 }) {
   const flags = useFeatureFlags();
   const onAllProvidersFailed = options?.onAllProvidersFailed;
-  const config = useMemo(
-    () => ({
+  const playbackAudio = useAppSettingsStore((state) => state.playbackAudio);
+  const playbackQuality = useAppSettingsStore((state) => state.playbackQuality);
+  const playbackEnglishSubtitles = useAppSettingsStore(
+    (state) => state.playbackEnglishSubtitles,
+  );
+  const config = useMemo(() => {
+    const playbackPreferences: PlaybackPreferences = {
+      playbackAudio,
+      playbackQuality,
+      playbackEnglishSubtitles,
+    };
+
+    return {
       ...animePlaybackScrapeLoopConfig,
       resolveProviderOrder: (input: AnimePlaybackScrapeInput) => {
         const orders = getAnimePlaybackProviderOrders(flags);
@@ -135,6 +154,12 @@ export function useAnimePlaybackScrape(options?: {
       },
       onAllProvidersFailed,
       soloFirstProviders: ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS,
+      raceFirstWin: false,
+      scoreRacePayload: (payload: AnimePlaybackScrapeSuccessPayload) =>
+        scoreAnimeScrapePayload(payload, playbackPreferences),
+      matchesPlaybackPreferences: (
+        payload: AnimePlaybackScrapeSuccessPayload,
+      ) => payloadMatchesPlaybackPreferences(payload, playbackPreferences),
       harvestSubtitleProviders: (
         winnerId: AnimePlaybackScrapeProviderId,
         order: readonly AnimePlaybackScrapeProviderId[],
@@ -151,9 +176,14 @@ export function useAnimePlaybackScrape(options?: {
             !failed.has(providerId),
         );
       },
-    }),
-    [flags, onAllProvidersFailed],
-  );
+    };
+  }, [
+    flags,
+    onAllProvidersFailed,
+    playbackAudio,
+    playbackEnglishSubtitles,
+    playbackQuality,
+  ]);
 
   return useProviderScrapeLoop<
     AnimePlaybackScrapeProviderId,

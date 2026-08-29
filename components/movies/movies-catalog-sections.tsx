@@ -1,3 +1,4 @@
+import { slimMediaItemsForRsc, toHeroMovieRefs } from "@/lib/cards/catalog-dto";
 import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
@@ -72,12 +73,14 @@ export async function MoviesDiscoverResultsSection({
   description,
   catalogQueryParams,
   indexHref,
+  includeChrome = true,
 }: {
   searchParams: SearchParams;
   title: string;
   description: string;
   catalogQueryParams: Record<string, string>;
   indexHref?: string;
+  includeChrome?: boolean;
 }) {
   const today = getTodayIsoDateUtc();
   const discoverParams = filterDiscoverParams(sp);
@@ -115,10 +118,12 @@ export async function MoviesDiscoverResultsSection({
       description={description}
       genres={genres}
       providers={providers}
-      items={movies.map((m) => ({
-        ...m,
-        media_type: "movie" as const,
-      }))}
+      items={slimMediaItemsForRsc(
+        movies.map((m) => ({
+          ...m,
+          media_type: "movie" as const,
+        })),
+      )}
       currentPage={currentPage}
       totalPages={totalPages}
       queryParams={catalogQueryParams}
@@ -126,6 +131,7 @@ export async function MoviesDiscoverResultsSection({
       emptyTitle="No movies found for the selected filters."
       emptyDescription="Try removing some filters or sorting differently."
       indexHref={indexHref}
+      includeChrome={includeChrome}
     />
   );
 }
@@ -170,6 +176,7 @@ export async function MoviesDiscoverContent({
         description={description}
         catalogQueryParams={catalogQueryParams}
         indexHref={indexHref}
+        includeChrome={!layoutState.isHubLayout}
       />
     );
   }
@@ -273,8 +280,11 @@ async function MoviesDiscoverHubSection({
       ),
     ]);
 
-  const hubGridItems: MediaItem[] = filterUnseenById(movies, hubSeen).map(
-    (m) => ({ ...m, media_type: "movie" as const }),
+  const hubGridItems: MediaItem[] = slimMediaItemsForRsc(
+    filterUnseenById(movies, hubSeen).map((m) => ({
+      ...m,
+      media_type: "movie" as const,
+    })),
   );
 
   return (
@@ -302,7 +312,9 @@ async function MoviesDiscoverHubSection({
             type="movie"
             title="Trending"
             link={pages.trending.movie.link}
-            items={hubTrendingCarouselEnriched as MovieWithMediaType[]}
+            items={slimMediaItemsForRsc(
+              hubTrendingCarouselEnriched as MovieWithMediaType[],
+            )}
           />
         </Suspense>
       ) : null}
@@ -311,7 +323,7 @@ async function MoviesDiscoverHubSection({
         <Suspense fallback={<CatalogHeroPairFallback />}>
           <div className="grid gap-4 md:grid-cols-2">
             <MovieHero
-              movies={hubTrendingHeroPair}
+              movies={toHeroMovieRefs(hubTrendingHeroPair)}
               label="Trending now"
               count={2}
               pick="first"
@@ -325,10 +337,12 @@ async function MoviesDiscoverHubSection({
           <ContentRow
             variant="ranked"
             title="Top Rated"
-            items={hubTopPicksRow.map((m) => ({
-              ...m,
-              media_type: "movie" as const,
-            }))}
+            items={slimMediaItemsForRsc(
+              hubTopPicksRow.map((m) => ({
+                ...m,
+                media_type: "movie" as const,
+              })),
+            )}
             href={pages.movie.topRated.link}
           />
         </Suspense>
@@ -340,7 +354,9 @@ async function MoviesDiscoverHubSection({
             type="movie"
             title="Popular"
             link={pages.movie.popular.discoverHubLink}
-            items={hubPopularCarouselEnriched as MovieWithMediaType[]}
+            items={slimMediaItemsForRsc(
+              hubPopularCarouselEnriched as MovieWithMediaType[],
+            )}
           />
         </Suspense>
       ) : null}
@@ -349,7 +365,7 @@ async function MoviesDiscoverHubSection({
         <Suspense fallback={<CatalogHeroPairFallback />}>
           <div className="grid gap-4 md:grid-cols-2">
             <MovieHero
-              movies={hubPopularHeroPair}
+              movies={toHeroMovieRefs(hubPopularHeroPair)}
               label="Popular now"
               count={2}
               pick="first"
@@ -415,10 +431,12 @@ export async function MoviesListCatalogSection({
 
   const movies = filterReleasedMovies(moviesRaw);
   const providers = providerResponse.results ?? [];
-  const movieItems: MediaItem[] = movies.map((m) => ({
-    ...m,
-    media_type: "movie" as const,
-  }));
+  const movieItems: MediaItem[] = slimMediaItemsForRsc(
+    movies.map((m) => ({
+      ...m,
+      media_type: "movie" as const,
+    })),
+  );
 
   return (
     <CatalogResultsLayout

@@ -60,6 +60,8 @@ export type AnimeScrapeSuccess = {
   subtitles?: ScrapeSubtitle[];
   qualities?: ScrapeQuality[];
   audioVersions?: ScrapeAudioVersion[];
+  nativeAudioTrackCount?: number;
+  nativeSubtitleTrackCount?: number;
   defaultAudioLang?: string;
   defaultHardSubLang?: string;
   preferredAudioLang?: string;

@@ -9,6 +9,7 @@ import {
   isAnilistBackedTvRouteId,
   readTvDetailCatalogFromRequestUrl,
 } from "@/lib/tv-detail-catalog";
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders, seasonCacheHeaders } from "@/lib/http-cache";
 import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
 import {
@@ -62,6 +63,9 @@ export async function GET(
     params: Promise<{ mediaType: string; id: string; resource: string }>;
   },
 ) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const { mediaType, id, resource } = await props.params;
   const url = new URL(request.url);
   const page = url.searchParams.get("page") ?? "1";

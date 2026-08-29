@@ -1,9 +1,13 @@
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextResponse } from "next/server";
 
 import { mintCalluspiratesClientSession } from "@/lib/direct/server-session";
 import { isDirectScrapeProviderConfigured } from "@/lib/scrape/calluspirates-config";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   if (!isDirectScrapeProviderConfigured()) {
     return NextResponse.json(
       { error: "Direct playback is not configured" },

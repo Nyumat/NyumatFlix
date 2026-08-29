@@ -13,9 +13,13 @@ import {
 } from "@/lib/released-media";
 import { fetchAniListSearchMedia } from "@/lib/search/anilist-search";
 import { mergeSearchMediaResults } from "@/lib/search/merge-search-media";
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query");
   const apiKey = process.env.TMDB_API_KEY;

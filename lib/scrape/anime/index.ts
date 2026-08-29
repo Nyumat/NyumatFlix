@@ -1,15 +1,15 @@
 import { scrapeAnimestream } from "./providers/animestream";
 import { scrapeAnimegg } from "./providers/animegg";
 import { scrapeAnimeonsen } from "./providers/animeonsen";
-import { scrapeAnimepahe } from "./providers/animepahe";
 import { scrapeAllmanga } from "./providers/allmanga";
+import { scrapeAnikuro } from "./providers/anikuro";
+import { scrapeAnimepahe } from "./providers/animepahe";
 import { scrapeAnizone } from "./providers/anizone";
 import { scrapeAnipm } from "./providers/anipm";
 import { scrapeHentaigasm } from "./providers/hentaigasm";
 import { scrapeHentaini } from "./providers/hentaini";
 import { scrapeKickassanime } from "./providers/kickassanime";
 import { scrapeJustanime } from "./providers/justanime";
-import { scrapeAnikuro } from "./providers/anikuro";
 import { scrapeKyren } from "./providers/kyren";
 import {
   ANIME_SCRAPE_PROVIDER_LABELS,
@@ -21,6 +21,7 @@ import {
 import type { ScrapeSubtitle } from "../types";
 import { attachSubtitlesToQualities, dedupeSubtitles } from "../linked-config";
 import { stampDonorSubtitles } from "../subtitle-harvest";
+import { attachHlsTrackCapabilities } from "../hls-track-capabilities";
 import { probeScrapePlaybackPath } from "../playback-probe";
 import { fetchScrapeFallbackSubtitles } from "../subtitles";
 import { resolveAnimeSubtitleTmdbLookup } from "./resolve-subtitle-tmdb-lookup";
@@ -33,16 +34,16 @@ const ANIME_SCRAPERS: Record<
   anizone: scrapeAnizone,
   anipm: scrapeAnipm,
   hentaigasm: scrapeHentaigasm,
-  hentaini: scrapeHentaini,
   kickassanime: scrapeKickassanime,
   animeonsen: scrapeAnimeonsen,
   allmanga: scrapeAllmanga,
   animestream: scrapeAnimestream,
   animegg: scrapeAnimegg,
-  animepahe: scrapeAnimepahe,
   justanime: scrapeJustanime,
-  anikuro: scrapeAnikuro,
   kyren: scrapeKyren,
+  anikuro: scrapeAnikuro,
+  animepahe: scrapeAnimepahe,
+  hentaini: scrapeHentaini,
 };
 
 const mergeAnimeCatalogSubtitles = async (
@@ -137,10 +138,10 @@ export async function scrapeAnimeProvider(
 
   const qualities = attachSubtitlesToQualities(next.qualities, next.subtitles);
   if (qualities !== next.qualities) {
-    return { ...next, qualities };
+    next = { ...next, qualities };
   }
 
-  return next;
+  return attachHlsTrackCapabilities(next);
 }
 
 export async function scrapeAllAnimeProviders(

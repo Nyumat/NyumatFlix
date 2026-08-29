@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { loginHref } from "@/lib/auth/callback-url";
 import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { WatchlistGridFallback } from "@/components/watchlist/watchlist-grid-fallback";
@@ -18,7 +19,7 @@ export default async function WatchlistPage() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect(loginHref("/watchlist"));
   }
 
   const watchlistItems = await getUserWatchlist(session.user.id);

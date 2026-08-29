@@ -1,9 +1,6 @@
 import { preferredAudioLangForTranslation } from "../audio-preference";
 import { extractM3u8Urls, parseCatPlayerProps } from "../html-utils";
-import {
-  fetchAnilistTitleCandidates,
-  resolveAnimeSearchQueries,
-} from "../anilist-meta";
+import { resolveAnimeSearchContext } from "../anilist-meta";
 import { isExactAnimeTitleMatch } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
@@ -69,37 +66,46 @@ const normalizeCatPlayerUrl = (src: string): string => {
   return url.toString();
 };
 
-const pickCatPlayerServer = (
-  servers: Array<{ name?: string; src?: string }>,
-) => {
-  const withSrc = servers.filter((server) => Boolean(server.src));
-  return (
-    withSrc.find((server) => {
-      try {
-        const url = new URL(server.src!);
-        return (
-          url.searchParams.get("source") === "vidstream" ||
-          url.searchParams.get("source") === "vidst"
-        );
-      } catch {
-        return false;
-      }
-    }) ??
-    withSrc.find((server) => {
-      if (!server.src) return false;
-      try {
-        const url = new URL(server.src);
-        return (
-          /(^|\.)cat-player\./i.test(url.hostname) ||
-          /\/cat-player(?:\/|$)/i.test(url.pathname) ||
-          /(^|\.)krussdomi\.com$/i.test(url.hostname)
-        );
-      } catch {
-        return false;
-      }
-    })
-  );
+type KaaServer = { name?: string; src?: string };
+
+const scoreKaaServer = (src: string): number => {
+  try {
+    const url = new URL(src);
+    if (
+      url.searchParams.get("source") === "vidstream" ||
+      url.searchParams.get("source") === "vidst"
+    ) {
+      return 100;
+    }
+    if (
+      /(^|\.)cat-player\./i.test(url.hostname) ||
+      /\/cat-player(?:\/|$)/i.test(url.pathname)
+    ) {
+      return 80;
+    }
+    if (/(^|\.)krussdomi\.com$/i.test(url.hostname)) {
+      return 70;
+    }
+    return 10;
+  } catch {
+    return 0;
+  }
 };
+
+export const rankKaaServers = (
+  servers: readonly KaaServer[],
+): Array<KaaServer & { src: string }> =>
+  servers
+    .filter((server): server is KaaServer & { src: string } =>
+      Boolean(server.src),
+    )
+    .sort(
+      (left, right) => scoreKaaServer(right.src) - scoreKaaServer(left.src),
+    );
+
+export const pickCatPlayerServer = (
+  servers: Array<{ name?: string; src?: string }>,
+) => rankKaaServers(servers)[0];
 
 const mapCatPlayerSubtitles = (
   subtitles: Array<{ lang: string; name?: string; src: string }> | undefined,
@@ -115,17 +121,104 @@ const mapCatPlayerSubtitles = (
   }));
 };
 
+type KaaLangStream = {
+  url: string;
+  subtitles?: ScrapeSubtitle[];
+};
+
+type KaaLangStreamResult =
+  | { ok: true; value: KaaLangStream }
+  | { ok: false; error: string };
+
+const resolveKaaLangStream = async (
+  slug: string,
+  lang: "ja-JP" | "en-US",
+  episodeNumber: number,
+): Promise<KaaLangStreamResult> => {
+  const episodesResponse = await scrapeFetch(
+    `${KAA_ORIGIN}/api/show/${slug}/episodes?page=1&lang=${lang}`,
+    { headers: { Referer: `${KAA_ORIGIN}/` } },
+  );
+
+  if (!episodesResponse.ok) {
+    await cancelResponseBody(episodesResponse);
+    return {
+      ok: false,
+      error: `KAA episodes failed (${episodesResponse.status})`,
+    };
+  }
+
+  const episodesPayload = (await episodesResponse.json()) as KaaEpisodeList;
+  const episodeSlug = findEpisodeSlug(episodesPayload.result, episodeNumber);
+
+  if (!episodeSlug) {
+    return { ok: false, error: `KAA episode ${episodeNumber} not listed` };
+  }
+
+  const detailResponse = await scrapeFetch(
+    `${KAA_ORIGIN}/api/show/${slug}/episode/${episodeSlug}`,
+    { headers: { Referer: `${KAA_ORIGIN}/` } },
+  );
+
+  if (!detailResponse.ok) {
+    await cancelResponseBody(detailResponse);
+    return {
+      ok: false,
+      error: `KAA episode detail failed (${detailResponse.status})`,
+    };
+  }
+
+  const detailPayload = (await detailResponse.json()) as KaaEpisodeDetail;
+  const servers = detailPayload.result?.servers ?? detailPayload.servers ?? [];
+
+  for (const server of rankKaaServers(servers)) {
+    const playerUrl = normalizeCatPlayerUrl(server.src);
+    const playerPage = await scrapeFetchText(playerUrl, {
+      Referer: `${KAA_ORIGIN}/`,
+    });
+
+    const props = parseCatPlayerProps(playerPage.text);
+    let manifest = typeof props?.manifest === "string" ? props.manifest : null;
+
+    if (!manifest) {
+      const fallbackUrls = extractM3u8Urls(playerPage.text);
+      manifest =
+        fallbackUrls.find((url) => /\/master\.m3u8(?:[?#]|$)/i.test(url)) ??
+        fallbackUrls[0] ??
+        null;
+    }
+
+    if (!manifest) {
+      continue;
+    }
+
+    const streamUrl = manifest.startsWith("//")
+      ? `https:${manifest}`
+      : manifest;
+
+    return {
+      ok: true,
+      value: {
+        url: streamUrl,
+        subtitles: mapCatPlayerSubtitles(props?.subtitles),
+      },
+    };
+  }
+
+  return { ok: false, error: "KAA cat-player URL missing" };
+};
+
 export async function scrapeKickassanime(
   input: AnimeScrapeInput,
 ): Promise<AnimeScrapeResult> {
   const providerId = "kickassanime" as const;
 
   try {
-    const queries = await resolveAnimeSearchQueries(input);
+    const { searchQueries, matchTitles } =
+      await resolveAnimeSearchContext(input);
     let slug: string | null = null;
-    let expectedTitles: string[] = [];
 
-    for (const query of queries) {
+    for (const query of searchQueries) {
       const searchResponse = await scrapeFetch(`${KAA_ORIGIN}/api/fsearch`, {
         method: "POST",
         headers: {
@@ -142,13 +235,8 @@ export async function scrapeKickassanime(
       }
 
       const searchPayload = (await searchResponse.json()) as KaaSearchResult;
-      expectedTitles = [
-        query,
-        ...(await fetchAnilistTitleCandidates(input.anilistId)),
-      ];
       slug =
-        selectKaaSearchResult(searchPayload.result, expectedTitles)?.slug ??
-        null;
+        selectKaaSearchResult(searchPayload.result, matchTitles)?.slug ?? null;
       if (slug) {
         break;
       }
@@ -158,92 +246,28 @@ export async function scrapeKickassanime(
       return { ok: false, providerId, error: "KAA show slug not found" };
     }
 
-    const episodesResponse = await scrapeFetch(
-      `${KAA_ORIGIN}/api/show/${slug}/episodes?page=1&lang=${input.translationType === "dub" ? "en-US" : "ja-JP"}`,
-      { headers: { Referer: `${KAA_ORIGIN}/` } },
-    );
-
-    if (!episodesResponse.ok) {
-      await cancelResponseBody(episodesResponse);
-      return {
-        ok: false,
-        providerId,
-        error: `KAA episodes failed (${episodesResponse.status})`,
-      };
-    }
-
-    const episodesPayload = (await episodesResponse.json()) as KaaEpisodeList;
-    const episodeSlug = findEpisodeSlug(
-      episodesPayload.result,
+    // Sub and dub land on the same multi-audio master manifest (verified on
+    // AOT, Naruto, Frieren) — the player's native audio-track menu plus
+    // preferredAudioLang handles switching, so no per-language re-fetch.
+    const primaryLang = input.translationType === "dub" ? "en-US" : "ja-JP";
+    const primary = await resolveKaaLangStream(
+      slug,
+      primaryLang,
       input.episodeNumber,
     );
 
-    if (!episodeSlug) {
-      return {
-        ok: false,
-        providerId,
-        error: `KAA episode ${input.episodeNumber} not listed`,
-      };
+    if (!primary.ok) {
+      return { ok: false, providerId, error: primary.error };
     }
-
-    const detailResponse = await scrapeFetch(
-      `${KAA_ORIGIN}/api/show/${slug}/episode/${episodeSlug}`,
-      { headers: { Referer: `${KAA_ORIGIN}/` } },
-    );
-
-    if (!detailResponse.ok) {
-      await cancelResponseBody(detailResponse);
-      return {
-        ok: false,
-        providerId,
-        error: `KAA episode detail failed (${detailResponse.status})`,
-      };
-    }
-
-    const detailPayload = (await detailResponse.json()) as KaaEpisodeDetail;
-    const servers =
-      detailPayload.result?.servers ?? detailPayload.servers ?? [];
-    const catPlayer = pickCatPlayerServer(servers);
-
-    if (!catPlayer?.src) {
-      return { ok: false, providerId, error: "KAA cat-player URL missing" };
-    }
-
-    const playerUrl = normalizeCatPlayerUrl(catPlayer.src);
-    const playerPage = await scrapeFetchText(playerUrl, {
-      Referer: `${KAA_ORIGIN}/`,
-    });
-
-    const props = parseCatPlayerProps(playerPage.text);
-    let manifest = typeof props?.manifest === "string" ? props.manifest : null;
-
-    if (!manifest) {
-      const fallbackUrls = extractM3u8Urls(playerPage.text);
-      manifest =
-        fallbackUrls.find((url) => /\/master\.m3u8(?:[?#]|$)/i.test(url)) ??
-        null;
-    }
-
-    if (!manifest) {
-      return {
-        ok: false,
-        providerId,
-        error: "KAA master.m3u8 not found in cat-player props",
-      };
-    }
-
-    const streamUrl = manifest.startsWith("//")
-      ? `https:${manifest}`
-      : manifest;
 
     // Keep the master so HLS audio groups / ABR stay in the player UI.
     return {
       ok: true,
       providerId,
-      streamUrl,
+      streamUrl: primary.value.url,
       streamKind: "hls",
       referer: KAA_STREAM_REFERER,
-      subtitles: mapCatPlayerSubtitles(props?.subtitles),
+      subtitles: primary.value.subtitles,
       preferredAudioLang: preferredAudioLangForTranslation(
         input.translationType,
       ),

@@ -79,6 +79,7 @@ export async function PATCH(
         mediaType: updatedItem.mediaType,
         seasonNumber: updatedItem.lastWatchedSeason ?? undefined,
         episodeNumber: updatedItem.lastWatchedEpisode ?? undefined,
+        episodeCompleted: true,
         status: updatedItem.status,
       });
     }

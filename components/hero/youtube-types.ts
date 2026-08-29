@@ -38,6 +38,7 @@ declare global {
         destroy: () => void;
         getPlayerState?: () => number;
         mute?: () => void;
+        unMute?: () => void;
         playVideo?: () => void;
       };
     };
@@ -49,5 +50,6 @@ export type YouTubePlayer = {
   destroy: () => void;
   getPlayerState?: () => number;
   mute?: () => void;
+  unMute?: () => void;
   playVideo?: () => void;
 } | null;

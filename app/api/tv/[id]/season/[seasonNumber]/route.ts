@@ -1,3 +1,4 @@
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { seasonCacheHeaders } from "@/lib/http-cache";
 import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
 import { readTvDetailCatalogFromRequestUrl } from "@/lib/tv-detail-catalog";
@@ -7,6 +8,9 @@ export async function GET(
   request: Request,
   props: { params: Promise<{ id: string; seasonNumber: string }> },
 ) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const params = await props.params;
   try {
     const { id, seasonNumber } = params;

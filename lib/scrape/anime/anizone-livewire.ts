@@ -196,11 +196,13 @@ const anizoneItemTitles = (item: AnizoneSearchItem): string[] => [
 
 export const pickAnizoneSlugFromItems = (
   items: readonly AnizoneSearchItem[],
-  query: string,
+  expectedTitles: string | readonly string[],
 ): string | null => {
+  const titles =
+    typeof expectedTitles === "string" ? [expectedTitles] : expectedTitles;
   const exact = items.filter((item) =>
     anizoneItemTitles(item).some((title) =>
-      isExactAnimeTitleMatch(title, [query]),
+      isExactAnimeTitleMatch(title, titles),
     ),
   );
   if (exact.length === 0) {
@@ -253,6 +255,7 @@ const loadAnizoneSearchSession =
 const queryAnizoneSlug = async (
   session: AnizoneSearchSession,
   query: string,
+  matchTitles: string | readonly string[] = query,
 ): Promise<string | null> => {
   const payload = {
     _token: session.csrf,
@@ -287,7 +290,7 @@ const queryAnizoneSlug = async (
 
   const livewire = (await response.json()) as LivewireUpdateResponse;
   const html = livewire.components?.[0]?.effects?.html ?? "";
-  return pickAnizoneSlugFromItems(extractAnizoneSearchItems(html), query);
+  return pickAnizoneSlugFromItems(extractAnizoneSearchItems(html), matchTitles);
 };
 
 export const searchAnizoneSlug = async (
@@ -302,6 +305,7 @@ export const searchAnizoneSlug = async (
 
 export const searchAnizoneSlugFromQueries = async (
   queries: readonly string[],
+  matchTitles?: readonly string[],
 ): Promise<string | null> => {
   const session = await loadAnizoneSearchSession();
   if (!session) {
@@ -309,7 +313,7 @@ export const searchAnizoneSlugFromQueries = async (
   }
 
   for (const query of queries) {
-    const slug = await queryAnizoneSlug(session, query);
+    const slug = await queryAnizoneSlug(session, query, matchTitles ?? query);
     if (slug) {
       return slug;
     }

@@ -36,7 +36,6 @@ export type AnimePlaybackProviderOrders = {
 /** Mainstream catalogs that do not carry adult OVAs — skip on adult chains. */
 export const MAINSTREAM_ONLY_ANIME_PROVIDER_IDS = [
   "animegg",
-  "animepahe",
 ] as const satisfies readonly AnimeScrapeProviderId[];
 
 const ADULT_ONLY_PROVIDER_IDS = new Set<string>(ADULT_ONLY_ANIME_PROVIDER_IDS);
@@ -54,7 +53,7 @@ export const shouldIncludeTmdbPlaybackProxies = (
   return context.mappingConfidence === "high";
 };
 
-/** First race batch is these anime scrapers + Direct (concurrency 3). */
+/** Legacy export — Direct no longer races in the leading anime batch. */
 export const ANIME_DIRECT_RACE_LEAD = 2;
 
 export const MANUAL_DIRECT_MENU_OPTION: GroupedScrapeProviderOption = {
@@ -88,7 +87,6 @@ const toGroupedOption = (
 const interleaveDirectAfterLeadingAnime = (
   animeProviders: readonly AnimeScrapeProviderId[],
   tmdbProviders: readonly TmdbScrapeProviderId[],
-  translationType?: AnimePlaybackChainContext["translationType"],
 ): AnimePlaybackScrapeProviderId[] => {
   if (!tmdbProviders.includes("direct")) {
     return [...animeProviders, ...tmdbProviders];
@@ -98,18 +96,9 @@ const interleaveDirectAfterLeadingAnime = (
     (providerId) => providerId !== "direct",
   );
 
-  // Dub preference should try anime-native scrapers first — TMDB proxies are
-  // often a single English track with no in-player language menu.
-  if (translationType === "dub") {
-    return [...animeProviders, "direct", ...tmdbWithoutDirect];
-  }
-
-  return [
-    ...animeProviders.slice(0, ANIME_DIRECT_RACE_LEAD),
-    "direct",
-    ...animeProviders.slice(ANIME_DIRECT_RACE_LEAD),
-    ...tmdbWithoutDirect,
-  ];
+  // Race all anime scrapers before Direct / slow TMDB tails so batch wall time
+  // is not held up by calluspirates (~15s) or AnimePahe title crawls.
+  return [...animeProviders, "direct", ...tmdbWithoutDirect];
 };
 
 const filterAnimeScrapeProviders = (
@@ -145,7 +134,7 @@ const filterAnimeScrapeProviders = (
   }
 
   // Prefer Hentaigasm before ani.pm — measured winner for adult OVAs.
-  const adultPriority = ["hentaigasm", "hentaini", "anipm"] as const;
+  const adultPriority = ["hentaigasm", "anipm"] as const;
   const adultFirst = adultPriority.filter((providerId) =>
     filtered.includes(providerId),
   );
@@ -172,7 +161,6 @@ export const buildAnimePlaybackProviderOrder = (
   return interleaveDirectAfterLeadingAnime(
     animeProviders,
     orders?.tmdbOrder ?? TMDB_SCRAPE_PROVIDER_ORDER,
-    context.translationType,
   );
 };
 

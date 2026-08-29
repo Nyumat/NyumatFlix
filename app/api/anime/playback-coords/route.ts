@@ -1,8 +1,12 @@
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import { resolveAnimePlaybackCoords } from "@/lib/anime/resolve-playback-coords";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const { searchParams } = new URL(request.url);
   const tmdbShowId = Number.parseInt(searchParams.get("tmdbShowId") ?? "", 10);
   const seasonNumber = Number.parseInt(

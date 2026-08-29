@@ -9,6 +9,7 @@ import { isVixsrcStubPlaylistBody } from "@/lib/scrape/vixsrc-stub";
 import {
   classifySiblingCancel,
   shouldFinalizeBatchWinner,
+  shouldFinalizeFirstPreferenceMatch,
   shouldFinalizeRaceWinner,
 } from "@/lib/scrape/scrape-race-batch";
 
@@ -119,6 +120,26 @@ describe("shouldFinalizeBatchWinner", () => {
       new Set(),
       (payload: { dub: boolean }) => (payload.dub ? 2_000 : 100),
     );
+    expect(winner?.providerId).toBe("kickassanime");
+  });
+});
+
+describe("shouldFinalizeFirstPreferenceMatch", () => {
+  it("returns the first success that satisfies hard prefs", () => {
+    const winner = shouldFinalizeFirstPreferenceMatch(
+      [
+        {
+          providerId: "justanime",
+          attempt: { outcome: "success", payload: { ok: false } },
+        },
+        {
+          providerId: "kickassanime",
+          attempt: { outcome: "success", payload: { ok: true } },
+        },
+      ],
+      (payload: { ok: boolean }) => payload.ok,
+    );
+
     expect(winner?.providerId).toBe("kickassanime");
   });
 });

@@ -122,9 +122,11 @@ export function resolveSiteFlags(
   };
 }
 
-export async function getSiteFlags(): Promise<SiteFlags> {
+export async function getSiteFlags(options?: {
+  skipCache?: boolean;
+}): Promise<SiteFlags> {
   const [raw, announcementConfig, menuOrder] = await Promise.all([
-    readAdminFlagState(),
+    readAdminFlagState(options),
     readAnnouncementBannerConfig(),
     readProviderMenuOrderConfig(),
   ]);

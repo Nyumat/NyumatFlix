@@ -10,6 +10,7 @@ import {
   dismissContinueWatchingTitle,
   readContinueWatchingDismissals,
 } from "@/lib/playback/continue-watching-dismiss";
+import { loginHref } from "@/lib/auth/callback-url";
 import { queryStaleTime } from "@/lib/cache-policy";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -233,7 +234,11 @@ export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
             action: {
               label: "Sign in",
               onClick: () => {
-                window.location.assign("/login");
+                window.location.assign(
+                  loginHref(
+                    `${window.location.pathname}${window.location.search}`,
+                  ),
+                );
               },
             },
           });
