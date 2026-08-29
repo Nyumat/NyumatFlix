@@ -378,6 +378,7 @@ function VidstackDirectPlayer({
       volume={1}
       streamType="on-demand"
       load="eager"
+      logLevel="silent"
       crossOrigin="anonymous"
       onProviderChange={handleProviderChange}
       onCanPlay={handleCanPlay}

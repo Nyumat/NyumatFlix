@@ -68,5 +68,6 @@ export async function generateMediaMetadata({
     ogType: "website",
     imageAlt: `${titleWithYear} on NyumatFlix`,
     includeDefaultImage: false,
+    noIndex: true,
   });
 }

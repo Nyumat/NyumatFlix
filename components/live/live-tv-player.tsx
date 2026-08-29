@@ -15,6 +15,7 @@ import { LiveChannelSidebar } from "@/components/live/live-channel-sidebar";
 import { LiveTvGuideProvider } from "@/components/live/live-tv-guide-context";
 import { LiveVideoLayout } from "@/components/live/live-video-layout";
 import { useAdaptiveLiveHls } from "@/hooks/use-adaptive-live-hls";
+import { mergeScrapeHlsClientAuthConfig } from "@/lib/api/scrape-hls-client-auth";
 import { buildLiveHlsConfig } from "@/lib/live/adaptive-hls";
 import { buildLiveChannelShareUrl } from "@/lib/live/channel-slugs";
 import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
@@ -50,7 +51,7 @@ const configureHlsProvider = (
   }
 
   provider.library = Hls;
-  provider.config = config;
+  provider.config = mergeScrapeHlsClientAuthConfig(config);
 };
 
 export function LiveTvPlayer({
@@ -100,6 +101,7 @@ export function LiveTvPlayer({
                   autoPlay
                   playsInline
                   load="eager"
+                  logLevel="silent"
                   onHlsError={onHlsError}
                   onPlaying={onPlaying}
                   onProviderChange={handleProviderChange}
