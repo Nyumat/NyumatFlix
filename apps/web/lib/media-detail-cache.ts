@@ -5,7 +5,8 @@ import {
 } from "@/lib/anilist-route-id";
 import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
 import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
-import { LogoSchema, type MediaItem } from "@/lib/domain/typings";
+import { type MediaItem } from "@/lib/domain/typings";
+import { pickEnglishLogo } from "@/lib/tmdb-logo";
 import { tmdbFetchInit } from "@/lib/tmdb-cache-policy";
 import { cache } from "react";
 
@@ -33,25 +34,6 @@ const pickMovieCertification = (raw: ReleaseDatesAppend): string | null => {
     usRelease?.release_dates?.find((release) => release.certification)
       ?.certification ?? null
   );
-};
-
-const pickEnglishLogo = (logos: unknown) => {
-  if (!Array.isArray(logos) || logos.length === 0) {
-    return undefined;
-  }
-
-  const selected =
-    logos.find((logo) => {
-      return (
-        typeof logo === "object" &&
-        logo !== null &&
-        "iso_639_1" in logo &&
-        logo.iso_639_1 === "en"
-      );
-    }) ?? logos[0];
-
-  const result = LogoSchema.safeParse(selected);
-  return result.success ? result.data : undefined;
 };
 
 const movieDetailFetchInit = (id: string) =>
