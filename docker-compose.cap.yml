@@ -1,0 +1,47 @@
+services:
+  cap:
+    image: tiago2/cap:3.1.8
+    container_name: nyumatflix-cap
+    restart: unless-stopped
+    depends_on:
+      cap-valkey:
+        condition: service_healthy
+    environment:
+      ADMIN_KEY: ${CAP_ADMIN_KEY:?Set CAP_ADMIN_KEY in your environment}
+      REDIS_URL: redis://cap-valkey:6379
+      CORS_ORIGIN: ${CAP_CORS_ORIGIN:?Set CAP_CORS_ORIGIN in your environment}
+      REDIS_PREFIX: "nyumatflix-cap:"
+    ports:
+      - "127.0.0.1:${CAP_PORT:-3030}:3000"
+    networks:
+      - cap
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cap-valkey:
+    image: valkey/valkey:9-alpine
+    container_name: nyumatflix-cap-valkey
+    restart: unless-stopped
+    command: >-
+      valkey-server --save 60 1 --loglevel warning
+      --maxmemory-policy noeviction
+    volumes:
+      - cap-valkey-data:/data
+    networks:
+      - cap
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  cap:
+    name: nyumatflix-cap
+
+volumes:
+  cap-valkey-data:
+    name: nyumatflix-cap-valkey-data

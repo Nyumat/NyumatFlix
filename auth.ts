@@ -5,6 +5,7 @@ import {
   MAGIC_LINK_RESEND_SUBJECT,
 } from "@/lib/constants";
 import { setDevMagicLink } from "@/lib/dev-magic-link-store";
+import { isCapVerifiedSignIn } from "@/lib/cap/auth-authorization";
 import { getSiteFlags } from "@/lib/flags/site-flags";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
@@ -25,6 +26,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       apiKey: process.env.AUTH_RESEND_KEY,
       from: MAGIC_LINK_RESEND_FROM,
       sendVerificationRequest: async ({ identifier, url, provider, theme }) => {
+        if (!isCapVerifiedSignIn()) {
+          throw new Error(
+            "Human verification is required before sending email",
+          );
+        }
+
         if (process.env.NODE_ENV === "development") {
           console.log("\n" + "=".repeat(60));
           console.log("🔐 MAGIC LINK FOR DEVELOPMENT");

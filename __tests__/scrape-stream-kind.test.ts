@@ -16,7 +16,10 @@ describe("scrape stream kind helpers", () => {
   it("builds Vidstack src objects for dash and mp4", () => {
     const playUrl = "/api/scrape/play/token/asset.mpd";
 
-    expect(buildScrapeMediaPlayerSrc(playUrl, "hls")).toBe(playUrl);
+    expect(buildScrapeMediaPlayerSrc(playUrl, "hls")).toEqual({
+      src: playUrl,
+      type: "application/vnd.apple.mpegurl",
+    });
     expect(buildScrapeMediaPlayerSrc(playUrl, "dash")).toEqual({
       src: playUrl,
       type: "application/dash+xml",

@@ -22,6 +22,11 @@ type AuthErrorCopy = {
 };
 
 const authErrorCopy: Record<string, AuthErrorCopy> = {
+  Captcha: {
+    title: "Human verification did not complete",
+    description: "We could not verify this sign-in request.",
+    detail: "Return to sign in and try the verification again.",
+  },
   Verification: {
     title: "This sign-in link did not work",
     description:
