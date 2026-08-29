@@ -13,7 +13,7 @@ export default function SearchPage() {
             Search
           </h1>
         </div>
-        <div className="w-full max-w-6xl mx-auto">
+        <div className="w-full max-w-[68rem] mx-auto">
           <Suspense
             fallback={
               <div className="w-full flex flex-col gap-8">

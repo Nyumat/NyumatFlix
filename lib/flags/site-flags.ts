@@ -14,6 +14,11 @@ import {
   tmdbScrapeProviderFlagKey,
 } from "@/lib/flags/flag-catalog";
 import { readAdminFlagState } from "@/lib/flags/flipt-client";
+import { readAnnouncementBannerConfig } from "@/lib/flags/flipt-client";
+import {
+  DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+  type AnnouncementBannerConfig,
+} from "@/lib/flags/announcement-banner";
 
 export type SiteFlags = {
   proxyModeOnly: boolean;
@@ -26,6 +31,7 @@ export type SiteFlags = {
   scrapeProxyRequired: boolean;
   lockUserSettings: boolean;
   maintenanceMode: boolean;
+  announcementBanner: AnnouncementBannerConfig & { enabled: boolean };
   /** Resolved on the server; client must not re-read CALLUSPIRATES_API_URL. */
   directScrapeProviderAvailable: boolean;
   embedProviders: Record<string, boolean>;
@@ -48,7 +54,10 @@ function providerMap(
   return Object.fromEntries(ids.map((id) => [id, raw[keyFn(id)] ?? true]));
 }
 
-export function resolveSiteFlags(raw: Record<string, boolean>): SiteFlags {
+export function resolveSiteFlags(
+  raw: Record<string, boolean>,
+  announcementConfig: AnnouncementBannerConfig = DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+): SiteFlags {
   const proxyModeOnly = raw["global.proxy_mode_only"] ?? false;
   const iframeModeOnly = raw["global.iframe_mode_only"] ?? false;
   const staticHeroBackdrops = raw["global.static_hero_backdrops"] ?? false;
@@ -69,6 +78,10 @@ export function resolveSiteFlags(raw: Record<string, boolean>): SiteFlags {
     scrapeProxyRequired: raw["global.scrape_proxy_required"] ?? false,
     lockUserSettings,
     maintenanceMode: raw["global.maintenance_mode"] ?? false,
+    announcementBanner: {
+      ...announcementConfig,
+      enabled: raw["global.announcement_banner"] ?? false,
+    },
     directScrapeProviderAvailable: isDirectScrapeProviderConfigured(),
     embedProviders: providerMap(
       embedIds,
@@ -94,8 +107,11 @@ export function resolveSiteFlags(raw: Record<string, boolean>): SiteFlags {
 }
 
 export async function getSiteFlags(): Promise<SiteFlags> {
-  const raw = await readAdminFlagState();
-  return resolveSiteFlags(raw);
+  const [raw, announcementConfig] = await Promise.all([
+    readAdminFlagState(),
+    readAnnouncementBannerConfig(),
+  ]);
+  return resolveSiteFlags(raw, announcementConfig);
 }
 
 export function getDefaultSiteFlags(): SiteFlags {

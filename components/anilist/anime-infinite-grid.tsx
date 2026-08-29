@@ -43,7 +43,12 @@ const buildAnimeEntityStore = (items: MediaItem[]): AnimeEntityStore => {
   return { entityMap: map, orderedKeys };
 };
 
-export const AnimeInfiniteGrid = ({
+export const AnimeInfiniteGrid = (props: AnimeInfiniteGridProps) => {
+  const paramsKey = JSON.stringify(props.params);
+  return <AnimeInfiniteGridBody key={paramsKey} {...props} />;
+};
+
+const AnimeInfiniteGridBody = ({
   initialItems,
   initialPage,
   initialHasNextPage,
@@ -56,13 +61,6 @@ export const AnimeInfiniteGrid = ({
   const [hasNextPage, setHasNextPage] = useState(initialHasNextPage);
   const [isLoading, setIsLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const paramsKey = JSON.stringify(params);
-
-  useEffect(() => {
-    setStore(buildAnimeEntityStore(filterWithPosterPath(initialItems)));
-    setCurrentPage(initialPage);
-    setHasNextPage(initialHasNextPage);
-  }, [initialItems, initialPage, initialHasNextPage, paramsKey]);
 
   const items = useMemo(
     () =>

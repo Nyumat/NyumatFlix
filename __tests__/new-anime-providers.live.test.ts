@@ -37,7 +37,7 @@ describe.skipIf(!runLive)("new anime provider scrapers (live)", () => {
     expect(result.streamKind).toBe("hls");
     expect(result.streamUrl).toMatch(/\.m3u8(\?|$)/i);
     expect(result.referer).toBeTruthy();
-  }, 90_000);
+  }, 180_000);
 
   it("Kyren returns HLS for One Piece ep1", async () => {
     const result = await scrapeKyren({

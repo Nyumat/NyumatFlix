@@ -8,17 +8,14 @@ export type SearchPreviewResult = CanonicalMediaCard;
 
 export interface SearchPreviewResponse {
   results: SearchPreviewResult[];
-  suggestions: string[];
 }
 
 export interface SearchPreviewData {
   results: SearchPreviewResult[];
-  suggestions: string[];
 }
 
 const EMPTY_SEARCH_PREVIEW: SearchPreviewData = {
   results: [],
-  suggestions: [],
 };
 
 async function readJsonOrNull<T>(response: Response): Promise<T | null> {
@@ -49,7 +46,6 @@ export async function fetchSearchPreview(
   const data = await readJsonOrNull<SearchPreviewResponse>(response);
   return {
     results: data?.results ?? [],
-    suggestions: data?.suggestions ?? [],
   };
 }
 

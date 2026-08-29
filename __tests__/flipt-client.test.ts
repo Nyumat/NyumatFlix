@@ -10,6 +10,7 @@ import {
   toFliptStorageKey,
   writeAdminFlagState,
 } from "@/lib/flags/flipt-client";
+import { DEFAULT_ANNOUNCEMENT_BANNER_CONFIG } from "@/lib/flags/announcement-banner";
 
 const originalFetch = globalThis.fetch;
 
@@ -121,6 +122,35 @@ describe("Flipt v2 client", () => {
     expect(toFliptStorageKey("global.proxy_mode_only")).toBe(
       "global_proxy_mode_only",
     );
+  });
+
+  it("stores announcement presentation in flag metadata", async () => {
+    const resources = ALL_FLAG_DEFINITIONS.map(resource);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({ resources, revision: "revision-1" }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ revision: "revision-2" }, { status: 200 }),
+      );
+    globalThis.fetch = fetchMock;
+
+    const announcementBanner = {
+      ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+      title: "Service update",
+    };
+    await writeAdminFlagState(buildDefaultAdminFlagState(), announcementBanner);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)),
+    ).toMatchObject({
+      key: toFliptStorageKey("global.announcement_banner"),
+      payload: {
+        metadata: { announcementBanner },
+      },
+    });
   });
 
   it("does not attempt writes when the initial read fails", async () => {

@@ -9,6 +9,10 @@ vi.mock("@/lib/server/video-server-health", () => ({
   isAllowedVideoServerUrl: (value: string) => value.startsWith("https://"),
 }));
 
+vi.mock("@/lib/cap/server", () => ({
+  requestHasCapSession: () => true,
+}));
+
 import { POST } from "@/app/api/servers/health/route";
 
 const makeRequest = (body: unknown) =>

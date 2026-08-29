@@ -47,6 +47,7 @@ interface MediaContentGridProps {
   className?: string;
   onViewModeChange?: (mode: ViewMode) => void;
   showViewModeControls?: boolean;
+  hideViewModeControlsOnMobile?: boolean;
   showDock?: boolean;
   dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   "data-testid"?: string;
@@ -68,6 +69,7 @@ export function MediaContentGrid({
   className,
   onViewModeChange,
   showViewModeControls = true,
+  hideViewModeControlsOnMobile = false,
   showDock = true,
   dockPosition = "bottom-right",
   "data-testid": testId,
@@ -215,6 +217,7 @@ export function MediaContentGrid({
         className={className}
         onViewModeChange={handleViewModeChange}
         showViewModeControls={showViewModeControls}
+        hideViewModeControlsOnMobile={hideViewModeControlsOnMobile}
         showDock={false}
         dockPosition={dockPosition}
         data-testid={testId ? `${testId}-grid` : "media-content-grid"}

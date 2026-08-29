@@ -144,8 +144,8 @@ describe("SearchResults Component", () => {
     renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Test Movie")).toBeInTheDocument();
-      expect(screen.getByText("Test Show")).toBeInTheDocument();
+      expect(screen.getByTestId("search-result-card-123")).toBeInTheDocument();
+      expect(screen.getByTestId("search-result-card-456")).toBeInTheDocument();
     });
 
     expect(screen.getByTestId("search-results-title")).toHaveTextContent(
@@ -199,9 +199,8 @@ describe("SearchResults Component", () => {
 
     renderWithProviders(<SearchResults query="test" />);
 
-    expect(screen.getByTestId("search-results-loading")).toHaveTextContent(
-      /Loading search results for "test"/,
-    );
+    expect(screen.getByTestId("search-results-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("search-results-skeleton")).toBeInTheDocument();
 
     await act(async () => {
       resolveSearch!(
@@ -219,7 +218,7 @@ describe("SearchResults Component", () => {
       expect(
         screen.queryByTestId("search-results-loading"),
       ).not.toBeInTheDocument();
-      expect(screen.getByText("Test Movie")).toBeInTheDocument();
+      expect(screen.getByTestId("search-result-card-123")).toBeInTheDocument();
     });
   });
 
@@ -255,73 +254,60 @@ describe("SearchResults Component", () => {
     });
   });
 
-  test("shows pagination when there are multiple pages", async () => {
-    global.fetch = vi.fn((url) => {
-      if (url.toString().includes("/api/search")) {
-        return Promise.resolve(
-          mockFetchResponse({
-            media: [mockMovie, mockTvShow],
-            people: [],
-            page: 1,
-            totalResults: 60,
-            totalPages: 3,
-          }),
-        );
-      }
-      return Promise.resolve(mockFetchResponse({ genres: [] }));
-    }) as unknown as typeof global.fetch;
-
-    renderWithProviders(<SearchResults query="test" />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("pagination-info")).toHaveTextContent(
-        "Page 1 of 3",
-      );
-      expect(screen.getByTestId("pagination-previous")).toBeInTheDocument();
-      expect(screen.getByTestId("pagination-next")).toBeInTheDocument();
-    });
-  });
-
-  test("can navigate between pages", async () => {
-    const user = userEvent.setup();
-
-    global.fetch = vi.fn((url) => {
-      const urlString = url.toString();
-      if (urlString.includes("/api/search")) {
-        const page = urlString.includes("page=2") ? 2 : 1;
-        return Promise.resolve(
-          mockFetchResponse({
-            media: page === 1 ? [mockMovie] : [mockTvShow],
-            people: [],
-            page,
-            totalResults: 40,
-            totalPages: 2,
-          }),
-        );
-      }
-      return Promise.resolve(mockFetchResponse({ genres: [] }));
-    }) as unknown as typeof global.fetch;
-
-    renderWithProviders(<SearchResults query="test" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Test Movie")).toBeInTheDocument();
-    });
-
-    const nextButton = screen.getByTestId("pagination-next");
-    await user.click(nextButton);
-    await waitFor(() => {
-      expect(screen.queryByText("Test Movie")).not.toBeInTheDocument();
-      expect(screen.getByText("Test Show")).toBeInTheDocument();
-    });
-  });
-
   test("shows genre filter", async () => {
     renderWithProviders(<SearchResults query="test" />);
 
     await waitFor(() => {
       expect(screen.getByTestId("genre-filter")).toBeInTheDocument();
-      expect(screen.getByTestId("genre-multi-select")).toBeInTheDocument();
+      expect(screen.getByTestId("genre-chip-list")).toBeInTheDocument();
+    });
+  });
+
+  test("moves selection with arrow keys while search input is focused", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <>
+        <input type="search" aria-label="Search movies and TV shows" />
+        <SearchResults query="test" />
+      </>,
+    );
+
+    const searchInput = screen.getByRole("searchbox", {
+      name: "Search movies and TV shows",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("search-result-card-123")).toHaveAttribute(
+        "data-selected",
+        "true",
+      );
+    });
+
+    searchInput.focus();
+
+    await user.keyboard("{ArrowDown}");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("search-result-card-123")).not.toHaveAttribute(
+        "data-selected",
+      );
+      expect(screen.getByTestId("search-result-card-456")).toHaveAttribute(
+        "data-selected",
+        "true",
+      );
+    });
+
+    await user.keyboard("{ArrowUp}");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("search-result-card-123")).toHaveAttribute(
+        "data-selected",
+        "true",
+      );
+      expect(screen.getByTestId("search-result-card-456")).not.toHaveAttribute(
+        "data-selected",
+      );
     });
   });
 });

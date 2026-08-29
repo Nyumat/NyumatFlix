@@ -95,5 +95,5 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
       return;
     }
     expect(result.ok).toBe(true);
-  }, 90_000);
+  }, 180_000);
 });

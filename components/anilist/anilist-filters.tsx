@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/sheet";
 import { SlidersHorizontal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type AniListFiltersProps = {
   serverParams: Record<string, string>;
@@ -67,7 +67,6 @@ export const AniListFilters = ({ serverParams }: AniListFiltersProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
-  const [isMounted, setIsMounted] = useState(false);
 
   const currentFilters = useMemo(
     () =>
@@ -80,10 +79,6 @@ export const AniListFilters = ({ serverParams }: AniListFiltersProps) => {
 
   const selectedGenres = new Set(draft.genres);
   const filterCount = countFilters(currentFilters);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const setPartial = (partial: Partial<AniListSearchParams>) => {
     setDraft((prev) => ({ ...prev, ...partial }));
@@ -112,15 +107,6 @@ export const AniListFilters = ({ serverParams }: AniListFiltersProps) => {
   const applyFilters = () => {
     router.replace(buildAniListUrl({ ...draft, mode: "results" }));
   };
-
-  if (!isMounted) {
-    return (
-      <div
-        className="h-10 w-32 animate-pulse rounded-md bg-muted"
-        aria-hidden="true"
-      />
-    );
-  }
 
   return (
     <Sheet

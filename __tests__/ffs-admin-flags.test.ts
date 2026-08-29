@@ -7,9 +7,13 @@ import {
   buildDefaultAdminFlagState,
 } from "@/lib/flags/flag-catalog";
 import { assertFfsHost, isFfsHost } from "@/lib/ffs/require-ffs-host";
+import { DEFAULT_ANNOUNCEMENT_BANNER_CONFIG } from "@/lib/flags/announcement-banner";
 
 vi.mock("@/lib/flags/flipt-admin", () => ({
   readAdminFlagState: vi.fn(async () => buildDefaultAdminFlagState()),
+  readAnnouncementBannerConfig: vi.fn(
+    async () => DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+  ),
   writeAdminFlagState: vi.fn(async () => undefined),
 }));
 
@@ -83,7 +87,10 @@ describe("ffs admin flags", () => {
     const response = await PATCH(
       new NextRequest("http://ffs.localhost:3000/api/ffs/flags", {
         method: "PATCH",
-        body: JSON.stringify({ flags }),
+        body: JSON.stringify({
+          flags,
+          announcementBanner: DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+        }),
         headers: {
           host: "ffs.localhost:3000",
           "Content-Type": "application/json",
@@ -93,5 +100,27 @@ describe("ffs admin flags", () => {
 
     expect(response.status).toBe(200);
     expect(writeAdminFlagState).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an enabled banner without content", async () => {
+    const response = await PATCH(
+      new NextRequest("http://ffs.localhost:3000/api/ffs/flags", {
+        method: "PATCH",
+        body: JSON.stringify({
+          flags: {
+            ...buildDefaultAdminFlagState(),
+            "global.announcement_banner": true,
+          },
+          announcementBanner: DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+        }),
+        headers: {
+          host: "ffs.localhost:3000",
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(writeAdminFlagState).not.toHaveBeenCalled();
   });
 });

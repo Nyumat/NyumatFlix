@@ -1,8 +1,10 @@
 import { NavbarClient } from "@/components/layout/nav/navbar-client";
+import { FeatureFlagsProvider } from "@/components/providers/feature-flags-provider";
 import {
   commitNavigationEntry,
   recordNavigationOrigin,
 } from "@/lib/navigation/route-restoration";
+import { getDefaultSiteFlags } from "@/lib/flags/site-flags";
 import { useDetailRouteStore } from "@/lib/stores/detail-route-store";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { usePathname, useRouter } from "next/navigation";
@@ -42,6 +44,13 @@ vi.mock("@/components/layout/nav/user-avatar", () => ({
 const mockUsePathname = vi.mocked(usePathname);
 const mockUseRouter = vi.mocked(useRouter);
 
+const renderNavbarClient = (session: null = null) =>
+  render(
+    <FeatureFlagsProvider flags={getDefaultSiteFlags()}>
+      <NavbarClient session={session} />
+    </FeatureFlagsProvider>,
+  );
+
 describe("NavbarClient detail back routing", () => {
   const push = vi.fn();
   const back = vi.fn();
@@ -62,7 +71,7 @@ describe("NavbarClient detail back routing", () => {
   });
 
   test("routes TV detail pages to the TV parent by default", () => {
-    render(<NavbarClient session={null} />);
+    renderNavbarClient();
 
     fireEvent.click(screen.getByLabelText("Go back"));
 
@@ -75,7 +84,7 @@ describe("NavbarClient detail back routing", () => {
       parentRoute: "/anime",
     });
 
-    render(<NavbarClient session={null} />);
+    renderNavbarClient();
 
     fireEvent.click(screen.getByLabelText("Go back"));
 
@@ -88,7 +97,7 @@ describe("NavbarClient detail back routing", () => {
       parentRoute: "/anime",
     });
 
-    render(<NavbarClient session={null} />);
+    renderNavbarClient();
 
     fireEvent.click(screen.getByLabelText("Go back"));
 
@@ -104,7 +113,7 @@ describe("NavbarClient detail back routing", () => {
     window.history.pushState({}, "", "/tvshows/123");
     commitNavigationEntry("/tvshows/123");
 
-    render(<NavbarClient session={null} />);
+    renderNavbarClient();
     fireEvent.click(screen.getByLabelText("Go back"));
 
     expect(back).toHaveBeenCalledOnce();
@@ -121,7 +130,7 @@ describe("NavbarClient detail back routing", () => {
     commitNavigationEntry("/tvshows/123");
     window.history.replaceState({ __NA: true }, "", "/tvshows/123");
 
-    render(<NavbarClient session={null} />);
+    renderNavbarClient();
     fireEvent.click(screen.getByLabelText("Go back"));
 
     expect(back).toHaveBeenCalledOnce();

@@ -7,6 +7,7 @@
     "predev": "./scripts/bootstrap-scrape-vpn.sh ensure-local",
     "dev": "next dev --turbopack",
     "dev:next": "next dev --turbopack",
+    "dev:webpack": "next dev",
     "dev:sync": "./scripts/bootstrap-scrape-vpn.sh sync-env",
     "dev:stack": "./scripts/bootstrap-scrape-vpn.sh local",
     "prepare-movi-player": "node scripts/prepare-movi-player.mjs",

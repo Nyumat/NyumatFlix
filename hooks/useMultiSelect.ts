@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 export interface UseMultiSelectState {
   selectedValues: string[];
@@ -29,10 +29,6 @@ export const useMultiSelect = (
   const [selectedValues, setSelectedValues] = useState<string[]>(defaultValue);
   const [isPopoverOpen, setIsPopoverOpen] = useState<boolean>(false);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
-
-  useEffect(() => {
-    setSelectedValues(defaultValue);
-  }, [defaultValue]);
 
   const toggleOption = useCallback((value: string) => {
     setSelectedValues((prev) =>

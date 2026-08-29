@@ -98,12 +98,26 @@ export function HeroBackground({
     playbackTitle,
     buildPlaybackProgressKey,
     activeScrape,
+    isDirectMode,
+    directPlayback,
     sourceOverlayItems,
     handleSelectEmbedServer,
     handleScrapedPlaybackError,
     handleRetryAllScraping,
     handleScrapePlaybackEnded,
   } = scrapePlayback;
+
+  const [mediaReady, setMediaReady] = useState(false);
+
+  const isPlaybackBuffering = isDirectMode
+    ? directPlayback.status === "playing"
+    : activeScrape.status === "playing";
+
+  useEffect(() => {
+    if (!isPlayingVideo) {
+      setMediaReady(false);
+    }
+  }, [isPlayingVideo]);
 
   const scrapeStreamKind = useMemo(() => {
     const playUrl = activeScrape.result?.playUrl;
@@ -151,10 +165,6 @@ export function HeroBackground({
   const selectedTrailer =
     trailerVideos[selectedTrailerIndex] ?? trailerVideos[0];
   const canSwitchTrailers = trailerVideos.length > 1;
-  const trailerVideoKeys = useMemo(
-    () => trailerVideos.map((video) => video.key).join("|"),
-    [trailerVideos],
-  );
 
   const playbackBackdropPath = media.backdrop_path ?? media.poster_path ?? null;
   const playbackBackdropUrl = playbackBackdropPath
@@ -272,10 +282,6 @@ export function HeroBackground({
   const ambientVideoKey = hasVideasySource
     ? `${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`
     : String(media.backdrop_path ?? media.poster_path ?? media.id);
-
-  useEffect(() => {
-    setSelectedTrailerIndex(0);
-  }, [media.id, trailerVideoKeys]);
 
   useEffect(() => {
     if (!isPlayingTrailer || !selectedTrailer?.key) {
@@ -465,6 +471,8 @@ export function HeroBackground({
                   selectedServer={selectedServer}
                   scrapeStatus={activeScrape.status}
                   playbackBackdropUrl={playbackBackdropUrl}
+                  mediaReady={mediaReady}
+                  isPlaybackBuffering={isPlaybackBuffering}
                 >
                   {isScrapeServer(selectedServer) ? (
                     <HeroScrapePlayerPanel
@@ -484,6 +492,9 @@ export function HeroBackground({
                       onRetryAllScraping={handleRetryAllScraping}
                       onFatalError={handleScrapedPlaybackError}
                       onEnded={handleScrapePlaybackEnded}
+                      isDirectMode={isDirectMode}
+                      directPlayback={directPlayback}
+                      onMediaReadyChange={setMediaReady}
                     />
                   ) : (
                     <HeroEmbedPlayerPanel

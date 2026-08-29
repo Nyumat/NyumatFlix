@@ -38,7 +38,12 @@ const buildCatalogEntityStore = (
   return { entityMap: map, orderedKeys };
 };
 
-export const CatalogInfiniteGrid = ({
+export const CatalogInfiniteGrid = (props: CatalogInfiniteGridProps) => {
+  const queryKey = JSON.stringify(props.queryParams);
+  return <CatalogInfiniteGridBody key={queryKey} {...props} />;
+};
+
+const CatalogInfiniteGridBody = ({
   mediaType,
   initialItems,
   initialPage,
@@ -51,15 +56,6 @@ export const CatalogInfiniteGrid = ({
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [isLoading, setIsLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  const queryKey = JSON.stringify(queryParams);
-
-  useEffect(() => {
-    setStore(
-      buildCatalogEntityStore(filterWithPosterPath(initialItems), mediaType),
-    );
-    setCurrentPage(initialPage);
-  }, [initialItems, initialPage, queryKey, mediaType]);
 
   const items = useMemo(
     () =>
@@ -133,6 +129,7 @@ export const CatalogInfiniteGrid = ({
         items={items}
         type={mediaType}
         showViewModeControls
+        hideViewModeControlsOnMobile
         gridColumns="auto"
         showDock={false}
       />

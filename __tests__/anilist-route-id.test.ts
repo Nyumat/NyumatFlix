@@ -31,7 +31,7 @@ describe("anilist route ids", () => {
 
   it("keeps positive TMDB route ids separate", () => {
     expect(isAnilistTvRouteId("85937")).toBe(false);
-    expect(resolveAnilistIdFromTvRoute("85937", 101922)).toBe(101922);
+    expect(resolveAnilistIdFromTvRoute("85937", 154587)).toBe(154587);
     expect(resolveAnilistIdFromTvRoute("85937")).toBeNull();
   });
 });

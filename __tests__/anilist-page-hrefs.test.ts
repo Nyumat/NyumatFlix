@@ -8,10 +8,10 @@ describe("withAnimePageHref", () => {
       withAnimePageHref({
         id: 42,
         media_type: "tv",
-        sourceAnilistId: 101922,
-        href: "https://anilist.co/anime/1",
+        sourceAnilistId: 154587,
+        href: "https://anilist.co/anime/154587",
       } as unknown as MediaItem).href,
-    ).toBe("/tvshows/42?anilistId=101922");
+    ).toBe("/tvshows/42?anilistId=154587");
   });
 
   it("routes unmapped AniList fallback items to AniList-backed TV detail pages", () => {

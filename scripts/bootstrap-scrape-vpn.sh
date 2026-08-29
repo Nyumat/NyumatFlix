@@ -207,6 +207,7 @@ apply_local_env_defaults() {
   upsert_env_var "$LOCAL_ENV_FILE" SCRAPE_VPN_CONTROL_API_KEY "$GLUETUN_CONTROL_API_KEY"
   upsert_env_var "$LOCAL_ENV_FILE" SCRAPE_VPN_ROTATE_SECRET "$SCRAPE_VPN_ROTATE_SECRET"
   upsert_env_var "$LOCAL_ENV_FILE" SCRAPE_VPN_ROTATE_COUNTRIES "${SCRAPE_VPN_ROTATE_COUNTRIES:-$ROTATE_COUNTRIES}"
+  ensure_flipt_env
 }
 
 gluetun_is_healthy() {
@@ -224,10 +225,7 @@ ensure_gluetun() {
   write_local_gluetun_env
   docker network create "$DOCKER_NETWORK" 2>/dev/null || true
   echo "starting gluetun..."
-  docker compose \
-    -f "$GLUETUN_DIR/docker-compose.yml" \
-    -f "$GLUETUN_DIR/docker-compose.local.yml" \
-    up -d
+  "$ROOT/scripts/local-compose.sh" up -d gluetun
 
   if ! wait_for_local_control "$GLUETUN_CONTROL_API_KEY"; then
     echo "gluetun control API did not become ready at ${LOCAL_CONTROL_URL}" >&2
@@ -245,13 +243,55 @@ flaresolverr_is_healthy() {
   curl -fsS --max-time 3 "http://127.0.0.1:8191/" >/dev/null 2>&1
 }
 
+ensure_flipt_env() {
+  touch "$LOCAL_ENV_FILE"
+  local token
+  token="$(read_env_value "$LOCAL_ENV_FILE" FLIPT_API_TOKEN || true)"
+  if [[ -z "$token" ]]; then
+    token="local-dev-flipt-token-nyumatflix"
+    upsert_env_var "$LOCAL_ENV_FILE" FLIPT_API_TOKEN "$token"
+  fi
+  upsert_env_var "$LOCAL_ENV_FILE" FLIPT_URL "http://127.0.0.1:8090"
+  upsert_env_var "$LOCAL_ENV_FILE" FLIPT_ENVIRONMENT "default"
+  upsert_env_var "$LOCAL_ENV_FILE" FLIPT_NAMESPACE "default"
+  if [[ -z "$(read_env_value "$LOCAL_ENV_FILE" FLIPT_FLAG_CACHE_TTL_MS || true)" ]]; then
+    upsert_env_var "$LOCAL_ENV_FILE" FLIPT_FLAG_CACHE_TTL_MS "5000"
+  fi
+}
+
+flipt_is_healthy() {
+  curl -fsS --max-time 3 "http://127.0.0.1:8090/health" >/dev/null 2>&1
+}
+
+ensure_flipt() {
+  ensure_flipt_env
+  if flipt_is_healthy; then
+    return 0
+  fi
+
+  docker network create "$DOCKER_NETWORK" 2>/dev/null || true
+  echo "starting flipt..."
+  "$ROOT/scripts/local-compose.sh" up -d flipt
+
+  for _ in $(seq 1 30); do
+    if flipt_is_healthy; then
+      echo "flipt ready"
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "flipt did not become ready on :8090" >&2
+  return 1
+}
+
 ensure_flaresolverr() {
   if flaresolverr_is_healthy; then
     return 0
   fi
 
   echo "starting flaresolverr..."
-  docker compose -f "$ROOT/docker-compose.yml" up -d flaresolverr
+  "$ROOT/scripts/local-compose.sh" up -d flaresolverr
 
   for _ in $(seq 1 30); do
     if flaresolverr_is_healthy; then
@@ -299,6 +339,11 @@ ensure_local() {
     changed=1
   fi
 
+  if ! flipt_is_healthy; then
+    ensure_flipt
+    changed=1
+  fi
+
   if [[ "$changed" -eq 1 ]]; then
     echo "scrape stack ready"
   fi
@@ -308,6 +353,7 @@ bootstrap_local() {
   sync_prod_env
   ensure_gluetun
   ensure_flaresolverr
+  ensure_flipt
 }
 
 bootstrap_prod() {

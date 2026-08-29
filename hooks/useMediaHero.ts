@@ -10,7 +10,7 @@ import {
 } from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import type { MediaItem } from "@/lib/domain/typings";
 import { getFirstRegularSeason, isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
@@ -109,7 +109,7 @@ export const useMediaHero = ({
   const disableHeroTrailers = useAppSettingsStore(
     (state) => state.disableHeroTrailers,
   );
-  const featureFlags = useFeatureFlagsOptional();
+  const featureFlags = useFeatureFlags();
 
   useEffect(() => {
     autoplayHandledRef.current = false;
@@ -158,7 +158,7 @@ export const useMediaHero = ({
 
   const videasyEnabled =
     !disableHeroTrailers &&
-    !featureFlags?.staticHeroBackdrops &&
+    !featureFlags.staticHeroBackdrops &&
     (mediaType === "movie" || mediaType === "tv") &&
     !isPlayingVideo &&
     Boolean(imdbId);
@@ -202,15 +202,22 @@ export const useMediaHero = ({
     let stabilize: { cancel: () => void } | null = null;
     let cancelled = false;
 
+    let seasonAbort: AbortController | null = null;
+
     const maybeAutoplay = async () => {
       if (passedMediaType === "tv" && currentItem) {
         const firstSeason = getFirstRegularSeason(currentItem);
         if (firstSeason) {
+          seasonAbort = new AbortController();
           try {
             const res = await fetch(
               `/api/tv/${currentItem.id}/season/${firstSeason.season_number}`,
+              { signal: seasonAbort.signal },
             );
             const seasonData = await res.json();
+            if (cancelled) {
+              return;
+            }
             if (
               Array.isArray(seasonData.episodes) &&
               seasonData.episodes.length > 0
@@ -251,6 +258,7 @@ export const useMediaHero = ({
     void maybeAutoplay();
     return () => {
       cancelled = true;
+      seasonAbort?.abort();
       if (timer) clearTimeout(timer);
       stabilize?.cancel();
     };

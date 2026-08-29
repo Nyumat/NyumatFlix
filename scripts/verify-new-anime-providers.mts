@@ -7,13 +7,7 @@ loadEnv({ path: resolve(process.cwd(), ".env.local"), override: true });
 
 const { scrapeAnimeProvider } = await import("../lib/scrape/anime/index.ts");
 
-const providers = [
-  "justanime",
-  "anikitty",
-  "animeparadise",
-  "kyren",
-  "anikuro",
-] as const;
+const providers = ["justanime", "kyren", "anikuro"] as const;
 
 for (const providerId of providers) {
   const started = Date.now();

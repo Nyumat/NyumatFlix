@@ -24,7 +24,7 @@ export const MovieCollectionClient = ({
   if (!isHydrated || !collection) return null;
 
   return (
-    <div className="h-hero relative w-full">
+    <div className="h-hero relative w-full overflow-hidden rounded-2xl">
       <MediaBackdrop image={collection.backdrop_path} alt={collection.name} />
       <div className="overlay">
         <div className="p-4 md:p-10">

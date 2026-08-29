@@ -1,5 +1,5 @@
 import { Info, Loader2, User, X } from "lucide-react";
-import Image from "next/image";
+import { BrandLogo } from "@/components/brand-logo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -72,17 +72,7 @@ export const OnboardingDialog = ({
       >
         <div className="border-b border-white/10 bg-white/[0.03] px-6 py-6 sm:px-8">
           <DialogHeader className="space-y-5 text-center">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl border border-white/12 bg-black/35">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-white/8">
-                <Image
-                  src="/logo.svg"
-                  alt="NyumatFlix"
-                  width={30}
-                  height={30}
-                  className="size-[30px]"
-                />
-              </div>
-            </div>
+            <BrandLogo placement="onboarding" />
             <div className="mx-auto max-w-sm space-y-3">
               <DialogTitle className="text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
                 Welcome to NyumatFlix

@@ -51,6 +51,7 @@ load_build_env() {
 
 build_push() {
   "$ROOT/scripts/bootstrap-scrape-vpn.sh" ensure-local
+  "$ROOT/scripts/sync-calluspirates-shared.sh"
   cd "$ROOT"
   load_build_env
   docker build --platform linux/amd64 \
@@ -71,6 +72,7 @@ acquire_deploy_lock() {
 ensure_runtime_infra() {
   NYUMATFLIX_ROOT="$ROOT" APP_ENV_FILE="$ENV_FILE" \
     "$ROOT/scripts/reconcile-prod-infra.sh" ensure
+  CAP_ENV_FILE="$ENV_FILE" "$ROOT/scripts/reconcile-cap.sh" ensure
 }
 
 serve() {
@@ -139,6 +141,10 @@ serve() {
     sudo docker logs --tail 100 "$candidate" >&2
     sudo docker rm -f "$candidate" >/dev/null
     exit 1
+  fi
+
+  if sudo docker network inspect calluspirates-net >/dev/null 2>&1; then
+    sudo docker network connect calluspirates-net "$candidate" 2>/dev/null || true
   fi
 
   upstream_backup="$(mktemp)"

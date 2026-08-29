@@ -245,8 +245,8 @@ const runWithProxySetting = async (useProxy: boolean) => {
   const animeCases = [
     {
       label: "animeonsen/Frieren",
-      scrape: () => scrapeAnimeonsen({ anilistId: 101922, episodeNumber: 1 }),
-      anilistId: 101922,
+      scrape: () => scrapeAnimeonsen({ anilistId: 154587, episodeNumber: 1 }),
+      anilistId: 154587,
     },
     {
       label: "allmanga/OnePiece",

@@ -1,5 +1,7 @@
 "use client";
 
+import { DiscoverToolbarSkeleton } from "@/components/catalog/catalog-chrome-skeletons";
+import { useClientMounted } from "@/hooks/use-client-mounted";
 import dynamic from "next/dynamic";
 import type { Genre, WatchProvider } from "@/tmdb/models";
 
@@ -10,15 +12,7 @@ const CatalogDiscoverToolbarInner = dynamic(
     ),
   {
     ssr: false,
-    loading: () => (
-      <div
-        className="flex flex-wrap items-center justify-between gap-2"
-        aria-hidden="true"
-      >
-        <div className="h-10 w-32 animate-pulse rounded-md bg-muted" />
-        <div className="h-10 w-28 animate-pulse rounded-md bg-muted" />
-      </div>
-    ),
+    loading: () => <DiscoverToolbarSkeleton />,
   },
 );
 
@@ -36,12 +30,20 @@ export const CatalogDiscoverToolbarDynamic = ({
   providers,
   serverDiscoverFilters,
   resultCount,
-}: CatalogDiscoverToolbarDynamicProps) => (
-  <CatalogDiscoverToolbarInner
-    mediaType={mediaType}
-    genres={genres}
-    providers={providers}
-    serverDiscoverFilters={serverDiscoverFilters}
-    resultCount={resultCount}
-  />
-);
+}: CatalogDiscoverToolbarDynamicProps) => {
+  const mounted = useClientMounted();
+
+  if (!mounted) {
+    return <DiscoverToolbarSkeleton />;
+  }
+
+  return (
+    <CatalogDiscoverToolbarInner
+      mediaType={mediaType}
+      genres={genres}
+      providers={providers}
+      serverDiscoverFilters={serverDiscoverFilters}
+      resultCount={resultCount}
+    />
+  );
+};

@@ -17,6 +17,7 @@ export type GlobalFlagKey =
   | "global.live_tv_enabled"
   | "global.scrape_proxy_required"
   | "global.lock_user_settings"
+  | "global.announcement_banner"
   | "global.maintenance_mode";
 
 export type ProviderFlagKind = "embed" | "scrape.tmdb" | "scrape.anime";
@@ -93,6 +94,13 @@ export const GLOBAL_FLAG_DEFINITIONS: FlagDefinition[] = [
     defaultValue: false,
     label: "Lock browse settings",
     description: "Hide user-facing proxy/hero toggles",
+    section: "power",
+  },
+  {
+    key: "global.announcement_banner",
+    defaultValue: false,
+    label: "Announcement banner",
+    description: "Show the configured site-wide announcement",
     section: "power",
   },
   {

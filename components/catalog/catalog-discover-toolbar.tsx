@@ -4,9 +4,10 @@ import { DiscoverFilters, DiscoverSort } from "@/components/discover/discover";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { languages } from "@/lib/languages";
+import { useViewModeStore } from "@/lib/stores/view-mode-store";
 import { cn, pluralize } from "@/lib/utils";
 import type { Genre, WatchProvider } from "@/tmdb/models";
-import { X } from "lucide-react";
+import { Grid2X2, List, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
@@ -36,6 +37,37 @@ type FilterChip = {
   id: string;
   label: string;
   onRemove: () => void;
+};
+
+const MobileViewModeToggle = () => {
+  const { viewMode, setViewMode } = useViewModeStore();
+
+  return (
+    <ToggleGroup
+      type="single"
+      value={viewMode}
+      onValueChange={(mode) => {
+        if (mode === "grid" || mode === "list") setViewMode(mode);
+      }}
+      className="shrink-0 rounded-lg border border-border/70 bg-background/70 p-0.5 md:hidden"
+      aria-label="Results view"
+    >
+      <ToggleGroupItem
+        value="grid"
+        className="size-11 p-0"
+        aria-label="Grid view"
+      >
+        <Grid2X2 className="size-4" />
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="list"
+        className="size-11 p-0"
+        aria-label="List view"
+      >
+        <List className="size-4" />
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
 };
 
 export const CatalogDiscoverToolbar = ({
@@ -251,25 +283,37 @@ export const CatalogDiscoverToolbar = ({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-3 md:space-y-4">
+      <div className="flex items-center gap-2 md:flex-wrap md:justify-between">
+        <div className="min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:gap-2">
           <DiscoverFilters
             type={mediaType}
             genres={genres}
             providers={providers}
             serverDiscoverFilters={serverDiscoverFilters}
+            triggerClassName="h-11 w-full px-3 md:h-9 md:w-auto md:px-4"
           />
-          <p className="text-sm text-muted-foreground">
+          <p className="hidden text-sm text-foreground/70 md:block">
             {formatResultsCount(resultCount, mediaType)}
           </p>
         </div>
-        <DiscoverSort type={mediaType} />
+        <DiscoverSort
+          type={mediaType}
+          compactOnMobile
+          triggerClassName="h-11 shrink-0 px-3 md:h-9 md:px-4"
+        />
+        <MobileViewModeToggle />
       </div>
 
+      <p className="text-sm font-medium text-foreground/75 md:hidden">
+        {formatResultsCount(resultCount, mediaType)}
+      </p>
+
       {activeFilterChips.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Filtered by:</span>
+        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
+          <span className="hidden text-sm text-foreground/70 md:inline">
+            Filtered by:
+          </span>
           {activeFilterChips.map((chip) => (
             <Button
               key={chip.id}
@@ -277,7 +321,7 @@ export const CatalogDiscoverToolbar = ({
               variant="outline"
               size="sm"
               onClick={chip.onRemove}
-              className="h-8 gap-1.5 rounded-full px-3 text-xs"
+              className="h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs md:h-8"
               aria-label={`Remove ${chip.label} filter`}
             >
               {chip.label}
@@ -290,13 +334,13 @@ export const CatalogDiscoverToolbar = ({
             variant="ghost"
             size="sm"
             onClick={clearAllFilters}
-            className="h-8 rounded-full px-3 text-xs"
+            className="h-9 shrink-0 rounded-full px-3 text-xs md:h-8"
           >
             Clear all
           </Button>
 
           {selectedGenreIds.length > 1 ? (
-            <div className="ml-0 flex items-center gap-2 text-xs text-muted-foreground sm:ml-2">
+            <div className="ml-0 hidden items-center gap-2 text-xs text-foreground/70 md:flex md:ml-2">
               <span>Match</span>
               <ToggleGroup
                 type="single"

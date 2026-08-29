@@ -1,11 +1,10 @@
 import { AniListFiltersDynamic } from "@/components/anilist/anilist-filters-dynamic";
+import { AnimeHubSectionsFallback } from "@/components/anilist/anime-suspense-fallbacks";
 import { AnimeInfiniteGrid } from "@/components/anilist/anime-infinite-grid";
 import { AnimeHero } from "@/components/anilist/anime-hero";
 import { CatalogPageShell } from "@/components/catalog/catalog-page-shell";
 import {
   CatalogGridFallback,
-  CatalogRowFallback,
-  CatalogSpotlightFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import { ContentRow } from "@/components/content/content-row";
@@ -188,28 +187,6 @@ const AnimeHubSections = async () => {
   );
 };
 
-const AnimeHubFallback = () => (
-  <>
-    <CatalogSpotlightFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-  </>
-);
-
 export default async function AnimePage(props: PageProps) {
   const raw = await props.searchParams;
   const sp = normalizeRouteSearchParams(raw);
@@ -234,7 +211,7 @@ export default async function AnimePage(props: PageProps) {
           <AnimeResults params={params} page={currentPage} />
         </Suspense>
       ) : (
-        <Suspense fallback={<AnimeHubFallback />}>
+        <Suspense fallback={<AnimeHubSectionsFallback />}>
           <AnimeHubSections />
         </Suspense>
       )}

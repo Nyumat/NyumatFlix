@@ -21,7 +21,6 @@ import {
 interface UseSearchAutocompleteOptions {
   query: string;
   results: SearchPreviewResult[];
-  suggestions: string[];
   isOpen: boolean;
   footer?: SearchAutocompleteFooter;
   ariaLabel?: string;
@@ -34,7 +33,6 @@ interface UseSearchAutocompleteOptions {
 export function useSearchAutocomplete({
   query,
   results,
-  suggestions,
   isOpen,
   footer = "none",
   ariaLabel,
@@ -48,7 +46,7 @@ export function useSearchAutocomplete({
   const [focusTarget, setFocusTarget] = useState<"input" | "list">("input");
   const includeFooter = footer !== "none";
 
-  const itemCount = getSearchAutocompleteItemCount(suggestions, results, {
+  const itemCount = getSearchAutocompleteItemCount(results, {
     includeFooter,
   });
 
@@ -90,7 +88,7 @@ export function useSearchAutocomplete({
   useEffect(() => {
     setSelectedIndex(-1);
     setFocusTarget("input");
-  }, [query, results, suggestions, footer]);
+  }, [query, results, footer]);
 
   const handleInputFocus = useCallback(() => {
     setFocusTarget("input");
@@ -142,7 +140,6 @@ export function useSearchAutocomplete({
           return true;
         case "Enter": {
           const selection = resolveSearchAutocompleteSelection(
-            suggestions,
             results,
             selectedIndex,
             { includeFooter },
@@ -177,7 +174,6 @@ export function useSearchAutocomplete({
       onSelect,
       results,
       selectedIndex,
-      suggestions,
     ],
   );
 
@@ -229,12 +225,9 @@ export function useSearchAutocomplete({
         case "Enter":
         case " ": {
           event.preventDefault();
-          const selection = resolveSearchAutocompleteSelection(
-            suggestions,
-            results,
-            index,
-            { includeFooter },
-          );
+          const selection = resolveSearchAutocompleteSelection(results, index, {
+            includeFooter,
+          });
           if (selection) {
             onSelect(selection);
           }
@@ -261,7 +254,6 @@ export function useSearchAutocomplete({
       onClose,
       onSelect,
       results,
-      suggestions,
     ],
   );
 

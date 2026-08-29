@@ -122,7 +122,7 @@ export default async function PersonPage(props: PersonPageProps) {
               className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8"
             >
               <div className="lg:col-span-1 flex justify-center lg:justify-start">
-                <div className="rounded-lg overflow-hidden shadow-xl mt-4 mb-4 w-[280px] sm:w-[320px] lg:w-full">
+                <div className="rounded-lg overflow-hidden shadow-xl w-[280px] sm:w-[320px] lg:w-full">
                   {person.profile_path ? (
                     <Image
                       src={`https://image.tmdb.org/t/p/w500${person.profile_path}`}

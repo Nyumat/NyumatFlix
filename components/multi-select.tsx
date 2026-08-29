@@ -7,7 +7,7 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { forwardRef, useEffect } from "react";
+import { forwardRef, useCallback } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,19 @@ interface MultiSelectProps
 }
 
 export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
+  (props, ref) => (
+    <MultiSelectInner
+      key={props.defaultValue.join("\0")}
+      {...props}
+      forwardedRef={ref}
+    />
+  ),
+);
+
+const MultiSelectInner = forwardRef<
+  HTMLButtonElement,
+  MultiSelectProps & { forwardedRef?: React.ForwardedRef<HTMLButtonElement> }
+>(
   (
     {
       options,
@@ -84,23 +97,59 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
       maxCount = 3,
       modalPopover = false,
       className,
+      forwardedRef,
       ...props
     },
-    ref,
+    _ref,
   ) => {
+    const ref = forwardedRef ?? _ref;
     const {
       selectedValues,
       isPopoverOpen,
       isAnimating,
       setSelectedValues,
-      toggleOption,
-      handleClear,
       handleTogglePopover,
-      clearExtraOptions,
-      toggleAll,
       setIsAnimating,
       setIsPopoverOpen,
     } = useMultiSelect(defaultValue);
+
+    const commitSelection = useCallback(
+      (values: string[]) => {
+        setSelectedValues(values);
+        onValueChange(values);
+      },
+      [onValueChange, setSelectedValues],
+    );
+
+    const handleToggleOption = useCallback(
+      (value: string) => {
+        const next = selectedValues.includes(value)
+          ? selectedValues.filter((entry) => entry !== value)
+          : [...selectedValues, value];
+        commitSelection(next);
+      },
+      [commitSelection, selectedValues],
+    );
+
+    const handleClearSelection = useCallback(() => {
+      commitSelection([]);
+    }, [commitSelection]);
+
+    const handleClearExtraOptions = useCallback(
+      (limit: number) => {
+        commitSelection(selectedValues.slice(0, limit));
+      },
+      [commitSelection, selectedValues],
+    );
+
+    const handleToggleAllOptions = useCallback(
+      (allValues: string[]) => {
+        commitSelection(
+          selectedValues.length === allValues.length ? [] : allValues,
+        );
+      },
+      [commitSelection, selectedValues],
+    );
 
     const handleInputKeyDown = (
       event: React.KeyboardEvent<HTMLInputElement>,
@@ -110,14 +159,9 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
       } else if (event.key === "Backspace" && !event.currentTarget.value) {
         const newSelectedValues = [...selectedValues];
         newSelectedValues.pop();
-        setSelectedValues(newSelectedValues);
-        onValueChange(newSelectedValues);
+        commitSelection(newSelectedValues);
       }
     };
-
-    useEffect(() => {
-      onValueChange(selectedValues);
-    }, [selectedValues]);
 
     return (
       <Popover
@@ -164,7 +208,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                             className="size-4 shrink-0 cursor-pointer transition-colors hover:text-destructive"
                             onClick={(event) => {
                               event.stopPropagation();
-                              toggleOption(value);
+                              handleToggleOption(value);
                             }}
                           />
                         ) : null}
@@ -185,7 +229,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                         className="ml-1.5 size-4 shrink-0 cursor-pointer"
                         onClick={(event) => {
                           event.stopPropagation();
-                          clearExtraOptions(maxCount);
+                          handleClearExtraOptions(maxCount);
                         }}
                       />
                     </Badge>
@@ -196,7 +240,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                     className="mx-1.5 size-4 shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-destructive"
                     onClick={(event) => {
                       event.stopPropagation();
-                      handleClear();
+                      handleClearSelection();
                     }}
                   />
                   <Separator orientation="vertical" className="h-5 shrink-0" />
@@ -228,7 +272,9 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
               <CommandGroup>
                 <CommandItem
                   key="all"
-                  onSelect={() => toggleAll(options.map((o) => o.value))}
+                  onSelect={() =>
+                    handleToggleAllOptions(options.map((o) => o.value))
+                  }
                   className="cursor-pointer"
                 >
                   <div
@@ -248,7 +294,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                   return (
                     <CommandItem
                       key={option.value}
-                      onSelect={() => toggleOption(option.value)}
+                      onSelect={() => handleToggleOption(option.value)}
                       className="cursor-pointer"
                     >
                       <div
@@ -275,7 +321,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(
                   {selectedValues.length > 0 && (
                     <>
                       <CommandItem
-                        onSelect={handleClear}
+                        onSelect={handleClearSelection}
                         className="flex-1 justify-center cursor-pointer"
                       >
                         Clear

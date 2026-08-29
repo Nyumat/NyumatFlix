@@ -4,6 +4,7 @@ export const queryKeys = {
   search: () => [...queryKeys.all, "search"] as const,
   searchPreview: (query: string) =>
     [...queryKeys.search(), "preview", query] as const,
+  searchPrompts: () => [...queryKeys.search(), "prompts"] as const,
   searchResults: (query: string, page: number) =>
     [...queryKeys.search(), "results", query, page] as const,
 

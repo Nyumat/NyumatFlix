@@ -162,6 +162,7 @@ export function HeroButtons({
           confidence: "high" | "low";
           isAdult: boolean;
           animeSeasonNumber?: number | null;
+          relativeEpisodeNumber?: number;
         }
       | undefined;
 
@@ -178,6 +179,7 @@ export function HeroButtons({
           confidence: coords.confidence,
           isAdult: coords.isAdult,
           animeSeasonNumber: coords.animeSeasonNumber,
+          relativeEpisodeNumber: coords.relativeEpisodeNumber,
         };
       }
     }

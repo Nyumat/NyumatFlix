@@ -11,7 +11,6 @@ import {
   isPremieredTvByDate,
   isReleasedMovieByDate,
 } from "@/lib/released-media";
-import { buildSearchSuggestions } from "@/lib/search/suggestions";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -27,7 +26,7 @@ export async function GET(request: Request) {
   }
 
   if (!query || query.trim().length < 2) {
-    return NextResponse.json({ results: [], suggestions: [] });
+    return NextResponse.json({ results: [] });
   }
 
   try {
@@ -53,7 +52,6 @@ export async function GET(request: Request) {
       ? result.data
       : rawData;
     const rawResults = data.results ?? [];
-    const suggestions = buildSearchSuggestions(rawResults);
 
     const filteredResults =
       rawResults
@@ -82,7 +80,6 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         results: mapMediaListToCanonicalCardsValue(filteredResults),
-        suggestions,
       },
       { headers: catalogCacheHeaders() },
     );

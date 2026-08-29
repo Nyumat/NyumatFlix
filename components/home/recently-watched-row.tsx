@@ -136,12 +136,12 @@ export function RecentlyWatchedRow({ scope = "all" }: RecentlyWatchedRowProps) {
         </div>
 
         <CarouselContent className="-ml-3">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <CarouselItem
               key={`${item.mediaType}-${item.contentId}`}
               className="basis-[85%] pl-3 sm:basis-[70%] md:basis-[42%] lg:basis-[32%] xl:basis-[28%]"
             >
-              <RecentlyWatchedCard item={item} />
+              <RecentlyWatchedCard item={item} priority={index <= 2} />
             </CarouselItem>
           ))}
         </CarouselContent>

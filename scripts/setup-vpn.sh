@@ -10,16 +10,23 @@ LOCAL_VPN_ENV="${LOCAL_VPN_ENV:-$ROOT/.env.vpn}"
 
 sync_reconciler() {
   ssh "$SSH_HOST" 'mkdir -p "$HOME/apps/nyumatflix/scripts" "$HOME/apps/gluetun"'
+  if [[ -f "$ROOT/.env.prod" ]]; then
+    rsync -avz "$ROOT/.env.prod" "$SSH_HOST:~/apps/nyumatflix/.env.prod"
+  fi
   rsync -avz \
     "$ROOT/docker-compose.scrape.yml" \
     "$ROOT/docker-compose.ffs.yml" \
-    "$SSH_HOST:~/apps/nyumatflix/"
+    "$ROOT/scripts/prod-env-managed-keys.txt" \
+    "$SSH_HOST:~/apps/nyumatflix/scripts/"
   rsync -avz \
     "$ROOT/scripts/reconcile-prod-infra.sh" \
-    "$SSH_HOST:~/apps/nyumatflix/scripts/reconcile-prod-infra.sh"
+    "$ROOT/scripts/deploy.sh" \
+    "$SSH_HOST:~/apps/nyumatflix/scripts/"
+  rsync -avz "$ROOT/scripts/deploy.sh" "$SSH_HOST:~/apps/nyumatflix/deploy.sh"
   if [[ -d "$ROOT/flipt" ]]; then
     rsync -avz "$ROOT/flipt/" "$SSH_HOST:~/apps/nyumatflix/flipt/"
   fi
+  ssh "$SSH_HOST" 'chmod +x "$HOME/apps/nyumatflix/scripts/deploy.sh" "$HOME/apps/nyumatflix/scripts/reconcile-prod-infra.sh"'
 }
 
 upload_vpn_seed() {

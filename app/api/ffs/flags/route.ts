@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
   readAdminFlagState,
+  readAnnouncementBannerConfig,
   writeAdminFlagState,
 } from "@/lib/flags/flipt-admin";
+import {
+  DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+  sanitizeAnnouncementBannerConfig,
+  type AnnouncementBannerConfig,
+} from "@/lib/flags/announcement-banner";
 import {
   applyPlaybackMutualExclusion,
   buildDefaultAdminFlagState,
@@ -17,12 +23,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const flags = await readAdminFlagState();
-    return NextResponse.json({ flags });
+    const [flags, announcementBanner] = await Promise.all([
+      readAdminFlagState(),
+      readAnnouncementBannerConfig(),
+    ]);
+    return NextResponse.json({ flags, announcementBanner });
   } catch (error) {
     console.error("[ffs] GET flags failed:", error);
     return NextResponse.json(
-      { flags: buildDefaultAdminFlagState(), degraded: true },
+      {
+        flags: buildDefaultAdminFlagState(),
+        announcementBanner: DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+        degraded: true,
+      },
       { status: 200 },
     );
   }
@@ -33,7 +46,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  let body: { flags?: AdminFlagState };
+  let body: {
+    flags?: AdminFlagState;
+    announcementBanner?: AnnouncementBannerConfig;
+  };
   try {
     body = (await request.json()) as { flags?: AdminFlagState };
   } catch {
@@ -45,10 +61,24 @@ export async function PATCH(request: NextRequest) {
   }
 
   const flags = applyPlaybackMutualExclusion(body.flags);
+  const announcementBanner = sanitizeAnnouncementBannerConfig(
+    body.announcementBanner,
+  );
+
+  if (
+    flags["global.announcement_banner"] &&
+    !announcementBanner.title &&
+    !announcementBanner.message
+  ) {
+    return NextResponse.json(
+      { error: "Add a banner title or message before enabling it" },
+      { status: 400 },
+    );
+  }
 
   try {
-    await writeAdminFlagState(flags);
-    return NextResponse.json({ flags, ok: true });
+    await writeAdminFlagState(flags, announcementBanner);
+    return NextResponse.json({ flags, announcementBanner, ok: true });
   } catch (error) {
     console.error("[ffs] PATCH flags failed:", error);
     return NextResponse.json(

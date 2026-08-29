@@ -20,7 +20,7 @@ describe("middleware", () => {
   test("keeps anilist ids on TV detail urls for reverse-lookup skip", async () => {
     expect(
       await getRedirectLocation(
-        "http://localhost:3000/tvshows/85937?autoplay=true&anilistId=101922",
+        "http://localhost:3000/tvshows/85937?autoplay=true&anilistId=154587",
       ),
     ).toBeNull();
   });

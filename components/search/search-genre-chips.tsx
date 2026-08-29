@@ -7,6 +7,8 @@ interface SearchGenreChipsProps {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   className?: string;
+  layout?: "wrap" | "scroll";
+  showHeader?: boolean;
 }
 
 export function SearchGenreChips({
@@ -14,6 +16,8 @@ export function SearchGenreChips({
   selectedIds,
   onChange,
   className,
+  layout = "wrap",
+  showHeader = true,
 }: SearchGenreChipsProps) {
   const hasSelection = selectedIds.length > 0;
 
@@ -26,32 +30,38 @@ export function SearchGenreChips({
   };
 
   return (
-    <div className={cn("space-y-2.5", className)} data-testid="genre-filter">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Genres
-        </p>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onChange(options.map((option) => option.value))}
-            className="rounded-md px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
-          >
-            All
-          </button>
-          {hasSelection ? (
+    <div className={cn("space-y-2", className)} data-testid="genre-filter">
+      {showHeader ? (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Genres
+          </p>
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => onChange([])}
+              onClick={() => onChange(options.map((option) => option.value))}
               className="rounded-md px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
             >
-              Clear
+              All
             </button>
-          ) : null}
+            {hasSelection ? (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="rounded-md px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
       <div
-        className="flex flex-wrap gap-1.5"
+        className={cn(
+          layout === "scroll"
+            ? "flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            : "flex flex-wrap gap-1.5",
+        )}
         role="group"
         aria-label="Filter by genre"
         data-testid="genre-chip-list"
@@ -65,7 +75,7 @@ export function SearchGenreChips({
               aria-pressed={isSelected}
               onClick={() => handleToggle(option.value)}
               className={cn(
-                "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                "shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
                 isSelected
                   ? "border-primary/40 bg-primary/15 text-primary"
                   : "border-white/8 bg-white/[0.03] text-muted-foreground hover:border-white/15 hover:bg-white/[0.06] hover:text-foreground",

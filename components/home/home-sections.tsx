@@ -26,6 +26,7 @@ export async function HomeFeaturedMovie() {
         priority
         pick="first"
         hideGenre
+        backdropImageClassName="object-[center_20%]"
       />
     </ContentReveal>
   );

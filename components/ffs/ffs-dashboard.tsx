@@ -5,6 +5,11 @@ import { FfsSaveBar } from "@/components/ffs/ffs-save-bar";
 import { GlobalTogglesPanel } from "@/components/ffs/global-toggles-panel";
 import { PowerFeaturesPanel } from "@/components/ffs/power-features-panel";
 import { ProviderMatrixPanel } from "@/components/ffs/provider-matrix-panel";
+import { AnnouncementBannerPanel } from "@/components/ffs/announcement-banner-panel";
+import {
+  DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+  type AnnouncementBannerConfig,
+} from "@/lib/flags/announcement-banner";
 import {
   applyPlaybackMutualExclusion,
   buildDefaultAdminFlagState,
@@ -15,16 +20,24 @@ import { toast } from "sonner";
 
 type FfsDashboardProps = {
   initialFlags: AdminFlagState;
+  initialAnnouncementBanner: AnnouncementBannerConfig;
 };
 
-export function FfsDashboard({ initialFlags }: FfsDashboardProps) {
+export function FfsDashboard({
+  initialFlags,
+  initialAnnouncementBanner,
+}: FfsDashboardProps) {
   const [saved, setSaved] = useState(initialFlags);
   const [draft, setDraft] = useState(initialFlags);
   const [saving, setSaving] = useState(false);
+  const [savedBanner, setSavedBanner] = useState(initialAnnouncementBanner);
+  const [draftBanner, setDraftBanner] = useState(initialAnnouncementBanner);
 
   const dirty = useMemo(
-    () => JSON.stringify(saved) !== JSON.stringify(draft),
-    [saved, draft],
+    () =>
+      JSON.stringify(saved) !== JSON.stringify(draft) ||
+      JSON.stringify(savedBanner) !== JSON.stringify(draftBanner),
+    [saved, draft, savedBanner, draftBanner],
   );
 
   const onChange = useCallback((key: string, value: boolean) => {
@@ -41,7 +54,8 @@ export function FfsDashboard({ initialFlags }: FfsDashboardProps) {
 
   const onReset = useCallback(() => {
     setDraft(saved);
-  }, [saved]);
+    setDraftBanner(savedBanner);
+  }, [saved, savedBanner]);
 
   const onSave = useCallback(async () => {
     setSaving(true);
@@ -50,22 +64,30 @@ export function FfsDashboard({ initialFlags }: FfsDashboardProps) {
       const res = await fetch("/api/ffs/flags", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ flags: payload }),
+        body: JSON.stringify({
+          flags: payload,
+          announcementBanner: draftBanner,
+        }),
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error ?? `Save failed (${res.status})`);
       }
-      const data = (await res.json()) as { flags: AdminFlagState };
+      const data = (await res.json()) as {
+        flags: AdminFlagState;
+        announcementBanner: AnnouncementBannerConfig;
+      };
       setSaved(data.flags);
       setDraft(data.flags);
+      setSavedBanner(data.announcementBanner);
+      setDraftBanner(data.announcementBanner);
       toast.success("Flags saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Save failed");
     } finally {
       setSaving(false);
     }
-  }, [draft]);
+  }, [draft, draftBanner]);
 
   return (
     <>
@@ -88,6 +110,14 @@ export function FfsDashboard({ initialFlags }: FfsDashboardProps) {
         </div>
 
         <PowerFeaturesPanel flags={draft} onChange={onChange} />
+        <AnnouncementBannerPanel
+          enabled={draft["global.announcement_banner"] ?? false}
+          config={draftBanner}
+          onEnabledChange={(enabled) =>
+            onChange("global.announcement_banner", enabled)
+          }
+          onConfigChange={setDraftBanner}
+        />
         <ProviderMatrixPanel
           flags={draft}
           onChange={onChange}
@@ -106,5 +136,10 @@ export function FfsDashboard({ initialFlags }: FfsDashboardProps) {
 }
 
 export function FfsDashboardFallback() {
-  return <FfsDashboard initialFlags={buildDefaultAdminFlagState()} />;
+  return (
+    <FfsDashboard
+      initialFlags={buildDefaultAdminFlagState()}
+      initialAnnouncementBanner={DEFAULT_ANNOUNCEMENT_BANNER_CONFIG}
+    />
+  );
 }

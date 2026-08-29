@@ -144,6 +144,22 @@ ensure_env_files() {
   upsert_env_var "$APP_ENV_FILE" FLIPT_URL "http://flipt:8080"
   upsert_env_var "$APP_ENV_FILE" FLIPT_ENVIRONMENT "default"
   upsert_env_var "$APP_ENV_FILE" FLIPT_NAMESPACE "default"
+  sync_managed_app_env_from_seed
+}
+
+sync_managed_app_env_from_seed() {
+  local root="${NYUMATFLIX_ROOT:-$ROOT}"
+  local seed="$root/.env.prod"
+  local keys_file="$root/scripts/prod-env-managed-keys.txt"
+  [[ -f "$seed" && -f "$keys_file" ]] || return 0
+
+  local key value
+  while IFS= read -r key; do
+    [[ -z "$key" || "$key" == \#* ]] && continue
+    value="$(read_env_value "$seed" "$key" || true)"
+    [[ -n "$value" ]] || continue
+    upsert_env_var "$APP_ENV_FILE" "$key" "$value"
+  done <"$keys_file"
 }
 
 scrape_compose() {

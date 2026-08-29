@@ -33,7 +33,7 @@ import {
 } from "@/lib/seo/constants";
 import { auth } from "@/auth";
 import { FeatureFlagsProvider } from "@/components/providers/feature-flags-provider";
-import { getSiteFlags, getDefaultSiteFlags } from "@/lib/flags/site-flags";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import { isFfsHost } from "@/lib/ffs/require-ffs-host";
 import { headers } from "next/headers";
 
@@ -103,12 +103,7 @@ export default async function RootLayout({
   const session = await auth();
   const host = (await headers()).get("host");
   const ffsAdminHost = isFfsHost(host);
-  let siteFlags = getDefaultSiteFlags();
-  try {
-    siteFlags = await getSiteFlags();
-  } catch (error) {
-    console.warn("[layout] getSiteFlags failed:", error);
-  }
+  const siteFlags = await getSiteFlags();
 
   const chrome = ffsAdminHost ? (
     <>

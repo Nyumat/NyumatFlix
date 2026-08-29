@@ -112,7 +112,7 @@ export const MovieCollection: React.FC<MovieCollectionProps> = async ({
   });
 
   return (
-    <div className="h-hero relative w-full">
+    <div className="h-hero relative w-full overflow-hidden rounded-2xl">
       <MediaBackdrop image={collection.backdrop_path} alt={collection.name} />
       <div className="overlay">
         <div className="p-4 md:p-10">
@@ -153,7 +153,10 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
   const logo = item.images?.logos.find((logo) => logo.iso_639_1 === "en");
 
   return (
-    <div className="h-hero relative isolate" key={item.id}>
+    <div
+      className="h-hero relative isolate overflow-hidden rounded-2xl"
+      key={item.id}
+    >
       <div className="absolute inset-0 md:hidden">
         <MediaBackdrop
           image={item.backdrop_path}

@@ -683,6 +683,7 @@ interface DiscoverFiltersProps {
   genres: Genre[];
   providers: WatchProvider[];
   serverDiscoverFilters?: Record<string, string>;
+  triggerClassName?: string;
 }
 
 export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
@@ -690,6 +691,7 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   genres,
   providers,
   serverDiscoverFilters,
+  triggerClassName,
 }) => {
   const {
     count,
@@ -713,7 +715,9 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
         }
       }}
     >
-      <SheetTrigger className={cn(buttonVariants({ variant: "outline" }))}>
+      <SheetTrigger
+        className={cn(buttonVariants({ variant: "outline" }), triggerClassName)}
+      >
         <SlidersHorizontal className="mr-2 size-4" /> Filters
         {count > 0 && (
           <Badge className="ml-2 px-2 text-xs leading-none">{count}</Badge>
@@ -795,9 +799,15 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
 
 interface DiscoverSortProps {
   type: "movie" | "tv";
+  compactOnMobile?: boolean;
+  triggerClassName?: string;
 }
 
-export const DiscoverSort: React.FC<DiscoverSortProps> = ({ type }) => {
+export const DiscoverSort: React.FC<DiscoverSortProps> = ({
+  type,
+  compactOnMobile = false,
+  triggerClassName,
+}) => {
   const { options, getSort, setSort } = useSort(type);
   const activeSort = getSort();
   const activeOption =
@@ -805,9 +815,21 @@ export const DiscoverSort: React.FC<DiscoverSortProps> = ({ type }) => {
 
   return (
     <Popover>
-      <PopoverTrigger className={buttonVariants({ variant: "outline" })}>
+      <PopoverTrigger
+        className={cn(buttonVariants({ variant: "outline" }), triggerClassName)}
+        aria-label={`Sort by ${activeOption?.label ?? "Most Popular"}`}
+      >
         <ArrowDownWideNarrow className="mr-2 size-4" />
-        <span>Sort: {activeOption?.label ?? "Most Popular"}</span>
+        {compactOnMobile ? (
+          <>
+            <span className="md:hidden">Sort</span>
+            <span className="hidden md:inline">
+              Sort: {activeOption?.label ?? "Most Popular"}
+            </span>
+          </>
+        ) : (
+          <span>Sort: {activeOption?.label ?? "Most Popular"}</span>
+        )}
       </PopoverTrigger>
 
       <PopoverContent align="end" className="flex flex-col gap-1 p-1">

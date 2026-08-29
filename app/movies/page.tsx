@@ -161,8 +161,8 @@ export default async function MoviesCatalogPage(props: PageProps) {
           />
 
           <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-            <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
-              <div className="container space-y-10">
+            <section className="min-h-screen w-full bg-background/95 pb-16 pt-12 md:bg-transparent md:pt-16">
+              <div className="container space-y-6 md:space-y-10">
                 <CatalogResultsLayout
                   mediaType="movie"
                   title={title}
@@ -403,8 +403,8 @@ export default async function MoviesCatalogPage(props: PageProps) {
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
 
       <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-        <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
-          <div className="container space-y-10">
+        <section className="min-h-screen w-full bg-background/95 pb-16 pt-12 md:bg-transparent md:pt-16">
+          <div className="container space-y-6 md:space-y-10">
             <CatalogResultsLayout
               mediaType="movie"
               title={title}

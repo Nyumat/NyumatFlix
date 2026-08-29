@@ -42,10 +42,43 @@ describe("site-flags", () => {
     ).toEqual(["animepahe"]);
   });
 
+  it("keeps direct in scrape order when server resolved it as available", () => {
+    const flags = {
+      ...getDefaultSiteFlags(),
+      directScrapeProviderAvailable: true,
+      tmdbScrapeProviders: {
+        ...getDefaultSiteFlags().tmdbScrapeProviders,
+        direct: true,
+        vidking: false,
+        vidsrc: false,
+      },
+    };
+
+    expect(filterTmdbScrapeProviderIds(flags, ["direct", "vidking"])).toEqual([
+      "direct",
+    ]);
+  });
+
+  it("drops direct from scrape order when server resolved it as unavailable", () => {
+    const flags = {
+      ...getDefaultSiteFlags(),
+      directScrapeProviderAvailable: false,
+      tmdbScrapeProviders: {
+        ...getDefaultSiteFlags().tmdbScrapeProviders,
+        direct: true,
+      },
+    };
+
+    expect(filterTmdbScrapeProviderIds(flags, ["direct", "vidsrc"])).toEqual([
+      "vidsrc",
+    ]);
+  });
+
   it("returns compile-time defaults when resolving empty raw state", () => {
     const defaults = getDefaultSiteFlags();
     expect(defaults.liveTvEnabled).toBe(false);
     expect(defaults.authEnabled).toBe(true);
+    expect(defaults.announcementBanner.enabled).toBe(false);
     expect(getPlaybackModePolicy(defaults)).toBe("choice");
   });
 

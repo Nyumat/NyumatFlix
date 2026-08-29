@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { fetchWithCapSession } from "@/lib/cap/client";
 import {
   buildVidnestAnimePaheUrl,
   buildVidnestAnimeUrl,
@@ -197,7 +198,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
 
         let healthResults: ServerHealthResponse[] = [];
         try {
-          const response = await fetch("/api/servers/health", {
+          const response = await fetchWithCapSession("/api/servers/health", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ urls: checks.map(({ url }) => url) }),
