@@ -16,7 +16,8 @@ export const isVidsrcPlaybackRefresh = (
 
 export const isVidKingPlaybackRefresh = (
   refresh: ScrapePlaybackRefresh | undefined,
-): refresh is VidKingPlaybackRefresh => refresh?.providerId === "vidking";
+): refresh is VidKingPlaybackRefresh =>
+  refresh?.providerId === "vidking" || refresh?.providerId === "videasy";
 
 export const isVixsrcPlaybackRefresh = (
   refresh: ScrapePlaybackRefresh | undefined,

@@ -13,6 +13,6 @@ export const VIDKING_REFRESH_BEFORE_MS =
 export const VIDKING_PROACTIVE_REFRESH_AFTER_MS = 15_000;
 
 export type VidKingPlaybackRefresh = ScrapeMediaInput & {
-  providerId: "vidking";
+  providerId: "vidking" | "videasy";
   seedFetchedAt: number;
 };

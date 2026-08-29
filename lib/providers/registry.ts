@@ -4,6 +4,8 @@
  */
 
 export type TmdbScrapeProviderId =
+  | "direct"
+  | "videasy"
   | "vidking"
   | "vidnest"
   | "vidsrc"
@@ -23,10 +25,8 @@ export type AnimeScrapeProviderId =
   | "animegg"
   | "animepahe"
   | "justanime"
-  | "anikitty"
   | "anikuro"
-  | "kyren"
-  | "animeparadise";
+  | "kyren";
 
 export type EmbedProviderId =
   | "vidsrc"
@@ -85,7 +85,11 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
     animeEmbed: true,
   }),
   provider("vidfast", "VidFast", { embed: true }),
-  provider("videasy", "VidEasy", { embed: true, animeEmbed: true }),
+  provider("videasy", "VidEasy", {
+    embed: true,
+    tmdbScrape: true,
+    animeEmbed: true,
+  }),
   provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
   provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
@@ -96,37 +100,37 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidlux", "VidLux", { embed: true }),
 ];
 
-/** Order from latency bench: success rate ↓, then ok p50 ↑ (see scripts/bench-scrape-latency.mts). */
+/** Order from latency bench (scripts/bench-scrape-latency.mts); client races batches of 3. */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
+  provider("direct", "Direct", { embed: false, tmdbScrape: true }),
+  provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
+  provider("videasy", "VidEasy", {
+    embed: true,
+    tmdbScrape: true,
+    animeEmbed: true,
+  }),
   provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
   provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
-  provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
+  // Fast API scrape but high false-positive rate on playlist probes — try last.
+  provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
   provider("vidnest", "VidNest", {
     embed: true,
     tmdbScrape: true,
     animeEmbed: true,
   }),
-  // Fast API scrape but high false-positive rate on playlist probes — try last.
-  provider("vixsrc", "VixSrc", { embed: true, tmdbScrape: true }),
 ];
 
 /**
- * Order from latency bench (non-adult). Adult-only `anipm` / `hentaigasm` stay
- * last — `buildAnimePlaybackProviderOrder` promotes them when eligible.
+ * Order from latency bench (non-adult). Client races batches of 3 via
+ * useProviderScrapeLoop; all providers pass full validate + play-path gates.
+ * Adult-only `anipm` / `hentaigasm` stay last — `buildAnimePlaybackProviderOrder`
+ * promotes them when eligible.
  */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("justanime", "JustAnime", { embed: false, animeScrape: true }),
-  // Disabled: upstream streams are currently broken (2026-03).
-  // provider("anikitty", "AniKitty", { embed: false, animeScrape: true }),
-  // Disabled: streams are currently broken upstream (2026-03).
-  // provider("animeparadise", "AnimeParadise", {
-  //   embed: false,
-  //   animeScrape: true,
-  // }),
   provider("kyren", "Kyren", { embed: false, animeScrape: true }),
-  provider("anikuro", "AniKuro", { embed: false, animeScrape: true }),
   provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),
   provider("allmanga", "AllManga", { embed: false, animeScrape: true }),
   provider("animegg", "AnimeGG", { embed: false, animeScrape: true }),
@@ -134,6 +138,7 @@ export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("anizone", "AniZone", { embed: false, animeScrape: true }),
   provider("animestream", "AnimeStream", { embed: false, animeScrape: true }),
   provider("animepahe", "AnimePahe", { embed: false, animeScrape: true }),
+  provider("anikuro", "AniKuro", { embed: false, animeScrape: true }),
   provider("anipm", "ani.pm", { embed: false, animeScrape: true }),
   provider("hentaigasm", "Hentaigasm", { embed: false, animeScrape: true }),
 ];

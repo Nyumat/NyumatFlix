@@ -7,7 +7,7 @@ import {
   scrapeProxyUrl,
 } from "./proxy";
 import { scrapeUpstreamHeaders } from "./upstream-headers";
-import { isVidKingCdnUrl } from "./vidking-cdn-url";
+import { isVidKingCdnHostname, isVidKingCdnUrl } from "./vidking-cdn-url";
 import {
   rotateScrapeVpnEgress,
   scrapeRateLimitRotateHostname,
@@ -31,9 +31,26 @@ export const isVidsrcScrapeHostname = (hostname: string): boolean =>
 
 export const scrapePreferProxyHostname = (hostname: string): boolean =>
   hostname === "api.wingsdatabase.com" ||
+  isVidKingCdnHostname(hostname) ||
   (Boolean(scrapeProxyUrl()) && isVidsrcScrapeHostname(hostname));
 
-export const scrapeBypassesProxyHostname = (hostname: string): boolean => {
+export const scrapeBypassesProxyHostname = (
+  hostname: string,
+  url?: string,
+): boolean => {
+  // Wingsdatabase CDN tokens are minted on VPN egress — never bypass gluetun.
+  if (url && isVidKingCdnUrl(url)) {
+    return false;
+  }
+  if (isVidKingCdnHostname(hostname)) {
+    return false;
+  }
+
+  // Softsub CDN — must bypass before the VidSrc `*.space` host pattern.
+  if (hostname === "sub.1x2.space") {
+    return true;
+  }
+
   // Local dev has no VPN proxy — direct egress is fine. Prod must use gluetun so
   // JWT mint + playback share the same residential exit IP, not the VPS IP.
   if (isVidsrcScrapeHostname(hostname)) {
@@ -42,7 +59,6 @@ export const scrapeBypassesProxyHostname = (hostname: string): boolean => {
 
   return (
     hostname === "graphql.anilist.co" ||
-    hostname === "stream.animeparadise.moe" ||
     hostname === "api.kyren.moe" ||
     hostname === "kyren.moe" ||
     /(?:^|\.)(?:vivibebe\.site|megaplay\.buzz)$/.test(hostname) ||
@@ -73,6 +89,8 @@ type ScrapeFetchInit = RequestInit & {
   headers?: Record<string, string>;
   curlFallback?: boolean;
   timeoutMs?: number;
+  /** Override default 3-attempt retry loop (e.g. wingsdatabase hangs on miss). */
+  retryAttempts?: number;
 };
 
 const hostnameOf = (url: string): string => {
@@ -152,9 +170,10 @@ export async function scrapeFetch(
   url: string,
   init: ScrapeFetchInit = {},
 ): Promise<Response> {
+  const { retryAttempts = FETCH_RETRY_ATTEMPTS, ...fetchInit } = init;
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < FETCH_RETRY_ATTEMPTS; attempt++) {
+  for (let attempt = 0; attempt < retryAttempts; attempt++) {
     if (attempt > 0) {
       await new Promise((resolve) =>
         setTimeout(resolve, FETCH_RETRY_DELAY_MS * attempt),
@@ -162,7 +181,7 @@ export async function scrapeFetch(
     }
 
     try {
-      return await scrapeFetchOnce(url, init);
+      return await scrapeFetchOnce(url, fetchInit);
     } catch (error) {
       lastError = error;
     }
@@ -269,7 +288,7 @@ async function scrapeFetchOnce(
       if (BLOCKED_STATUSES.has(response.status)) {
         const fallback = await tryCurlFallback(egressProxyUrl, response);
         if (fallback && fallback !== response) {
-          if (hostname && !scrapeBypassesProxyHostname(hostname)) {
+          if (hostname && !scrapeBypassesProxyHostname(hostname, url)) {
             hostEgressPreference.set(hostname, preference);
           }
           return fallback;
@@ -277,14 +296,14 @@ async function scrapeFetchOnce(
         return response;
       }
 
-      if (hostname && !scrapeBypassesProxyHostname(hostname)) {
+      if (hostname && !scrapeBypassesProxyHostname(hostname, url)) {
         hostEgressPreference.set(hostname, preference);
       }
       return response;
     } catch {
       const fallback = await tryCurlFallback(egressProxyUrl);
       if (fallback) {
-        if (hostname && !scrapeBypassesProxyHostname(hostname)) {
+        if (hostname && !scrapeBypassesProxyHostname(hostname, url)) {
           hostEgressPreference.set(hostname, preference);
         }
         return fallback;
@@ -293,7 +312,7 @@ async function scrapeFetchOnce(
     }
   };
 
-  if (hostname && scrapeBypassesProxyHostname(hostname)) {
+  if (hostname && scrapeBypassesProxyHostname(hostname, url)) {
     const directOnly = await attemptEgress(
       scrapeDirectDispatcher(),
       undefined,
@@ -317,7 +336,7 @@ async function scrapeFetchOnce(
     ) {
       return directResult;
     }
-    if (hostname && !scrapeBypassesProxyHostname(hostname)) {
+    if (hostname && !scrapeBypassesProxyHostname(hostname, url)) {
       hostEgressPreference.set(hostname, "proxy");
     }
     if (directResult !== "error") {

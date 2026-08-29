@@ -9,6 +9,7 @@ import {
 import { looksLikeStreamUrl, type StreamKind } from "./stream-url-patterns";
 import { scrapeUpstreamHeaders } from "./upstream-headers";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
+import { isVixsrcStubPlaylistBody } from "./vixsrc-stub";
 
 export type ValidateStreamDepth = "full" | "master";
 
@@ -121,6 +122,10 @@ const looksLikeValidBody = (
   if (kind === "hls") {
     const hasExtM3u = body.includes("#EXTM3U");
 
+    if (isVixsrcStubPlaylistBody(streamUrl ?? "", body)) {
+      return false;
+    }
+
     // VixSrc can return JSON stubs with a "playlist" key that are not HLS.
     if (/vixsrc\.to\/playlist\//i.test(streamUrl ?? "")) {
       return (
@@ -230,22 +235,27 @@ const probeHlsAsset = async (
   const candidates = [assetUrl, ...resolveKaaSegmentFallbackUrls(assetUrl)];
 
   for (const candidate of candidates) {
-    const response = await scrapeFetch(candidate, {
-      method: "GET",
-      headers: {
-        Range: "bytes=0-1023",
-        ...scrapeUpstreamHeaders(candidate, referer),
-      },
-    });
-    if (!response.ok) {
-      await cancelResponseBody(response);
-      continue;
-    }
+    try {
+      const response = await scrapeFetch(candidate, {
+        method: "GET",
+        headers: {
+          Range: "bytes=0-1023",
+          ...scrapeUpstreamHeaders(candidate, referer),
+        },
+        retryAttempts: 1,
+      });
+      if (!response.ok) {
+        await cancelResponseBody(response);
+        continue;
+      }
 
-    const contentType = response.headers.get("content-type") ?? "";
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (isValidHlsAssetResponse(contentType, bytes)) {
-      return true;
+      const contentType = response.headers.get("content-type") ?? "";
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (isValidHlsAssetResponse(contentType, bytes)) {
+        return true;
+      }
+    } catch {
+      continue;
     }
   }
 
@@ -295,7 +305,8 @@ const validateHlsPlayback = async (
   depth = 0,
   expectedDurationMinutes?: number | null,
 ): Promise<boolean> => {
-  if (!body.includes("#EXTM3U") || depth > 2) {
+  const maxDepth = /okcdn\.ru/i.test(playlistUrl) ? 5 : 2;
+  if (!body.includes("#EXTM3U") || depth > maxDepth) {
     return false;
   }
 

@@ -1,5 +1,6 @@
 import type {
   ScrapeAudioVersion,
+  ScrapeMediaInput,
   ScrapeQuality,
   ScrapeSubtitle,
 } from "../types";
@@ -20,6 +21,15 @@ export type AnimeScrapeInput = {
   translationType?: AnimeTranslationType;
   /** Override search query (defaults to AniList romaji/english title). */
   query?: string;
+  /**
+   * TMDB season/episode coords for softsub fallback (sub.1x2.space) when the
+   * stream provider omits caption tracks. Season/episode here are TMDB-relative
+   * and may differ from AniList `episodeNumber`.
+   */
+  tmdb?: Pick<
+    ScrapeMediaInput,
+    "mediaType" | "tmdbId" | "seasonNumber" | "episodeNumber"
+  >;
 };
 
 export const animeScrapeMediaKeyFor = (input: AnimeScrapeInput): string =>
@@ -40,6 +50,8 @@ export {
 export type AnimeScrapeSuccess = {
   ok: true;
   providerId: AnimeScrapeProviderId;
+  /** Provider already ran full stream + play-path probes — skip outer re-validation. */
+  validated?: true;
   streamUrl: string;
   streamKind: StreamKind;
   referer?: string;

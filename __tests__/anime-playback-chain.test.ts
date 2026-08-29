@@ -115,13 +115,13 @@ describe("anime-playback-chain", () => {
     expect(order).toEqual([
       "justanime",
       "kyren",
-      "anikuro",
       "allmanga",
       "animegg",
       "kickassanime",
       "anizone",
       "animestream",
       "animepahe",
+      "anikuro",
     ]);
   });
 
@@ -170,12 +170,12 @@ describe("anime-playback-chain", () => {
       "anipm",
       "justanime",
       "kyren",
-      "anikuro",
       "animeonsen",
       "allmanga",
       "kickassanime",
       "anizone",
       "animestream",
+      "anikuro",
     ]);
   });
 });

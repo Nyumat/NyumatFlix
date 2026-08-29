@@ -170,7 +170,6 @@ export function HeroButtons({
         tmdbShowId: contentId,
         seasonNumber: targetSeasonNumber,
         episodeNumber: episode.episode_number,
-        sourceAnilistId: defaultAnilistId,
         isAdult: defaultIsAdultAnime,
       });
       if (coords) {

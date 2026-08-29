@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { decodeAllanimeProviderPath } from "@/lib/scrape/anime/allanime-crypto";
+import { normalizeAllanimeStreamUrl } from "@/lib/scrape/anime/allanime-stream-url";
 import {
   extractHtmlSubtitleTracks,
   isDirectMediaUrl,
@@ -131,6 +132,32 @@ describe("anime scrape helpers", () => {
     ).toBe(true);
   });
 
+  it("matches franchise subtitles without matching sequel series names", () => {
+    expect(
+      animeSearchLabelMatches("Jujutsu Kaisen: Shimetsu Kaiyuu - Zenpen", [
+        "Jujutsu Kaisen",
+      ]),
+    ).toBe(true);
+    expect(
+      animeSearchLabelMatches(
+        "Completed Sub Frieren: Beyond Journey's End Season 2",
+        ["Frieren: Beyond Journey's End"],
+      ),
+    ).toBe(true);
+    expect(
+      animeSearchLabelMatches(
+        "Naruto Shippuden Episodes: 500 Alt Titles : Naruto: Shippuuden Status : Completed",
+        ["Naruto"],
+      ),
+    ).toBe(false);
+    expect(
+      animeSearchLabelMatches(
+        "One Piece Episode of Merry - Mou Hitori no Nakama no Monogatari",
+        ["ONE PIECE"],
+      ),
+    ).toBe(false);
+  });
+
   it("unpacks Dean Edwards scripts without evaluating them", () => {
     const packed =
       "eval(function(p,a,c,k,e,d){return p}('0 1=\\'2://3/4.5\\';',62,6,'var|url|https|cdn.example|master|m3u8'.split('|'),0,{}))";
@@ -138,5 +165,13 @@ describe("anime scrape helpers", () => {
     expect(unpackDeanEdwardsScripts(packed)).toEqual([
       "var url='https://cdn.example/master.m3u8';",
     ]);
+  });
+
+  it("normalizes double-escaped AllAnime okcdn query strings", () => {
+    const raw =
+      "https://vd543.okcdn.ru/video.m3u8?cmd=videoPlayerCdn\\\\u0026expires=1\\\\u0026sig=abc\\";
+    expect(normalizeAllanimeStreamUrl(raw)).toBe(
+      "https://vd543.okcdn.ru/video.m3u8?cmd=videoPlayerCdn&expires=1&sig=abc",
+    );
   });
 });

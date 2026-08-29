@@ -4,19 +4,26 @@ import type { ScrapeQuality, ScrapeSubtitle } from "../../types";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
 import { probeScrapePlaybackPath } from "../../playback-probe";
 import { validateStreamUrlWithReferers } from "../../validate-stream";
+import { scrapeAllmanga } from "./allmanga";
 
-const ANIKURO_ORIGIN = "https://anikuro.ru";
-const ANIKURO_API = `${ANIKURO_ORIGIN}/api/v1`;
+const ANIKURO_ORIGINS = ["https://anikuro.ru", "https://anikuro.to"] as const;
 
-/** Mirrors AniKuro's parallel source race — ordered by typical playability from our egress. */
+/**
+ * Live keys from /api/v1/sources invalid_provider.details.supported.
+ * `allani` answers quickly; most others currently CF-504.
+ */
 const SOURCE_PROVIDERS = [
+  "allani",
+  "animepahe",
   "anikoto",
+  "animegg",
   "senshi",
   "animix",
-  "animepahe",
-  "allanime",
   "reanime",
   "animedao",
+  "anidb",
+  "animedunya",
+  "animeverse",
 ] as const;
 
 type SourceProvider = (typeof SOURCE_PROVIDERS)[number];
@@ -57,14 +64,15 @@ type AnikuroSourcesResponse = {
   error?: { message?: string };
 };
 
-const SOURCE_TIMEOUT_MS = 25_000;
+const FAST_SOURCE_TIMEOUT_MS = 8_000;
+const SLOW_SOURCE_TIMEOUT_MS = 14_000;
 
-const absoluteUrl = (url: string): string => {
+const absoluteUrl = (origin: string, url: string): string => {
   if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
   if (url.startsWith("/")) {
-    return `${ANIKURO_ORIGIN}${url}`;
+    return `${origin}${url}`;
   }
   return url;
 };
@@ -79,11 +87,19 @@ const headerReferer = (
 const prefersAnikuroProxy = (
   sourceProvider: SourceProvider,
   source: AnikuroSource,
-): boolean =>
-  sourceProvider === "senshi" ||
-  Boolean(source.url?.startsWith("/api/v1/proxy/"));
+): boolean => {
+  const candidate = source.url ?? source.originalUrl ?? "";
+  if (/nekostream|mewstream|megaplay/i.test(candidate)) {
+    return Boolean(source.url);
+  }
+  return (
+    sourceProvider === "senshi" ||
+    (typeof source.url === "string" && source.url.startsWith("/api/v1/proxy/"))
+  );
+};
 
 const pickStream = (
+  origin: string,
   track: AnikuroTrack | null | undefined,
   sourceProvider: SourceProvider,
 ): { url: string; referer: string; qualities?: ScrapeQuality[] } | null => {
@@ -94,14 +110,14 @@ const pickStream = (
 
   if (sources.length === 0) {
     if (track?.default) {
-      const defaultUrl = absoluteUrl(track.default);
+      const defaultUrl = absoluteUrl(origin, track.default);
       return {
         url: defaultUrl,
         referer:
           headerReferer(track) ??
-          (defaultUrl.includes("proxy.anikuro.ru") ||
+          (defaultUrl.includes("proxy.anikuro.") ||
           defaultUrl.includes("/api/v1/proxy/")
-            ? ANIKURO_ORIGIN
+            ? origin
             : "https://megaplay.buzz/"),
       };
     }
@@ -110,8 +126,8 @@ const pickStream = (
 
   const best = sources[0]!;
   const streamUrl = prefersAnikuroProxy(sourceProvider, best)
-    ? absoluteUrl(best.url ?? best.originalUrl!)
-    : (best.originalUrl ?? absoluteUrl(best.url!));
+    ? absoluteUrl(origin, best.url ?? best.originalUrl!)
+    : (best.originalUrl ?? absoluteUrl(origin, best.url!));
   const referer =
     headerReferer(best) ??
     headerReferer(track) ??
@@ -119,17 +135,14 @@ const pickStream = (
       ? "https://senshi.live/"
       : streamUrl.includes("mewstream") || streamUrl.includes("megaplay")
         ? "https://megaplay.buzz/"
-        : streamUrl.includes("proxy.anikuro.ru") ||
-            streamUrl.includes("/api/v1/proxy/")
-          ? ANIKURO_ORIGIN
-          : ANIKURO_ORIGIN);
+        : origin);
 
   const qualities = sources
     .slice(1)
     .map((source) => {
       const url = prefersAnikuroProxy(sourceProvider, source)
-        ? absoluteUrl(source.url ?? source.originalUrl!)
-        : (source.originalUrl ?? absoluteUrl(source.url!));
+        ? absoluteUrl(origin, source.url ?? source.originalUrl!)
+        : (source.originalUrl ?? absoluteUrl(origin, source.url!));
       return {
         label: source.quality ?? "auto",
         url,
@@ -146,12 +159,13 @@ const pickStream = (
 };
 
 const mapSubtitles = (
+  origin: string,
   track: AnikuroTrack | null | undefined,
 ): ScrapeSubtitle[] | undefined => {
   const mapped = (track?.subtitles ?? [])
     .map((subtitle) => ({
       lang: subtitle.label ?? subtitle.lang ?? "Unknown",
-      url: absoluteUrl(subtitle.file ?? subtitle.url ?? ""),
+      url: absoluteUrl(origin, subtitle.file ?? subtitle.url ?? ""),
       format: "vtt" as const,
     }))
     .filter((subtitle) => Boolean(subtitle.url));
@@ -160,19 +174,22 @@ const mapSubtitles = (
 };
 
 const fetchSources = async (
+  origin: string,
   provider: SourceProvider,
   episodeId: string,
-): Promise<AnikuroSourcesResponse | null> => {
+  timeoutMs: number,
+): Promise<{ origin: string; payload: AnikuroSourcesResponse } | null> => {
   try {
     const response = await scrapeFetch(
-      `${ANIKURO_API}/sources/${provider}/${episodeId}`,
+      `${origin}/api/v1/sources/${provider}/${episodeId}`,
       {
         headers: {
           Accept: "application/json",
-          Origin: ANIKURO_ORIGIN,
-          Referer: `${ANIKURO_ORIGIN}/`,
+          Origin: origin,
+          Referer: `${origin}/watch/${episodeId}`,
         },
-        signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
+        timeoutMs,
+        retryAttempts: 1,
       },
     );
 
@@ -181,7 +198,10 @@ const fetchSources = async (
       return null;
     }
 
-    return (await response.json()) as AnikuroSourcesResponse;
+    return {
+      origin,
+      payload: (await response.json()) as AnikuroSourcesResponse,
+    };
   } catch {
     return null;
   }
@@ -191,21 +211,98 @@ const isPlayableCandidate = async (
   streamUrl: string,
   referer: string,
 ): Promise<boolean> => {
-  const validation = await validateStreamUrlWithReferers(
-    streamUrl,
-    referer,
-    "hls",
-    { depth: "full" },
-  );
-  if (!validation.ok) {
+  try {
+    const validation = await validateStreamUrlWithReferers(
+      streamUrl,
+      referer,
+      "hls",
+      { depth: "master" },
+    );
+    if (!validation.ok) {
+      return false;
+    }
+
+    const playbackReferer = referer || validation.referer;
+    return probeScrapePlaybackPath({
+      url: streamUrl,
+      referer: playbackReferer,
+    });
+  } catch {
     return false;
   }
+};
 
-  const playbackReferer = referer || validation.referer;
-  return probeScrapePlaybackPath({
-    url: streamUrl,
-    referer: playbackReferer,
-  });
+type AnikuroWinner = {
+  origin: string;
+  track: AnikuroTrack | null | undefined;
+  picked: { url: string; referer: string; qualities?: ScrapeQuality[] };
+};
+
+const tryProviderBatch = async (
+  origins: readonly string[],
+  providers: readonly SourceProvider[],
+  episodeId: string,
+  preferDub: boolean,
+  timeoutMs: number,
+): Promise<AnikuroWinner | null> => {
+  const attempts = origins.flatMap((origin) =>
+    providers.map((sourceProvider) => ({ origin, sourceProvider })),
+  );
+
+  const settled = await Promise.all(
+    attempts.map(async ({ origin, sourceProvider }) => {
+      const fetched = await fetchSources(
+        origin,
+        sourceProvider,
+        episodeId,
+        timeoutMs,
+      );
+      if (!fetched?.payload.ok || !fetched.payload.data?.raw) {
+        return null;
+      }
+
+      const raw = fetched.payload.data.raw;
+      if (raw.error && !raw.sub && !raw.dub) {
+        return null;
+      }
+
+      const track = preferDub ? (raw.dub ?? raw.sub) : (raw.sub ?? raw.dub);
+      const picked = pickStream(fetched.origin, track, sourceProvider);
+      if (!picked) {
+        return null;
+      }
+
+      if (!(await isPlayableCandidate(picked.url, picked.referer))) {
+        return null;
+      }
+
+      return {
+        origin: fetched.origin,
+        track,
+        picked,
+      };
+    }),
+  );
+
+  return settled.find((entry) => entry !== null) ?? null;
+};
+
+/**
+ * AniKuro's allani worker maps AniList → AllAnime showId but its aaReq is
+ * stale (empty sourceUrls). Finish the hop with our fixed AllAnime client.
+ */
+const fallbackViaAllmanga = async (
+  input: AnimeScrapeInput,
+): Promise<AnimeScrapeResult | null> => {
+  const result = await scrapeAllmanga(input);
+  if (!result.ok) {
+    return null;
+  }
+
+  return {
+    ...result,
+    providerId: "anikuro",
+  };
 };
 
 export async function scrapeAnikuro(
@@ -216,35 +313,56 @@ export async function scrapeAnikuro(
   const preferDub = input.translationType === "dub";
 
   try {
-    for (const sourceProvider of SOURCE_PROVIDERS) {
-      const payload = await fetchSources(sourceProvider, episodeId);
-      if (!payload?.ok || !payload.data?.raw) {
-        continue;
-      }
-
-      const raw = payload.data.raw;
-      if (raw.error && !raw.sub && !raw.dub) {
-        continue;
-      }
-
-      const track = preferDub ? (raw.dub ?? raw.sub) : (raw.sub ?? raw.dub);
-      const picked = pickStream(track, sourceProvider);
-      if (!picked) {
-        continue;
-      }
-
-      if (!(await isPlayableCandidate(picked.url, picked.referer))) {
-        continue;
-      }
-
+    // Fast path: allani only (usually 200 in ~1s, even when sources empty).
+    const fast = await tryProviderBatch(
+      ANIKURO_ORIGINS,
+      ["allani"],
+      episodeId,
+      preferDub,
+      FAST_SOURCE_TIMEOUT_MS,
+    );
+    if (fast) {
       return {
         ok: true,
         providerId,
-        streamUrl: picked.url,
+        validated: true,
+        streamUrl: fast.picked.url,
         streamKind: "hls",
-        referer: picked.referer,
-        subtitles: mapSubtitles(track),
-        qualities: picked.qualities,
+        referer: fast.picked.referer,
+        subtitles: mapSubtitles(fast.origin, fast.track),
+        qualities: fast.picked.qualities,
+        preferredAudioLang: preferredAudioLangForTranslation(
+          input.translationType,
+        ),
+      };
+    }
+
+    // AllAnime fallback before waiting on CF-504 workers.
+    const fallback = await fallbackViaAllmanga(input);
+    if (fallback?.ok) {
+      return fallback;
+    }
+
+    const remaining = SOURCE_PROVIDERS.filter(
+      (provider) => provider !== "allani",
+    );
+    const slow = await tryProviderBatch(
+      ANIKURO_ORIGINS,
+      remaining,
+      episodeId,
+      preferDub,
+      SLOW_SOURCE_TIMEOUT_MS,
+    );
+    if (slow) {
+      return {
+        ok: true,
+        providerId,
+        validated: true,
+        streamUrl: slow.picked.url,
+        streamKind: "hls",
+        referer: slow.picked.referer,
+        subtitles: mapSubtitles(slow.origin, slow.track),
+        qualities: slow.picked.qualities,
         preferredAudioLang: preferredAudioLangForTranslation(
           input.translationType,
         ),
@@ -254,7 +372,8 @@ export async function scrapeAnikuro(
     return {
       ok: false,
       providerId,
-      error: "AniKuro returned no playable sources",
+      error:
+        "AniKuro source workers unavailable (504 / empty) and AllAnime fallback failed",
     };
   } catch (error) {
     return {

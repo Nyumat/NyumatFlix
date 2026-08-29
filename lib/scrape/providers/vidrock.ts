@@ -184,7 +184,6 @@ export async function scrapeVidrock(
 
     for (const source of sources) {
       let streamUrl = source.url;
-      let streamKindHint = source.type;
 
       if (
         source.type === "mp4" &&
@@ -196,23 +195,28 @@ export async function scrapeVidrock(
           continue;
         }
         streamUrl = resolved;
-        streamKindHint = /\.m3u8/i.test(resolved) ? "hls" : "mp4";
       }
 
       const referer = `${VIDROCK_ORIGIN}/`;
       const kind =
-        streamKindHint === "mp4" || /\.mp4(?:[?#]|$)/i.test(streamUrl)
+        source.type === "mp4" || /\.mp4(?:[?#]|$)/i.test(streamUrl)
           ? "mp4"
           : "hls";
 
-      // Workers sometimes return 200 HTML under an mpegurl content-type for
-      // missing titles — validate before accepting, then try the next source.
-      const validation = await validateStreamUrlWithReferers(
+      let validation = await validateStreamUrlWithReferers(
         streamUrl,
         referer,
         kind,
-        { depth: "master" },
+        { depth: "full" },
       );
+      if (!validation.ok) {
+        validation = await validateStreamUrlWithReferers(
+          streamUrl,
+          referer,
+          kind,
+          { depth: "full" },
+        );
+      }
       if (!validation.ok) {
         continue;
       }
@@ -220,9 +224,9 @@ export async function scrapeVidrock(
       return {
         ok: true,
         providerId,
-        validated: true,
         streamUrl,
         referer: validation.referer ?? referer,
+        validated: true,
       };
     }
 

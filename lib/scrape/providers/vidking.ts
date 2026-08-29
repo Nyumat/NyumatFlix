@@ -1,6 +1,12 @@
-import { cancelResponseBody, scrapeFetch } from "../fetch";
+import {
+  cancelResponseBody,
+  resetScrapeHostEgressPreferences,
+  scrapeFetch,
+} from "../fetch";
+import { scrapeProxyUrl } from "../proxy";
 import { attachSubtitlesToQualities } from "../linked-config";
 import { scrapeUpstreamHeaders } from "../upstream-headers";
+import { rotateScrapeVpnEgress } from "../vpn-rotate";
 import type {
   ScrapeMediaInput,
   ScrapeQuality,
@@ -10,19 +16,32 @@ import type {
 import { isVidKingCdnUrl } from "../vidking-cdn-url";
 
 const VIDKING_ORIGIN = "https://www.vidking.net";
+const VIDKING_CDN_REFERERS = [
+  "https://www.vidking.net/",
+  "https://vidking.net/",
+] as const;
 const VIDKING_API = "https://api.wingsdatabase.com";
 
 /**
  * VidKing embed server → API endpoint map (from their VideoPlayer bundle).
- * Prefer Oxygen: Hydrogen’s ironbubble token CDN currently 403s from our egress.
+ * Query fast mirrors first; `neon2` (Oxygen) hangs on catalog misses.
  */
 const VIDKING_SOURCE_ENDPOINTS = [
-  "neon2/sources-with-title", // Oxygen
   "cdn/sources-with-title", // Hydrogen
   "downloader2/sources-with-title", // Lithium
   "tejo/sources-with-title", // Titanium
   "1movies/sources-with-title", // Helium
+  "neon2/sources-with-title", // Oxygen — best when present, slowest on miss
 ] as const;
+
+export type VidKingPlayableCandidate = {
+  streamUrl: string;
+  kind: "hls" | "mp4";
+  qualities?: ScrapeQuality[];
+  mirror: string;
+  mirrorRank: number;
+  sourceRank: number;
+};
 
 type VidKingSource = {
   quality?: string;
@@ -185,20 +204,296 @@ export const selectVidKingSources = (
   return null;
 };
 
-const selectVidKingMp4Source = (sources: VidKingSource[]): string | null => {
-  const ranked = dedupeSources(sources)
-    .filter((source): source is VidKingSource & { url: string } =>
-      Boolean(
-        source.url &&
-          (/\/mp4\//i.test(source.url) || /\.mp4(?:[?#]|$)/i.test(source.url)),
-      ),
-    )
-    .sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
-
-  return ranked[0]?.url ?? null;
+const sourceKindRank = (url: string, quality?: string): number => {
+  const kind = classifyVidKingSource(url, quality);
+  if (kind === "master") {
+    return 400 + qualityRank(quality);
+  }
+  if (kind === "variant") {
+    return 300 + qualityRank(quality);
+  }
+  if (kind === "flat") {
+    return 200 + qualityRank(quality);
+  }
+  if (/\.m3u8/i.test(url)) {
+    return 100 + qualityRank(quality);
+  }
+  if (/\.mp4(?:[?#]|$)|\/mp4\//i.test(url)) {
+    return 280 + qualityRank(quality);
+  }
+  return 0;
 };
 
-const probeVidKingStream = async (
+/** Flatten every mirror payload into a ranked probe list (not just one pick each). */
+export const collectVidKingPlayableCandidates = (
+  payloads: ReadonlyArray<{
+    mirror: string;
+    payload: VidKingPayload | null;
+  }>,
+  mirrorOrder: readonly string[] = VIDKING_SOURCE_ENDPOINTS,
+): VidKingPlayableCandidate[] => {
+  const mirrorRank = new Map(
+    mirrorOrder.map((mirror, index) => [mirror, index]),
+  );
+  const ranked: VidKingPlayableCandidate[] = [];
+  const seenUrls = new Set<string>();
+
+  const push = (candidate: Omit<VidKingPlayableCandidate, "mirrorRank">) => {
+    if (seenUrls.has(candidate.streamUrl)) {
+      return;
+    }
+    seenUrls.add(candidate.streamUrl);
+    ranked.push({
+      ...candidate,
+      mirrorRank: mirrorRank.get(candidate.mirror) ?? 99,
+    });
+  };
+
+  for (const { mirror, payload } of payloads) {
+    if (!payload) {
+      continue;
+    }
+
+    const sources = payload.sources ?? [];
+    const selected = selectVidKingSources(sources);
+    if (selected) {
+      push({
+        mirror,
+        streamUrl: selected.streamUrl,
+        kind: "hls",
+        qualities:
+          selected.qualities.length > 0 ? selected.qualities : undefined,
+        sourceRank: 500,
+      });
+    }
+
+    for (const source of dedupeSources(sources)) {
+      if (!source.url) {
+        continue;
+      }
+
+      const rank = sourceKindRank(source.url, source.quality);
+      if (rank <= 0) {
+        continue;
+      }
+
+      push({
+        mirror,
+        streamUrl: source.url,
+        kind: /\.m3u8/i.test(source.url) ? "hls" : "mp4",
+        sourceRank: rank,
+      });
+    }
+  }
+
+  return ranked.sort((a, b) => {
+    if (a.mirrorRank !== b.mirrorRank) {
+      return a.mirrorRank - b.mirrorRank;
+    }
+    if (a.sourceRank !== b.sourceRank) {
+      return b.sourceRank - a.sourceRank;
+    }
+    return 0;
+  });
+};
+
+const inferWingsdatabaseQualityLabel = (
+  url: string,
+  quality?: string,
+): string => {
+  const trimmed = quality?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  if (/\.mp4(?:[?#]|$)|\/mp4\//i.test(url)) {
+    return "MP4";
+  }
+  if (/\/playlist\.m3u8|\/master\.m3u8/i.test(url)) {
+    return "Auto";
+  }
+  return "Stream";
+};
+
+/** Every decrypted source across mirrors — exposed as quality ladder + MP4 alts. */
+export const aggregateWingsdatabaseQualities = (
+  payloads: ReadonlyArray<{ payload: VidKingPayload | null }>,
+): ScrapeQuality[] => {
+  const ranked = payloads
+    .flatMap(({ payload }) => payload?.sources ?? [])
+    .filter((source): source is VidKingSource & { url: string } =>
+      Boolean(source.url),
+    )
+    .sort(
+      (a, b) =>
+        sourceKindRank(b.url, b.quality) - sourceKindRank(a.url, a.quality),
+    );
+
+  const seenUrls = new Set<string>();
+  const qualities: ScrapeQuality[] = [];
+
+  for (const source of ranked) {
+    if (seenUrls.has(source.url)) {
+      continue;
+    }
+    seenUrls.add(source.url);
+    qualities.push({
+      label: inferWingsdatabaseQualityLabel(source.url, source.quality),
+      url: source.url,
+    });
+  }
+
+  return qualities;
+};
+
+const qualitiesExceptPrimary = (
+  qualities: ScrapeQuality[],
+  streamUrl: string,
+): ScrapeQuality[] | undefined => {
+  const alternates = qualities.filter((quality) => quality.url !== streamUrl);
+  return alternates.length > 0 ? alternates : undefined;
+};
+
+export type WingsdatabaseProbeWinner = {
+  candidate: VidKingPlayableCandidate;
+  referer: string;
+};
+
+export const probeFirstWingsdatabaseCandidate = async (
+  candidates: VidKingPlayableCandidate[],
+  referer: string,
+): Promise<WingsdatabaseProbeWinner | null> => {
+  const batchSize = 6;
+
+  for (let offset = 0; offset < candidates.length; offset += batchSize) {
+    const batch = candidates.slice(offset, offset + batchSize);
+    const results = await Promise.all(
+      batch.map(async (candidate) => {
+        const winningReferer = await probeWingsdatabaseStreamReferer(
+          candidate.streamUrl,
+          referer,
+        );
+        return winningReferer ? { candidate, referer: winningReferer } : null;
+      }),
+    );
+    const winner = results.find(
+      (entry): entry is WingsdatabaseProbeWinner => entry !== null,
+    );
+    if (winner) {
+      return winner;
+    }
+  }
+
+  return null;
+};
+
+type WingsdatabaseScrapeSuccess = Extract<ScrapeResult, { ok: true }>;
+
+export const finalizeWingsdatabaseScrape = async (options: {
+  providerId: string;
+  referer: string;
+  payloads: ReadonlyArray<{
+    mirror: string;
+    payload: VidKingPayload | null;
+  }>;
+  mirrorOrder: readonly string[];
+  mappedSubtitles: ReturnType<typeof mapVidKingSubtitles>;
+  sawSources: boolean;
+}): Promise<ScrapeResult> => {
+  const {
+    providerId,
+    referer,
+    payloads,
+    mirrorOrder,
+    mappedSubtitles,
+    sawSources,
+  } = options;
+  const aggregatedQualities = aggregateWingsdatabaseQualities(payloads);
+  const candidates = collectVidKingPlayableCandidates(payloads, mirrorOrder);
+  let winner = await probeFirstWingsdatabaseCandidate(candidates, referer);
+
+  if (!winner && sawSources && scrapeProxyUrl()) {
+    const rotated = await rotateScrapeVpnEgress();
+    if (rotated.ok) {
+      resetScrapeHostEgressPreferences();
+      winner = await probeFirstWingsdatabaseCandidate(candidates, referer);
+    }
+  }
+
+  const buildSuccess = (
+    streamUrl: string,
+    playbackReferer: string,
+    validated: boolean,
+  ): WingsdatabaseScrapeSuccess => ({
+    ok: true,
+    providerId,
+    ...(validated ? { validated: true as const } : {}),
+    streamUrl,
+    referer: playbackReferer,
+    qualities: attachSubtitlesToQualities(
+      qualitiesExceptPrimary(aggregatedQualities, streamUrl),
+      mappedSubtitles,
+    ),
+    subtitles: mappedSubtitles.length > 0 ? mappedSubtitles : undefined,
+  });
+
+  if (winner) {
+    return buildSuccess(winner.candidate.streamUrl, winner.referer, true);
+  }
+
+  return {
+    ok: false,
+    providerId,
+    error: sawSources
+      ? "Wingsdatabase CDN unreachable"
+      : "No HLS sources in wingsdatabase payload",
+  };
+};
+
+const probeVidKingReferers = (referer: string, streamUrl: string): string[] => {
+  const referers: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: string | undefined) => {
+    if (!value || seen.has(value)) {
+      return;
+    }
+    seen.add(value);
+    referers.push(value);
+  };
+
+  // Wings CDN currently requires vidking.net — videasy/player origins 403.
+  for (const cdnReferer of VIDKING_CDN_REFERERS) {
+    push(cdnReferer);
+  }
+  push(referer);
+  try {
+    push(new URL(streamUrl).origin + "/");
+  } catch {
+    void 0;
+  }
+
+  return referers;
+};
+
+export const probeWingsdatabaseStreamReferer = async (
+  streamUrl: string,
+  referer: string,
+): Promise<string | null> => {
+  for (const candidateReferer of probeVidKingReferers(referer, streamUrl)) {
+    if (await probeVidKingStreamOnce(streamUrl, candidateReferer)) {
+      return candidateReferer;
+    }
+  }
+
+  return null;
+};
+
+export const probeWingsdatabaseStream = async (
+  streamUrl: string,
+  referer: string,
+): Promise<boolean> =>
+  Boolean(await probeWingsdatabaseStreamReferer(streamUrl, referer));
+
+const probeVidKingStreamOnce = async (
   streamUrl: string,
   referer: string,
 ): Promise<boolean> => {
@@ -292,7 +587,12 @@ const fetchVidKingPayload = async (
 
   const encryptedResponse = await scrapeFetch(
     `${VIDKING_API}/${endpoint}?${params.toString()}`,
-    { headers },
+    {
+      headers,
+      timeoutMs: 8_000,
+      curlFallback: false,
+      retryAttempts: 1,
+    },
   );
 
   if (!encryptedResponse.ok) {
@@ -335,77 +635,51 @@ export async function scrapeVidKing(
     }
 
     const seedPayload = (await seedResponse.json()) as { seed?: string };
-    if (!seedPayload.seed) {
+    const seed = seedPayload.seed;
+    if (!seed) {
       return { ok: false, providerId, error: "Missing VidKing seed" };
     }
 
-    // Try each embed server independently. Merging first lets Hydrogen's dead
-    // tokenized HLS outrank Oxygen's working master.
+    // Hit every embed mirror in parallel, then probe every source URL we get back.
     let sawSources = false;
     let bestSubtitles: VidKingSubtitle[] = [];
-    const referer = VIDKING_ORIGIN;
+    const referer = `${VIDKING_ORIGIN}/`;
 
-    for (const endpoint of VIDKING_SOURCE_ENDPOINTS) {
-      const payload = await fetchVidKingPayload(
-        endpoint,
-        input,
-        seedPayload.seed,
-        headers,
-      );
+    const payloads = await Promise.all(
+      VIDKING_SOURCE_ENDPOINTS.map(async (mirror) => {
+        try {
+          const payload = await fetchVidKingPayload(
+            mirror,
+            input,
+            seed,
+            headers,
+          );
+          return { mirror, payload };
+        } catch {
+          return { mirror, payload: null };
+        }
+      }),
+    );
 
-      if (!payload) {
-        continue;
-      }
-
-      const sources = payload.sources ?? [];
-      if (sources.length > 0) {
+    for (const { payload } of payloads) {
+      if ((payload?.sources ?? []).length > 0) {
         sawSources = true;
       }
-
-      if ((payload.subtitles ?? []).length > bestSubtitles.length) {
-        bestSubtitles = payload.subtitles ?? [];
-      }
-
-      const mappedSubtitles = mapVidKingSubtitles(bestSubtitles);
-      const selected = selectVidKingSources(sources);
-
-      if (selected && (await probeVidKingStream(selected.streamUrl, referer))) {
-        return {
-          ok: true,
-          providerId,
-          // Tokenized CDN URLs often flake on a second naive probe; playback uses
-          // the session/refresh path with path-based CDN host detection.
-          validated: true,
-          streamUrl: selected.streamUrl,
-          referer,
-          qualities: attachSubtitlesToQualities(
-            selected.qualities.length > 0 ? selected.qualities : undefined,
-            mappedSubtitles,
-          ),
-          subtitles: mappedSubtitles.length > 0 ? mappedSubtitles : undefined,
-        };
-      }
-
-      const mp4Url = selectVidKingMp4Source(sources);
-      if (mp4Url && (await probeVidKingStream(mp4Url, referer))) {
-        return {
-          ok: true,
-          providerId,
-          validated: true,
-          streamUrl: mp4Url,
-          referer,
-          subtitles: mappedSubtitles.length > 0 ? mappedSubtitles : undefined,
-        };
+      if ((payload?.subtitles ?? []).length > bestSubtitles.length) {
+        bestSubtitles = payload?.subtitles ?? [];
       }
     }
 
-    return {
-      ok: false,
+    const mappedSubtitles = mapVidKingSubtitles(bestSubtitles);
+
+    return finalizeWingsdatabaseScrape({
       providerId,
-      error: sawSources
-        ? "VidKing CDN unreachable"
-        : "No HLS sources in VidKing payload",
-    };
+      referer,
+      payloads,
+      mirrorOrder: VIDKING_SOURCE_ENDPOINTS,
+      mappedSubtitles,
+      sawSources,
+    });
   } catch (error) {
     return {
       ok: false,

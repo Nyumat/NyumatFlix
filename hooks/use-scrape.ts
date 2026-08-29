@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { filterTmdbScrapeProviderIds } from "@/lib/flags/site-flags";
 import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
 import {
@@ -30,6 +30,8 @@ export type ScrapeSuccessPayload = {
   defaultAudioLang?: string;
   defaultHardSubLang?: string;
   preferredAudioLang?: string;
+  directPlayback?: "hls" | "direct" | "extended";
+  directFallbackUrl?: string;
 };
 
 const scrapeLoopConfig = {
@@ -51,19 +53,23 @@ const scrapeLoopConfig = {
   }),
 } as const;
 
-export function useScrape() {
-  const flags = useFeatureFlagsOptional();
+type UseScrapeOptions = {
+  onAllProvidersFailed?: () => void;
+};
+
+export function useScrape(options?: UseScrapeOptions) {
+  const flags = useFeatureFlags();
+  const onAllProvidersFailed = options?.onAllProvidersFailed;
   const config = useMemo(
     () => ({
       ...scrapeLoopConfig,
-      providerOrder: flags
-        ? (filterTmdbScrapeProviderIds(
-            flags,
-            SCRAPE_PROVIDER_ORDER,
-          ) as typeof SCRAPE_PROVIDER_ORDER)
-        : SCRAPE_PROVIDER_ORDER,
+      providerOrder: filterTmdbScrapeProviderIds(
+        flags,
+        SCRAPE_PROVIDER_ORDER,
+      ) as typeof SCRAPE_PROVIDER_ORDER,
+      onAllProvidersFailed,
     }),
-    [flags],
+    [flags, onAllProvidersFailed],
   );
 
   return useProviderScrapeLoop<

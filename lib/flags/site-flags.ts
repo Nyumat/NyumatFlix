@@ -6,6 +6,7 @@ import {
   type EmbedProviderId,
   type TmdbScrapeProviderId,
 } from "@/lib/providers/registry";
+import { isDirectScrapeProviderConfigured } from "@/lib/scrape/calluspirates-config";
 import {
   animeScrapeProviderFlagKey,
   DEFAULT_FLAG_VALUES,
@@ -25,6 +26,8 @@ export type SiteFlags = {
   scrapeProxyRequired: boolean;
   lockUserSettings: boolean;
   maintenanceMode: boolean;
+  /** Resolved on the server; client must not re-read CALLUSPIRATES_API_URL. */
+  directScrapeProviderAvailable: boolean;
   embedProviders: Record<string, boolean>;
   tmdbScrapeProviders: Record<string, boolean>;
   animeScrapeProviders: Record<string, boolean>;
@@ -66,6 +69,7 @@ export function resolveSiteFlags(raw: Record<string, boolean>): SiteFlags {
     scrapeProxyRequired: raw["global.scrape_proxy_required"] ?? false,
     lockUserSettings,
     maintenanceMode: raw["global.maintenance_mode"] ?? false,
+    directScrapeProviderAvailable: isDirectScrapeProviderConfigured(),
     embedProviders: providerMap(
       embedIds,
       (id) => embedProviderFlagKey(id as EmbedProviderId),
@@ -115,6 +119,9 @@ export function isTmdbScrapeProviderEnabled(
   flags: SiteFlags,
   id: TmdbScrapeProviderId | string,
 ): boolean {
+  if (id === "direct" && !flags.directScrapeProviderAvailable) {
+    return false;
+  }
   return flags.tmdbScrapeProviders[id] ?? true;
 }
 

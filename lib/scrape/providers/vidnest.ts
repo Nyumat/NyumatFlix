@@ -236,6 +236,17 @@ export async function scrapeVidNest(
       };
     }
 
+    if (
+      isVidnestClientOnlyCdn(primary.streamUrl) &&
+      !isFreshVidnestSignedUrl(primary.streamUrl)
+    ) {
+      return {
+        ok: false,
+        providerId,
+        error: "VidNest signed stream URL is missing or expired",
+      };
+    }
+
     // Alternate resolver streams only — not ABR heights from one master.
     const qualities: ScrapeQuality[] = playable.slice(1).map((candidate) => ({
       label: candidate.label,

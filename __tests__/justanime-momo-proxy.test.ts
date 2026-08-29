@@ -13,6 +13,14 @@ import { preferAnimeCdnReferer } from "@/lib/scrape/anime/cdn-referer";
 describe("justanime momo proxy", () => {
   const master = "https://cdn.mewstream.buzz/anime/abc/123/master.m3u8";
 
+  it("wraps kotocdn megaplay masters for momo proxy", () => {
+    const kotocdn =
+      "https://megap.kotocdn.site/f899139df5e1059396431415e770c6dd/61b87186ab260d05003427e16ccf5657/master.m3u8";
+    const wrapped = wrapJustanimeMegaplayStreamUrl(kotocdn);
+    expect(wrapped).toContain("momo.justanime.to/proxy?url=");
+    expect(unwrapJustanimeMomoProxyUrl(wrapped)).toBe(kotocdn);
+  });
+
   it("wraps mewstream masters for megaplay playback", () => {
     const wrapped = wrapJustanimeMegaplayStreamUrl(master);
     expect(wrapped).toContain("momo.justanime.to/proxy?url=");

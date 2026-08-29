@@ -22,7 +22,6 @@ describe("provider registry", () => {
       "superembed",
       "111movies",
       "vidfast",
-      "videasy",
       "vidlink",
       "vidcore",
       "1embed",
@@ -30,8 +29,10 @@ describe("provider registry", () => {
     ]);
   });
 
-  it("keeps vixsrc last in the TMDB scrape chain", () => {
-    expect(TMDB_SCRAPE_PROVIDER_ORDER.at(-1)).toBe("vixsrc");
+  it("keeps vixsrc before vidnest in the TMDB scrape chain", () => {
+    const order = TMDB_SCRAPE_PROVIDER_ORDER;
+    expect(order.at(-2)).toBe("vixsrc");
+    expect(order.at(-1)).toBe("vidnest");
   });
 
   it("lists dual-capability providers for embed sub-picker", () => {
@@ -39,6 +40,7 @@ describe("provider registry", () => {
       "vidsrc",
       "2embed",
       "vidnest",
+      "videasy",
       "vidking",
       "vixsrc",
     ]);

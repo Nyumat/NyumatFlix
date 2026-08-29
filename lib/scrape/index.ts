@@ -1,10 +1,12 @@
 import { attachSubtitlesToQualities } from "./linked-config";
+import { scrapeVideasy } from "./providers/videasy";
 import { scrapeVidKing } from "./providers/vidking";
 import { scrapeVidNest } from "./providers/vidnest";
 import { scrapeVidSrc } from "./providers/vidsrc";
 import { scrapeVixsrc } from "./providers/vixsrc";
 import { scrapeVidrock } from "./providers/vidrock";
 import { scrapeBingr } from "./providers/bingr";
+import { scrapeDirect } from "./providers/direct";
 import { scrapeXPass } from "./providers/xpass";
 import {
   isMegaplayPlaybackRefresh,
@@ -27,6 +29,8 @@ const SCRAPERS: Record<
   ScrapeProviderId,
   (input: ScrapeMediaInput) => Promise<ScrapeResult>
 > = {
+  direct: scrapeDirect,
+  videasy: scrapeVideasy,
   vidking: scrapeVidKing,
   vidnest: scrapeVidNest,
   vidsrc: scrapeVidSrc,
@@ -46,6 +50,15 @@ const inferTmdbStreamKind = (streamUrl: string): StreamKind => {
   return "hls";
 };
 
+const isWingsdatabaseScrapeProvider = (
+  providerId: ScrapeProviderId,
+): providerId is "vidking" | "videasy" =>
+  providerId === "vidking" || providerId === "videasy";
+
+const isDirectScrapeProvider = (
+  providerId: ScrapeProviderId,
+): providerId is "direct" => providerId === "direct";
+
 export async function scrapeProvider(
   providerId: ScrapeProviderId,
   input: ScrapeMediaInput,
@@ -62,7 +75,11 @@ export async function scrapeProvider(
   const hasVidsrcRefresh = isVidsrcPlaybackRefresh(result.playbackRefresh);
   const hasVixsrcRefresh = isVixsrcPlaybackRefresh(result.playbackRefresh);
 
-  if (!result.validated) {
+  if (
+    !result.validated &&
+    !isWingsdatabaseScrapeProvider(providerId) &&
+    !isDirectScrapeProvider(providerId)
+  ) {
     const streamUrlForValidation =
       hasVidsrcRefresh || hasVixsrcRefresh
         ? await resolveScrapePlaybackUpstreamUrl(
@@ -93,7 +110,10 @@ export async function scrapeProvider(
     }
   }
 
-  if (providerId !== "vidking") {
+  if (
+    !isWingsdatabaseScrapeProvider(providerId) &&
+    !isDirectScrapeProvider(providerId)
+  ) {
     if (isVidnestClientOnlyCdn(next.streamUrl)) {
       if (!isFreshVidnestSignedUrl(next.streamUrl)) {
         return {

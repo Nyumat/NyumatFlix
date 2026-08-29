@@ -1,3 +1,4 @@
+import { isOkCdnHlsUrl } from "./anime/allanime-stream-url";
 import { cancelResponseBody } from "./fetch";
 import { fetchScrapePlaybackUpstream } from "./playback-fetch";
 import {
@@ -12,6 +13,7 @@ import {
   extractHlsProbeTargets,
   isValidHlsAssetResponse,
 } from "./validate-stream";
+import { isVixsrcStubPlaylistBody } from "./vixsrc-stub";
 import { decodeObfuscatedHlsBody } from "./hls-body";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
 
@@ -102,7 +104,8 @@ const probeHlsThroughPlaybackPath = async (
   cookies: string | undefined,
   depth = 0,
 ): Promise<boolean> => {
-  if (!looksLikeHlsPlaylistBody(body) || depth > 2) {
+  const maxDepth = isOkCdnHlsUrl(playlistUrl) ? 5 : 2;
+  if (!looksLikeHlsPlaylistBody(body) || depth > maxDepth) {
     return false;
   }
 
@@ -200,12 +203,20 @@ export async function probeScrapePlaybackPath(
     const rawBody = (await response.text()).slice(0, 64_000);
     const body = decodeObfuscatedHlsBody(rawBody);
 
+    if (isVixsrcStubPlaylistBody(resolvedUrl, body)) {
+      return false;
+    }
+
     if (kind === "dash") {
       return looksLikeDashManifestBody(body);
     }
 
     if (!shouldTreatAsHlsPlaylist(url, contentType, body)) {
       return false;
+    }
+
+    if (isOkCdnHlsUrl(url) && body.includes("#EXTM3U")) {
+      return true;
     }
 
     return probeHlsThroughPlaybackPath(

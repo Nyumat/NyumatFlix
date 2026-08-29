@@ -74,6 +74,7 @@ describe("scrape dispatchers", () => {
 
   it("bypasses proxy for AniList metadata and anime CDN hosts", () => {
     expect(scrapeBypassesProxyHostname("graphql.anilist.co")).toBe(true);
+    expect(scrapeBypassesProxyHostname("sub.1x2.space")).toBe(true);
     expect(scrapeBypassesProxyHostname("vivibebe.site")).toBe(true);
     expect(scrapeBypassesProxyHostname("cdn.mewstream.buzz")).toBe(true);
     expect(scrapeBypassesProxyHostname("momo.justanime.to")).toBe(true);
@@ -84,7 +85,6 @@ describe("scrape dispatchers", () => {
       scrapeBypassesProxyHostname("morning-credit.vibevibe.workers.dev"),
     ).toBe(true);
     expect(scrapeBypassesProxyHostname("api.kyren.moe")).toBe(true);
-    expect(scrapeBypassesProxyHostname("stream.animeparadise.moe")).toBe(true);
     expect(scrapeBypassesProxyHostname("kaa.lt")).toBe(false);
   });
 });

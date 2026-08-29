@@ -17,8 +17,39 @@ export const isFreshVidnestSignedUrl = (streamUrl: string): boolean => {
   }
 
   try {
-    const sign = new URL(streamUrl).searchParams.get("sign");
-    return Boolean(sign && sign.length >= 8);
+    const parsed = new URL(streamUrl);
+    const sign = parsed.searchParams.get("sign");
+    if (!sign || sign.length < 8) {
+      return false;
+    }
+
+    const expiresRaw =
+      parsed.searchParams.get("expires") ?? parsed.searchParams.get("e");
+    if (expiresRaw) {
+      const expires = Number.parseInt(expiresRaw, 10);
+      if (Number.isFinite(expires) && expires * 1000 <= Date.now()) {
+        return false;
+      }
+    }
+
+    const jwtParts = sign.split(".");
+    if (jwtParts.length === 3) {
+      try {
+        const payload = JSON.parse(
+          Buffer.from(jwtParts[1]!, "base64url").toString("utf8"),
+        ) as { exp?: number };
+        if (
+          typeof payload.exp === "number" &&
+          payload.exp * 1000 <= Date.now()
+        ) {
+          return false;
+        }
+      } catch {
+        void 0;
+      }
+    }
+
+    return true;
   } catch {
     return false;
   }
@@ -84,8 +115,11 @@ export const pickVidnestStreamUrl = (
   return rankVidnestStreamUrls(streams)[0] ?? null;
 };
 
+const isHttpUrl = (value: unknown): value is string =>
+  typeof value === "string" && value.startsWith("http");
+
 export const rankVidnestStreamUrls = (streams: VidNestStream[]): string[] => {
-  const candidates = streams.filter((stream) => stream.url.startsWith("http"));
+  const candidates = streams.filter((stream) => isHttpUrl(stream.url));
   if (candidates.length === 0) {
     return [];
   }
@@ -110,7 +144,7 @@ export const mapVidnestCaptions = (
   const seen = new Set<string>();
 
   return captions.flatMap((caption) => {
-    if (!caption.url?.startsWith("http") || seen.has(caption.url)) {
+    if (!isHttpUrl(caption.url) || seen.has(caption.url)) {
       return [];
     }
 
@@ -142,7 +176,7 @@ export type VidNestPayload = {
 
 const streamFromRaw = (raw: VidNestStreamRaw): VidNestStream | null => {
   const url = raw.url ?? raw.link;
-  if (!url?.startsWith("http")) {
+  if (!isHttpUrl(url)) {
     return null;
   }
 
@@ -151,7 +185,7 @@ const streamFromRaw = (raw: VidNestStreamRaw): VidNestStream | null => {
     url,
     type: raw.type,
     language: raw.language ?? raw.lang ?? raw.quality,
-    referer: referer?.startsWith("http") ? referer : undefined,
+    referer: isHttpUrl(referer) ? referer : undefined,
   };
 };
 
@@ -179,7 +213,7 @@ export const extractVidnestStreams = (
   }
 
   for (const download of payload.data?.downloads ?? []) {
-    if (!download.url?.startsWith("http")) {
+    if (!isHttpUrl(download.url)) {
       continue;
     }
     add({
@@ -191,7 +225,7 @@ export const extractVidnestStreams = (
 
   for (const entry of payload.url ?? []) {
     const url = entry.link ?? entry.url;
-    if (!url?.startsWith("http")) {
+    if (!isHttpUrl(url)) {
       continue;
     }
     add({
@@ -214,7 +248,7 @@ export const refererForVidnestStream = (
   streamUrl: string,
   streamReferer?: string,
 ): string => {
-  if (streamReferer?.startsWith("http")) {
+  if (isHttpUrl(streamReferer)) {
     return streamReferer;
   }
   if (HAKUNAYMATATA_PATTERN.test(streamUrl) || BCDN_PATTERN.test(streamUrl)) {

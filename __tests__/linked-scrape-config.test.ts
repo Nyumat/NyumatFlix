@@ -10,6 +10,8 @@ import {
   isAbrOnlyQualityFailover,
 } from "@/lib/scrape/player-sources";
 import {
+  aggregateWingsdatabaseQualities,
+  collectVidKingPlayableCandidates,
   mapVidKingSubtitles,
   selectVidKingSources,
 } from "@/lib/scrape/providers/vidking";
@@ -225,5 +227,84 @@ describe("vidking linked sources", () => {
       { lang: "English", url: "https://cdn/en.vtt" },
       { lang: "Spanish", url: "https://cdn/es.vtt" },
     ]);
+  });
+
+  it("aggregates every mirror source into a quality ladder", () => {
+    const qualities = aggregateWingsdatabaseQualities([
+      {
+        payload: {
+          sources: [
+            {
+              quality: "1080p",
+              url: "https://moon.ironbubble.site/r2/cdn2/tok/1080p/index.m3u8",
+            },
+            {
+              quality: "720p",
+              url: "https://moon.ironbubble.site/r2/cdn2/tok/720p/index.m3u8",
+            },
+          ],
+        },
+      },
+      {
+        payload: {
+          sources: [
+            {
+              quality: "720p",
+              url: "https://ca-central-1.realworkers.workers.dev/mp4/abc.mp4",
+            },
+            {
+              quality: "480p",
+              url: "https://ca-central-1.realworkers.workers.dev/mp4/def.mp4",
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(qualities.map((quality) => quality.label)).toEqual([
+      "1080p",
+      "720p",
+      "720p",
+      "480p",
+    ]);
+  });
+
+  it("collects playable candidates from every mirror payload", () => {
+    const candidates = collectVidKingPlayableCandidates([
+      {
+        mirror: "cdn/sources-with-title",
+        payload: {
+          sources: [
+            {
+              quality: "1080p",
+              url: "https://moon.ironbubble.site/r2/cdn2/tok/1080p/index.m3u8",
+            },
+            {
+              quality: "720p",
+              url: "https://moon.ironbubble.site/r2/cdn2/tok/720p/index.m3u8",
+            },
+          ],
+        },
+      },
+      {
+        mirror: "downloader2/sources-with-title",
+        payload: {
+          sources: [
+            {
+              quality: "1080p",
+              url: "https://ca-central-1.realworkers.workers.dev/mp4/abc.mp4",
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(candidates.map((candidate) => candidate.streamUrl)).toEqual([
+      "https://moon.ironbubble.site/r2/cdn2/tok/1080p/index.m3u8",
+      "https://moon.ironbubble.site/r2/cdn2/tok/720p/index.m3u8",
+      "https://ca-central-1.realworkers.workers.dev/mp4/abc.mp4",
+    ]);
+    expect(candidates[0]?.mirror).toBe("cdn/sources-with-title");
+    expect(candidates.at(-1)?.kind).toBe("mp4");
   });
 });

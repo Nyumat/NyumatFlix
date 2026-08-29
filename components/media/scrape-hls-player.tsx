@@ -64,6 +64,7 @@ import type {
   ScrapeSubtitle,
 } from "@/lib/scrape/types";
 import { VIDKING_PROACTIVE_REFRESH_AFTER_MS } from "@/lib/scrape/vidking-constants";
+import { createMediaReadyHandler } from "@/lib/playback/media-ready";
 import { cn } from "@/lib/utils";
 
 import "./scrape-hls-player.css";
@@ -88,7 +89,9 @@ type ScrapeHlsPlayerProps = {
   progressKey: PlaybackProgressKey;
   imdbId?: string | null;
   className?: string;
+  autoPlay?: boolean;
   onFatalError?: () => void;
+  onMediaReady?: () => void;
   onEnded?: () => Promise<boolean>;
 };
 
@@ -130,13 +133,22 @@ export function ScrapeHlsPlayer({
   progressKey,
   imdbId = null,
   className,
+  autoPlay = true,
   onFatalError,
+  onMediaReady,
   onEnded,
 }: ScrapeHlsPlayerProps) {
   const playerRef = useRef<MediaPlayerInstance>(null);
   const resumedRef = useRef(false);
+  const readyRef = useRef(false);
   const startedRef = useRef(false);
   const fatalReportedRef = useRef(false);
+  const onMediaReadyRef = useRef(onMediaReady);
+  onMediaReadyRef.current = onMediaReady;
+
+  const markMediaReady = useCallback(() => {
+    createMediaReadyHandler(() => onMediaReadyRef.current?.(), readyRef)();
+  }, []);
   const { resumeTime, persist, persistImmediate } =
     usePlaybackProgress(progressKey);
   const [audioLang, setAudioLang] = useState(
@@ -272,6 +284,11 @@ export function ScrapeHlsPlayer({
         return;
       }
 
+      if (autoPlay && isVideoProvider(provider)) {
+        provider.video.muted = false;
+        provider.video.volume = 1;
+      }
+
       if (
         streamKind === "mp4" &&
         activePlaybackUrl.startsWith("http") &&
@@ -303,7 +320,7 @@ export function ScrapeHlsPlayer({
         provider.library = loadDashjsLibrary;
       }
     },
-    [activePlaybackUrl, streamKind],
+    [activePlaybackUrl, autoPlay, streamKind],
   );
 
   const applyResumePosition = useCallback(() => {
@@ -348,6 +365,60 @@ export function ScrapeHlsPlayer({
     normalizeSpuriousStartupPosition();
   }, [normalizeSpuriousStartupPosition, updateDuration]);
 
+  const attemptPlaybackStart = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || !autoPlay) {
+      return;
+    }
+
+    const providerVideo =
+      player.provider && "video" in player.provider
+        ? player.provider.video
+        : null;
+    const video =
+      providerVideo ?? document.querySelector(".nyumat-scrape-player video");
+
+    if (video instanceof HTMLVideoElement && video.paused === false) {
+      startedRef.current = true;
+      markMediaReady();
+      return;
+    }
+
+    if (startedRef.current) {
+      startedRef.current = false;
+    }
+
+    player.muted = false;
+    player.volume = 1;
+    if (video instanceof HTMLVideoElement) {
+      video.muted = false;
+      video.volume = 1;
+      if (video.readyState < 2) {
+        return;
+      }
+      void video
+        .play()
+        .then(() => {
+          if (!video.paused) {
+            startedRef.current = true;
+            markMediaReady();
+          }
+        })
+        .catch(() => undefined);
+      return;
+    }
+
+    void player
+      .play()
+      .then(() => {
+        if (!player.paused) {
+          startedRef.current = true;
+          markMediaReady();
+        }
+      })
+      .catch(() => undefined);
+  }, [autoPlay, markMediaReady]);
+
   const handleCanPlay = useCallback(() => {
     const player = playerRef.current;
     if (!player) {
@@ -357,29 +428,21 @@ export function ScrapeHlsPlayer({
     updateDuration(player.duration);
     applyResumePosition();
     normalizeSpuriousStartupPosition();
+    attemptPlaybackStart();
+  }, [
+    applyResumePosition,
+    attemptPlaybackStart,
+    normalizeSpuriousStartupPosition,
+    updateDuration,
+  ]);
 
-    if (startedRef.current) {
-      return;
-    }
+  const handleLoadedData = useCallback(() => {
+    attemptPlaybackStart();
+  }, [attemptPlaybackStart]);
 
-    startedRef.current = true;
-
-    const hasUserActivation =
-      typeof navigator !== "undefined" &&
-      "userActivation" in navigator &&
-      Boolean(
-        (
-          navigator as Navigator & {
-            userActivation?: { hasBeenActive?: boolean };
-          }
-        ).userActivation?.hasBeenActive,
-      );
-    if (!hasUserActivation) {
-      return;
-    }
-
-    void player.play().catch(() => undefined);
-  }, [applyResumePosition, normalizeSpuriousStartupPosition, updateDuration]);
+  const handlePlaying = useCallback(() => {
+    markMediaReady();
+  }, [markMediaReady]);
 
   const handleTimeUpdate = useCallback(
     (detail: { currentTime: number }) => {
@@ -388,9 +451,13 @@ export function ScrapeHlsPlayer({
         return;
       }
 
+      if (detail.currentTime > 0) {
+        markMediaReady();
+      }
+
       persist(detail.currentTime, player.duration);
     },
-    [persist],
+    [markMediaReady, persist],
   );
 
   const handleEnded = useCallback(() => {
@@ -460,9 +527,64 @@ export function ScrapeHlsPlayer({
   useEffect(() => {
     resumedRef.current = false;
     startedRef.current = false;
+    readyRef.current = false;
     fatalReportedRef.current = false;
     setDuration(0);
   }, [activePlayUrl]);
+
+  useEffect(() => {
+    if (!autoPlay) {
+      return undefined;
+    }
+
+    const tick = () => {
+      attemptPlaybackStart();
+    };
+
+    tick();
+    const interval = window.setInterval(tick, 1500);
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+    }, 180_000);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [activePlayUrl, autoPlay, attemptPlaybackStart]);
+
+  useEffect(() => {
+    if (!autoPlay || !activePlayUrl.includes("/transcode/")) {
+      return undefined;
+    }
+
+    const failTimeout = window.setTimeout(() => {
+      if (fatalReportedRef.current || duration > 0) {
+        return;
+      }
+      fatalReportedRef.current = true;
+      onFatalError?.();
+    }, 45_000);
+
+    return () => window.clearTimeout(failTimeout);
+  }, [activePlayUrl, autoPlay, duration, onFatalError]);
+
+  useEffect(() => {
+    if (!autoPlay || duration <= 0) {
+      return undefined;
+    }
+
+    attemptPlaybackStart();
+    const interval = window.setInterval(attemptPlaybackStart, 2000);
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+    }, 120_000);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [attemptPlaybackStart, autoPlay, duration]);
 
   useEffect(() => {
     const refresh = extractScrapePlaybackRefreshFromPlayUrl(activePlayUrl);
@@ -517,12 +639,17 @@ export function ScrapeHlsPlayer({
         src={playerSrc}
         title={title}
         poster={poster ?? undefined}
+        autoPlay={autoPlay}
+        muted={false}
+        volume={1}
         streamType="on-demand"
         playsInline
         load="eager"
         onProviderChange={handleProviderChange}
         onLoadedMetadata={handleLoadedMetadata}
+        onLoadedData={handleLoadedData}
         onCanPlay={handleCanPlay}
+        onPlaying={handlePlaying}
         onDurationChange={updateDuration}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}

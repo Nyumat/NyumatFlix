@@ -1,67 +1,54 @@
-import {
-  inferMappingConfidence,
-  resolveAnimeEpisodeCoords,
-  type ResolvedAnimeEpisodeCoords,
-  type TmdbAnilistMapResponse,
-} from "@/lib/anime/tmdb-anilist-map";
+import type { ResolvedAnimeEpisodeCoords } from "@/lib/anime/tmdb-anilist-map";
 
 export type EpisodeMappingRequest = {
   tmdbShowId: number;
   seasonNumber: number;
   episodeNumber: number;
-  sourceAnilistId: number;
   isAdult?: boolean;
 };
 
-const fetchTmdbAnilistMap = async (
-  request: EpisodeMappingRequest,
-): Promise<TmdbAnilistMapResponse | null> => {
-  const params = new URLSearchParams({
-    tmdbShowId: String(request.tmdbShowId),
-    tmdbSeason: String(request.seasonNumber),
-    sourceAnilistId: String(request.sourceAnilistId),
-  });
-
-  try {
-    const response = await fetch(`/api/map?${params.toString()}`);
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as TmdbAnilistMapResponse;
-  } catch {
-    return null;
-  }
+type PlaybackCoordsResponse = {
+  coords: {
+    anilistId: number;
+    relativeEpisodeNumber: number;
+    animeSeasonNumber: number | null;
+    animeInfo: ResolvedAnimeEpisodeCoords["animeInfo"];
+    confidence: "high" | "low";
+    source: "anibridge" | "fribb";
+  } | null;
 };
 
 export const resolveEpisodeAnimeMapping = async (
   request: EpisodeMappingRequest,
 ): Promise<(ResolvedAnimeEpisodeCoords & { isAdult: boolean }) | null> => {
-  const map = await fetchTmdbAnilistMap(request);
-
-  if (!map || map.segments.length === 0) {
-    return null;
-  }
-
-  const confidence =
-    map.confidence ??
-    inferMappingConfidence(
-      map.segments,
-      map.segments.length,
-      request.sourceAnilistId,
-    );
-
-  const coords = resolveAnimeEpisodeCoords({
-    segments: map.segments,
-    tmdbEpisodeNumber: request.episodeNumber,
-    fallbackAnilistId: request.sourceAnilistId,
-    confidence,
+  const params = new URLSearchParams({
+    tmdbShowId: String(request.tmdbShowId),
+    seasonNumber: String(request.seasonNumber),
+    episodeNumber: String(request.episodeNumber),
   });
 
-  if (coords.confidence !== "high") return null;
+  try {
+    const response = await fetch(
+      `/api/anime/playback-coords?${params.toString()}`,
+    );
+    if (!response.ok) {
+      return null;
+    }
 
-  return {
-    ...coords,
-    isAdult: map.isAdult || request.isAdult === true,
-  };
+    const payload = (await response.json()) as PlaybackCoordsResponse;
+    if (!payload.coords || payload.coords.confidence !== "high") {
+      return null;
+    }
+
+    return {
+      anilistId: payload.coords.anilistId,
+      relativeEpisodeNumber: payload.coords.relativeEpisodeNumber,
+      animeSeasonNumber: payload.coords.animeSeasonNumber,
+      animeInfo: payload.coords.animeInfo,
+      confidence: "high",
+      isAdult: request.isAdult === true,
+    };
+  } catch {
+    return null;
+  }
 };

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import {
   isAnimeScrapeProviderEnabled,
   isTmdbScrapeProviderEnabled,
@@ -85,26 +85,35 @@ const animePlaybackScrapeLoopConfig = {
       episodeNumber: input.anime.episodeNumber,
       translationType: input.anime.translationType,
       query: input.anime.query,
+      tmdb: {
+        mediaType: input.tmdb.mediaType,
+        tmdbId: input.tmdb.tmdbId,
+        seasonNumber: input.tmdb.seasonNumber,
+        episodeNumber: input.tmdb.episodeNumber,
+      },
     };
   },
 } as const;
 
-export function useAnimePlaybackScrape() {
-  const flags = useFeatureFlagsOptional();
+export function useAnimePlaybackScrape(options?: {
+  onAllProvidersFailed?: () => void;
+}) {
+  const flags = useFeatureFlags();
+  const onAllProvidersFailed = options?.onAllProvidersFailed;
   const config = useMemo(
     () => ({
       ...animePlaybackScrapeLoopConfig,
       resolveProviderOrder: (input: AnimePlaybackScrapeInput) => {
         const order = buildAnimePlaybackProviderOrder(input.chain);
-        if (!flags) return order;
         return order.filter((providerId) =>
           isTmdbScrapeProvider(providerId)
             ? isTmdbScrapeProviderEnabled(flags, providerId)
             : isAnimeScrapeProviderEnabled(flags, providerId),
         );
       },
+      onAllProvidersFailed,
     }),
-    [flags],
+    [flags, onAllProvidersFailed],
   );
 
   return useProviderScrapeLoop<

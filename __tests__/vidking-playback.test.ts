@@ -39,6 +39,14 @@ describe("vidking-playback", () => {
     );
   });
 
+  it("treats ironwallnet masters as VidKing CDN URLs", () => {
+    expect(
+      isVidKingCdnUrl(
+        "https://moon.ironwallnet.net/nodash/x/y.mp4/master.m3u8?key=abc",
+      ),
+    ).toBe(true);
+  });
+
   it("parses cdn1 flat playlists", () => {
     const flat = "https://shadowlemon.site/r2/cdn1/flat-token/playlist.m3u8";
 

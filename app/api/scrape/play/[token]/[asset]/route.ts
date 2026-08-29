@@ -16,6 +16,7 @@ import {
 import { decodeObfuscatedHlsBody } from "@/lib/scrape/hls-body";
 import { fetchScrapePlaybackUpstream } from "@/lib/scrape/playback-fetch";
 import { cancelResponseBody } from "@/lib/scrape/fetch";
+import { isVidKingPlaybackRefresh } from "@/lib/scrape/playback-refresh";
 import {
   invalidateVidKingSession,
   isRetryableVidKingUpstreamStatus,
@@ -108,7 +109,7 @@ export async function GET(request: Request, context: RouteContext) {
 
     if (
       !upstream.ok &&
-      playback.refresh?.providerId === "vidking" &&
+      isVidKingPlaybackRefresh(playback.refresh) &&
       isRetryableVidKingUpstreamStatus(upstream.status)
     ) {
       await cancelResponseBody(upstream);

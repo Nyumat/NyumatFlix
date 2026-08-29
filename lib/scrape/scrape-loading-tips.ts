@@ -9,8 +9,10 @@ export const SCRAPE_LOADING_TIPS: readonly ScrapeLoadingTip[] = [
     text: "Click here to unlock early access to new features.",
     href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   },
-  "We automatically store your watch progress.",
+  'We strongly recommend using the "Direct" source option. 😉',
   "You can switch to no-ads mode in the navigation menu.",
+  "We automatically store your watch progress.",
+  "Anime is more unstable than traditional media. Bear with us.",
   "Want a watchlist? Make an account!",
   "If playback buffers, is low quality, or stops, try another source.",
 ];

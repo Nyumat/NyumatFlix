@@ -3,6 +3,12 @@ import {
   normalizeAllanimeApiResponse,
   type AllanimeSourceUrl,
 } from "../allanime-crypto";
+import { fetchAllanimeEpisodeSources } from "../allanime-aareq";
+import {
+  isOkCdnHlsUrl,
+  normalizeAllanimeStreamUrl,
+} from "../allanime-stream-url";
+import { validateStreamUrl } from "../../validate-stream";
 import { extractM3u8Urls, isDirectMediaUrl } from "../html-utils";
 import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
@@ -13,10 +19,6 @@ import { isExactAnimeTitleMatch } from "../title-match";
 const ALLMANGA_ORIGIN = "https://allmanga.to";
 const ALLANIME_API = "https://api.allanime.day/api";
 const ALLANIME_HOST = "https://allanime.day";
-
-/** Persisted episode query hash used by allmanga.to / ani-cli (POST episode GQL regresses). */
-const ALLANIME_EPISODE_PERSISTED_HASH =
-  "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec";
 
 const SEARCH_GQL = `query( $search: SearchInput $limit: Int $page: Int $translationType: VaildTranslationTypeEnumType $countryOrigin: VaildCountryOriginEnumType ) { shows( search: $search limit: $limit page: $page translationType: $translationType countryOrigin: $countryOrigin ) { edges { _id name englishName nativeName aniListId availableEpisodesDetail __typename } }}`;
 
@@ -33,14 +35,6 @@ type AllanimeSearchResponse = {
     shows?: {
       edges?: AllanimeShowEdge[];
     };
-  };
-};
-
-type AllanimeEpisodeResponse = {
-  data?: {
-    episode?: {
-      sourceUrls?: AllanimeSourceUrl[];
-    } | null;
   };
 };
 
@@ -99,54 +93,19 @@ const allanimePost = async <T>(
   return normalizeAllanimeApiResponse<T>(await response.json());
 };
 
-const allanimePersistedGet = async <T>(
-  variables: Record<string, unknown>,
-  sha256Hash: string,
-): Promise<T> => {
-  const params = new URLSearchParams({
-    variables: JSON.stringify(variables),
-    extensions: JSON.stringify({
-      persistedQuery: { version: 1, sha256Hash },
-    }),
-  });
-
-  const response = await scrapeFetch(`${ALLANIME_API}?${params.toString()}`, {
-    method: "GET",
-    headers: {
-      Referer: `${ALLMANGA_ORIGIN}/`,
-      Origin: ALLMANGA_ORIGIN,
-    },
-  });
-
-  if (!response.ok) {
-    await cancelResponseBody(response);
-    throw new Error(`AllManga persisted query failed (${response.status})`);
-  }
-
-  return normalizeAllanimeApiResponse<T>(await response.json());
-};
-
-const extractSourceUrls = (
-  payload: AllanimeEpisodeResponse,
-): AllanimeSourceUrl[] => payload.data?.episode?.sourceUrls ?? [];
-
 const fetchEpisodeSources = async (
   showId: string,
   episodeString: string,
   mode: "sub" | "dub",
 ): Promise<AllanimeSourceUrl[]> => {
-  const variables = {
+  // Episode sources require extensions.aaReq (AES-GCM). Plain persisted GET
+  // returns AA_CRYPTO_MISSING / empty sourceUrls.
+  const { sourceUrls } = await fetchAllanimeEpisodeSources({
     showId,
     translationType: mode,
     episodeString,
-  };
-
-  // Prefer persisted GET — inline POST episode queries currently 500 with countryOfOrigin errors.
-  const persisted = await allanimePersistedGet<AllanimeEpisodeResponse>(
-    variables,
-    ALLANIME_EPISODE_PERSISTED_HASH,
-  );
-  return extractSourceUrls(persisted);
+  });
+  return sourceUrls;
 };
 
 type ResolvedAllanimeStream = {
@@ -226,14 +185,24 @@ const resolveAllanimeProviderLink = async (
 ): Promise<ResolvedAllanimeStream | null> => {
   const normalized = normalizeAllanimeProviderUrl(providerPath);
 
+  // Yt-mp4 / tools.fast4speed play URLs are already direct media endpoints.
+  if (
+    /tools\.fast4speed\.rsvp/i.test(normalized) ||
+    /\/media\d*\/videos\//i.test(normalized)
+  ) {
+    return { url: normalized, kind: "mp4" };
+  }
+
   const directKind = mediaKindFromUrl(normalized);
   if (directKind) {
     return { url: normalized, kind: directKind };
   }
 
-  const page = await scrapeFetchText(normalized, {
-    Referer: `${ALLMANGA_ORIGIN}/`,
-  });
+  const page = await scrapeFetchText(
+    normalized,
+    { Referer: `${ALLMANGA_ORIGIN}/` },
+    { timeoutMs: 12_000 },
+  );
 
   if (page.status !== 200) {
     return null;
@@ -313,7 +282,14 @@ const resolveAllanimeProviderLink = async (
 };
 
 const preferredSourceRank = (source: AllanimeSourceUrl): number => {
-  const name = source.sourceName ?? "";
+  const name = (source.sourceName ?? "").toLowerCase();
+  // Direct CDNs first — iframe embeds (Ok/Uni/Mp4upload) often hang or bot-block.
+  if (name === "yt-mp4" || name === "s-mp4" || name === "luv-mp4") {
+    return 500;
+  }
+  if (source.type === "player" && source.sourceUrl?.startsWith("http")) {
+    return 450;
+  }
   if (source.sourceName === "Default") {
     return 400;
   }
@@ -325,6 +301,9 @@ const preferredSourceRank = (source: AllanimeSourceUrl): number => {
   }
   if (source.type === "player" || /default/i.test(name)) {
     return 150;
+  }
+  if (name === "ok" || name === "uni" || name === "mp4") {
+    return -50;
   }
   return source.priority ?? 0;
 };
@@ -360,6 +339,9 @@ const normalizeAllanimeProviderUrl = (providerPath: string): string => {
 const refererForResolvedStream = (streamUrl: string): string => {
   try {
     const host = new URL(streamUrl).hostname.toLowerCase();
+    if (isOkCdnHlsUrl(streamUrl)) {
+      return `${ALLMANGA_ORIGIN}/`;
+    }
     if (host.includes("mp4upload")) {
       return "https://www.mp4upload.com/";
     }
@@ -369,8 +351,15 @@ const refererForResolvedStream = (streamUrl: string): string => {
   } catch {
     void 0;
   }
-  return ALLMANGA_ORIGIN;
+  return `${ALLMANGA_ORIGIN}/`;
 };
+
+const finalizeResolvedStream = (
+  resolved: ResolvedAllanimeStream,
+): ResolvedAllanimeStream => ({
+  ...resolved,
+  url: normalizeAllanimeStreamUrl(resolved.url),
+});
 
 const resolveAllanimeSource = async (
   source: AllanimeSourceUrl,
@@ -441,35 +430,66 @@ export async function scrapeAllmanga(
       };
     }
 
-    let fallback: ResolvedAllanimeStream | null = null;
+    // Prefer progressive MP4 (Yt-mp4 / S-mp4). Ok CDN HLS is IP-bound in the
+    // playlist query (`srcIp=…`) and often fails outer validation even when the
+    // provider hop succeeds — never let it preempt a resolved MP4.
+    let fallbackHls: ResolvedAllanimeStream | null = null;
     for (const candidate of candidates) {
       const resolved = await resolveAllanimeSource(candidate);
       if (!resolved) {
         continue;
       }
 
-      if (resolved.kind === "hls") {
+      const playable = finalizeResolvedStream(resolved);
+      const referer = refererForResolvedStream(playable.url);
+
+      if (playable.kind === "mp4") {
+        const playableMp4 = await validateStreamUrl(
+          playable.url,
+          referer,
+          "mp4",
+          null,
+          "full",
+        );
+        if (!playableMp4) {
+          continue;
+        }
         return {
           ok: true,
           providerId,
-          streamUrl: resolved.url,
-          streamKind: resolved.kind,
-          referer: refererForResolvedStream(resolved.url),
-          qualities: resolved.qualities,
+          validated: true,
+          streamUrl: playable.url,
+          streamKind: "mp4",
+          referer,
+          qualities: playable.qualities,
         };
       }
 
-      fallback ??= resolved;
+      if (playable.kind === "hls") {
+        if (isOkCdnHlsUrl(playable.url)) {
+          fallbackHls ??= playable;
+          continue;
+        }
+        return {
+          ok: true,
+          providerId,
+          streamUrl: playable.url,
+          streamKind: "hls",
+          referer,
+          qualities: playable.qualities,
+        };
+      }
     }
 
-    if (fallback) {
+    if (fallbackHls) {
+      const playable = finalizeResolvedStream(fallbackHls);
       return {
         ok: true,
         providerId,
-        streamUrl: fallback.url,
-        streamKind: fallback.kind,
-        referer: refererForResolvedStream(fallback.url),
-        qualities: fallback.qualities,
+        streamUrl: playable.url,
+        streamKind: playable.kind,
+        referer: refererForResolvedStream(playable.url),
+        qualities: playable.qualities,
       };
     }
 

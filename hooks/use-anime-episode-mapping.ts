@@ -20,6 +20,9 @@ export function useAnimeEpisodeMapping() {
   const applyAnimeEpisodeMapping = useEpisodeStore(
     (state) => state.applyAnimeEpisodeMapping,
   );
+  const setAnimeCoordsStatus = useEpisodeStore(
+    (state) => state.setAnimeCoordsStatus,
+  );
 
   useEffect(() => {
     if (
@@ -29,6 +32,12 @@ export function useAnimeEpisodeMapping() {
       !seasonNumber ||
       !Number.isInteger(Number(tvShowId))
     ) {
+      return;
+    }
+
+    const current = useEpisodeStore.getState();
+    // Episode already has AniList coords (season segments / Watch button).
+    if (current.anilistId && current.animeCoordsStatus === "resolved") {
       return;
     }
 
@@ -49,18 +58,27 @@ export function useAnimeEpisodeMapping() {
       return;
     }
 
+    if (current.animeCoordsStatus !== "pending") {
+      setAnimeCoordsStatus("pending");
+    }
+
     void resolveEpisodeAnimeMapping({
       tmdbShowId: Number(tvShowId),
       seasonNumber,
       episodeNumber: selectedEpisode.episode_number,
-      sourceAnilistId: defaultAnilistId,
+      isAdult: defaultIsAdultAnime,
     }).then((coords) => {
-      if (cancelled || !coords) {
+      if (cancelled) {
+        return;
+      }
+      if (!coords) {
+        setAnimeCoordsStatus("miss");
         return;
       }
 
       applyAnimeEpisodeMapping({
         animeInfo: coords.animeInfo,
+        relativeEpisodeNumber: coords.relativeEpisodeNumber,
         confidence: coords.confidence,
         isAdult: coords.isAdult,
         animeSeasonNumber: coords.animeSeasonNumber,
@@ -76,6 +94,7 @@ export function useAnimeEpisodeMapping() {
     defaultIsAdultAnime,
     seasonNumber,
     selectedEpisode,
+    setAnimeCoordsStatus,
     tvShowId,
   ]);
 }

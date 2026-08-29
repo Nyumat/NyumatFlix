@@ -38,4 +38,23 @@ describe("sub1x2 subtitles", () => {
       "https://cdn.example/en.vtt",
     );
   });
+
+  it("builds URLs for anime TMDB softsub lookups", () => {
+    expect(
+      buildSub1x2SubtitleApiUrl({
+        mediaType: "tv",
+        tmdbId: 94664,
+        seasonNumber: 1,
+        episodeNumber: 1,
+      }),
+    ).toBe("https://sub.1x2.space/api/tv/94664/1/1");
+    expect(
+      buildSub1x2SubtitleApiUrl({
+        mediaType: "tv",
+        tmdbId: 13916,
+        seasonNumber: 1,
+        episodeNumber: 1,
+      }),
+    ).toBe("https://sub.1x2.space/api/tv/13916/1/1");
+  });
 });
