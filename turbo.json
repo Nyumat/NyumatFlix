@@ -21,8 +21,13 @@
       ]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "@nyumatflix/web#build": {
+      "dependsOn": ["^build", "^copy:vendor"],
+      "outputs": [".next/**", "public/vendor/player/**"]
     },
     "test": {
       "dependsOn": ["^build"]

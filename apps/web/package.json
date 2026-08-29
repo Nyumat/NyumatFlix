@@ -9,7 +9,7 @@
     "dev:next": "next dev --turbopack",
     "dev:webpack": "next dev",
     "build": "next build",
-    "prebuild": "node scripts/ensure-env.mjs",
+    "prebuild": "node scripts/ensure-env.mjs && node scripts/ensure-player.mjs",
     "start": "next start",
     "lint": "biome check .",
     "lint:fix": "biome check . --write",

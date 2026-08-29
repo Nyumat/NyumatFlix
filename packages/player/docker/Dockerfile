@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM --platform=linux/arm64 emscripten/emsdk:latest
+FROM emscripten/emsdk:latest
 
 LABEL maintainer="movi"
 LABEL description="FFmpeg WASM build environment for movi"
