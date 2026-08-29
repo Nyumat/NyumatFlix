@@ -13,17 +13,13 @@ import {
   CACHE_SEASON_REVALIDATE_SECONDS,
 } from "@/lib/http-cache";
 import { tmdbFetchInit } from "@/lib/tmdb-cache-policy";
-import { LogoSchema } from "@/lib/domain/typings";
+import { pickEnglishLogo } from "@/lib/tmdb-logo";
 import type {
   Episode,
   Season,
   SeasonDetails,
   TvShowDetails,
 } from "@/lib/domain/typings";
-
-type TmdbLogo = {
-  iso_639_1?: string | null;
-};
 
 type RawEpisode = {
   air_date?: unknown;
@@ -58,25 +54,6 @@ const readNumber = (value: unknown, fallback = 0) =>
 
 const readNullableNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
-
-const pickEnglishLogo = (logos: unknown) => {
-  if (!Array.isArray(logos) || logos.length === 0) {
-    return undefined;
-  }
-
-  const selected =
-    logos.find((logo): logo is TmdbLogo => {
-      return (
-        typeof logo === "object" &&
-        logo !== null &&
-        "iso_639_1" in logo &&
-        logo.iso_639_1 === "en"
-      );
-    }) ?? logos[0];
-
-  const result = LogoSchema.safeParse(selected);
-  return result.success ? result.data : undefined;
-};
 
 const pickTvCertification = (
   contentRatings: TvShowDetails["content_ratings"] | undefined,

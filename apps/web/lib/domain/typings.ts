@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const LogoSchema = z.object({
   file_path: z.string(),
-  iso_639_1: z.string(),
+  iso_639_1: z.string().nullable(),
   aspect_ratio: z.number(),
   height: z.number(),
   width: z.number(),

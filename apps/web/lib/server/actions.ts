@@ -9,6 +9,7 @@ import {
   withMovieDiscoverIncludeVideo,
 } from "@/lib/tmdb-discover-defaults";
 import { logger } from "@/lib/utils";
+import { pickEnglishLogo } from "@/lib/tmdb-logo";
 import {
   mapItemsToCanonicalCardsValue,
   mapMediaListToCanonicalCardsValue,
@@ -22,7 +23,6 @@ import {
   Genre,
   GenreSchema,
   Logo,
-  LogoSchema,
   CanonicalMediaCard,
   CanonicalMovieCard,
   CanonicalPersonCard,
@@ -977,25 +977,7 @@ export async function enrichMediaItemsWithLogos<
           const detailedData = await fetchTMDBData<{ logos?: unknown[] }>(
             `/${mediaType}/${item.id}/images`,
           );
-          const logos = detailedData.logos;
-          let logo: Logo | undefined;
-          if (Array.isArray(logos) && logos.length > 0) {
-            const pick =
-              logos.find((candidate) => {
-                if (
-                  typeof candidate !== "object" ||
-                  candidate === null ||
-                  !("iso_639_1" in candidate)
-                ) {
-                  return false;
-                }
-                return candidate.iso_639_1 === "en";
-              }) ?? logos[0];
-            const logoResult = LogoSchema.safeParse(pick);
-            if (logoResult.success) {
-              logo = logoResult.data;
-            }
-          }
+          const logo = pickEnglishLogo(detailedData.logos);
           return { ...item, logo } as T;
         } catch (error) {
           if (isNetworkFetchError(error)) {
@@ -1052,22 +1034,8 @@ export async function fetchAndEnrichMediaItems<
 
       try {
         const detailedData = await fetchTMDBData(`/${type}/${item.id}`);
-
-        let englishLogo: Logo | undefined = undefined;
-        const detailedTvShowData = detailedData as TmdbTvShowDetails;
-        if (detailedTvShowData.images && detailedTvShowData.images.logos) {
-          const logos = detailedTvShowData.images.logos;
-          const englishLogoData: Logo | undefined = logos.find(
-            (logo: Logo) => logo.iso_639_1 === "en",
-          );
-
-          if (englishLogoData) {
-            const logoResult = LogoSchema.safeParse(englishLogoData);
-            if (logoResult.success) {
-              englishLogo = logoResult.data;
-            }
-          }
-        }
+        const detailedWithImages = detailedData as TmdbTvShowDetails;
+        const englishLogo = pickEnglishLogo(detailedWithImages.images?.logos);
 
         let contentRating: string | null = null;
         try {

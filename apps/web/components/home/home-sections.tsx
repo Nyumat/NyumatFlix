@@ -12,6 +12,7 @@ import { TrendCarousel } from "@/components/trend/trend-client";
 import { TvHero } from "@/components/tv/tv-server";
 import { pages } from "@/config/pages";
 import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
+import { CAROUSEL_LOGO_ENRICH_COUNT } from "@/lib/tmdb-logo";
 import { getHomeCollections } from "@/lib/server/home-collections-data";
 import {
   getHomePopularMovies,
@@ -20,7 +21,7 @@ import {
   getHomeTrendingTv,
 } from "@/lib/server/home-hub-data";
 
-const ABOVE_FOLD_LOGO_COUNT = 8;
+const ABOVE_FOLD_LOGO_COUNT = CAROUSEL_LOGO_ENRICH_COUNT;
 
 export async function HomeFeaturedMovie() {
   const movies = await getHomeTrendingMovies();

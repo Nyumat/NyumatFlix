@@ -1,4 +1,5 @@
 import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
+import { CAROUSEL_LOGO_ENRICH_COUNT } from "@/lib/tmdb-logo";
 import { slimMediaItemsForRsc, toHeroTvRefs } from "@/lib/cards/catalog-dto";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
@@ -54,7 +55,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 export const revalidate = 3600;
-const ABOVE_FOLD_LOGO_COUNT = 8;
+const ABOVE_FOLD_LOGO_COUNT = CAROUSEL_LOGO_ENRICH_COUNT;
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

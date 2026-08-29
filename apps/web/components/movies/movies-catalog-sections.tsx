@@ -1,5 +1,6 @@
 import { slimMediaItemsForRsc, toHeroMovieRefs } from "@/lib/cards/catalog-dto";
 import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
+import { CAROUSEL_LOGO_ENRICH_COUNT } from "@/lib/tmdb-logo";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
@@ -38,7 +39,7 @@ import type { MovieWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/lib/domain/typings";
 import { Suspense } from "react";
 
-const ABOVE_FOLD_LOGO_COUNT = 8;
+const ABOVE_FOLD_LOGO_COUNT = CAROUSEL_LOGO_ENRICH_COUNT;
 
 type SearchParams = Record<string, string>;
 

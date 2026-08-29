@@ -4,14 +4,13 @@ import {
   filterReleasedMovies,
   filterReleasedTvShows,
 } from "@/lib/released-media";
+import { CAROUSEL_LOGO_ENRICH_COUNT } from "@/lib/tmdb-logo";
 import { MovieHero } from "@/components/movie/movie-server";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { TrendingSpotlight } from "@/components/trend/trending-spotlight";
 import { TvHero } from "@/components/tv/tv-server";
 import { pages } from "@/config/pages";
 import { tmdb } from "@/tmdb/api";
-
-const ABOVE_FOLD_LOGO_COUNT = 8;
 
 export async function TrendingMoviesSection() {
   const { results: moviesRaw } = await tmdb.trending.movie({
@@ -28,12 +27,12 @@ export async function TrendingMoviesSection() {
   const moviesForTrendCarousel = await enrichAboveFoldMediaItemsWithLogos(
     movies,
     "movie",
-    ABOVE_FOLD_LOGO_COUNT,
+    CAROUSEL_LOGO_ENRICH_COUNT,
   );
 
   return (
     <ContentReveal className="space-y-10">
-      <TrendingSpotlight movieId={featured.id} priority />
+      <TrendingSpotlight mediaType="movie" id={featured.id} priority />
 
       <TrendCarousel
         type="movie"
@@ -55,14 +54,23 @@ export async function TrendingTvSection() {
     page: "1",
   });
   const tvShows = filterReleasedTvShows(tvShowsRaw);
+  const featured =
+    tvShows.find((show) => Boolean(show.poster_path)) ?? tvShows[0];
+
+  if (!featured) {
+    return null;
+  }
+
   const tvShowsForTrendCarousel = await enrichAboveFoldMediaItemsWithLogos(
     tvShows,
     "tv",
-    ABOVE_FOLD_LOGO_COUNT,
+    CAROUSEL_LOGO_ENRICH_COUNT,
   );
 
   return (
     <ContentReveal className="space-y-10">
+      <TrendingSpotlight mediaType="tv" id={featured.id} priority />
+
       <TrendCarousel
         type="tv"
         title={pages.trending.tv.title}

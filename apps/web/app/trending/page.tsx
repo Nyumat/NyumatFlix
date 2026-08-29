@@ -53,6 +53,7 @@ export default function TrendingHub() {
             <Suspense
               fallback={
                 <>
+                  <TrendingSpotlightFallback />
                   <CatalogRowFallback />
                   <CatalogHeroPairFallback />
                 </>
