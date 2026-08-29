@@ -1,0 +1,15 @@
+{
+  "name": "@movi-player/svelte",
+  "version": "0.3.3",
+  "description": "Svelte wrapper for the movi-player web component (MKV/HEVC/AV1/HDR in the browser).",
+  "type": "module",
+  "svelte": "MoviPlayer.svelte",
+  "main": "MoviPlayer.svelte",
+  "files": ["MoviPlayer.svelte", "README.md"],
+  "keywords": ["movi-player", "svelte", "video", "player", "webcodecs", "mkv", "hevc", "av1", "hdr"],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "movi-player": ">=0.3.0",
+    "svelte": ">=4"
+  }
+}

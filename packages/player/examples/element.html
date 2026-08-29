@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+  <!--
+    Movi Player Examples - Element Demo
+
+    CORS SETUP FOR DEVELOPMENT:
+    If you encounter CORS errors when loading remote video URLs, you'll need to enable CORS
+    in your browser during development. Install one of these extensions:
+
+    - Chrome/Edge: "CORS Unblock" or "Allow CORS: Access-Control-Allow-Origin"
+    - Firefox: "CORS Everywhere"
+    - Safari: "CORS Unblock"
+
+    ⚠️ SECURITY WARNING: Only enable CORS extensions when actively developing.
+    Disable them when browsing other sites to maintain browser security protections.
+  -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Movi - Premium Player</title>
+    <style>
+      :root {
+        --primary-accent: #6c5dd3;
+        --secondary-accent: #00d4ff;
+        --font-family: "Inter", system-ui, -apple-system, sans-serif;
+      }
+
+      /* Dark Theme (Default) */
+      :root {
+        --bg-base: #0f0f12;
+        --text-primary: #ffffff;
+        --text-secondary: #a0a0b0;
+
+        --glass-bg: rgba(255, 255, 255, 0.05);
+        --glass-border: rgba(255, 255, 255, 0.1);
+
+        --input-bg: rgba(0, 0, 0, 0.3);
+        --input-focus-bg: rgba(0, 0, 0, 0.5);
+        --input-text: #ffffff;
+        --input-placeholder: rgba(255, 255, 255, 0.4);
+
+        --btn-secondary-bg: rgba(255, 255, 255, 0.08);
+        --btn-secondary-border: rgba(255, 255, 255, 0.05);
+        --btn-secondary-hover: rgba(255, 255, 255, 0.15);
+        --btn-secondary-text: #ffffff;
+
+        --gradient-1: rgba(108, 93, 211, 0.15);
+        --gradient-2: rgba(0, 212, 255, 0.1);
+
+        --icon-color: #ffffff;
+        --brand-gradient: linear-gradient(135deg, #ffffff 0%, #a0a0b0 100%);
+      }
+
+      /* Light Theme Override */
+      [data-theme="light"] {
+        --bg-base: #f4f5f7;
+        --text-primary: #11142d;
+        --text-secondary: #808191;
+
+        --glass-bg: rgba(255, 255, 255, 0.6);
+        --glass-border: rgba(0, 0, 0, 0.08);
+
+        --input-bg: rgba(255, 255, 255, 0.7);
+        --input-focus-bg: #ffffff;
+        --input-text: #11142d;
+        --input-placeholder: rgba(0, 0, 0, 0.4);
+
+        --btn-secondary-bg: rgba(0, 0, 0, 0.05);
+        --btn-secondary-border: transparent;
+        --btn-secondary-hover: rgba(0, 0, 0, 0.1);
+        --btn-secondary-text: #11142d;
+
+        --gradient-1: rgba(108, 93, 211, 0.08);
+        --gradient-2: rgba(0, 212, 255, 0.08);
+
+        --icon-color: #11142d;
+        --brand-gradient: linear-gradient(135deg, #6c5dd3 0%, #4a3bba 100%);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: var(--bg-base);
+        background-image:
+          radial-gradient(
+            circle at 15% 50%,
+            var(--gradient-1) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 85% 30%,
+            var(--gradient-2) 0%,
+            transparent 25%
+          );
+        color: var(--text-primary);
+        font-family: var(--font-family);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+      }
+
+      /* Ambient Background Layer */
+      #ambient-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.6;
+        filter: blur(80px);
+        transition: opacity 1s ease;
+      }
+
+      .app-container {
+        position: relative;
+        z-index: 10;
+        width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        flex: 1;
+      }
+
+      /* Header */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        /* margin-bottom: 1rem; */
+      }
+
+      .brand {
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: var(--brand-gradient);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.5px;
+      }
+
+      /* Glass Panel for Inputs */
+      .controls-panel {
+        /* background: var(--glass-bg); */
+        /* backdrop-filter: blur(12px); */
+        /* -webkit-backdrop-filter: blur(12px); */
+        /* border: 1px solid var(--glass-border); */
+        border-radius: 16px;
+        /* padding: 1.5rem; */
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        /* box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2); */
+        flex-wrap: wrap;
+      }
+
+      .input-group {
+        flex: 1;
+        position: relative;
+        min-width: 300px;
+      }
+
+      .input-group input {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        color: var(--input-text);
+        font-family: inherit;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+      }
+
+      .input-group input:focus {
+        outline: none;
+        border-color: var(--primary-accent);
+        background: var(--input-focus-bg);
+        box-shadow: 0 0 0 4px rgba(108, 93, 211, 0.1);
+      }
+
+      .input-group input::placeholder {
+        color: var(--input-placeholder);
+      }
+
+      .action-group {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #ffffff;
+        font-family: inherit;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 0 1.5rem;
+        height: 50px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+
+      .separator {
+        width: 1px;
+        height: 30px;
+        background: var(--glass-border);
+        margin: 0 0.5rem;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--primary-accent), #4a3bba);
+        box-shadow: 0 8px 16px rgba(108, 93, 211, 0.3);
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 20px rgba(108, 93, 211, 0.4);
+      }
+
+      .btn-secondary {
+        background: var(--btn-secondary-bg);
+        border: 1px solid var(--btn-secondary-border);
+        color: var(--btn-secondary-text);
+      }
+
+      .btn-secondary:hover {
+        background: var(--btn-secondary-hover);
+        transform: translateY(-2px);
+      }
+
+      /* File Input Hidden */
+      input[type="file"] {
+        display: none;
+      }
+
+      /* Player Container */
+      .player-stage {
+        position: relative;
+        width: 100%;
+        /* border-radius: 20px; */
+        overflow: hidden;
+        background: #000;
+        /* box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); */
+        /* border: 1px solid rgba(255, 255, 255, 0.05); */
+        aspect-ratio: 16/9;
+        /* Ensure player scales nicely */
+        display: flex;
+        justify-content: center;
+      }
+
+      movi-player {
+        width: 100%;
+        height: 100%;
+        display: block;
+        /* Custom Properties for Movi Player to match theme */
+        --movi-controls-bg: rgba(15, 15, 18, 0.85);
+        --movi-controls-color: #ffffff;
+        --movi-progress-color: var(--primary-accent);
+        --movi-btn-hover-bg: rgba(108, 93, 211, 0.2);
+        --movi-slider-track: rgba(255, 255, 255, 0.1);
+      }
+
+      /* Status Bar */
+      .status-bar {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: var(--text-secondary);
+        display: inline-block;
+      }
+
+      .status-dot.active {
+        background-color: #00ff88;
+        box-shadow: 0 0 8px #00ff88;
+      }
+
+      /* Loading Shimmer Effect */
+      .shimmer-wrapper {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shimmer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(108, 93, 211, 0.05) 40%,
+          rgba(108, 93, 211, 0.1) 50%,
+          rgba(108, 93, 211, 0.05) 60%,
+          transparent 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite linear;
+      }
+
+      .shimmer-logo {
+        position: relative;
+        z-index: 1;
+        opacity: 0.2;
+        animation: pulse 2s infinite ease-in-out;
+      }
+
+      @keyframes shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+
+        100% {
+          background-position: 200% 0;
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.2;
+        }
+
+        50% {
+          transform: scale(1.05);
+          opacity: 0.4;
+        }
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .app-container {
+          padding: 1rem;
+          gap: 1rem;
+        }
+
+        header {
+          flex-direction: column;
+          gap: 0.75rem;
+          text-align: center;
+        }
+
+        .controls-panel {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 1rem;
+        }
+
+        .input-group {
+          min-width: unset;
+        }
+
+        .action-group {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0.75rem;
+        }
+
+        /* Hide separator on mobile when stacked */
+        .separator {
+          display: none;
+        }
+
+        .btn {
+          width: 100%;
+          height: 48px;
+        }
+
+        .brand {
+          font-size: 1.25rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .app-container {
+          padding: 0.75rem;
+        }
+
+        .player-stage {
+          border-radius: 12px;
+        }
+
+        .status-bar {
+          font-size: 0.75rem;
+        }
+      }
+
+      /* Info Notice */
+      .info-notice {
+        background: rgba(0, 212, 255, 0.05);
+        border: 1px solid rgba(0, 212, 255, 0.15);
+        border-radius: 8px;
+        padding: 0.65rem 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+      }
+
+      .info-notice svg {
+        flex-shrink: 0;
+        opacity: 0.6;
+      }
+
+      .info-notice strong {
+        color: var(--text-primary);
+        font-weight: 500;
+      }
+
+      .info-notice a {
+        color: var(--secondary-accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .info-notice a:hover {
+        text-decoration: underline;
+      }
+
+      /* Theme Toggle Button */
+      .theme-toggle-btn {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--icon-color);
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .theme-toggle-btn:hover {
+        background: var(--btn-secondary-hover);
+        transform: translateY(-2px);
+      }
+
+      .theme-icon {
+        width: 20px;
+        height: 20px;
+        stroke-width: 2px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Ambient Glow container -->
+    <div id="ambient-wrapper"></div>
+
+    <div class="app-container">
+      <header>
+        <div class="brand">Movi Player</div>
+        <button
+          id="theme-toggle"
+          class="theme-toggle-btn"
+          aria-label="Switch Theme"
+        >
+          <!-- Icons injected via JS -->
+        </button>
+      </header>
+
+      <section class="controls-panel">
+        <div class="input-group">
+          <input
+            type="text"
+            id="url-input"
+            placeholder="Paste video URL here..."
+            aria-label="Video URL"
+          />
+        </div>
+        <div class="action-group">
+          <button class="btn btn-primary" id="load-btn">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Play URL
+          </button>
+          <div class="separator"></div>
+          <label class="btn btn-secondary">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Select File
+            <input type="file" id="file-input" accept="video/*,.mkv,.ts" />
+          </label>
+        </div>
+      </section>
+
+      <!-- CORS Notice -->
+      <div class="info-notice">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <div>
+          <strong>Tip:</strong> For CORS errors, install
+          <a
+            href="https://chromewebstore.google.com/detail/cors-unblock/hadoojkfknbjgoppkecpgamiajljiief"
+            target="_blank"
+            rel="noopener noreferrer"
+            >CORS Unblock</a
+          >
+          or use <strong>Upload File</strong> for local testing
+        </div>
+      </div>
+
+      <section class="player-stage">
+        <movi-player
+          id="movi-player"
+          renderer="canvas"
+          controls
+          objectfit="control"
+          gesturefs
+          thumb
+          fastseek
+          showtitle
+          ambientmode
+          ambientwrapper="ambient-wrapper"
+        >
+          <!-- Fallback content if JS fails or loading -->
+          <div class="shimmer-wrapper">
+            <div class="shimmer"></div>
+          </div>
+        </movi-player>
+      </section>
+
+      <div class="status-bar">
+        <span class="status-dot" id="status-indicator"></span>
+        <span id="current-source">Ready to play</span>
+      </div>
+    </div>
+
+    <script type="module">
+      import "movi-player/element";
+
+      const urlInput = document.getElementById("url-input");
+      const loadBtn = document.getElementById("load-btn");
+      const fileInput = document.getElementById("file-input");
+      const player = document.getElementById("movi-player");
+      const currentSourceDiv = document.getElementById("current-source");
+      const statusDot = document.getElementById("status-indicator");
+
+      const updateStatus = (msg, isActive = false) => {
+        currentSourceDiv.textContent = msg;
+        if (isActive) {
+          statusDot.classList.add("active");
+          statusDot.style.backgroundColor = "#00ff88";
+        } else {
+          statusDot.classList.remove("active");
+          statusDot.style.backgroundColor = "var(--text-secondary)";
+        }
+      };
+
+      // Handle URL loading
+      const loadUrl = () => {
+        const url = urlInput.value.trim();
+        if (!url) {
+          // Shake animation for input could go here
+          urlInput.focus();
+          return;
+        }
+
+        if (player) {
+          updateStatus(`Loading stream: ${url}...`, true);
+          player.src = url;
+        }
+      };
+
+      loadBtn.addEventListener("click", loadUrl);
+
+      urlInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          loadUrl();
+        }
+      });
+
+      // Handle file selection
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file && player) {
+          updateStatus(`Playing local file: ${file.name}`, true);
+
+          if (player.setFile) {
+            player.setFile(file);
+          } else {
+            player.src = file;
+          }
+
+          // Clear URL input to avoid confusion
+          urlInput.value = "";
+        }
+      });
+
+      // Optional: Listen to player events if available
+      // player.addEventListener('loadedmetadata', () => { ... });
+      // player.addEventListener('error', () => { ... });
+
+      // --- Theme Logic ---
+      const themeToggle = document.getElementById("theme-toggle");
+
+      // Iconic SVGs
+      const icons = {
+        auto: `<svg class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`, // Monitor/Auto
+        light: `<svg class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`,
+        dark: `<svg class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`,
+      };
+
+      // States: 'auto' -> 'light' -> 'dark'
+      const modes = ["auto", "light", "dark"];
+
+      // Initialize
+      let currentMode = localStorage.getItem("theme-preference") || "auto";
+
+      const applyTheme = (mode) => {
+        // Logic to resolve 'auto' to actual theme
+        let effectiveTheme = mode;
+
+        if (mode === "auto") {
+          const systemDark = window.matchMedia(
+            "(prefers-color-scheme: dark)",
+          ).matches;
+          effectiveTheme = systemDark ? "dark" : "light";
+          document.documentElement.removeAttribute("data-theme"); // Let CSS fallbacks work or use JS
+          // But since we use [data-theme="light"] for light, and default is dark:
+          if (effectiveTheme === "light") {
+            document.documentElement.setAttribute("data-theme", "light");
+          } else {
+            document.documentElement.removeAttribute("data-theme");
+          }
+        } else {
+          if (mode === "light") {
+            document.documentElement.setAttribute("data-theme", "light");
+          } else {
+            document.documentElement.removeAttribute("data-theme"); // Default is dark in CSS
+          }
+        }
+
+        // Update Button Icon
+        themeToggle.innerHTML = icons[mode];
+        themeToggle.setAttribute(
+          "title",
+          `Theme: ${mode.charAt(0).toUpperCase() + mode.slice(1)}`,
+        );
+
+        // Update Player Theme
+        if (player) {
+          // Only set if explicitly light, otherwise remove or set dark
+          // MoviElement uses [theme="light"] for light mode, default is dark
+          if (effectiveTheme === "light") {
+            player.setAttribute("theme", "light");
+          } else {
+            player.setAttribute("theme", "dark");
+          }
+        }
+      };
+
+      // Listener for system changes when in auto mode
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", (e) => {
+          if (currentMode === "auto") {
+            applyTheme("auto");
+          }
+        });
+
+      const cycleTheme = () => {
+        const currentIndex = modes.indexOf(currentMode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        currentMode = modes[nextIndex];
+        localStorage.setItem("theme-preference", currentMode);
+        applyTheme(currentMode);
+      };
+
+      themeToggle.addEventListener("click", cycleTheme);
+
+      // Initial Apply
+      applyTheme(currentMode);
+    </script>
+  </body>
+</html>
