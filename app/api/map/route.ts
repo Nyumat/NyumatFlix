@@ -116,7 +116,7 @@ const cache = new Map<
   string,
   { data: TmdbShow | TmdbSeason | AnilistMediaExtended[]; timestamp: number }
 >();
-const CACHE_TTL = 60 * 60 * 1000;
+const CACHE_TTL = process.env.NODE_ENV === "development" ? 0 : 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 250;
 
 function getCached(key: string) {
@@ -308,6 +308,7 @@ async function fetchAniListCandidates(
   genreIds?: number[],
   genres?: { id: number }[],
   sourceAnilistId?: number,
+  tmdbShow?: TmdbShow,
 ): Promise<AnilistMediaExtended[]> {
   if (sourceAnilistId && Number.isInteger(sourceAnilistId)) {
     const franchise = await resolveAniListFranchise(sourceAnilistId);
@@ -325,6 +326,10 @@ async function fetchAniListCandidates(
   const cacheKey = `anilist_candidates_v2_${title}`;
   const cached = getCached(cacheKey);
   if (cached && Array.isArray(cached)) return cached as AnilistMediaExtended[];
+
+  if (tmdbShow && !isAnime(tmdbShow as unknown as Record<string, unknown>)) {
+    return [];
+  }
 
   const genreData = genreIds || genres;
   if (!genreData || !isAnime(genreData)) {
@@ -609,6 +614,7 @@ export async function GET(request: NextRequest) {
       tmdbShow.genre_ids,
       tmdbShow.genres,
       sourceAnilistId,
+      tmdbShow,
     );
 
     const orderedCandidates =

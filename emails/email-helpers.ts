@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/constants";
 import { render } from "@react-email/render";
 import MagicLinkEmail from "./magic-link";
 
@@ -19,11 +20,11 @@ export const html = async ({
 };
 
 export const text = ({ url, host: _host }: EmailParams): string => {
-  return `Sign in to Nyumatflix
+  return `Sign in to ${SITE_NAME}
 
-Click the button below to sign in to your account.
+Use this link to sign in. It expires in 24 hours and can only be used once.
 
 ${url}
 
-This link expires in 24 hours and can only be used once.`;
+If you did not request this email, you can ignore it.`;
 };

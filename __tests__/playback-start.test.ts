@@ -3,8 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   decidePlaybackAutoStart,
   hlsStartPosition,
+  PLAYBACK_START_TIMEOUT_MS,
   shouldEnforceVidstackStartAtZero,
 } from "@/lib/playback/playbackStart";
+
+describe("PLAYBACK_START_TIMEOUT_MS", () => {
+  it("is a positive fallback window for stalled players", () => {
+    expect(PLAYBACK_START_TIMEOUT_MS).toBeGreaterThan(10_000);
+  });
+});
 
 describe("shouldEnforceVidstackStartAtZero", () => {
   it("enforces start-at-zero for HLS when there is no resume time", () => {

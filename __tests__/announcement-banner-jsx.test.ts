@@ -51,4 +51,20 @@ describe("announcement banner JSX", () => {
       ).error,
     ).toBe("Invalid value for backgroundColor");
   });
+
+  it("allows an empty icon and optional action link", () => {
+    const config: AnnouncementBannerConfig = {
+      ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+      icon: "",
+      linkLabel: "",
+      linkUrl: "",
+    };
+
+    expect(
+      parseAnnouncementBannerJsx(announcementBannerConfigToJsx(config)),
+    ).toEqual({
+      config,
+      error: null,
+    });
+  });
 });

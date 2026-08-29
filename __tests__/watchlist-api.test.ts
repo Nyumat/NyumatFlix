@@ -13,6 +13,7 @@ vi.mock("@/db/schema", () => ({
     insert: vi.fn(),
   },
   watchlist: {},
+  accounts: {},
 }));
 
 const { GET, POST } = await import("@/app/api/watchlist/route");

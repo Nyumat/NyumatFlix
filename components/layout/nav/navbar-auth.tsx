@@ -4,7 +4,9 @@ import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { LogIn, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Session } from "next-auth";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { loginHref } from "@/lib/auth/callback-url";
 import { cn } from "@/lib/utils";
 import {
   navbarActionButtonClassName,
@@ -24,8 +26,10 @@ export const NavbarAuth = ({
   onMobileLinkClick,
 }: NavbarAuthProps) => {
   const { authEnabled } = useFeatureFlags();
+  const pathname = usePathname();
+  const signInHref = loginHref(pathname);
 
-  if (!authEnabled) {
+  if (!authEnabled && !session) {
     return null;
   }
 
@@ -36,7 +40,7 @@ export const NavbarAuth = ({
           <UserAvatar session={session} />
         ) : (
           <Link
-            href="/login"
+            href={signInHref}
             className="block px-3 py-3 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200"
             onClick={onMobileLinkClick}
           >
@@ -53,7 +57,7 @@ export const NavbarAuth = ({
       {session ? (
         <UserAvatar session={session} />
       ) : (
-        <Link href="/login" aria-label="Sign in">
+        <Link href={signInHref} aria-label="Sign in">
           <Button
             variant="ghost"
             size="icon"

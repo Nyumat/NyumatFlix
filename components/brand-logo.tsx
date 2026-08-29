@@ -21,7 +21,6 @@ export type BrandLogoPlacement =
   | "mobile-menu"
   | "auth"
   | "auth-compact"
-  | "onboarding"
   | "static";
 
 type PlacementConfig = {
@@ -67,11 +66,6 @@ const PLACEMENT_CONFIG: Record<BrandLogoPlacement, PlacementConfig> = {
     wrapperClassName: "mb-8 flex justify-center lg:hidden",
     linkClassName: "inline-flex items-center",
     ariaLabel: `${BRAND_NAME} home`,
-  },
-  onboarding: {
-    size: "lg",
-    wrapperClassName: "mx-auto flex items-center justify-center px-2",
-    imageClassName: "max-w-[min(100%,14rem)]",
   },
   static: {
     size: "md",

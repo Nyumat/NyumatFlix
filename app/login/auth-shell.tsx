@@ -1,6 +1,7 @@
 import { Check, Play, Plus } from "lucide-react";
 import Image from "next/image";
 import { BrandLogo } from "@/components/brand-logo";
+import { SITE_HERO_BANNER_URL } from "@/lib/constants";
 import type { ReactNode } from "react";
 
 type AuthShellProps = {
@@ -95,7 +96,7 @@ export function AuthShell({
     <main className="relative min-h-screen overflow-hidden bg-black text-white">
       <div className="absolute inset-0">
         <Image
-          src="/movie-banner.webp"
+          src={SITE_HERO_BANNER_URL}
           alt=""
           fill
           priority
