@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Movi - Movie Download Style</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background: #0a0a0a; /* Darker background like the reference */
+        color: #ddd;
+        margin: 0;
+        padding: 20px;
+        font-size: 14px;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        text-align: center; /* Center everything by default like the image */
+      }
+
+      .controls {
+        background: #1a1a1a;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 30px;
+        text-align: center;
+        border: 1px solid #333;
+      }
+      input[type="text"] {
+        width: 300px;
+        padding: 6px;
+        background: #222;
+        border: 1px solid #444;
+        color: #fff;
+        border-radius: 4px;
+      }
+      input[type="number"] {
+        width: 50px;
+        padding: 6px;
+        background: #222;
+        border: 1px solid #444;
+        color: #fff;
+        border-radius: 4px;
+      }
+      select {
+        padding: 6px;
+        background: #222;
+        border: 1px solid #444;
+        color: #fff;
+        border-radius: 4px;
+      }
+      button {
+        padding: 6px 12px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .status {
+        margin-top: 5px;
+        color: #888;
+        font-size: 12px;
+      }
+      .progress-bar {
+        width: 100%;
+        height: 3px;
+        background: #222;
+        margin-top: 8px;
+        border-radius: 2px;
+        overflow: hidden;
+        display: none;
+      }
+      .progress-fill {
+        height: 100%;
+        background: #007bff;
+        width: 0%;
+        transition: width 0.2s;
+      }
+
+      /* Movie Header Section */
+      .movie-header {
+        margin-bottom: 30px;
+      }
+      .movie-title {
+        font-size: 22px;
+        font-weight: bold;
+        color: #fff;
+        margin-bottom: 10px;
+      }
+      .movie-meta {
+        color: #aaa;
+        line-height: 1.6;
+      }
+      .meta-label {
+        font-weight: bold;
+        color: #888;
+      }
+      .highlight-red {
+        color: #ff3333;
+      }
+
+      /* Screenshots Section */
+      .screenshots-title {
+        color: #ff3333;
+        font-size: 18px;
+        font-weight: bold;
+        font-style: italic;
+        margin: 30px 0 15px 0;
+        text-align: center;
+      }
+
+      .screenshot-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* 2 columns like reference */
+        gap: 0;
+        margin: 0 auto;
+        max-width: 900px;
+      }
+
+      .screenshot-item {
+        width: 100%;
+        position: relative;
+      }
+
+      .screenshot-item canvas {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        background: #000; /* Black background for letterboxing */
+      }
+
+      .timestamp-overlay {
+        position: absolute;
+        bottom: 4px;
+        right: 4px;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        padding: 2px 6px;
+        font-size: 11px;
+        font-family: "Courier New", monospace;
+        border-radius: 2px;
+        pointer-events: none;
+      }
+
+      /* Loading/Error states */
+      #loadingState {
+        display: none;
+        color: #888;
+        margin-top: 50px;
+      }
+      #errorState {
+        display: none;
+        color: #ff3333;
+        margin-top: 50px;
+        white-space: pre-wrap;
+      }
+      #resultContainer {
+        display: none;
+      }
+
+      /* Debug Info Section */
+      .debug-section {
+        margin-top: 30px;
+        padding: 15px;
+        background: #1a1a1a;
+        border-radius: 6px;
+        border: 1px solid #333;
+        text-align: left;
+      }
+      .debug-title {
+        color: #ff3333;
+        font-weight: bold;
+        margin-bottom: 10px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .debug-content {
+        color: #aaa;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        display: none;
+      }
+      .debug-content.visible {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Controls -->
+      <div class="controls">
+        <label>Video URL:</label>
+        <input
+          type="text"
+          id="urlInput"
+          value="https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4"
+        />
+        <label style="margin-left: 10px">or</label>
+        <input
+          type="file"
+          id="fileInput"
+          accept="video/*,.mkv,.ts"
+          style="display: none"
+        />
+        <button id="fileBtn" style="background: #28a745">Choose File</button>
+        <label style="margin-left: 10px">Screenshots:</label>
+        <!-- Default 8 to make a nice 2x4 grid -->
+        <input
+          type="number"
+          id="countInput"
+          value="8"
+          min="2"
+          max="20"
+          step="2"
+        />
+        <select id="logLevelInput">
+          <option value="0">Silent</option>
+          <option value="1">Error</option>
+          <option value="2">Warn</option>
+          <option value="3" selected>Info</option>
+          <option value="4">Debug</option>
+          <option value="5">Trace</option>
+        </select>
+        <button id="analyzeBtn">Generate</button>
+        <div class="status" id="status">Ready</div>
+        <div class="progress-bar" id="progress">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div id="loadingState">
+        Processing video... <br />
+        (This downloads metadata and keyframes)
+      </div>
+
+      <div id="errorState"></div>
+
+      <div id="resultContainer">
+        <!-- Movie Header -->
+        <div class="movie-header">
+          <div class="movie-title" id="displayTitle">Title Placeholder</div>
+          <div class="movie-meta" id="displayMeta">
+            <!-- Metadata inserted here -->
+          </div>
+        </div>
+
+        <!-- Screenshots -->
+        <div class="screenshots-title">: Screen-Shots :</div>
+        <div class="screenshot-grid" id="screenshotGrid">
+          <!-- Canvases inserted here -->
+        </div>
+
+        <!-- Debug Info Section -->
+        <div class="debug-section">
+          <div class="debug-title" id="debugToggle">
+            🔍 Thumbnail Pipeline Debug Info (Click to expand)
+          </div>
+          <div class="debug-content" id="debugContent">
+            <!-- Debug info inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Script -->
+    <script type="module">
+      import {
+        Demuxer,
+        HttpSource,
+        FileSource,
+        ThumbnailHttpSource,
+        ThumbnailBindings,
+        loadWasmModuleNew,
+        ThumbnailRenderer,
+        LogLevel,
+        Logger,
+      } from "movi-player/demuxer";
+
+      const urlInput = document.getElementById("urlInput");
+      const fileInput = document.getElementById("fileInput");
+      const fileBtn = document.getElementById("fileBtn");
+      const countInput = document.getElementById("countInput");
+      const logLevelInput = document.getElementById("logLevelInput");
+      const analyzeBtn = document.getElementById("analyzeBtn");
+      const statusEl = document.getElementById("status");
+      const progressEl = document.getElementById("progress");
+      const progressFill = document.getElementById("progressFill");
+
+      const resultContainer = document.getElementById("resultContainer");
+      const loadingState = document.getElementById("loadingState");
+      const errorState = document.getElementById("errorState");
+
+      const displayTitle = document.getElementById("displayTitle");
+      const displayMeta = document.getElementById("displayMeta");
+      const screenshotGrid = document.getElementById("screenshotGrid");
+      const debugToggle = document.getElementById("debugToggle");
+      const debugContent = document.getElementById("debugContent");
+
+      let selectedFile = null;
+
+      // Debug toggle handler
+      debugToggle.addEventListener("click", () => {
+        debugContent.classList.toggle("visible");
+      });
+
+      // File button click handler
+      fileBtn.addEventListener("click", () => fileInput.click());
+
+      // File input change handler
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          selectedFile = file;
+          urlInput.value = `[Local File: ${file.name}]`;
+          urlInput.disabled = true;
+        }
+      });
+
+      // Allow clearing file selection
+      urlInput.addEventListener("focus", () => {
+        if (selectedFile) {
+          selectedFile = null;
+          fileInput.value = "";
+          urlInput.value = "";
+          urlInput.disabled = false;
+        }
+      });
+
+      analyzeBtn.addEventListener("click", async () => {
+        const url = urlInput.value;
+        const count = parseInt(countInput.value) || 8;
+        const logLevel = parseInt(logLevelInput.value);
+
+        // Map UI value to LogLevel enum
+        let level = LogLevel.INFO;
+        switch (logLevel) {
+          case 0:
+            level = LogLevel.SILENT;
+            break;
+          case 1:
+            level = LogLevel.ERROR;
+            break;
+          case 2:
+            level = LogLevel.WARN;
+            break;
+          case 3:
+            level = LogLevel.INFO;
+            break;
+          case 4:
+            level = LogLevel.DEBUG;
+            break;
+          case 5:
+            level = LogLevel.TRACE;
+            break;
+        }
+
+        Logger.setLevel(level);
+
+        if (!url && !selectedFile) return;
+
+        // Reset UI
+        resultContainer.style.display = "none";
+        errorState.style.display = "none";
+        loadingState.style.display = "block";
+        screenshotGrid.innerHTML = "";
+        setBusy(true);
+        updateStatus("Initializing...");
+
+        let demuxer = null;
+        let thumbBindings = null;
+        let renderer = null;
+
+        try {
+          // 1. Get Metadata
+          updateStatus("Reading metadata...");
+
+          // Choose source based on input type
+          let source, thumbSource, size, filename;
+
+          if (selectedFile) {
+            // Local file
+            source = new FileSource(selectedFile);
+            demuxer = new Demuxer(source);
+            size = selectedFile.size;
+            filename = selectedFile.name;
+          } else {
+            // URL
+            source = new HttpSource(url);
+            demuxer = new Demuxer(source);
+            size = await source.getSize();
+            filename = url.split("?")[0].split("/").pop();
+          }
+
+          const info = await demuxer.open();
+          const sizeMB = (size / (1024 * 1024)).toFixed(1) + "MB";
+
+          const tracks = demuxer.getTracks();
+          const videoTrack = demuxer.getVideoTracks()[0];
+          const audioTracks = tracks.filter((t) => t.type === "audio");
+          const subtitleTracks = tracks.filter((t) => t.type === "subtitle");
+
+          if (!videoTrack) throw new Error("No video track found");
+
+          // --- Extract Data for Layout ---
+          // Point 1: Use metadata title if available, else filename
+          let title = info.metadata?.title;
+          if (!title) {
+            const cleanName = filename
+              .replace(/\.(mp4|mkv|avi|mov|webm|m4v)$/i, "") // Remove extension
+              .replace(/[._-]/g, " "); // Replace separators with space
+
+            // Capitalize
+            title = cleanName.replace(/\w\S*/g, (w) =>
+              w.replace(/^\w/, (c) => c.toUpperCase()),
+            );
+          }
+
+          // Check HDR
+          const isHDR = videoTrack.isHDR || false;
+
+          const duration = formatTimeCombined(info.duration);
+          // Determine resolution label
+          let resolution = `${videoTrack.width}x${videoTrack.height}`;
+          let qualityLabel = "SD";
+          const h = videoTrack.height;
+          if (h >= 2160) qualityLabel = "4K/2160p";
+          else if (h >= 1440) qualityLabel = "2K/1440p";
+          else if (h >= 1080) qualityLabel = "1080p";
+          else if (h >= 720) qualityLabel = "720p";
+          else if (h >= 480) qualityLabel = "480p";
+
+          if (isHDR) qualityLabel += " HDR";
+
+          const vidCodec = videoTrack.codec.toUpperCase();
+
+          // Get languages
+          const langs = [
+            ...new Set(
+              audioTracks.map((t) =>
+                t.language && t.language !== "und"
+                  ? t.language.toUpperCase()
+                  : "Unknown",
+              ),
+            ),
+          ];
+
+          const langStr = langs.length > 0 ? langs.join(" & ") : "Unknown";
+          let titleSuffix = "";
+
+          if (langs.length > 1) {
+            titleSuffix = `[Dual Audio] [${langs.join("-")}]`;
+          } else if (langs.length === 1) {
+            titleSuffix = `[${langs[0]}]`;
+          } else {
+            // No language detected (no audio tracks?) -> Unknown
+            titleSuffix = `[Unknown]`;
+          }
+
+          // Format correction logic
+          let format = (info.formatName || "").toUpperCase();
+          if (format.includes("MATROSKA")) format = "MKV";
+          else if (format.includes("MP4") || format.includes("MOV"))
+            format = "MP4";
+          else if (format === "UNKNOWN" || !format) {
+            // Fallback to extension
+            const ext = filename.split(".").pop().toUpperCase();
+            format = ext;
+          }
+
+          demuxer.close(); // Done with metadata
+
+          // --- Render Header ---
+          displayTitle.textContent = `${title} ${titleSuffix} ${qualityLabel} ${vidCodec}`;
+
+          // Build HDR info string
+          let hdrInfo = "";
+          if (
+            videoTrack.colorPrimaries &&
+            videoTrack.colorPrimaries !== "unknown"
+          ) {
+            hdrInfo = `${videoTrack.colorPrimaries}`;
+            if (
+              videoTrack.colorTransfer &&
+              videoTrack.colorTransfer !== "unknown"
+            ) {
+              hdrInfo += ` / ${videoTrack.colorTransfer}`;
+            }
+          }
+
+          displayMeta.innerHTML = `
+                   <div><span class="meta-label">File Name:</span> ${filename}</div>
+                   <div><span class="meta-label">Duration:</span> ${duration}</div>
+                   <div><span class="meta-label">Size:</span> ${sizeMB}</div>
+                   <div><span class="meta-label">Language:</span> <span class="highlight-red">${langStr}</span></div>
+                   <div><span class="meta-label">Quality:</span> <span class="highlight-red">${qualityLabel}</span> (${resolution})</div>
+                   <div><span class="meta-label">Video:</span> ${vidCodec} ${videoTrack.pixelFormat ? `(${videoTrack.pixelFormat}${videoTrack.colorRange ? `, ${videoTrack.colorRange}` : ""})` : ""}</div>
+                   ${hdrInfo ? `<div><span class="meta-label">HDR:</span> <span class="highlight-red">${hdrInfo}</span></div>` : ""}
+                   <div><span class="meta-label">Audio:</span> ${audioTracks.map((t) => `${t.codec.toUpperCase()} ${t.channels}ch`).join(", ")}</div>
+                   <div><span class="meta-label">Subtitle:</span> ${subtitleTracks.length > 0 ? subtitleTracks.map((t) => `${t.codec.toUpperCase()} (${t.language || "Und"})`).join(", ") : "None"}</div>
+                   <div><span class="meta-label">Format:</span> ${format}</div>
+                `;
+
+          // 2. Generate Screenshots
+          updateStatus("Loading thumbnail generator...");
+          const wasmModule = await loadWasmModuleNew();
+          thumbBindings = new ThumbnailBindings(wasmModule);
+          // Set log level from UI
+          thumbBindings.setLogLevelFromMovi(Logger.getLevel());
+
+          // Choose thumbnail source based on input type
+          if (selectedFile) {
+            // For files, use FileSource directly (implements DataSource interface)
+            thumbSource = new FileSource(selectedFile);
+          } else {
+            thumbSource = new ThumbnailHttpSource(url);
+          }
+
+          thumbBindings.setDataSource(thumbSource);
+          await thumbBindings.create(size);
+
+          if (!(await thumbBindings.open())) {
+            throw new Error("Failed to open thumbnailer");
+          }
+
+          // Get stream info with HDR metadata from thumbnail pipeline
+          const thumbStreamInfo = thumbBindings.getStreamInfo();
+          let debugHtml = "<h4>📹 Thumbnail Stream Info:</h4>";
+
+          if (thumbStreamInfo) {
+            console.log("📹 Thumbnail Stream Info:");
+            console.log("  Codec:", thumbStreamInfo.codecName);
+            console.log(
+              "  Resolution:",
+              thumbStreamInfo.width,
+              "x",
+              thumbStreamInfo.height,
+            );
+            console.log("  Pixel Format:", thumbStreamInfo.pixelFormat);
+            console.log("  Color Range:", thumbStreamInfo.colorRange);
+            console.log("  HDR Metadata:");
+            console.log("    Color Primaries:", thumbStreamInfo.colorPrimaries);
+            console.log("    Color Transfer:", thumbStreamInfo.colorTransfer);
+            console.log("    Color Matrix:", thumbStreamInfo.colorMatrix);
+
+            debugHtml += `
+              <div>Codec: ${thumbStreamInfo.codecName}</div>
+              <div>Resolution: ${thumbStreamInfo.width} x ${thumbStreamInfo.height} ${thumbStreamInfo.rotation ? `(${thumbStreamInfo.rotation}°)` : ""}</div>
+              <div>Pixel Format: ${thumbStreamInfo.pixelFormat || "N/A"}</div>
+              <div>Color Range: ${thumbStreamInfo.colorRange || "N/A"}</div>
+              <h4 style="margin-top: 15px;">🎨 HDR Metadata:</h4>
+              <div>Color Primaries: <span style="color: #ff3333">${thumbStreamInfo.colorPrimaries || "unknown"}</span></div>
+              <div>Color Transfer: <span style="color: #ff3333">${thumbStreamInfo.colorTransfer || "unknown"}</span></div>
+              <div>Color Matrix: <span style="color: #ff3333">${thumbStreamInfo.colorMatrix || "unknown"}</span></div>
+            `;
+          }
+
+          // Get extradata (codec configuration)
+          const extradata = thumbBindings.getExtradata();
+          if (extradata) {
+            console.log("🎬 Extradata size:", extradata.length, "bytes");
+            // console.log("  First 16 bytes:", Array.from(extradata.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+
+            const extradataHex = Array.from(
+              extradata.slice(0, Math.min(32, extradata.length)),
+            )
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join(" ");
+
+            debugHtml += `
+              <h4 style="margin-top: 15px;">🎬 Extradata (Codec Configuration):</h4>
+              <div>Size: ${extradata.length} bytes</div>
+              <div>First ${Math.min(32, extradata.length)} bytes: ${extradataHex}</div>
+            `;
+          }
+
+          // Populate debug section
+          debugContent.innerHTML = debugHtml;
+
+          loadingState.style.display = "none";
+          resultContainer.style.display = "block";
+          progressEl.style.display = "block";
+
+          const interval = info.duration / count;
+          const width = videoTrack.width;
+          const height = videoTrack.height;
+          const rotation = videoTrack.rotation || 0;
+
+          // Determine resolution label
+          let displayResolution = `${width}x${height}`;
+          if (rotation !== 0) displayResolution += ` (${rotation}° Rotated)`;
+
+          // Render slightly smaller for speed, canvas CSS handles display size
+          // But for WebCodecs we usually receive full size frames
+          const renderW = width > 640 ? 640 : width;
+          const renderH = height > 360 ? 360 : height;
+
+          // Initialize Renderer
+          renderer = new ThumbnailRenderer();
+          renderer.initialize({
+            width: width, // Initialize with full width/height for potential WebCodecs full frame
+            height: height,
+            rotation: rotation, // PASS ROTATION
+            colorPrimaries: thumbStreamInfo?.colorPrimaries,
+            colorTransfer: thumbStreamInfo?.colorTransfer,
+            hdrEnabled: true,
+          });
+
+          // Configure VideoDecoder if supported
+          let useWebCodecs = false;
+          let webCodecsConfigured = false;
+
+          if ("VideoDecoder" in window && thumbStreamInfo) {
+            webCodecsConfigured = await renderer.configureDecoder(
+              thumbStreamInfo.codecName,
+              extradata, // might be null, but renderer handles it now
+              thumbStreamInfo.width,
+              thumbStreamInfo.height,
+              thumbStreamInfo.profile, // Pass profile for better codec mapping (e.g. VP9 HDR)
+              thumbStreamInfo.level,
+            );
+            useWebCodecs = webCodecsConfigured;
+          }
+
+          let successCount = 0;
+          let totalPacketSize = 0;
+          let webCodecsCount = 0;
+          let softwareCount = 0;
+
+          for (let i = 0; i < count; i++) {
+            const time = i * interval + interval * 0.1;
+            updateStatus(`Capturing frame ${i + 1}/${count}...`);
+            progressFill.style.width = `${(i / count) * 100}%`;
+
+            const pktSize = await thumbBindings.readKeyframe(time);
+            if (pktSize > 0) {
+              totalPacketSize += pktSize;
+
+              let rendered = false;
+
+              // 1. Try WebCodecs
+              if (useWebCodecs) {
+                try {
+                  const packetData = thumbBindings.getPacketDataCopy(pktSize);
+                  const pts = thumbBindings.getPacketPts();
+
+                  rendered = await renderer.decodeAndRender(packetData, pts);
+                  if (rendered) {
+                    successCount++;
+                    webCodecsCount++;
+                    addCanvasToGrid(renderer.getCanvas(), time);
+                  }
+                } catch (e) {
+                  console.warn("WebCodecs decode error:", e);
+                }
+              }
+
+              // 2. Fallback to software decoder
+              if (!rendered) {
+                // For Software, we can downscale at decode time if desired,
+                // but renderer.initialize was called with full size.
+                // Let's decode full size to match renderer config
+                const rgba = thumbBindings.decodeCurrentPacket(width, height);
+                if (rgba) {
+                  successCount++;
+                  softwareCount++;
+                  renderer.render(rgba, width, height);
+                  addCanvasToGrid(renderer.getCanvas(), time);
+                  thumbBindings.clearBuffer();
+                }
+              }
+            }
+            await new Promise((r) => setTimeout(r, 10));
+          }
+
+          // Detect decoder method
+          const decoderMethod =
+            webCodecsCount > 0
+              ? `WebCodecs VideoDecoder (${webCodecsCount} HDR, ${softwareCount} SDR)`
+              : `Software decoder (${softwareCount} SDR only)`;
+
+          // Detect browser for rendering info
+          const isChromium = !!window.chrome;
+          const browserName = isChromium
+            ? "Chromium-based (Chrome/Edge/Brave)"
+            : "Non-Chromium (Safari/Firefox)";
+          const hdrSupport =
+            webCodecsCount > 0 ? "✅ HDR Preserved" : "⚠️ SDR Only";
+
+          // Add extraction stats to debug info
+          debugHtml += `
+            <h4 style="margin-top: 15px;">🖥️ Decode Info:</h4>
+            <div>Browser: ${browserName}</div>
+            <div>Decoder: <span style="color: #ff3333">${decoderMethod}</span></div>
+            <div>HDR Support: <span style="color: ${webCodecsCount > 0 ? "#00ff00" : "#ffaa00"}">${hdrSupport}</span></div>
+            <h4 style="margin-top: 15px;">📊 Extraction Stats:</h4>
+            <div>Frames extracted: ${successCount} / ${count}</div>
+            <div>  - WebCodecs (HDR): ${webCodecsCount}</div>
+            <div>  - Software (SDR): ${softwareCount}</div>
+            <div>Total packet data: ${(totalPacketSize / 1024).toFixed(2)} KB</div>
+            <div>Avg packet size: ${(totalPacketSize / successCount / 1024).toFixed(2)} KB</div>
+          `;
+          debugContent.innerHTML = debugHtml;
+
+          thumbBindings.destroy();
+          if (renderer) renderer.destroy();
+
+          updateStatus("Ready");
+          progressEl.style.display = "none";
+        } catch (err) {
+          console.error(err);
+          loadingState.style.display = "none";
+          errorState.style.display = "block";
+          errorState.textContent = "Error: " + err.message;
+          if (renderer) renderer.destroy();
+          if (thumbBindings) thumbBindings.destroy();
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      function addCanvasToGrid(sourceCanvas, timestamp) {
+        const item = document.createElement("div");
+        item.className = "screenshot-item";
+
+        // Create a new canvas to clone the rendered result
+        // The sourceCanvas is a WebGL or 2D canvas, drawImage handles both
+        const canvas = document.createElement("canvas");
+        canvas.width = sourceCanvas.width;
+        canvas.height = sourceCanvas.height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(sourceCanvas, 0, 0);
+
+        item.appendChild(canvas);
+
+        // Add timestamp overlay
+        if (timestamp !== undefined) {
+          const timestampEl = document.createElement("div");
+          timestampEl.className = "timestamp-overlay";
+          timestampEl.textContent = formatTimestamp(timestamp);
+          item.appendChild(timestampEl);
+        }
+
+        item.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
+        screenshotGrid.appendChild(item);
+      }
+
+      function formatTimeCombined(s) {
+        if (s < 0) s = 0;
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = Math.floor(s % 60);
+        if (h > 0) return `${h}h ${m}m ${sec}s`;
+        return `${m}m ${sec}s`;
+      }
+
+      function formatTimestamp(s) {
+        if (s < 0) s = 0;
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = Math.floor(s % 60);
+        const pad = (n) => n.toString().padStart(2, "0");
+
+        if (h > 0) {
+          return `${h}:${pad(m)}:${pad(sec)}`;
+        }
+        return `${m}:${pad(sec)}`;
+      }
+
+      function setBusy(busy) {
+        analyzeBtn.disabled = busy;
+        urlInput.disabled = busy;
+        countInput.disabled = busy;
+      }
+
+      function updateStatus(msg) {
+        statusEl.textContent = msg;
+      }
+    </script>
+  </body>
+</html>

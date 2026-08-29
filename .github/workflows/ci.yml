@@ -50,22 +50,23 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Restore Bun and Next.js caches
+      - name: Restore Bun, Turbo, and Next.js caches
         uses: actions/cache@v4
         with:
           path: |
             ~/.bun/install/cache
-            ${{ github.workspace }}/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/bun.lock') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+            ${{ github.workspace }}/.turbo
+            ${{ github.workspace }}/apps/web/.next/cache
+          key: ${{ runner.os }}-turbo-${{ hashFiles('**/bun.lock') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
           restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('**/bun.lock') }}-
+            ${{ runner.os }}-turbo-${{ hashFiles('**/bun.lock') }}-
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --ignore-scripts
 
       - name: Create .env.local for CI
         run: |
-          cat > .env.local <<EOF
+          cat > apps/web/.env.local <<EOF
           TMDB_API_KEY=${TMDB_API_KEY}
           NEXT_PUBLIC_TMDB_API_KEY=${NEXT_PUBLIC_TMDB_API_KEY}
           DATABASE_URL=${DATABASE_URL}
@@ -89,25 +90,27 @@ jobs:
           FLIPT_FLAG_CACHE_TTL_MS=${FLIPT_FLAG_CACHE_TTL_MS}
           EOF
 
-      - name: Build the app
+      - name: Build WASM and app
         if: github.event_name == 'push'
         env:
           NODE_ENV: production
-        run: bun run build
+        run: |
+          bunx turbo build:wasm --filter=@nyumatflix/player
+          bunx turbo build --filter=@nyumatflix/web...
 
       - name: Check formatting
-        run: bun run check-format
+        run: bunx turbo check-format --filter=@nyumatflix/web
 
       - name: Run lint
-        run: bun run lint
+        run: bunx turbo lint --filter=@nyumatflix/web...
 
       - name: Type check
-        run: bun run type-check
+        run: bunx turbo typecheck --filter=@nyumatflix/web...
 
       - name: Run tests
         env:
           NODE_ENV: test
-        run: bun run test-ci
+        run: bunx turbo test --filter=@nyumatflix/web...
 
   e2e:
     runs-on: ubuntu-latest
@@ -133,13 +136,17 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --ignore-scripts
+
+      - name: Build player vendor bundle for e2e
+        run: bunx turbo build:wasm build --filter=@nyumatflix/player
 
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
+        working-directory: apps/web
 
       - name: Run auth E2E tests
-        run: bun run test:e2e
+        run: bunx turbo test:e2e --filter=@nyumatflix/web
 
   build-push:
     runs-on: ubuntu-latest
@@ -151,6 +158,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --ignore-scripts
+
+      - name: Build WASM for Docker image
+        run: bunx turbo build:wasm --filter=@nyumatflix/player
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

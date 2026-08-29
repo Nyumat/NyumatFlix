@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },

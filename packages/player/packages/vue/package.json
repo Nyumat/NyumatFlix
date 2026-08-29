@@ -1,0 +1,16 @@
+{
+  "name": "@movi-player/vue",
+  "version": "0.3.3",
+  "description": "Typed Vue 3 wrapper for the movi-player web component (MKV/HEVC/AV1/HDR in the browser).",
+  "type": "module",
+  "main": "index.ts",
+  "module": "index.ts",
+  "types": "index.ts",
+  "files": ["index.ts", "README.md"],
+  "keywords": ["movi-player", "vue", "video", "player", "webcodecs", "mkv", "hevc", "av1", "hdr"],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "movi-player": ">=0.3.0",
+    "vue": ">=3.2"
+  }
+}

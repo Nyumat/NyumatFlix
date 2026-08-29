@@ -1,0 +1,44 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build:wasm": {
+      "cache": true,
+      "outputs": ["dist/wasm/**"]
+    },
+    "build": {
+      "dependsOn": ["^build", "^copy:vendor"],
+      "outputs": ["dist/**", ".next/**", "public/vendor/player/**"]
+    },
+    "@nyumatflix/player#build": {
+      "dependsOn": ["build:wasm"],
+      "outputs": ["dist/**", "../../apps/web/public/vendor/player/**", "../../apps/web/lib/player/player-asset.generated.ts"]
+    },
+    "copy:vendor": {
+      "dependsOn": ["build"],
+      "outputs": [
+        "../../apps/web/public/vendor/player/**",
+        "../../apps/web/lib/player/player-asset.generated.ts"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {
+      "cache": false
+    },
+    "check-format": {
+      "cache": false
+    }
+  }
+}
