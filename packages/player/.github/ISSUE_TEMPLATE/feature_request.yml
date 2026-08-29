@@ -1,0 +1,149 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for Movi-Player
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible to help us understand your request.
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature Description
+      description: A clear and concise description of the feature you'd like to see
+      placeholder: Describe the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What use case does it address?
+      placeholder: "I'm frustrated when... / I need to... / It would be helpful if..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: How do you envision this feature working?
+      placeholder: Describe your proposed solution...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: Describe alternatives you've considered...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Which Module(s) Would This Affect?
+      description: Select all that apply
+      multiple: true
+      options:
+        - Demuxer (movi-player/demuxer)
+        - Player (movi-player/player)
+        - Element/UI (movi-player)
+        - All modules
+        - Documentation
+        - Build/Development tools
+    validations:
+      required: false
+
+  - type: dropdown
+    id: breaking-change
+    attributes:
+      label: Would This Be a Breaking Change?
+      description: Would this require changes to existing code using movi-player?
+      options:
+        - "No"
+        - "Yes"
+        - "Not sure"
+    validations:
+      required: false
+
+  - type: textarea
+    id: browser-compatibility
+    attributes:
+      label: Browser Compatibility Concerns
+      description: Are there any browser-specific considerations for this feature?
+      placeholder: "e.g., Requires WebGPU (Chrome only), Safari doesn't support..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: performance-impact
+    attributes:
+      label: Performance Impact
+      description: What impact might this have on performance, memory usage, or bundle size?
+      placeholder: "e.g., Might increase bundle size by ~20KB, requires additional memory for..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - "Nice to have"
+        - "Would be helpful"
+        - "Important for my use case"
+        - "Critical/Blocking"
+    validations:
+      required: false
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case Details
+      description: Describe your specific use case in detail
+      placeholder: "e.g., Building a video editor, need frame-accurate seeking for..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: code-example
+    attributes:
+      label: Example API (Optional)
+      description: If you have ideas about the API, show an example of how you'd like to use it
+      render: typescript
+      placeholder: |
+        // Example usage
+        player.newFeature({
+          option: 'value'
+        });
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, or examples about the feature request
+      placeholder: Links to similar features in other libraries, mockups, etc...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues and this feature hasn't been requested
+          required: true
+        - label: I have checked the documentation and this feature doesn't already exist
+          required: false
+        - label: This feature aligns with movi-player's goals (web video playback)
+          required: false

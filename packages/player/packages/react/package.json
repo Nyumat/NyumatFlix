@@ -1,0 +1,16 @@
+{
+  "name": "@movi-player/react",
+  "version": "0.3.3",
+  "description": "Typed React wrapper for the movi-player web component (MKV/HEVC/AV1/HDR in the browser).",
+  "type": "module",
+  "main": "index.tsx",
+  "module": "index.tsx",
+  "types": "index.tsx",
+  "files": ["index.tsx", "README.md"],
+  "keywords": ["movi-player", "react", "video", "player", "webcodecs", "mkv", "hevc", "av1", "hdr"],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "movi-player": ">=0.3.0",
+    "react": ">=17"
+  }
+}

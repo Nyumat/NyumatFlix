@@ -69,9 +69,10 @@ build_push() {
   fi
 
   "$ROOT/scripts/bootstrap-scrape-vpn.sh" ensure-local
-  "$ROOT/scripts/sync-calluspirates-shared.sh"
   cd "$ROOT"
   load_build_env
+
+  bunx turbo build:wasm --filter=@nyumatflix/player
 
   local -a tags=(-t "$DOCKER_IMAGE")
   if [[ -n "${DEPLOY_SHA:-}" && "$DOCKER_IMAGE" != "$DOCKER_REPO:latest" ]]; then

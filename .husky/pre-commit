@@ -1,7 +1,6 @@
 #!/bin/sh
 echo "🚀 Running pre-commit checks..."
 
-# Try to find bun in common locations if not in PATH
 if ! command -v bun >/dev/null 2>&1; then
   if [ -f "$HOME/.bun/bin/bun" ]; then
     export PATH="$HOME/.bun/bin:$PATH"
@@ -12,28 +11,12 @@ if ! command -v bun >/dev/null 2>&1; then
   fi
 fi
 
-# Verify bun is available
 if ! command -v bun >/dev/null 2>&1; then
-  echo "❌ Error: bun command not found. Please ensure bun is installed and in your PATH."
-  echo "   You can install bun from: https://bun.sh"
+  echo "❌ Error: bun command not found."
   exit 1
 fi
 
-pids=""
-
-bun run lint & pids="$pids $!"
-bun run test-ci & pids="$pids $!"
-bun run check-format & pids="$pids $!"
-bun run type-check & pids="$pids $!"
-
-fail=0
-for pid in $pids; do
-  if ! wait "$pid"; then
-    fail=1
-  fi
-done
-
-if [ $fail -ne 0 ]; then
+if ! bunx turbo lint test typecheck check-format --filter=@nyumatflix/web...; then
   echo "🚨 Pre-commit checks failed. Please fix the above issues before committing."
   exit 1
 fi

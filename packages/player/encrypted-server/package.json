@@ -1,0 +1,16 @@
+{
+  "name": "movi-encrypted-server",
+  "version": "1.0.0",
+  "description": "Encrypted video server example for movi-player with short-lived tokens and AES-GCM encryption",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "encrypt": "node encrypt.js",
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "cors": "^2.8.5"
+  }
+}

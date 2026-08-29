@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Movi - Split Video + Audio Test</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        background: #0f0f12;
+        color: #fff;
+        font-family: system-ui, -apple-system, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        gap: 1.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #6c5dd3, #00d4ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .info {
+        color: #a0a0b0;
+        font-size: 0.85rem;
+        text-align: center;
+        max-width: 600px;
+        line-height: 1.5;
+      }
+
+      movi-player {
+        width: 100%;
+        max-width: 900px;
+        aspect-ratio: 16/9;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #000;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+      }
+
+      button {
+        padding: 0.6rem 1.2rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        background: rgba(255,255,255,0.08);
+        color: #fff;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      button:hover { background: rgba(255,255,255,0.15); }
+
+      .log {
+        width: 100%;
+        max-width: 900px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+        padding: 1rem;
+        font-family: monospace;
+        font-size: 0.78rem;
+        color: #a0a0b0;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Split Video + Audio Source Test</h1>
+    <p class="info">
+      Testing separate video and audio files played in sync.<br>
+      Video: 720p AV1 (video-only) &bull; Audio: AAC 128k (audio-only)<br>
+      Source: YouTube - Zjgq6-5uDtY
+    </p>
+
+    <!-- Method 1: HTML <source> elements with kind="audio" -->
+    <movi-player id="player" controls thumb fastseek showtitle title="Split Source Test" themeColor="#000000">
+      <source src="./test-media/video-only.mp4" type="video/mp4">
+      <source src="./test-media/audio-only.m4a" type="audio/mp4" kind="audio">
+    </movi-player>
+
+    <div class="controls">
+      <button id="btn-html">Method 1: HTML &lt;source&gt;</button>
+      <button id="btn-js-obj">Method 2: JS source()</button>
+      <button id="btn-js-prop">Method 3: JS property</button>
+      <button id="btn-get">Get Current Source</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script type="module">
+      import "../src/element.ts";
+
+      const player = document.getElementById("player");
+      const logEl = document.getElementById("log");
+
+      function log(msg) {
+        const line = document.createElement("div");
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logEl.prepend(line);
+      }
+
+      player.addEventListener("loadEnd", () => log("loadEnd fired"));
+      player.addEventListener("playing", () => log("playing"));
+      player.addEventListener("error", (e) => log("error: " + e.detail));
+
+      log("Page loaded. Player will auto-init with <source> elements (Method 1).");
+
+      // Method 1: Already set via HTML <source> elements above
+
+      // Method 2: JS source() API with { video, audio }
+      document.getElementById("btn-js-obj").addEventListener("click", () => {
+        log("Loading via source({ video, audio })...");
+        player.source({
+          video: { src: "./test-media/video-only.mp4", type: "video/mp4" },
+          audio: { src: "./test-media/audio-only.m4a", type: "audio/mp4" },
+        });
+      });
+
+      // Method 3: Direct property assignment
+      document.getElementById("btn-js-prop").addEventListener("click", () => {
+        log("Loading via audioSrc + src properties...");
+        player.audioSrc = "./test-media/audio-only.m4a";
+        player.src = "./test-media/video-only.mp4";
+      });
+
+      // Reload with HTML sources (destroy + re-create)
+      document.getElementById("btn-html").addEventListener("click", () => {
+        log("Reloading with <source> elements...");
+        player.audioSrc = "./test-media/audio-only.m4a";
+        player.src = "./test-media/video-only.mp4";
+      });
+
+      // Get current source info
+      document.getElementById("btn-get").addEventListener("click", () => {
+        const info = player.source();
+        log("Current source: " + JSON.stringify(info, null, 0));
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,86 @@
+/**
+ * Premium Styling for Movi-Player Documentation
+ */
+
+:root {
+  --vp-c-brand-1: #8B5CF6;
+  --vp-c-brand-2: #7c3aed;
+  --vp-c-brand-3: #a78bfa;
+  --vp-c-brand-soft: rgba(139, 92, 246, 0.1);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #6c5dd3 30%, #4a3bba);
+}
+
+/* Home Hero Enhancements */
+.VPHero .name {
+  font-weight: 800;
+  letter-spacing: -2px;
+}
+
+.VPHero .main-button {
+  border-radius: 50px !important;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease !important;
+  box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+}
+
+.VPHero .main-button:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 15px 40px rgba(139, 92, 246, 0.5);
+}
+
+/* Feature Cards */
+.VPFeature {
+  border-radius: 20px !important;
+  background-color: var(--vp-c-bg-soft) !important;
+  border: 1px solid transparent !important;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+.VPFeature:hover {
+  transform: translateY(-10px);
+  border-color: var(--vp-c-brand-1) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Code Blocks */
+.vp-code-group {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Navigation Blur */
+.VPNav {
+  backdrop-filter: blur(12px);
+  background-color: rgba(var(--vp-c-bg-rgb), 0.7) !important;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.02em;
+}
+
+.custom-block {
+  border-radius: 12px;
+}
+
+/* Animation for headers */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.VPDoc h1 {
+  animation: fadeIn 0.8s ease-out;
+}

@@ -1,0 +1,1972 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoviTube - Advanced Custom Player</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* CSS Variables */
+      :root {
+        --bg-color: #0f0f0f;
+        --header-bg: rgba(15, 15, 15, 0.98);
+        --text-color: #ffffff;
+        --secondary-text: #aaaaaa;
+        --hover-color: #272727;
+        --search-bg: #121212;
+        --border-color: #303030;
+        --accent-color: #f00;
+        --player-control-bg: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.9),
+          rgba(0, 0, 0, 0.6) 20%,
+          rgba(0, 0, 0, 0)
+        );
+      }
+
+      /* Reset and Base Styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Roboto", sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        overflow-x: hidden;
+      }
+
+      /* Header */
+      header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        background: var(--header-bg);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        z-index: 1000;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: bold;
+        font-size: 1.2rem;
+        letter-spacing: -0.5px;
+        cursor: pointer;
+      }
+      .logo-icon {
+        color: #ff0000;
+        width: 28px;
+        height: 28px;
+      }
+
+      .search-bar {
+        display: flex;
+        align-items: center;
+        width: 40%;
+        max-width: 600px;
+      }
+      .search-input-wrapper {
+        display: flex;
+        flex: 1;
+        border: 1px solid var(--border-color);
+        border-radius: 40px 0 0 40px;
+        background: var(--search-bg);
+        padding: 0 16px;
+        height: 40px;
+      }
+      .search-input-wrapper:focus-within {
+        border-color: #3ea6ff;
+        margin-left: -1px;
+      }
+      .search-input {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text-color);
+        font-size: 1rem;
+      }
+      .search-btn {
+        width: 64px;
+        height: 40px;
+        background: #222;
+        border: 1px solid var(--border-color);
+        border-left: none;
+        border-radius: 0 40px 40px 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .search-btn:hover {
+        background: #2a2a2a;
+      }
+      .search-btn svg {
+        width: 24px;
+        height: 24px;
+        fill: var(--text-color);
+      }
+
+      .user-actions {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+      }
+
+      /* Main Layout */
+      .container {
+        display: flex;
+        margin-top: 56px;
+        min-height: calc(100vh - 56px);
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: 72px;
+        flex-shrink: 0;
+        background: var(--bg-color);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 4px;
+        position: fixed;
+        left: 0;
+        top: 56px;
+        bottom: 0;
+        z-index: 90;
+      }
+      @media (min-width: 792px) {
+        .sidebar {
+          display: flex;
+        }
+      }
+      .sidebar-item {
+        padding: 16px 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        border-radius: 10px;
+        gap: 6px;
+      }
+      .sidebar-item:hover {
+        background-color: var(--hover-color);
+      }
+      .sidebar-icon {
+        width: 24px;
+        height: 24px;
+        fill: var(--text-color);
+      }
+      .sidebar-text {
+        font-size: 10px;
+      }
+
+      /* Content */
+      .content {
+        flex: 1;
+        padding: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 24px;
+        margin-left: 0;
+        width: 100%;
+      }
+      @media (min-width: 792px) {
+        .content {
+          margin-left: 72px;
+        }
+      }
+
+      .primary-column {
+        flex: 1;
+        min-width: 300px;
+        max-width: 1280px;
+      }
+      .secondary-column {
+        width: 350px;
+        display: none;
+        flex-shrink: 0;
+      }
+      @media (min-width: 1100px) {
+        .secondary-column {
+          display: block;
+        }
+      }
+
+      /* === AMBIENT & PLAYER STYLES === */
+
+      /* Ambient Background Layer */
+      .ambient-wrapper {
+        position: relative;
+        width: 100%;
+        border-radius: 12px;
+      }
+
+      .ambient-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        filter: blur(80px) opacity(0.5); /* The magic glow */
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .video-container {
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        z-index: 1; /* Above ambient */
+      }
+
+      #video-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      /* Controls Overlay */
+      .video-controls {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--player-control-bg);
+        padding: 0 12px;
+        opacity: 0;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        height: 80px;
+        pointer-events: none; /* Let clicks pass through if not on buttons */
+      }
+
+      .video-controls > * {
+        pointer-events: auto;
+      } /* Re-enable pointer on children */
+
+      .video-container:hover .video-controls,
+      .video-container.paused .video-controls {
+        opacity: 1;
+      }
+
+      /* Progress Bar */
+      .progress-container {
+        width: 100%;
+        height: 16px; /* Hit area */
+        cursor: pointer;
+        display: flex;
+        align-items: flex-end;
+        position: relative;
+        margin-bottom: 0px;
+        touch-action: none;
+      }
+
+      .progress-bg {
+        width: 100%;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.2);
+        position: relative;
+        transition: all 0.1s;
+        margin-bottom: 6px;
+      }
+
+      .progress-container:hover .progress-bg {
+        height: 5px;
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .progress-loaded {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.5);
+        width: 0%;
+      }
+
+      .progress-current {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background: var(--accent-color);
+        width: 0%;
+      }
+
+      .progress-scrubber {
+        position: absolute;
+        top: 50%;
+        right: -6px;
+        transform: translateY(-50%) scale(0);
+        width: 13px;
+        height: 13px;
+        background: var(--accent-color);
+        border-radius: 50%;
+        transition: transform 0.1s;
+      }
+
+      .progress-container:hover .progress-scrubber {
+        transform: translateY(-50%) scale(1);
+      }
+
+      /* Timestamp Tooltip */
+      .time-tooltip {
+        position: absolute;
+        bottom: 25px;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        display: none;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      .progress-container:hover .time-tooltip {
+        display: block;
+      }
+
+      /* Buttons Row */
+      .controls-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 48px;
+      }
+      .controls-left,
+      .controls-right {
+        display: flex;
+        align-items: center;
+        gap: 0px;
+      }
+
+      .control-btn {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        width: 48px;
+        height: 48px;
+        padding: 12px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.9;
+        position: relative;
+      }
+      .control-btn:hover {
+        opacity: 1;
+      }
+      .control-btn svg {
+        width: 100%;
+        height: 100%;
+        fill: white;
+        filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+      }
+
+      .time-display {
+        font-size: 13px;
+        margin: 0 16px;
+        font-variant-numeric: tabular-nums;
+        cursor: default;
+      }
+
+      /* Volume Slider */
+      .volume-container {
+        display: flex;
+        align-items: center;
+        width: 0;
+        overflow: hidden;
+        transition: width 0.2s;
+        margin-right: 10px;
+      }
+      .volume-wrapper:hover .volume-container,
+      .volume-container:hover {
+        width: 60px;
+      }
+
+      .volume-range {
+        -webkit-appearance: none;
+        appearance: none; /* Standard property */
+        width: 100%;
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.2);
+        outline: none;
+        cursor: pointer;
+        position: relative;
+      }
+
+      /* The Thumb - The Round Tip */
+      .volume-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 10px; /* Visible round knob */
+        height: 10px;
+        border-radius: 50%;
+        background: #fff;
+        cursor: pointer;
+        border: none;
+        /* Center vertically: (TrackHeight - ThumbHeight) / 2 */
+        margin-top: -3px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        transition: transform 0.1s;
+      }
+
+      .volume-range::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 4px;
+        cursor: pointer;
+        background: transparent; /* Gradient applied to input background in JS */
+        border-radius: 2px;
+        border: none;
+      }
+
+      .volume-range:active::-webkit-slider-thumb {
+        transform: scale(1.2);
+      }
+
+      /* Settings Menu */
+      .settings-menu {
+        position: absolute;
+        bottom: 80px;
+        right: 20px;
+        background: rgba(28, 28, 28, 0.95);
+        border-radius: 12px;
+        padding: 8px 0;
+        width: 280px;
+        display: none;
+        backdrop-filter: blur(10px);
+        color: #eee;
+        overflow: hidden;
+      }
+      .settings-view {
+        width: 100%;
+      }
+
+      .submenu-header {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 8px;
+        font-weight: 500;
+        font-size: 0.95rem;
+        gap: 8px;
+      }
+
+      .back-btn {
+        background: none;
+        border: none;
+        color: #eee;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        padding: 4px;
+        border-radius: 50%;
+      }
+      .back-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .option-item {
+        padding: 8px 16px 8px 48px; /* Room for checkmark */
+        cursor: pointer;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        position: relative;
+      }
+      .option-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .option-item.selected::before {
+        content: "✓";
+        position: absolute;
+        left: 16px;
+        color: #3ea6ff; /* YouTube Blue */
+        font-weight: bold;
+      }
+      .settings-menu.active {
+        display: block;
+        animation: popUp 0.15s cubic-bezier(0, 0, 0.2, 1);
+      }
+
+      @keyframes popUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .menu-item {
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.1s;
+      }
+      .menu-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .menu-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 12px;
+        fill: #eee;
+      }
+      .menu-label {
+        flex: 1;
+      }
+      .menu-value {
+        color: #aaa;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* Loading Spinner */
+      .spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 48px;
+        height: 48px;
+        border: 4px solid rgba(255, 255, 255, 0.2);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: none;
+        pointer-events: none;
+      }
+
+      @keyframes spin {
+        to {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+      /* Video Info & UI */
+      .video-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        line-height: 1.6rem;
+        margin-top: 12px;
+      }
+      .video-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .channel-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .channel-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #777;
+        overflow: hidden;
+      }
+      .channel-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .channel-name {
+        font-weight: 600;
+        font-size: 1rem;
+      }
+      .sub-count {
+        font-size: 0.8rem;
+        color: var(--secondary-text);
+      }
+      .subscribe-btn {
+        background: var(--text-color);
+        color: #000;
+        padding: 0 16px;
+        height: 36px;
+        border-radius: 18px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        margin-left: 24px;
+        font-size: 0.9rem;
+      }
+      .subscribe-btn:hover {
+        background: #e0e0e0;
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 8px;
+      }
+      .action-btn {
+        background: var(--hover-color);
+        color: var(--text-color);
+        padding: 0 12px;
+        height: 36px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+      .action-btn:hover {
+        background: #3f3f3f;
+      }
+
+      .description-box {
+        background: var(--hover-color);
+        padding: 12px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        margin-bottom: 24px;
+        cursor: pointer;
+      }
+      .description-box:hover {
+        background: #333;
+      }
+      .description-meta {
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+
+      /* Recommendations */
+      .video-card {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+      }
+      .card-thumbnail {
+        width: 168px;
+        height: 94px;
+        background: #333;
+        border-radius: 8px;
+        flex-shrink: 0;
+        position: relative;
+        overflow: hidden;
+      }
+      .card-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .duration-badge {
+        position: absolute;
+        bottom: 4px;
+        right: 4px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 1px 4px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+      }
+      .card-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.2em;
+      }
+      .card-meta {
+        font-size: 0.8rem;
+        color: var(--secondary-text);
+      }
+
+      /* Keyboard Shortcut Hint */
+      .shortcut-hint {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 50%;
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .shortcut-hint.active {
+        animation: fadeInOut 0.6s ease-out;
+      }
+      .shortcut-hint svg {
+        width: 32px;
+        height: 32px;
+        fill: white;
+      }
+
+      @keyframes fadeInOut {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.8);
+        }
+        20% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.1);
+        }
+        80% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(1.2);
+        }
+      }
+
+      /* LIVE Badge */
+      .live-badge {
+        background: #c00;
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 1px 5px;
+        border-radius: 3px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        position: absolute;
+        bottom: 4px;
+        left: 4px;
+      }
+
+      /* Format Badge */
+      .format-badge {
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 1px 5px;
+        border-radius: 3px;
+        letter-spacing: 0.3px;
+        display: inline-block;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+      .format-badge.hls {
+        background: #1a73e8;
+        color: #fff;
+      }
+      .format-badge.mp4 {
+        background: #e8a01a;
+        color: #000;
+      }
+
+      /* Card hover */
+      .video-card {
+        border-radius: 8px;
+        padding: 6px;
+        transition: background 0.15s;
+      }
+      .video-card:hover {
+        background: var(--hover-color);
+      }
+
+      /* Back nav */
+      .back-nav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--secondary-text);
+        text-decoration: none;
+        font-size: 0.85rem;
+        padding: 4px 10px;
+        border-radius: 18px;
+        transition: background 0.15s, color 0.15s;
+        margin-right: 12px;
+      }
+      .back-nav:hover {
+        background: var(--hover-color);
+        color: var(--text-color);
+      }
+      .back-nav svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div style="display:flex;align-items:center">
+        <a href="index.html" class="back-nav" title="Back to Examples">
+          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+          Examples
+        </a>
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"
+            />
+          </svg>
+          <span style="font-family: &quot;Roboto Condensed&quot;, sans-serif"
+            >MoviTube</span
+          >
+        </div>
+      </div>
+      <div class="search-bar">
+        <div class="search-input-wrapper">
+          <input
+            type="text"
+            class="search-input"
+            id="search-input"
+            placeholder="Paste video URL..."
+          />
+        </div>
+        <button class="search-btn" id="search-btn">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+            />
+          </svg>
+        </button>
+      </div>
+      <div class="user-actions">
+        <svg
+          width="24"
+          height="24"
+          fill="currentColor"
+          viewBox="0 0 24 24"
+          style="cursor: pointer"
+        >
+          <path
+            d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+          />
+        </svg>
+        <button
+          class="action-btn"
+          style="
+            border: 1px solid #333;
+            color: #3ea6ff;
+            background: transparent;
+            padding: 0 16px;
+          "
+        >
+          <svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24">
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+            />
+          </svg>
+          Sign in
+        </button>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="sidebar">
+        <div class="sidebar-item">
+          <svg class="sidebar-icon" viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg
+          ><span class="sidebar-text">Home</span>
+        </div>
+        <div class="sidebar-item">
+          <svg class="sidebar-icon" viewBox="0 0 24 24">
+            <path
+              d="M10 9.35 15 12l-5 2.65ZM12 3a.51.51 0 0 0-.26.07L3.49 7.44a.494.494 0 0 0-.24.43v8.26c0 .18.1.34.24.43l8.25 4.37c.08.04.17.07.26.07s.18-.03.26-.07l8.25-4.37c.15-.09.24-.25.24-.43V7.87a.494.494 0 0 0-.24-.43L12.26 3.07A.51.51 0 0 0 12 3Z"
+            /></svg
+          ><span class="sidebar-text">Shorts</span>
+        </div>
+        <div class="sidebar-item">
+          <svg class="sidebar-icon" viewBox="0 0 24 24">
+            <path
+              d="M18.7 8.7H5.3V7h13.4v1.7zm-2.5-5.3H7.8V1.7h8.4v1.7zm2.5 10.7H5.3v1.6h13.4v-1.6zm-13.4 5.3h13.4v-1.7H5.3v1.7z"
+            /></svg
+          ><span class="sidebar-text">Subs</span>
+        </div>
+        <div class="sidebar-item">
+          <svg class="sidebar-icon" viewBox="0 0 24 24">
+            <path
+              d="M12 3L4 9v12h16V9l-8-6zm0 14.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+            /></svg
+          ><span class="sidebar-text">You</span>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="primary-column">
+          <!-- Ambient Wrapper for Glow Effect -->
+          <div class="ambient-wrapper">
+            <canvas id="ambient-canvas" class="ambient-canvas"></canvas>
+
+            <div class="video-container" id="video-wrapper">
+              <canvas id="video-canvas"></canvas>
+
+              <!-- Visual Overlays -->
+              <div class="spinner" id="loading-spinner"></div>
+              <div class="shortcut-hint" id="shortcut-hint">
+                <svg viewBox="0 0 24 24"></svg>
+              </div>
+
+              <div class="video-controls" id="controls">
+                <div class="progress-container" id="progress-bar">
+                  <div class="progress-bg">
+                    <div class="progress-loaded" id="buffer-bar"></div>
+                    <div class="progress-current" id="current-bar">
+                      <div class="progress-scrubber"></div>
+                    </div>
+                  </div>
+                  <div class="time-tooltip" id="time-tooltip">0:00</div>
+                </div>
+
+                <div class="controls-row">
+                  <div class="controls-left">
+                    <button class="control-btn" id="play-btn" title="Play (k)">
+                      <svg class="icon-play" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      <svg
+                        class="icon-pause"
+                        viewBox="0 0 24 24"
+                        style="display: none"
+                      >
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                      </svg>
+                    </button>
+
+                    <button class="control-btn" id="next-btn" title="Next">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                      </svg>
+                    </button>
+
+                    <div
+                      class="volume-wrapper"
+                      style="display: flex; align-items: center"
+                    >
+                      <button
+                        class="control-btn"
+                        id="volume-btn"
+                        title="Mute (m)"
+                      >
+                        <svg class="icon-high" viewBox="0 0 24 24">
+                          <path
+                            d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"
+                          />
+                        </svg>
+                        <svg
+                          class="icon-muted"
+                          viewBox="0 0 24 24"
+                          style="display: none"
+                        >
+                          <path
+                            d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"
+                          />
+                        </svg>
+                      </button>
+                      <div class="volume-container">
+                        <input
+                          type="range"
+                          class="volume-range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value="1"
+                          id="volume-slider"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="time-display">
+                      <span id="time-current">0:00</span> /
+                      <span id="time-duration">0:00</span>
+                    </div>
+                  </div>
+                  <div class="controls-right">
+                    <button
+                      class="control-btn"
+                      id="settings-btn"
+                      title="Settings"
+                    >
+                      <svg viewBox="0 0 24 24">
+                        <path
+                          d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      class="control-btn"
+                      id="theater-btn"
+                      title="Theater mode (t)"
+                    >
+                      <svg viewBox="0 0 24 24">
+                        <path
+                          d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      class="control-btn"
+                      id="fullscreen-btn"
+                      title="Fullscreen (f)"
+                    >
+                      <svg viewBox="0 0 24 24">
+                        <path
+                          d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Settings Popup (Multi-view) -->
+              <div class="settings-menu" id="settings-menu">
+                <!-- Main View -->
+                <div id="settings-main" class="settings-view">
+                  <div class="menu-item" id="quality-trigger">
+                    <div style="display: flex; align-items: center">
+                      <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path
+                          d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 16H9v-2h2v2zm0-4H9V8h2v6zm4 4h-2v-2h2v2zm0-4h-2V8h2v6z"
+                          fill="#fff"
+                        />
+                      </svg>
+                      <span class="menu-label">Quality</span>
+                    </div>
+                    <span class="menu-value" id="quality-val-display"
+                      >Auto
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="20"
+                        height="20"
+                        fill="#aaa"
+                      >
+                        <path
+                          d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"
+                        /></svg
+                    ></span>
+                  </div>
+
+                  <div class="menu-item" id="speed-trigger">
+                    <div style="display: flex; align-items: center">
+                      <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path
+                          d="M10 8v8l6-4-6-4zm9-6H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 16H5V4h14v14z"
+                          fill="#fff"
+                        />
+                      </svg>
+                      <span class="menu-label">Playback speed</span>
+                    </div>
+                    <span class="menu-value" id="speed-val-display"
+                      >Normal
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="20"
+                        height="20"
+                        fill="#aaa"
+                      >
+                        <path
+                          d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"
+                        /></svg
+                    ></span>
+                  </div>
+                </div>
+
+                <!-- Speed View -->
+                <div
+                  id="settings-speed-view"
+                  class="settings-view"
+                  style="display: none"
+                >
+                  <div class="submenu-header">
+                    <button class="back-btn" onclick="showMain()">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="#fff"
+                      >
+                        <path
+                          d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                        />
+                      </svg>
+                    </button>
+                    <span>Playback speed</span>
+                  </div>
+                  <div class="option-item" data-speed="0.25">0.25x</div>
+                  <div class="option-item" data-speed="0.5">0.5x</div>
+                  <div class="option-item" data-speed="0.75">0.75x</div>
+                  <div class="option-item selected" data-speed="1.0">
+                    Normal
+                  </div>
+                  <div class="option-item" data-speed="1.25">1.25x</div>
+                  <div class="option-item" data-speed="1.5">1.5x</div>
+                  <div class="option-item" data-speed="1.75">1.75x</div>
+                  <div class="option-item" data-speed="2.0">2.0x</div>
+                </div>
+
+                <!-- Quality View -->
+                <div
+                  id="settings-quality-view"
+                  class="settings-view"
+                  style="display: none"
+                >
+                  <div class="submenu-header">
+                    <button class="back-btn" onclick="showMain()">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="#fff"
+                      >
+                        <path
+                          d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                        />
+                      </svg>
+                    </button>
+                    <span>Quality</span>
+                  </div>
+                  <div id="quality-options-container">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="video-title">
+            Big Buck Bunny - 60FPS 4K - Custom Implementation
+          </div>
+
+          <div class="video-actions">
+            <div class="channel-info">
+              <div class="channel-avatar">
+                <img
+                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%23777'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='20' fill='%23fff' dominant-baseline='middle' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E"
+                  alt="Channel Avatar"
+                />
+              </div>
+              <div class="channel-text">
+                <span class="channel-name">Blender Animation Studio</span>
+                <span class="sub-count">3.85M subscribers</span>
+              </div>
+              <button class="subscribe-btn">Subscribe</button>
+            </div>
+
+            <div class="action-buttons">
+              <button class="action-btn">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"
+                  />
+                </svg>
+                45K
+              </button>
+              <button class="action-btn">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v1.91l.01.01L1 14c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"
+                  />
+                </svg>
+              </button>
+              <button class="action-btn">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M14 9V5l7 7-7 7v-4.1c-5 0-8.5 1.6-11 5.1 1-5 4-10 11-11z"
+                  />
+                </svg>
+                Share
+              </button>
+              <button class="action-btn">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="description-box">
+            <div class="description-meta">10M views • 12 years ago</div>
+            <p>
+              Big Buck Bunny starts off like just another typical cartoon day in
+              the life of a typical rabbit... until the bullying starts.
+            </p>
+          </div>
+        </div>
+
+        <div class="secondary-column" id="recommendations-column">
+          <!-- Content will be loaded dynamically via API -->
+          <div
+            class="spinner"
+            style="
+              display: block;
+              position: relative;
+              margin: 20px auto;
+              border-color: rgba(255, 255, 255, 0.1);
+              border-top-color: #888;
+            "
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+      import { MoviPlayer, LogLevel } from "movi-player/player";
+
+      // 1. Setup Elements
+      const canvas = document.getElementById("video-canvas");
+      const ambientCanvas = document.getElementById("ambient-canvas");
+      const ambientCtx = ambientCanvas.getContext("2d", { alpha: false });
+
+      const playBtn = document.getElementById("play-btn");
+      const iconPlay = playBtn.querySelector(".icon-play");
+      const iconPause = playBtn.querySelector(".icon-pause");
+      const progressBar = document.getElementById("progress-bar");
+      const bufferBar = document.getElementById("buffer-bar");
+      const currentBar = document.getElementById("current-bar");
+      const timeCurrent = document.getElementById("time-current");
+      const timeDuration = document.getElementById("time-duration");
+      const spinner = document.getElementById("loading-spinner");
+      const wrapper = document.getElementById("video-wrapper");
+      const fullscreenBtn = document.getElementById("fullscreen-btn");
+      const timeTooltip = document.getElementById("time-tooltip");
+
+      const volumeBtn = document.getElementById("volume-btn");
+      const volumeSlider = document.getElementById("volume-slider");
+      const iconVolHigh = volumeBtn.querySelector(".icon-high");
+      const iconVolMute = volumeBtn.querySelector(".icon-muted");
+
+      const settingsBtn = document.getElementById("settings-btn");
+      const settingsMenu = document.getElementById("settings-menu");
+
+      const settingsMain = document.getElementById("settings-main");
+      const settingsSpeed = document.getElementById("settings-speed-view");
+      const settingsQuality = document.getElementById("settings-quality-view");
+
+      const qualityDisplay = document.getElementById("quality-val-display");
+      const speedDisplay = document.getElementById("speed-val-display");
+
+      const shortcutHint = document.getElementById("shortcut-hint");
+
+      let isDragging = false;
+      let ambientInterval = null;
+      let lastVolume = 1.0;
+
+      // 2. Initialize Player
+      MoviPlayer.setLogLevel(LogLevel.ERROR);
+
+      let player = null;
+
+      async function setupPlayer(url) {
+        if (player) {
+          try {
+            player.destroy();
+          } catch (e) {
+            console.error("Error destroying player", e);
+          }
+        }
+
+        player = new MoviPlayer({
+          source: {
+            type: "url",
+            url: url,
+          },
+          renderer: "canvas",
+          decoder: "auto",
+          cache: { type: "lru", maxSizeMB: 520 },
+          canvas: canvas,
+        });
+
+        // 3. Event Listeners
+        player.on("loadStart", () => (spinner.style.display = "block"));
+        player.on("loadEnd", () => {
+          spinner.style.display = "none";
+          updateCanvasSize(); // Ensure proper canvas resolution
+          player.play().catch((e) => console.log("Autoplay blocked:", e));
+          startAmbientLoop();
+          renderQualityMenu();
+
+          if (player.trackManager) {
+            player.trackManager.on("tracksChange", () => renderQualityMenu());
+            player.trackManager.on("videoTrackChange", () =>
+              renderQualityMenu(),
+            );
+          }
+        });
+
+        player.on("error", (e) => {
+          console.error(e);
+          spinner.style.display = "none";
+        });
+
+        player.on("stateChange", (state) => {
+          wrapper.classList.remove("paused");
+
+          if (state === "playing") {
+            iconPlay.style.display = "none";
+            iconPause.style.display = "block";
+            spinner.style.display = "none";
+          } else {
+            iconPlay.style.display = "block";
+            iconPause.style.display = "none";
+            if (state !== "buffering") wrapper.classList.add("paused");
+          }
+
+          if (state === "buffering") {
+            spinner.style.display = "block";
+          }
+        });
+
+        player.on("durationChange", (dur) => {
+          timeDuration.textContent = formatTime(dur);
+        });
+
+        try {
+          await player.load();
+        } catch (e) {
+          console.error("Player load failed", e);
+        }
+      }
+
+      // Loop for updating progress & ambient
+      const updateUI = () => {
+        if (player && player.getState && player.getState() !== "idle") {
+          // Guard against race conditions during destroy/create
+          try {
+            const t = player.getCurrentTime();
+            const d = player.getDuration();
+
+            if (!isDragging && d > 0) {
+              const pct = (t / d) * 100;
+              currentBar.style.width = `${pct}%`;
+              timeCurrent.textContent = formatTime(t);
+
+              // Buffer
+              const bufEnd = player.getBufferEndTime();
+              const bufPct = (bufEnd / d) * 100;
+              bufferBar.style.width = `${Math.min(bufPct, 100)}%`;
+            }
+          } catch (e) {}
+        }
+        requestAnimationFrame(updateUI);
+      };
+      requestAnimationFrame(updateUI);
+
+      // Ambient Mode Loop (Standard canvas draw)
+      function startAmbientLoop() {
+        if (ambientInterval) clearInterval(ambientInterval);
+
+        // Setup low-res canvas for performance
+        ambientCanvas.width = 64;
+        ambientCanvas.height = 36;
+
+        ambientInterval = setInterval(() => {
+          if (player.getState() === "playing") {
+            // Draw main canvas to ambient
+            try {
+              ambientCtx.drawImage(canvas, 0, 0, 64, 36);
+            } catch (e) {}
+          }
+        }, 100); // 10fps is enough for blurred ambient
+      }
+
+      // 4. Controls Logic
+      function togglePlay() {
+        if (player.getState() === "playing") {
+          player.pause();
+          showShortcutHint("pause");
+        } else {
+          player.play();
+          showShortcutHint("play");
+        }
+      }
+
+      playBtn.addEventListener("click", togglePlay);
+      canvas.addEventListener("click", togglePlay);
+
+      // Seeking
+      progressBar.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        seekToEvent(e);
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (isDragging) seekToEvent(e);
+      });
+
+      document.addEventListener("mouseup", () => {
+        if (isDragging) isDragging = false;
+      });
+
+      // Tooltip Hover
+      progressBar.addEventListener("mousemove", (e) => {
+        if (!player) return;
+        const rect = progressBar.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const pct = Math.max(0, Math.min(x / rect.width, 1));
+        const time = pct * player.getDuration();
+
+        timeTooltip.textContent = formatTime(time);
+        timeTooltip.style.left = `${x}px`;
+      });
+
+      function seekToEvent(e) {
+        if (!player) return;
+        const rect = progressBar.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        x = Math.max(0, Math.min(x, rect.width));
+        const pct = x / rect.width;
+
+        // Visual Update
+        currentBar.style.width = `${pct * 100}%`;
+
+        // Actual Seek
+        const targetTime = pct * player.getDuration();
+        if (Math.abs(targetTime - player.getCurrentTime()) > 0.5) {
+          player.seek(targetTime);
+        }
+      }
+
+      // Volume
+      volumeBtn.addEventListener("click", () => {
+        if (!player) return;
+        if (player.getVolume() > 0) {
+          lastVolume = player.getVolume();
+          player.setVolume(0);
+          volumeSlider.value = 0;
+        } else {
+          player.setVolume(lastVolume);
+          volumeSlider.value = lastVolume;
+        }
+        updateVolumeIcon();
+      });
+
+      volumeSlider.addEventListener("input", (e) => {
+        if (!player) return;
+        const v = parseFloat(e.target.value);
+        player.setVolume(v);
+        if (v > 0) lastVolume = v;
+        updateVolumeIcon();
+      });
+
+      function updateVolumeIcon() {
+        if (!player) return;
+        const v = player.getVolume();
+        if (v === 0) {
+          iconVolHigh.style.display = "none";
+          iconVolMute.style.display = "block";
+        } else {
+          iconVolHigh.style.display = "block";
+          iconVolMute.style.display = "none";
+        }
+
+        // Update slider visual gradient
+        const pct = v * 100;
+        volumeSlider.style.background = `linear-gradient(to right, #fff 0%, #fff ${pct}%, rgba(255,255,255,0.2) ${pct}%, rgba(255,255,255,0.2) 100%)`;
+      }
+
+      // Initialize volume visual state
+      // updateVolumeIcon(); // Call this when player is ready
+
+      // Fullscreen
+      fullscreenBtn.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+          wrapper.requestFullscreen();
+        } else {
+          document.exitFullscreen();
+        }
+      });
+
+      // Handle resize and fullscreen change
+      function updateCanvasSize() {
+        if (!player) return;
+        const rect = wrapper.getBoundingClientRect();
+        // Account for device pixel ratio (retina/high-DPI displays)
+        const dpr = window.devicePixelRatio || 1;
+        player.resizeCanvas(rect.width * dpr, rect.height * dpr);
+      }
+
+      window.addEventListener("resize", updateCanvasSize);
+      document.addEventListener("fullscreenchange", () => {
+        // Double RAF to ensure layout is updated
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            updateCanvasSize();
+          });
+        });
+      });
+
+      // Settings
+      settingsBtn.addEventListener("click", () => {
+        settingsMenu.classList.toggle("active");
+      });
+
+      // --- Settings Menu Logic ---
+
+      // Expose to window for inline onclicks
+      window.showMain = () => {
+        settingsMain.style.display = "block";
+        settingsSpeed.style.display = "none";
+        settingsQuality.style.display = "none";
+      };
+
+      // Triggers
+      const qualTrigger = document.getElementById("quality-trigger");
+      if (qualTrigger) {
+        qualTrigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          settingsMain.style.display = "none";
+          settingsQuality.style.display = "block";
+        });
+      }
+
+      const speedTrigger = document.getElementById("speed-trigger");
+      if (speedTrigger) {
+        speedTrigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          settingsMain.style.display = "none";
+          settingsSpeed.style.display = "block";
+        });
+      }
+
+      // Speed Options
+      settingsSpeed.querySelectorAll(".option-item").forEach((item) => {
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!player) return;
+
+          // Update UI selection
+          settingsSpeed
+            .querySelectorAll(".option-item")
+            .forEach((i) => i.classList.remove("selected"));
+          item.classList.add("selected");
+
+          const speed = parseFloat(item.dataset.speed);
+          player.setPlaybackRate(speed);
+
+          // Update Display Text
+          const text = item.innerText;
+          speedDisplay.innerHTML = `${text} <svg viewBox="0 0 24 24" width="20" height="20" fill="#aaa"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>`;
+
+          // Go back to main
+          showMain();
+        });
+      });
+
+      // Quality Options (Dynamic)
+      // Quality Options (Dynamic)
+      function renderQualityMenu() {
+        const container = document.getElementById("quality-options-container");
+        const qualTrigger = document.getElementById("quality-trigger");
+
+        // Use global player instance
+        if (!container || !player) return;
+
+        const tracks = player.getVideoTracks();
+        const activeTrack = player.trackManager
+          ? player.trackManager.getActiveVideoTrack()
+          : null;
+
+        const otherTracks = tracks
+          .filter((t) => t.id !== -1)
+          .sort((a, b) => b.height - a.height);
+
+        if (otherTracks.length < 2) {
+          if (qualTrigger) qualTrigger.style.display = "none";
+          return;
+        } else {
+          if (qualTrigger) qualTrigger.style.display = "flex";
+        }
+
+        container.innerHTML = "";
+
+        const renderItem = (label, id, isSelected) => {
+          const item = document.createElement("div");
+          item.className = `option-item ${isSelected ? "selected" : ""}`;
+          item.innerHTML = label;
+
+          item.onclick = (e) => {
+            e.stopPropagation();
+            if (player && player.trackManager) {
+              // 1. Select track
+              player.trackManager.selectVideoTrack(id);
+
+              // 2. Update text display immediately (optimistic UI)
+              qualityDisplay.innerHTML = `${label} <svg viewBox="0 0 24 24" width="20" height="20" fill="#aaa"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>`;
+
+              // 3. Switch back to main menu
+              showMain();
+
+              // Note: The event listener will trigger a re-render of this menu,
+              // keeping the "selected" checkmark in sync next time it's opened.
+            }
+          };
+          container.appendChild(item);
+        };
+
+        // Auto Item
+        const isAutoSelected = !activeTrack || activeTrack.id === -1;
+        renderItem("Auto", -1, isAutoSelected);
+
+        otherTracks.forEach((t) => {
+          const label = `${t.height}p`;
+          const isSelected = activeTrack && activeTrack.id === t.id;
+          renderItem(label, t.id, isSelected);
+        });
+
+        // Update label on load if needed
+        if (activeTrack) {
+          const label =
+            activeTrack.id === -1
+              ? "Auto"
+              : activeTrack.height
+                ? `${activeTrack.height}p`
+                : activeTrack.label;
+          qualityDisplay.innerHTML = `${label} <svg viewBox="0 0 24 24" width="20" height="20" fill="#aaa"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>`;
+        }
+      }
+
+      // Search Bar Logic
+      const searchInput = document.getElementById("search-input");
+      const searchBtn = document.getElementById("search-btn");
+
+      const loadUrl = async () => {
+        const url = searchInput.value.trim();
+        if (url) {
+          await setupPlayer(url);
+        }
+      };
+
+      searchBtn.addEventListener("click", loadUrl);
+      searchInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") loadUrl();
+      });
+
+      // Keyboard Shortcuts
+      document.addEventListener("keydown", (e) => {
+        if (!player) return;
+        // Ignore if typing in an input
+        if (document.activeElement.tagName === "INPUT") return;
+
+        switch (e.key.toLowerCase()) {
+          case " ":
+          case "k":
+            e.preventDefault();
+            togglePlay();
+            break;
+          case "f":
+            wrapper.requestFullscreen();
+            break;
+          case "m":
+            volumeBtn.click();
+            break;
+          case "arrowright":
+          case "l":
+            player.seek(
+              Math.min(player.getCurrentTime() + 10, player.getDuration()),
+            );
+            showShortcutHint("forward");
+            break;
+          case "arrowleft":
+          case "j":
+            player.seek(Math.max(player.getCurrentTime() - 10, 0));
+            showShortcutHint("back");
+            break;
+        }
+      });
+
+      function showShortcutHint(type) {
+        shortcutHint.innerHTML = "";
+
+        let iconPath = "";
+        if (type === "play") iconPath = "M8 5v14l11-7z";
+        if (type === "pause") iconPath = "M6 19h4V5H6v14zm8-14v14h4V5h-4z";
+        if (type === "forward")
+          iconPath = "M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z";
+        if (type === "back")
+          iconPath = "M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z";
+
+        shortcutHint.innerHTML = `<svg viewBox="0 0 24 24"><path d="${iconPath}"/></svg>`;
+
+        // Trigger animation
+        shortcutHint.classList.remove("active");
+        void shortcutHint.offsetWidth; // Force reflow
+        shortcutHint.classList.add("active");
+      }
+
+      function formatTime(s) {
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${m}:${sec.toString().padStart(2, "0")}`;
+      }
+
+      // 5. Video Data
+      const VIDEOS_DATA = [
+        // --- HLS Streams ---
+        {
+          id: "1",
+          title: "Big Buck Bunny - Open Source Animation",
+          thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/800px-Big_buck_bunny_poster_big.jpg",
+          duration: "9:56",
+          uploadTime: "May 9, 2011",
+          views: "24,969,123",
+          author: "Blender Animation Studio",
+          videoUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+          description: "Big Buck Bunny tells the story of a giant rabbit with a heart bigger than himself. When one sunny day three rodents rudely harass him, something snaps... and the rabbit ain't no bunny anymore!\n\nLicensed under the Creative Commons Attribution license.",
+          subscriber: "3.85M Subscribers",
+          isLive: true,
+          format: "HLS",
+        },
+        {
+          id: "2",
+          title: "Sintel - Blender Foundation Short Film",
+          thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Sintel_poster.jpg/800px-Sintel_poster.jpg",
+          duration: "14:48",
+          uploadTime: "Sep 30, 2010",
+          views: "38,215,670",
+          author: "Blender Foundation",
+          videoUrl: "https://bitmovin-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
+          description: "Sintel is an independently produced short film by the Blender Foundation. A young girl named Sintel searches for a baby dragon she calls Scales, facing harsh challenges along the way.",
+          subscriber: "2.1M Subscribers",
+          isLive: false,
+          format: "HLS",
+        },
+        {
+          id: "3",
+          title: "Tears of Steel - Sci-Fi Short Film",
+          thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Tears_of_Steel_poster.jpg/800px-Tears_of_Steel_poster.jpg",
+          duration: "12:14",
+          uploadTime: "Sep 26, 2012",
+          views: "9,840,320",
+          author: "Blender Foundation",
+          videoUrl: "https://test-streams.mux.dev/tos_ismc/main.m3u8",
+          description: "Tears of Steel is a short film by the Blender Foundation. In a dystopian future, a group of warriors and scientists try to save the world using robotics and the power of recollection.",
+          subscriber: "2.1M Subscribers",
+          isLive: false,
+          format: "HLS",
+        },
+        // --- Direct MP4 Videos (archive.org - CORS enabled) ---
+        {
+          id: "4",
+          title: "Big Buck Bunny - 720p MP4",
+          thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Big_Buck_Bunny_thumbnail_vlc.png/640px-Big_Buck_Bunny_thumbnail_vlc.png",
+          duration: "9:56",
+          uploadTime: "Apr 10, 2008",
+          views: "18,540,200",
+          author: "Blender Animation Studio",
+          videoUrl: "https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4",
+          description: "Big Buck Bunny in direct MP4 format (720p). Demonstrates movi-player's ability to play standard MP4 files without HLS, using WebCodecs for efficient decoding.",
+          subscriber: "3.85M Subscribers",
+          isLive: false,
+          format: "MP4",
+        },
+        {
+          id: "5",
+          title: "Elephants Dream - MP4",
+          thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Elephants_Dream_s5_both.jpg/800px-Elephants_Dream_s5_both.jpg",
+          duration: "10:53",
+          uploadTime: "Mar 24, 2006",
+          views: "12,450,891",
+          author: "Blender Foundation",
+          videoUrl: "https://archive.org/download/ElephantsDream/ed_hd.mp4",
+          description: "Elephants Dream is the world's first open movie, made entirely with open source tools. Direct MP4 playback — follow Proog and Emo through a strange mechanical world.",
+          subscriber: "2.1M Subscribers",
+          isLive: false,
+          format: "MP4",
+        },
+        {
+          id: "6",
+          title: "Sintel - Direct MP4 Playback",
+          thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Sintel-screenshot-screenshot.jpg/800px-Sintel-screenshot-screenshot.jpg",
+          duration: "14:48",
+          uploadTime: "Sep 30, 2010",
+          views: "21,780,340",
+          author: "Blender Foundation",
+          videoUrl: "https://archive.org/download/Sintel/sintel-2048-surround.mp4",
+          description: "Sintel in direct MP4 format. A young warrior girl searches for a baby dragon in this award-winning Blender open movie. Showcases movi-player's native MP4 decoding pipeline.",
+          subscriber: "2.1M Subscribers",
+          isLive: false,
+          format: "MP4",
+        },
+        {
+          id: "7",
+          title: "Tears of Steel - MP4",
+          thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Tears_of_Steel_frame.jpg/800px-Tears_of_Steel_frame.jpg",
+          duration: "12:14",
+          uploadTime: "Sep 26, 2012",
+          views: "7,320,110",
+          author: "Blender Foundation",
+          videoUrl: "https://archive.org/download/Tears-of-Steel/tears_of_steel_720p.mp4",
+          description: "Tears of Steel in direct MP4 format. A sci-fi short film blending live action with CGI. Demonstrates movi-player handling standard video files alongside HLS streams.",
+          subscriber: "2.1M Subscribers",
+          isLive: false,
+          format: "MP4",
+        },
+        {
+          id: "8",
+          title: "Flower - Short MP4 Clip",
+          thumbnailUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-702.jpg",
+          duration: "0:06",
+          uploadTime: "Jun 12, 2020",
+          views: "4,120,560",
+          author: "MDN Web Docs",
+          videoUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+          description: "A short CC0 flower video from MDN Web Docs. Quick MP4 clip to test short-form video playback with movi-player.",
+          subscriber: "1.2M Subscribers",
+          isLive: false,
+          format: "MP4",
+        },
+      ];
+
+      const recommendationsCol = document.getElementById(
+        "recommendations-column",
+      );
+
+      // DOM Elements for metadata updating
+      const infoTitle = document.querySelector(".video-title");
+      const infoChannel = document.querySelector(".channel-name");
+      const infoSubCount = document.querySelector(".sub-count");
+      const infoDesc = document.querySelector(".description-box p");
+      const infoViews = document.querySelector(".description-meta");
+
+      function loadVideos() {
+        renderRecommendations(VIDEOS_DATA);
+      }
+
+      // Helper to generate safe data-uri placeholders (fixes CORP/COEP blocking)
+      function getPlaceholderUrl(w, h, text) {
+        const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#333"/><text x="50%" y="50%" font-family="Arial" font-size="14" fill="#fff" dominant-baseline="middle" text-anchor="middle">${text}</text></svg>`;
+        return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+      }
+
+      function renderRecommendations(videos) {
+        recommendationsCol.innerHTML = ""; // Clear spinner
+
+        videos.forEach((video) => {
+          const card = document.createElement("div");
+          card.className = "video-card";
+          card.onclick = () => loadVideoFromData(video);
+
+          // create thumb url
+          let thumbUrl = video.thumbnailUrl;
+
+          // Fallback placeholder
+          const fallbackUrl = getPlaceholderUrl(168, 94, "No Image");
+
+          card.innerHTML = `
+                    <div class="card-thumbnail">
+                        <img src="${thumbUrl}" alt="${video.title}" onerror="this.src='${fallbackUrl}'">
+                        <span class="duration-badge">${video.duration}</span>
+                        ${video.isLive ? '<span class="live-badge">LIVE</span>' : ""}
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title">${video.title}</div>
+                        <div class="card-meta">${video.author} <span class="format-badge ${video.format === "HLS" ? "hls" : "mp4"}">${video.format}</span></div>
+                        <div class="card-meta">${video.views} views • ${video.uploadTime}</div>
+                    </div>
+                `;
+          recommendationsCol.appendChild(card);
+        });
+      }
+
+      async function loadVideoFromData(video) {
+        let sourceUrl = video.videoUrl;
+        // HTTPS fix
+        sourceUrl = sourceUrl.replace("http:", "https:");
+
+        // Handle specific cases or default URLs for sample data that might be broken
+        if (sourceUrl.includes("commondatastorage")) {
+          // The sample videos are often reliable, but let's just pass it
+        }
+
+        // Update Metadata
+        infoTitle.textContent = video.title;
+        infoChannel.textContent = video.author;
+        infoDesc.textContent = video.description;
+        infoViews.textContent = `${video.views} views • ${video.uploadTime}`;
+        if (video.subscriber) {
+          infoSubCount.textContent = video.subscriber;
+        }
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        // Setup and load new player
+        await setupPlayer(sourceUrl);
+      }
+
+      // Load Videos
+      loadVideos();
+
+      // Initial Loading (already done at bottom, but let's default to Big Buck Bunny if not loaded)
+
+      // Initial Loading
+      setupPlayer(
+        "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      );
+    </script>
+  </body>
+</html>

@@ -1,0 +1,264 @@
+name: Performance Issue
+description: Report performance or memory issues with Movi-Player
+title: "[Performance]: "
+labels: ["performance", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a performance issue! Performance is critical for movi-player. Please provide as much detail as possible.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue Description
+      description: A clear description of the performance problem
+      placeholder: "e.g., High memory usage during playback, slow seeking, frame drops..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Type of Performance Issue
+      description: What kind of performance problem are you experiencing?
+      options:
+        - High memory usage
+        - Slow loading/initialization
+        - Frame drops during playback
+        - Slow seeking
+        - Audio/video sync issues
+        - High CPU usage
+        - Slow thumbnail generation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-performance
+    attributes:
+      label: Expected Performance
+      description: What performance did you expect?
+      placeholder: "e.g., Should use <500MB memory, seeking should take <300ms..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-performance
+    attributes:
+      label: Actual Performance
+      description: What performance are you actually seeing?
+      placeholder: "e.g., Uses 2GB memory, seeking takes 2-3 seconds..."
+    validations:
+      required: true
+
+  - type: input
+    id: video-resolution
+    attributes:
+      label: Video Resolution
+      description: What is the video resolution?
+      placeholder: "e.g., 1920x1080, 3840x2160 (4K), 7680x4320 (8K)"
+    validations:
+      required: true
+
+  - type: input
+    id: video-duration
+    attributes:
+      label: Video Duration
+      description: How long is the video?
+      placeholder: "e.g., 5 minutes, 2 hours"
+    validations:
+      required: false
+
+  - type: input
+    id: video-codec
+    attributes:
+      label: Video Codec
+      description: What codec is the video using?
+      placeholder: "e.g., H.264, H.265/HEVC, VP9, AV1"
+    validations:
+      required: true
+
+  - type: input
+    id: video-bitrate
+    attributes:
+      label: Video Bitrate
+      description: What is the video bitrate (if known)?
+      placeholder: "e.g., 10 Mbps, 50 Mbps"
+    validations:
+      required: false
+
+  - type: input
+    id: video-fps
+    attributes:
+      label: Video Frame Rate
+      description: What is the video frame rate?
+      placeholder: "e.g., 24 fps, 30 fps, 60 fps"
+    validations:
+      required: false
+
+  - type: input
+    id: file-size
+    attributes:
+      label: File Size
+      description: How large is the video file?
+      placeholder: "e.g., 500MB, 2GB, 10GB"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hdr
+    attributes:
+      label: HDR Content
+      description: Is the video HDR?
+      options:
+        - "No (SDR)"
+        - "Yes (HDR10)"
+        - "Yes (HLG)"
+        - "Yes (Unknown HDR format)"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: decoder
+    attributes:
+      label: Decoder Type
+      description: Which decoder is being used?
+      options:
+        - Hardware (WebCodecs)
+        - Software (FFmpeg WASM)
+        - Don't know
+    validations:
+      required: false
+
+  - type: textarea
+    id: memory-usage
+    attributes:
+      label: Memory Usage Observations
+      description: What memory usage are you seeing? (Check browser DevTools > Performance/Memory tab)
+      placeholder: |
+        - Initial: 200MB
+        - After loading: 500MB
+        - During playback: 1.5GB
+        - Peak: 2GB
+    validations:
+      required: false
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      description: Which browser are you using?
+      options:
+        - Chrome
+        - Edge
+        - Safari
+        - Firefox
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: browser-version
+    attributes:
+      label: Browser Version
+      description: What version of the browser?
+      placeholder: "e.g., 120.0.6099.109"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Which operating system?
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Android
+        - iOS
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware Specifications
+      description: What are your system specifications?
+      placeholder: |
+        - CPU: Intel i7-12700K
+        - RAM: 16GB
+        - GPU: NVIDIA RTX 3060
+    validations:
+      required: false
+
+  - type: input
+    id: movi-version
+    attributes:
+      label: Movi-Player Version
+      description: Which version of movi-player?
+      placeholder: "e.g., 0.1.5-beta.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: profiling-data
+    attributes:
+      label: Profiling Data
+      description: If you've profiled the issue, paste relevant data or attach screenshots
+      placeholder: "Performance timeline, memory snapshots, flame graphs, etc..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: console-output
+    attributes:
+      label: Console Output
+      description: Any relevant console output, warnings, or errors
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this performance issue?
+      placeholder: |
+        1. Load video with...
+        2. Play for...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: workarounds
+    attributes:
+      label: Workarounds
+      description: Have you found any workarounds?
+      placeholder: "e.g., Using lower resolution helps, software decoder is faster..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the performance issue
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have tested with the latest version of movi-player
+          required: false
+        - label: I have checked DevTools Performance/Memory tabs
+          required: false

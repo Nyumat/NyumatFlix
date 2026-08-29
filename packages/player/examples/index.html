@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Movi Player - Examples</title>
+    <style>
+      :root {
+        --primary-accent: #6c5dd3;
+        --secondary-accent: #00d4ff;
+        --font-family: "Inter", system-ui, -apple-system, sans-serif;
+      }
+
+      /* Dark Theme */
+      :root {
+        --bg-base: #0f0f12;
+        --text-primary: #ffffff;
+        --text-secondary: #a0a0b0;
+        --glass-bg: rgba(255, 255, 255, 0.05);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --card-bg: rgba(255, 255, 255, 0.03);
+        --card-hover: rgba(255, 255, 255, 0.08);
+        --gradient-1: rgba(108, 93, 211, 0.15);
+        --gradient-2: rgba(0, 212, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: var(--bg-base);
+        background-image:
+          radial-gradient(
+            circle at 15% 50%,
+            var(--gradient-1) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 85% 30%,
+            var(--gradient-2) 0%,
+            transparent 25%
+          );
+        color: var(--text-primary);
+        font-family: var(--font-family);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 1200px;
+        width: 100%;
+        text-align: center;
+      }
+
+      .header {
+        margin-bottom: 3rem;
+      }
+
+      .brand {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #ffffff 0%, #a0a0b0 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -1px;
+        margin-bottom: 1rem;
+      }
+
+      .subtitle {
+        font-size: 1.25rem;
+        color: var(--text-secondary);
+        font-weight: 400;
+      }
+
+      .examples-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+      }
+
+      .example-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .example-card:hover {
+        background: var(--card-hover);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(108, 93, 211, 0.2);
+      }
+
+      .example-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary-accent), #4a3bba);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .example-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+
+      .example-description {
+        color: var(--text-secondary);
+        line-height: 1.6;
+        font-size: 0.95rem;
+      }
+
+      .footer {
+        margin-top: 4rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      .footer a {
+        color: var(--primary-accent);
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 768px) {
+        .brand {
+          font-size: 2rem;
+        }
+
+        .subtitle {
+          font-size: 1rem;
+        }
+
+        .examples-grid {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="brand">Movi Player</div>
+        <div class="subtitle">
+          Modular streaming video library for browsers with WebAssembly FFmpeg
+          pipeline
+        </div>
+      </div>
+
+      <div class="examples-grid">
+        <a href="element.html" class="example-card">
+          <div class="example-icon">🎬</div>
+          <div class="example-title">Custom Element</div>
+          <div class="example-description">
+            Complete video player using the custom &lt;movi-player&gt; element
+            with built-in controls, themes, and ambient mode
+          </div>
+        </a>
+
+        <a href="youtube.html" class="example-card">
+          <div class="example-icon">📺</div>
+          <div class="example-title">YouTube Style</div>
+          <div class="example-description">
+            Advanced player with YouTube-inspired UI featuring custom controls,
+            quality settings, and ambient glow effect
+          </div>
+        </a>
+
+        <a href="demuxer.html" class="example-card">
+          <div class="example-icon">🎞️</div>
+          <div class="example-title">Demuxer & Thumbnails</div>
+          <div class="example-description">
+            Extract metadata and generate video thumbnails using the low-level
+            demuxer API with WebAssembly FFmpeg
+          </div>
+        </a>
+      </div>
+
+      <div class="footer">
+        <p>
+          Built with
+          <a
+            href="https://www.npmjs.com/package/movi-player"
+            target="_blank"
+            rel="noopener"
+            >movi-player</a
+          >
+          • View on
+          <a
+            href="https://github.com/mrujjwalg/movi-player"
+            target="_blank"
+            rel="noopener"
+            >GitHub</a
+          >
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

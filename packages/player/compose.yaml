@@ -1,0 +1,22 @@
+services:
+  build:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/src
+      - ./dist:/src/dist
+      - ./docker/build-ffmpeg.sh:/opt/build-ffmpeg.sh
+    working_dir: /src
+    command: /opt/build-ffmpeg.sh
+    
+  dev:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/src
+    working_dir: /src
+    stdin_open: true
+    tty: true
+    command: /bin/bash
