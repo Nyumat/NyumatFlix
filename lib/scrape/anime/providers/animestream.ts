@@ -1,5 +1,13 @@
-import { resolveAnimeSearchQueries } from "../anilist-meta";
-import { isExactAnimeTitleMatch } from "../title-match";
+import { stripSeasonSuffix } from "@/lib/anilist-franchise";
+import {
+  fetchAnilistMediaMeta,
+  resolveAnimeSearchQueries,
+} from "../anilist-meta";
+import {
+  animeFranchisePrefixMatch,
+  animeSearchLabelMatches,
+  isExactAnimeTitleMatch,
+} from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
 
@@ -90,14 +98,107 @@ const searchAnimestream = async (
   }
 };
 
+const slugifyTitle = (title: string): string =>
+  title
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-US")
+    .replace(/['']/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
+
+const mediaTypeRank = (
+  type: string | undefined,
+  preferMovie: boolean,
+): number => {
+  const normalized = (type ?? "").toUpperCase();
+  if (preferMovie) {
+    return normalized === "MOVIE" ? 3 : normalized === "TV" ? 2 : 1;
+  }
+  return normalized === "TV" ? 3 : normalized === "MOVIE" ? 1 : 2;
+};
+
+const rankSearchHit = (
+  hit: AnimestreamSearchHit,
+  expectedTitles: readonly string[],
+  preferMovie: boolean,
+): number => {
+  const title = hit.title ?? "";
+  let score = -1;
+
+  if (isExactAnimeTitleMatch(title, expectedTitles)) {
+    score = 90;
+  } else if (animeSearchLabelMatches(title, expectedTitles)) {
+    score = 70;
+  } else if (
+    expectedTitles.some((expected) =>
+      animeFranchisePrefixMatch(title, expected),
+    )
+  ) {
+    score = 55;
+  }
+
+  if (score < 0) {
+    return -1;
+  }
+
+  return score + mediaTypeRank(hit.type, preferMovie);
+};
+
 const selectSearchHit = (
   hits: AnimestreamSearchHit[],
   expectedTitles: readonly string[],
+  preferMovie: boolean,
 ): AnimestreamSearchHit | undefined => {
   const withSlug = hits.filter((hit) => Boolean(hit.slug && hit.title));
-  return withSlug.find((hit) =>
-    isExactAnimeTitleMatch(hit.title!, expectedTitles),
+  return [...withSlug]
+    .map((hit) => ({
+      hit,
+      score: rankSearchHit(hit, expectedTitles, preferMovie),
+    }))
+    .filter((entry) => entry.score >= 0)
+    .sort((a, b) => b.score - a.score)[0]?.hit;
+};
+
+const fetchEpisodePage = async (
+  episodePath: string,
+  cookie: string | null,
+): Promise<{ status: number; text: string }> =>
+  scrapeFetchText(
+    `${ANIMESTREAM_ORIGIN}${episodePath}`,
+    sessionHeaders(cookie),
   );
+
+const resolveEpisodePage = async (
+  seriesSlug: string,
+  episodeNumber: number,
+  cookie: string | null,
+): Promise<{ text: string } | null> => {
+  const paths = [`${seriesSlug}/episode-${episodeNumber}`];
+  if (episodeNumber === 1) {
+    paths.push(`${seriesSlug}/episode-1`);
+  }
+
+  for (const episodePath of paths) {
+    const episodePage = await fetchEpisodePage(episodePath, cookie);
+    if (episodePage.text.length < 800) {
+      continue;
+    }
+
+    if (
+      /page not found|404/i.test(
+        episodePage.text.match(/<title>([^<]+)/i)?.[1] ?? "",
+      )
+    ) {
+      continue;
+    }
+
+    const playerId = extractPlayerId(episodePage.text);
+    if (playerId) {
+      return { text: episodePage.text };
+    }
+  }
+
+  return null;
 };
 
 const normalizeSeriesSlug = (slug: string): string => {
@@ -138,17 +239,38 @@ export async function scrapeAnimestream(
 
   try {
     const expectedTitles = await resolveAnimeSearchQueries(input);
+    const mediaMeta = await fetchAnilistMediaMeta(input.anilistId);
+    const preferMovie =
+      mediaMeta?.format === "MOVIE" || mediaMeta?.episodes === 1;
 
     const cookie = await warmAnimestreamSession();
     let hit: AnimestreamSearchHit | undefined;
 
     for (const title of expectedTitles) {
       const results = await searchAnimestream(title, cookie);
-      hit = selectSearchHit(results, expectedTitles);
+      hit = selectSearchHit(results, expectedTitles, preferMovie);
       if (hit?.slug) break;
     }
 
-    if (!hit?.slug) {
+    let seriesSlug = hit?.slug ? normalizeSeriesSlug(hit.slug) : "";
+
+    if (!seriesSlug) {
+      for (const title of expectedTitles) {
+        const slug = slugifyTitle(title);
+        if (!slug) continue;
+        const probe = await resolveEpisodePage(
+          `/${slug}`,
+          input.episodeNumber,
+          cookie,
+        );
+        if (probe) {
+          seriesSlug = `/${slug}`;
+          break;
+        }
+      }
+    }
+
+    if (!seriesSlug) {
       return {
         ok: false,
         providerId,
@@ -156,34 +278,12 @@ export async function scrapeAnimestream(
       };
     }
 
-    const seriesSlug = normalizeSeriesSlug(hit.slug);
-    if (!seriesSlug) {
-      return {
-        ok: false,
-        providerId,
-        error: "AnimeStream series slug missing",
-      };
-    }
-
-    const episodePath = `${seriesSlug}/episode-${input.episodeNumber}`;
-    const episodePage = await scrapeFetchText(
-      `${ANIMESTREAM_ORIGIN}${episodePath}`,
-      sessionHeaders(cookie),
+    const episodePage = await resolveEpisodePage(
+      seriesSlug,
+      input.episodeNumber,
+      cookie,
     );
-
-    if (episodePage.status !== 200 || episodePage.text.length < 800) {
-      return {
-        ok: false,
-        providerId,
-        error: `AnimeStream episode ${input.episodeNumber} not found`,
-      };
-    }
-
-    if (
-      /page not found|404/i.test(
-        episodePage.text.match(/<title>([^<]+)/i)?.[1] ?? "",
-      )
-    ) {
+    if (!episodePage) {
       return {
         ok: false,
         providerId,

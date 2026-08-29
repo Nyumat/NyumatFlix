@@ -32,9 +32,12 @@ export const unwrapJustanimeMomoProxyUrl = (url: string): string | null => {
   }
 };
 
-/** Megaplay HLS from JustAnime — segment hosts block direct server egress. */
+/**
+ * Megaplay / nekostream HLS — segment hosts bait server egress with PNG decoys.
+ * Route masters through JustAnime momo so playlist + segments stay on a working hop.
+ */
 export const shouldWrapJustanimeMegaplayStream = (streamUrl: string): boolean =>
-  /mewstream/i.test(streamUrl);
+  /mewstream|nekostream|megaplay\.buzz|kotocdn\.site/i.test(streamUrl);
 
 export const wrapJustanimeMegaplayStreamUrl = (streamUrl: string): string => {
   if (

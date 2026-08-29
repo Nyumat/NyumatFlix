@@ -1,8 +1,12 @@
 /** CDN embed roots that segment probes need when the API returns a player referer. */
+import { isOkCdnHlsUrl } from "./allanime-stream-url";
 import {
   isJustanimeMomoProxyUrl,
   JUSTANIME_ORIGIN,
 } from "../justanime-momo-proxy";
+
+const ALLMANGA_ORIGIN = "https://allmanga.to/";
+const ALLANIME_ORIGIN = "https://allanime.day/";
 
 export const preferAnimeCdnReferer = (
   streamUrl: string,
@@ -15,8 +19,15 @@ export const preferAnimeCdnReferer = (
   if (streamUrl.includes("vivibebe.site")) {
     return "https://vivibebe.site/";
   }
-  if (streamUrl.includes("mewstream") || streamUrl.includes("megaplay")) {
+  if (
+    streamUrl.includes("mewstream") ||
+    streamUrl.includes("megaplay") ||
+    streamUrl.includes("kotocdn.site")
+  ) {
     return "https://megaplay.buzz/";
+  }
+  if (isOkCdnHlsUrl(streamUrl)) {
+    return ALLMANGA_ORIGIN;
   }
   if (headersReferer) {
     return headersReferer;
@@ -38,7 +49,17 @@ export const appendAnimeCdnReferers = (
   if (/vivibebe\.site/i.test(streamUrl)) {
     push("https://vivibebe.site/");
   }
-  if (/megaplay|mewstream/i.test(streamUrl)) {
+  if (/megaplay|mewstream|kotocdn\.site/i.test(streamUrl)) {
     push("https://megaplay.buzz/");
+  }
+  if (isOkCdnHlsUrl(streamUrl)) {
+    push(ALLMANGA_ORIGIN);
+    push(ALLANIME_ORIGIN);
+    push("https://ok.ru/");
+    try {
+      push(new URL(streamUrl).origin + "/");
+    } catch {
+      void 0;
+    }
   }
 };

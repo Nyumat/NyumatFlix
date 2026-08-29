@@ -41,6 +41,7 @@ const parseSub1x2SubtitleEntries = (payload: unknown): ScrapeSubtitle[] => {
       {
         lang: entry.label ?? entry.language ?? "und",
         url: resolveSub1x2SubtitleUrl(entry.url),
+        format: "vtt" as const,
       },
     ];
   });

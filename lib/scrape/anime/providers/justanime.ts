@@ -1,6 +1,6 @@
 import { preferredAudioLangForTranslation } from "../audio-preference";
 import { preferAnimeCdnReferer } from "../cdn-referer";
-import { isPlayableHlsStream } from "../hls-sanity";
+import { isBaitHlsPlaylist, probeHlsPlaylistBody } from "../hls-sanity";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeQuality, ScrapeSubtitle } from "../../types";
 import type { MegaplayPlaybackRefresh } from "../../megaplay-constants";
@@ -10,6 +10,7 @@ import {
 } from "../../justanime-momo-proxy";
 import { MEGAPLAY_ORIGIN } from "../../megaplay-sources";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
+import { validateStreamUrlWithReferers } from "../../validate-stream";
 
 const JUSTANIME_ORIGIN = "https://justanime.to";
 const JUSTANIME_API = "https://core.justanime.to/api";
@@ -118,6 +119,22 @@ const mapMegaplaySubtitles = (
   return mapped.length > 0 ? mapped : undefined;
 };
 
+const isPlayableAninekoStream = async (
+  streamUrl: string,
+  referer: string,
+): Promise<boolean> => {
+  const body = await probeHlsPlaylistBody(streamUrl, referer);
+  if (!body?.includes("#EXTM3U") || isBaitHlsPlaylist(body)) {
+    return false;
+  }
+
+  return (
+    await validateStreamUrlWithReferers(streamUrl, referer, "hls", {
+      depth: "master",
+    })
+  ).ok;
+};
+
 const fetchJson = async <T>(url: string): Promise<T | null> => {
   const response = await scrapeFetch(url, {
     headers: {
@@ -149,33 +166,39 @@ const scrapeAnineko = async (
       continue;
     }
 
-    const best = pickBestSource(payload.sources);
-    if (!best?.url) {
-      continue;
-    }
-
-    const referer = preferAnimeCdnReferer(
-      best.url,
-      payload.headers?.Referer,
-      "https://vivibebe.site/",
+    const ranked = [...(payload.sources ?? [])].sort(
+      (a, b) => qualityRank(b.quality) - qualityRank(a.quality),
     );
 
-    if (!(await isPlayableHlsStream(best.url, referer))) {
-      continue;
-    }
+    for (const candidate of ranked) {
+      if (!candidate.url || candidate.isM3U8 === false) {
+        continue;
+      }
 
-    return {
-      ok: true,
-      providerId: "justanime",
-      streamUrl: best.url,
-      streamKind: "hls",
-      referer,
-      subtitles: mapAninekoSubtitles(payload.subtitles),
-      qualities: mapQualities(payload.sources, best.url, referer),
-      preferredAudioLang: preferredAudioLangForTranslation(
-        input.translationType,
-      ),
-    };
+      // vivibebe masters often ship ibyteimg ad segments — skip unless playable.
+      const referer = preferAnimeCdnReferer(
+        candidate.url,
+        payload.headers?.Referer,
+        "https://vivibebe.site/",
+      );
+
+      if (!(await isPlayableAninekoStream(candidate.url, referer))) {
+        continue;
+      }
+
+      return {
+        ok: true,
+        providerId: "justanime",
+        streamUrl: candidate.url,
+        streamKind: "hls",
+        referer,
+        subtitles: mapAninekoSubtitles(payload.subtitles),
+        qualities: mapQualities(payload.sources, candidate.url, referer),
+        preferredAudioLang: preferredAudioLangForTranslation(
+          input.translationType,
+        ),
+      };
+    }
   }
 
   return null;
@@ -210,7 +233,13 @@ const scrapeMegaplay = async (
     `${MEGAPLAY_ORIGIN}/`,
   );
 
-  if (!(await isPlayableHlsStream(streamUrl, referer))) {
+  // nekostream/kotocdn bait VPN egress with PNG segments; momo master is enough when wrapped.
+  const playable = (
+    await validateStreamUrlWithReferers(streamUrl, referer, "hls", {
+      depth: "master",
+    })
+  ).ok;
+  if (!playable) {
     return null;
   }
 
@@ -228,6 +257,8 @@ const scrapeMegaplay = async (
   return {
     ok: true,
     providerId: "justanime",
+    // Momo-wrapped nekostream can't pass segment probes from VPN egress (PNG bait).
+    validated: streamUrl.includes("momo.justanime.to") ? true : undefined,
     streamUrl,
     streamKind: "hls",
     referer,
@@ -249,14 +280,14 @@ export async function scrapeJustanime(
   const providerId = "justanime" as const;
 
   try {
-    const anineko = await scrapeAnineko(input);
-    if (anineko?.ok) {
-      return anineko;
-    }
-
     const megaplay = await scrapeMegaplay(input);
     if (megaplay?.ok) {
       return megaplay;
+    }
+
+    const anineko = await scrapeAnineko(input);
+    if (anineko?.ok) {
+      return anineko;
     }
 
     return {

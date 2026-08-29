@@ -141,15 +141,19 @@ const patchVpnCountries = async (countries: string[]): Promise<boolean> => {
   return Boolean(response?.ok);
 };
 
-const waitForVpnRunning = async (): Promise<boolean> => {
+const waitForEgressReady = async (): Promise<string | undefined> => {
   for (let attempt = 0; attempt < VPN_READY_MAX_ATTEMPTS; attempt += 1) {
     await sleep(VPN_READY_POLL_MS);
-    if ((await readVpnStatus()) === "running") {
-      return true;
+    const [vpnStatus, publicIp] = await Promise.all([
+      readVpnStatus(),
+      readPublicIp(),
+    ]);
+    if (vpnStatus === "running" && publicIp) {
+      return publicIp;
     }
   }
 
-  return false;
+  return undefined;
 };
 
 const pickRotateCountries = (requested?: string[]): string[] => {
@@ -218,11 +222,14 @@ export async function rotateScrapeVpnEgress(
       return { ok: false, error: "Failed to start Gluetun VPN" };
     }
 
-    if (!(await waitForVpnRunning())) {
-      return { ok: false, error: "Gluetun VPN did not become ready" };
+    const publicIp = await waitForEgressReady();
+    if (!publicIp) {
+      return {
+        ok: false,
+        error: "Gluetun reconnected but public IP is unavailable",
+      };
     }
 
-    const publicIp = await readPublicIp();
     return {
       ok: true,
       previousPublicIp,

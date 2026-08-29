@@ -148,6 +148,27 @@ const getAnimeRelation = (
   );
 };
 
+const getAnimeRelationForSeasonChain = (
+  media: RelationMedia,
+  relationType: "PREQUEL" | "SEQUEL",
+): RelationNode | null => {
+  const matches = (media.relations?.edges ?? []).filter(
+    (edge) =>
+      edge.relationType === relationType &&
+      isAnimeRelationNode(edge.node ?? undefined),
+  );
+
+  if (matches.length === 0) return null;
+
+  return (
+    matches
+      .map((edge) => edge.node)
+      .filter((node): node is RelationNode => Boolean(node))
+      .sort((a, b) => (a.seasonYear ?? 0) - (b.seasonYear ?? 0))
+      .at(relationType === "PREQUEL" ? 0 : -1) ?? null
+  );
+};
+
 const findFranchiseRoot = async (entryAnilistId: number): Promise<number> => {
   let currentId = entryAnilistId;
   const visited = new Set<number>();
@@ -166,10 +187,12 @@ const findFranchiseRoot = async (entryAnilistId: number): Promise<number> => {
   return currentId;
 };
 
-const collectSequelChain = async (rootAnilistId: number): Promise<number[]> => {
-  const seasonIds = [rootAnilistId];
-  const visited = new Set<number>([rootAnilistId]);
-  let currentId = rootAnilistId;
+export const collectForwardSequelChain = async (
+  entryAnilistId: number,
+): Promise<number[]> => {
+  const seasonIds = [entryAnilistId];
+  const visited = new Set<number>([entryAnilistId]);
+  let currentId = entryAnilistId;
 
   while (true) {
     const media = await fetchRelationMedia(currentId);
@@ -185,6 +208,78 @@ const collectSequelChain = async (rootAnilistId: number): Promise<number[]> => {
 
   return seasonIds;
 };
+
+const collectForwardSeasonChainForTmdb = async (
+  entryAnilistId: number,
+): Promise<number[]> => {
+  const seasonIds = [entryAnilistId];
+  const visited = new Set<number>([entryAnilistId]);
+  let currentId = entryAnilistId;
+
+  while (true) {
+    const media = await fetchRelationMedia(currentId);
+    if (!media) break;
+
+    const sequel = getAnimeRelationForSeasonChain(media, "SEQUEL");
+    if (!sequel || visited.has(sequel.id)) break;
+
+    seasonIds.push(sequel.id);
+    visited.add(sequel.id);
+    currentId = sequel.id;
+  }
+
+  return seasonIds;
+};
+
+export const mergeBidirectionalSeasonChain = (
+  backwardPrequels: readonly number[],
+  forwardFromEntry: readonly number[],
+  tmdbSeasonCount: number,
+): number[] =>
+  [...backwardPrequels, ...forwardFromEntry].slice(0, tmdbSeasonCount);
+
+export const pickAnilistIdFromSeasonChain = (
+  chain: readonly number[],
+  seasonNumber: number,
+): number | null => {
+  const index = seasonNumber - 1;
+  if (index < 0 || index >= chain.length) return null;
+  return chain[index] ?? null;
+};
+
+export const resolveAnilistSeasonChainForTmdbShow = async (
+  entryAnilistId: number,
+  tmdbSeasonCount: number,
+): Promise<number[]> => {
+  if (tmdbSeasonCount <= 0) return [];
+
+  const forward = await collectForwardSeasonChainForTmdb(entryAnilistId);
+  const backwardNeeded = Math.max(0, tmdbSeasonCount - forward.length);
+  const backward: number[] = [];
+  let current = entryAnilistId;
+
+  for (let index = 0; index < backwardNeeded; index++) {
+    const media = await fetchRelationMedia(current);
+    if (!media) break;
+
+    const prequel = getAnimeRelationForSeasonChain(media, "PREQUEL");
+    if (
+      !prequel ||
+      forward.includes(prequel.id) ||
+      backward.includes(prequel.id)
+    ) {
+      break;
+    }
+
+    backward.unshift(prequel.id);
+    current = prequel.id;
+  }
+
+  return mergeBidirectionalSeasonChain(backward, forward, tmdbSeasonCount);
+};
+
+const collectSequelChain = async (rootAnilistId: number): Promise<number[]> =>
+  collectForwardSequelChain(rootAnilistId);
 
 const resolveAniListFranchiseUncached = async (
   entryAnilistId: number,

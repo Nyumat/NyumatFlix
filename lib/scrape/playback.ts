@@ -1,4 +1,5 @@
 import type { ScrapePlaybackRefresh } from "./playback-refresh";
+import { isVidKingPlaybackRefresh } from "./playback-refresh";
 import { resolveHlsPlaylistUrl } from "./hls-url";
 import { looksLikeHlsStreamUrl } from "./stream-url-patterns";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
@@ -289,10 +290,9 @@ const rewritePlaylistUriAttributes = (
         const rawResolved =
           resolveHlsPlaylistUrl(raw, manifestUrl) ??
           new URL(raw, manifestUrl).toString();
-        const resolved =
-          refresh?.providerId === "vidking"
-            ? normalizeVidKingAssetHost(rawResolved, manifestUrl)
-            : rawResolved;
+        const resolved = isVidKingPlaybackRefresh(refresh)
+          ? normalizeVidKingAssetHost(rawResolved, manifestUrl)
+          : rawResolved;
         const proxied = absolutizePlayUrl(
           buildScrapePlayUrl({
             url: resolved,
@@ -331,7 +331,7 @@ export const rewriteManifestPlaylist = (
 
       const rawResolved = resolvePlaylistLine(line, manifestUrl);
       const resolved =
-        rawResolved && refresh?.providerId === "vidking"
+        rawResolved && isVidKingPlaybackRefresh(refresh)
           ? normalizeVidKingAssetHost(rawResolved, manifestUrl)
           : rawResolved;
       if (!resolved) {

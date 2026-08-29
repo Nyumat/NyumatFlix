@@ -22,6 +22,17 @@ describe("nextRaceBatch", () => {
     expect(nextIndex).toBe(3);
   });
 
+  it("runs direct solo before parallel batches", () => {
+    const order = ["direct", "bingr", "videasy", "vidking"] as const;
+    const first = nextRaceBatch(order, 0, new Set());
+    expect(first.batch).toEqual(["direct"]);
+    expect(first.nextIndex).toBe(1);
+
+    const second = nextRaceBatch(order, first.nextIndex, new Set());
+    expect(second.batch).toEqual(["bingr", "videasy", "vidking"]);
+    expect(second.nextIndex).toBe(4);
+  });
+
   it("skips failed providers and advances past them", () => {
     const failed = new Set<string>(["hentaigasm", "anipm"]);
     const { batch, nextIndex } = nextRaceBatch(order, 0, failed);
@@ -90,6 +101,16 @@ describe("deprioritizeProviders", () => {
       "bingr",
       "vidsrc",
       "vixsrc",
+    ]);
+  });
+
+  it("never deprioritizes direct even after failure", () => {
+    const withDirect = ["direct", "bingr", "vidsrc"] as const;
+    const failed = new Set<string>(["direct", "vidsrc"]);
+    expect(deprioritizeProviders(withDirect, failed)).toEqual([
+      "direct",
+      "bingr",
+      "vidsrc",
     ]);
   });
 

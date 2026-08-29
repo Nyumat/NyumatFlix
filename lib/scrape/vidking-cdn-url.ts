@@ -13,9 +13,23 @@ const VIDKING_CDN_PATHNAME = /^\/(?:r2\/)?cdn[12]\/[^/]+\/.+/i;
 const VIDKING_CDN_PATH =
   /^((?:https?:\/\/[^/?#]+)(?:\/r2)?\/cdn[12])\/([^/]+)\/(.+)$/i;
 
+const VIDKING_CDN_HOST_PATTERN =
+  /(?:^|\.)ironwallnet\.net$|(?:^|\.)ironbubble\.site$|(?:^|\.)realworkers\.workers\.dev$/i;
+
+export const isVidKingCdnHostname = (hostname: string): boolean =>
+  VIDKING_CDN_HOST_PATTERN.test(hostname) ||
+  VIDKING_CDN_PATHNAME.test(hostname);
+
 export const isVidKingCdnUrl = (url: string): boolean => {
   try {
-    return VIDKING_CDN_PATHNAME.test(new URL(url).pathname);
+    const { hostname, pathname } = new URL(url);
+    if (VIDKING_CDN_PATHNAME.test(pathname)) {
+      return true;
+    }
+    if (isVidKingCdnHostname(hostname)) {
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }

@@ -1,6 +1,7 @@
 import { scrapeFetchText } from "../fetch";
 import { attachSubtitlesToQualities } from "../linked-config";
 import { fetchSub1x2Subtitles } from "../subtitles";
+import { rankSourcesHlsFirst } from "../source-resolve";
 import type { ScrapeMediaInput, ScrapeQuality, ScrapeResult } from "../types";
 import { validateStreamUrlWithReferers } from "../validate-stream";
 import { scrapeVidSrcMirrorEmbed } from "./vidsrc";
@@ -143,8 +144,11 @@ export async function scrapeXPass(
     const sources =
       payload.playlist?.flatMap((entry) => entry.sources ?? []) ?? [];
 
-    const streamSources = sources.filter((source) =>
-      isPlayableCandidate(source.file ?? source.url ?? ""),
+    const streamSources = rankSourcesHlsFirst(
+      sources.filter((source) =>
+        isPlayableCandidate(source.file ?? source.url ?? ""),
+      ),
+      (source) => source.file ?? source.url ?? null,
     );
 
     const playable: ScrapeQuality[] = [];
