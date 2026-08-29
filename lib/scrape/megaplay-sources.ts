@@ -4,6 +4,49 @@ import {
   wrapJustanimeMegaplayStreamUrl,
 } from "./justanime-momo-proxy";
 
+const MEGAPLAY_WATCHING_ONL_MASTER = "https://cdn.watching.onl/anime";
+const MEGAPLAY_HASH_MASTER =
+  /(?:^|\/)([a-f0-9]{32})\/([a-f0-9]{32})\/master\.m3u8$/i;
+const MEGAPLAY_MIRROR_HOSTNAME =
+  /^(?:megap\.)|(?:kotocdn\.site|nekostream\.site|mewstream|mikora\.top|shiora\.(?:top|site)|norami\.top|akirax\.buzz)$/i;
+
+const isMegaplayMirrorHostname = (hostname: string): boolean =>
+  hostname.startsWith("megap.") || MEGAPLAY_MIRROR_HOSTNAME.test(hostname);
+
+/** Mirror CDNs fail segment probes; watching.onl serves the same megaplay hashes. */
+export const rewriteMegaplayMirrorStreamUrl = (streamUrl: string): string => {
+  try {
+    const parsed = new URL(streamUrl);
+    if (parsed.hostname === "cdn.watching.onl") {
+      return streamUrl;
+    }
+    if (!isMegaplayMirrorHostname(parsed.hostname)) {
+      return streamUrl;
+    }
+
+    const match = parsed.pathname.match(MEGAPLAY_HASH_MASTER);
+    const hashA = match?.[1];
+    const hashB = match?.[2];
+    if (!hashA || !hashB) {
+      return streamUrl;
+    }
+
+    return `${MEGAPLAY_WATCHING_ONL_MASTER}/${hashA}/${hashB}/master.m3u8`;
+  } catch {
+    return streamUrl;
+  }
+};
+
+export const megaplayPlaybackCandidateUrls = (sourceUrl: string): string[] => {
+  const rewritten = rewriteMegaplayMirrorStreamUrl(sourceUrl);
+  if (rewritten !== sourceUrl) {
+    return [rewritten];
+  }
+
+  const wrapped = wrapJustanimeMegaplayStreamUrl(sourceUrl);
+  return [...new Set([wrapped, sourceUrl])];
+};
+
 export const MEGAPLAY_ORIGIN = "https://megaplay.buzz";
 
 type MegaplaySourcesResponse = {
@@ -160,8 +203,9 @@ export const resolveJustanimeMegaplayStream = async (input: {
     return null;
   }
 
-  const seedStreamUrl = best.url;
-  const streamUrl = wrapJustanimeMegaplayStreamUrl(seedStreamUrl);
+  const streamUrl =
+    megaplayPlaybackCandidateUrls(best.url)[0] ??
+    wrapJustanimeMegaplayStreamUrl(best.url);
 
   return {
     streamUrl,

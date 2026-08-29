@@ -1,12 +1,41 @@
 /** movi-player official integration: load element.js as an ES module script (never webpack-bundle it). */
-export const MOVI_PLAYER_SCRIPT = "/vendor/movi-player/element.js";
+import { MOVI_PLAYER_ASSET_VERSION } from "@/lib/movi/movi-player-asset.generated";
+
+export const MOVI_PLAYER_SCRIPT = `/vendor/movi-player/element.js?v=${MOVI_PLAYER_ASSET_VERSION}`;
 
 let loadPromise: Promise<void> | null = null;
+let loaded = false;
+const loadedListeners = new Set<() => void>();
 
 function isMoviPlayerRegistered(): boolean {
   return (
     typeof customElements !== "undefined" && !!customElements.get("movi-player")
   );
+}
+
+function markMoviPlayerLoaded(): void {
+  if (loaded) {
+    return;
+  }
+  loaded = true;
+  for (const listener of [...loadedListeners]) {
+    listener();
+  }
+}
+
+export function isMoviPlayerLoaded(): boolean {
+  if (!loaded && isMoviPlayerRegistered()) {
+    loaded = true;
+  }
+  return loaded;
+}
+
+/** Notifies once the movi-player script has finished loading. */
+export function subscribeMoviPlayerLoaded(listener: () => void): () => void {
+  loadedListeners.add(listener);
+  return () => {
+    loadedListeners.delete(listener);
+  };
 }
 
 function injectMoviPlayerScript(): Promise<void> {
@@ -43,13 +72,18 @@ export function loadMoviPlayer(): Promise<void> {
     return Promise.resolve();
   }
   if (isMoviPlayerRegistered()) {
+    markMoviPlayerLoaded();
     return Promise.resolve();
   }
   if (!loadPromise) {
-    loadPromise = injectMoviPlayerScript().catch((error) => {
-      loadPromise = null;
-      throw error;
-    });
+    loadPromise = injectMoviPlayerScript()
+      .then(() => {
+        markMoviPlayerLoaded();
+      })
+      .catch((error) => {
+        loadPromise = null;
+        throw error;
+      });
   }
   return loadPromise;
 }

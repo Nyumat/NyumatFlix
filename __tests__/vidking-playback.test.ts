@@ -47,6 +47,30 @@ describe("vidking-playback", () => {
     ).toBe(true);
   });
 
+  it("parses speedracelight /vd/ token playlists", () => {
+    const vdUrl =
+      "https://moon.peakstorm.top/vd/OXN3d0w5Q1pyVGNmVFNmZFpLeERhQTo0VTdCeWtXM2Q2UEJyb2M5bm91UnhB/index-s1080p-v1-a1.m3u8";
+
+    expect(isVidKingCdnUrl(vdUrl)).toBe(true);
+    expect(parseVidKingCdnUrl(vdUrl)).toEqual({
+      prefix: "https://moon.peakstorm.top/vd",
+      token: "OXN3d0w5Q1pyVGNmVFNmZFpLeERhQTo0VTdCeWtXM2Q2UEJyb2M5bm91UnhB",
+      pathAfterToken: "index-s1080p-v1-a1.m3u8",
+    });
+    expect(swapVidKingCdnToken(vdUrl, "fresh-token")).toBe(
+      "https://moon.peakstorm.top/vd/fresh-token/index-s1080p-v1-a1.m3u8",
+    );
+  });
+
+  it("moves rotated /vd/ asset hosts to the working playlist origin", () => {
+    expect(
+      normalizeVidKingAssetHost(
+        "https://stale.peakstorm.top/vd/shared-token/index-s720p-v1-a1.m3u8",
+        "https://moon.peakstorm.top/vd/shared-token/index-s1080p-v1-a1.m3u8",
+      ),
+    ).toBe("https://moon.peakstorm.top/vd/shared-token/index-s720p-v1-a1.m3u8");
+  });
+
   it("parses cdn1 flat playlists", () => {
     const flat = "https://shadowlemon.site/r2/cdn1/flat-token/playlist.m3u8";
 

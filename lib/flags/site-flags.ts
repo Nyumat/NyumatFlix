@@ -14,11 +14,21 @@ import {
   tmdbScrapeProviderFlagKey,
 } from "@/lib/flags/flag-catalog";
 import { readAdminFlagState } from "@/lib/flags/flipt-client";
-import { readAnnouncementBannerConfig } from "@/lib/flags/flipt-client";
+import {
+  readAnnouncementBannerConfig,
+  readProviderMenuOrderConfig,
+} from "@/lib/flags/flipt-client";
 import {
   DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
   type AnnouncementBannerConfig,
 } from "@/lib/flags/announcement-banner";
+import {
+  applyProviderMenuOrder,
+  DEFAULT_PROVIDER_MENU_ORDER,
+  type ProviderMenuOrderConfig,
+} from "@/lib/flags/provider-menu-order";
+import type { VideoServer } from "@/lib/stores/video-servers";
+import { videoServers } from "@/lib/stores/video-servers";
 
 export type SiteFlags = {
   proxyModeOnly: boolean;
@@ -27,6 +37,8 @@ export type SiteFlags = {
   signupDisabled: boolean;
   authEnabled: boolean;
   noAdsModeDefault: boolean;
+  /** Choice mode: prefer scrape/proxy without hiding iframe. */
+  defaultProxyPlayback: boolean;
   liveTvEnabled: boolean;
   scrapeProxyRequired: boolean;
   lockUserSettings: boolean;
@@ -37,6 +49,7 @@ export type SiteFlags = {
   embedProviders: Record<string, boolean>;
   tmdbScrapeProviders: Record<string, boolean>;
   animeScrapeProviders: Record<string, boolean>;
+  providerMenuOrder: ProviderMenuOrderConfig;
   locks: {
     playbackMode: boolean;
     heroTrailers: boolean;
@@ -57,6 +70,7 @@ function providerMap(
 export function resolveSiteFlags(
   raw: Record<string, boolean>,
   announcementConfig: AnnouncementBannerConfig = DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+  providerMenuOrder: ProviderMenuOrderConfig = DEFAULT_PROVIDER_MENU_ORDER,
 ): SiteFlags {
   const proxyModeOnly = raw["global.proxy_mode_only"] ?? false;
   const iframeModeOnly = raw["global.iframe_mode_only"] ?? false;
@@ -74,6 +88,7 @@ export function resolveSiteFlags(
     signupDisabled: raw["global.signup_disabled"] ?? false,
     authEnabled: raw["global.auth_enabled"] ?? true,
     noAdsModeDefault: raw["global.no_ads_mode_default"] ?? false,
+    defaultProxyPlayback: raw["global.default_proxy_playback"] ?? false,
     liveTvEnabled: raw["global.live_tv_enabled"] ?? false,
     scrapeProxyRequired: raw["global.scrape_proxy_required"] ?? false,
     lockUserSettings,
@@ -98,6 +113,7 @@ export function resolveSiteFlags(
       (id) => animeScrapeProviderFlagKey(id as AnimeScrapeProviderId),
       raw,
     ),
+    providerMenuOrder,
     locks: {
       playbackMode: proxyModeOnly || iframeModeOnly,
       heroTrailers: staticHeroBackdrops || lockUserSettings,
@@ -107,11 +123,12 @@ export function resolveSiteFlags(
 }
 
 export async function getSiteFlags(): Promise<SiteFlags> {
-  const [raw, announcementConfig] = await Promise.all([
+  const [raw, announcementConfig, menuOrder] = await Promise.all([
     readAdminFlagState(),
     readAnnouncementBannerConfig(),
+    readProviderMenuOrderConfig(),
   ]);
-  return resolveSiteFlags(raw, announcementConfig);
+  return resolveSiteFlags(raw, announcementConfig, menuOrder);
 }
 
 export function getDefaultSiteFlags(): SiteFlags {
@@ -167,4 +184,63 @@ export function filterAnimeScrapeProviderIds(
   ids: readonly string[],
 ): string[] {
   return ids.filter((id) => isAnimeScrapeProviderEnabled(flags, id));
+}
+
+export function getEmbedProviderMenuOrder(flags: SiteFlags): string[] {
+  return applyProviderMenuOrder(
+    DEFAULT_PROVIDER_MENU_ORDER.embed,
+    flags.providerMenuOrder.embed,
+  );
+}
+
+export function getTmdbScrapeProviderMenuOrder(flags: SiteFlags): string[] {
+  return applyProviderMenuOrder(
+    DEFAULT_PROVIDER_MENU_ORDER.tmdbScrape,
+    flags.providerMenuOrder.tmdbScrape,
+  );
+}
+
+export function getAnimeScrapeProviderMenuOrder(flags: SiteFlags): string[] {
+  return applyProviderMenuOrder(
+    DEFAULT_PROVIDER_MENU_ORDER.animeScrape,
+    flags.providerMenuOrder.animeScrape,
+  );
+}
+
+export function getAnimePlaybackProviderOrders(flags: SiteFlags): {
+  animeOrder: AnimeScrapeProviderId[];
+  tmdbOrder: TmdbScrapeProviderId[];
+} {
+  return {
+    animeOrder: getAnimeScrapeProviderMenuOrder(
+      flags,
+    ) as AnimeScrapeProviderId[],
+    tmdbOrder: getTmdbScrapeProviderMenuOrder(flags) as TmdbScrapeProviderId[],
+  };
+}
+
+export function orderVideoServersByMenu(
+  flags: SiteFlags,
+  servers: readonly VideoServer[] = videoServers,
+): VideoServer[] {
+  const order = getEmbedProviderMenuOrder(flags);
+  const byId = new Map(servers.map((server) => [server.id, server] as const));
+  const seen = new Set<string>();
+  const ordered: VideoServer[] = [];
+
+  for (const id of order) {
+    const server = byId.get(id);
+    if (server && !seen.has(id)) {
+      ordered.push(server);
+      seen.add(id);
+    }
+  }
+
+  for (const server of servers) {
+    if (!seen.has(server.id)) {
+      ordered.push(server);
+    }
+  }
+
+  return ordered;
 }

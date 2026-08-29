@@ -1,18 +1,22 @@
-import { buildAniListUrl, requiresAdultAniListContent } from "@/lib/anilist";
+import {
+  ANIME_BROWSE_PATH,
+  buildAniListUrl,
+  requiresAdultAniListContent,
+} from "@/lib/anilist";
 import { describe, expect, test } from "vitest";
 
 describe("AniList URL helpers", () => {
-  test("builds the default canonical anime results URL", () => {
-    expect(buildAniListUrl({})).toBe("/anime?mode=results");
+  test("builds the default anime browse URL without query params", () => {
+    expect(buildAniListUrl({})).toBe(ANIME_BROWSE_PATH);
   });
 
-  test("builds canonical anime results URLs with sort params", () => {
+  test("builds filtered anime URLs with sort params", () => {
     expect(buildAniListUrl({ medium: "ANIME", sort: "POPULARITY_DESC" })).toBe(
-      "/anime?sort=POPULARITY_DESC&mode=results",
+      "/anime?sort=POPULARITY_DESC",
     );
   });
 
-  test("preserves filter and page params on canonical results URLs", () => {
+  test("preserves filter and page params on filtered anime URLs", () => {
     expect(
       buildAniListUrl({
         medium: "ANIME",
@@ -22,12 +26,15 @@ describe("AniList URL helpers", () => {
         page: 2,
       }),
     ).toBe(
-      "/anime?sort=SCORE_DESC&query=frieren&genres=Adventure%2CFantasy&page=2&mode=results",
+      "/anime?sort=SCORE_DESC&query=frieren&genres=Adventure%2CFantasy&page=2",
     );
   });
 
-  test("does not emit legacy anime browse URLs", () => {
-    expect(buildAniListUrl({})).not.toContain("/anime/browse");
+  test("does not emit mode=results in anime URLs", () => {
+    expect(buildAniListUrl({ genres: ["Hentai"] })).toBe(
+      "/anime?genres=Hentai",
+    );
+    expect(buildAniListUrl({})).not.toContain("mode=results");
   });
 });
 

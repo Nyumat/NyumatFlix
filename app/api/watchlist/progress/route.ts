@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { db, watchlist } from "@/db/schema";
+import { scrobbleToMal } from "@/lib/mal/sync";
 import { eq, and } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -9,6 +10,12 @@ const updateProgressSchema = z.object({
   mediaType: z.enum(["movie", "tv"]),
   seasonNumber: z.number().int().positive().optional(),
   episodeNumber: z.number().int().positive().optional(),
+  /**
+   * AniList id, when known. `contentId` is sometimes an AniList id rather
+   * than a TMDB id (e.g. requests from `/anime/[id]` pages), so this lets
+   * MAL scrobbling resolve reliably regardless of which id `contentId` is.
+   */
+  anilistId: z.number().int().positive().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -68,6 +75,15 @@ export async function POST(request: NextRequest) {
         .where(eq(watchlist.id, existing[0].id))
         .returning();
 
+      // Scrobble anime progress to MyAnimeList asynchronously (best-effort)
+      void scrobbleToMal(session.user.id, {
+        tmdbId: validatedData.contentId,
+        mediaType: validatedData.mediaType,
+        seasonNumber: validatedData.seasonNumber,
+        episodeNumber: validatedData.episodeNumber,
+        anilistId: validatedData.anilistId,
+      });
+
       return NextResponse.json({ item: updatedItem }, { status: 200 });
     } else {
       const [newItem] = await db
@@ -88,6 +104,15 @@ export async function POST(request: NextRequest) {
           lastWatchedAt: new Date(),
         })
         .returning();
+
+      // Scrobble anime progress to MyAnimeList asynchronously (best-effort)
+      void scrobbleToMal(session.user.id, {
+        tmdbId: validatedData.contentId,
+        mediaType: validatedData.mediaType,
+        seasonNumber: validatedData.seasonNumber,
+        episodeNumber: validatedData.episodeNumber,
+        anilistId: validatedData.anilistId,
+      });
 
       return NextResponse.json({ item: newItem }, { status: 201 });
     }

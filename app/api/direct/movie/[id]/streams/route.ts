@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 
-import { fetchCalluspirates } from "@/lib/scrape/calluspirates-fetch";
 import { rewriteStreamsResponse } from "@/lib/direct/client-streams";
-import type { DirectStreamsResponse } from "@/lib/direct/types";
+import { discoverMovieStreamsUpstream } from "@/lib/direct/discover-streams-upstream";
+import { mintCalluspiratesClientSession } from "@/lib/direct/server-session";
 import {
   getCalluspiratesApiUrl,
   isDirectScrapeProviderConfigured,
 } from "@/lib/scrape/calluspirates-config";
+
+export const maxDuration = 300;
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -36,27 +38,26 @@ export async function GET(request: Request, context: RouteContext) {
 
   const incoming = new URL(request.url);
   const fresh = incoming.searchParams.get("fresh") === "1";
-  const upstreamUrl = `${apiBase}/api/movie/${tmdbId}/streams${fresh ? "?fresh=1" : ""}`;
+  const quick = incoming.searchParams.get("quick") === "1";
 
-  let upstream: Response;
   try {
-    upstream = await fetchCalluspirates(upstreamUrl, {
-      timeoutMs: 120_000,
+    const sessionPromise = mintCalluspiratesClientSession();
+    const payload = await discoverMovieStreamsUpstream(apiBase, tmdbId, {
+      fresh,
+      quick,
+      signal: request.signal,
     });
+    const session = await sessionPromise;
+    return NextResponse.json(
+      rewriteStreamsResponse(
+        session?.apiBase ?? apiBase,
+        payload,
+        session?.token,
+      ),
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Upstream fetch failed";
     return NextResponse.json({ error: message }, { status: 502 });
   }
-
-  if (!upstream.ok) {
-    const detail = await upstream.text().catch(() => "");
-    return NextResponse.json(
-      { error: detail || `Upstream ${upstream.status}` },
-      { status: upstream.status },
-    );
-  }
-
-  const payload = (await upstream.json()) as DirectStreamsResponse;
-  return NextResponse.json(rewriteStreamsResponse(apiBase, payload));
 }

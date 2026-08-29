@@ -1,33 +1,138 @@
-import { scrapeFetchText } from "../fetch";
-import { flareSolverrGet } from "../flaresolverr";
-import type { VidsrcPlaybackRefresh } from "../vidsrc-constants";
+import { scrapeFetch, scrapeFetchText } from "../fetch";
+import { probeScrapePlaybackPath } from "../playback-probe";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
+import type { VidsrcPlaybackRefresh } from "../vidsrc-constants";
 
-const EMBED_ORIGIN = "https://vsembed.ru";
 export const VIDSRC_MIRROR_EMBED_ORIGIN = "https://vidsrc-embed.ru";
-const VIDSRC_SCRAPE_EMBED_ORIGINS = [
-  EMBED_ORIGIN,
-  VIDSRC_MIRROR_EMBED_ORIGIN,
-] as const;
+const STREAM_API_ORIGIN = "https://data.vidsrcme.ru";
 const PLAYER_ORIGIN = "https://cloudorchestranova.com";
-/** Cloudflare player hops can 504 for ~20s — fail faster and try the next provider. */
-const VIDSRC_PLAYER_FETCH_TIMEOUT_MS = 12_000;
+const VIDSRC_WASM_NONCE_BYTES = 12;
 
-const buildEmbedUrl = (
-  input: ScrapeMediaInput,
-  embedOrigin = EMBED_ORIGIN,
-): string => {
-  if (input.mediaType === "movie") {
-    return `${embedOrigin}/embed/movie?tmdb=${input.tmdbId}`;
+export const buildVidsrcStreamApiUrl = (input: ScrapeMediaInput): string => {
+  const params = new URLSearchParams();
+  switch (input.mediaType) {
+    case "movie":
+      params.set("type", "movie");
+      params.set("tmdb", String(input.tmdbId));
+      break;
+    case "tv":
+      params.set("type", "tv");
+      params.set("tmdb", String(input.tmdbId));
+      params.set("season", String(input.seasonNumber ?? 1));
+      params.set("episode", String(input.episodeNumber ?? 1));
+      break;
+    default: {
+      const exhaustive: never = input.mediaType;
+      throw new Error(`Unsupported VidSrc media type: ${exhaustive}`);
+    }
   }
 
-  const params = new URLSearchParams({
-    tmdb: String(input.tmdbId),
-    season: String(input.seasonNumber ?? 1),
-    episode: String(input.episodeNumber ?? 1),
-  });
+  return `${STREAM_API_ORIGIN}/api.php?${params.toString()}&stream_urls`;
+};
 
-  return `${embedOrigin}/embed/tv?${params.toString()}`;
+export type VidsrcStreamApiPayload = {
+  status_code?: string;
+  data?: {
+    stream_urls?: string | string[];
+  };
+  vs?: {
+    w?: number;
+    wasm_url?: string;
+    wasm?: string;
+  };
+};
+
+export type VidsrcStreamCandidates = {
+  plaintext: string[];
+  encrypted: string | null;
+  wasmUrl: string | null;
+  wasmInline: string | null;
+};
+
+export const collectVidsrcStreamUrlCandidates = (
+  payload: VidsrcStreamApiPayload,
+): VidsrcStreamCandidates => {
+  const raw = payload.data?.stream_urls;
+  if (Array.isArray(raw)) {
+    return {
+      plaintext: raw.filter(
+        (url): url is string =>
+          typeof url === "string" && /^https?:\/\//.test(url),
+      ),
+      encrypted: null,
+      wasmUrl: null,
+      wasmInline: null,
+    };
+  }
+
+  if (typeof raw === "string" && (payload.vs?.wasm_url || payload.vs?.wasm)) {
+    return {
+      plaintext: [],
+      encrypted: raw,
+      wasmUrl: payload.vs.wasm_url ?? null,
+      wasmInline: payload.vs.wasm ?? null,
+    };
+  }
+
+  if (typeof raw === "string") {
+    return {
+      plaintext: raw.split("\n").filter((url) => /^https?:\/\//.test(url)),
+      encrypted: null,
+      wasmUrl: null,
+      wasmInline: null,
+    };
+  }
+
+  return {
+    plaintext: [],
+    encrypted: null,
+    wasmUrl: null,
+    wasmInline: null,
+  };
+};
+
+export const parseVidsrcTokenResponse = (text: string): string => {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.startsWith("<")) {
+    return "";
+  }
+
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (typeof parsed === "string") {
+        return parsed.startsWith("<") ? "" : parsed;
+      }
+      if (parsed && typeof parsed === "object") {
+        const record = parsed as Record<string, unknown>;
+        for (const key of ["token", "data", "string", "result"] as const) {
+          const value = record[key];
+          if (
+            typeof value === "string" &&
+            value.length > 0 &&
+            !value.startsWith("<")
+          ) {
+            return value;
+          }
+        }
+      }
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return trimmed;
+};
+
+export const applyVidsrcStreamToken = (url: string, token: string): string => {
+  if (!token) {
+    return url;
+  }
+  if (url.includes("__TOKEN__") || url.includes("__TOKENPG__")) {
+    return url.replaceAll("__TOKEN__", token).replaceAll("__TOKENPG__", token);
+  }
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}token=${token}`;
 };
 
 const normalizeEmbedSrc = (raw: string): string | null => {
@@ -47,7 +152,7 @@ const normalizeEmbedSrc = (raw: string): string | null => {
   return null;
 };
 
-const extractIframeSrc = (html: string): string | null => {
+export const extractIframeSrc = (html: string): string | null => {
   const playerIframeTag = html.match(
     /<iframe\b[^>]*\bid=["']player_iframe["'][^>]*>/i,
   );
@@ -62,7 +167,7 @@ const extractIframeSrc = (html: string): string | null => {
   }
 
   const playerPatterns = [
-    /src=["']([^"']*(?:cloudorchestranova|\/rcp\/|\/prorcp\/)[^"']*)["']/i,
+    /src=["']([^"']*(?:cloudorchestranova|\/rcp\/|\/prorcp\/|\/embed\/(?:movie|tv|player))[^"']*)["']/i,
     /src=["']([^"']+)["']/i,
   ];
 
@@ -81,31 +186,87 @@ const extractIframeSrc = (html: string): string | null => {
   return null;
 };
 
-const extractProrcpHash = (html: string): string | null => {
-  const match = html.match(/\/prorcp\/([a-zA-Z0-9_-]+)/);
-  return match?.[1] ?? null;
+type VidsrcWasmExports = {
+  memory: WebAssembly.Memory;
+  alloc: (length: number) => number;
+  decrypt: (ptr: number, length: number) => number;
 };
 
-const extractMasterUrl = (html: string): string | null => {
-  const patterns = [
-    /master_urls\s*=\s*"([^"]+)"/,
-    /master_urls\s*=\s*'([^']+)'/,
-    /master_url\s*=\s*"([^"]+)"/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (!match?.[1]) {
-      continue;
-    }
-
-    const candidate = match[1].split(" or ")[0]?.trim();
-    if (candidate?.includes(".m3u8")) {
-      return candidate;
-    }
+const getVidsrcWasmExports = (
+  instance: WebAssembly.Instance,
+): VidsrcWasmExports | null => {
+  const memory = instance.exports.memory;
+  const alloc = instance.exports.alloc;
+  const decrypt = instance.exports.decrypt;
+  if (
+    !(memory instanceof WebAssembly.Memory) ||
+    typeof alloc !== "function" ||
+    typeof decrypt !== "function"
+  ) {
+    return null;
   }
 
-  return null;
+  return {
+    memory,
+    alloc: (length: number) => Number(alloc(length)),
+    decrypt: (ptr: number, length: number) => Number(decrypt(ptr, length)),
+  };
+};
+
+const decodeBase64Bytes = (value: string): Uint8Array => {
+  const buffer = Buffer.from(value, "base64");
+  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+};
+
+const decryptVidsrcStreamUrls = async (
+  encrypted: string,
+  wasmUrl: string | null,
+  wasmInline: string | null,
+): Promise<string[]> => {
+  let wasmBytes: Uint8Array | null = null;
+  if (wasmUrl) {
+    const wasmResponse = await scrapeFetch(wasmUrl, {
+      headers: {
+        Referer: `${PLAYER_ORIGIN}/`,
+        Accept: "*/*",
+      },
+    });
+    if (wasmResponse.ok) {
+      wasmBytes = new Uint8Array(await wasmResponse.arrayBuffer());
+    }
+  }
+  if ((!wasmBytes || wasmBytes.byteLength === 0) && wasmInline) {
+    wasmBytes = decodeBase64Bytes(wasmInline);
+  }
+  if (!wasmBytes || wasmBytes.byteLength === 0) {
+    return [];
+  }
+
+  const module = await WebAssembly.compile(Uint8Array.from(wasmBytes));
+  const instance = new WebAssembly.Instance(module, {});
+  const exports = getVidsrcWasmExports(instance);
+  if (!exports) {
+    return [];
+  }
+
+  const encryptedBytes = decodeBase64Bytes(encrypted);
+  const ptr = exports.alloc(encryptedBytes.byteLength);
+  new Uint8Array(exports.memory.buffer, ptr, encryptedBytes.byteLength).set(
+    encryptedBytes,
+  );
+  const outLen = exports.decrypt(ptr, encryptedBytes.byteLength);
+  if (!Number.isFinite(outLen) || outLen <= 0) {
+    return [];
+  }
+
+  const plaintext = new TextDecoder().decode(
+    new Uint8Array(
+      exports.memory.buffer,
+      ptr + VIDSRC_WASM_NONCE_BYTES,
+      outLen,
+    ),
+  );
+  return plaintext.split("\n").filter((url) => /^https?:\/\//.test(url));
 };
 
 const tokenHostFromUrl = (url: string): string | null => {
@@ -116,168 +277,144 @@ const tokenHostFromUrl = (url: string): string | null => {
   }
 };
 
-const fetchVidsrcEmbedHtml = async (
-  embedUrl: string,
-  embedOrigin: string,
-): Promise<{ status: number; text: string }> => {
-  const embed = await scrapeFetchText(embedUrl, {
-    Referer: `${embedOrigin}/`,
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
-  if (
-    embed.status === 200 &&
-    !/Attention Required|Just a moment/i.test(embed.text)
-  ) {
-    return embed;
-  }
 
-  // Cloudflare intermittently 403s movie embeds — FlareSolverr clears the challenge.
-  if (embed.status === 403 || embed.status === 503 || embed.status === 429) {
-    const solved = await flareSolverrGet(embedUrl, 60_000);
-    if (solved && solved.status === 200 && solved.body.length > 0) {
-      return { status: solved.status, text: solved.body };
+const fetchVidsrcJwt = async (tokenHost: string): Promise<string> => {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) {
+      await sleep(1_500);
+    }
+    const tokenResponse = await scrapeFetchText(
+      `https://${tokenHost}/generate.php`,
+      { Referer: `${PLAYER_ORIGIN}/` },
+    );
+    const token = parseVidsrcTokenResponse(tokenResponse.text);
+    if (token) {
+      return token;
+    }
+    if (tokenResponse.status !== 429 && tokenResponse.status !== 503) {
+      return "";
     }
   }
-
-  return embed;
+  return "";
 };
 
-const scrapeVidSrcEdn = async (
-  input: ScrapeMediaInput,
-  embedOrigin: string,
-): Promise<ScrapeResult> => {
-  const providerId = "vidsrc";
-  const embedUrl = buildEmbedUrl(input, embedOrigin);
-  const embed = await fetchVidsrcEmbedHtml(embedUrl, embedOrigin);
-
-  if (embed.status !== 200) {
-    return {
-      ok: false,
-      providerId,
-      error: `Embed page failed (${embed.status})`,
-    };
-  }
-
-  const iframeSrc = extractIframeSrc(embed.text);
-  if (!iframeSrc) {
-    return { ok: false, providerId, error: "VidSrc iframe not found" };
-  }
-
-  const playerReferer = iframeSrc;
-  let playerOrigin = PLAYER_ORIGIN;
-  try {
-    playerOrigin = new URL(playerReferer).origin;
-  } catch {
-    void 0;
-  }
-
-  let prorcpHash = extractProrcpHash(iframeSrc);
-
-  if (!prorcpHash) {
-    const rcpPage = await scrapeFetchText(
-      iframeSrc,
-      { Referer: `${embedOrigin}/` },
-      { timeoutMs: VIDSRC_PLAYER_FETCH_TIMEOUT_MS },
-    );
-    prorcpHash = extractProrcpHash(rcpPage.text);
-  }
-
-  if (!prorcpHash) {
-    return { ok: false, providerId, error: "VidSrc player hash not found" };
-  }
-
-  const playerPage = await scrapeFetchText(
-    `${playerOrigin}/prorcp/${prorcpHash}`,
-    { Referer: playerReferer },
-    { timeoutMs: VIDSRC_PLAYER_FETCH_TIMEOUT_MS },
-  );
-
-  const masterTemplate = extractMasterUrl(playerPage.text);
-  if (!masterTemplate) {
-    return { ok: false, providerId, error: "VidSrc master playlist missing" };
-  }
-
-  const tokenHost = tokenHostFromUrl(masterTemplate);
+const mintVidsrcStream = async (
+  rawStreamUrl: string,
+  tokenCache: Map<string, string>,
+): Promise<ScrapeResult | null> => {
+  const tokenHost = tokenHostFromUrl(rawStreamUrl);
   if (!tokenHost) {
-    return { ok: false, providerId, error: "VidSrc token host missing" };
+    return null;
   }
 
-  const tokenResponse = await scrapeFetchText(
-    `https://${tokenHost}/generate.php`,
-    { Referer: `${playerOrigin}/` },
-  );
-
-  const token = tokenResponse.text.trim();
+  let token = tokenCache.get(tokenHost);
   if (!token) {
-    return { ok: false, providerId, error: "VidSrc JWT token missing" };
+    token = await fetchVidsrcJwt(tokenHost);
+    if (!token) {
+      return null;
+    }
+    tokenCache.set(tokenHost, token);
   }
 
-  const streamUrl = masterTemplate
-    .replaceAll("__TOKEN__", token)
-    .replaceAll("__TOKENPG__", token);
-
+  const masterTemplate = applyVidsrcStreamToken(rawStreamUrl, "__TOKEN__");
+  const streamUrl = applyVidsrcStreamToken(rawStreamUrl, token);
   const playbackRefresh: VidsrcPlaybackRefresh = {
     providerId: "vidsrc",
     tokenHost,
     masterTemplate,
-    playerOrigin,
-    playerReferer,
+    playerOrigin: PLAYER_ORIGIN,
+    playerReferer: `${PLAYER_ORIGIN}/`,
   };
 
   return {
     ok: true,
-    providerId,
+    providerId: "vidsrc",
     streamUrl,
-    referer: `${playerOrigin}/`,
+    referer: `${PLAYER_ORIGIN}/`,
     playbackRefresh,
+  };
+};
+
+const scrapeVidSrcFromApi = async (
+  input: ScrapeMediaInput,
+): Promise<ScrapeResult> => {
+  const providerId = "vidsrc";
+  const api = await scrapeFetchText(buildVidsrcStreamApiUrl(input), {
+    Accept: "application/json",
+    Referer: `${PLAYER_ORIGIN}/`,
+  });
+
+  if (api.status !== 200) {
+    return {
+      ok: false,
+      providerId,
+      error: `VidSrc stream API failed (${api.status})`,
+    };
+  }
+
+  let payload: VidsrcStreamApiPayload;
+  try {
+    payload = JSON.parse(api.text) as VidsrcStreamApiPayload;
+  } catch {
+    return {
+      ok: false,
+      providerId,
+      error: "VidSrc stream API returned invalid JSON",
+    };
+  }
+
+  const candidates = collectVidsrcStreamUrlCandidates(payload);
+  let streamUrls = candidates.plaintext;
+  if (streamUrls.length === 0 && candidates.encrypted) {
+    streamUrls = await decryptVidsrcStreamUrls(
+      candidates.encrypted,
+      candidates.wasmUrl,
+      candidates.wasmInline,
+    );
+  }
+
+  if (streamUrls.length === 0) {
+    return { ok: false, providerId, error: "VidSrc stream URLs missing" };
+  }
+
+  let mintedAny = false;
+  const tokenCache = new Map<string, string>();
+  for (const rawStreamUrl of streamUrls) {
+    const minted = await mintVidsrcStream(rawStreamUrl, tokenCache);
+    if (!minted?.ok) {
+      continue;
+    }
+    mintedAny = true;
+    const playable = await probeScrapePlaybackPath(
+      {
+        url: minted.streamUrl,
+        referer: minted.referer ?? `${PLAYER_ORIGIN}/`,
+      },
+      "hls",
+    );
+    if (playable) {
+      return { ...minted, validated: true };
+    }
+  }
+
+  return {
+    ok: false,
+    providerId,
+    error: mintedAny
+      ? "VidSrc stream URLs failed validation"
+      : "VidSrc JWT token missing",
   };
 };
 
 export async function scrapeVidSrc(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
-  const providerId = "vidsrc";
-  let lastError = "VidSrc scrape failed";
-
-  const settled = await Promise.all(
-    VIDSRC_SCRAPE_EMBED_ORIGINS.map(async (embedOrigin) => {
-      try {
-        const result = await scrapeVidSrcEdn(input, embedOrigin);
-        return { embedOrigin, result };
-      } catch (error) {
-        return {
-          embedOrigin,
-          result: {
-            ok: false as const,
-            providerId,
-            error:
-              error instanceof Error
-                ? error.message
-                : "VidSrc scrape failed unexpectedly",
-          },
-        };
-      }
-    }),
-  );
-
-  for (const embedOrigin of VIDSRC_SCRAPE_EMBED_ORIGINS) {
-    const entry = settled.find((row) => row.embedOrigin === embedOrigin);
-    if (entry?.result.ok) {
-      return entry.result;
-    }
-    if (entry && !entry.result.ok) {
-      lastError = entry.result.error ?? lastError;
-    }
-  }
-
-  return { ok: false, providerId, error: lastError };
-}
-
-/** Mirror embed origin only — used as a narrow fallback (e.g. 2Embed). */
-export async function scrapeVidSrcMirrorEmbed(
-  input: ScrapeMediaInput,
-): Promise<ScrapeResult> {
   try {
-    return await scrapeVidSrcEdn(input, VIDSRC_MIRROR_EMBED_ORIGIN);
+    return await scrapeVidSrcFromApi(input);
   } catch (error) {
     return {
       ok: false,
@@ -285,7 +422,14 @@ export async function scrapeVidSrcMirrorEmbed(
       error:
         error instanceof Error
           ? error.message
-          : "VidSrc mirror embed scrape failed unexpectedly",
+          : "VidSrc scrape failed unexpectedly",
     };
   }
+}
+
+/** Same API path as scrapeVidSrc — 2Embed uses this as a stream fallback. */
+export async function scrapeVidSrcMirrorEmbed(
+  input: ScrapeMediaInput,
+): Promise<ScrapeResult> {
+  return scrapeVidSrc(input);
 }

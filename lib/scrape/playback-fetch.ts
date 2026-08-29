@@ -5,6 +5,8 @@ export type ScrapePlaybackFetchOptions = {
   rangeHeader?: string | null;
   cookies?: string;
   signal?: AbortSignal;
+  timeoutMs?: number;
+  retryAttempts?: number;
   /**
    * Play and validate must share curl policy. Default true so hosts that only
    * pass via curl during validation also play.
@@ -18,12 +20,21 @@ export const fetchScrapePlaybackUpstream = (
   referer: string | undefined,
   options: ScrapePlaybackFetchOptions = {},
 ): Promise<Response> => {
-  const { rangeHeader = null, cookies, signal, curlFallback = true } = options;
+  const {
+    rangeHeader = null,
+    cookies,
+    signal,
+    timeoutMs,
+    retryAttempts,
+    curlFallback = true,
+  } = options;
 
   return scrapeFetch(upstreamUrl, {
     method: "GET",
     curlFallback,
     signal,
+    timeoutMs,
+    retryAttempts,
     headers: {
       ...scrapeUpstreamHeaders(upstreamUrl, referer, rangeHeader),
       ...(cookies ? { Cookie: cookies } : {}),

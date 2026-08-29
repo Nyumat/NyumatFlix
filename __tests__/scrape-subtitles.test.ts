@@ -5,6 +5,7 @@ import {
   buildScrapeSubtitleTracks,
   detectScrapeSubtitleType,
   parseQualityLabel,
+  scrapeSubtitleCaptionMenuValue,
 } from "@/lib/scrape/player-sources";
 import {
   buildScrapePlayUrl,
@@ -52,6 +53,54 @@ describe("scrape subtitles", () => {
     );
 
     expect(tracks).toHaveLength(1);
+  });
+
+  it("keeps unique caption menu labels when lang and source collide", () => {
+    const tracks = buildScrapeSubtitleTracks(
+      [
+        {
+          lang: "en-US",
+          url: "https://api.animeonsen.xyz/v4/subtitles/title/en-US/1",
+          format: "ass",
+          source: "AnimeOnsen",
+        },
+        {
+          lang: "en-US",
+          url: "https://api.animeonsen.xyz/v4/subtitles/title/en-US/2",
+          format: "ass",
+          source: "AnimeOnsen",
+        },
+      ],
+      "https://www.animeonsen.xyz",
+    );
+
+    expect(tracks).toHaveLength(2);
+    expect(tracks[0]?.id).toMatch(/^scrape-en-us-[a-z0-9]+$/);
+    expect(tracks[1]?.id).toMatch(/^scrape-en-us-[a-z0-9]+$/);
+    expect(tracks[0]?.id).not.toBe(tracks[1]?.id);
+    expect(tracks[0]?.label).toBe("en-US · AnimeOnsen");
+    expect(tracks[1]?.label).toBe("en-US · AnimeOnsen (2)");
+  });
+
+  it("keeps unique Vidstack caption menu values for colliding lang labels", () => {
+    const sharedUrl = "https://cdn.example/arabic.vtt";
+    const tracks = buildScrapeSubtitleTracks(
+      [
+        { lang: "Arabic", url: sharedUrl, source: "justanime" },
+        {
+          lang: "arabic",
+          url: "https://cdn.example/arabic-alt.vtt",
+          source: "justanime",
+        },
+      ],
+      "https://justanime.to/",
+    );
+
+    expect(tracks).toHaveLength(2);
+    const menuValues = tracks.map((track) =>
+      scrapeSubtitleCaptionMenuValue(track),
+    );
+    expect(new Set(menuValues).size).toBe(menuValues.length);
   });
 
   it("converts AniZone ASS captions to WebVTT", () => {
@@ -102,6 +151,28 @@ describe("scrape subtitles", () => {
     expect(token).toBeTruthy();
     const decoded = decodeScrapePlaybackToken(token ?? "");
     expect(decoded?.referer).toBe("https://krussdomi.com/");
+  });
+
+  it("prefers each track's donor referer over the playing stream referer", () => {
+    const tracks = buildScrapeSubtitleTracks(
+      [
+        {
+          lang: "en-US",
+          url: "https://api.animeonsen.xyz/v4/subtitles/title/en-US/1",
+          format: "ass",
+          referer: "https://www.animeonsen.xyz",
+          source: "AnimeOnsen",
+        },
+      ],
+      "https://krussdomi.com/",
+    );
+
+    expect(tracks[0]?.label).toBe("en-US · AnimeOnsen");
+    expect(tracks[0]?.type).toBe("vtt");
+    const token = tracks[0]?.src.match(/\/api\/scrape\/play\/([^/]+)\//)?.[1];
+    expect(token).toBeTruthy();
+    const decoded = decodeScrapePlaybackToken(token ?? "");
+    expect(decoded?.referer).toBe("https://www.animeonsen.xyz");
   });
 });
 

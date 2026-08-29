@@ -198,14 +198,6 @@ export default function SearchResults({
         ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <SearchTypeTabs value={contentFilter} onChange={setContentFilter} />
-          {showMediaResults ? (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {validMediaItems.length}
-              </span>{" "}
-              titles
-            </p>
-          ) : null}
         </div>
       </div>
 

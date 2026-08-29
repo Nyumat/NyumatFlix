@@ -6,9 +6,19 @@ import {
   fetchDirectMovieStreams,
   fetchDirectTvStreams,
 } from "@/lib/direct/client-streams";
+import { mergeDirectStreams } from "@/lib/direct/merge-direct-streams";
 import { prefetchDirectPlayback } from "@/lib/direct/prefetch-playback";
-import { subscribeProgressiveDirectStreams } from "@/lib/direct/progressive-streams";
-import { isStreamPlayable } from "@/lib/direct/playback";
+import {
+  buildDirectMediaKey,
+  isDirectStreamDiscoveryActive,
+  peekCachedDirectStreams,
+  subscribeDirectStreamDiscovery,
+} from "@/lib/direct/stream-discovery-cache";
+import {
+  isFastStartDirectStream,
+  isStreamPlayable,
+} from "@/lib/direct/playback";
+import { streamIdentity } from "@/lib/direct/streamUtils";
 import {
   pickBestDirectMovieStream,
   rankDirectMovieStreams,
@@ -36,23 +46,6 @@ function buildMediaKey(input: {
   return String(input.tmdbId);
 }
 
-async function loadStreamsJson(
-  mediaType: "movie" | "tv",
-  tmdbId: number,
-  seasonNumber: number | undefined,
-  episodeNumber: number | undefined,
-  fresh: boolean | undefined,
-  signal: AbortSignal,
-) {
-  if (mediaType === "tv") {
-    return fetchDirectTvStreams(tmdbId, seasonNumber ?? 0, episodeNumber ?? 0, {
-      fresh,
-      signal,
-    });
-  }
-  return fetchDirectMovieStreams(tmdbId, { fresh, signal });
-}
-
 export function useDirectPlayback({
   tmdbId,
   mediaType,
@@ -70,7 +63,9 @@ export function useDirectPlayback({
   const runIdRef = useRef(0);
   const mediaKeyRef = useRef<string | null>(null);
   const statusRef = useRef(status);
+  const rankedStreamsRef = useRef(rankedStreams);
   const freshRetryRef = useRef(false);
+  rankedStreamsRef.current = rankedStreams;
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const prefetchedStreamRef = useRef<string | null>(null);
   const onAllStreamsFailedRef = useRef(onAllStreamsFailed);
@@ -103,68 +98,63 @@ export function useDirectPlayback({
   }, []);
 
   const applyRankedStreams = useCallback(
-    (ranked: DirectStream[], options?: { forcePlaying?: boolean }) => {
+    (
+      ranked: DirectStream[],
+      options?: { forcePlaying?: boolean; partial?: boolean },
+    ) => {
       if (!ranked.length) {
         return false;
       }
-      setRankedStreams(ranked);
-      const best = pickBestDirectMovieStream(ranked);
-      if (!best || !isStreamPlayable(best)) {
+      const playable = ranked.filter(isStreamPlayable);
+      const best =
+        pickBestDirectMovieStream(playable) ?? playable[0] ?? ranked[0];
+      if (!best) {
         return false;
       }
+      const bestIndex = ranked.findIndex(
+        (stream) => streamIdentity(stream) === streamIdentity(best),
+      );
+      const canStartPlayback =
+        options?.forcePlaying ||
+        !options?.partial ||
+        isFastStartDirectStream(best);
+
+      setRankedStreams(ranked);
       maybePrefetch(best);
-      if (options?.forcePlaying || statusRef.current === "loading") {
+
+      if (
+        canStartPlayback &&
+        (options?.forcePlaying || statusRef.current === "loading")
+      ) {
         setStatus("playing");
+        if (bestIndex >= 0) {
+          setStreamIndex(bestIndex);
+        }
+        return true;
       }
+
+      if (statusRef.current === "playing" && bestIndex >= 0) {
+        setStreamIndex((current) => {
+          const currentStream = rankedStreamsRef.current[current];
+          if (
+            currentStream &&
+            streamIdentity(currentStream) === streamIdentity(best)
+          ) {
+            return current;
+          }
+          if (
+            isFastStartDirectStream(best) &&
+            !isFastStartDirectStream(currentStream)
+          ) {
+            return bestIndex;
+          }
+          return current;
+        });
+      }
+
       return true;
     },
     [maybePrefetch],
-  );
-
-  const loadStreamsJsonFallback = useCallback(
-    async (runId: number, fresh?: boolean) => {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 120_000);
-      try {
-        const payload = await loadStreamsJson(
-          mediaType,
-          tmdbId,
-          seasonNumber,
-          episodeNumber,
-          fresh,
-          controller.signal,
-        );
-        if (runId !== runIdRef.current) {
-          return;
-        }
-        const ranked = rankDirectMovieStreams(payload.streams ?? []);
-        if (!ranked.length) {
-          setStatus("error");
-          setError(payload.message ?? "No cached streams available");
-          onAllStreamsFailedRef.current?.();
-          return;
-        }
-        setStreamsMessage(payload.message ?? null);
-        setRankedStreams(ranked);
-        setStreamIndex(0);
-        maybePrefetch(ranked[0]!);
-        setStatus("playing");
-      } catch (loadError) {
-        if (runId !== runIdRef.current) {
-          return;
-        }
-        setStatus("error");
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Failed to load direct streams",
-        );
-        onAllStreamsFailedRef.current?.();
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    },
-    [episodeNumber, maybePrefetch, mediaType, seasonNumber, tmdbId],
   );
 
   const loadStreams = useCallback(
@@ -199,20 +189,6 @@ export function useDirectPlayback({
         return;
       }
 
-      runIdRef.current += 1;
-      const runId = runIdRef.current;
-      mediaKeyRef.current = mediaKey;
-      prefetchedStreamRef.current = null;
-
-      unsubscribeRef.current?.();
-      unsubscribeRef.current = null;
-
-      setStatus("loading");
-      setError(null);
-      setStreamsMessage(null);
-      setRankedStreams([]);
-      setStreamIndex(0);
-
       const progressiveRequest =
         mediaType === "tv"
           ? {
@@ -228,7 +204,33 @@ export function useDirectPlayback({
               fresh: options?.fresh,
             };
 
-      unsubscribeRef.current = subscribeProgressiveDirectStreams(
+      const cached = !options?.fresh
+        ? peekCachedDirectStreams(buildDirectMediaKey(progressiveRequest))
+        : null;
+
+      runIdRef.current += 1;
+      const runId = runIdRef.current;
+      mediaKeyRef.current = mediaKey;
+      prefetchedStreamRef.current = null;
+
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+
+      if (cached?.ranked.length) {
+        setStatus("playing");
+        setError(null);
+        setStreamsMessage(cached.message ?? null);
+        setStreamIndex(0);
+        applyRankedStreams(cached.ranked, { forcePlaying: true });
+      } else {
+        setStatus("loading");
+        setError(null);
+        setStreamsMessage(null);
+        setRankedStreams([]);
+        setStreamIndex(0);
+      }
+
+      unsubscribeRef.current = subscribeDirectStreamDiscovery(
         progressiveRequest,
         {
           onStatus: (event) => {
@@ -241,32 +243,38 @@ export function useDirectPlayback({
             if (runId !== runIdRef.current) {
               return;
             }
-            applyRankedStreams(event.streams);
+            applyRankedStreams(event.streams, { partial: event.partial });
           },
           onDone: (payload) => {
             if (runId !== runIdRef.current) {
               return;
             }
-            unsubscribeRef.current = null;
             if (payload.message) {
               setStreamsMessage(payload.message);
             }
             const ranked = rankDirectMovieStreams(payload.streams);
             if (!ranked.length) {
+              if (statusRef.current === "playing") {
+                return;
+              }
               setStatus("error");
-              setError(payload.message ?? "No cached streams available");
+              setError(payload.message ?? "No streams found");
               onAllStreamsFailedRef.current?.();
               return;
             }
             applyRankedStreams(ranked, { forcePlaying: true });
             setStreamIndex(0);
           },
-          onError: () => {
+          onError: (message) => {
             if (runId !== runIdRef.current) {
               return;
             }
-            unsubscribeRef.current = null;
-            void loadStreamsJsonFallback(runId, options?.fresh);
+            if (statusRef.current === "playing") {
+              return;
+            }
+            setStatus("error");
+            setError(message);
+            onAllStreamsFailedRef.current?.();
           },
         },
       );
@@ -275,37 +283,131 @@ export function useDirectPlayback({
       applyRankedStreams,
       enabled,
       episodeNumber,
-      loadStreamsJsonFallback,
       mediaType,
       seasonNumber,
       tmdbId,
     ],
   );
 
+  const refreshMoreStreamsInBackground = useCallback(
+    async (currentIndex: number) => {
+      if (!enabled || !Number.isInteger(tmdbId) || tmdbId <= 0) {
+        return;
+      }
+
+      const progressiveRequest =
+        mediaType === "tv"
+          ? {
+              mediaType: "tv" as const,
+              tmdbId,
+              season: seasonNumber ?? 0,
+              episode: episodeNumber ?? 0,
+              fresh: true,
+            }
+          : {
+              mediaType: "movie" as const,
+              tmdbId,
+              fresh: true,
+            };
+
+      const mediaKey = buildDirectMediaKey(progressiveRequest);
+      if (isDirectStreamDiscoveryActive(mediaKey)) {
+        return;
+      }
+
+      const cached = peekCachedDirectStreams(mediaKey);
+      if (cached && cached.ranked.length > 1) {
+        return;
+      }
+
+      try {
+        const payload =
+          mediaType === "tv"
+            ? await fetchDirectTvStreams(
+                tmdbId,
+                seasonNumber ?? 0,
+                episodeNumber ?? 0,
+                { fresh: true, quick: true },
+              )
+            : await fetchDirectMovieStreams(tmdbId, {
+                fresh: true,
+                quick: true,
+              });
+
+        const incoming = payload.streams ?? [];
+        if (!incoming.length) {
+          return;
+        }
+
+        setRankedStreams((previous) => {
+          const merged = mergeDirectStreams(previous, incoming);
+          rankedStreamsRef.current = merged;
+
+          if (merged.length <= 1) {
+            const replacement = merged[0];
+            if (
+              replacement &&
+              streamIdentity(replacement) !==
+                streamIdentity(previous[currentIndex]!)
+            ) {
+              setStreamIndex(0);
+              maybePrefetch(replacement);
+            }
+            return merged;
+          }
+
+          const nextIndex = (currentIndex + 1) % merged.length;
+          setStreamIndex(nextIndex);
+          const nextStream = merged[nextIndex];
+          if (nextStream) {
+            maybePrefetch(nextStream);
+          }
+          return merged;
+        });
+        setStatus("playing");
+        setError(null);
+      } catch {
+        // Fire-and-forget background refresh.
+      }
+    },
+    [enabled, episodeNumber, maybePrefetch, mediaType, seasonNumber, tmdbId],
+  );
+
   const tryNextStream = useCallback(() => {
     setStreamIndex((current) => {
-      const next = current + 1;
-      if (next >= rankedStreams.length) {
-        if (!freshRetryRef.current) {
-          freshRetryRef.current = true;
-          mediaKeyRef.current = null;
-          void loadStreams({ fresh: true });
-          return current;
-        }
-        setStatus("error");
-        setError("All direct streams failed playback");
-        onAllStreamsFailedRef.current?.();
+      const streams = rankedStreamsRef.current;
+      if (!streams.length) {
         return current;
       }
+
       setStatus("playing");
       setError(null);
-      const nextStream = rankedStreams[next];
-      if (nextStream) {
-        maybePrefetch(nextStream);
+
+      if (streams.length > 1) {
+        const next = (current + 1) % streams.length;
+        const nextStream = streams[next];
+        if (nextStream) {
+          maybePrefetch(nextStream);
+        }
+        return next;
       }
-      return next;
+
+      void refreshMoreStreamsInBackground(current);
+      return current;
     });
-  }, [loadStreams, maybePrefetch, rankedStreams]);
+  }, [maybePrefetch, refreshMoreStreamsInBackground]);
+
+  const handlePlaybackExhausted = useCallback(() => {
+    if (!freshRetryRef.current) {
+      freshRetryRef.current = true;
+      mediaKeyRef.current = null;
+      void loadStreams({ fresh: true });
+      return;
+    }
+    setStatus("error");
+    setError("All direct streams failed playback");
+    onAllStreamsFailedRef.current?.();
+  }, [loadStreams]);
 
   const retryAll = useCallback(() => {
     mediaKeyRef.current = null;
@@ -337,6 +439,7 @@ export function useDirectPlayback({
     activeStream,
     loadStreams,
     tryNextStream,
+    handlePlaybackExhausted,
     retryAll,
     reset,
   };

@@ -1,6 +1,7 @@
 import { Episode } from "@/lib/domain/typings";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { episodeNumberForProviders } from "@/lib/tv-provider-episode";
+import { normalizeTvContentKey } from "@/lib/tv-watch-target";
 import type { MappingConfidence } from "@/lib/anime/tmdb-anilist-map";
 import { getSession } from "next-auth/react";
 import { create } from "zustand";
@@ -35,8 +36,11 @@ interface EpisodeState {
   animeSegmentEnd: number | null;
   mappingConfidence: MappingConfidence | null;
   isAdultAnime: boolean;
+  anilistGenres: string[];
   defaultAnilistId: number | null;
   defaultIsAdultAnime: boolean;
+  /** TMDB tv id for stream discovery on AniList-backed routes. */
+  playbackTmdbTvId: number | null;
   /**
    * Whether TMDB→AniList episode coords are still loading for an anime show.
    * Used to avoid starting the TMDB scrape overlay before anime hosts are ready.
@@ -57,6 +61,7 @@ interface EpisodeState {
     mapping?: {
       confidence: MappingConfidence;
       isAdult: boolean;
+      genres?: string[];
       animeSeasonNumber?: number | null;
       relativeEpisodeNumber?: number;
     },
@@ -69,12 +74,15 @@ interface EpisodeState {
     };
     confidence: MappingConfidence;
     isAdult: boolean;
+    genres?: string[];
     animeSeasonNumber?: number | null;
     relativeEpisodeNumber?: number;
   }) => void;
   setAnimeCoordsStatus: (status: EpisodeState["animeCoordsStatus"]) => void;
   clearSelectedEpisode: () => void;
   setDefaultAnilistId: (anilistId: number | null, isAdult?: boolean) => void;
+  setPlaybackTmdbTvId: (playbackTmdbTvId: number | null) => void;
+  setSeasonNumber: (tvShowId: string, seasonNumber: number) => void;
   getEmbedUrl: () => string | null;
   /** Next episode within the loaded season, if any. */
   getNextEpisodeTarget: () => NextEpisodeTarget | null;
@@ -128,8 +136,10 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
   animeSegmentEnd: null,
   mappingConfidence: null,
   isAdultAnime: false,
+  anilistGenres: [],
   defaultAnilistId: null,
   defaultIsAdultAnime: false,
+  playbackTmdbTvId: null,
   animeCoordsStatus: "idle",
   watchCallback: null,
   setSelectedEpisode: (
@@ -152,8 +162,16 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       ? episodeNumberForProviders(seasonEpisodes, episode.episode_number)
       : episode.episode_number;
     const { defaultAnilistId } = get();
+    const mappingConfidence: MappingConfidence | null =
+      mapping?.confidence ?? (isAnimeEpisode ? "low" : null);
     const animeCoordsStatus: EpisodeState["animeCoordsStatus"] =
-      effectiveAnimeInfo ? "resolved" : defaultAnilistId ? "pending" : "idle";
+      defaultAnilistId && mappingConfidence !== "high"
+        ? "pending"
+        : effectiveAnimeInfo
+          ? "resolved"
+          : defaultAnilistId
+            ? "pending"
+            : "idle";
 
     set({
       selectedEpisode: episode,
@@ -169,15 +187,20 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
         : null,
       animeSegmentStart: effectiveAnimeInfo?.startEpisode ?? null,
       animeSegmentEnd: effectiveAnimeInfo?.endEpisode ?? null,
-      mappingConfidence: mapping?.confidence ?? (isAnimeEpisode ? "low" : null),
-      isAdultAnime: mapping?.isAdult ?? false,
+      mappingConfidence,
+      isAdultAnime: (mapping?.isAdult ?? false) || get().defaultIsAdultAnime,
+      anilistGenres: mapping?.genres ?? [],
       animeCoordsStatus,
     });
 
     if (tvShowId && seasonNumber && episode.episode_number) {
+      const progressContentId = normalizeTvContentKey(tvShowId);
+      // `tvShowId` is an AniList id (not TMDB) on `/anime/[id]` pages — pass
+      // it along separately so MAL scrobbling can still resolve a mapping.
+      const progressAnilistId = anilistId ?? defaultAnilistId;
       getSession()
         .then((session) => {
-          if (!session?.user?.id) {
+          if (!session?.user?.id || progressContentId === null) {
             return;
           }
 
@@ -187,10 +210,11 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              contentId: parseInt(tvShowId),
+              contentId: progressContentId,
               mediaType: "tv",
               seasonNumber,
               episodeNumber: episode.episode_number,
+              ...(progressAnilistId ? { anilistId: progressAnilistId } : {}),
             }),
           });
         })
@@ -221,6 +245,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       animeSegmentEnd: null,
       mappingConfidence: null,
       isAdultAnime: false,
+      anilistGenres: [],
       animeCoordsStatus: "idle",
     });
   },
@@ -243,15 +268,45 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       isAnimeEpisode: true,
       mappingConfidence: mapping.confidence,
       isAdultAnime: mapping.isAdult || get().defaultIsAdultAnime,
+      anilistGenres:
+        mapping.genres && mapping.genres.length > 0
+          ? mapping.genres
+          : get().anilistGenres,
       animeCoordsStatus: "resolved",
     });
   },
   setAnimeCoordsStatus: (animeCoordsStatus) => set({ animeCoordsStatus }),
   setDefaultAnilistId: (defaultAnilistId, isAdult = false) =>
-    set({
+    set((state) => ({
       defaultAnilistId,
       defaultIsAdultAnime: defaultAnilistId ? isAdult === true : false,
-    }),
+      isAdultAnime:
+        defaultAnilistId && isAdult === true ? true : state.isAdultAnime,
+    })),
+  setPlaybackTmdbTvId: (playbackTmdbTvId) => set({ playbackTmdbTvId }),
+  setSeasonNumber: (tvShowId, seasonNumber) => {
+    const { tvShowId: currentShowId, seasonNumber: currentSeason } = get();
+    if (currentShowId === tvShowId && currentSeason === seasonNumber) {
+      return;
+    }
+
+    set({
+      tvShowId,
+      seasonNumber,
+      selectedEpisode: null,
+      seasonEpisodes: null,
+      providerEpisodeNumber: null,
+      isAnimeEpisode: false,
+      anilistId: null,
+      relativeEpisodeNumber: null,
+      animeSeasonNumber: null,
+      animeSegmentStart: null,
+      animeSegmentEnd: null,
+      mappingConfidence: null,
+      anilistGenres: [],
+      animeCoordsStatus: get().defaultAnilistId ? "pending" : "idle",
+    });
+  },
   getEmbedUrl: () => {
     const {
       selectedEpisode,

@@ -10,6 +10,7 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { useRecentlyWatched } from "@/hooks/use-recently-watched";
+import { continueWatchingTitleKey } from "@/lib/playback/continue-watching-dismiss";
 import type { RecentlyWatchedScope } from "@/lib/playback/recently-watched";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight } from "lucide-react";
@@ -21,7 +22,8 @@ type RecentlyWatchedRowProps = {
 };
 
 export function RecentlyWatchedRow({ scope = "all" }: RecentlyWatchedRowProps) {
-  const { items, isLoading, isSignedIn } = useRecentlyWatched(scope);
+  const { items, isLoading, isSignedIn, markComplete, pendingCompleteKey } =
+    useRecentlyWatched(scope);
   const [api, setApi] = useState<CarouselApi>();
   const [pageCount, setPageCount] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);
@@ -141,7 +143,15 @@ export function RecentlyWatchedRow({ scope = "all" }: RecentlyWatchedRowProps) {
               key={`${item.mediaType}-${item.contentId}`}
               className="basis-[85%] pl-3 sm:basis-[70%] md:basis-[42%] lg:basis-[32%] xl:basis-[28%]"
             >
-              <RecentlyWatchedCard item={item} priority={index <= 2} />
+              <RecentlyWatchedCard
+                item={item}
+                priority={index <= 2}
+                isMarkCompletePending={
+                  pendingCompleteKey ===
+                  continueWatchingTitleKey(item.mediaType, item.contentId)
+                }
+                onMarkComplete={() => markComplete(item)}
+              />
             </CarouselItem>
           ))}
         </CarouselContent>

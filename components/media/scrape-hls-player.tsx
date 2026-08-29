@@ -24,12 +24,16 @@ import {
   useState,
 } from "react";
 
-import { ScrapeAudioVariantControls } from "@/components/media/controls/scrape-audio-variant-controls";
 import { VidstackIntroDbSegmentControl } from "@/components/media/controls/introdb-segment-control";
+import { shouldShowScrapeAudioVariantMenu } from "@/components/media/controls/scrape-audio-variant-menu";
+import { useSubtitleOffsetKeyboardShortcuts } from "@/components/media/controls/scrape-subtitle-offset-controls";
 import { ScrapeVideoLayout } from "@/components/media/scrape-video-layout";
 import { useIntroDbSegments } from "@/hooks/use-introdb-segments";
+import { useDedupeVidstackTextTracks } from "@/hooks/use-dedupe-vidstack-text-tracks";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
 import { usePlaybackTrackPreferences } from "@/hooks/use-playback-track-preferences";
+import { useSubtitleAppearance } from "@/hooks/use-subtitle-appearance";
+import { useVidstackSubtitleOffset } from "@/hooks/use-vidstack-subtitle-offset";
 import {
   buildIntroDbChapterGradient,
   buildIntroDbChaptersVtt,
@@ -39,8 +43,15 @@ import { trackMatchesLanguage } from "@/lib/playback/track-matching";
 import {
   getTrackPreferences,
   trackPreferenceStorageKey,
+  updateTrackPreferences,
 } from "@/lib/playback/track-preferences-storage";
+import { pickScrapeQualityIndexForPreference } from "@/lib/playback/playback-preferences";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { resolveScrapeAudioVariantUrl } from "@/lib/scrape/audio-versions";
+import {
+  isDirectTranscodeHlsUrl,
+  mergeTranscodeHlsAuthConfig,
+} from "@/lib/direct/transcode-hls-auth";
 import { configureScrapeHlsInstance } from "@/lib/scrape/hls-quality";
 import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
 import { resolveActiveSubtitles } from "@/lib/scrape/linked-config";
@@ -65,6 +76,7 @@ import type {
 } from "@/lib/scrape/types";
 import { VIDKING_PROACTIVE_REFRESH_AFTER_MS } from "@/lib/scrape/vidking-constants";
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
+import { decidePlaybackAutoStart } from "@/lib/playback/playbackStart";
 import { cn } from "@/lib/utils";
 
 import "./scrape-hls-player.css";
@@ -151,6 +163,10 @@ export function ScrapeHlsPlayer({
   }, []);
   const { resumeTime, persist, persistImmediate } =
     usePlaybackProgress(progressKey);
+  const playbackQuality = useAppSettingsStore((state) => state.playbackQuality);
+  const playbackEnglishSubtitles = useAppSettingsStore(
+    (state) => state.playbackEnglishSubtitles,
+  );
   const [audioLang, setAudioLang] = useState(
     defaultAudioLang ?? audioVersions?.[0]?.lang ?? "",
   );
@@ -161,6 +177,61 @@ export function ScrapeHlsPlayer({
     setAudioLang(defaultAudioLang ?? audioVersions?.[0]?.lang ?? "");
     setHardSubLang(defaultHardSubLang ?? "off");
   }, [audioVersions, defaultAudioLang, defaultHardSubLang]);
+
+  const trackPreferencesKey = useMemo(
+    () => trackPreferenceStorageKey(progressKey),
+    [progressKey.contentId, progressKey.mediaType],
+  );
+
+  const handleAudioLangChange = useCallback(
+    (lang: string) => {
+      if (!audioVersions?.length) {
+        return;
+      }
+
+      setAudioLang(lang);
+      updateTrackPreferences(trackPreferencesKey, { audioLang: lang });
+
+      const next = audioVersions.find((version) => version.lang === lang);
+      const stillValid = next?.hardSubs?.some(
+        (track) => track.lang === hardSubLang,
+      );
+      if (!stillValid && hardSubLang !== "off") {
+        setHardSubLang("off");
+      }
+      setQualityIndex(0);
+    },
+    [audioVersions, hardSubLang, trackPreferencesKey],
+  );
+
+  const handleHardSubLangChange = useCallback((lang: string) => {
+    setHardSubLang(lang);
+    setQualityIndex(0);
+  }, []);
+
+  const audioVariantMenu = useMemo(() => {
+    if (!audioVersions?.length) {
+      return undefined;
+    }
+
+    if (!shouldShowScrapeAudioVariantMenu(audioVersions, audioLang)) {
+      return undefined;
+    }
+
+    return {
+      audioVersions,
+      audioLang: audioLang || audioVersions[0]?.lang || "",
+      hardSubLang,
+      onAudioLangChange: handleAudioLangChange,
+      onHardSubLangChange: handleHardSubLangChange,
+    };
+  }, [
+    audioLang,
+    audioVersions,
+    handleAudioLangChange,
+    handleHardSubLangChange,
+    hardSubLang,
+  ]);
 
   const variantRawUrl = useMemo(() => {
     if (!audioVersions?.length || !audioLang) {
@@ -191,7 +262,9 @@ export function ScrapeHlsPlayer({
       ),
     [playUrl, qualities, referer, subtitles, variantPlayUrl],
   );
-  const [qualityIndex, setQualityIndex] = useState(0);
+  const [qualityIndex, setQualityIndex] = useState(() =>
+    pickScrapeQualityIndexForPreference(qualityOptions, playbackQuality),
+  );
   const activeOption = qualityOptions[qualityIndex] ?? qualityOptions[0];
   const activePlayUrl = activeOption?.playUrl ?? playUrl;
   const activePlaybackUrl = useMemo(() => {
@@ -226,8 +299,10 @@ export function ScrapeHlsPlayer({
     const savedSubtitleLang = getTrackPreferences(
       trackPreferenceStorageKey(progressKey),
     )?.subtitleLang;
+    const preferredSubtitleLang =
+      savedSubtitleLang ?? (playbackEnglishSubtitles ? "English" : undefined);
 
-    if (!savedSubtitleLang || savedSubtitleLang === "off") {
+    if (!preferredSubtitleLang || preferredSubtitleLang === "off") {
       return tracks;
     }
 
@@ -237,7 +312,7 @@ export function ScrapeHlsPlayer({
         !matched &&
         trackMatchesLanguage(
           { lang: track.lang, label: track.label },
-          savedSubtitleLang,
+          preferredSubtitleLang,
         );
 
       if (isDefault) {
@@ -249,7 +324,9 @@ export function ScrapeHlsPlayer({
         default: isDefault,
       };
     });
-  }, [activeSubtitles, progressKey, referer]);
+  }, [activeSubtitles, playbackEnglishSubtitles, progressKey, referer]);
+
+  useDedupeVidstackTextTracks(playerRef, textTracks.length > 0);
 
   const { segments: introDbSegments } = useIntroDbSegments(
     progressKey,
@@ -278,6 +355,18 @@ export function ScrapeHlsPlayer({
     preferredAudioLang,
   );
 
+  const subtitleOffset = useVidstackSubtitleOffset(
+    playerRef,
+    progressKey,
+    activeSubtitles.length > 0,
+  );
+  const subtitleAppearance = useSubtitleAppearance(playerRef);
+  useSubtitleOffsetKeyboardShortcuts({
+    offsetSeconds: subtitleOffset.offsetSeconds,
+    onOffsetChange: subtitleOffset.setOffsetSeconds,
+    visible: subtitleOffset.hasTracks,
+  });
+
   const handleProviderChange = useCallback(
     (provider: MediaProviderAdapter | null) => {
       if (!provider) {
@@ -301,7 +390,12 @@ export function ScrapeHlsPlayer({
 
       if (isHLSProvider(provider)) {
         provider.library = Hls;
-        provider.config = SCRAPE_VOD_HLS_CONFIG;
+        provider.config = isDirectTranscodeHlsUrl(activePlaybackUrl)
+          ? mergeTranscodeHlsAuthConfig(
+              activePlaybackUrl,
+              SCRAPE_VOD_HLS_CONFIG,
+            )
+          : SCRAPE_VOD_HLS_CONFIG;
         provider.onInstance((hls) => {
           configureScrapeHlsInstance(hls);
         });
@@ -367,7 +461,7 @@ export function ScrapeHlsPlayer({
 
   const attemptPlaybackStart = useCallback(() => {
     const player = playerRef.current;
-    if (!player || !autoPlay) {
+    if (!player) {
       return;
     }
 
@@ -377,15 +471,24 @@ export function ScrapeHlsPlayer({
         : null;
     const video =
       providerVideo ?? document.querySelector(".nyumat-scrape-player video");
+    const isCurrentlyPlaying =
+      video instanceof HTMLVideoElement
+        ? video.paused === false
+        : player.paused === false;
+    const decision = decidePlaybackAutoStart({
+      autoPlay,
+      hasStarted: startedRef.current,
+      isCurrentlyPlaying,
+    });
 
-    if (video instanceof HTMLVideoElement && video.paused === false) {
+    if (decision === "already-playing") {
       startedRef.current = true;
       markMediaReady();
       return;
     }
 
-    if (startedRef.current) {
-      startedRef.current = false;
+    if (decision === "skip") {
+      return;
     }
 
     player.muted = false;
@@ -441,6 +544,7 @@ export function ScrapeHlsPlayer({
   }, [attemptPlaybackStart]);
 
   const handlePlaying = useCallback(() => {
+    startedRef.current = true;
     markMediaReady();
   }, [markMediaReady]);
 
@@ -521,8 +625,10 @@ export function ScrapeHlsPlayer({
   );
 
   useEffect(() => {
-    setQualityIndex(0);
-  }, [qualityOptions]);
+    setQualityIndex(
+      pickScrapeQualityIndexForPreference(qualityOptions, playbackQuality),
+    );
+  }, [playbackQuality, qualityOptions]);
 
   useEffect(() => {
     resumedRef.current = false;
@@ -609,28 +715,6 @@ export function ScrapeHlsPlayer({
 
   return (
     <div className={cn("relative h-full w-full", className)}>
-      {audioVersions && audioVersions.length > 0 ? (
-        <ScrapeAudioVariantControls
-          audioVersions={audioVersions}
-          audioLang={audioLang || audioVersions[0]?.lang || ""}
-          hardSubLang={hardSubLang}
-          onAudioLangChange={(lang) => {
-            setAudioLang(lang);
-            const next = audioVersions.find((version) => version.lang === lang);
-            const stillValid = next?.hardSubs?.some(
-              (track) => track.lang === hardSubLang,
-            );
-            if (!stillValid && hardSubLang !== "off") {
-              setHardSubLang("off");
-            }
-            setQualityIndex(0);
-          }}
-          onHardSubLangChange={(lang) => {
-            setHardSubLang(lang);
-            setQualityIndex(0);
-          }}
-        />
-      ) : null}
       <MediaPlayer
         key={activePlayUrl}
         ref={playerRef}
@@ -660,6 +744,7 @@ export function ScrapeHlsPlayer({
           {textTracks.map((track) => (
             <Track
               key={track.id}
+              id={track.id}
               src={track.src}
               kind="subtitles"
               label={track.label}
@@ -681,7 +766,19 @@ export function ScrapeHlsPlayer({
         </MediaProvider>
         <MediaAnnouncer />
         <Poster className="vds-poster" alt="" />
-        <ScrapeVideoLayout />
+        <ScrapeVideoLayout
+          audioVariant={audioVariantMenu}
+          subtitleOffset={{
+            offsetSeconds: subtitleOffset.offsetSeconds,
+            onOffsetChange: subtitleOffset.setOffsetSeconds,
+            visible: subtitleOffset.hasTracks,
+          }}
+          subtitleAppearance={{
+            appearance: subtitleAppearance.appearance,
+            onAppearanceChange: subtitleAppearance.setAppearance,
+            onAppearanceReset: subtitleAppearance.resetAppearance,
+          }}
+        />
         <VidstackIntroDbSegmentControl
           segments={introDbSegments}
           isTv={progressKey.mediaType === "tv"}

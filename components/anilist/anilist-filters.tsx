@@ -105,7 +105,7 @@ export const AniListFilters = ({ serverParams }: AniListFiltersProps) => {
   };
 
   const applyFilters = () => {
-    router.replace(buildAniListUrl({ ...draft, mode: "results" }));
+    router.replace(buildAniListUrl(draft));
   };
 
   return (

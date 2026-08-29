@@ -11,22 +11,163 @@ export function getSearchTitle(media: MediaItem): string | null {
   return media.title || null;
 }
 
-export function isAnime(
-  genres: Array<{ id: number; name?: string }> | number[],
-): boolean {
-  const animeGenreId = 16;
+const ANIME_GENRE_ID = 16;
+const EAST_ASIAN_LANGUAGES = new Set(["ja", "zh", "ko"]);
+const EAST_ASIAN_COUNTRIES = new Set(["JP", "CN", "KR", "HK", "TW"]);
+const CJK_REGEX =
+  /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f\uac00-\ud7af]/;
 
-  if (!genres || genres.length === 0) {
+export function isAnime(
+  target:
+    | Array<{ id: number; name?: string }>
+    | number[]
+    | MediaItem
+    | Record<string, unknown>
+    | null
+    | undefined,
+  options?: {
+    originalLanguage?: string | null;
+    countryCodes?: readonly string[] | null;
+  },
+): boolean {
+  if (!target) return false;
+
+  // MediaItem or media-like record
+  if (!Array.isArray(target) && typeof target === "object") {
+    const item = target as Record<string, unknown>;
+
+    if (
+      "sourceAnilistId" in item &&
+      typeof item.sourceAnilistId === "number" &&
+      Number.isInteger(item.sourceAnilistId) &&
+      item.sourceAnilistId > 0
+    ) {
+      return true;
+    }
+
+    if ("href" in item && typeof item.href === "string") {
+      if (/\/(?:tvshows\/anilist-\d+|anime\/\d+)/i.test(item.href)) {
+        return true;
+      }
+    }
+
+    const genreIds: number[] = [];
+    if (Array.isArray(item.genre_ids)) {
+      for (const g of item.genre_ids) {
+        if (typeof g === "number") genreIds.push(g);
+      }
+    }
+    if (Array.isArray(item.genres)) {
+      for (const g of item.genres) {
+        if (typeof g === "number") {
+          genreIds.push(g);
+        } else if (
+          g &&
+          typeof g === "object" &&
+          typeof (g as { id?: number }).id === "number"
+        ) {
+          genreIds.push((g as { id: number }).id);
+        }
+      }
+    }
+
+    const hasAnimationGenre = genreIds.includes(ANIME_GENRE_ID);
+    if (!hasAnimationGenre) {
+      return false;
+    }
+
+    const lang =
+      typeof item.original_language === "string"
+        ? item.original_language.toLowerCase().trim()
+        : typeof options?.originalLanguage === "string"
+          ? options.originalLanguage.toLowerCase().trim()
+          : undefined;
+
+    const countries: string[] = [];
+    if (Array.isArray(item.origin_country)) {
+      countries.push(
+        ...item.origin_country.filter(
+          (c): c is string => typeof c === "string",
+        ),
+      );
+    } else if (typeof item.origin_country === "string") {
+      countries.push(item.origin_country);
+    }
+    if (Array.isArray(item.production_countries)) {
+      for (const pc of item.production_countries) {
+        if (
+          pc &&
+          typeof pc === "object" &&
+          typeof (pc as { iso_3166_1?: string }).iso_3166_1 === "string"
+        ) {
+          countries.push((pc as { iso_3166_1: string }).iso_3166_1);
+        }
+      }
+    }
+    if (Array.isArray(item.country_codes)) {
+      countries.push(
+        ...item.country_codes.filter((c): c is string => typeof c === "string"),
+      );
+    }
+    if (options?.countryCodes) {
+      countries.push(
+        ...options.countryCodes.filter(
+          (c): c is string => typeof c === "string",
+        ),
+      );
+    }
+
+    const normalizedCountries = countries.map((c) => c.toUpperCase().trim());
+
+    if (lang && EAST_ASIAN_LANGUAGES.has(lang)) {
+      return true;
+    }
+
+    if (normalizedCountries.some((c) => EAST_ASIAN_COUNTRIES.has(c))) {
+      return true;
+    }
+
+    const originalTitle =
+      (typeof item.original_name === "string" ? item.original_name : "") ||
+      (typeof item.original_title === "string" ? item.original_title : "");
+    if (originalTitle && CJK_REGEX.test(originalTitle)) {
+      return true;
+    }
+
+    // Explicit non-East-Asian origin specified (e.g. US / en)
+    if (lang || normalizedCountries.length > 0) {
+      return false;
+    }
+
+    return true;
+  }
+
+  // Genre array / IDs list
+  const genres = target as Array<{ id: number; name?: string }> | number[];
+  if (genres.length === 0) return false;
+
+  const hasAnimation =
+    typeof genres[0] === "number"
+      ? (genres as number[]).includes(ANIME_GENRE_ID)
+      : (genres as Array<{ id: number; name?: string }>).some(
+          (g) => g.id === ANIME_GENRE_ID,
+        );
+
+  if (!hasAnimation) return false;
+
+  const lang = options?.originalLanguage?.toLowerCase().trim();
+  const countries = (options?.countryCodes ?? []).map((c) =>
+    c.toUpperCase().trim(),
+  );
+
+  if (lang && EAST_ASIAN_LANGUAGES.has(lang)) return true;
+  if (countries.some((c) => EAST_ASIAN_COUNTRIES.has(c))) return true;
+
+  if (lang || countries.length > 0) {
     return false;
   }
 
-  if (typeof genres[0] === "number") {
-    return (genres as number[]).includes(animeGenreId);
-  }
-
-  return (genres as Array<{ id: number; name?: string }>).some(
-    (genre) => genre.id === animeGenreId,
-  );
+  return true;
 }
 
 export async function fetchAnilistId(
@@ -178,19 +319,8 @@ export async function getAnilistIdForMedia(
   media: MediaItem,
 ): Promise<number | null | undefined> {
   const searchTitles = getMediaSearchTitles(media);
-  const genreIds = Array.isArray(media.genre_ids) ? media.genre_ids : [];
-  const detailedGenres = Array.isArray(media.genres)
-    ? media.genres.filter(
-        (genre): genre is { id: number; name?: string } =>
-          typeof genre === "object" &&
-          genre !== null &&
-          "id" in genre &&
-          typeof genre.id === "number",
-      )
-    : [];
-  const genres = genreIds.length > 0 ? genreIds : detailedGenres;
 
-  if (searchTitles.length === 0 || !isAnime(genres)) {
+  if (searchTitles.length === 0 || !isAnime(media)) {
     return undefined;
   }
 

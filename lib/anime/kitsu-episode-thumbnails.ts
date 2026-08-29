@@ -198,6 +198,81 @@ const loadKitsuEpisodeThumbnails = async (
   return buildKitsuEpisodeThumbnailMap(episodes);
 };
 
+const fetchKitsuAnimeAttributes = async (
+  kitsuAnimeId: number,
+): Promise<{
+  coverImage?: string | null;
+  posterImage?: string | null;
+} | null> => {
+  const response = await kitsuFetch(`/anime/${kitsuAnimeId}`);
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = (await response.json()) as {
+    data?: {
+      attributes?: {
+        coverImage?: { large?: string | null; original?: string | null } | null;
+        posterImage?: {
+          large?: string | null;
+          original?: string | null;
+        } | null;
+      };
+    };
+  };
+
+  const attributes = payload.data?.attributes;
+  if (!attributes) return null;
+
+  const coverImage =
+    attributes.coverImage?.original?.trim() ||
+    attributes.coverImage?.large?.trim() ||
+    null;
+  const posterImage =
+    attributes.posterImage?.original?.trim() ||
+    attributes.posterImage?.large?.trim() ||
+    null;
+
+  return { coverImage, posterImage };
+};
+
+const loadKitsuCoverImage = async (
+  anilistId: number,
+): Promise<string | null> => {
+  const kitsuAnimeId = await resolveKitsuAnimeId(anilistId);
+  if (!kitsuAnimeId) return null;
+
+  const attributes = await fetchKitsuAnimeAttributes(kitsuAnimeId);
+  if (!attributes) return null;
+
+  return attributes.coverImage ?? attributes.posterImage ?? null;
+};
+
+const loadKitsuFirstEpisodeThumbnail = async (
+  anilistId: number,
+): Promise<string | null> => {
+  const kitsuAnimeId = await resolveKitsuAnimeId(anilistId);
+  if (!kitsuAnimeId) return null;
+
+  const episodes = await fetchKitsuEpisodes(kitsuAnimeId);
+  const firstEpisode =
+    episodes.find((episode) => episode.number === 1) ?? episodes[0];
+
+  return firstEpisode?.thumbnailUrl ?? null;
+};
+
+export const getKitsuCoverImageForAnilist = unstable_cache(
+  loadKitsuCoverImage,
+  ["kitsu-cover-image-v1"],
+  { revalidate: 60 * 60 * 24 },
+);
+
+export const getKitsuFirstEpisodeThumbnailForAnilist = unstable_cache(
+  loadKitsuFirstEpisodeThumbnail,
+  ["kitsu-first-episode-thumbnail-v1"],
+  { revalidate: 60 * 60 * 24 },
+);
+
 export const getKitsuEpisodeThumbnails = unstable_cache(
   loadKitsuEpisodeThumbnails,
   ["kitsu-episode-thumbnails-v1"],

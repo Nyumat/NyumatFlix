@@ -3,10 +3,6 @@
 import { useEffect } from "react";
 
 import { resolveEpisodeAnimeMapping } from "@/lib/anime/resolve-episode-mapping";
-import {
-  fromAnilistTvRouteId,
-  isAnilistTvRouteId,
-} from "@/lib/anilist-route-id";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 
 export function useAnimeEpisodeMapping() {
@@ -17,6 +13,7 @@ export function useAnimeEpisodeMapping() {
   const defaultIsAdultAnime = useEpisodeStore(
     (state) => state.defaultIsAdultAnime,
   );
+  const playbackTmdbTvId = useEpisodeStore((state) => state.playbackTmdbTvId);
   const applyAnimeEpisodeMapping = useEpisodeStore(
     (state) => state.applyAnimeEpisodeMapping,
   );
@@ -25,36 +22,46 @@ export function useAnimeEpisodeMapping() {
   );
 
   useEffect(() => {
-    if (
-      !defaultAnilistId ||
-      !selectedEpisode ||
-      !tvShowId ||
-      !seasonNumber ||
-      !Number.isInteger(Number(tvShowId))
-    ) {
+    if (!defaultAnilistId || !selectedEpisode || !tvShowId || !seasonNumber) {
+      return;
+    }
+
+    const routeId = String(tvShowId);
+    if (!Number.isInteger(Number(routeId))) {
       return;
     }
 
     const current = useEpisodeStore.getState();
-    // Episode already has AniList coords (season segments / Watch button).
-    if (current.anilistId && current.animeCoordsStatus === "resolved") {
+    if (
+      current.anilistId &&
+      current.animeCoordsStatus === "resolved" &&
+      current.mappingConfidence === "high"
+    ) {
       return;
     }
 
     let cancelled = false;
 
-    if (isAnilistTvRouteId(tvShowId)) {
-      const anilistId = fromAnilistTvRouteId(tvShowId);
-      applyAnimeEpisodeMapping({
-        animeInfo: {
-          anilistId,
-          startEpisode: selectedEpisode.episode_number,
-          endEpisode: selectedEpisode.episode_number,
-        },
-        confidence: "high",
-        isAdult: defaultIsAdultAnime,
-        animeSeasonNumber: seasonNumber,
-      });
+    const tmdbShowId =
+      typeof playbackTmdbTvId === "number" && playbackTmdbTvId > 0
+        ? playbackTmdbTvId
+        : Number(routeId);
+
+    if (!Number.isInteger(tmdbShowId) || tmdbShowId <= 0) {
+      if (current.animeCoordsStatus !== "pending") {
+        setAnimeCoordsStatus("pending");
+      }
+      return;
+    }
+
+    if (
+      defaultAnilistId > 0 &&
+      tmdbShowId === defaultAnilistId &&
+      playbackTmdbTvId == null
+    ) {
+      if (current.animeCoordsStatus !== "pending") {
+        setAnimeCoordsStatus("pending");
+      }
       return;
     }
 
@@ -63,7 +70,7 @@ export function useAnimeEpisodeMapping() {
     }
 
     void resolveEpisodeAnimeMapping({
-      tmdbShowId: Number(tvShowId),
+      tmdbShowId,
       seasonNumber,
       episodeNumber: selectedEpisode.episode_number,
       isAdult: defaultIsAdultAnime,
@@ -72,7 +79,9 @@ export function useAnimeEpisodeMapping() {
         return;
       }
       if (!coords) {
-        setAnimeCoordsStatus("miss");
+        if (current.animeCoordsStatus !== "miss") {
+          setAnimeCoordsStatus("miss");
+        }
         return;
       }
 
@@ -81,6 +90,7 @@ export function useAnimeEpisodeMapping() {
         relativeEpisodeNumber: coords.relativeEpisodeNumber,
         confidence: coords.confidence,
         isAdult: coords.isAdult,
+        genres: coords.genres,
         animeSeasonNumber: coords.animeSeasonNumber,
       });
     });
@@ -92,6 +102,7 @@ export function useAnimeEpisodeMapping() {
     applyAnimeEpisodeMapping,
     defaultAnilistId,
     defaultIsAdultAnime,
+    playbackTmdbTvId,
     seasonNumber,
     selectedEpisode,
     setAnimeCoordsStatus,

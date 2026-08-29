@@ -1,3 +1,8 @@
+import {
+  FRIBB_BUNDLED_FILE,
+  readBundledJson,
+} from "@/lib/anime/bundled-mapping-files";
+
 export type FribbMappingItem = {
   anilist_id?: number;
   themoviedb_id?:
@@ -65,6 +70,11 @@ type FribbListCache = {
   expiresAt: number;
 };
 
+type FribbRawListCache = {
+  value: FribbMappingItem[];
+  expiresAt: number;
+};
+
 type FribbMappingCache = {
   value: Record<number, FribbTmdbEntry>;
   expiresAt: number;
@@ -72,6 +82,8 @@ type FribbMappingCache = {
 
 let cachedFribbList: FribbListCache | null = null;
 let inflightFribbList: Promise<FribbAnimeRow[]> | null = null;
+let cachedFribbRawList: FribbRawListCache | null = null;
+let inflightFribbRawList: Promise<FribbMappingItem[]> | null = null;
 let cachedFribbMapping: FribbMappingCache | null = null;
 let inflightFribbMapping: Promise<Record<number, FribbTmdbEntry>> | null = null;
 
@@ -96,20 +108,58 @@ export const resolveFribbTmdbMapping = (
   return null;
 };
 
-const loadFribbAnimeList = async (): Promise<FribbAnimeRow[]> => {
+const parseFribbAnimeList = (data: FribbMappingItem[]): FribbAnimeRow[] =>
+  data.filter(
+    (item): item is FribbAnimeRow =>
+      typeof item.anilist_id === "number" && item.anilist_id > 0,
+  );
+
+const loadFribbRawList = async (): Promise<FribbMappingItem[]> => {
+  const bundled = await readBundledJson<FribbMappingItem[]>(FRIBB_BUNDLED_FILE);
+  if (bundled) {
+    return bundled;
+  }
+
   const res = await fetch(FRIBB_URL, {
     signal: AbortSignal.timeout(FRIBB_FETCH_TIMEOUT_MS),
-    next: { revalidate: 60 * 60 * 24 },
+    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(`Fribb mapping fetch failed with status ${res.status}`);
   }
 
-  const data = (await res.json()) as FribbMappingItem[];
-  return data.filter(
-    (item): item is FribbAnimeRow =>
-      typeof item.anilist_id === "number" && item.anilist_id > 0,
-  );
+  return (await res.json()) as FribbMappingItem[];
+};
+
+/**
+ * Full, unfiltered Fribb rows (including entries with no `anilist_id`).
+ *
+ * Roughly a quarter of Fribb's dataset has a MyAnimeList id but no AniList
+ * id (or vice versa) — consumers that only need MAL/TMDB pairing (e.g. the
+ * MAL id-resolver) should use this instead of `getFribbAnimeList`, which
+ * drops any row lacking `anilist_id`.
+ */
+export const getFribbRawList = async (): Promise<FribbMappingItem[]> => {
+  const now = Date.now();
+  if (cachedFribbRawList && cachedFribbRawList.expiresAt > now) {
+    return cachedFribbRawList.value;
+  }
+
+  if (!inflightFribbRawList) {
+    inflightFribbRawList = loadFribbRawList()
+      .then((value) => {
+        cachedFribbRawList = {
+          value,
+          expiresAt: Date.now() + FRIBB_MEMORY_TTL_MS,
+        };
+        return value;
+      })
+      .finally(() => {
+        inflightFribbRawList = null;
+      });
+  }
+
+  return inflightFribbRawList;
 };
 
 export const getFribbAnimeList = async (): Promise<FribbAnimeRow[]> => {
@@ -119,7 +169,8 @@ export const getFribbAnimeList = async (): Promise<FribbAnimeRow[]> => {
   }
 
   if (!inflightFribbList) {
-    inflightFribbList = loadFribbAnimeList()
+    inflightFribbList = getFribbRawList()
+      .then(parseFribbAnimeList)
       .then((value) => {
         cachedFribbList = {
           value,

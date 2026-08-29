@@ -1,6 +1,9 @@
 import { isOkCdnHlsUrl } from "./anime/allanime-stream-url";
 import { cancelResponseBody } from "./fetch";
-import { fetchScrapePlaybackUpstream } from "./playback-fetch";
+import {
+  fetchScrapePlaybackUpstream,
+  type ScrapePlaybackFetchOptions,
+} from "./playback-fetch";
 import {
   type ScrapePlaybackToken,
   isDisguisedHlsSegment,
@@ -39,15 +42,33 @@ const shouldTreatAsHlsPlaylist = (
   );
 };
 
+export type ProbeScrapePlaybackPathOptions = Pick<
+  ScrapePlaybackFetchOptions,
+  "timeoutMs" | "retryAttempts" | "signal"
+>;
+
+export const SCRAPE_PLAY_PROBE_TIMEOUT_MS = 8_000;
+export const SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS = 1;
+
+export const withScrapePlayProbeOptions = (
+  options: ProbeScrapePlaybackPathOptions = {},
+): ProbeScrapePlaybackPathOptions => ({
+  timeoutMs: options.timeoutMs ?? SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+  retryAttempts: options.retryAttempts ?? SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  signal: options.signal,
+});
+
 const fetchWithKaaFallback = async (
   upstreamUrl: string,
   referer: string | undefined,
   cookies: string | undefined,
   rangeHeader: string | null,
+  fetchOptions: ProbeScrapePlaybackPathOptions = {},
 ): Promise<{ response: Response; url: string }> => {
   let response = await fetchScrapePlaybackUpstream(upstreamUrl, referer, {
     rangeHeader,
     cookies,
+    ...fetchOptions,
   });
   let url = upstreamUrl;
 
@@ -57,6 +78,7 @@ const fetchWithKaaFallback = async (
       response = await fetchScrapePlaybackUpstream(fallbackUrl, referer, {
         rangeHeader,
         cookies,
+        ...fetchOptions,
       });
       url = fallbackUrl;
       if (response.ok || response.status !== 403) {
@@ -72,6 +94,7 @@ const probeHlsAssetThroughPlaybackPath = async (
   assetUrl: string,
   referer: string | undefined,
   cookies: string | undefined,
+  fetchOptions: ProbeScrapePlaybackPathOptions = {},
 ): Promise<boolean> => {
   const candidates = [assetUrl, ...resolveKaaSegmentFallbackUrls(assetUrl)];
 
@@ -81,6 +104,7 @@ const probeHlsAssetThroughPlaybackPath = async (
       referer,
       cookies,
       "bytes=0-1023",
+      fetchOptions,
     );
     if (!response.ok) {
       await cancelResponseBody(response);
@@ -102,6 +126,7 @@ const probeHlsThroughPlaybackPath = async (
   body: string,
   referer: string | undefined,
   cookies: string | undefined,
+  fetchOptions: ProbeScrapePlaybackPathOptions = {},
   depth = 0,
 ): Promise<boolean> => {
   const maxDepth = isOkCdnHlsUrl(playlistUrl) ? 5 : 2;
@@ -120,6 +145,7 @@ const probeHlsThroughPlaybackPath = async (
       referer,
       cookies,
       null,
+      fetchOptions,
     );
     if (!response.ok) {
       await cancelResponseBody(response);
@@ -140,6 +166,7 @@ const probeHlsThroughPlaybackPath = async (
       childBody,
       referer,
       cookies,
+      fetchOptions,
       depth + 1,
     );
   }
@@ -151,7 +178,12 @@ const probeHlsThroughPlaybackPath = async (
   for (const assetUrl of requiredAssets) {
     const normalized = normalizeVidKingAssetHost(assetUrl, playlistUrl);
     if (
-      !(await probeHlsAssetThroughPlaybackPath(normalized, referer, cookies))
+      !(await probeHlsAssetThroughPlaybackPath(
+        normalized,
+        referer,
+        cookies,
+        fetchOptions,
+      ))
     ) {
       return false;
     }
@@ -168,7 +200,9 @@ const probeHlsThroughPlaybackPath = async (
 export async function probeScrapePlaybackPath(
   payload: ScrapePlaybackToken,
   kind: StreamKind = "hls",
+  options: ProbeScrapePlaybackPathOptions = {},
 ): Promise<boolean> {
+  const probeOptions = withScrapePlayProbeOptions(options);
   try {
     const rangeHeader = kind === "mp4" ? "bytes=0-511" : null;
     const resolvedUrl = await resolveScrapePlaybackUpstreamUrl(
@@ -180,6 +214,7 @@ export async function probeScrapePlaybackPath(
       payload.referer,
       payload.cookies,
       rangeHeader,
+      probeOptions,
     );
 
     if (!response.ok) {
@@ -224,6 +259,7 @@ export async function probeScrapePlaybackPath(
       body,
       payload.referer,
       payload.cookies,
+      probeOptions,
     );
   } catch {
     return false;

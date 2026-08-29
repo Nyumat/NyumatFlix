@@ -3,7 +3,7 @@ import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeQuality, ScrapeSubtitle } from "../../types";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
 import { probeScrapePlaybackPath } from "../../playback-probe";
-import { validateStreamUrlWithReferers } from "../../validate-stream";
+import { raceFirstOk } from "../../race-first";
 import { scrapeAllmanga } from "./allmanga";
 
 const ANIKURO_ORIGINS = ["https://anikuro.ru", "https://anikuro.to"] as const;
@@ -212,21 +212,13 @@ const isPlayableCandidate = async (
   referer: string,
 ): Promise<boolean> => {
   try {
-    const validation = await validateStreamUrlWithReferers(
-      streamUrl,
-      referer,
+    return probeScrapePlaybackPath(
+      {
+        url: streamUrl,
+        referer,
+      },
       "hls",
-      { depth: "master" },
     );
-    if (!validation.ok) {
-      return false;
-    }
-
-    const playbackReferer = referer || validation.referer;
-    return probeScrapePlaybackPath({
-      url: streamUrl,
-      referer: playbackReferer,
-    });
   } catch {
     return false;
   }
@@ -249,8 +241,9 @@ const tryProviderBatch = async (
     providers.map((sourceProvider) => ({ origin, sourceProvider })),
   );
 
-  const settled = await Promise.all(
-    attempts.map(async ({ origin, sourceProvider }) => {
+  const winner = await raceFirstOk(
+    attempts,
+    async ({ origin, sourceProvider }) => {
       const fetched = await fetchSources(
         origin,
         sourceProvider,
@@ -280,11 +273,11 @@ const tryProviderBatch = async (
         origin: fetched.origin,
         track,
         picked,
-      };
-    }),
+      } satisfies AnikuroWinner;
+    },
   );
 
-  return settled.find((entry) => entry !== null) ?? null;
+  return winner?.value ?? null;
 };
 
 /**

@@ -2,8 +2,10 @@ import {
   ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS,
   ANIME_SCRAPE_PROVIDER_ORDER,
   TMDB_SCRAPE_PROVIDER_ORDER,
+  isTmdbScrapeProvider,
   type AnimePlaybackScrapeProviderId,
   type AnimeScrapeProviderId,
+  type TmdbScrapeProviderId,
 } from "@/lib/providers/registry";
 import type { MappingConfidence } from "@/lib/anime/tmdb-anilist-map";
 import {
@@ -26,6 +28,11 @@ export type GroupedScrapeProviderOption = {
   group: ScrapeProviderGroup;
 };
 
+export type AnimePlaybackProviderOrders = {
+  animeOrder?: readonly AnimeScrapeProviderId[];
+  tmdbOrder?: readonly TmdbScrapeProviderId[];
+};
+
 /** Mainstream catalogs that do not carry adult OVAs — skip on adult chains. */
 export const MAINSTREAM_ONLY_ANIME_PROVIDER_IDS = [
   "animegg",
@@ -39,17 +46,82 @@ const MAINSTREAM_ONLY_PROVIDER_IDS = new Set<string>(
 
 export const shouldIncludeTmdbPlaybackProxies = (
   context: AnimePlaybackChainContext,
-): boolean => context.mappingConfidence === "high";
+): boolean => {
+  if (context.isAdultAnime) {
+    return false;
+  }
+
+  return context.mappingConfidence === "high";
+};
+
+/** First race batch is these anime scrapers + Direct (concurrency 3). */
+export const ANIME_DIRECT_RACE_LEAD = 2;
+
+export const MANUAL_DIRECT_MENU_OPTION: GroupedScrapeProviderOption = {
+  providerId: "direct",
+  name: ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS.direct,
+  group: "tmdb",
+};
+
+export const withManualDirectMenuOption = (
+  options: readonly GroupedScrapeProviderOption[],
+  directAvailable: boolean,
+): GroupedScrapeProviderOption[] => {
+  if (
+    !directAvailable ||
+    options.some((option) => option.providerId === "direct")
+  ) {
+    return [...options];
+  }
+
+  return [...options, MANUAL_DIRECT_MENU_OPTION];
+};
+
+const toGroupedOption = (
+  providerId: AnimePlaybackScrapeProviderId,
+): GroupedScrapeProviderOption => ({
+  providerId,
+  name: ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS[providerId],
+  group: isTmdbScrapeProvider(providerId) ? "tmdb" : "anime",
+});
+
+const interleaveDirectAfterLeadingAnime = (
+  animeProviders: readonly AnimeScrapeProviderId[],
+  tmdbProviders: readonly TmdbScrapeProviderId[],
+  translationType?: AnimePlaybackChainContext["translationType"],
+): AnimePlaybackScrapeProviderId[] => {
+  if (!tmdbProviders.includes("direct")) {
+    return [...animeProviders, ...tmdbProviders];
+  }
+
+  const tmdbWithoutDirect = tmdbProviders.filter(
+    (providerId) => providerId !== "direct",
+  );
+
+  // Dub preference should try anime-native scrapers first — TMDB proxies are
+  // often a single English track with no in-player language menu.
+  if (translationType === "dub") {
+    return [...animeProviders, "direct", ...tmdbWithoutDirect];
+  }
+
+  return [
+    ...animeProviders.slice(0, ANIME_DIRECT_RACE_LEAD),
+    "direct",
+    ...animeProviders.slice(ANIME_DIRECT_RACE_LEAD),
+    ...tmdbWithoutDirect,
+  ];
+};
 
 const filterAnimeScrapeProviders = (
   context: AnimePlaybackChainContext,
+  baseOrder: readonly AnimeScrapeProviderId[] = ANIME_SCRAPE_PROVIDER_ORDER,
 ): readonly AnimeScrapeProviderId[] => {
   const includeAdultOnlyProviders = shouldIncludeHentaigasmForGenres(
     context.isAdultAnime,
     context.anilistGenres ?? [],
   );
 
-  const filtered = ANIME_SCRAPE_PROVIDER_ORDER.filter((providerId) => {
+  const filtered = baseOrder.filter((providerId) => {
     if (ADULT_ONLY_PROVIDER_IDS.has(providerId)) {
       return includeAdultOnlyProviders;
     }
@@ -73,7 +145,7 @@ const filterAnimeScrapeProviders = (
   }
 
   // Prefer Hentaigasm before ani.pm — measured winner for adult OVAs.
-  const adultPriority = ["hentaigasm", "anipm"] as const;
+  const adultPriority = ["hentaigasm", "hentaini", "anipm"] as const;
   const adultFirst = adultPriority.filter((providerId) =>
     filtered.includes(providerId),
   );
@@ -86,36 +158,26 @@ const filterAnimeScrapeProviders = (
 
 export const buildAnimePlaybackProviderOrder = (
   context: AnimePlaybackChainContext,
+  orders?: AnimePlaybackProviderOrders,
 ): readonly AnimePlaybackScrapeProviderId[] => {
-  const animeProviders = filterAnimeScrapeProviders(context);
+  const animeProviders = filterAnimeScrapeProviders(
+    context,
+    orders?.animeOrder ?? ANIME_SCRAPE_PROVIDER_ORDER,
+  );
 
   if (!shouldIncludeTmdbPlaybackProxies(context)) {
     return animeProviders;
   }
 
-  return [...animeProviders, ...TMDB_SCRAPE_PROVIDER_ORDER];
+  return interleaveDirectAfterLeadingAnime(
+    animeProviders,
+    orders?.tmdbOrder ?? TMDB_SCRAPE_PROVIDER_ORDER,
+    context.translationType,
+  );
 };
 
 export const buildGroupedAnimePlaybackProviderOptions = (
   context: AnimePlaybackChainContext,
-): GroupedScrapeProviderOption[] => {
-  const animeOptions: GroupedScrapeProviderOption[] =
-    filterAnimeScrapeProviders(context).map((providerId) => ({
-      providerId,
-      name: ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS[providerId],
-      group: "anime",
-    }));
-
-  if (!shouldIncludeTmdbPlaybackProxies(context)) {
-    return animeOptions;
-  }
-
-  const tmdbOptions: GroupedScrapeProviderOption[] =
-    TMDB_SCRAPE_PROVIDER_ORDER.map((providerId) => ({
-      providerId,
-      name: ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS[providerId],
-      group: "tmdb",
-    }));
-
-  return [...animeOptions, ...tmdbOptions];
-};
+  orders?: AnimePlaybackProviderOrders,
+): GroupedScrapeProviderOption[] =>
+  buildAnimePlaybackProviderOrder(context, orders).map(toGroupedOption);

@@ -29,13 +29,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const parsedContentId = Number.parseInt(contentId, 10);
+    if (!Number.isInteger(parsedContentId) || parsedContentId <= 0) {
+      return NextResponse.json({ error: "Invalid contentId" }, { status: 400 });
+    }
+
     const [item] = await db
       .select()
       .from(watchlist)
       .where(
         and(
           eq(watchlist.userId, session.user.id),
-          eq(watchlist.contentId, parseInt(contentId, 10)),
+          eq(watchlist.contentId, parsedContentId),
           eq(watchlist.mediaType, mediaType),
         ),
       )

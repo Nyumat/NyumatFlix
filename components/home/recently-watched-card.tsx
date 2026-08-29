@@ -1,5 +1,7 @@
 "use client";
 
+import { MarkContinueWatchingCompleteControl } from "@/components/home/mark-continue-watching-complete-control";
+import { useHoverSound } from "@/components/providers/hover-sound-provider";
 import { Icons } from "@/lib/icons";
 import type { RecentlyWatchedItem } from "@/lib/playback/recently-watched";
 import { cn } from "@/lib/utils";
@@ -11,6 +13,8 @@ import Link from "next/link";
 export interface RecentlyWatchedCardProps {
   item: RecentlyWatchedItem;
   priority?: boolean;
+  isMarkCompletePending?: boolean;
+  onMarkComplete?: () => void | Promise<void>;
 }
 
 const continueWatchingProgressFillClass = "bg-pink-500";
@@ -20,7 +24,10 @@ const continueWatchingProgressTrackClass = "bg-pink-500/15";
 export function RecentlyWatchedCard({
   item,
   priority = false,
+  isMarkCompletePending = false,
+  onMarkComplete,
 }: RecentlyWatchedCardProps) {
+  const playHoverSound = useHoverSound();
   const backdropUrl = item.backdropPath
     ? tmdbImage.backdrop(item.backdropPath, "w1280")
     : item.posterPath
@@ -39,6 +46,7 @@ export function RecentlyWatchedCard({
     <div
       className="group relative aspect-video cursor-grab select-none overflow-hidden rounded-t-lg bg-black/40 shadow-lg shadow-black/10 ring-1 ring-white/8 transition-shadow duration-300 active:cursor-grabbing hover:shadow-xl rounded-xs"
       aria-label={item.title}
+      onPointerEnter={() => playHoverSound?.()}
     >
       {backdropUrl ? (
         <Image
@@ -116,6 +124,15 @@ export function RecentlyWatchedCard({
           }
         />
       </div>
+
+      {onMarkComplete ? (
+        <MarkContinueWatchingCompleteControl
+          className="absolute top-2 right-2"
+          title={item.title}
+          isPending={isMarkCompletePending}
+          onConfirm={onMarkComplete}
+        />
+      ) : null}
 
       <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
         <Link

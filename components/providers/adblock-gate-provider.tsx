@@ -1,6 +1,10 @@
 "use client";
 
 import AdblockerAlert from "@/components/content/adblocker-alert";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { shouldBypassEmbedAdblockPrompt } from "@/lib/playback/embed-adblock-prompt";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
+import { useServerStore } from "@/lib/stores/server-store";
 import { useDetectAdBlock } from "adblock-detect-react";
 import {
   createContext,
@@ -49,13 +53,24 @@ interface AdblockGateProviderProps {
 
 export function AdblockGateProvider({ children }: AdblockGateProviderProps) {
   const adBlockDetected = useDetectAdBlock();
+  const flags = useFeatureFlags();
+  const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
+  const selectedServer = useServerStore((state) => state.selectedServer);
   const [alertSession, setAlertSession] = useState(0);
   const [openSignal, setOpenSignal] = useState(false);
   const pendingActionRef = useRef<(() => void) | null>(null);
 
   const gateAction = useCallback<GateAction>(
     (action) => {
-      if (adBlockDetected || hasDismissedAdblockPrompt()) {
+      if (
+        adBlockDetected ||
+        hasDismissedAdblockPrompt() ||
+        shouldBypassEmbedAdblockPrompt({
+          noAdsMode,
+          flags,
+          selectedServer,
+        })
+      ) {
         action();
         return;
       }
@@ -64,7 +79,7 @@ export function AdblockGateProvider({ children }: AdblockGateProviderProps) {
       setAlertSession((session) => session + 1);
       setOpenSignal(true);
     },
-    [adBlockDetected],
+    [adBlockDetected, flags, noAdsMode, selectedServer],
   );
 
   const handleProceed = useCallback(() => {

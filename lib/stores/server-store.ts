@@ -112,6 +112,9 @@ useServerStore.setState = (
   if (patch.animePreference !== undefined) {
     embedPatch.animePreference = patch.animePreference;
   }
+  if (patch.animeTitleSlug !== undefined) {
+    embedPatch.animeTitleSlug = patch.animeTitleSlug;
+  }
   if (patch.vidnestContentType !== undefined) {
     embedPatch.vidnestContentType = patch.vidnestContentType;
   }

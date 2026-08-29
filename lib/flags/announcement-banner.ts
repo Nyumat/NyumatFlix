@@ -14,7 +14,8 @@ export type AnnouncementBannerConfig = {
   id: string;
   title: string;
   message: string;
-  icon: AnnouncementIconName;
+  /** Empty string hides the icon on the live banner. */
+  icon: AnnouncementIconName | "";
   backgroundColor: string;
   textColor: string;
   accentColor: string;
@@ -69,11 +70,14 @@ export function sanitizeAnnouncementBannerConfig(
   const config = raw as Partial<
     Record<keyof AnnouncementBannerConfig, unknown>
   >;
-  const icon = ANNOUNCEMENT_ICON_NAMES.includes(
-    config.icon as AnnouncementIconName,
-  )
-    ? (config.icon as AnnouncementIconName)
-    : DEFAULT_ANNOUNCEMENT_BANNER_CONFIG.icon;
+  const iconCandidate =
+    typeof config.icon === "string" ? config.icon.trim() : "";
+  const icon: AnnouncementBannerConfig["icon"] =
+    iconCandidate === ""
+      ? ""
+      : ANNOUNCEMENT_ICON_NAMES.includes(iconCandidate as AnnouncementIconName)
+        ? (iconCandidate as AnnouncementIconName)
+        : DEFAULT_ANNOUNCEMENT_BANNER_CONFIG.icon;
   const id = text(config.id, 64);
 
   return {

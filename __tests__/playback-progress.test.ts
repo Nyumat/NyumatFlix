@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { movieWatchButtonLabel } from "@/lib/playback/movie-watch-label";
 import {
   clampPlaybackProgress,
   getPlaybackProgress,
@@ -86,5 +87,27 @@ describe("progress-storage", () => {
     const raw = window.localStorage.getItem(PLAYBACK_PROGRESS_STORAGE_KEY);
     const map = raw ? (JSON.parse(raw) as PlaybackProgressMap) : {};
     expect(map["movie:27205::"]?.watched).toBe(1200);
+  });
+});
+
+describe("movieWatchButtonLabel", () => {
+  it("says Play when there is no saved progress", () => {
+    expect(movieWatchButtonLabel(424_242)).toBe("Play");
+  });
+
+  it("says Resume when mid-movie progress is saved", () => {
+    setPlaybackProgress(
+      { mediaType: "movie", contentId: 424_242 },
+      { watched: 900, duration: 7200 },
+    );
+    expect(movieWatchButtonLabel(424_242)).toBe("Resume");
+  });
+
+  it("says Play when saved progress is near the end", () => {
+    setPlaybackProgress(
+      { mediaType: "movie", contentId: 424_243 },
+      { watched: 7100, duration: 7200 },
+    );
+    expect(movieWatchButtonLabel(424_243)).toBe("Play");
   });
 });

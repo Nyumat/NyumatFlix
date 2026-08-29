@@ -14,6 +14,7 @@ export type GlobalFlagKey =
   | "global.signup_disabled"
   | "global.auth_enabled"
   | "global.no_ads_mode_default"
+  | "global.default_proxy_playback"
   | "global.live_tv_enabled"
   | "global.scrape_proxy_required"
   | "global.lock_user_settings"
@@ -36,29 +37,38 @@ export const GLOBAL_FLAG_DEFINITIONS: FlagDefinition[] = [
   {
     key: "global.proxy_mode_only",
     defaultValue: false,
-    label: "Proxy mode for all users",
-    description: "Force scrape mode; hide iframe tab",
+    label: "Force proxy for everyone",
+    description: "Hard lock: proxy only. Hides the iframe tab.",
     section: "playback",
   },
   {
     key: "global.iframe_mode_only",
     defaultValue: false,
-    label: "Iframe mode for all users",
-    description: "Force embed mode; hide scrape tab",
+    label: "Force iframe for everyone",
+    description: "Hard lock: embed only. Hides the proxy tab.",
+    section: "playback",
+  },
+  {
+    key: "global.default_proxy_playback",
+    defaultValue: false,
+    label: "Default: proxy (iframe optional)",
+    description:
+      "New visitors start on proxy. Iframe stays in the server menu.",
+    section: "playback",
+  },
+  {
+    key: "global.no_ads_mode_default",
+    defaultValue: false,
+    label: "Default: no ads (hide iframe)",
+    description:
+      "New visitors get no-ads mode: proxy only, no iframe tab, no embed fallback.",
     section: "playback",
   },
   {
     key: "global.static_hero_backdrops",
     defaultValue: false,
     label: "Static hero backdrops",
-    description: "Disable dynamic Videasy hero trailers",
-    section: "playback",
-  },
-  {
-    key: "global.no_ads_mode_default",
-    defaultValue: false,
-    label: "Default no-ads / proxy",
-    description: "Seed no-ads mode for new sessions",
+    description: "Use backdrop images instead of Videasy hero trailers",
     section: "playback",
   },
   {
@@ -108,6 +118,13 @@ export const GLOBAL_FLAG_DEFINITIONS: FlagDefinition[] = [
     defaultValue: false,
     label: "Maintenance mode",
     description: "Block playback/scrape only",
+    section: "power",
+  },
+  {
+    key: "global.provider_menu_order",
+    defaultValue: true,
+    label: "Provider menu order",
+    description: "Metadata carrier for server menu ordering",
     section: "power",
   },
 ];
@@ -174,10 +191,34 @@ export function animeScrapeProviderFlagKey(id: AnimeScrapeProviderId): string {
 
 export function applyPlaybackMutualExclusion(
   state: AdminFlagState,
+  changedKey?: string,
 ): AdminFlagState {
   const next = { ...state };
+
   if (next["global.proxy_mode_only"] && next["global.iframe_mode_only"]) {
     next["global.iframe_mode_only"] = false;
   }
+
+  if (next["global.proxy_mode_only"]) {
+    next["global.default_proxy_playback"] = false;
+    next["global.no_ads_mode_default"] = false;
+  }
+
+  if (next["global.iframe_mode_only"]) {
+    next["global.default_proxy_playback"] = false;
+    next["global.no_ads_mode_default"] = false;
+  }
+
+  if (
+    next["global.no_ads_mode_default"] &&
+    next["global.default_proxy_playback"]
+  ) {
+    if (changedKey === "global.default_proxy_playback") {
+      next["global.no_ads_mode_default"] = false;
+    } else {
+      next["global.default_proxy_playback"] = false;
+    }
+  }
+
   return next;
 }

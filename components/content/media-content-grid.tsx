@@ -1,6 +1,6 @@
 "use client";
 
-import type { WatchlistItem } from "@/lib/domain/watchlist";
+import type { WatchlistItem, WatchlistStatus } from "@/lib/domain/watchlist";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 import { HorizontalCard } from "@/components/cards/horizontal-card";
 import {
@@ -54,10 +54,7 @@ interface MediaContentGridProps {
   itemsPerRow?: number;
   gridMinItemWidth?: string;
   watchlistItemsMap?: Map<number, WatchlistItem>;
-  onStatusChange?: (
-    itemId: string,
-    newStatus: "watching" | "waiting" | "finished",
-  ) => void;
+  onStatusChange?: (itemId: string, newStatus: WatchlistStatus) => void;
   episodeInfoMap?: Map<number, EpisodeInfo | null>;
 }
 

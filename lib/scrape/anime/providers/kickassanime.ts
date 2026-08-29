@@ -14,21 +14,22 @@ const KAA_ORIGIN = "https://kaa.lt";
 const KAA_STREAM_REFERER = "https://krussdomi.com/";
 
 type KaaSearchResult = {
-  result?: Array<{ slug?: string; title?: string }>;
+  result?: Array<{ slug?: string; title?: string; title_en?: string }>;
 };
 
 export const selectKaaSearchResult = (
   results: KaaSearchResult["result"],
   expectedTitles: readonly string[] | string,
-) =>
-  results?.find(
+) => {
+  const titles =
+    typeof expectedTitles === "string" ? [expectedTitles] : expectedTitles;
+  return results?.find(
     (entry) =>
-      Boolean(entry.slug && entry.title) &&
-      isExactAnimeTitleMatch(
-        entry.title ?? "",
-        typeof expectedTitles === "string" ? [expectedTitles] : expectedTitles,
-      ),
+      Boolean(entry.slug && (entry.title || entry.title_en)) &&
+      (isExactAnimeTitleMatch(entry.title ?? "", titles) ||
+        isExactAnimeTitleMatch(entry.title_en ?? "", titles)),
   );
+};
 
 type KaaEpisodeList = {
   result?: Array<{
@@ -58,6 +59,12 @@ const normalizeCatPlayerUrl = (src: string): string => {
   const url = new URL(src);
   if (url.searchParams.get("source") === "vidst") {
     url.searchParams.set("source", "vidstream");
+  }
+  if (
+    url.searchParams.get("type") === "dash" ||
+    !url.searchParams.has("type")
+  ) {
+    url.searchParams.set("type", "hls");
   }
   return url.toString();
 };

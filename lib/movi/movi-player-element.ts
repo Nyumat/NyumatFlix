@@ -1,6 +1,7 @@
 import { resolveMoviMediaUrl } from "@/lib/movi/load-movi-player";
+import type { MoviHostElement } from "@/lib/movi/movi-playback-ready";
 
-export interface MoviPlayerElement extends HTMLElement {
+export interface MoviPlayerElement extends MoviHostElement {
   src?: string;
   poster?: string;
   controls?: boolean;
@@ -37,12 +38,37 @@ export function resolveMoviPosterUrl(
   return undefined;
 }
 
+const clearMoviResumeForTitle = (title: string | undefined): void => {
+  const trimmed = title?.trim();
+  if (!trimmed) return;
+  try {
+    localStorage.removeItem(`movi-resume:${trimmed}`);
+  } catch {
+    // storage may be unavailable
+  }
+};
+
+export const clearMoviResumeKeys = (
+  title: string | undefined,
+  streamLabel: string | undefined,
+): void => {
+  clearMoviResumeForTitle(title);
+  clearMoviResumeForTitle(streamLabel);
+};
+
 export function applyMoviSource(
   el: MoviPlayerElement,
   src: string,
   poster?: string | null,
   title?: string,
+  streamLabel?: string,
 ): void {
+  clearMoviResumeKeys(title, streamLabel);
+
+  el.setAttribute("startat", "0");
+  el.setAttribute("noerrorscreen", "");
+  el.removeAttribute("resume");
+
   el.src = resolveMoviMediaUrl(src);
   const posterUrl = resolveMoviPosterUrl(poster);
   if (posterUrl) el.poster = posterUrl;
@@ -55,8 +81,8 @@ export function applyMoviSource(
   el.volume = 1;
   el.playsinline = true;
   el.theme = "dark";
-  el.setAttribute("buffersize", "512");
-  const play = (el as MoviPlayerElement & { play?: () => Promise<void> }).play;
+  el.setAttribute("buffersize", "256");
+  const play = el.play;
   if (typeof play === "function") {
     void play.call(el).catch(() => undefined);
   }

@@ -9,7 +9,21 @@ import {
   unpackDeanEdwardsScripts,
 } from "@/lib/scrape/anime/html-utils";
 import { selectAllmangaShow } from "@/lib/scrape/anime/providers/allmanga";
-import { animeSearchLabelMatches } from "@/lib/scrape/anime/title-match";
+import {
+  extractAnizoneSearchItems,
+  extractAnizoneVidstackPlayer,
+  pickAnizoneSlugFromItems,
+} from "@/lib/scrape/anime/anizone-livewire";
+import {
+  extractAnimeggSources,
+  isUsableAnimeggHtml,
+  shouldFlareSolveAnimegg,
+} from "@/lib/scrape/anime/providers/animegg";
+import {
+  animeSearchLabelMatches,
+  fuzzyMatchAnimeTitle,
+  isExactAnimeTitleMatch,
+} from "@/lib/scrape/anime/title-match";
 
 describe("anime scrape helpers", () => {
   it("parses KickAssAnime cat-player props manifest and subtitles", () => {
@@ -156,6 +170,113 @@ describe("anime scrape helpers", () => {
         ["ONE PIECE"],
       ),
     ).toBe(false);
+  });
+
+  it("treats AnimeGG (TV) labels as exact matches for the TV series", () => {
+    expect(
+      isExactAnimeTitleMatch("Jujutsu Kaisen (TV)", ["Jujutsu Kaisen"]),
+    ).toBe(true);
+    expect(
+      isExactAnimeTitleMatch("Jujutsu Kaisen 2nd Season", ["Jujutsu Kaisen"]),
+    ).toBe(false);
+    expect(
+      animeSearchLabelMatches(
+        "Jujutsu Kaisen (TV) Episodes: 24 Alt Titles : Jujutsu Kaisen Status : Completed",
+        ["Jujutsu Kaisen"],
+      ),
+    ).toBe(true);
+  });
+
+  it("fuzzy matches adult catalog titles that diverge by typos or suffixes", () => {
+    // Jimihen: site has `jimko`/`kouyouu` typos + "Uncensored" suffix
+    expect(
+      fuzzyMatchAnimeTitle(
+        "Jimihen!! Jimko Wo Kaechau Jun Isei Kouyouu!! Uncensored",
+        ["Jimihen!!: Jimiko wo Kaechau Jun Isei Kouyuu", "Simple yet Sexy"],
+      ),
+    ).toBe(true);
+    // gibo/haha: site uses `gibo`, AniList uses `haha`
+    expect(
+      fuzzyMatchAnimeTitle("Succubus Yondara Gibo ga Kita", [
+        "Succubus Yondara Haha ga Kita!?",
+      ]),
+    ).toBe(true);
+    // Punctuation / casing only
+    expect(
+      fuzzyMatchAnimeTitle(
+        "Araiya-San! Ore To Aitsu Ga Onnayu De! Uncensored",
+        ["Araiya-san!: Ore to Aitsu ga Onnayu de!?"],
+      ),
+    ).toBe(true);
+    // Pure suffix noise
+    expect(fuzzyMatchAnimeTitle("Overflow Uncensored", ["Overflow"])).toBe(
+      true,
+    );
+  });
+
+  it("rejects unrelated adult catalog titles under fuzzy matching", () => {
+    // Extra junk tokens sink the Jaccard score
+    expect(
+      fuzzyMatchAnimeTitle("Overflow Uncensored Sex Scenes Season", [
+        "Overflow",
+      ]),
+    ).toBe(false);
+    // Different shows sharing a common word
+    expect(fuzzyMatchAnimeTitle("Princess Burst!", ["Princess Lover!"])).toBe(
+      false,
+    );
+    expect(
+      fuzzyMatchAnimeTitle(
+        "Body Washing Service Spa With Brown Skinned Big Breasted Succubus",
+        ["Marshmallow, Imouto, Succubus"],
+      ),
+    ).toBe(false);
+    // Empty candidate
+    expect(fuzzyMatchAnimeTitle("", ["Overflow"])).toBe(false);
+  });
+
+  it("parses AniZone Alpine JSON.parse search items instead of /anime/ hrefs", () => {
+    const html =
+      "items: JSON.parse('[{\\u0022slug\\u0022:\\u0022uyyyn4kf\\u0022,\\u0022main_title\\u0022:\\u0022One Piece\\u0022,\\u0022title_list\\u0022:{\\u00228\\u0022:\\u0022ONE PIECE\\u0022},\\u0022type\\u0022:\\u0022TV Series\\u0022},{\\u0022slug\\u0022:\\u0022zldcbsft\\u0022,\\u0022main_title\\u0022:\\u0022One Piece Novel Heroines\\u0022,\\u0022type\\u0022:\\u0022TV Special\\u0022},{\\u0022slug\\u0022:\\u0022filmred\\u0022,\\u0022main_title\\u0022:\\u0022One Piece Film Red\\u0022,\\u0022type\\u0022:\\u0022Movie\\u0022}]')";
+
+    const items = extractAnizoneSearchItems(html);
+    expect(items.map((item) => item.slug)).toEqual([
+      "uyyyn4kf",
+      "zldcbsft",
+      "filmred",
+    ]);
+    expect(pickAnizoneSlugFromItems(items, "ONE PIECE")).toBe("uyyyn4kf");
+    expect(pickAnizoneSlugFromItems(items, "One Piece Film Red")).toBe(
+      "filmred",
+    );
+    expect(html.match(/\/anime\/([a-z0-9-]+)/g)).toBeNull();
+  });
+
+  it("parses AniZone vidstackPlayer JSON.parse HLS + subtitles", () => {
+    const html =
+      "x-data=\"vidstackPlayer(JSON.parse('{\\u0022src\\u0022:\\u0022https:\\\\\\/\\\\\\/cdn.example\\\\\\/master.m3u8\\u0022,\\u0022subtitles\\u0022:[{\\u0022title\\u0022:\\u0022English\\u0022,\\u0022format\\u0022:\\u0022ass\\u0022,\\u0022language\\u0022:\\u0022en\\u0022,\\u0022file\\u0022:\\u0022https:\\\\\\/\\\\\\/cdn.example\\\\\\/en.ass\\u0022}]}'))\"";
+    const player = extractAnizoneVidstackPlayer(html);
+    expect(player?.src).toBe("https://cdn.example/master.m3u8");
+    expect(player?.subtitles[0]).toEqual({
+      title: "English",
+      format: "ass",
+      language: "en",
+      file: "https://cdn.example/en.ass",
+    });
+  });
+
+  it("rejects AnimeGG episode-not-found shells that still return HTTP 200", () => {
+    const errorPage = `${"x".repeat(3000)}<h1>Error: Episode not found</h1>`;
+    expect(isUsableAnimeggHtml(200, errorPage)).toBe(false);
+    expect(shouldFlareSolveAnimegg(200, errorPage)).toBe(false);
+    expect(shouldFlareSolveAnimegg(403, "<html>Just a moment</html>")).toBe(
+      true,
+    );
+    expect(
+      extractAnimeggSources(
+        '{file:"/play/25881/video.mp4", label:"1080"} {file:"https://cdn.example/video.mp4", label:"720"}',
+      ),
+    ).toEqual([{ path: "/play/25881/video.mp4", label: "1080" }]);
   });
 
   it("unpacks Dean Edwards scripts without evaluating them", () => {

@@ -14,7 +14,16 @@ export const resolveHlsPlaylistUrl = (
     const resolved = new URL(trimmed, playlistUrl);
     const parent = new URL(playlistUrl);
     const isAbsoluteHttp = /^https?:\/\//i.test(trimmed);
-    if (!isAbsoluteHttp && !resolved.search && parent.search) {
+    const isPathAbsolute = trimmed.startsWith("/");
+    // Path-absolute URIs (/m/…/seg.jpg) keep the playlist origin and drop its
+    // query — same as hls.js / RFC 3986. ani.pm's CDN 400s when the playlist
+    // `t=` token is pasted onto those segment paths.
+    if (
+      !isAbsoluteHttp &&
+      !isPathAbsolute &&
+      !resolved.search &&
+      parent.search
+    ) {
       resolved.search = parent.search;
     }
     return resolved.toString();

@@ -1,4 +1,5 @@
 import {
+  buildHentainiAnimeUrl,
   buildVideasyAnimeUrl,
   buildVidnestAnimePaheUrl,
   buildVidnestAnimeUrl,
@@ -30,6 +31,7 @@ export interface VideoServer {
 let embedPrefsGetter: () => EmbedUrlPrefs = () => ({
   vidsrcApi: "1",
   animePreference: "sub",
+  animeTitleSlug: undefined,
 });
 
 export const setEmbedPrefsGetter = (getter: () => EmbedUrlPrefs) => {
@@ -127,6 +129,16 @@ export const videoServers: VideoServer[] = [
       `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}`,
     getAnimeUrl: (anilistId, episode) =>
       buildVideasyAnimeUrl(anilistId, episode, prefs()),
+  },
+  {
+    id: "hentaini",
+    name: "Hentaini",
+    baseUrl: "https://hentaini.com",
+    getMovieUrl: () => "",
+    getTvUrl: () => "",
+    getEpisodeUrl: () => "",
+    getAnimeUrl: (anilistId, episode) =>
+      buildHentainiAnimeUrl(anilistId, episode, prefs()),
   },
   {
     id: "vidking",

@@ -66,6 +66,10 @@ export function resolveSearchAutocompleteSelection(
 }
 
 export function getSearchResultHref(result: SearchPreviewResult): string {
+  if (result.href?.startsWith("/")) {
+    return result.href;
+  }
+
   const mediaType = result.media_type === "movie" ? "movies" : "tvshows";
   return `/${mediaType}/${result.id}`;
 }
@@ -241,7 +245,10 @@ export function SearchAutocomplete({
                   const href = getSearchResultHref(item);
                   const optionIndex = index;
                   const metadata = [
-                    item.media_type,
+                    "sourceAnilistId" in item &&
+                    typeof item.sourceAnilistId === "number"
+                      ? "anime"
+                      : item.media_type,
                     item.genre_names?.[0],
                     (item.release_date || item.first_air_date)?.split("-")[0],
                   ]

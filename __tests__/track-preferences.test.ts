@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isJapaneseAudioPreference,
   normalizeTrackLanguage,
   pickTrackIndexByLanguage,
   trackMatchesLanguage,
@@ -37,6 +38,13 @@ describe("track-matching", () => {
 
     expect(pickTrackIndexByLanguage(tracks, "english")).toBe(1);
     expect(pickTrackIndexByLanguage(tracks, "french")).toBeNull();
+  });
+
+  it("treats jpn/ja as a japanese audio preference for defaulting english subs", () => {
+    expect(isJapaneseAudioPreference("jpn")).toBe(true);
+    expect(isJapaneseAudioPreference("ja")).toBe(true);
+    expect(isJapaneseAudioPreference("eng")).toBe(false);
+    expect(isJapaneseAudioPreference(undefined)).toBe(false);
   });
 });
 

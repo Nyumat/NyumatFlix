@@ -1,15 +1,25 @@
-import { scrapeFetch, scrapeFetchText } from "../fetch";
-import { extractAbrQualitiesFromMaster } from "../abr-qualities";
+import { cancelResponseBody, scrapeFetch } from "../fetch";
+import { resolveHlsPlaylistUrl } from "../hls-url";
 import { attachSubtitlesToQualities } from "../linked-config";
 import {
   isHlsSourceUrl,
   rankSourcesHlsFirst,
   unwrapProxyUrl,
 } from "../source-resolve";
-import type { ScrapeMediaInput, ScrapeResult, ScrapeSubtitle } from "../types";
+import type {
+  ScrapeMediaInput,
+  ScrapeQuality,
+  ScrapeResult,
+  ScrapeSubtitle,
+} from "../types";
 
 const BINGR_ORIGIN = "https://bingr.one";
 const BINGR_API = "https://api.bingr.one/api";
+
+/** Cap each Bingr `/stream` server so a dead scraper cannot eat the 120s budget. */
+export const BINGR_SERVER_TIMEOUT_MS = 12_000;
+/** Cap HLS master probes so a stalled CDN cannot block the next source/server. */
+export const BINGR_HLS_PROBE_TIMEOUT_MS = 8_000;
 
 /**
  * Active Bingr scrapers (order matters):
@@ -17,7 +27,9 @@ const BINGR_API = "https://api.bingr.one/api";
  * - s2 Mann → HLS + proxied MP4
  * - s1 Miller → proxied MP4
  */
-const BINGR_SERVERS = ["s3", "s2", "s1"] as const;
+export const BINGR_SERVERS = ["s3", "s2", "s1"] as const;
+
+export type BingrServer = (typeof BINGR_SERVERS)[number];
 
 type BingrSource = {
   url?: string;
@@ -45,6 +57,13 @@ type BingrDetails = {
   year?: string | number;
 };
 
+export type BingrStreamBody = {
+  srv: BingrServer;
+  t: ScrapeMediaInput["mediaType"];
+  id: string;
+  query: Record<string, string | number>;
+};
+
 const bingrHeaders = {
   Accept: "application/json",
   Origin: BINGR_ORIGIN,
@@ -62,6 +81,111 @@ const encodeLooseUrl = (url: string): string => {
 
 /** @deprecated Use unwrapProxyUrl from source-resolve */
 export const unwrapBingrProxyUrl = unwrapProxyUrl;
+
+export const raceWithTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  onTimeout: T,
+): Promise<{ value: T; timedOut: boolean }> => {
+  let winner: "work" | "timeout" | undefined;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      winner ??= "timeout";
+      resolve(onTimeout);
+    }, timeoutMs);
+  });
+
+  try {
+    const value = await Promise.race([
+      promise.then((result) => {
+        winner ??= "work";
+        return result;
+      }),
+      timeoutPromise,
+    ]);
+    return { value, timedOut: winner === "timeout" };
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
+export const buildBingrStreamBody = (
+  input: ScrapeMediaInput,
+  server: BingrServer,
+  details: BingrDetails | null,
+): BingrStreamBody => {
+  const query: Record<string, string | number> = {};
+  if (details?.title) {
+    query.title = details.title;
+  }
+  if (details?.year != null && String(details.year).length > 0) {
+    query.year = String(details.year);
+  }
+
+  switch (input.mediaType) {
+    case "movie":
+      break;
+    case "tv":
+      query.season = input.seasonNumber ?? 1;
+      query.episode = input.episodeNumber ?? 1;
+      break;
+    default: {
+      const _exhaustive: never = input.mediaType;
+      throw new Error(`Unhandled Bingr media type ${_exhaustive}`);
+    }
+  }
+
+  return {
+    srv: server,
+    t: input.mediaType,
+    id: String(input.tmdbId),
+    query,
+  };
+};
+
+export const parseBingrAbrQualities = (
+  masterUrl: string,
+  body: string,
+  referer: string,
+): ScrapeQuality[] => {
+  if (!body.includes("#EXT-X-STREAM-INF")) {
+    return [];
+  }
+
+  const lines = body.split(/\r?\n/).map((line) => line.trim());
+  const qualities: ScrapeQuality[] = [];
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]!;
+    if (!line.startsWith("#EXT-X-STREAM-INF")) {
+      continue;
+    }
+
+    const uri = lines[index + 1];
+    if (!uri || uri.startsWith("#")) {
+      continue;
+    }
+
+    const resolved = resolveHlsPlaylistUrl(uri, masterUrl);
+    if (!resolved) {
+      continue;
+    }
+
+    const heightMatch = line.match(/RESOLUTION=\d+x(\d+)/i);
+    const height = heightMatch?.[1];
+    qualities.push({
+      label: height ? `${height}p` : `Source ${qualities.length + 1}`,
+      url: resolved,
+      referer,
+    });
+  }
+
+  return qualities;
+};
 
 const headersFromProxyQuery = (
   url: string,
@@ -151,24 +275,33 @@ const mapSubtitles = (
   return mapped.length > 0 ? mapped : undefined;
 };
 
+const detailsPath = (input: ScrapeMediaInput): string => {
+  switch (input.mediaType) {
+    case "movie":
+      return `/details/movie/${input.tmdbId}`;
+    case "tv":
+      return `/details/tv/${input.tmdbId}`;
+    default: {
+      const _exhaustive: never = input.mediaType;
+      throw new Error(`Unhandled Bingr media type ${_exhaustive}`);
+    }
+  }
+};
+
 const fetchDetails = async (
   input: ScrapeMediaInput,
 ): Promise<BingrDetails | null> => {
-  const path =
-    input.mediaType === "movie"
-      ? `/details/movie/${input.tmdbId}`
-      : `/details/tv/${input.tmdbId}`;
-
-  const response = await scrapeFetchText(`${BINGR_API}${path}`, {
-    ...bingrHeaders,
-  });
-
-  if (response.status !== 200) {
-    return null;
-  }
-
   try {
-    return JSON.parse(response.text) as BingrDetails;
+    const response = await scrapeFetch(`${BINGR_API}${detailsPath(input)}`, {
+      headers: { ...bingrHeaders },
+      timeoutMs: BINGR_SERVER_TIMEOUT_MS,
+      retryAttempts: 1,
+    });
+    if (!response.ok) {
+      await cancelResponseBody(response);
+      return null;
+    }
+    return (await response.json()) as BingrDetails;
   } catch {
     return null;
   }
@@ -176,43 +309,80 @@ const fetchDetails = async (
 
 const postStream = async (
   input: ScrapeMediaInput,
-  server: (typeof BINGR_SERVERS)[number],
+  server: BingrServer,
   details: BingrDetails | null,
 ): Promise<BingrStreamResponse | null> => {
-  const query: Record<string, string | number> = {};
-  if (details?.title) {
-    query.title = details.title;
-  }
-  if (details?.year != null && String(details.year).length > 0) {
-    query.year = String(details.year);
-  }
-  if (input.mediaType === "tv") {
-    query.season = input.seasonNumber ?? 1;
-    query.episode = input.episodeNumber ?? 1;
-  }
-
-  const response = await scrapeFetch(`${BINGR_API}/stream`, {
-    method: "POST",
-    headers: {
-      ...bingrHeaders,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      srv: server,
-      t: input.mediaType,
-      id: String(input.tmdbId),
-      query,
-    }),
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
   try {
+    const response = await scrapeFetch(`${BINGR_API}/stream`, {
+      method: "POST",
+      headers: {
+        ...bingrHeaders,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildBingrStreamBody(input, server, details)),
+      timeoutMs: BINGR_SERVER_TIMEOUT_MS,
+      retryAttempts: 1,
+    });
+
+    if (!response.ok) {
+      await cancelResponseBody(response);
+      return null;
+    }
+
     return (await response.json()) as BingrStreamResponse;
   } catch {
     return null;
+  }
+};
+
+const probeHlsMaster = async (
+  streamUrl: string,
+  referer: string,
+): Promise<{ body: string; qualities: ScrapeQuality[] } | null> => {
+  try {
+    const response = await scrapeFetch(streamUrl, {
+      headers: { Referer: referer },
+      timeoutMs: BINGR_HLS_PROBE_TIMEOUT_MS,
+      retryAttempts: 1,
+    });
+    if (!response.ok) {
+      await cancelResponseBody(response);
+      return null;
+    }
+
+    const body = await response.text();
+    if (!body.includes("#EXTM3U")) {
+      return null;
+    }
+
+    return {
+      body,
+      qualities: parseBingrAbrQualities(streamUrl, body, referer),
+    };
+  } catch {
+    return null;
+  }
+};
+
+const probeMp4 = async (
+  streamUrl: string,
+  referer: string,
+): Promise<boolean> => {
+  try {
+    const response = await scrapeFetch(streamUrl, {
+      method: "GET",
+      headers: {
+        Referer: referer,
+        Range: "bytes=0-511",
+      },
+      timeoutMs: BINGR_HLS_PROBE_TIMEOUT_MS,
+      retryAttempts: 1,
+    });
+    const ok = response.ok || response.status === 206;
+    await cancelResponseBody(response);
+    return ok;
+  } catch {
+    return false;
   }
 };
 
@@ -225,13 +395,23 @@ export async function scrapeBingr(
     const details = await fetchDetails(input);
 
     for (const server of BINGR_SERVERS) {
-      const payload = await postStream(input, server, details);
-      const sources = payload?.sources?.filter((source) => Boolean(source.url));
+      const payloadResult = await raceWithTimeout(
+        postStream(input, server, details),
+        BINGR_SERVER_TIMEOUT_MS,
+        null,
+      );
+      if (payloadResult.timedOut || !payloadResult.value) {
+        continue;
+      }
+
+      const sources = payloadResult.value.sources?.filter((source) =>
+        Boolean(source.url),
+      );
       if (!sources?.length) {
         continue;
       }
 
-      const subtitles = mapSubtitles(payload?.subtitles);
+      const subtitles = mapSubtitles(payloadResult.value.subtitles);
       const ranked = rankSourcesHlsFirst(sources);
 
       for (const source of ranked) {
@@ -243,23 +423,58 @@ export async function scrapeBingr(
         const { streamUrl, referer, hls } = resolved;
 
         if (hls) {
-          const abr = await extractAbrQualitiesFromMaster(streamUrl, referer);
+          const master = await raceWithTimeout(
+            probeHlsMaster(streamUrl, referer),
+            BINGR_HLS_PROBE_TIMEOUT_MS + 500,
+            null,
+          );
+          if (master.timedOut || !master.value) {
+            continue;
+          }
+
+          // Full scrapeProvider validation hangs on some Bingr CDNs (30s × retries).
+          // Probe the first rendition with the same cap, then skip the outer gate.
+          const rendition = master.value.qualities[0];
+          if (rendition) {
+            const child = await raceWithTimeout(
+              probeHlsMaster(rendition.url, referer),
+              BINGR_HLS_PROBE_TIMEOUT_MS + 500,
+              null,
+            );
+            if (child.timedOut || !child.value) {
+              continue;
+            }
+          }
+
           return {
             ok: true,
             providerId,
+            validated: true,
             streamUrl,
             referer,
             subtitles,
             qualities: attachSubtitlesToQualities(
-              abr.length > 1 ? abr : undefined,
+              master.value.qualities.length > 1
+                ? master.value.qualities
+                : undefined,
               subtitles,
             ),
           };
         }
 
+        const mp4 = await raceWithTimeout(
+          probeMp4(streamUrl, referer),
+          BINGR_HLS_PROBE_TIMEOUT_MS + 500,
+          false,
+        );
+        if (mp4.timedOut || !mp4.value) {
+          continue;
+        }
+
         return {
           ok: true,
           providerId,
+          validated: true,
           streamUrl,
           referer,
           subtitles,

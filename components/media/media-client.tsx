@@ -1,7 +1,7 @@
 "use client";
 
 import type { EpisodeInfo } from "@/lib/domain/episodes";
-import type { WatchlistItem } from "@/lib/domain/watchlist";
+import type { WatchlistItem, WatchlistStatus } from "@/lib/domain/watchlist";
 import { PosterCard } from "@/components/cards/poster-card";
 import { Icons as LibIcons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
@@ -506,12 +506,17 @@ interface MediaCardProps {
   rating?: string;
   minimal?: boolean;
   watchlistItem?: WatchlistItem;
-  onStatusChange?: (
-    itemId: string,
-    newStatus: "watching" | "waiting" | "finished",
-  ) => void;
+  onStatusChange?: (itemId: string, newStatus: WatchlistStatus) => void;
   episodeInfo?: EpisodeInfo | null;
 }
+
+const WATCHLIST_STATUSES: readonly WatchlistStatus[] = [
+  "watching",
+  "plan_to_watch",
+  "on_hold",
+  "dropped",
+  "completed",
+];
 
 export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
   return <PosterCard item={item} minimal />;
@@ -586,11 +591,9 @@ export const MediaShowcaseCard = ({
     if (
       watchlistItem &&
       onStatusChange &&
-      (newStatus === "watching" ||
-        newStatus === "waiting" ||
-        newStatus === "finished")
+      (WATCHLIST_STATUSES as readonly string[]).includes(newStatus)
     ) {
-      onStatusChange(watchlistItem.id, newStatus);
+      onStatusChange(watchlistItem.id, newStatus as WatchlistStatus);
     }
   };
 
@@ -681,45 +684,46 @@ export const MediaShowcaseCard = ({
                   isWatchlistCard && "w-full justify-between rounded-full",
                 )}
               >
-                <ToggleGroupItem
-                  value="watching"
-                  aria-label="Watching"
-                  size="sm"
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
-                    isWatchlistCard && "h-7 flex-1 rounded-full",
-                    watchlistItem.status === "watching" &&
-                      "bg-primary text-primary-foreground shadow-lg",
-                  )}
-                >
-                  Watching
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="waiting"
-                  aria-label="Waiting"
-                  size="sm"
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
-                    isWatchlistCard && "h-7 flex-1 rounded-full",
-                    watchlistItem.status === "waiting" &&
-                      "bg-primary text-primary-foreground shadow-lg",
-                  )}
-                >
-                  Waiting
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="finished"
-                  aria-label="Finished"
-                  size="sm"
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
-                    isWatchlistCard && "h-7 flex-1 rounded-full",
-                    watchlistItem.status === "finished" &&
-                      "bg-primary text-primary-foreground shadow-lg",
-                  )}
-                >
-                  Finished
-                </ToggleGroupItem>
+                {(
+                  [
+                    {
+                      value: "watching",
+                      label: "Watching",
+                      ariaLabel: "Watching",
+                    },
+                    {
+                      value: "plan_to_watch",
+                      label: "Plan",
+                      ariaLabel: "Plan to Watch",
+                    },
+                    { value: "on_hold", label: "Hold", ariaLabel: "On-Hold" },
+                    {
+                      value: "dropped",
+                      label: "Dropped",
+                      ariaLabel: "Dropped",
+                    },
+                    {
+                      value: "completed",
+                      label: "Done",
+                      ariaLabel: "Completed",
+                    },
+                  ] as const
+                ).map(({ value, label, ariaLabel }) => (
+                  <ToggleGroupItem
+                    key={value}
+                    value={value}
+                    aria-label={ariaLabel}
+                    size="sm"
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
+                      isWatchlistCard && "h-7 flex-1 rounded-full",
+                      watchlistItem.status === value &&
+                        "bg-primary text-primary-foreground shadow-lg",
+                    )}
+                  >
+                    {label}
+                  </ToggleGroupItem>
+                ))}
               </ToggleGroup>
             </div>
           )}

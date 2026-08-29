@@ -37,7 +37,7 @@ export const unwrapJustanimeMomoProxyUrl = (url: string): string | null => {
  * Route masters through JustAnime momo so playlist + segments stay on a working hop.
  */
 export const shouldWrapJustanimeMegaplayStream = (streamUrl: string): boolean =>
-  /mewstream|nekostream|megaplay\.buzz|kotocdn\.site/i.test(streamUrl);
+  /mewstream|nekostream|megaplay\.buzz|kotocdn\.site|megap\./i.test(streamUrl);
 
 export const wrapJustanimeMegaplayStreamUrl = (streamUrl: string): string => {
   if (

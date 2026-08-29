@@ -1,9 +1,34 @@
-/** AniList-backed TV routes use `anilist-{id}` under `/tvshows/`. */
+/** AniList-backed anime catalog routes use bare numeric ids under `/anime/`. */
+
+import { isMalAnimeRouteId } from "@/lib/mal/route-id";
+import { isTmdbAnimeRouteId } from "@/lib/tmdb-anime-route-id";
 
 export const ANILIST_TV_ROUTE_PREFIX = "anilist-";
 
+const BARE_ANILIST_ROUTE_ID = /^\d+$/;
+
 export const toAnilistTvRouteSlug = (anilistId: number): string =>
   `${ANILIST_TV_ROUTE_PREFIX}${Math.abs(anilistId)}`;
+
+export const isBareAnilistRouteId = (routeId: string): boolean =>
+  BARE_ANILIST_ROUTE_ID.test(routeId) && Number.parseInt(routeId, 10) > 0;
+
+/** Route ids for `/anime/[id]` detail pages (bare numeric, legacy slug, or negative). */
+export const isAnimeAnilistRouteId = (routeId: string): boolean => {
+  if (isMalAnimeRouteId(routeId) || isTmdbAnimeRouteId(routeId)) {
+    return false;
+  }
+
+  return isAnilistTvRouteId(routeId) || isBareAnilistRouteId(routeId);
+};
+
+export const parseAnimeAnilistRouteId = (routeId: string): number | null => {
+  if (!isAnimeAnilistRouteId(routeId)) {
+    return null;
+  }
+
+  return fromAnilistTvRouteId(routeId);
+};
 
 export const isAnilistTvRouteId = (routeId: string | number): boolean => {
   if (typeof routeId === "string") {
@@ -22,6 +47,10 @@ export const fromAnilistTvRouteId = (routeId: string | number): number => {
   if (typeof routeId === "string") {
     if (routeId.startsWith(ANILIST_TV_ROUTE_PREFIX)) {
       return Number.parseInt(routeId.slice(ANILIST_TV_ROUTE_PREFIX.length), 10);
+    }
+
+    if (isBareAnilistRouteId(routeId)) {
+      return Number.parseInt(routeId, 10);
     }
 
     return Math.abs(Number.parseInt(routeId, 10));
@@ -46,13 +75,37 @@ export const buildAnilistTvDetailHref = (
   anilistId: number,
   options?: { season?: number },
 ): string => {
-  const slug = toAnilistTvRouteSlug(anilistId);
   const params = new URLSearchParams();
   if (options?.season && options.season > 0) {
     params.set("season", String(options.season));
   }
   const query = params.toString();
-  return query ? `/tvshows/${slug}?${query}` : `/tvshows/${slug}`;
+  const path = `/anime/${Math.abs(anilistId)}`;
+  return query ? `${path}?${query}` : path;
+};
+
+/** Route slug for detail APIs/navigation: AniList slugs from the path, else TMDB id. */
+export const resolveTvDetailRouteId = (
+  pathname: string,
+  fallbackContentId: number | string,
+): string => {
+  const match = pathname.match(/\/(?:tvshows|anime)\/([^/?#]+)/);
+  const routeSegment = match?.[1];
+  if (
+    routeSegment &&
+    (isMalAnimeRouteId(routeSegment) || isTmdbAnimeRouteId(routeSegment))
+  ) {
+    return routeSegment;
+  }
+  if (routeSegment && pathname.startsWith("/anime/")) {
+    if (isAnimeAnilistRouteId(routeSegment)) {
+      return routeSegment;
+    }
+  } else if (routeSegment && isAnilistTvRouteId(routeSegment)) {
+    return routeSegment;
+  }
+
+  return String(fallbackContentId);
 };
 
 export const resolveAnilistIdFromTvRoute = (

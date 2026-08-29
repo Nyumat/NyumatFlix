@@ -5,6 +5,12 @@ import {
   rankSourcesHlsFirst,
   unwrapProxyUrl,
 } from "@/lib/scrape/source-resolve";
+import { isVixsrcStubPlaylistBody } from "@/lib/scrape/vixsrc-stub";
+import {
+  classifySiblingCancel,
+  shouldFinalizeBatchWinner,
+  shouldFinalizeRaceWinner,
+} from "@/lib/scrape/scrape-race-batch";
 
 describe("unwrapProxyUrl", () => {
   it("peels nested wormhole url params", () => {
@@ -31,5 +37,114 @@ describe("isHlsSourceUrl", () => {
     expect(
       isHlsSourceUrl({ type: "video/mp4" }, "https://cdn.example/stream.m3u8"),
     ).toBe(true);
+  });
+});
+
+describe("isVixsrcStubPlaylistBody", () => {
+  it("rejects JSON playlist stubs", () => {
+    expect(
+      isVixsrcStubPlaylistBody(
+        "https://vixsrc.to/playlist/123?token=abc",
+        '{"playlist":"stub"}',
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts real HLS bodies", () => {
+    expect(
+      isVixsrcStubPlaylistBody(
+        "https://vixsrc.to/playlist/123?token=abc",
+        "#EXTM3U\n#EXTINF:10.0,\nseg.ts",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("shouldFinalizeBatchWinner", () => {
+  const order = ["bingr", "videasy", "vidking"] as const;
+
+  it("waits for earlier pending providers", () => {
+    const winner = shouldFinalizeBatchWinner(
+      order,
+      [{ providerId: "videasy", attempt: { outcome: "success", payload: {} } }],
+      new Set(["bingr"]),
+    );
+    expect(winner).toBeUndefined();
+  });
+
+  it("waits for all pending providers when scorePayload is set", () => {
+    const animeOrder = ["justanime", "kickassanime"] as const;
+    const winner = shouldFinalizeBatchWinner(
+      animeOrder,
+      [
+        {
+          providerId: "justanime",
+          attempt: { outcome: "success", payload: { dub: false } },
+        },
+      ],
+      new Set(["kickassanime"]),
+      (payload: { dub: boolean }) => (payload.dub ? 2_000 : 100),
+    );
+    expect(winner).toBeUndefined();
+  });
+
+  it("finalizes when no earlier provider is pending", () => {
+    const winner = shouldFinalizeBatchWinner(
+      order,
+      [
+        {
+          providerId: "videasy",
+          attempt: { outcome: "success", payload: { id: 1 } },
+        },
+      ],
+      new Set(),
+    );
+    expect(winner?.providerId).toBe("videasy");
+  });
+
+  it("picks the highest-scoring provider when scorePayload is set", () => {
+    const animeOrder = ["justanime", "kickassanime", "anizone"] as const;
+    const winner = shouldFinalizeBatchWinner(
+      animeOrder,
+      [
+        {
+          providerId: "justanime",
+          attempt: { outcome: "success", payload: { dub: false } },
+        },
+        {
+          providerId: "kickassanime",
+          attempt: { outcome: "success", payload: { dub: true } },
+        },
+      ],
+      new Set(),
+      (payload: { dub: boolean }) => (payload.dub ? 2_000 : 100),
+    );
+    expect(winner?.providerId).toBe("kickassanime");
+  });
+});
+
+describe("shouldFinalizeRaceWinner", () => {
+  it("finalizes the first success without waiting for siblings", () => {
+    const winner = shouldFinalizeRaceWinner([
+      {
+        providerId: "bingr",
+        attempt: { outcome: "success", payload: { id: 1 } },
+      },
+      {
+        providerId: "videasy",
+        attempt: { outcome: "success", payload: { id: 2 } },
+      },
+    ]);
+    expect(winner?.providerId).toBe("bingr");
+  });
+});
+
+describe("classifySiblingCancel", () => {
+  it("marks winner cancels as skipped", () => {
+    expect(classifySiblingCancel("winner")).toBe("skipped");
+  });
+
+  it("marks timeout cancels as failure", () => {
+    expect(classifySiblingCancel("timeout")).toBe("failure");
   });
 });

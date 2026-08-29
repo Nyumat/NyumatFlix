@@ -14,4 +14,5 @@ export type HeroScrapeChrome = {
   onSelectScrapeProvider: ((providerId: string) => void) | null;
   onFindNextSource: (() => void) | null;
   canFindNextSource: boolean;
+  findNextSourceLabel?: string;
 };

@@ -42,9 +42,16 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
               episodeNumber: key.episodeNumber,
             }
           : {}),
+        ...(key.anilistId ? { anilistId: key.anilistId } : {}),
       }),
     });
-  }, [key.contentId, key.episodeNumber, key.mediaType, key.seasonNumber]);
+  }, [
+    key.anilistId,
+    key.contentId,
+    key.episodeNumber,
+    key.mediaType,
+    key.seasonNumber,
+  ]);
 
   const persist = useCallback(
     (watched: number, duration: number) => {

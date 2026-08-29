@@ -1,5 +1,19 @@
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import type { Episode } from "@/lib/domain/typings";
+import {
+  fromAnilistTvRouteId,
+  isAnilistTvRouteId,
+} from "@/lib/anilist-route-id";
+
+export const normalizeTvContentKey = (id: string | number): number | null => {
+  const asString = String(id);
+  if (isAnilistTvRouteId(asString)) {
+    return fromAnilistTvRouteId(asString);
+  }
+
+  const parsed = Number(asString);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
 
 export type TvWatchTarget =
   | { source: "selection"; episode: Episode; seasonNumber: number }
@@ -19,11 +33,12 @@ export function resolveTvWatchTarget(
   initialEpisode?: Episode | null,
   initialSeasonNumber?: number | null,
 ): TvWatchTarget | null {
-  const contentIdStr = String(contentId);
+  const contentKey = normalizeTvContentKey(contentId);
 
   if (
     state.selectedEpisode &&
-    state.tvShowId === contentIdStr &&
+    contentKey !== null &&
+    normalizeTvContentKey(state.tvShowId ?? "") === contentKey &&
     state.seasonNumber != null
   ) {
     return {
@@ -74,13 +89,14 @@ export function isSameTvWatchTarget(
   state: TvWatchTargetState,
   contentId: number,
 ): boolean {
-  const contentIdStr = String(contentId);
+  const contentKey = normalizeTvContentKey(contentId);
+  const stateKey = normalizeTvContentKey(state.tvShowId ?? "");
 
-  if (
-    state.tvShowId !== contentIdStr ||
-    !state.selectedEpisode ||
-    state.seasonNumber == null
-  ) {
+  if (contentKey === null || stateKey === null || stateKey !== contentKey) {
+    return false;
+  }
+
+  if (!state.selectedEpisode || state.seasonNumber == null) {
     return false;
   }
 

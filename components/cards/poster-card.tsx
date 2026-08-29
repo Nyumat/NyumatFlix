@@ -91,7 +91,7 @@ export function PosterCard({
       target="_blank"
       rel="noopener noreferrer"
       onFocus={handleIntent}
-      onPointerEnter={handleIntent}
+      onPointerEnter={schedulePrefetch}
     >
       <Icons.play
         className={cn(
@@ -107,7 +107,7 @@ export function PosterCard({
       className="pointer-events-auto flex size-20 cursor-pointer items-center justify-center rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
       aria-label={`View ${title}`}
       onFocus={handleIntent}
-      onPointerEnter={handleIntent}
+      onPointerEnter={schedulePrefetch}
     >
       <Icons.play
         className={cn(

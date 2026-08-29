@@ -38,6 +38,8 @@ type DirectStreamPlayerProps = {
   mediaUrl: string;
   fallbackUrl?: string;
   playback: DirectPlaybackMode;
+  streamName?: string;
+  fileName?: string;
   qualities?: ScrapeQuality[];
   referer?: string;
   subtitles?: ScrapeSubtitle[];
@@ -59,6 +61,8 @@ function DirectStreamPlayerInstance({
   mediaUrl,
   fallbackUrl,
   playback,
+  streamName,
+  fileName,
   qualities,
   referer,
   subtitles,
@@ -80,8 +84,8 @@ function DirectStreamPlayerInstance({
       playback,
       fallbackUrl,
       mediaUrl,
-      undefined,
-      title,
+      fileName,
+      streamName ?? title,
       undefined,
       playback === "direct" ? true : undefined,
     ),
@@ -91,8 +95,8 @@ function DirectStreamPlayerInstance({
       playback,
       fallbackUrl,
       mediaUrl,
-      undefined,
-      title,
+      fileName,
+      streamName ?? title,
     );
     return initial === null;
   });
@@ -103,7 +107,14 @@ function DirectStreamPlayerInstance({
       onFatalError?.();
       return;
     }
-    const next = nextDirectPlaybackEngine(playback, engine, fallbackUrl);
+    const next = nextDirectPlaybackEngine(
+      playback,
+      engine,
+      fallbackUrl,
+      mediaUrl,
+      fileName,
+      streamName ?? title,
+    );
     if (next) {
       setFailed(false);
       setEngine(next);
@@ -111,7 +122,16 @@ function DirectStreamPlayerInstance({
     }
     setFailed(true);
     onFatalError?.();
-  }, [engine, fallbackUrl, onFatalError, playback]);
+  }, [
+    engine,
+    fallbackUrl,
+    fileName,
+    mediaUrl,
+    onFatalError,
+    playback,
+    streamName,
+    title,
+  ]);
 
   if (failed || !engine) {
     return (
@@ -137,6 +157,7 @@ function DirectStreamPlayerInstance({
           src={sourceUrl}
           poster={poster}
           title={title}
+          preferredAudioLang={preferredAudioLang}
           progressKey={progressKey}
           onError={handleEngineError}
           onMediaReady={onMediaReady}

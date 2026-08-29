@@ -15,7 +15,8 @@ describe("vpn-rotate", () => {
   });
 
   it("flags VidKing API host for rotate-on-429", () => {
-    expect(scrapeRateLimitRotateHostname("api.wingsdatabase.com")).toBe(true);
+    expect(scrapeRateLimitRotateHostname("api.speedracelight.com")).toBe(true);
+    expect(scrapeRateLimitRotateHostname("api.wingsdatabase.com")).toBe(false);
     expect(scrapeRateLimitRotateHostname("kaa.lt")).toBe(false);
   });
 

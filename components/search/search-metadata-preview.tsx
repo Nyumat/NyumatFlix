@@ -11,6 +11,7 @@ import {
   getGenreIds,
   getHref,
   getPosterPath,
+  isAnimeSearchCard,
 } from "@/lib/cards/selectors";
 import type { CanonicalMediaCard } from "@/lib/domain/typings";
 import { cn } from "@/lib/utils";
@@ -99,6 +100,7 @@ export function SearchMetadataPreview({
 
   const title = getDisplayTitle(mediaItem);
   const href = getHref(mediaItem);
+  const isAnime = isAnimeSearchCard(mediaItem);
   const posterPath = getPosterPath(mediaItem) ?? undefined;
   const backdropPath = getBackdropPath(mediaItem);
   const backdropUrl = backdropPath
@@ -197,7 +199,9 @@ export function SearchMetadataPreview({
             <div className="mt-2.5">
               <SmartGenreBadgeGroup
                 genreIds={genreIds}
-                mediaType={mediaItem.media_type === "movie" ? "movie" : "tv"}
+                mediaType={
+                  isAnime || mediaItem.media_type !== "movie" ? "tv" : "movie"
+                }
                 maxVisible={4}
               />
             </div>
@@ -221,7 +225,7 @@ export function SearchMetadataPreview({
               className="h-9 w-full rounded-md bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto sm:px-5"
             >
               <Link href={href} onClick={onNavigate} prefetch>
-                Open {mediaItem.media_type === "movie" ? "movie" : "show"}
+                View
                 <ArrowRight className="ml-2 size-3.5" aria-hidden />
               </Link>
             </Button>

@@ -12,6 +12,9 @@ export type ScrapeMediaInput = {
   tmdbId: number;
   seasonNumber?: number;
   episodeNumber?: number;
+  preferMultiTrack?: boolean;
+  preferredAudioLang?: string;
+  signal?: AbortSignal;
 };
 
 export const scrapeMediaKeyFor = (input: ScrapeMediaInput): string =>
@@ -26,6 +29,8 @@ export type ScrapeSubtitle = {
   lang: string;
   url: string;
   format?: "ass" | "srt" | "vtt";
+  referer?: string;
+  source?: string;
 };
 
 export type ScrapeQuality = {
@@ -69,6 +74,8 @@ export type ScrapeSuccess = {
   directPlayback?: "hls" | "direct" | "extended";
   /** MediaFlow HLS transcode URL when directPlayback is extended */
   directFallbackUrl?: string;
+  directStreamName?: string;
+  directFileName?: string;
 };
 
 export type ScrapeFailure = {

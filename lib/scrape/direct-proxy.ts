@@ -1,35 +1,41 @@
 import { getCalluspiratesApiUrl } from "@/lib/scrape/calluspirates-config";
 
 /**
- * Same-origin prefix for calluspirates playback on NyumatFlix.
- * Mirrors calluspirates Vite `/api` proxy and nginx `/api/` in production.
+ * Legacy same-origin prefix. Playback now hits calluspirates directly;
+ * we still recognize these paths so cached/scrape URLs can be unwrapped.
  */
 export const DIRECT_PROXY_PREFIX = "/api/direct";
 
 export function isCalluspiratesPlaybackPath(pathname: string): boolean {
-  return pathname === "/api/media" || pathname.startsWith("/api/transcode/");
+  return (
+    pathname === "/api/media" ||
+    pathname.startsWith("/api/media/") ||
+    pathname.startsWith("/api/transcode/")
+  );
 }
 
-/** Same-origin Nyumat proxy paths — safe in the browser (SSE chunks, client rewrite). */
-export function rewritePlaybackUrlForBrowser(pathOrUrl: string): string {
+export function unwrapDirectProxyPath(pathOrUrl: string): string {
   if (pathOrUrl.startsWith(`${DIRECT_PROXY_PREFIX}/`)) {
-    return pathOrUrl;
-  }
-  if (pathOrUrl.startsWith("/api/media")) {
-    return `${DIRECT_PROXY_PREFIX}/media${pathOrUrl.slice("/api/media".length)}`;
-  }
-  if (pathOrUrl.startsWith("/api/transcode")) {
-    return `${DIRECT_PROXY_PREFIX}/transcode${pathOrUrl.slice("/api/transcode".length)}`;
+    return `/api${pathOrUrl.slice(DIRECT_PROXY_PREFIX.length)}`;
   }
   try {
     const parsed = new URL(pathOrUrl);
-    if (isCalluspiratesPlaybackPath(parsed.pathname)) {
-      return `${DIRECT_PROXY_PREFIX}${parsed.pathname.slice("/api".length)}${parsed.search}`;
+    if (parsed.pathname.startsWith(`${DIRECT_PROXY_PREFIX}/`)) {
+      return `/api${parsed.pathname.slice(DIRECT_PROXY_PREFIX.length)}${parsed.search}`;
     }
   } catch {
     // not an absolute URL
   }
   return pathOrUrl;
+}
+
+export function appendAccessToken(url: string, token: string): string {
+  const parsed = new URL(url, "http://local.invalid");
+  parsed.searchParams.set("access_token", token);
+  if (/^https?:\/\//i.test(url)) {
+    return parsed.toString();
+  }
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
 function absoluteCalluspiratesUrl(apiBase: string, path: string): string {
@@ -44,51 +50,62 @@ export function toUpstreamCalluspiratesPlaybackUrl(
   apiBase: string,
   pathOrUrl: string,
 ): string {
-  return absoluteCalluspiratesUrl(apiBase, pathOrUrl);
+  return absoluteCalluspiratesUrl(apiBase, unwrapDirectProxyPath(pathOrUrl));
 }
 
-/**
- * Client-facing playback URLs — always same-origin on NyumatFlix so Movi/Vidstack
- * behave like calluspirates (Vite proxy / nginx), regardless of CORS.
- */
+/** Client playback URLs — calluspirates origin, with a short-lived access token. */
 export function toClientDirectPlaybackUrl(
   apiBase: string,
   pathOrUrl: string,
+  accessToken?: string,
 ): string {
-  const absolute = absoluteCalluspiratesUrl(apiBase, pathOrUrl);
-  try {
-    const parsed = new URL(absolute);
-    const base = new URL(apiBase);
-    if (
-      parsed.origin === base.origin &&
-      isCalluspiratesPlaybackPath(parsed.pathname)
-    ) {
-      return rewritePlaybackUrlForBrowser(`${parsed.pathname}${parsed.search}`);
-    }
-  } catch {
-    // fall through
+  const unwrapped = unwrapDirectProxyPath(pathOrUrl);
+  const absolute = absoluteCalluspiratesUrl(apiBase, unwrapped);
+  if (!accessToken) {
+    return absolute;
   }
-  return absolute;
+  return appendAccessToken(absolute, accessToken);
 }
 
 export function isClientDirectPlaybackUrl(playUrl: string): boolean {
   if (playUrl.startsWith(`${DIRECT_PROXY_PREFIX}/`)) {
     return true;
   }
-  return (
-    !playUrl.startsWith("http://") &&
-    !playUrl.startsWith("https://") &&
-    playUrl.startsWith("/api/media")
-  );
+  if (
+    playUrl.startsWith("/api/media") ||
+    playUrl.startsWith("/api/transcode")
+  ) {
+    return true;
+  }
+  try {
+    const parsed = new URL(playUrl);
+    return (
+      isCalluspiratesPlaybackPath(parsed.pathname) ||
+      parsed.pathname.startsWith(`${DIRECT_PROXY_PREFIX}/`)
+    );
+  } catch {
+    return false;
+  }
 }
 
+import { appendAccessTokenToTranscodePlaylist } from "@/lib/direct/transcode-hls-auth";
+
 /** Rewrite calluspirates-relative HLS paths for same-origin NyumatFlix proxy. */
-export function rewriteDirectProxyPlaylist(body: string): string {
-  return body
+export function rewriteDirectProxyPlaylist(
+  body: string,
+  accessToken?: string,
+): string {
+  let rewritten = body
     .replaceAll("/api/transcode/", `${DIRECT_PROXY_PREFIX}/transcode/`)
     .replaceAll("/api/media?", `${DIRECT_PROXY_PREFIX}/media?`)
     .replaceAll('URI="/api/media?', `URI="${DIRECT_PROXY_PREFIX}/media?`)
     .replaceAll("URI='/api/media?", `URI='${DIRECT_PROXY_PREFIX}/media?`);
+
+  if (accessToken) {
+    rewritten = appendAccessTokenToTranscodePlaylist(rewritten, accessToken);
+  }
+
+  return rewritten;
 }
 
 export function shouldRewriteDirectProxyPlaylist(pathname: string): boolean {
@@ -126,7 +143,19 @@ export function resolveCalluspiratesProxyTarget(
 export function inferDirectMediaContentType(
   upstreamType: string | null,
   targetUrl: string,
+  options?: {
+    contentDisposition?: string | null;
+    finalUrl?: string | null;
+  },
 ): string | null {
+  const disposition = options?.contentDisposition ?? "";
+  const filenameMatch = disposition.match(
+    /filename\*?=(?:UTF-8''|")?([^";]+)/i,
+  );
+  const dispositionPath = filenameMatch?.[1]
+    ? decodeURIComponent(filenameMatch[1].replace(/"/g, ""))
+    : "";
+
   let pathname = "";
   try {
     const parsed = new URL(targetUrl);
@@ -144,6 +173,14 @@ export function inferDirectMediaContentType(
     pathname = targetUrl;
   }
 
+  if (options?.finalUrl) {
+    try {
+      pathname = new URL(options.finalUrl).pathname;
+    } catch {
+      // keep nested pathname
+    }
+  }
+
   const rawPath = pathname.toLowerCase();
   const decoded = (() => {
     try {
@@ -159,10 +196,14 @@ export function inferDirectMediaContentType(
     if (/\.m4v(?:[?#]|$)/.test(path)) return "video/mp4";
     if (/\.webm(?:[?#]|$)/.test(path)) return "video/webm";
     if (/\.m3u8(?:[?#]|$)/.test(path)) return "application/vnd.apple.mpegurl";
+    if (/\.avi(?:[?#]|$)/.test(path)) return "video/x-msvideo";
     return null;
   };
 
-  const fromPath = inferFromPath(rawPath) ?? inferFromPath(decoded);
+  const fromPath =
+    inferFromPath(rawPath) ??
+    inferFromPath(decoded) ??
+    (dispositionPath ? inferFromPath(dispositionPath.toLowerCase()) : null);
   if (fromPath) {
     return fromPath;
   }
@@ -174,7 +215,7 @@ export function inferDirectMediaContentType(
     normalized === "application/force-download" ||
     normalized === "binary/octet-stream"
   ) {
-    return fromPath;
+    return null;
   }
 
   return upstreamType;
