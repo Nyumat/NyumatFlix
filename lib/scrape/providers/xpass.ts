@@ -36,8 +36,7 @@ const PLAYLIST_PATH_FALLBACK =
   /(?:mvid|meg\/(?:tv|movie)|vip|mdata|vxr|vrk)\/[^"'\s<>]+\/playlist\.json/g;
 
 const MAX_XPASS_PLAYLISTS = 12;
-export const XPASS_PLAYABLE_CANDIDATE_LIMIT = 2;
-export const XPASS_PLAYABLE_CANDIDATE_BATCH = 2;
+export const XPASS_PLAYABLE_CANDIDATE_BATCH = 3;
 
 const xpassFetchOptions = {
   timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
@@ -243,12 +242,10 @@ export async function scrapeXPass(
       return tryVidSrcMirrorFallback(input, "XPass playlist path missing");
     }
 
-    const playable: ScrapeQuality[] = [];
-    for (const playlistPath of playlistPaths) {
-      if (playable.length > 0) {
-        break;
-      }
+    const rankedCandidates: ScrapeQuality[] = [];
+    const seenUrls = new Set<string>();
 
+    for (const playlistPath of playlistPaths) {
       let playlistResponse: { status: number; text: string };
       try {
         playlistResponse = await scrapeFetchText(
@@ -283,59 +280,54 @@ export async function scrapeXPass(
         (source) => source.file ?? source.url ?? null,
       );
 
-      const uniqueSources = streamSources.filter((source, index) => {
+      for (const source of streamSources) {
         const candidate = source.file ?? source.url ?? "";
-        return (
-          streamSources.findIndex(
-            (other) => (other.file ?? other.url ?? "") === candidate,
-          ) === index
-        );
-      });
-
-      const winner = await firstOkInBatches(
-        uniqueSources.slice(0, XPASS_PLAYABLE_CANDIDATE_LIMIT),
-        async (source) => {
-          const candidate = source.file ?? source.url ?? "";
-          const ok = await probeScrapePlaybackPath(
-            {
-              url: candidate,
-              referer: XPASS_ORIGIN,
-            },
-            "hls",
-          );
-          if (!ok) {
-            return null;
-          }
-          return {
-            label: source.label?.trim() || "Source 1",
-            url: candidate,
-            referer: XPASS_ORIGIN,
-          } satisfies ScrapeQuality;
-        },
-        XPASS_PLAYABLE_CANDIDATE_BATCH,
-      );
-
-      if (winner) {
-        playable.push(winner.value);
+        if (!candidate || seenUrls.has(candidate)) {
+          continue;
+        }
+        seenUrls.add(candidate);
+        rankedCandidates.push({
+          label:
+            source.label?.trim() || `Source ${rankedCandidates.length + 1}`,
+          url: candidate,
+          referer: XPASS_ORIGIN,
+        });
       }
     }
 
-    if (playable.length === 0) {
+    const winner = await firstOkInBatches(
+      rankedCandidates,
+      async (quality) => {
+        const ok = await probeScrapePlaybackPath(
+          {
+            url: quality.url,
+            referer: quality.referer ?? XPASS_ORIGIN,
+          },
+          "hls",
+        );
+        return ok ? quality : null;
+      },
+      XPASS_PLAYABLE_CANDIDATE_BATCH,
+    );
+
+    if (!winner) {
       return tryVidSrcMirrorFallback(
         input,
         "2Embed returned no playable internal servers",
       );
     }
 
-    const primary = playable[0]!;
+    const alternates = rankedCandidates.filter(
+      (quality) => quality.url !== winner.item.url,
+    );
 
     return {
       ok: true,
       providerId,
-      streamUrl: primary.url,
+      streamUrl: winner.item.url,
       validated: true,
-      referer: primary.referer ?? XPASS_ORIGIN,
-      qualities: playable.length > 1 ? playable : undefined,
+      referer: winner.item.referer ?? XPASS_ORIGIN,
+      qualities: alternates.length > 0 ? alternates : undefined,
     };
   } catch (error) {
     return {

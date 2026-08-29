@@ -1,4 +1,4 @@
-import { resolveAnimeSearchQueries } from "../anilist-meta";
+import { resolveAnimeSearchContext } from "../anilist-meta";
 import {
   animeSearchLabelMatches,
   stripAnimeSearchMetadata,
@@ -207,10 +207,11 @@ const parseSeriesCandidates = (
 
 const findSeriesPath = async (
   origin: string,
-  expectedTitles: readonly string[],
+  searchQueries: readonly string[],
+  matchTitles: readonly string[],
   translationType: AnimeScrapeInput["translationType"],
 ): Promise<string | null> => {
-  for (const title of expectedTitles) {
+  for (const title of searchQueries) {
     const searchPage = await scrapeFetchText(
       `${origin}/?s=${encodeURIComponent(title)}`,
       { Referer: `${origin}/` },
@@ -220,23 +221,18 @@ const findSeriesPath = async (
     }
 
     const candidates = parseSeriesCandidates(searchPage.text, origin);
-    let matched = pickSeriesCandidate(
-      candidates,
-      expectedTitles,
-      translationType,
-    );
+    let matched = pickSeriesCandidate(candidates, matchTitles, translationType);
     if (!matched) {
       matched = candidates.find((candidate) => {
         const slug = candidate.seriesPath
           .replace(/^\/series\//, "")
           .replace(/\/$/, "");
-        return expectedTitles.some((title) => {
+        return matchTitles.some((title) => {
           const base = slugifyTitle(title);
-          return (
-            slug === base ||
-            slug.startsWith(`${base}-`) ||
-            base.startsWith(`${slug}-`)
-          );
+          // Only allow the slug to extend the expected base ("-dub" variants).
+          // The reverse would let the franchise-root slug ("attack-on-titan")
+          // swallow season-specific titles and play the wrong season.
+          return slug === base || slug.startsWith(`${base}-`);
         });
       });
     }
@@ -258,7 +254,7 @@ const findSeriesPath = async (
     }
   }
 
-  for (const title of expectedTitles) {
+  for (const title of matchTitles) {
     const baseSlug = slugifyTitle(title);
     if (!baseSlug) continue;
     const slugCandidates =
@@ -541,7 +537,8 @@ export async function scrapeAnimepahe(
   const providerId = "animepahe" as const;
 
   try {
-    const expectedTitles = await resolveAnimeSearchQueries(input);
+    const { searchQueries, matchTitles } =
+      await resolveAnimeSearchContext(input);
 
     let origin: string | null = null;
     let seriesPath: string | null = null;
@@ -549,7 +546,8 @@ export async function scrapeAnimepahe(
     for (const candidateOrigin of originsToTry()) {
       const found = await findSeriesPath(
         candidateOrigin,
-        expectedTitles,
+        searchQueries,
+        matchTitles,
         input.translationType,
       );
       if (found) {

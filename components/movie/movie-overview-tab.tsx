@@ -9,7 +9,7 @@ import type { MovieDetails } from "@/tmdb/models";
 import { isUpcomingMovie } from "@/utils/movie-helpers";
 import { Calendar, Clock, Star } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 const factLinkClass =
   "text-sky-300/95 underline decoration-sky-400/35 underline-offset-2 transition hover:text-sky-200 hover:decoration-sky-300/60";
@@ -85,21 +85,32 @@ export const MovieOverviewTab = ({
       "Not yet rated"
     );
 
-  const productionCompanies = production_companies?.length ? (
-    <span className="flex flex-wrap gap-x-1 gap-y-1">
-      {production_companies.map(
-        (c: { id: number; name: string }, i: number) => (
-          <span key={c.id}>
-            {i > 0 ? ", " : null}
-            <Link
-              href={buildProductionCompanyCatalogUrl("movie", c)}
-              className={factLinkClass}
-            >
-              {c.name}
-            </Link>
-          </span>
-        ),
-      )}
+  const uniqueProductionCompanies = (production_companies ?? []).filter(
+    (company, index, companies) => {
+      const nameKey = company.name.trim().toLowerCase();
+      return (
+        companies.findIndex(
+          (entry) =>
+            entry.id === company.id ||
+            entry.name.trim().toLowerCase() === nameKey,
+        ) === index
+      );
+    },
+  );
+
+  const productionCompanies = uniqueProductionCompanies.length ? (
+    <span>
+      {uniqueProductionCompanies.map((company, index) => (
+        <Fragment key={company.id}>
+          {index > 0 ? ", " : null}
+          <Link
+            href={buildProductionCompanyCatalogUrl("movie", company)}
+            className={factLinkClass}
+          >
+            {company.name}
+          </Link>
+        </Fragment>
+      ))}
     </span>
   ) : (
     "—"

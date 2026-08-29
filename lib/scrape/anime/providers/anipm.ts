@@ -14,8 +14,7 @@ const ANIPM_ORIGIN = "https://ani.pm";
 const ANIPM_API = `${ANIPM_ORIGIN}/api`;
 export const ANIPM_SERVER_TIMEOUT_MS = SCRAPE_PLAY_PROBE_TIMEOUT_MS;
 export const ANIPM_CANDIDATE_TIMEOUT_MS = SCRAPE_PLAY_PROBE_TIMEOUT_MS;
-export const PLAYABLE_CANDIDATE_LIMIT = 4;
-export const PLAYABLE_CANDIDATE_BATCH = 2;
+export const PLAYABLE_CANDIDATE_BATCH = 3;
 
 type AnipmCatalogMatchResponse = {
   match?: {
@@ -141,9 +140,8 @@ const firstPlayableAnipmStream = async (
   streams: readonly ResolvedAnipmStream[],
   referer: string,
 ): Promise<ResolvedAnipmStream | null> => {
-  const limited = streams.slice(0, PLAYABLE_CANDIDATE_LIMIT);
   const winner = await firstOkInBatches(
-    limited,
+    streams,
     (stream) => probeAnipmStream(stream, referer),
     PLAYABLE_CANDIDATE_BATCH,
   );

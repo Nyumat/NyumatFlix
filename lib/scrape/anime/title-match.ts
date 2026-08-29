@@ -1,9 +1,16 @@
-import { stripSeasonSuffix } from "@/lib/anilist-franchise";
-
 const TITLE_SEPARATOR = /[^\p{L}\p{N}]+/gu;
 
 /** Noise labels adult catalogs append to every post title (e.g. "Uncensored 6 Subbed"). */
 const ADULT_RELEASE_SUFFIX = /\b(uncensored|censored|subbed|dubbed)\b/gi;
+
+export const stripSeasonSuffix = (title: string) =>
+  title
+    .replace(
+      /\s*(?:season|cour)\s*\d+(?:nd|rd|th|st)?(?:\s*(?:season|cour))?.*$/i,
+      "",
+    )
+    .replace(/\s+\d(?:st|nd|rd|th)\s+season.*$/i, "")
+    .trim();
 
 export const normalizeAnimeTitle = (value: string): string =>
   value

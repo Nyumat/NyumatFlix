@@ -57,6 +57,7 @@ import {
   type ContinueWatchingCompleteMedia,
 } from "@/lib/playback/continue-watching-complete";
 import { usePlaybackCompleteActions } from "@/hooks/use-playback-complete-actions";
+import { postWatchProgressIfSignedIn } from "@/lib/watchlist/post-watch-progress";
 
 type UseHeroScrapePlaybackOptions = {
   media: MediaItem;
@@ -958,13 +959,13 @@ export function useHeroScrapePlayback({
         setScrapeProviderPreference(providerId);
         preferredScrapeProviderIdRef.current = providerId;
         directPlaybackRef.current.reset();
-        lastScrapeMediaKeyRef.current = null;
 
         const input = buildScrapeInput();
         if (!input) {
           return;
         }
 
+        lastScrapeMediaKeyRef.current = scrapeMediaKeyFor(input);
         mediaScrapeRef.current.switchToProvider(
           input,
           providerId as ScrapeProviderId,
@@ -989,6 +990,9 @@ export function useHeroScrapePlayback({
           return;
         }
 
+        lastScrapeMediaKeyRef.current = animeScrapeMediaKeyFor(
+          playbackInput.anime,
+        );
         animePlaybackScrapeRef.current.switchToProvider(
           playbackInput,
           providerId as AnimePlaybackScrapeProviderId,
@@ -1001,6 +1005,7 @@ export function useHeroScrapePlayback({
         return;
       }
 
+      lastScrapeMediaKeyRef.current = scrapeMediaKeyFor(input);
       mediaScrapeRef.current.switchToProvider(
         input,
         providerId as ScrapeProviderId,
@@ -1117,7 +1122,7 @@ export function useHeroScrapePlayback({
           : null,
       scrapeItems: isScrapeMode ? activeScrape.items : [],
       scrapeProviders: scrapeProviderOptions,
-      onSelectScrapeProvider: isScrapeMode ? handleSelectScrapeProvider : null,
+      onSelectScrapeProvider: handleSelectScrapeProvider,
       onFindNextSource: canFindNextSource ? handleScrapedPlaybackError : null,
       canFindNextSource,
     };
@@ -1199,7 +1204,43 @@ export function useHeroScrapePlayback({
       return false;
     }
 
+    const progressKey = buildPlaybackProgressKey();
+    if (
+      progressKey &&
+      progressKey.seasonNumber != null &&
+      progressKey.episodeNumber != null
+    ) {
+      await postWatchProgressIfSignedIn({
+        contentId: progressKey.contentId,
+        mediaType: "tv",
+        seasonNumber: progressKey.seasonNumber,
+        episodeNumber: progressKey.episodeNumber,
+        anilistId: progressKey.anilistId,
+        episodeCompleted: true,
+      }).catch((error) => {
+        console.error("Failed to mark episode complete on watchlist", error);
+      });
+    }
+
     const advanced = await advanceToNextEpisode();
+    if (advanced) {
+      const nextKey = buildPlaybackProgressKey();
+      if (
+        nextKey &&
+        nextKey.seasonNumber != null &&
+        nextKey.episodeNumber != null
+      ) {
+        void postWatchProgressIfSignedIn({
+          contentId: nextKey.contentId,
+          mediaType: "tv",
+          seasonNumber: nextKey.seasonNumber,
+          episodeNumber: nextKey.episodeNumber,
+          anilistId: nextKey.anilistId,
+        }).catch((error) => {
+          console.error("Failed to update continue-watching episode", error);
+        });
+      }
+    }
     if (advanced && isPlayingVideo && isScrapeMode) {
       lastScrapeMediaKeyRef.current = null;
       startScrapingForCurrentMedia();
@@ -1210,6 +1251,7 @@ export function useHeroScrapePlayback({
   }, [
     advanceToNextEpisode,
     applyPlaybackComplete,
+    buildPlaybackProgressKey,
     isPlayingVideo,
     isScrapeMode,
     resolvedMediaType,

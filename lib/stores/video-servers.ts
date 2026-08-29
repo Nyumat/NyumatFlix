@@ -51,6 +51,17 @@ export const videoServers: VideoServer[] = [
       `https://vsembed.ru/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
   },
   {
+    id: "vidking",
+    name: "VidKing",
+    baseUrl: "https://www.vidking.net",
+    getMovieUrl: (tmdbId) =>
+      `https://www.vidking.net/embed/movie/${tmdbId}?color=9146ff&autoPlay=true`,
+    getTvUrl: (tmdbId) =>
+      `https://www.vidking.net/embed/tv/${tmdbId}/1/1?color=9146ff&autoPlay=true&nextEpisode=true&episodeSelector=true`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}?color=9146ff&autoPlay=true&nextEpisode=true&episodeSelector=true`,
+  },
+  {
     id: "vidsrc-mirror",
     name: "VidSrc Mirror",
     baseUrl: "https://vidsrc.wtf",
@@ -68,15 +79,6 @@ export const videoServers: VideoServer[] = [
     getTvUrl: (tmdbId) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
-  },
-  {
-    id: "2embed",
-    name: "2Embed",
-    baseUrl: "https://www.2embed.cc",
-    getMovieUrl: (tmdbId) => `https://www.2embed.cc/embed/${tmdbId}`,
-    getTvUrl: (tmdbId) => `https://www.2embed.cc/embedtvfull/${tmdbId}`,
-    getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`,
   },
   {
     id: "111movies",
@@ -141,24 +143,13 @@ export const videoServers: VideoServer[] = [
       buildHentainiAnimeUrl(anilistId, episode, prefs()),
   },
   {
-    id: "vidking",
-    name: "VidKing",
-    baseUrl: "https://www.vidking.net",
-    getMovieUrl: (tmdbId) =>
-      `https://www.vidking.net/embed/movie/${tmdbId}?color=9146ff&autoPlay=true`,
-    getTvUrl: (tmdbId) =>
-      `https://www.vidking.net/embed/tv/${tmdbId}/1/1?color=9146ff&autoPlay=true&nextEpisode=true&episodeSelector=true`,
+    id: "2embed",
+    name: "2Embed",
+    baseUrl: "https://www.2embed.cc",
+    getMovieUrl: (tmdbId) => `https://www.2embed.cc/embed/${tmdbId}`,
+    getTvUrl: (tmdbId) => `https://www.2embed.cc/embedtvfull/${tmdbId}`,
     getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}?color=9146ff&autoPlay=true&nextEpisode=true&episodeSelector=true`,
-  },
-  {
-    id: "vixsrc",
-    name: "VixSrc",
-    baseUrl: "https://vixsrc.to",
-    getMovieUrl: (tmdbId) => `https://vixsrc.to/movie/${tmdbId}`,
-    getTvUrl: (tmdbId) => `https://vixsrc.to/tv/${tmdbId}/1/1`,
-    getEpisodeUrl: (tmdbId, season, episode) =>
-      `https://vixsrc.to/tv/${tmdbId}/${season}/${episode}`,
+      `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`,
   },
   {
     id: "vidlink",
@@ -195,6 +186,15 @@ export const videoServers: VideoServer[] = [
     getTvUrl: (tmdbId) => `https://vidlux.xyz/embed/tv/${tmdbId}/1/1`,
     getEpisodeUrl: (tmdbId, season, episode) =>
       `https://vidlux.xyz/embed/tv/${tmdbId}/${season}/${episode}`,
+  },
+  {
+    id: "vixsrc",
+    name: "VixSrc",
+    baseUrl: "https://vixsrc.to",
+    getMovieUrl: (tmdbId) => `https://vixsrc.to/movie/${tmdbId}`,
+    getTvUrl: (tmdbId) => `https://vixsrc.to/tv/${tmdbId}/1/1`,
+    getEpisodeUrl: (tmdbId, season, episode) =>
+      `https://vixsrc.to/tv/${tmdbId}/${season}/${episode}`,
   },
 ];
 

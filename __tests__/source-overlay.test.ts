@@ -17,8 +17,8 @@ describe("buildSourceOverlayItems", () => {
           status: "pending",
         },
         {
-          providerId: "vidnest",
-          name: "VidNest",
+          providerId: "videasy",
+          name: "VidEasy",
           status: "waiting",
         },
         {
@@ -39,13 +39,14 @@ describe("buildSourceOverlayItems", () => {
 
     expect(items.slice(0, 4).map((item) => item.id)).toEqual([
       "vidking",
-      "vidnest",
+      "videasy",
       "vidsrc",
       "2embed",
     ]);
 
     const embedItems = items.filter((item) => item.kind === "embed");
     expect(embedItems.map((item) => item.id)).toEqual([
+      "vidnest",
       "vidfast",
       "vidsrc-mirror",
       "hentaini",
@@ -53,10 +54,11 @@ describe("buildSourceOverlayItems", () => {
       "vidcore",
       "1embed",
       "vidlux",
+      "vixsrc",
       "superembed",
       "111movies",
     ]);
-    expect(items.find((item) => item.id === "vidnest")?.kind).toBe("scrape");
+    expect(items.find((item) => item.id === "videasy")?.kind).toBe("scrape");
     expect(embedItems.find((item) => item.id === "vidfast")?.status).toBe(
       "available",
     );

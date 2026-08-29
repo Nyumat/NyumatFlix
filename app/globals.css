@@ -167,6 +167,92 @@
       transform: translateX(-50%);
     }
   }
+
+  @keyframes peek-sheet-in {
+    from {
+      transform: translate3d(0, 100%, 0);
+    }
+    to {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes peek-sheet-out {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(0, 100%, 0);
+    }
+  }
+
+  @keyframes search-dialog-in {
+    from {
+      transform: translate3d(-50%, calc(-100% - 2rem), 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  @keyframes search-dialog-out {
+    from {
+      transform: translate3d(-50%, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, calc(-100% - 2rem), 0);
+    }
+  }
+
+  @keyframes peek-overlay-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes peek-overlay-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes peek-marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes peek-rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  --animate-peek-marquee: peek-marquee var(--peek-marquee-duration, 42s) linear
+    infinite;
+  --animate-peek-rise: peek-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-peek-sheet-in: peek-sheet-in 560ms cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+  --animate-peek-sheet-out: peek-sheet-out 380ms cubic-bezier(0.4, 0, 1, 1) both;
+  --animate-search-dialog-in: search-dialog-in 560ms
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-search-dialog-out: search-dialog-out 380ms
+    cubic-bezier(0.4, 0, 1, 1) both;
+  --animate-peek-overlay-in: peek-overlay-in 420ms cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+  --animate-peek-overlay-out: peek-overlay-out 380ms cubic-bezier(0.4, 0, 1, 1)
+    both;
 }
 
 html {
@@ -527,4 +613,30 @@ html {
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+.cap-login-widget {
+  display: block;
+  width: 100%;
+}
+
+cap-widget.cap-login {
+  display: block;
+  width: 100%;
+  --cap-background: rgba(0, 0, 0, 0.35);
+  --cap-border-color: rgba(255, 255, 255, 0.12);
+  --cap-border-radius: 0.75rem;
+  --cap-widget-width: 100%;
+  --cap-widget-height: 58px;
+  --cap-widget-padding: 14px;
+  --cap-gap: 15px;
+  --cap-color: #e4e4e7;
+  --cap-checkbox-size: 25px;
+  --cap-checkbox-border: 1px solid rgba(255, 255, 255, 0.18);
+  --cap-checkbox-border-radius: 6px;
+  --cap-checkbox-background: rgba(255, 255, 255, 0.06);
+  --cap-spinner-color: #7dd3fc;
+  --cap-spinner-background-color: rgba(255, 255, 255, 0.1);
+  --cap-focus-ring: #7dd3fc;
+  --cap-troubleshoot-color: #7dd3fc;
 }

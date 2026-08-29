@@ -438,19 +438,14 @@ export function SearchDialog({
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="bg-black/70 backdrop-blur-md" />
+        <DialogOverlay className="bg-black/70 backdrop-blur-md data-[state=closed]:motion-safe:animate-peek-overlay-out data-[state=open]:motion-safe:animate-peek-overlay-in" />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-[8vh] z-50 flex -translate-x-1/2 flex-col overflow-hidden rounded-lg border border-white/8 bg-[#09090b]/90 p-4 shadow-2xl shadow-black/50 outline-none backdrop-blur-xl sm:p-5",
+            "fixed left-1/2 top-[8vh] z-50 flex flex-col overflow-hidden rounded-lg border border-white/8 bg-[#09090b]/90 p-4 shadow-2xl shadow-black/50 outline-none backdrop-blur-xl will-change-transform sm:p-5",
             hasVisibleResults
               ? "w-[min(100%-1.5rem,68rem)] max-h-[min(88vh,940px)]"
               : "w-[min(100%-1.5rem,48rem)] max-h-[min(65vh,640px)]",
-            "duration-300 ease-out",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-            "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
-            "data-[state=open]:slide-in-from-bottom-8 data-[state=closed]:slide-out-to-bottom-4",
-            "data-[state=open]:slide-in-from-left-1/2 data-[state=closed]:slide-out-to-left-1/2",
+            "data-[state=closed]:motion-safe:animate-search-dialog-out data-[state=open]:motion-safe:animate-search-dialog-in",
           )}
         >
           <DialogDescription className="sr-only">

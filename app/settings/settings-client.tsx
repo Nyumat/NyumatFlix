@@ -17,9 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { ProfileAvatar } from "@/components/user/profile-avatar";
 import { AvatarAccentPicker } from "@/components/settings/avatar-accent-picker";
 import { MalSyncPanel } from "@/components/settings/mal-sync-panel";
-import { SubtitleAppearanceSettingsPanel } from "@/components/settings/subtitle-appearance-settings-panel";
 import { PlaybackPreferencesPanel } from "@/components/settings/playback-preferences-panel";
-import { useSubtitleAppearance } from "@/hooks/use-subtitle-appearance";
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { scrapeServer, useServerStore } from "@/lib/stores/server-store";
@@ -36,6 +34,8 @@ import {
   type AvatarVariant,
 } from "@/lib/user/avatar";
 import type { MalSyncStatusResponse } from "@/lib/mal/types";
+import { loginHref } from "@/lib/auth/callback-url";
+import { resolveAuthSession } from "@/lib/auth/session-state";
 import { cn } from "@/lib/utils";
 import {
   ImageIcon,
@@ -59,8 +59,8 @@ interface SettingsClientProps {
 
 export function SettingsClient({ session }: SettingsClientProps) {
   const flags = useFeatureFlags();
-  const { data: clientSession, update: updateSession } = useSession();
-  const activeSession = clientSession ?? session;
+  const { data: clientSession, status, update: updateSession } = useSession();
+  const activeSession = resolveAuthSession(clientSession, status, session);
   const isSignedIn = Boolean(activeSession?.user?.id);
 
   const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
@@ -112,7 +112,6 @@ export function SettingsClient({ session }: SettingsClientProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [malPicture, setMalPicture] = useState<string | null>(null);
-  const subtitleAppearance = useSubtitleAppearance();
 
   const handleMalStatusChange = (status: MalSyncStatusResponse | null) => {
     setMalPicture(status?.connected ? (status.malPicture ?? null) : null);
@@ -302,17 +301,6 @@ export function SettingsClient({ session }: SettingsClientProps) {
 
         <section className="border-b border-white/10 px-4 py-5 md:px-6">
           <h2 className="mb-3 text-sm font-semibold text-foreground">
-            Subtitles
-          </h2>
-          <SubtitleAppearanceSettingsPanel
-            appearance={subtitleAppearance.appearance}
-            onAppearanceChange={subtitleAppearance.setAppearance}
-            onAppearanceReset={subtitleAppearance.resetAppearance}
-          />
-        </section>
-
-        <section className="border-b border-white/10 px-4 py-5 md:px-6">
-          <h2 className="mb-3 text-sm font-semibold text-foreground">
             Integrations
           </h2>
           <MalSyncPanel
@@ -488,7 +476,7 @@ export function SettingsClient({ session }: SettingsClientProps) {
             </div>
           ) : (
             <Button asChild variant="chrome" className="gap-2.5">
-              <Link href="/login">
+              <Link href={loginHref("/settings")}>
                 Sign in
                 <LogIn className="size-4 shrink-0" />
               </Link>

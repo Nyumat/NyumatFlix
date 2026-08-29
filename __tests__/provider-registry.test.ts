@@ -22,28 +22,39 @@ describe("provider registry", () => {
       "superembed",
       "111movies",
       "vidfast",
+      "vidnest",
       "vidlink",
       "vidcore",
       "1embed",
       "vidlux",
+      "vixsrc",
+      "hentaini",
     ]);
   });
 
-  it("keeps vixsrc before vidnest in the TMDB scrape chain", () => {
+  it("keeps unreliable TMDB scrape providers last in the chain", () => {
     const order = TMDB_SCRAPE_PROVIDER_ORDER;
-    expect(order.at(-2)).toBe("vixsrc");
-    expect(order.at(-1)).toBe("vidnest");
+    expect(order.at(-1)).toBe("2embed");
+    expect(order).not.toContain("vixsrc");
   });
 
   it("lists dual-capability providers for embed sub-picker", () => {
     expect(dualCapabilityEmbedProviderIds()).toEqual([
       "vidsrc",
-      "2embed",
-      "vidnest",
-      "videasy",
       "vidking",
-      "vixsrc",
+      "videasy",
+      "2embed",
     ]);
+  });
+
+  it("keeps embed-only providers outside scrape chains", () => {
+    expect(TMDB_SCRAPE_PROVIDER_ORDER).not.toContain("vixsrc");
+    expect(ANIME_SCRAPE_PROVIDER_ORDER).not.toContain("hentaini");
+    expect(ANIME_SCRAPE_PROVIDER_ORDER).not.toContain("animepahe");
+    expect(ANIME_SCRAPE_PROVIDER_ORDER).not.toContain("anikuro");
+    expect(embedOnlyProviderIds()).toEqual(
+      expect.arrayContaining(["vixsrc", "hentaini"]),
+    );
   });
 
   it("keeps anime scrape providers separate from TMDB scrape ids", () => {

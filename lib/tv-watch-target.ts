@@ -4,6 +4,10 @@ import {
   fromAnilistTvRouteId,
   isAnilistTvRouteId,
 } from "@/lib/anilist-route-id";
+import {
+  getPlaybackProgress,
+  resolveResumeTime,
+} from "@/lib/playback/progress-storage";
 
 export const normalizeTvContentKey = (id: string | number): number | null => {
   const asString = String(id);
@@ -67,21 +71,64 @@ export function resolveTvWatchTarget(
   return null;
 }
 
+export function tvWatchTargetCoords(target: TvWatchTarget): {
+  seasonNumber: number;
+  episodeNumber: number;
+} {
+  return {
+    seasonNumber: target.seasonNumber,
+    episodeNumber:
+      target.source === "watchlist"
+        ? target.episodeNumber
+        : target.episode.episode_number,
+  };
+}
+
+export function isTvWatchlistResume(
+  target: TvWatchTarget,
+  watchlistItem?: WatchlistItem | null,
+): boolean {
+  const { seasonNumber, episodeNumber } = tvWatchTargetCoords(target);
+
+  return (
+    watchlistItem?.lastWatchedSeason === seasonNumber &&
+    watchlistItem?.lastWatchedEpisode === episodeNumber
+  );
+}
+
+export function isTvPlaybackResume(
+  target: TvWatchTarget,
+  contentId: number,
+): boolean {
+  const { seasonNumber, episodeNumber } = tvWatchTargetCoords(target);
+  const resumeTime = resolveResumeTime(
+    getPlaybackProgress({
+      mediaType: "tv",
+      contentId,
+      seasonNumber,
+      episodeNumber,
+    }),
+  );
+
+  return resumeTime > 0;
+}
+
 export function formatTvWatchLabel(
   target: TvWatchTarget,
   display?: {
     seasonNumber?: number | null;
     episodeNumber?: number | null;
   },
+  options?: {
+    resume?: boolean;
+  },
 ): string {
   const seasonNumber = display?.seasonNumber ?? target.seasonNumber;
   const episodeNumber =
-    display?.episodeNumber ??
-    (target.source === "watchlist"
-      ? target.episodeNumber
-      : target.episode.episode_number);
+    display?.episodeNumber ?? tvWatchTargetCoords(target).episodeNumber;
+  const verb = options?.resume ? "Resume" : "Watch";
 
-  return `Watch S${seasonNumber}E${episodeNumber}`;
+  return `${verb} S${seasonNumber}E${episodeNumber}`;
 }
 
 export function isSameTvWatchTarget(

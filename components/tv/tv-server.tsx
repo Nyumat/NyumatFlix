@@ -141,7 +141,7 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
 };
 
 interface TvHeroProps {
-  tvShows: TvShow[];
+  tvShows: Array<Pick<TvShow, "id">>;
   label: string;
   count?: number;
   priority?: boolean;

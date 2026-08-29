@@ -6,6 +6,7 @@ import { fetchWithCapSession } from "@/lib/cap/client";
 import { areScrapeProvidersExhausted } from "@/lib/scrape/scrape-provider-menu";
 import {
   clearPreferredScrapeProvider,
+  getPreferredScrapeProvider,
   setPreferredScrapeProvider,
 } from "@/lib/scrape/preferred-provider";
 import {
@@ -23,6 +24,7 @@ import {
 import {
   classifySiblingCancel,
   shouldFinalizeBatchWinner,
+  shouldFinalizeFirstPreferenceMatch,
   shouldFinalizeRaceWinner,
   type ScrapeCancelReason,
 } from "@/lib/scrape/scrape-race-batch";
@@ -95,6 +97,8 @@ export type ProviderScrapeLoopConfig<
   retryDelayMs?: number;
   /** When set, wait for the batch to finish and pick the best-scoring success. */
   scoreRacePayload?: (payload: _TPayload) => number;
+  /** Start playback on the first success that satisfies these hard prefs. */
+  matchesPlaybackPreferences?: (payload: _TPayload) => boolean;
   harvestSubtitleProviders?: (
     winnerId: TProviderId,
     order: readonly TProviderId[],
@@ -131,10 +135,14 @@ export function useProviderScrapeLoop<
     retryAttempts = DEFAULT_SCRAPE_RETRY_ATTEMPTS,
     retryDelayMs = DEFAULT_SCRAPE_RETRY_DELAY_MS,
     scoreRacePayload,
+    matchesPlaybackPreferences,
     harvestSubtitleProviders,
   } = config;
 
-  const useScoredRaceWinner = Boolean(scoreRacePayload) && !raceFirstWin;
+  const usePreferenceMatchFirstWin =
+    Boolean(matchesPlaybackPreferences) && !raceFirstWin;
+  const useScoredRaceWinner =
+    Boolean(scoreRacePayload) && !raceFirstWin && !usePreferenceMatchFirstWin;
   const shouldRaceFirstWin = raceFirstWin;
 
   const activeProviderOrderRef = useRef<readonly TProviderId[]>(providerOrder);
@@ -169,6 +177,11 @@ export function useProviderScrapeLoop<
   const statusRef = useRef<ProviderScrapePlayerStatus>("idle");
   statusRef.current = status;
   const failedProvidersRef = useRef<Map<string, Set<TProviderId>>>(new Map());
+  const payloadCacheRef = useRef<Map<string, Map<TProviderId, TPayload>>>(
+    new Map(),
+  );
+  const playbackLockedRef = useRef(false);
+  const pinnedProviderRef = useRef<TProviderId | null>(null);
   const currentInputRef = useRef<TInput | null>(null);
   const abortControllersRef = useRef<Set<AbortController>>(new Set());
 
@@ -177,6 +190,21 @@ export function useProviderScrapeLoop<
       controller.abort();
     }
     abortControllersRef.current.clear();
+  }, []);
+
+  const storePayloadCache = useCallback(
+    (mediaKey: string, providerId: TProviderId, payload: TPayload) => {
+      const byProvider =
+        payloadCacheRef.current.get(mediaKey) ??
+        new Map<TProviderId, TPayload>();
+      byProvider.set(providerId, payload);
+      payloadCacheRef.current.set(mediaKey, byProvider);
+    },
+    [],
+  );
+
+  const clearPayloadCache = useCallback((mediaKey: string) => {
+    payloadCacheRef.current.delete(mediaKey);
   }, []);
 
   const resetItems = useCallback(
@@ -500,18 +528,143 @@ export function useProviderScrapeLoop<
     [harvestSubtitleProviders, scrapeProvider],
   );
 
-  const reopenSkippedProviders = useCallback(
-    (failed: Set<TProviderId>) => {
-      syncItems((current) =>
-        current.map((item) => {
-          if (failed.has(item.providerId as TProviderId)) {
-            return item;
+  const harvestRemainingMenuProviders = useCallback(
+    async (
+      runId: number,
+      input: TInput,
+      order: readonly TProviderId[],
+      failed: ReadonlySet<TProviderId>,
+    ) => {
+      const mediaKey = mediaKeyFor(input);
+      const toHarvest = order.filter((providerId) => {
+        const item =
+          itemsRef.current.find((entry) => entry.providerId === providerId) ??
+          null;
+
+        if (failed.has(providerId)) {
+          return item?.error === "Timed out";
+        }
+
+        const status = item?.status ?? "idle";
+        return status !== "success" && status !== "unavailable";
+      });
+
+      await mapWithConcurrency(
+        toHarvest,
+        SUBTITLE_HARVEST_CONCURRENCY,
+        async (providerId) => {
+          if (runId !== runIdRef.current) {
+            return;
           }
 
-          if (item.status === "skipped") {
+          const controller = new AbortController();
+          abortControllersRef.current.add(controller);
+          const timeoutId = window.setTimeout(
+            () => {
+              if (!controller.signal.aborted) {
+                controller.abort("timeout");
+              }
+            },
+            getScrapeAttemptTimeoutMs(providerId, true),
+          );
+          controller.signal.addEventListener(
+            "abort",
+            () => window.clearTimeout(timeoutId),
+            { once: true },
+          );
+
+          try {
+            const attempt = await scrapeProvider(
+              providerId,
+              input,
+              runId,
+              controller.signal,
+            );
+            if (runId !== runIdRef.current || attempt.outcome !== "success") {
+              return;
+            }
+
+            const mutableFailed =
+              failedProvidersRef.current.get(mediaKey) ??
+              new Set<TProviderId>();
+            mutableFailed.delete(providerId);
+            failedProvidersRef.current.set(mediaKey, mutableFailed);
+            storePayloadCache(mediaKey, providerId, attempt.payload);
+          } finally {
+            abortControllersRef.current.delete(controller);
+          }
+        },
+      );
+    },
+    [mediaKeyFor, scrapeProvider, storePayloadCache],
+  );
+
+  const pickWarmedFallback = useCallback(
+    (
+      mediaKey: string,
+      order: readonly TProviderId[],
+      failed: ReadonlySet<TProviderId>,
+      excludeIds: ReadonlySet<TProviderId> = new Set<TProviderId>(),
+    ): { providerId: TProviderId; payload: TPayload } | null => {
+      const cache = payloadCacheRef.current.get(mediaKey);
+      if (!cache) {
+        return null;
+      }
+
+      for (const providerId of order) {
+        if (failed.has(providerId) || excludeIds.has(providerId)) {
+          continue;
+        }
+
+        const payload = cache.get(providerId);
+        if (payload) {
+          return { providerId, payload };
+        }
+      }
+
+      return null;
+    },
+    [],
+  );
+
+  const startBackgroundHarvest = useCallback(
+    (
+      runId: number,
+      input: TInput,
+      order: readonly TProviderId[],
+      failed: ReadonlySet<TProviderId>,
+      excludeId: TProviderId,
+    ) => {
+      const harvestOrder = order.filter(
+        (providerId) => providerId !== excludeId,
+      );
+      if (harvestOrder.length === 0) {
+        return;
+      }
+
+      void harvestRemainingMenuProviders(runId, input, harvestOrder, failed);
+    },
+    [harvestRemainingMenuProviders],
+  );
+
+  const finalizePlaybackWinner = useCallback(
+    (winnerId: TProviderId, batch: readonly TProviderId[]) => {
+      syncItems((current) =>
+        current.map((item) => {
+          const providerId = item.providerId as TProviderId;
+
+          if (providerId === winnerId) {
             return {
               ...item,
-              status: "waiting" as ScrapeItemStatus,
+              status: "success" as ScrapeItemStatus,
+              error: undefined,
+            };
+          }
+
+          if (batch.includes(providerId) && item.status === "pending") {
+            return {
+              ...item,
+              status: "skipped" as ScrapeItemStatus,
               error: undefined,
             };
           }
@@ -571,15 +724,48 @@ export function useProviderScrapeLoop<
     [syncItems],
   );
 
+  const activateCachedProvider = useCallback(
+    (
+      runId: number,
+      input: TInput,
+      mediaKey: string,
+      providerId: TProviderId,
+      payload: TPayload,
+      order: readonly TProviderId[],
+      failed: ReadonlySet<TProviderId>,
+    ) => {
+      pinnedProviderRef.current = providerId;
+      playbackLockedRef.current = true;
+      currentInputRef.current = input;
+      storePayloadCache(mediaKey, providerId, payload);
+      finalizePlaybackWinner(providerId, []);
+      setPreferredScrapeProvider(mediaKey, providerId);
+      setResult(payload);
+      setStatus("playing");
+      setActiveProviderId(providerId);
+      setError(null);
+      updateItem(providerId, { status: "success", error: undefined });
+      void startBackgroundHarvest(runId, input, order, failed, providerId);
+    },
+    [
+      finalizePlaybackWinner,
+      startBackgroundHarvest,
+      storePayloadCache,
+      updateItem,
+    ],
+  );
+
   const runScrapeLoop = useCallback(
     async (
       input: TInput,
       startFromIndex = 0,
-      options: { useFailedCache?: boolean } = {},
+      options: { useFailedCache?: boolean; pinned?: boolean } = {},
     ) => {
-      const { useFailedCache = true } = options;
+      const { useFailedCache = true, pinned: pinnedOption = false } = options;
+      const isPinned = pinnedOption && pinnedProviderRef.current !== null;
       abortActiveFetches();
       const runId = ++runIdRef.current;
+      playbackLockedRef.current = false;
       currentInputRef.current = input;
       setStatus("scraping");
       setResult(null);
@@ -607,27 +793,91 @@ export function useProviderScrapeLoop<
         }
       }
 
+      if (isPinned && pinnedProviderRef.current) {
+        void startBackgroundHarvest(
+          runId,
+          input,
+          order,
+          failed,
+          pinnedProviderRef.current,
+        );
+      }
+
+      const tryWarmPreferredCachedProvider = (): boolean => {
+        if (
+          startFromIndex !== 0 ||
+          playbackLockedRef.current ||
+          !useFailedCache
+        ) {
+          return false;
+        }
+
+        const storedPreferred = getPreferredScrapeProvider(mediaKey);
+        if (!storedPreferred) {
+          return false;
+        }
+
+        const preferredId = storedPreferred as TProviderId;
+        if (!order.includes(preferredId) || failed.has(preferredId)) {
+          return false;
+        }
+
+        const cached = payloadCacheRef.current.get(mediaKey)?.get(preferredId);
+        if (!cached) {
+          return false;
+        }
+
+        if (matchesPlaybackPreferences && !matchesPlaybackPreferences(cached)) {
+          return false;
+        }
+
+        storePayloadCache(mediaKey, preferredId, cached);
+        finalizePlaybackWinner(preferredId, []);
+        playbackLockedRef.current = true;
+        setPreferredScrapeProvider(mediaKey, preferredId);
+        setResult(cached);
+        setStatus("playing");
+        setActiveProviderId(preferredId);
+        return true;
+      };
+
       let batchStartIndex = startFromIndex;
+
+      if (tryWarmPreferredCachedProvider()) {
+        if (runId !== runIdRef.current) {
+          return;
+        }
+        batchStartIndex = order.length;
+      }
 
       while (batchStartIndex < order.length) {
         if (runId !== runIdRef.current) {
           return;
         }
 
-        const { batch, nextIndex } = nextRaceBatch(
-          order,
-          batchStartIndex,
-          failed,
-          SCRAPE_RACE_CONCURRENCY,
-          soloFirstProviders,
-        );
+        const pinnedId = pinnedProviderRef.current;
+        const { batch, nextIndex } =
+          isPinned && pinnedId
+            ? {
+                batch: failed.has(pinnedId) ? [] : [pinnedId],
+                nextIndex: order.length,
+              }
+            : nextRaceBatch(
+                order,
+                batchStartIndex,
+                failed,
+                SCRAPE_RACE_CONCURRENCY,
+                soloFirstProviders,
+              );
         batchStartIndex = nextIndex;
 
         if (batch.length === 0) {
           break;
         }
 
-        setActiveProviderId(batch[0] ?? null);
+        if (!playbackLockedRef.current) {
+          setActiveProviderId(batch[0] ?? null);
+        }
 
         const controllers = new Map<TProviderId, AbortController>();
         const pending = new Set<TProviderId>(batch);
@@ -651,14 +901,40 @@ export function useProviderScrapeLoop<
         });
 
         const tryFinalizeWinner = (): ScrapeAttemptResult<TPayload> | null => {
-          const winnerEntry = shouldRaceFirstWin
-            ? shouldFinalizeRaceWinner(successes)
-            : shouldFinalizeBatchWinner(
+          if (playbackLockedRef.current) {
+            return null;
+          }
+
+          let winnerEntry: RaceAttemptEntry<TProviderId, TPayload> | undefined;
+
+          if (shouldRaceFirstWin) {
+            winnerEntry = shouldFinalizeRaceWinner(successes);
+          } else if (usePreferenceMatchFirstWin && matchesPlaybackPreferences) {
+            winnerEntry = shouldFinalizeFirstPreferenceMatch(
+              successes,
+              matchesPlaybackPreferences,
+            );
+            if (
+              !winnerEntry &&
+              pending.size === 0 &&
+              successes.length > 0 &&
+              scoreRacePayload
+            ) {
+              winnerEntry = pickScoredRaceWinner(
                 order,
                 successes,
-                pending,
-                useScoredRaceWinner ? scoreRacePayload : undefined,
+                scoreRacePayload,
               );
+            }
+          } else {
+            winnerEntry = shouldFinalizeBatchWinner(
+              order,
+              successes,
+              pending,
+              useScoredRaceWinner ? scoreRacePayload : undefined,
+            );
+          }
+
           if (!winnerEntry?.attempt.payload) {
             return null;
           }
@@ -715,6 +991,7 @@ export function useProviderScrapeLoop<
             }
 
             if (attempt.outcome === "success") {
+              storePayloadCache(mediaKey, providerId, attempt.payload);
               successes.push({
                 providerId,
                 attempt: { outcome: "success", payload: attempt.payload },
@@ -726,16 +1003,28 @@ export function useProviderScrapeLoop<
               const cancelClass = classifySiblingCancel(attempt.reason);
               if (cancelClass === "skipped") {
                 updateItem(providerId, {
-                  status: "skipped",
+                  status: usePreferenceMatchFirstWin
+                    ? ("waiting" as ScrapeItemStatus)
+                    : ("skipped" as ScrapeItemStatus),
                   error: undefined,
                 });
               } else if (cancelClass === "failure") {
-                updateItem(providerId, {
-                  status: "failure",
-                  error: "Timed out",
-                });
-                failed.add(providerId);
-                failedProvidersRef.current.set(mediaKey, failed);
+                const softTimeout =
+                  attempt.reason === "timeout" &&
+                  (usePreferenceMatchFirstWin || playbackLockedRef.current);
+                if (softTimeout) {
+                  updateItem(providerId, {
+                    status: "waiting" as ScrapeItemStatus,
+                    error: undefined,
+                  });
+                } else {
+                  updateItem(providerId, {
+                    status: "failure",
+                    error: "Timed out",
+                  });
+                  failed.add(providerId);
+                  failedProvidersRef.current.set(mediaKey, failed);
+                }
               }
               return { providerId, attempt };
             }
@@ -770,9 +1059,11 @@ export function useProviderScrapeLoop<
               ) ?? null;
 
           if (!finalized) {
-            const winnerEntry = useScoredRaceWinner
-              ? pickScoredRaceWinner(order, successes, scoreRacePayload!)
-              : pickRaceWinner(order, successes);
+            const winnerEntry =
+              scoreRacePayload &&
+              (usePreferenceMatchFirstWin || useScoredRaceWinner)
+                ? pickScoredRaceWinner(order, successes, scoreRacePayload)
+                : pickRaceWinner(order, successes);
             if (winnerEntry?.attempt.payload) {
               finalized = {
                 outcome: "success",
@@ -782,11 +1073,16 @@ export function useProviderScrapeLoop<
           }
         }
 
-        if (finalized?.outcome === "success") {
+        if (finalized?.outcome === "success" && !playbackLockedRef.current) {
           const winnerId = finalized.payload.providerId;
           failed.delete(winnerId);
-          finalizeBatchWinner(order, winnerId, batch);
+          if (usePreferenceMatchFirstWin) {
+            finalizePlaybackWinner(winnerId, batch);
+          } else {
+            finalizeBatchWinner(order, winnerId, batch);
+          }
           setPreferredScrapeProvider(mediaKey, winnerId);
+          playbackLockedRef.current = true;
 
           let payload = finalized.payload;
           const siblingSubtitles = harvestSubtitleProviders
@@ -816,11 +1112,66 @@ export function useProviderScrapeLoop<
             failed,
             alreadyHarvested,
           );
-          return;
+          continue;
         }
       }
 
       if (runId !== runIdRef.current) {
+        return;
+      }
+
+      if (playbackLockedRef.current) {
+        void harvestRemainingMenuProviders(runId, input, order, failed);
+        return;
+      }
+
+      if (isPinned && pinnedProviderRef.current) {
+        const warmed = pickWarmedFallback(
+          mediaKey,
+          order,
+          failed,
+          new Set([pinnedProviderRef.current]),
+        );
+        if (warmed) {
+          activateCachedProvider(
+            runId,
+            input,
+            mediaKey,
+            warmed.providerId,
+            warmed.payload,
+            order,
+            failed,
+          );
+          return;
+        }
+
+        const hasRemaining = order.some(
+          (providerId) => !failed.has(providerId),
+        );
+        if (hasRemaining) {
+          pinnedProviderRef.current = null;
+          void runScrapeLoop(input, 0, {
+            useFailedCache: true,
+            pinned: false,
+          });
+          return;
+        }
+
+        syncItems((current) =>
+          current.map((item) =>
+            item.status === "waiting"
+              ? {
+                  ...item,
+                  status: "skipped" as ScrapeItemStatus,
+                  error: undefined,
+                }
+              : item,
+          ),
+        );
+        setStatus("error");
+        setError(allFailedError);
+        setActiveProviderId(null);
+        onAllProvidersFailed?.();
         return;
       }
 
@@ -865,38 +1216,52 @@ export function useProviderScrapeLoop<
     },
     [
       abortActiveFetches,
+      activateCachedProvider,
       allFailedError,
       applyItemsForOrder,
       finalizeBatchWinner,
+      finalizePlaybackWinner,
       getOrderForInput,
+      harvestRemainingMenuProviders,
       harvestRemainingSubtitles,
       harvestSubtitleProviders,
+      matchesPlaybackPreferences,
       mediaKeyFor,
       onAllProvidersFailed,
+      pickWarmedFallback,
       resetItems,
       scrapeProvider,
       soloFirstProviders,
       scoreRacePayload,
       shouldRaceFirstWin,
+      startBackgroundHarvest,
+      storePayloadCache,
       syncItems,
       updateItem,
+      usePreferenceMatchFirstWin,
       useScoredRaceWinner,
     ],
   );
 
   const startScraping = useCallback(
     (input: TInput, preferredProviderId?: TProviderId) => {
+      pinnedProviderRef.current = null;
       const baseOrder = getOrderForInput(input);
       const mediaKey = mediaKeyFor(input);
+      clearPayloadCache(mediaKey);
       const failed =
         failedProvidersRef.current.get(mediaKey) ?? new Set<TProviderId>();
       // Direct is the calluspirates bridge — always retry on a fresh scrape pass.
       failed.delete("direct" as TProviderId);
       failedProvidersRef.current.set(mediaKey, failed);
+      const preferredFromStorage = getPreferredScrapeProvider(mediaKey);
       const preferred =
         preferredProviderId && baseOrder.includes(preferredProviderId)
           ? preferredProviderId
-          : undefined;
+          : preferredFromStorage &&
+              baseOrder.includes(preferredFromStorage as TProviderId)
+            ? (preferredFromStorage as TProviderId)
+            : undefined;
       let order = reorderProvidersWithPreferred(baseOrder, preferred);
       if (failed.size > 0) {
         order = deprioritizeProviders(order, failed);
@@ -911,6 +1276,7 @@ export function useProviderScrapeLoop<
     },
     [
       applyItemsForOrder,
+      clearPayloadCache,
       getOrderForInput,
       mediaKeyFor,
       resetItems,
@@ -918,37 +1284,35 @@ export function useProviderScrapeLoop<
     ],
   );
 
-  const resumeScraping = useCallback(
-    (
-      input: TInput,
-      fromProviderId: TProviderId,
-      failureReason = "Playback failed",
-    ) => {
-      const mediaKey = mediaKeyFor(input);
-      const failed = failedProvidersRef.current.get(mediaKey) ?? new Set();
-      failed.add(fromProviderId);
-      failedProvidersRef.current.set(mediaKey, failed);
-      clearPreferredScrapeProvider(mediaKey);
-      updateItem(fromProviderId, {
-        status: "failure",
-        error: failureReason,
-      });
-      reopenSkippedProviders(failed);
-      void runScrapeLoop(input, 0, { useFailedCache: true });
-    },
-    [mediaKeyFor, reopenSkippedProviders, runScrapeLoop, updateItem],
-  );
-
   const switchToProvider = useCallback(
     (input: TInput, providerId: TProviderId) => {
       const mediaKey = mediaKeyFor(input);
+      const baseOrder = getOrderForInput(input);
       const failed =
         failedProvidersRef.current.get(mediaKey) ?? new Set<TProviderId>();
+      const order = deprioritizeProviders(baseOrder, failed);
+
+      pinnedProviderRef.current = providerId;
+
+      const cached = payloadCacheRef.current.get(mediaKey)?.get(providerId);
+      if (cached) {
+        runIdRef.current += 1;
+        abortActiveFetches();
+        activateCachedProvider(
+          runIdRef.current,
+          input,
+          mediaKey,
+          providerId,
+          cached,
+          order,
+          failed,
+        );
+        return;
+      }
+
       failed.delete(providerId);
       failedProvidersRef.current.set(mediaKey, failed);
 
-      const baseOrder = getOrderForInput(input);
-      const order = deprioritizeProviders(baseOrder, failed);
       const startIndex = order.indexOf(providerId);
       if (startIndex < 0) {
         return;
@@ -962,9 +1326,102 @@ export function useProviderScrapeLoop<
       } as Partial<
         Record<TProviderId, Partial<Pick<ScrapeItem, "status" | "error">>>
       >);
-      void runScrapeLoop(input, startIndex, { useFailedCache: true });
+      void runScrapeLoop(input, startIndex, {
+        useFailedCache: true,
+        pinned: true,
+      });
     },
-    [applyItemsForOrder, getOrderForInput, mediaKeyFor, runScrapeLoop],
+    [
+      abortActiveFetches,
+      activateCachedProvider,
+      applyItemsForOrder,
+      getOrderForInput,
+      mediaKeyFor,
+      runScrapeLoop,
+    ],
+  );
+
+  const resumeScraping = useCallback(
+    (
+      input: TInput,
+      fromProviderId: TProviderId,
+      failureReason = "Playback failed",
+    ) => {
+      const mediaKey = mediaKeyFor(input);
+      const failed =
+        failedProvidersRef.current.get(mediaKey) ?? new Set<TProviderId>();
+      failed.add(fromProviderId);
+      failedProvidersRef.current.set(mediaKey, failed);
+      clearPreferredScrapeProvider(mediaKey);
+      updateItem(fromProviderId, {
+        status: "failure",
+        error: failureReason,
+      });
+
+      const order = deprioritizeProviders(getOrderForInput(input), failed);
+      activeProviderOrderRef.current = order;
+
+      const warmed = pickWarmedFallback(
+        mediaKey,
+        order,
+        failed,
+        new Set([fromProviderId]),
+      );
+      if (warmed) {
+        runIdRef.current += 1;
+        abortActiveFetches();
+        activateCachedProvider(
+          runIdRef.current,
+          input,
+          mediaKey,
+          warmed.providerId,
+          warmed.payload,
+          order,
+          failed,
+        );
+        return;
+      }
+
+      pinnedProviderRef.current = null;
+      const hasRemaining = order.some((providerId) => !failed.has(providerId));
+      if (hasRemaining) {
+        applyItemsForOrder(order, failed);
+        void runScrapeLoop(input, 0, {
+          useFailedCache: true,
+          pinned: false,
+        });
+        return;
+      }
+
+      syncItems((current) =>
+        current.map((item) =>
+          item.status === "waiting"
+            ? {
+                ...item,
+                status: "skipped" as ScrapeItemStatus,
+                error: undefined,
+              }
+            : item,
+        ),
+      );
+      setStatus("error");
+      setError(allFailedError);
+      setActiveProviderId(null);
+      onAllProvidersFailed?.();
+    },
+    [
+      abortActiveFetches,
+      activateCachedProvider,
+      allFailedError,
+      applyItemsForOrder,
+      getOrderForInput,
+      mediaKeyFor,
+      onAllProvidersFailed,
+      pickWarmedFallback,
+      runScrapeLoop,
+      syncItems,
+      updateItem,
+    ],
   );
 
   const stopScraping = useCallback(() => {
@@ -973,6 +1430,8 @@ export function useProviderScrapeLoop<
     }
 
     runIdRef.current += 1;
+    playbackLockedRef.current = false;
+    pinnedProviderRef.current = null;
     abortActiveFetches();
 
     currentInputRef.current = null;
@@ -985,14 +1444,22 @@ export function useProviderScrapeLoop<
 
   const retryAllScraping = useCallback(
     (input: TInput) => {
+      pinnedProviderRef.current = null;
       const mediaKey = mediaKeyFor(input);
       failedProvidersRef.current.delete(mediaKey);
+      clearPayloadCache(mediaKey);
       clearPreferredScrapeProvider(mediaKey);
       const order = getOrderForInput(input);
       resetItems(order);
       void runScrapeLoop(input, 0, { useFailedCache: false });
     },
-    [getOrderForInput, mediaKeyFor, resetItems, runScrapeLoop],
+    [
+      clearPayloadCache,
+      getOrderForInput,
+      mediaKeyFor,
+      resetItems,
+      runScrapeLoop,
+    ],
   );
 
   useEffect(

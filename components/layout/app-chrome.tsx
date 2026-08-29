@@ -5,7 +5,7 @@ import { FooterSection } from "@/components/layout/sections/footer";
 import { AppSettingsSync } from "@/components/providers/app-settings-sync";
 import { MalReauthProvider } from "@/components/providers/mal-reauth-provider";
 import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
-import { GlobalCommandMenu } from "@/components/command-menu/global-command-menu";
+import { AppChromeDeferred } from "@/components/layout/app-chrome-deferred";
 import { Toaster } from "@/components/ui/sonner";
 import { usePathname } from "next/navigation";
 
@@ -16,7 +16,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   if (isFfsAdmin) {
     return (
       <>
-        <GlobalCommandMenu />
+        <AppChromeDeferred />
         <main className="flex min-h-0 flex-1 flex-col">{children}</main>
         <Toaster richColors closeButton />
       </>
@@ -25,7 +25,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <GlobalCommandMenu />
+      <AppChromeDeferred />
       <AppSettingsSync />
       <MalReauthProvider />
       <GlobalDockProvider>

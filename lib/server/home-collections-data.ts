@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  type HomeCollectionCard,
+  toHomeCollectionCard,
+} from "@/lib/cards/catalog-dto";
 import { filterReleasedMovies } from "@/lib/released-media";
 import { runInChunks } from "@/lib/server/chunked-parallel";
 import { tmdb } from "@/tmdb/api";
@@ -16,9 +20,7 @@ export const HOME_COLLECTION_IDS = [
   9485, // Fast & Furious
 ] as const;
 
-export type HomeCollection = DetailedCollection & {
-  parts: Movie[];
-};
+export type HomeCollection = HomeCollectionCard;
 
 const normalizeCollection = (
   collection: DetailedCollection | null,
@@ -28,7 +30,7 @@ const normalizeCollection = (
   const parts = filterReleasedMovies(collection.parts);
   if (parts.length < MIN_COLLECTION_PARTS) return null;
 
-  return { ...collection, parts };
+  return toHomeCollectionCard({ ...collection, parts });
 };
 
 export const getHomeCollections = cache(async (): Promise<HomeCollection[]> => {

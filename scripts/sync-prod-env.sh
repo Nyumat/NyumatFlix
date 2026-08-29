@@ -7,7 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SSH_HOST="${SSH_HOST:-leetbot}"
-REMOTE_DIR="apps/nyumatflix"
+REMOTE_DIR="${REMOTE_APP_DIR:-apps/nyumatflix}"
 SEED_ENV_FILE="${SEED_ENV_FILE:-$ROOT/.env.prod}"
 MANAGED_KEYS_FILE="${MANAGED_KEYS_FILE:-$SCRIPT_DIR/prod-env-managed-keys.txt}"
 
@@ -25,20 +25,33 @@ push_env() {
   ssh "$SSH_HOST" "mkdir -p \"\$HOME/${REMOTE_DIR}/scripts\""
   rsync -avz "$SEED_ENV_FILE" "${SSH_HOST}:~/${REMOTE_DIR}/.env.prod"
   rsync -avz \
+    "$ROOT/docker-compose.scrape.yml" \
+    "$ROOT/docker-compose.ffs.yml" \
+    "$ROOT/docker-compose.imgproxy.yml" \
+    "$ROOT/docker-compose.cap.yml" \
+    "$ROOT/docker-compose.crowdsec.yml" \
+    "${SSH_HOST}:~/${REMOTE_DIR}/"
+  rsync -avz \
+    "$ROOT/scripts/crowdsec/" \
+    "${SSH_HOST}:~/${REMOTE_DIR}/scripts/crowdsec/"
+  rsync -avz \
     "$MANAGED_KEYS_FILE" \
     "$ROOT/scripts/reconcile-prod-infra.sh" \
     "$ROOT/scripts/reconcile-cap.sh" \
+    "$ROOT/scripts/reconcile-crowdsec.sh" \
+    "$ROOT/scripts/lock-cap-cors.sh" \
+    "$ROOT/scripts/update-cap-key-cors.sh" \
+    "$ROOT/scripts/nginx-nyumatflix.conf" \
+    "$ROOT/scripts/nginx-nyumatflix-limits.conf" \
+    "$ROOT/scripts/nginx-crowdsec-bouncer.conf" \
     "$ROOT/scripts/deploy.sh" \
-    "$ROOT/docker-compose.scrape.yml" \
-    "$ROOT/docker-compose.ffs.yml" \
+    "$ROOT/scripts/deploy-lib.sh" \
     "${SSH_HOST}:~/${REMOTE_DIR}/scripts/"
-  rsync -avz "$ROOT/scripts/deploy.sh" "${SSH_HOST}:~/${REMOTE_DIR}/deploy.sh"
-  rsync -avz "$ROOT/docker-compose.cap.yml" "${SSH_HOST}:~/${REMOTE_DIR}/docker-compose.cap.yml"
   if [[ -d "$ROOT/flipt" ]]; then
     rsync -avz "$ROOT/flipt/" "${SSH_HOST}:~/${REMOTE_DIR}/flipt/"
   fi
 
-  ssh "$SSH_HOST" 'chmod +x "$HOME/apps/nyumatflix/deploy.sh" "$HOME/apps/nyumatflix/scripts/deploy.sh" "$HOME/apps/nyumatflix/scripts/reconcile-prod-infra.sh" "$HOME/apps/nyumatflix/scripts/reconcile-cap.sh"'
+  ssh "$SSH_HOST" "chmod +x \"\$HOME/${REMOTE_DIR}/scripts/deploy.sh\" \"\$HOME/${REMOTE_DIR}/scripts/deploy-lib.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-prod-infra.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-cap.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-crowdsec.sh\" \"\$HOME/${REMOTE_DIR}/scripts/lock-cap-cors.sh\" \"\$HOME/${REMOTE_DIR}/scripts/update-cap-key-cors.sh\""
   ssh "$SSH_HOST" "NYUMATFLIX_ROOT=\"\$HOME/${REMOTE_DIR}\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-prod-infra.sh\" ensure"
   ssh "$SSH_HOST" "CAP_ENV_FILE=\"\$HOME/${REMOTE_DIR}/.env\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-cap.sh\" ensure"
   echo "production env synced"

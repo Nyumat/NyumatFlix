@@ -7,10 +7,11 @@ const healthMocks = vi.hoisted(() => ({
 vi.mock("@/lib/server/video-server-health", () => ({
   checkVideoServerUrl: healthMocks.check,
   isAllowedVideoServerUrl: (value: string) => value.startsWith("https://"),
+  VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE: 20,
 }));
 
-vi.mock("@/lib/cap/server", () => ({
-  requestHasCapSession: () => true,
+vi.mock("@/lib/cap/access", () => ({
+  allowsCapProtectedAccess: async () => true,
 }));
 
 import { POST } from "@/app/api/servers/health/route";
@@ -48,9 +49,22 @@ describe("server health route", () => {
     expect(healthMocks.check).toHaveBeenCalledTimes(2);
   });
 
+  it("accepts a full embed-server catalog batch", async () => {
+    const urls = Array.from(
+      { length: 14 },
+      (_, index) => `https://vidfast.pro/movie/${index + 1}`,
+    );
+    const response = await POST(makeRequest({ urls }));
+    const payload = (await response.json()) as { results: unknown[] };
+
+    expect(response.status).toBe(200);
+    expect(payload.results).toHaveLength(14);
+    expect(healthMocks.check).toHaveBeenCalledTimes(14);
+  });
+
   it("rejects oversized batches", async () => {
     const urls = Array.from(
-      { length: 13 },
+      { length: 21 },
       (_, index) => `https://vidfast.pro/movie/${index + 1}`,
     );
     const response = await POST(makeRequest({ urls }));

@@ -4,6 +4,8 @@ import { useHoverSound } from "@/components/providers/hover-sound-provider";
 import { MediaLogo, Poster } from "@/components/media/media-display";
 import { Card } from "@/components/ui/card";
 import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
+import { useOpenMediaPeek } from "@/hooks/use-open-media-peek";
+import { resolveMediaPeekTarget } from "@/lib/peek/media-peek-target";
 import useMedia from "@/hooks/useMedia";
 import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -20,8 +22,7 @@ import {
 import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
+import { type KeyboardEvent, type MouseEvent, useState } from "react";
 
 const isExternalHref = (href: string) =>
   /^https?:\/\//i.test(href) || href.includes("anilist.co");
@@ -60,6 +61,17 @@ export function PosterCard({
     link,
   );
   const playHoverSound = useHoverSound();
+  const openMediaPeek = useOpenMediaPeek();
+  const peekItem = item as Parameters<typeof resolveMediaPeekTarget>[0];
+
+  const handlePeekActivate = (event: MouseEvent | KeyboardEvent) => {
+    openMediaPeek(event, peekItem, link);
+  };
+
+  const handlePeekKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    handlePeekActivate(event);
+  };
 
   const handleIntent = () => {
     setShowBackdrop(true);
@@ -76,17 +88,19 @@ export function PosterCard({
       rel="noopener noreferrer"
     />
   ) : (
-    <Link
-      href={link}
+    <button
+      type="button"
       className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
       aria-label={`View ${title}`}
+      onClick={handlePeekActivate}
+      onKeyDown={handlePeekKeyDown}
     />
   );
 
   const playControl = isExternalHref(link) ? (
     <a
       href={link}
-      className="pointer-events-auto flex size-20 cursor-pointer items-center justify-center rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+      className="flex size-20 items-center justify-center rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
       aria-label={`View ${title}`}
       target="_blank"
       rel="noopener noreferrer"
@@ -102,12 +116,9 @@ export function PosterCard({
       />
     </a>
   ) : (
-    <Link
-      href={link}
-      className="pointer-events-auto flex size-20 cursor-pointer items-center justify-center rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-      aria-label={`View ${title}`}
-      onFocus={handleIntent}
-      onPointerEnter={schedulePrefetch}
+    <span
+      className="pointer-events-none flex size-20 items-center justify-center rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+      aria-hidden
     >
       <Icons.play
         className={cn(
@@ -116,7 +127,7 @@ export function PosterCard({
         )}
         strokeWidth={1.5}
       />
-    </Link>
+    </span>
   );
 
   if (minimal) {
@@ -153,7 +164,7 @@ export function PosterCard({
             </div>
           ) : null}
         </div>
-        {isMobileDevice ? cardLink : null}
+        {cardLink}
       </Card>
     );
   }
@@ -206,12 +217,11 @@ export function PosterCard({
       />
 
       {isInteractive ? (
-        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
           {playControl}
         </div>
-      ) : (
-        cardLink
-      )}
+      ) : null}
+      {cardLink}
 
       <div
         className={cn(

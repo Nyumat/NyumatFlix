@@ -14,10 +14,7 @@ import {
 const FeatureFlagsContext = createContext<SiteFlags | null>(null);
 
 async function fetchSiteFlags(signal?: AbortSignal): Promise<SiteFlags | null> {
-  const response = await fetch("/api/site/flags", {
-    cache: "no-store",
-    signal,
-  });
+  const response = await fetch("/api/site/flags", { signal });
   if (!response.ok) {
     return null;
   }

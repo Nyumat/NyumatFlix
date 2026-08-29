@@ -1,3 +1,4 @@
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import {
   getKitsuEpisodeThumbnails,
@@ -6,6 +7,9 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const { searchParams } = new URL(request.url);
   const anilistId = Number.parseInt(searchParams.get("anilistId") ?? "", 10);
   const tmdbShowId = Number.parseInt(searchParams.get("tmdbShowId") ?? "", 10);

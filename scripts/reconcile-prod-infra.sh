@@ -15,11 +15,13 @@ fi
 DOCKER_NETWORK="${DOCKER_NETWORK:-betterome}"
 SCRAPE_PROJECT="${SCRAPE_PROJECT:-gluetun}"
 FLIPT_PROJECT="${FLIPT_PROJECT:-nyumatflix}"
+IMGPROXY_PROJECT="${IMGPROXY_PROJECT:-nyumatflix}"
 GLUETUN_ENV_FILE="${GLUETUN_ENV_FILE:-$HOME/apps/gluetun/.env}"
 GLUETUN_SEED_ENV_FILE="${GLUETUN_SEED_ENV_FILE:-$HOME/apps/gluetun/.env.seed}"
 APP_ENV_FILE="${APP_ENV_FILE:-$HOME/apps/nyumatflix/.env}"
 SCRAPE_COMPOSE_FILE="${SCRAPE_COMPOSE_FILE:-$ROOT/docker-compose.scrape.yml}"
 FLIPT_COMPOSE_FILE="${FLIPT_COMPOSE_FILE:-$ROOT/docker-compose.ffs.yml}"
+IMGPROXY_COMPOSE_FILE="${IMGPROXY_COMPOSE_FILE:-$ROOT/docker-compose.imgproxy.yml}"
 LOCK_FILE="${INFRA_LOCK_FILE:-$ROOT/.prod-infra.lock}"
 ROTATE_COUNTRIES="${ROTATE_COUNTRIES:-Germany,Netherlands,France,United States}"
 HEALTH_WAIT_SECONDS="${INFRA_HEALTH_WAIT_SECONDS:-90}"
@@ -172,19 +174,26 @@ flipt_compose() {
     -p "$FLIPT_PROJECT" -f "$FLIPT_COMPOSE_FILE" "$@"
 }
 
+imgproxy_compose() {
+  sudo docker compose -p "$IMGPROXY_PROJECT" -f "$IMGPROXY_COMPOSE_FILE" "$@"
+}
+
 validate_compose() {
   [[ -f "$SCRAPE_COMPOSE_FILE" ]] || die "scrape compose file is missing: $SCRAPE_COMPOSE_FILE"
   [[ -f "$FLIPT_COMPOSE_FILE" ]] || die "Flipt compose file is missing: $FLIPT_COMPOSE_FILE"
+  [[ -f "$IMGPROXY_COMPOSE_FILE" ]] || die "imgproxy compose file is missing: $IMGPROXY_COMPOSE_FILE"
   scrape_compose config --quiet
   flipt_compose config --quiet
+  imgproxy_compose config --quiet
 }
 
 reconcile_container_owner() {
-  local container="$1" expected_service="$2" project service
+  local container="$1" expected_service="$2" expected_project="${3:-$SCRAPE_PROJECT}"
+  local project service
   sudo docker inspect "$container" >/dev/null 2>&1 || return 0
   project="$(sudo docker inspect "$container" --format '{{index .Config.Labels "com.docker.compose.project"}}')"
   service="$(sudo docker inspect "$container" --format '{{index .Config.Labels "com.docker.compose.service"}}')"
-  if [[ "$project" == "$SCRAPE_PROJECT" && "$service" == "$expected_service" ]]; then
+  if [[ "$project" == "$expected_project" && "$service" == "$expected_service" ]]; then
     return 0
   fi
   if [[ -z "$project" && -z "$service" ]]; then
@@ -225,11 +234,25 @@ wait_for_service_url() {
   die "$service did not become reachable at $url"
 }
 
+wait_for_imgproxy() {
+  local deadline
+  deadline=$((SECONDS + HEALTH_WAIT_SECONDS))
+  while ((SECONDS < deadline)); do
+    if curl -fsS --max-time 5 "http://127.0.0.1:9081/health" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  sudo docker logs --tail 50 nyumatflix-imgproxy >&2 || true
+  die "imgproxy did not become healthy"
+}
+
 print_status() {
   sudo docker ps -a \
     --filter name=^/gluetun$ \
     --filter name=^/flaresolverr$ \
     --filter name=^/flipt$ \
+    --filter name=^/nyumatflix-imgproxy$ \
     --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
 }
 
@@ -247,17 +270,21 @@ reconcile() {
   validate_compose
   reconcile_container_owner gluetun gluetun
   reconcile_container_owner flaresolverr flaresolverr
+  reconcile_container_owner nyumatflix-imgproxy imgproxy "$IMGPROXY_PROJECT"
 
   if [[ "$update_images" == "true" ]]; then
     scrape_compose pull
     flipt_compose pull
+    imgproxy_compose pull
   fi
 
   scrape_compose up -d
   flipt_compose up -d
+  imgproxy_compose up -d
   wait_for_gluetun
   wait_for_service_url flaresolverr http://flaresolverr:8191/
   wait_for_service_url flipt http://flipt:8080/health
+  wait_for_imgproxy
   print_status
 }
 

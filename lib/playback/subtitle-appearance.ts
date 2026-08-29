@@ -74,6 +74,143 @@ export const DEFAULT_SUBTITLE_APPEARANCE: SubtitleAppearance = {
   bottomOffset: 1,
 };
 
+export const SUBTITLE_COLOR_SWATCHES: ReadonlyArray<{
+  value: string;
+  label: string;
+}> = [
+  { value: "#ffffff", label: "White" },
+  { value: "#ffd700", label: "Yellow" },
+  { value: "#00ff00", label: "Green" },
+  { value: "#00ffff", label: "Cyan" },
+  { value: "#0000ff", label: "Blue" },
+  { value: "#ff00ff", label: "Magenta" },
+  { value: "#ff0000", label: "Red" },
+  { value: "#000000", label: "Black" },
+];
+
+export type SubtitleAppearancePreset = {
+  id: string;
+  name: string;
+  appearance: SubtitleAppearance;
+};
+
+export const SUBTITLE_APPEARANCE_PRESETS: ReadonlyArray<SubtitleAppearancePreset> =
+  [
+    {
+      id: "classic-netflix",
+      name: "Classic Netflix",
+      appearance: {
+        ...DEFAULT_SUBTITLE_APPEARANCE,
+        fontFamily: "pro-sans",
+        fontSize: 100,
+        textColor: "#ffffff",
+        textOpacity: 100,
+        textShadow: "drop-shadow",
+        textBgColor: "#000000",
+        textBgOpacity: 0,
+        displayBgOpacity: 0,
+        backdropBlur: 0,
+        borderRadius: 2,
+        paddingScale: 100,
+        baseFontScale: 4.5,
+        bottomOffset: 1,
+      },
+    },
+    {
+      id: "compact-minimal",
+      name: "Compact & Minimal",
+      appearance: {
+        ...DEFAULT_SUBTITLE_APPEARANCE,
+        fontFamily: "pro-sans",
+        fontSize: 80,
+        textColor: "#ffffff",
+        textOpacity: 100,
+        textShadow: "outline",
+        textBgColor: "#000000",
+        textBgOpacity: 60,
+        displayBgOpacity: 0,
+        backdropBlur: 6,
+        borderRadius: 4,
+        paddingScale: 75,
+        baseFontScale: 3.8,
+        bottomOffset: 2,
+      },
+    },
+    {
+      id: "yellow-anime",
+      name: "Yellow Anime",
+      appearance: {
+        ...DEFAULT_SUBTITLE_APPEARANCE,
+        fontFamily: "pro-sans",
+        fontSize: 95,
+        textColor: "#ffd700",
+        textOpacity: 100,
+        textShadow: "outline",
+        textBgColor: "#000000",
+        textBgOpacity: 0,
+        displayBgOpacity: 0,
+        backdropBlur: 0,
+        borderRadius: 2,
+        paddingScale: 90,
+        baseFontScale: 4.2,
+        bottomOffset: 1,
+      },
+    },
+    {
+      id: "high-contrast-box",
+      name: "High Contrast Box",
+      appearance: {
+        ...DEFAULT_SUBTITLE_APPEARANCE,
+        fontFamily: "mono-sans",
+        fontSize: 90,
+        textColor: "#ffffff",
+        textOpacity: 100,
+        textShadow: "none",
+        textBgColor: "#000000",
+        textBgOpacity: 90,
+        displayBgOpacity: 0,
+        backdropBlur: 0,
+        borderRadius: 4,
+        paddingScale: 100,
+        baseFontScale: 4.0,
+        bottomOffset: 2,
+      },
+    },
+  ];
+
+export const normalizeSubtitleColor = (hex: string): string =>
+  hex.trim().toLowerCase();
+
+export const resolveSubtitleColorLabel = (hex: string): string => {
+  const normalized = normalizeSubtitleColor(hex);
+  return (
+    SUBTITLE_COLOR_SWATCHES.find((swatch) => swatch.value === normalized)
+      ?.label ?? "Custom"
+  );
+};
+
+export const resolveSubtitleColorRadioValue = (hex: string): string => {
+  const normalized = normalizeSubtitleColor(hex);
+  return SUBTITLE_COLOR_SWATCHES.some((swatch) => swatch.value === normalized)
+    ? normalized
+    : "custom";
+};
+
+export const subtitleAppearancesEqual = (
+  left: SubtitleAppearance,
+  right: SubtitleAppearance,
+): boolean =>
+  (
+    Object.keys(DEFAULT_SUBTITLE_APPEARANCE) as Array<keyof SubtitleAppearance>
+  ).every((key) => left[key] === right[key]);
+
+export const resolveSubtitleAppearancePreset = (
+  appearance: SubtitleAppearance,
+): SubtitleAppearancePreset | null =>
+  SUBTITLE_APPEARANCE_PRESETS.find((preset) =>
+    subtitleAppearancesEqual(appearance, preset.appearance),
+  ) ?? null;
+
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 

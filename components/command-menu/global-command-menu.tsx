@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/command";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { loginHref } from "@/lib/auth/callback-url";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import {
   Bookmark,
@@ -22,6 +23,7 @@ import {
   LogIn,
   LogOut,
   Radio,
+  Search,
   Settings,
   ShieldOff,
   TrendingUp,
@@ -30,7 +32,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 interface NavCommandItem {
@@ -46,6 +48,7 @@ const BROWSE_ITEMS: NavCommandItem[] = [
   { label: "Anime", href: "/anime", icon: BookOpen },
   { label: "People", href: "/people", icon: Users },
   { label: "Trending", href: "/trending", icon: TrendingUp },
+  { label: "Search", href: "/search", icon: Search },
 ];
 
 const LIVE_TV_ITEM: NavCommandItem = {
@@ -76,6 +79,7 @@ const commandItemClassName = "w-full rounded-none px-4";
 export function GlobalCommandMenu() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session } = useSession();
   const flags = useFeatureFlags();
 
@@ -200,7 +204,9 @@ export function GlobalCommandMenu() {
             <CommandItem
               className={commandItemClassName}
               value="Sign in"
-              onSelect={() => runCommand(() => router.push("/login"))}
+              onSelect={() =>
+                runCommand(() => router.push(loginHref(pathname)))
+              }
             >
               <LogIn className="mr-2 h-4 w-4" />
               <span>Sign in</span>

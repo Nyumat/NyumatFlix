@@ -16,6 +16,7 @@ import {
   extractHlsProbeTargets,
   isValidHlsAssetResponse,
 } from "./validate-stream";
+import { isPoisonedHlsPlaylistBody } from "./hls-poison";
 import { isVixsrcStubPlaylistBody } from "./vixsrc-stub";
 import { decodeObfuscatedHlsBody } from "./hls-body";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
@@ -134,6 +135,10 @@ const probeHlsThroughPlaybackPath = async (
     return false;
   }
 
+  if (isPoisonedHlsPlaylistBody(body)) {
+    return false;
+  }
+
   const { childPlaylist, requiredAssets } = extractHlsProbeTargets(
     body,
     playlistUrl,
@@ -239,6 +244,10 @@ export async function probeScrapePlaybackPath(
     const body = decodeObfuscatedHlsBody(rawBody);
 
     if (isVixsrcStubPlaylistBody(resolvedUrl, body)) {
+      return false;
+    }
+
+    if (isPoisonedHlsPlaylistBody(body)) {
       return false;
     }
 

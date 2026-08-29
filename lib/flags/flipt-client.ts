@@ -235,9 +235,11 @@ export async function ensureFlagsSeeded(): Promise<void> {
   }
 }
 
-export async function readAdminFlagState(): Promise<AdminFlagState> {
+export async function readAdminFlagState(options?: {
+  skipCache?: boolean;
+}): Promise<AdminFlagState> {
   const now = Date.now();
-  if (flagCache && flagCache.expiresAt > now) {
+  if (!options?.skipCache && flagCache && flagCache.expiresAt > now) {
     return flagCache.state;
   }
   if (failureCacheExpiresAt > now) {

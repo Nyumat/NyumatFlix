@@ -9,7 +9,7 @@ import {
   normalizeAllanimeStreamUrl,
 } from "../allanime-stream-url";
 import { extractM3u8Urls, isDirectMediaUrl } from "../html-utils";
-import { resolveAnimeSearchQueries } from "../anilist-meta";
+import { resolveAnimeSearchContext } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeQuality } from "../../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
@@ -400,11 +400,12 @@ export async function scrapeAllmanga(
   const providerId = "allmanga" as const;
 
   try {
-    const expectedTitles = await resolveAnimeSearchQueries(input);
+    const { searchQueries, matchTitles } =
+      await resolveAnimeSearchContext(input);
     const mode = input.translationType === "dub" ? "dub" : "sub";
 
     let showId: string | undefined;
-    for (const query of expectedTitles) {
+    for (const query of searchQueries) {
       const searchPayload = await allanimePost<AllanimeSearchResponse>(
         SEARCH_GQL,
         {
@@ -418,7 +419,7 @@ export async function scrapeAllmanga(
 
       showId = selectAllmangaShow(
         searchPayload.data?.shows?.edges ?? [],
-        expectedTitles,
+        matchTitles,
         input.anilistId,
       )?._id;
       if (showId) {

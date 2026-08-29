@@ -52,6 +52,7 @@ import {
   isDirectTranscodeHlsUrl,
   mergeTranscodeHlsAuthConfig,
 } from "@/lib/direct/transcode-hls-auth";
+import { mergeScrapeHlsClientAuthConfig } from "@/lib/api/scrape-hls-client-auth";
 import { configureScrapeHlsInstance } from "@/lib/scrape/hls-quality";
 import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
 import { resolveActiveSubtitles } from "@/lib/scrape/linked-config";
@@ -393,12 +394,14 @@ export function ScrapeHlsPlayer({
 
       if (isHLSProvider(provider)) {
         provider.library = Hls;
-        provider.config = isDirectTranscodeHlsUrl(activePlaybackUrl)
-          ? mergeTranscodeHlsAuthConfig(
-              activePlaybackUrl,
-              SCRAPE_VOD_HLS_CONFIG,
-            )
-          : SCRAPE_VOD_HLS_CONFIG;
+        provider.config = mergeScrapeHlsClientAuthConfig(
+          isDirectTranscodeHlsUrl(activePlaybackUrl)
+            ? mergeTranscodeHlsAuthConfig(
+                activePlaybackUrl,
+                SCRAPE_VOD_HLS_CONFIG,
+              )
+            : SCRAPE_VOD_HLS_CONFIG,
+        );
         provider.onInstance((hls) => {
           configureScrapeHlsInstance(hls);
         });
@@ -732,6 +735,7 @@ export function ScrapeHlsPlayer({
         streamType="on-demand"
         playsInline
         load="eager"
+        logLevel="silent"
         onProviderChange={handleProviderChange}
         onLoadedMetadata={handleLoadedMetadata}
         onLoadedData={handleLoadedData}

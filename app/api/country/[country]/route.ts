@@ -9,6 +9,7 @@ import {
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
@@ -17,6 +18,9 @@ export async function GET(
   req: NextRequest,
   props: { params: Promise<{ country: string }> },
 ) {
+  const capDenied = await rejectUnlessCapAllowed(req);
+  if (capDenied) return capDenied;
+
   const params = await props.params;
   try {
     const { searchParams } = new URL(req.url);

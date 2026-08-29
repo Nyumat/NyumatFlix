@@ -6,6 +6,7 @@ import {
   resolveStreamReferers,
   resolveValidateStreamDepths,
 } from "@/lib/scrape/validate-stream";
+import { countHlsMediaRenditions } from "@/lib/scrape/hls-media-renditions";
 import { isTokenizedHlsMaster } from "@/lib/scrape/stream-url-patterns";
 
 describe("scrape stream validation", () => {
@@ -160,5 +161,28 @@ describe("scrape stream validation", () => {
         new Uint8Array([1, 2, 3]),
       ),
     ).toBe(true);
+  });
+});
+
+describe("countHlsMediaRenditions", () => {
+  it("counts distinct audio languages on a master playlist", () => {
+    const body = [
+      "#EXTM3U",
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="Japanese",LANGUAGE="jpn",DEFAULT=YES,URI="audio/ja.m3u8"',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",LANGUAGE="eng",URI="audio/en.m3u8"',
+      '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",URI="subs/en.m3u8"',
+    ].join("\n");
+
+    expect(countHlsMediaRenditions(body, "AUDIO")).toBe(2);
+    expect(countHlsMediaRenditions(body, "SUBTITLES")).toBe(1);
+  });
+
+  it("returns zero when the playlist has no alternate audio", () => {
+    expect(
+      countHlsMediaRenditions(
+        "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000\nindex.m3u8\n",
+        "AUDIO",
+      ),
+    ).toBe(0);
   });
 });

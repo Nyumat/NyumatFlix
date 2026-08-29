@@ -1,13 +1,14 @@
 "use client";
 
 import { MediaLogo } from "@/components/media/media-display";
+import { useOpenMediaPeek } from "@/hooks/use-open-media-peek";
 import { Icons } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { tmdbImage } from "@/tmdb/utils";
 import { isMovie, MediaItem, Movie, TvShow } from "@/lib/domain/typings";
 import { Star } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { type KeyboardEvent, type MouseEvent } from "react";
 
 export interface RankedBackdropCardProps {
   item: MediaItem;
@@ -15,6 +16,16 @@ export interface RankedBackdropCardProps {
 }
 
 export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
+  const openMediaPeek = useOpenMediaPeek();
+
+  const handlePeekActivate = (event: MouseEvent | KeyboardEvent) => {
+    openMediaPeek(event, item, itemHref);
+  };
+
+  const handlePeekKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    handlePeekActivate(event);
+  };
   const movieItem = isMovie(item) ? (item as Movie) : null;
   const tvShowItem = !isMovie(item) ? (item as TvShow) : null;
 
@@ -101,10 +112,12 @@ export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
         <Icons.play className="w-10 h-10 sm:w-12 sm:h-12 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" />
       </div>
-      <Link
-        href={itemHref}
+      <button
+        type="button"
         className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
         aria-label={`View details for ${displayTitle}`}
+        onClick={handlePeekActivate}
+        onKeyDown={handlePeekKeyDown}
       />
     </div>
   );

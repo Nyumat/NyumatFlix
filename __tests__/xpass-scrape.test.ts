@@ -5,7 +5,6 @@ import {
   extractXPassPlaylistPath,
   extractXPassPlaylistPaths,
   XPASS_PLAYABLE_CANDIDATE_BATCH,
-  XPASS_PLAYABLE_CANDIDATE_LIMIT,
 } from "@/lib/scrape/providers/xpass";
 import {
   extractXPassDataUrl,
@@ -162,8 +161,7 @@ describe("extractXPassPlaylistPath", () => {
     ]);
   });
 
-  it("races the first two ranked sources", () => {
-    expect(XPASS_PLAYABLE_CANDIDATE_LIMIT).toBe(2);
-    expect(XPASS_PLAYABLE_CANDIDATE_BATCH).toBe(2);
+  it("races ranked sources in batches", () => {
+    expect(XPASS_PLAYABLE_CANDIDATE_BATCH).toBe(3);
   });
 });

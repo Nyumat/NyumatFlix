@@ -44,13 +44,17 @@ const imageSizes = {
   original: "original",
 };
 
+import { optimizeRemoteImageUrl } from "@/lib/images/cdn-image";
+
 const url = (path: string, type: ImageSize = "original") => {
   if (!path) {
     console.error("Invalid image path provided.");
     return "/placeholder.png";
   }
-  if (/^https?:\/\//.test(path)) return path;
-  return `https://image.tmdb.org/t/p/${type}/${path.replace(/^\/+/, "")}`;
+  if (/^https?:\/\//.test(path)) return optimizeRemoteImageUrl(path);
+  return optimizeRemoteImageUrl(
+    `https://image.tmdb.org/t/p/${type}/${path.replace(/^\/+/, "")}`,
+  );
 };
 
 const poster = (path: string, size: PosterSize = "original") => {

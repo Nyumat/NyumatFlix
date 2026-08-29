@@ -1,3 +1,5 @@
+import "server-only";
+
 import { accounts, db } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import type {
@@ -89,6 +91,37 @@ export type MalAnimeDetails = {
   my_list_status?: MalMyListStatus | null;
 };
 
+export type MalRelatedAnimeNode = {
+  id: number;
+  title: string;
+  media_type?: string;
+  alternative_titles?: {
+    en?: string | null;
+    syn?: string[] | null;
+  } | null;
+  start_season?: {
+    year?: number | null;
+    season?: string | null;
+  } | null;
+};
+
+export type MalRelatedAnimeEdge = {
+  node: MalRelatedAnimeNode;
+  relation_type: string;
+};
+
+export type MalAnimeWithRelated = MalAnimeDetails & {
+  alternative_titles?: {
+    en?: string | null;
+    syn?: string[] | null;
+  } | null;
+  start_season?: {
+    year?: number | null;
+    season?: string | null;
+  } | null;
+  related_anime?: MalRelatedAnimeEdge[] | null;
+};
+
 export type MalAnimeEntry = MalAnimeDetails;
 
 /**
@@ -127,6 +160,43 @@ export async function getMalAnimeDetails(
   }
 
   return (await res.json()) as MalAnimeDetails;
+}
+
+const MAL_RELATED_FIELDS =
+  "id,title,alternative_titles,media_type,start_season,related_anime";
+
+/**
+ * Public related-anime graph for franchise fallback when AniList is rate-limited.
+ * 404 means the title does not exist. 429/5xx throw so we don't cache a truncated chain.
+ */
+export async function getMalAnimeWithRelated(
+  malId: number,
+): Promise<MalAnimeWithRelated | null> {
+  const clientId = process.env.MAL_CLIENT_ID;
+  if (!clientId) {
+    return null;
+  }
+
+  const url = new URL(`${MAL_API_BASE}/anime/${malId}`);
+  url.searchParams.set("fields", MAL_RELATED_FIELDS);
+  appendMalNsfwParam(url);
+
+  const res = await malFetch(url.toString(), {
+    headers: {
+      "X-MAL-Client-ID": clientId,
+    },
+    next: { revalidate: 3600 },
+  } as RequestInit);
+
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new MalClientError(
+      `MAL related-anime fetch returned ${res.status} for ${malId}`,
+      res.status,
+    );
+  }
+
+  return (await res.json()) as MalAnimeWithRelated;
 }
 
 /**

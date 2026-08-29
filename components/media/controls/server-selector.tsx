@@ -567,14 +567,17 @@ export function ServerSelector({
             isActive && "font-semibold",
             dimProvider && !isActive && "text-muted-foreground",
           )}
-          disabled={!onSelectScrapeProvider}
         >
           <span className="font-semibold">{provider.name}</span>
-          <ScrapeProviderStatusIcon
-            status={provider.status}
-            isActive={isActive}
-            scrapeStatus={scrapeStatus}
-          />
+          {isActive ? (
+            <Check className="h-4 w-4 text-primary" />
+          ) : (
+            <ScrapeProviderStatusIcon
+              status={provider.status}
+              isActive={isActive}
+              scrapeStatus={scrapeStatus}
+            />
+          )}
         </DropdownMenuItem>
       );
     };

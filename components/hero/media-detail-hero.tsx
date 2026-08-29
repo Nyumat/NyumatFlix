@@ -5,6 +5,7 @@ import { Episode, MediaItem } from "@/lib/domain/typings";
 import { useHeroScrapePlayback } from "@/hooks/use-hero-scrape-playback";
 import { useMediaHero } from "@/hooks/useMediaHero";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useRootTrailerAudioStore } from "@/lib/stores/root-trailer-audio-store";
 import Script from "next/script";
 import {
   useCallback,
@@ -45,6 +46,10 @@ export function MediaDetailHero({
   initialSeasonNumber,
 }: MediaDetailHeroProps) {
   const [isAmbientMuted, setIsAmbientMuted] = useState(false);
+  const peekTrailerActive = useRootTrailerAudioStore(
+    (state) => state.peekTrailerActive,
+  );
+  const effectiveAmbientMuted = isAmbientMuted || peekTrailerActive;
   const [showAmbientAudioHint, setShowAmbientAudioHint] = useState(false);
   const [isHeroHovered, setIsHeroHovered] = useState(false);
   const [isAmbientBackdropActive, setIsAmbientBackdropActive] = useState(false);
@@ -205,7 +210,7 @@ export function MediaDetailHero({
           videasyTrailerHlsUrl={videasyTrailerHlsUrl}
           videasyTrailerStatus={videasyTrailerStatus}
           onVideasyStreamError={handleVideasyStreamError}
-          isAmbientMuted={isAmbientMuted}
+          isAmbientMuted={effectiveAmbientMuted}
           onAmbientAutoplayBlocked={() => {
             if (!hasVideasyAmbientSource) {
               return;
@@ -237,7 +242,7 @@ export function MediaDetailHero({
           canPlayTrailer={canPlayTrailer}
           showAmbientMuteButton={showAmbientMuteButton}
           showAmbientAudioHint={showAmbientMuteButton && showAmbientAudioHint}
-          isAmbientMuted={isAmbientMuted}
+          isAmbientMuted={effectiveAmbientMuted}
           isHeroHovered={supportsExpandedHero && isHeroHovered}
           onDetailsMouseEnter={handleDetailsMouseEnter}
           onDetailsMouseLeave={handleDetailsMouseLeave}

@@ -1,9 +1,7 @@
 import { Episode } from "@/lib/domain/typings";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { episodeNumberForProviders } from "@/lib/tv-provider-episode";
-import { normalizeTvContentKey } from "@/lib/tv-watch-target";
 import type { MappingConfidence } from "@/lib/anime/tmdb-anilist-map";
-import { getSession } from "next-auth/react";
 import { create } from "zustand";
 import { useServerStore, isScrapeServer } from "./server-store";
 
@@ -192,36 +190,6 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       anilistGenres: mapping?.genres ?? [],
       animeCoordsStatus,
     });
-
-    if (tvShowId && seasonNumber && episode.episode_number) {
-      const progressContentId = normalizeTvContentKey(tvShowId);
-      // `tvShowId` is an AniList id (not TMDB) on `/anime/[id]` pages — pass
-      // it along separately so MAL scrobbling can still resolve a mapping.
-      const progressAnilistId = anilistId ?? defaultAnilistId;
-      getSession()
-        .then((session) => {
-          if (!session?.user?.id || progressContentId === null) {
-            return;
-          }
-
-          return fetch("/api/watchlist/progress", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              contentId: progressContentId,
-              mediaType: "tv",
-              seasonNumber,
-              episodeNumber: episode.episode_number,
-              ...(progressAnilistId ? { anilistId: progressAnilistId } : {}),
-            }),
-          });
-        })
-        .catch((error) => {
-          console.error("Error tracking watch progress:", error);
-        });
-    }
 
     if (!skipWatchCallback) {
       const { watchCallback } = get();

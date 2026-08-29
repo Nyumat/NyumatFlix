@@ -2,10 +2,12 @@ import "server-only";
 
 import { scrapeFetchText } from "./fetch";
 import { scrapeProxyUrl } from "./proxy";
+import { parseVidsrcTokenResponse } from "./providers/vidsrc";
 import type { VidsrcPlaybackRefresh } from "./vidsrc-constants";
 
 /** Rotating VidSrc CDN hosts — JWT from generate.php is bound to request egress IP. */
-export const VIDSRC_CDN_HOST_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.space$/i;
+export const VIDSRC_CDN_HOST_PATTERN =
+  /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:space|site|website)$/i;
 
 export const isVidsrcCdnHostname = (hostname: string): boolean =>
   VIDSRC_CDN_HOST_PATTERN.test(hostname);
@@ -19,18 +21,35 @@ export const buildVidsrcStreamUrl = (
 export const fetchVidsrcJwtToken = async (
   refresh: VidsrcPlaybackRefresh,
 ): Promise<string | null> => {
-  const response = await scrapeFetchText(
-    `https://${refresh.tokenHost}/generate.php`,
-    { Referer: `${refresh.playerOrigin}/` },
-  );
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1_500 * attempt);
+      });
+    }
 
-  if (response.status !== 200) {
-    return null;
+    const response = await scrapeFetchText(
+      `https://${refresh.tokenHost}/generate.php`,
+      { Referer: `${refresh.playerOrigin}/` },
+    );
+
+    if (response.status === 200) {
+      const token = parseVidsrcTokenResponse(response.text);
+      if (token) {
+        return token;
+      }
+    }
+
+    if (response.status !== 429 && response.status !== 503) {
+      return null;
+    }
   }
 
-  const token = response.text.trim();
-  return token || null;
+  return null;
 };
+
+export const isRetryableVidsrcUpstreamStatus = (status: number): boolean =>
+  status === 401 || status === 403;
 
 const templatePathKey = (masterTemplate: string): string | null => {
   try {
@@ -93,6 +112,18 @@ export const invalidateVidsrcJwtSession = (
 ): void => {
   jwtSessionCache.delete(jwtSessionKey(refresh));
 };
+
+export function primeVidsrcJwtSession(
+  refresh: VidsrcPlaybackRefresh,
+  streamUrl: string,
+): void {
+  const jwt = extractVidsrcJwtFromUrl(streamUrl);
+  if (!jwt) {
+    return;
+  }
+
+  jwtSessionCache.set(jwtSessionKey(refresh), { jwt, fetchedAt: Date.now() });
+}
 
 /**
  * Mint a fresh JWT and rebuild the master URL on the same egress that will

@@ -5,10 +5,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, SkipForward } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { buttonVariants } from "@/components/ui/button";
 import {
   findActiveIntroDbSegment,
-  isTerminalIntroDbCredit,
+  isIntroDbCloserSegment,
   type IntroDbSegment,
 } from "@/lib/playback/introdb";
 import { cn } from "@/lib/utils";
@@ -22,16 +21,16 @@ type IntroDbSegmentControlProps = {
   onAdvanceToNextEpisode?: () => Promise<boolean>;
 };
 
-const segmentShortName = (segment: IntroDbSegment): string => {
+const skipLabel = (segment: IntroDbSegment): string => {
   switch (segment.type) {
     case "intro":
-      return "Intro";
+      return "Skip Intro";
     case "recap":
-      return "Recap";
+      return "Skip Recap";
     case "preview":
-      return "Preview";
+      return "Skip Preview";
     case "credits":
-      return "Credits";
+      return "Skip Closer";
   }
 };
 
@@ -59,12 +58,13 @@ export function IntroDbSegmentControl({
   const canAdvanceEpisode =
     isTv &&
     Boolean(onAdvanceToNextEpisode) &&
-    isTerminalIntroDbCredit(activeSegment, segments);
+    isIntroDbCloserSegment(activeSegment);
   const isPending = pendingSegmentId === activeSegment.id;
-  const actionHint = canAdvanceEpisode ? "Up next" : "Skip";
-  const actionLabel = canAdvanceEpisode
-    ? "Next episode"
-    : segmentShortName(activeSegment);
+  const buttonLabel = isPending
+    ? "Next Episode"
+    : canAdvanceEpisode
+      ? "Next Episode"
+      : skipLabel(activeSegment);
 
   const handleClick = async () => {
     if (isPending) {
@@ -91,11 +91,11 @@ export function IntroDbSegmentControl({
     <AnimatePresence mode="wait">
       <motion.div
         key={activeSegment.id}
-        initial={{ opacity: 0, y: 8, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 6, scale: 0.96 }}
-        transition={{ type: "spring", stiffness: 420, damping: 30 }}
-        className="pointer-events-auto absolute bottom-20 right-4 z-40"
+        initial={{ opacity: 0, y: 10, filter: "blur(6px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        exit={{ opacity: 0, y: 6, filter: "blur(4px)" }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        className="pointer-events-auto absolute right-3 bottom-24 z-40 sm:right-5"
       >
         <button
           type="button"
@@ -103,30 +103,27 @@ export function IntroDbSegmentControl({
           disabled={isPending}
           onClick={() => void handleClick()}
           aria-label={
-            isPending
-              ? "Loading next episode"
-              : canAdvanceEpisode
-                ? "Next episode"
-                : `Skip ${segmentShortName(activeSegment).toLowerCase()}`
+            isPending ? "Loading next episode" : buttonLabel.toLowerCase()
           }
           title="Shoutout Pas % Yeb for providing me with timing data"
           className={cn(
-            buttonVariants({ variant: "chrome", size: "sm" }),
-            "h-9 gap-2 rounded-full border-white/25 bg-white/10 px-3.5 py-2 text-white shadow-lg shadow-black/25 ring-1 ring-inset ring-white/10 backdrop-blur-xl hover:border-white/35 hover:bg-white/18 hover:shadow-xl disabled:cursor-wait disabled:opacity-70",
+            "group flex h-10 items-center gap-2 rounded-md border px-3.5 text-sm font-semibold tracking-wide",
+            "border-white/75 bg-black/80 text-white shadow-[0_12px_28px_-12px_rgba(0,0,0,0.9)]",
+            "backdrop-blur-sm transition-[background-color,color,border-color,transform] duration-200",
+            "hover:scale-[1.02] hover:border-white hover:bg-white hover:text-black",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+            "active:scale-[0.98]",
+            "disabled:cursor-wait disabled:opacity-70 disabled:hover:scale-100 disabled:hover:border-white/75 disabled:hover:bg-black/80 disabled:hover:text-white",
           )}
         >
-          <span className="flex min-w-0 flex-col items-start leading-tight">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/55">
-              {isPending ? "Loading" : actionHint}
-            </span>
-            <span className="truncate text-sm font-semibold">
-              {isPending ? "Next episode" : actionLabel}
-            </span>
-          </span>
+          <span>{buttonLabel}</span>
           {isPending ? (
             <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
           ) : (
-            <SkipForward className="size-3.5 shrink-0 opacity-80" aria-hidden />
+            <SkipForward
+              className="size-3.5 shrink-0 opacity-90 transition-transform duration-200 group-hover:translate-x-0.5"
+              aria-hidden
+            />
           )}
         </button>
       </motion.div>

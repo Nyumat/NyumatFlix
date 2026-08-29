@@ -16,6 +16,7 @@ import {
 } from "@/lib/collections/layout";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { cn } from "@/lib/utils";
+import type { HomeCollectionCard } from "@/lib/cards/catalog-dto";
 import type { HomeCollection } from "@/lib/server/home-collections-data";
 import type { Movie } from "@/tmdb/models";
 import { tmdbImage } from "@/tmdb/utils";
@@ -24,7 +25,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 type CollectionShowcaseProps = {
-  collection: HomeCollection;
+  collection: HomeCollectionCard | HomeCollection;
   items: Array<Movie & { media_type: "movie" }>;
   priority?: boolean;
 };

@@ -5,7 +5,6 @@ import {
   TMDB_SCRAPE_PROVIDER_ORDER,
 } from "@/lib/providers/registry";
 import {
-  ANIME_DIRECT_RACE_LEAD,
   buildAnimePlaybackProviderOrder,
   buildGroupedAnimePlaybackProviderOptions,
   shouldIncludeTmdbPlaybackProxies,
@@ -16,11 +15,7 @@ import { shouldIncludeHentaigasmForGenres } from "@/lib/scrape/anime/hentaigasm-
 
 const filterAnimeProvidersForTest = (context: AnimePlaybackChainContext) =>
   ANIME_SCRAPE_PROVIDER_ORDER.filter((providerId) => {
-    if (
-      providerId === "hentaigasm" ||
-      providerId === "hentaini" ||
-      providerId === "anipm"
-    ) {
+    if (providerId === "hentaigasm" || providerId === "anipm") {
       return shouldIncludeHentaigasmForGenres(
         context.isAdultAnime,
         context.anilistGenres ?? [],
@@ -62,6 +57,9 @@ describe("anime-playback-chain", () => {
 
     expect(order).toContain("hentaigasm");
     expect(order).not.toContain("direct");
+    expect(order).not.toContain("hentaini");
+    expect(order).not.toContain("animepahe");
+    expect(order).not.toContain("anikuro");
     expect(order).not.toEqual(
       expect.arrayContaining([...TMDB_SCRAPE_PROVIDER_ORDER]),
     );
@@ -84,11 +82,11 @@ describe("anime-playback-chain", () => {
     });
 
     expect(order[0]).toBe("hentaigasm");
-    expect(order[1]).toBe("hentaini");
-    expect(order[2]).toBe("anipm");
+    expect(order[1]).toBe("anipm");
     expect(order).not.toContain("direct");
     expect(order).not.toContain("animegg");
     expect(order).not.toContain("animepahe");
+    expect(order).not.toContain("hentaini");
     expect(order).not.toEqual(
       expect.arrayContaining([...TMDB_SCRAPE_PROVIDER_ORDER]),
     );
@@ -104,7 +102,8 @@ describe("anime-playback-chain", () => {
     expect(order).not.toContain("hentaigasm");
     expect(order).not.toContain("anipm");
     expect(order).toContain("animegg");
-    expect(order).toContain("animepahe");
+    expect(order).not.toContain("animepahe");
+    expect(order).not.toContain("anikuro");
   });
 
   it("includes hentaigasm first when the Hentai genre is present", () => {
@@ -115,10 +114,10 @@ describe("anime-playback-chain", () => {
     });
 
     expect(order[0]).toBe("hentaigasm");
-    expect(order[1]).toBe("hentaini");
-    expect(order[2]).toBe("anipm");
+    expect(order[1]).toBe("anipm");
     expect(order).not.toContain("animegg");
     expect(order).not.toContain("animepahe");
+    expect(order).not.toContain("hentaini");
   });
 
   it("keeps multi-audio AniZone and omits sub-only AnimeOnsen for dub playback", () => {
@@ -132,15 +131,13 @@ describe("anime-playback-chain", () => {
     expect(order).toContain("anizone");
     expect(order).not.toContain("animeonsen");
     expect(order).toEqual([
-      "justanime",
-      "kyren",
-      "allmanga",
-      "animegg",
       "kickassanime",
       "anizone",
+      "allmanga",
       "animestream",
-      "animepahe",
-      "anikuro",
+      "animegg",
+      "kyren",
+      "justanime",
     ]);
   });
 
@@ -165,7 +162,7 @@ describe("anime-playback-chain", () => {
     expect(order.indexOf("kickassanime")).toBeLessThan(order.indexOf("direct"));
   });
 
-  it("races Direct after the first two anime scrapers for high-confidence shows", () => {
+  it("races all anime scrapers before Direct for high-confidence shows", () => {
     const context = {
       mappingConfidence: "high" as const,
       isAdultAnime: false,
@@ -177,18 +174,13 @@ describe("anime-playback-chain", () => {
       (providerId) => providerId !== "direct",
     );
 
-    expect(order.slice(0, ANIME_DIRECT_RACE_LEAD + 1)).toEqual([
-      animeProviders[0],
-      animeProviders[1],
-      "direct",
-    ]);
-    expect(
-      order.slice(ANIME_DIRECT_RACE_LEAD + 1, animeProviders.length + 1),
-    ).toEqual(animeProviders.slice(ANIME_DIRECT_RACE_LEAD));
+    expect(order.slice(0, animeProviders.length)).toEqual(animeProviders);
+    expect(order[animeProviders.length]).toBe("direct");
     expect(order.slice(animeProviders.length + 1)).toEqual(tmdbWithoutDirect);
+    expect(order.indexOf("kickassanime")).toBeLessThan(order.indexOf("direct"));
   });
 
-  it("still races Direct first among TMDB even if menu order puts it last", () => {
+  it("still places Direct before other TMDB scrapers when menu order puts it last", () => {
     const order = buildAnimePlaybackProviderOrder(
       {
         mappingConfidence: "high",
@@ -200,7 +192,14 @@ describe("anime-playback-chain", () => {
       },
     );
 
-    expect(order.slice(0, 3)).toEqual(["justanime", "kyren", "direct"]);
+    const animeProviders = filterAnimeProvidersForTest({
+      mappingConfidence: "high",
+      isAdultAnime: false,
+      anilistGenres: ["Action"],
+    });
+
+    expect(order.slice(0, animeProviders.length)).toEqual(animeProviders);
+    expect(order[animeProviders.length]).toBe("direct");
     expect(order).toContain("bingr");
     expect(order.indexOf("direct")).toBeLessThan(order.indexOf("bingr"));
   });
@@ -224,9 +223,9 @@ describe("anime-playback-chain", () => {
     expect(grouped.slice(0, 3).map((entry) => entry.providerId)).toEqual([
       animeProviders[0],
       animeProviders[1],
-      "direct",
+      animeProviders[2],
     ]);
-    expect(grouped[2]?.group).toBe("tmdb");
+    expect(grouped[0]?.group).toBe("anime");
   });
 
   it("groups adult options without mainstream-only providers", () => {
@@ -238,16 +237,14 @@ describe("anime-playback-chain", () => {
 
     expect(grouped.map((entry) => entry.providerId)).toEqual([
       "hentaigasm",
-      "hentaini",
       "anipm",
-      "justanime",
-      "kyren",
-      "animeonsen",
-      "allmanga",
       "kickassanime",
       "anizone",
+      "allmanga",
+      "animeonsen",
       "animestream",
-      "anikuro",
+      "kyren",
+      "justanime",
     ]);
   });
 

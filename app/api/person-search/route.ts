@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextRequest, NextResponse } from "next/server";
 
 interface KnownForItem {
@@ -57,6 +58,9 @@ interface TmdbPersonSearchResponse {
 }
 
 export async function GET(request: NextRequest) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get("query");

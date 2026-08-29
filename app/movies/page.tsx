@@ -11,6 +11,7 @@ import {
 } from "@/components/movies/movies-catalog-sections";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { pages } from "@/config/pages";
+import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import { parseMovieView, stripCatalogUiParams } from "@/lib/catalog-query";
 import { getMovieCatalogListCopy } from "@/lib/catalog-list-copy";
 import { getDiscoverCatalogCopy } from "@/lib/discover-page-copy";
@@ -52,6 +53,7 @@ export default async function MoviesCatalogPage(props: PageProps) {
   const raw = await props.searchParams;
   const sp = normalizeRouteSearchParams(raw);
   const view = parseMovieView(sp.view);
+  const layoutState = getCatalogLayoutState(sp, view);
   const { title, description } =
     getDiscoverCatalogCopy(sp, "movie") ?? getMovieCatalogListCopy(view);
   const catalogQueryParams = toCatalogQueryParams(sp);
@@ -66,15 +68,19 @@ export default async function MoviesCatalogPage(props: PageProps) {
         <ContentContainer className="relative z-10 flex w-full flex-col items-center">
           <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
             <div className="container space-y-10">
-              <QueryPageHeader
-                title={title}
-                description={description ?? ""}
-                backHref={indexHref}
-              />
+              {layoutState.isHubLayout ? (
+                <>
+                  <QueryPageHeader
+                    title={title}
+                    description={description ?? ""}
+                    backHref={indexHref}
+                  />
 
-              <Suspense fallback={<MoviesDiscoverToolbarFallback />}>
-                <MoviesDiscoverToolbarSection searchParams={sp} />
-              </Suspense>
+                  <Suspense fallback={<MoviesDiscoverToolbarFallback />}>
+                    <MoviesDiscoverToolbarSection searchParams={sp} />
+                  </Suspense>
+                </>
+              ) : null}
 
               <Suspense fallback={<CatalogDiscoverHubLoading />}>
                 <MoviesDiscoverContent

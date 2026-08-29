@@ -152,6 +152,9 @@ describe("WatchlistButton", () => {
 
     expect(mockToast.error).toHaveBeenCalledWith(
       "To add items to your watchlist, you must be logged in.",
+      expect.objectContaining({
+        action: expect.objectContaining({ label: "Sign in" }),
+      }),
     );
   });
 

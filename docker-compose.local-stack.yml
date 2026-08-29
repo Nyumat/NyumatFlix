@@ -11,6 +11,11 @@ services:
       file: docker-compose.yml
       service: flaresolverr
 
+  imgproxy:
+    extends:
+      file: docker-compose.yml
+      service: imgproxy
+
   gluetun:
     extends:
       file: scripts/gluetun/docker-compose.yml

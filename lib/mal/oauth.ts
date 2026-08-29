@@ -153,100 +153,79 @@ export async function handleMalAuthSuccess(
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + (tokens.expires_in || 2678400);
 
-  let targetUserId = currentUserId;
+  // Always resolve by the MAL provider account first. This is the single
+  // source of truth for "does this MAL account already belong to someone".
+  // Doing this before branching on `currentUserId` avoids ever creating a
+  // second `accounts` row for a MAL profile that's already linked elsewhere.
+  const [existingMalAccount] = await db
+    .select()
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.provider, "myanimelist"),
+        eq(accounts.providerAccountId, providerAccountId),
+      ),
+    )
+    .limit(1);
 
-  if (!targetUserId) {
-    // Check if an account already exists with this MAL providerAccountId
-    const [existingAccount] = await db
-      .select()
-      .from(accounts)
+  let targetUserId: string;
+
+  if (existingMalAccount) {
+    // This MAL account is already connected to a NyumatFlix account
+    // (possibly the current session, possibly not). Either way, we don't
+    // touch that account's data beyond refreshing tokens — we just connect
+    // the session to the account that already owns this MAL link.
+    targetUserId = existingMalAccount.userId;
+    await db
+      .update(accounts)
+      .set({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_at: expiresAt,
+      })
       .where(
         and(
           eq(accounts.provider, "myanimelist"),
           eq(accounts.providerAccountId, providerAccountId),
         ),
-      )
-      .limit(1);
-
-    if (existingAccount) {
-      targetUserId = existingAccount.userId;
-      // Update tokens
-      await db
-        .update(accounts)
-        .set({
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_at: expiresAt,
-        })
-        .where(
-          and(
-            eq(accounts.provider, "myanimelist"),
-            eq(accounts.providerAccountId, providerAccountId),
-          ),
-        );
-    } else {
-      // Create new user for this MAL profile
-      const newUserId = crypto.randomUUID();
-      await db.insert(users).values({
-        id: newUserId,
-        name: profile.name,
-        email: null,
-        image: profile.picture ?? null,
-      });
-
-      await db.insert(accounts).values({
-        userId: newUserId,
-        type: "oauth",
-        provider: "myanimelist",
-        providerAccountId,
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expires_at: expiresAt,
-        token_type: tokens.token_type,
-      });
-
-      targetUserId = newUserId;
-    }
+      );
+  } else if (currentUserId) {
+    // No one owns this MAL account yet, and the user is already signed in
+    // (e.g. connecting from Settings) — link it to their current account.
+    targetUserId = currentUserId;
+    await db.insert(accounts).values({
+      userId: targetUserId,
+      type: "oauth",
+      provider: "myanimelist",
+      providerAccountId,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: expiresAt,
+      token_type: tokens.token_type,
+    });
   } else {
-    // Link MAL account to existing authenticated user
-    const [existingAccount] = await db
-      .select()
-      .from(accounts)
-      .where(
-        and(
-          eq(accounts.userId, targetUserId),
-          eq(accounts.provider, "myanimelist"),
-        ),
-      )
-      .limit(1);
+    // No one owns this MAL account, and there's no active session — create
+    // a brand-new NyumatFlix account for it (sign-up via MAL).
+    const newUserId = crypto.randomUUID();
+    await db.insert(users).values({
+      id: newUserId,
+      name: profile.name,
+      email: null,
+      image: profile.picture ?? null,
+    });
 
-    if (existingAccount) {
-      await db
-        .update(accounts)
-        .set({
-          providerAccountId,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_at: expiresAt,
-        })
-        .where(
-          and(
-            eq(accounts.userId, targetUserId),
-            eq(accounts.provider, "myanimelist"),
-          ),
-        );
-    } else {
-      await db.insert(accounts).values({
-        userId: targetUserId,
-        type: "oauth",
-        provider: "myanimelist",
-        providerAccountId,
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expires_at: expiresAt,
-        token_type: tokens.token_type,
-      });
-    }
+    await db.insert(accounts).values({
+      userId: newUserId,
+      type: "oauth",
+      provider: "myanimelist",
+      providerAccountId,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: expiresAt,
+      token_type: tokens.token_type,
+    });
+
+    targetUserId = newUserId;
   }
 
   // auth.ts uses `session: { strategy: "jwt" }`, so the session cookie must

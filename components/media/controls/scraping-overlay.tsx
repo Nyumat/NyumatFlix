@@ -65,11 +65,17 @@ export function ScrapingOverlay({
         <div className="max-h-80 w-full space-y-1 overflow-y-auto scrollbar-hidden">
           <div className="mx-auto flex w-fit flex-col">
             {scrapeItems.map((item) => {
-              const isActive = item.providerId === activeProviderId;
+              const isActive =
+                item.providerId === activeProviderId ||
+                item.status === "pending";
               return (
                 <div
                   key={item.providerId}
-                  ref={isActive ? activeRowRef : undefined}
+                  ref={
+                    item.providerId === activeProviderId
+                      ? activeRowRef
+                      : undefined
+                  }
                 >
                   <ScrapeSourceRow
                     id={item.providerId}

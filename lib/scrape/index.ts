@@ -1,13 +1,12 @@
 import { attachSubtitlesToQualities } from "./linked-config";
 import { scrapeVideasy } from "./providers/videasy";
 import { scrapeVidKing } from "./providers/vidking";
-import { scrapeVidNest } from "./providers/vidnest";
 import { scrapeVidSrc } from "./providers/vidsrc";
-import { scrapeVixsrc } from "./providers/vixsrc";
 import { scrapeVidrock } from "./providers/vidrock";
 import { scrapeBingr } from "./providers/bingr";
 import { scrapeDirect } from "./providers/direct";
 import { scrapeXPass } from "./providers/xpass";
+import { attachHlsTrackCapabilities } from "./hls-track-capabilities";
 import { probeScrapePlaybackPath } from "./playback-probe";
 import { fetchScrapeFallbackSubtitles } from "./subtitles";
 import type { ScrapeMediaInput, ScrapeProviderId, ScrapeResult } from "./types";
@@ -25,10 +24,8 @@ const SCRAPERS: Record<
   direct: scrapeDirect,
   videasy: scrapeVideasy,
   vidking: scrapeVidKing,
-  vidnest: scrapeVidNest,
   vidsrc: scrapeVidSrc,
   "2embed": scrapeXPass,
-  vixsrc: scrapeVixsrc,
   vidrock: scrapeVidrock,
   bingr: scrapeBingr,
 };
@@ -109,7 +106,19 @@ export async function scrapeProvider(
     next = { ...next, qualities };
   }
 
-  return next;
+  const withTrackCounts = await attachHlsTrackCapabilities({
+    streamUrl: next.streamUrl,
+    streamKind,
+    referer: next.referer,
+    nativeAudioTrackCount: next.nativeAudioTrackCount,
+    nativeSubtitleTrackCount: next.nativeSubtitleTrackCount,
+  });
+
+  return {
+    ...next,
+    nativeAudioTrackCount: withTrackCounts.nativeAudioTrackCount,
+    nativeSubtitleTrackCount: withTrackCounts.nativeSubtitleTrackCount,
+  };
 }
 
 export async function scrapeAllProviders(

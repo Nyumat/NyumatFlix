@@ -22,7 +22,10 @@ import {
   isRetryableVidKingUpstreamStatus,
   resolveScrapePlaybackUpstreamUrl,
 } from "@/lib/scrape/vidking-playback";
-import { invalidateVidsrcJwtSession } from "@/lib/scrape/vidsrc-playback";
+import {
+  invalidateVidsrcJwtSession,
+  isRetryableVidsrcUpstreamStatus,
+} from "@/lib/scrape/vidsrc-playback";
 import {
   invalidateVixsrcSession,
   isRetryableVixsrcUpstreamStatus,
@@ -131,7 +134,7 @@ export async function GET(request: Request, context: RouteContext) {
     if (
       !upstream.ok &&
       isVidsrcPlaybackRefresh(playback.refresh) &&
-      upstream.status === 403
+      isRetryableVidsrcUpstreamStatus(upstream.status)
     ) {
       await cancelResponseBody(upstream);
       invalidateVidsrcJwtSession(playback.refresh);

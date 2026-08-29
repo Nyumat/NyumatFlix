@@ -72,7 +72,10 @@ describe("middleware", () => {
 
     const raced = await Promise.race([
       middleware(
-        new NextRequest("http://localhost:3000/api/scrape", { method: "POST" }),
+        new NextRequest("http://localhost:3000/api/scrape", {
+          method: "POST",
+          headers: { "x-nyumat-client": "1" },
+        }),
       ).then((response) => ({
         kind: "done" as const,
         status: response.status,

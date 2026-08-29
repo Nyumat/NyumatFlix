@@ -1,3 +1,4 @@
+import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextResponse } from "next/server";
 
 import { getSiteFlags } from "@/lib/flags/site-flags";
@@ -20,6 +21,9 @@ const resolveGuideMode = (request: Request) => {
 };
 
 export async function GET(request: Request) {
+  const capDenied = await rejectUnlessCapAllowed(request);
+  if (capDenied) return capDenied;
+
   const flags = await getSiteFlags();
   if (!flags.liveTvEnabled) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -16,17 +16,18 @@ sync_reconciler() {
   rsync -avz \
     "$ROOT/docker-compose.scrape.yml" \
     "$ROOT/docker-compose.ffs.yml" \
+    "$ROOT/docker-compose.imgproxy.yml" \
     "$ROOT/scripts/prod-env-managed-keys.txt" \
-    "$SSH_HOST:~/apps/nyumatflix/scripts/"
+    "$SSH_HOST:~/apps/nyumatflix/"
   rsync -avz \
     "$ROOT/scripts/reconcile-prod-infra.sh" \
     "$ROOT/scripts/deploy.sh" \
+    "$ROOT/scripts/deploy-lib.sh" \
     "$SSH_HOST:~/apps/nyumatflix/scripts/"
-  rsync -avz "$ROOT/scripts/deploy.sh" "$SSH_HOST:~/apps/nyumatflix/deploy.sh"
   if [[ -d "$ROOT/flipt" ]]; then
     rsync -avz "$ROOT/flipt/" "$SSH_HOST:~/apps/nyumatflix/flipt/"
   fi
-  ssh "$SSH_HOST" 'chmod +x "$HOME/apps/nyumatflix/scripts/deploy.sh" "$HOME/apps/nyumatflix/scripts/reconcile-prod-infra.sh"'
+  ssh "$SSH_HOST" 'chmod +x "$HOME/apps/nyumatflix/scripts/deploy.sh" "$HOME/apps/nyumatflix/scripts/deploy-lib.sh" "$HOME/apps/nyumatflix/scripts/reconcile-prod-infra.sh"'
 }
 
 upload_vpn_seed() {

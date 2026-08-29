@@ -10,6 +10,7 @@ import {
   type TrailerPickRow,
 } from "@/lib/select-primary-trailer-video";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useRootTrailerAudioStore } from "@/lib/stores/root-trailer-audio-store";
 import { isScrapeServer, useServerStore } from "@/lib/stores/server-store";
 import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
 import { useValidatedHeroBackdrop } from "@/hooks/use-validated-hero-backdrop";
@@ -96,6 +97,9 @@ export function HeroBackground({
   scrapePlayback,
 }: HeroBackgroundProps) {
   const { getEmbedUrl } = useEpisodeStore();
+  const peekTrailerActive = useRootTrailerAudioStore(
+    (state) => state.peekTrailerActive,
+  );
   const { selectedServer, vidnestContentType, animePreference } =
     useServerStore();
 
@@ -382,6 +386,20 @@ export function HeroBackground({
     };
   }, [isPlayingTrailer, selectedTrailer?.key, setYoutubePlayer]);
 
+  useEffect(() => {
+    const player = youtubePlayerRef.current;
+    if (!player) return;
+
+    if (peekTrailerActive) {
+      player.mute?.();
+      return;
+    }
+
+    if (isPlayingTrailer) {
+      player.unMute?.();
+    }
+  }, [peekTrailerActive, isPlayingTrailer, youtubePlayer]);
+
   const switchTrailer = (direction: "next" | "previous") => {
     if (!canSwitchTrailers) return;
     const existing = youtubePlayerRef.current;
@@ -505,6 +523,7 @@ export function HeroBackground({
                       mp4Url={videasyTrailerUrl}
                       hlsUrl={videasyTrailerHlsUrl}
                       playback="controls"
+                      isMuted={peekTrailerActive}
                       onEnded={onTrailerEnded}
                       onError={onVideasyStreamError}
                       className="h-full w-full object-contain"

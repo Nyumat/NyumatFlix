@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/api/cap-route-guard", () => ({
+  rejectUnlessCapAllowed: vi.fn(async () => null),
+}));
+
 import { GET } from "@/app/api/introdb/segments/route";
+import { GET as GET_MEDIA } from "@/app/api/introdb/media/route";
 
 const originalFetch = global.fetch;
 
@@ -83,5 +88,50 @@ describe("IntroDB.app proxy", () => {
 
     expect(response.status).toBe(404);
     expect(response.headers.get("cache-control")).toContain("s-maxage=86400");
+  });
+});
+
+describe("TheIntroDB media proxy", () => {
+  it("rejects invalid lookup parameters without contacting upstream", async () => {
+    global.fetch = vi.fn();
+
+    const response = await GET_MEDIA(
+      new Request(
+        "http://localhost/api/introdb/media?tmdb_id=bad&duration_ms=1000",
+      ),
+    );
+
+    expect(response.status).toBe(400);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty, cacheable media response when upstream misses", async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 404 }));
+
+    const response = await GET_MEDIA(
+      new Request(
+        "http://localhost/api/introdb/media?tmdb_id=1744462&duration_ms=1610067",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("s-maxage=86400");
+    expect(await response.json()).toEqual({
+      tmdb_id: 1_744_462,
+      type: "movie",
+      intro: [],
+      recap: [],
+      credits: [],
+      preview: [],
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.theintrodb.org/v3/media?tmdb_id=1744462&duration_ms=1610067",
+      expect.objectContaining({
+        headers: { Accept: "application/json" },
+        next: { revalidate: 86_400 },
+      }),
+    );
   });
 });

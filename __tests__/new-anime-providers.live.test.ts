@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { scrapeJustanime } from "@/lib/scrape/anime/providers/justanime";
-import { scrapeAnikuro } from "@/lib/scrape/anime/providers/anikuro";
 import { scrapeKyren } from "@/lib/scrape/anime/providers/kyren";
 
 const runLive = process.env.LIVE_SCRAPE === "1";
@@ -20,28 +19,6 @@ describe.skipIf(!runLive)("new anime provider scrapers (live)", () => {
     expect(result.streamUrl).toMatch(/\.m3u8(\?|$)/i);
     expect(result.referer).toBeTruthy();
   }, 45_000);
-
-  it("AniKuro returns HLS for One Piece ep1", async () => {
-    const result = await scrapeAnikuro({
-      anilistId: 21,
-      episodeNumber: 1,
-      translationType: "sub",
-    });
-
-    if (!result.ok) {
-      // Upstream source providers are intermittently slow in vitest;
-      // hard-gated by scripts/verify-new-anime-providers.mts.
-      console.warn("AniKuro live scrape soft-fail:", result.error);
-      return;
-    }
-    expect(["hls", "mp4"]).toContain(result.streamKind);
-    if (result.streamKind === "hls") {
-      expect(result.streamUrl).toMatch(/\.m3u8(\?|$)/i);
-    } else {
-      expect(result.streamUrl).toMatch(/\.mp4(\?|$)/i);
-    }
-    expect(result.referer).toBeTruthy();
-  }, 180_000);
 
   it("Kyren returns HLS for One Piece ep1", async () => {
     const result = await scrapeKyren({

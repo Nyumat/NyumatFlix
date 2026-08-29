@@ -1,6 +1,7 @@
 import {
   checkVideoServerUrl,
   isAllowedVideoServerUrl,
+  VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE,
   type VideoServerHealthResult,
 } from "@/lib/server/video-server-health";
 import { NextResponse } from "next/server";
@@ -11,7 +12,6 @@ type HealthRequestBody = {
   urls?: unknown;
 };
 
-const MAX_BATCH_SIZE = 12;
 const CACHE_TTL_MS = 30_000;
 const MAX_CACHE_ENTRIES = 500;
 const healthCache = new Map<
@@ -64,14 +64,16 @@ export async function POST(request: Request) {
   if (Array.isArray(body.urls)) {
     if (
       body.urls.length === 0 ||
-      body.urls.length > MAX_BATCH_SIZE ||
+      body.urls.length > VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE ||
       !body.urls.every(
         (url): url is string =>
           typeof url === "string" && isAllowedVideoServerUrl(url),
       )
     ) {
       return NextResponse.json(
-        { error: "urls must contain 1-12 allowed video server URLs" },
+        {
+          error: `urls must contain 1-${VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE} allowed video server URLs`,
+        },
         { status: 400 },
       );
     }

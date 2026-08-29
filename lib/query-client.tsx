@@ -41,6 +41,13 @@ function getQueryClient() {
   return browserQueryClient;
 }
 
+export const cancelBrowserQueries = (): void => {
+  if (isServer) {
+    return;
+  }
+  void getQueryClient().cancelQueries();
+};
+
 function getPersister() {
   if (isServer || IS_DEV) return undefined;
   if (!persister) persister = createIDBPersister();
@@ -65,7 +72,17 @@ export function QueryProvider({ children }: QueryProviderProps) {
 
   if (!idbPersister) {
     return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        {IS_DEV && isMounted ? (
+          <ReactQueryDevtools
+            hideDisabledQueries={true}
+            theme="dark"
+            initialIsOpen={false}
+            buttonPosition="bottom-right"
+          />
+        ) : null}
+      </QueryClientProvider>
     );
   }
 
@@ -79,14 +96,14 @@ export function QueryProvider({ children }: QueryProviderProps) {
       }}
     >
       {children}
-      {isMounted && (
+      {IS_DEV && isMounted ? (
         <ReactQueryDevtools
           hideDisabledQueries={true}
           theme="dark"
           initialIsOpen={false}
           buttonPosition="bottom-right"
         />
-      )}
+      ) : null}
     </PersistQueryClientProvider>
   );
 }

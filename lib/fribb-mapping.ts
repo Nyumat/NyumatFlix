@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   FRIBB_BUNDLED_FILE,
   readBundledJson,

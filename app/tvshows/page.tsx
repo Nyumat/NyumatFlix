@@ -1,4 +1,5 @@
 import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
+import { slimMediaItemsForRsc, toHeroTvRefs } from "@/lib/cards/catalog-dto";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
@@ -173,10 +174,12 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                   description={description}
                   genres={genres}
                   providers={providers}
-                  items={shows.map((s) => ({
-                    ...s,
-                    media_type: "tv" as const,
-                  }))}
+                  items={slimMediaItemsForRsc(
+                    shows.map((s) => ({
+                      ...s,
+                      media_type: "tv" as const,
+                    })),
+                  )}
                   currentPage={currentPage}
                   totalPages={totalPages}
                   queryParams={catalogQueryParams}
@@ -242,8 +245,11 @@ export default async function TvShowsCatalogPage(props: PageProps) {
         ),
       ]);
 
-    const hubGridItems: MediaItem[] = filterUnseenById(shows, hubSeen).map(
-      (s) => ({ ...s, media_type: "tv" as const }),
+    const hubGridItems: MediaItem[] = slimMediaItemsForRsc(
+      filterUnseenById(shows, hubSeen).map((s) => ({
+        ...s,
+        media_type: "tv" as const,
+      })),
     );
 
     return (
@@ -289,7 +295,9 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                     type="tv"
                     title="Trending"
                     link={pages.trending.tv.link}
-                    items={hubTrendingCarouselEnriched as TvShowWithMediaType[]}
+                    items={slimMediaItemsForRsc(
+                      hubTrendingCarouselEnriched as TvShowWithMediaType[],
+                    )}
                   />
                 </Suspense>
               ) : null}
@@ -298,7 +306,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                 <Suspense fallback={<CatalogHeroPairFallback />}>
                   <div className="grid gap-4 md:grid-cols-2">
                     <TvHero
-                      tvShows={hubTrendingHeroPair}
+                      tvShows={toHeroTvRefs(hubTrendingHeroPair)}
                       label="Trending now"
                       count={2}
                       pick="first"
@@ -312,10 +320,12 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                   <ContentRow
                     variant="ranked"
                     title="Top Rated"
-                    items={hubTopPicksRow.map((s) => ({
-                      ...s,
-                      media_type: "tv" as const,
-                    }))}
+                    items={slimMediaItemsForRsc(
+                      hubTopPicksRow.map((s) => ({
+                        ...s,
+                        media_type: "tv" as const,
+                      })),
+                    )}
                     href={pages.tv.topRated.link}
                   />
                 </Suspense>
@@ -327,7 +337,9 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                     type="tv"
                     title="Popular"
                     link={pages.tv.popular.discoverHubLink}
-                    items={hubPopularCarouselEnriched as TvShowWithMediaType[]}
+                    items={slimMediaItemsForRsc(
+                      hubPopularCarouselEnriched as TvShowWithMediaType[],
+                    )}
                   />
                 </Suspense>
               ) : null}
@@ -336,7 +348,7 @@ export default async function TvShowsCatalogPage(props: PageProps) {
                 <Suspense fallback={<CatalogHeroPairFallback />}>
                   <div className="grid gap-4 md:grid-cols-2">
                     <TvHero
-                      tvShows={hubPopularHeroPair}
+                      tvShows={toHeroTvRefs(hubPopularHeroPair)}
                       label="Popular now"
                       count={2}
                       pick="first"
@@ -394,10 +406,12 @@ export default async function TvShowsCatalogPage(props: PageProps) {
   const shows = filterReleasedTvShows(showsRaw);
 
   const providers = providerResponse.results ?? [];
-  const tvItems: MediaItem[] = shows.map((s) => ({
-    ...s,
-    media_type: "tv" as const,
-  }));
+  const tvItems: MediaItem[] = slimMediaItemsForRsc(
+    shows.map((s) => ({
+      ...s,
+      media_type: "tv" as const,
+    })),
+  );
 
   return (
     <div className="flex w-full flex-col">

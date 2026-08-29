@@ -1,4 +1,5 @@
 import { isFfsHost } from "@/lib/ffs/require-ffs-host";
+import { apiRequestGuardResponse } from "@/lib/api/request-guard";
 import { DEFAULT_FLAG_VALUES } from "@/lib/flags/flag-catalog";
 import { resolveSiteFlags } from "@/lib/flags/site-flags";
 import {
@@ -34,6 +35,12 @@ const LEGACY_MOVIE_DETAIL_TAB_SEGMENTS = new Set([
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const apiGuardResponse = apiRequestGuardResponse(request);
+  if (apiGuardResponse) {
+    return apiGuardResponse;
+  }
+
   const host = request.headers.get("host");
   const ffsHost = isFfsHost(host);
 

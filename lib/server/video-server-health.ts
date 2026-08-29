@@ -1,7 +1,14 @@
 import { scrapePreferProxyHostname } from "@/lib/scrape/proxy-hosts";
 import { scrapeProxyDispatcher, scrapeProxyUrl } from "@/lib/scrape/proxy";
+import {
+  VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE,
+  VIDEO_SERVER_HEALTH_TIMEOUT_MS,
+} from "@/lib/video-server-health/constants";
 
-export const VIDEO_SERVER_HEALTH_TIMEOUT_MS = 4_000;
+export {
+  VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE,
+  VIDEO_SERVER_HEALTH_TIMEOUT_MS,
+} from "@/lib/video-server-health/constants";
 
 const ALLOWED_VIDEO_SERVER_HOSTS = new Set([
   "vsembed.ru",

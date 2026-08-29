@@ -1,3 +1,6 @@
+/** Keep in sync with @cap.js/widget WASM_VERSION. */
+export const CAP_WASM_CDN_VERSION = "0.0.7";
+
 export const CAP_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export const CAP_SESSION_CLIENT_SAFETY_WINDOW_MS =

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildMalScrobblePayload } from "@/lib/mal/scrobble-payload";
 import {
   mapMalStatusToWatchlistStatus,
   mapWatchlistStatusToMalStatus,
@@ -24,5 +25,46 @@ describe("MyAnimeList status mappings", () => {
     expect(mapWatchlistStatusToMalStatus("watching")).toBe("watching");
     expect(mapWatchlistStatusToMalStatus("on_hold")).toBe("on_hold");
     expect(mapWatchlistStatusToMalStatus("dropped")).toBe("dropped");
+  });
+});
+
+describe("MAL scrobble payload", () => {
+  it("does not mark the current episode watched until it is completed", () => {
+    expect(
+      buildMalScrobblePayload({
+        episodeNumber: 1,
+        episodeCompleted: false,
+        currentListStatus: null,
+      }),
+    ).toEqual({ status: "watching" });
+  });
+
+  it("moves plan-to-watch to watching without incrementing episode count", () => {
+    expect(
+      buildMalScrobblePayload({
+        episodeNumber: 1,
+        currentListStatus: { status: "plan_to_watch", num_episodes_watched: 0 },
+      }),
+    ).toEqual({ status: "watching" });
+  });
+
+  it("increments watched episodes only after the episode is completed", () => {
+    expect(
+      buildMalScrobblePayload({
+        episodeNumber: 1,
+        episodeCompleted: true,
+        currentListStatus: { status: "watching", num_episodes_watched: 0 },
+      }),
+    ).toEqual({ num_episodes_watched: 1 });
+  });
+
+  it("does not decrease an existing MAL episode count", () => {
+    expect(
+      buildMalScrobblePayload({
+        episodeNumber: 1,
+        episodeCompleted: true,
+        currentListStatus: { status: "watching", num_episodes_watched: 4 },
+      }),
+    ).toEqual({});
   });
 });

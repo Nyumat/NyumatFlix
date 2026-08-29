@@ -17,6 +17,8 @@ import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import {
   formatTvWatchLabel,
   isSameTvWatchTarget,
+  isTvWatchlistResume,
+  isTvPlaybackResume,
   resolveTvWatchTarget,
 } from "@/lib/tv-watch-target";
 import { cn } from "@/lib/utils";
@@ -84,13 +86,7 @@ export function HeroButtons({
   const [movieButtonLabel, setMovieButtonLabel] = useState<"Play" | "Resume">(
     "Play",
   );
-
-  useEffect(() => {
-    if (mediaType !== "movie") {
-      return;
-    }
-    setMovieButtonLabel(movieWatchButtonLabel(contentId));
-  }, [contentId, mediaType]);
+  const [tvPlaybackResume, setTvPlaybackResume] = useState(false);
 
   const watchTarget =
     mediaType === "tv"
@@ -102,6 +98,30 @@ export function HeroButtons({
           initialSeasonNumber,
         )
       : null;
+  const tvResume =
+    watchTarget != null &&
+    (isTvWatchlistResume(watchTarget, watchlistItem) || tvPlaybackResume);
+
+  useEffect(() => {
+    if (mediaType !== "movie") {
+      return;
+    }
+    setMovieButtonLabel(movieWatchButtonLabel(contentId));
+  }, [contentId, mediaType]);
+
+  useEffect(() => {
+    if (mediaType !== "tv" || !watchTarget) {
+      setTvPlaybackResume(false);
+      return;
+    }
+    setTvPlaybackResume(isTvPlaybackResume(watchTarget, contentId));
+  }, [
+    contentId,
+    mediaType,
+    watchTarget,
+    watchlistItem?.lastWatchedEpisode,
+    watchlistItem?.lastWatchedSeason,
+  ]);
 
   const showEpisodeList = () => {
     const id = resolveTvDetailRouteId(pathname, contentId);
@@ -272,7 +292,9 @@ export function HeroButtons({
     }
     if (mediaType === "tv") {
       if (watchTarget) {
-        return formatTvWatchLabel(watchTarget);
+        return formatTvWatchLabel(watchTarget, undefined, {
+          resume: tvResume,
+        });
       }
       return "Episodes";
     }

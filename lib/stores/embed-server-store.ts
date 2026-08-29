@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { fetchWithCapSession } from "@/lib/cap/client";
+import { VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE } from "@/lib/video-server-health/constants";
 import {
   buildHentainiAnimeUrl,
   buildVidnestAnimePaheUrl,
@@ -88,6 +89,38 @@ type ServerHealthResponse = {
 
 type ServerHealthBatchResponse = {
   results?: ServerHealthResponse[];
+};
+
+const chunkUrls = (urls: string[], size: number): string[][] => {
+  const batches: string[][] = [];
+  for (let index = 0; index < urls.length; index += size) {
+    batches.push(urls.slice(index, index + size));
+  }
+  return batches;
+};
+
+const fetchServerHealthResults = async (
+  urls: string[],
+): Promise<ServerHealthResponse[]> => {
+  const batches = chunkUrls(urls, VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE);
+  const batchResults = await Promise.all(
+    batches.map(async (batch) => {
+      const response = await fetchWithCapSession("/api/servers/health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: batch }),
+      });
+      if (!response.ok) return null;
+      const payload = (await response.json()) as ServerHealthBatchResponse;
+      return payload.results ?? [];
+    }),
+  );
+
+  if (batchResults.some((results) => results === null)) {
+    return [];
+  }
+
+  return batchResults.flatMap((results) => results ?? []);
 };
 
 const availabilityKeyFor = (
@@ -211,18 +244,11 @@ export const useEmbedServerStore = create<EmbedServerState>()(
 
         let healthResults: ServerHealthResponse[] = [];
         try {
-          const response = await fetchWithCapSession("/api/servers/health", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              urls: checks.map(({ url }) => url).filter(Boolean),
-            }),
-          });
-          if (response.ok) {
-            const payload =
-              (await response.json()) as ServerHealthBatchResponse;
-            healthResults = payload.results ?? [];
-          }
+          healthResults = await fetchServerHealthResults(
+            checks
+              .map(({ url }) => url)
+              .filter((url): url is string => Boolean(url)),
+          );
         } catch {
           void 0;
         }

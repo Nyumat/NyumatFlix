@@ -6,8 +6,12 @@ import {
   DEFAULT_SUBTITLE_APPEARANCE,
   isDefaultSubtitleAppearance,
   mergeSubtitleAppearance,
+  resolveSubtitleAppearancePreset,
+  resolveSubtitleColorLabel,
+  resolveSubtitleColorRadioValue,
   resolveSubtitleFontFamily,
   resolveSubtitleTextShadow,
+  SUBTITLE_APPEARANCE_PRESETS,
 } from "@/lib/playback/subtitle-appearance";
 import {
   getSubtitleAppearance,
@@ -72,6 +76,38 @@ describe("subtitle appearance", () => {
         fontSize: 90,
       }),
     ).toBe(false);
+  });
+
+  test("matches named presets and falls back to custom", () => {
+    const yellowAnime = SUBTITLE_APPEARANCE_PRESETS.find(
+      (preset) => preset.id === "yellow-anime",
+    );
+    expect(yellowAnime).toBeDefined();
+    expect(resolveSubtitleAppearancePreset(yellowAnime!.appearance)?.id).toBe(
+      "yellow-anime",
+    );
+    expect(resolveSubtitleAppearancePreset(DEFAULT_SUBTITLE_APPEARANCE)).toBe(
+      null,
+    );
+  });
+
+  test("labels known swatches and custom colors", () => {
+    expect(resolveSubtitleColorLabel("#FFD700")).toBe("Yellow");
+    expect(resolveSubtitleColorRadioValue("#ffd700")).toBe("#ffd700");
+    expect(resolveSubtitleColorLabel("#abc123")).toBe("Custom");
+    expect(resolveSubtitleColorRadioValue("#abc123")).toBe("custom");
+  });
+
+  test("applying a preset replaces a dirty appearance", () => {
+    const dirty = {
+      ...DEFAULT_SUBTITLE_APPEARANCE,
+      fontSize: 150,
+      textColor: "#ff0000",
+    };
+    const preset = SUBTITLE_APPEARANCE_PRESETS[0];
+    expect(preset).toBeDefined();
+    const applied = mergeSubtitleAppearance(dirty, preset!.appearance);
+    expect(resolveSubtitleAppearancePreset(applied)?.id).toBe(preset!.id);
   });
 });
 
