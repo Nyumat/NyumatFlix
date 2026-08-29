@@ -50,8 +50,11 @@ certificates
 # script caches
 scripts/.cache/
 
-# vendored calluspirates shared (synced at build)
-/packages/calluspirates-shared/
+# vendored calluspirates shared (synced locally via scripts/sync-calluspirates-shared.sh)
+# packages/calluspirates-shared is committed for CI and Docker builds
+
+# local movi player checkout (prepared by scripts/prepare-movi-player.mjs)
+/packages/player/
 
 # local notes
 SCRAPING.md
