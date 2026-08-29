@@ -1,5 +1,9 @@
 import { getCachedAnilistTvAboveFoldDetail } from "@/lib/anilist-tv-detail";
 import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
+import {
+  getCachedMovieDetail,
+  getCachedTvShowDetail,
+} from "@/lib/media-detail-cache";
 import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
 import {
   type MediaAboveFoldDetail,
@@ -143,10 +147,39 @@ export const getCachedMediaAboveFoldDetail = cache(
   },
 );
 
-export const getCachedMovieAboveFoldDetail = (id: string) =>
-  getCachedMediaAboveFoldDetail("movie", id);
+export const getCachedMovieAboveFoldDetail = async (id: string) => {
+  const detail = await getCachedMovieDetail(id);
+  if (!detail || !("title" in detail)) {
+    return null;
+  }
+  return toAboveFoldDetail(
+    {
+      ...detail,
+      images: detail.images,
+      videos: detail.videos,
+      release_dates: detail.release_dates,
+    } as RawAboveFoldDetail,
+    "movie",
+  );
+};
 
-export const getCachedTvAboveFoldDetail = (id: string) =>
-  isAnilistTvRouteId(id)
-    ? getCachedAnilistTvAboveFoldDetail(id)
-    : getCachedMediaAboveFoldDetail("tv", id);
+export const getCachedTvAboveFoldDetail = async (id: string) => {
+  if (isAnilistTvRouteId(id)) {
+    return getCachedAnilistTvAboveFoldDetail(id);
+  }
+
+  const detail = await getCachedTvShowDetail(id);
+  if (!detail) {
+    return null;
+  }
+
+  return toAboveFoldDetail(
+    {
+      ...detail,
+      images: detail.images,
+      videos: detail.videos,
+      content_ratings: detail.content_ratings,
+    } as RawAboveFoldDetail,
+    "tv",
+  );
+};

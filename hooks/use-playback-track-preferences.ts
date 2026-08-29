@@ -4,6 +4,7 @@ import type { MediaPlayerInstance } from "@vidstack/react";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 
 import {
+  isJapaneseAudioPreference,
   pickTrackIndexByLanguage,
   trackMatchesLanguage,
   type TrackLanguageFields,
@@ -218,6 +219,8 @@ export function usePlaybackTrackPreferences(
         try {
           if (preferences) {
             applySubtitlePreference(player, preferences.subtitleLang);
+          } else if (isJapaneseAudioPreference(preferredAudioLang)) {
+            applySubtitlePreference(player, "english");
           }
 
           const tracks = toTrackArray<PlayerAudioTrack>(

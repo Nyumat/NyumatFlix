@@ -1,21 +1,20 @@
+import { mintCalluspiratesClientSession } from "@/lib/direct/server-session";
+import {
+  collectStreamsFromDirectSse,
+  type DirectSseStream,
+} from "@/lib/direct/scrape-sse";
+import {
+  isStereoscopicDirectStream,
+  rankDirectStreams,
+} from "@calluspirates/shared";
+import { orderDirectStreamsForScrape } from "@/lib/direct/playback";
 import {
   getCalluspiratesApiUrl,
   isDirectScrapeProviderConfigured,
 } from "../calluspirates-config";
 import { fetchCalluspirates } from "../calluspirates-fetch";
 import type { DirectPlaybackMode } from "../direct-playback";
-import {
-  toClientDirectPlaybackUrl,
-  toUpstreamCalluspiratesPlaybackUrl,
-} from "../direct-proxy";
-import {
-  isDirectBrowserMedia,
-  isExtendedContainerMedia,
-} from "../direct-media-probe";
-import {
-  isStereoscopicDirectStream,
-  rankDirectStreams,
-} from "@calluspirates/shared";
+import { toClientDirectPlaybackUrl } from "../direct-proxy";
 import type { ScrapeMediaInput, ScrapeQuality, ScrapeResult } from "../types";
 
 const PROVIDER_ID = "direct" as const;
@@ -35,126 +34,73 @@ type CalluspiratesStream = {
   source?: string;
 };
 
-type CalluspiratesStreamsResponse = {
-  streams: CalluspiratesStream[];
-  message?: string;
-};
+const toCalluspiratesStream = (
+  stream: DirectSseStream,
+): CalluspiratesStream => ({
+  name: stream.name,
+  resolution: stream.resolution ?? "",
+  size: stream.size ?? 0,
+  url: stream.url,
+  cached: stream.cached ?? true,
+  hash: stream.hash,
+  ...(stream.playback ? { playback: stream.playback } : {}),
+  ...(stream.fallbackUrl ? { fallbackUrl: stream.fallbackUrl } : {}),
+  ...(stream.fileName ? { fileName: stream.fileName } : {}),
+  ...(stream.mime ? { mime: stream.mime } : {}),
+  ...(stream.browserPlayable !== undefined
+    ? { browserPlayable: stream.browserPlayable }
+    : {}),
+  ...(stream.source ? { source: stream.source } : {}),
+});
 
 const resolveClientMediaUrl = (
   apiBase: string,
   stream: CalluspiratesStream,
-): string => toClientDirectPlaybackUrl(apiBase, stream.url);
-
-const resolveUpstreamMediaUrl = (
-  apiBase: string,
-  stream: CalluspiratesStream,
-): string => toUpstreamCalluspiratesPlaybackUrl(apiBase, stream.url);
+  accessToken?: string,
+): string => toClientDirectPlaybackUrl(apiBase, stream.url, accessToken);
 
 const resolveClientTranscodeUrl = (
   apiBase: string,
   stream: CalluspiratesStream,
+  accessToken?: string,
 ): string => {
   if (stream.playback === "extended" && stream.fallbackUrl) {
-    return toClientDirectPlaybackUrl(apiBase, stream.fallbackUrl);
+    return toClientDirectPlaybackUrl(apiBase, stream.fallbackUrl, accessToken);
   }
-  return resolveClientMediaUrl(apiBase, stream);
+  return resolveClientMediaUrl(apiBase, stream, accessToken);
 };
 
-async function probeCalluspiratesMediaUrl(
-  apiBase: string,
-  stream: CalluspiratesStream,
-  mode: "direct-mp4" | "extended",
-): Promise<boolean> {
-  const url = resolveUpstreamMediaUrl(apiBase, stream);
-  try {
-    const response = await fetchCalluspirates(url, {
-      method: "GET",
-      headers: { Range: "bytes=0-8191" },
-      timeoutMs: 20_000,
-    });
-    if (!response.ok && response.status !== 206) {
-      return false;
-    }
+type DirectScrapeCandidate = {
+  name: string;
+  url: string;
+  resolution?: string;
+  size?: number;
+  playback?: "hls" | "direct" | "extended";
+  fileName?: string;
+  browserPlayable?: boolean;
+};
 
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    const contentType = response.headers.get("content-type");
-    return mode === "direct-mp4"
-      ? isDirectBrowserMedia(contentType, bytes)
-      : isExtendedContainerMedia(contentType, bytes);
-  } catch {
-    return false;
-  }
-}
-
-function streamNameBlob(stream: CalluspiratesStream): string {
-  return `${stream.fileName ?? ""} ${stream.name}`.toLowerCase();
-}
-
-/** 50GB+ remux MKVs routinely crash movi WASM — probe encodes before remux. */
-function isHeavyMoviRemux(stream: CalluspiratesStream): boolean {
-  return /\b(remux|complete\.bluray)\b/.test(streamNameBlob(stream));
-}
-
-function orderExtendedForMoviPlayback(
-  streams: CalluspiratesStream[],
-): CalluspiratesStream[] {
-  const light: CalluspiratesStream[] = [];
-  const heavy: CalluspiratesStream[] = [];
-
-  for (const stream of streams) {
-    if (stream.playback === "direct" && stream.browserPlayable === true) {
-      continue;
-    }
-    if (isHeavyMoviRemux(stream)) {
-      heavy.push(stream);
-    } else {
-      light.push(stream);
-    }
-  }
-
-  const bySize = (left: CalluspiratesStream, right: CalluspiratesStream) =>
-    (left.size > 0 ? left.size : Number.MAX_SAFE_INTEGER) -
-    (right.size > 0 ? right.size : Number.MAX_SAFE_INTEGER);
-
-  light.sort(bySize);
-  heavy.sort(bySize);
-
-  return [...light, ...heavy];
-}
-
-async function pickValidatedDirectStream(
-  apiBase: string,
-  streams: CalluspiratesStream[],
-): Promise<CalluspiratesStream | null> {
-  const ranked = rankDirectStreams(streams);
-
-  const directCandidates = ranked.filter(
-    (stream) => stream.playback === "direct" && stream.browserPlayable === true,
+export const pickDirectStreamForScrape = <T extends DirectScrapeCandidate>(
+  streams: readonly T[],
+  preferMultiTrack: boolean,
+): T | null => {
+  const ranked = orderDirectStreamsForScrape(
+    rankDirectStreams([...streams]),
+    preferMultiTrack,
   );
-  for (const stream of directCandidates) {
-    if (await probeCalluspiratesMediaUrl(apiBase, stream, "direct-mp4")) {
-      return stream;
-    }
-  }
 
-  for (const stream of orderExtendedForMoviPlayback(ranked)) {
-    // Match calluspirates: accept MKV/extended when media bytes validate.
-    // HLS transcode is a client-side fallback (movi → vidstack-hls), not a scrape gate.
-    if (await probeCalluspiratesMediaUrl(apiBase, stream, "extended")) {
-      return stream;
-    }
-  }
-  return null;
-}
+  return ranked.find((stream) => stream.url.trim().length > 0) ?? null;
+};
 
 const mapQualities = (
   apiBase: string,
   streams: CalluspiratesStream[],
   primaryTranscodeUrl: string,
+  accessToken?: string,
 ): ScrapeQuality[] | undefined => {
   const qualities = streams
     .map((stream) => {
-      const url = resolveClientTranscodeUrl(apiBase, stream);
+      const url = resolveClientTranscodeUrl(apiBase, stream, accessToken);
       const label = stream.resolution?.trim() || stream.name.slice(0, 40);
       return { label, url };
     })
@@ -234,6 +180,40 @@ export function inferDirectStreamKind(
     : "hls";
 }
 
+const DIRECT_SCRAPE_UPSTREAM_TIMEOUT_MS = 300_000;
+
+const hasAnyPlayableStream = (streams: readonly DirectSseStream[]): boolean =>
+  streams.some((stream) => stream.url.trim().length > 0);
+
+async function fetchDirectStreamsForScrape(
+  apiBase: string,
+  input: ScrapeMediaInput,
+  signal?: AbortSignal,
+): Promise<CalluspiratesStream[] | null> {
+  const upstreamUrl =
+    input.mediaType === "tv"
+      ? `${apiBase}/api/tv/${input.tmdbId}/streams/stream?season=${input.seasonNumber}&episode=${input.episodeNumber}`
+      : `${apiBase}/api/movie/${input.tmdbId}/streams/stream`;
+
+  const response = await fetchCalluspirates(upstreamUrl, {
+    timeoutMs: DIRECT_SCRAPE_UPSTREAM_TIMEOUT_MS,
+    responseKind: "event-stream",
+    headers: { Accept: "text/event-stream" },
+    signal,
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await collectStreamsFromDirectSse(
+    response,
+    signal ?? AbortSignal.timeout(DIRECT_SCRAPE_UPSTREAM_TIMEOUT_MS),
+    hasAnyPlayableStream,
+  );
+  return payload.streams.map(toCalluspiratesStream);
+}
+
 export async function scrapeDirect(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
@@ -272,65 +252,59 @@ export async function scrapeDirect(
   const referer = `${apiBase}/`;
 
   try {
-    const streamsUrl =
-      input.mediaType === "tv"
-        ? `${apiBase}/api/tv/${input.tmdbId}/streams?season=${input.seasonNumber}&episode=${input.episodeNumber}`
-        : `${apiBase}/api/movie/${input.tmdbId}/streams`;
-
-    const response = await fetchCalluspirates(streamsUrl, {
-      timeoutMs: 120_000,
-    });
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      return {
-        ok: false,
-        providerId: PROVIDER_ID,
-        error: `Call Us Pirates API ${response.status}${detail ? `: ${detail.slice(0, 120)}` : ""}`,
-      };
-    }
-
-    const payload = (await response.json()) as CalluspiratesStreamsResponse;
-    const streams = (payload.streams ?? []).filter(
-      (stream) => !isStereoscopicDirectStream(stream),
+    const discoveredStreams = await fetchDirectStreamsForScrape(
+      apiBase,
+      input,
+      input.signal,
     );
+    if (discoveredStreams?.length) {
+      const streams = discoveredStreams.filter(
+        (stream) => !isStereoscopicDirectStream(stream),
+      );
+      const preferMultiTrack = input.preferMultiTrack === true;
+      const best = pickDirectStreamForScrape(streams, preferMultiTrack);
+      if (best) {
+        const session = await mintCalluspiratesClientSession();
+        const accessToken = session?.token;
+        const clientBase = session?.apiBase ?? apiBase;
+        const mediaUrl = resolveClientMediaUrl(clientBase, best, accessToken);
+        const fallbackUrl = best.fallbackUrl
+          ? toClientDirectPlaybackUrl(clientBase, best.fallbackUrl, accessToken)
+          : undefined;
+        const transcodeUrl =
+          fallbackUrl ??
+          resolveClientTranscodeUrl(clientBase, best, accessToken);
+        const qualities = mapQualities(
+          clientBase,
+          streams,
+          transcodeUrl,
+          accessToken,
+        );
 
-    if (!streams.length) {
-      return {
-        ok: false,
-        providerId: PROVIDER_ID,
-        error: payload.message ?? "No cached streams available",
-      };
+        return {
+          ok: true,
+          providerId: PROVIDER_ID,
+          validated: true,
+          streamUrl: mediaUrl,
+          referer,
+          qualities,
+          directPlayback: best.playback ?? "direct",
+          directFallbackUrl: fallbackUrl,
+          directStreamName: best.name,
+          directFileName: best.fileName,
+        };
+      }
     }
-
-    const best = await pickValidatedDirectStream(apiBase, streams);
-    if (!best) {
-      return {
-        ok: false,
-        providerId: PROVIDER_ID,
-        error: "No playable streams returned (all sources failed validation)",
-      };
-    }
-
-    const mediaUrl = resolveClientMediaUrl(apiBase, best);
-    const fallbackUrl = best.fallbackUrl
-      ? toClientDirectPlaybackUrl(apiBase, best.fallbackUrl)
-      : undefined;
-    const transcodeUrl =
-      fallbackUrl ?? resolveClientTranscodeUrl(apiBase, best);
-    const qualities = mapQualities(apiBase, streams, transcodeUrl);
 
     return {
-      ok: true,
+      ok: false,
       providerId: PROVIDER_ID,
-      validated: true,
-      streamUrl: mediaUrl,
-      referer,
-      qualities,
-      directPlayback: best.playback ?? "direct",
-      directFallbackUrl: fallbackUrl,
+      error: "No streams found",
     };
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
+    }
     return {
       ok: false,
       providerId: PROVIDER_ID,

@@ -1,4 +1,5 @@
 import { preferredAudioLangForTranslation } from "../audio-preference";
+import { isPlayableHlsStream } from "../hls-sanity";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeQuality, ScrapeSubtitle } from "../../types";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
@@ -6,13 +7,14 @@ import type { MegaplayPlaybackRefresh } from "../../megaplay-constants";
 import {
   MEGAPLAY_ORIGIN,
   resolveMegaplayEmbedStream,
+  rewriteMegaplayMirrorStreamUrl,
 } from "../../megaplay-sources";
 
 const KYREN_ORIGIN = "https://kyren.moe";
 
 /** Kyren stream servers — raze (megaplay) replaces neon (vidnest-direct, upstream 403). */
-const KYREN_SERVERS_SUB = ["viper", "kayo", "raze", "jett"] as const;
-const KYREN_SERVERS_DUB = ["kayo", "raze", "viper", "jett"] as const;
+export const KYREN_SERVERS_SUB = ["viper", "kayo", "raze", "jett"] as const;
+export const KYREN_SERVERS_DUB = ["kayo", "raze", "viper", "jett"] as const;
 
 type KyrenInfo = {
   idMal?: number;
@@ -47,6 +49,9 @@ const qualityRank = (label: string | undefined): number => {
   if (normalized.includes("360")) return 360;
   return 0;
 };
+
+export const rankKyrenSources = (sources: KyrenSource[]): KyrenSource[] =>
+  [...sources].sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
 
 const kyrenPlayerReferer = (
   idMal: number | undefined,
@@ -85,17 +90,23 @@ const resolveKyrenPlayableSource = async (
       return null;
     }
 
+    const streamUrl = rewriteMegaplayMirrorStreamUrl(resolved.streamUrl);
     const megaplayReferer = `${MEGAPLAY_ORIGIN}/`;
     return {
-      streamUrl: resolved.streamUrl,
+      streamUrl,
       referer: megaplayReferer,
       playbackRefresh: {
         providerId: "megaplay",
         referer: megaplayReferer,
-        seedStreamUrl: resolved.streamUrl,
+        seedStreamUrl: streamUrl,
         megaplayId: resolved.megaplayId,
       },
     };
+  }
+
+  const rewritten = rewriteMegaplayMirrorStreamUrl(url);
+  if (rewritten !== url || /cdn\.watching\.onl/i.test(url)) {
+    return { streamUrl: rewritten, referer: `${MEGAPLAY_ORIGIN}/` };
   }
 
   return null;
@@ -181,9 +192,7 @@ export async function scrapeKyren(
         continue;
       }
 
-      const ranked = [...sources].sort(
-        (a, b) => qualityRank(b.quality) - qualityRank(a.quality),
-      );
+      const ranked = rankKyrenSources(sources);
 
       for (const source of ranked) {
         const playable = await resolveKyrenPlayableSource(
@@ -191,6 +200,13 @@ export async function scrapeKyren(
           playerReferer,
         );
         if (!playable) {
+          continue;
+        }
+
+        if (
+          !(await isPlayableHlsStream(playable.streamUrl, playable.referer))
+        ) {
+          lastError = "Kyren stream URL failed validation";
           continue;
         }
 
@@ -219,6 +235,7 @@ export async function scrapeKyren(
         return {
           ok: true,
           providerId,
+          validated: true,
           streamUrl: playable.streamUrl,
           streamKind: "hls",
           referer: playable.referer,

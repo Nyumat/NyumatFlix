@@ -60,7 +60,7 @@ export const dedupeSubtitles = (
   const result: ScrapeSubtitle[] = [];
 
   for (const track of subtitles) {
-    const key = `${track.lang}::${track.url}`;
+    const key = `${track.lang.trim().toLowerCase()}::${track.url}`;
     if (seen.has(key) || !track.url.startsWith("http")) {
       continue;
     }

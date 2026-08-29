@@ -3,6 +3,7 @@ import type {
   CanonicalMediaCard,
   Genre,
 } from "@/lib/domain/typings";
+import { isAnime } from "@/utils/anilist-helpers";
 import { formatRating, formatRuntime, formatYear } from "./formatters";
 import { isCanonicalPersonCard } from "./guards";
 
@@ -23,6 +24,8 @@ type LegacyMediaLike = {
   genre_ids?: number[];
   genres?: Genre[];
   origin_country?: string[];
+  original_language?: string;
+  country_codes?: string[];
   production_countries?: Array<{ iso_3166_1: string; name?: string }>;
 };
 
@@ -51,6 +54,9 @@ export function getDisplayYear(
 export function getHref(item: CanonicalCard | LegacyMediaLike): string {
   if ("href" in item && item.href) return item.href;
   if (item.media_type === "person") return `/person/${item.id}`;
+  if (isAnimeSearchCard(item)) {
+    return `/anime/tmdb-${item.id}`;
+  }
   if (item.media_type === "tv" || (!item.title && item.name)) {
     return `/tvshows/${item.id}`;
   }
@@ -126,5 +132,28 @@ export function getStableCardKey(
 export function getMediaLabel(
   item: CanonicalMediaCard | LegacyMediaLike,
 ): string {
-  return item.media_type === "tv" ? "TV Show" : "Movie";
+  const isMovieItem = item.media_type === "movie";
+  if (isAnimeSearchCard(item)) {
+    return isMovieItem ? "Anime Movie" : "Anime";
+  }
+  return isMovieItem ? "Movie" : "TV Show";
+}
+
+export function isAnimeSearchCard(
+  item: CanonicalCard | LegacyMediaLike,
+): boolean {
+  return isAnime(item);
+}
+
+export type SearchMediaTypeLabel = "Anime" | "Anime Movie" | "Movie" | "TV";
+
+export function getSearchMediaTypeLabel(
+  item: CanonicalCard | LegacyMediaLike,
+): SearchMediaTypeLabel {
+  const isMovieItem = item.media_type === "movie";
+  if (isAnimeSearchCard(item)) {
+    return isMovieItem ? "Anime Movie" : "Anime";
+  }
+  if (isMovieItem) return "Movie";
+  return "TV";
 }

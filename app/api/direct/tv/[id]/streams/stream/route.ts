@@ -6,6 +6,8 @@ import {
   isDirectScrapeProviderConfigured,
 } from "@/lib/scrape/calluspirates-config";
 
+export const maxDuration = 300;
+
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
@@ -67,7 +69,9 @@ export async function GET(request: Request, context: RouteContext) {
   try {
     upstream = await fetchCalluspirates(upstreamUrl, {
       timeoutMs: 300_000,
+      responseKind: "event-stream",
       headers: { Accept: "text/event-stream" },
+      signal: request.signal,
     });
   } catch (error) {
     const message =
@@ -89,6 +93,7 @@ export async function GET(request: Request, context: RouteContext) {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }

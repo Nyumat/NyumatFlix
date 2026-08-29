@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 
 import { fetchWithCapSession } from "@/lib/cap/client";
 import {
+  buildHentainiAnimeUrl,
   buildVidnestAnimePaheUrl,
   buildVidnestAnimeUrl,
   type VidsrcApi,
@@ -76,6 +77,7 @@ export interface ServerAvailabilityInput {
   anilistId?: number;
   animeEpisodeNumber?: number;
   animePreference?: "sub" | "dub";
+  isAdultAnime?: boolean;
 }
 
 type ServerHealthResponse = {
@@ -101,11 +103,13 @@ const availabilityKeyFor = (
     input.animeEpisodeNumber ?? "",
     input.animePreference ?? "",
     vidsrcApi,
+    input.isAdultAnime ? "adult" : "",
   ].join(":");
 
 interface EmbedServerState {
   serverOverrides: ServerOverride[];
   animePreference: "sub" | "dub";
+  animeTitleSlug: string;
   vidnestContentType: "movie" | "tv" | "anime" | "animepahe";
   vidsrcApi: VidsrcApi;
   availabilityKey: string | null;
@@ -113,6 +117,7 @@ interface EmbedServerState {
   availableServerIds: string[];
   unavailableServerIds: string[];
   setAnimePreference: (preference: "sub" | "dub") => void;
+  setAnimeTitleSlug: (slug: string) => void;
   setVidnestContentType: (type: "movie" | "tv" | "anime" | "animepahe") => void;
   setVidsrcApi: (api: VidsrcApi) => void;
   prefetchServerAvailability: (input: ServerAvailabilityInput) => Promise<void>;
@@ -140,6 +145,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
     (set, get) => ({
       serverOverrides: defaultServerOverrides,
       animePreference: "sub" as "sub" | "dub",
+      animeTitleSlug: "",
       vidnestContentType: "movie" as "movie" | "tv" | "anime" | "animepahe",
       vidsrcApi: "1" as VidsrcApi,
       availabilityKey: null,
@@ -148,6 +154,9 @@ export const useEmbedServerStore = create<EmbedServerState>()(
       unavailableServerIds: [],
       setAnimePreference: (preference) => {
         set({ animePreference: preference });
+      },
+      setAnimeTitleSlug: (slug) => {
+        set({ animeTitleSlug: slug.trim() });
       },
       setVidnestContentType: (type) => {
         set({ vidnestContentType: type });
@@ -177,6 +186,10 @@ export const useEmbedServerStore = create<EmbedServerState>()(
         });
 
         const checks = videoServers.map((server) => {
+          if (server.id === "vidnest" && input.isAdultAnime) {
+            return { server, url: null as string | null };
+          }
+
           const url =
             server.id === "vidnest" &&
             input.anilistId &&
@@ -201,7 +214,9 @@ export const useEmbedServerStore = create<EmbedServerState>()(
           const response = await fetchWithCapSession("/api/servers/health", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ urls: checks.map(({ url }) => url) }),
+            body: JSON.stringify({
+              urls: checks.map(({ url }) => url).filter(Boolean),
+            }),
           });
           if (response.ok) {
             const payload =
@@ -212,8 +227,18 @@ export const useEmbedServerStore = create<EmbedServerState>()(
           void 0;
         }
 
-        const results = checks.map(({ server }, index) => {
-          const health = healthResults[index];
+        let healthIndex = 0;
+        const results = checks.map(({ server, url }) => {
+          if (server.id === "vidnest" && input.isAdultAnime) {
+            return {
+              server,
+              state: "unavailable" as const,
+              unavailable: true,
+            };
+          }
+
+          const health = healthResults[healthIndex];
+          healthIndex += 1;
           const state = health?.state ?? ("unknown" as const);
           return {
             server,
@@ -303,6 +328,14 @@ export const useEmbedServerStore = create<EmbedServerState>()(
             animePreference,
           });
         }
+        if (serverId === "hentaini") {
+          const { animePreference, animeTitleSlug } = get();
+          return buildHentainiAnimeUrl(anilistId, episode, {
+            vidsrcApi: get().vidsrcApi,
+            animePreference,
+            animeTitleSlug,
+          });
+        }
         return server.getAnimeUrl(anilistId, episode);
       },
       getAnimePaheUrl: (serverId, anilistId, episode) => {
@@ -365,6 +398,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
 );
 
 setEmbedPrefsGetter(() => {
-  const { vidsrcApi, animePreference } = useEmbedServerStore.getState();
-  return { vidsrcApi, animePreference };
+  const { vidsrcApi, animePreference, animeTitleSlug } =
+    useEmbedServerStore.getState();
+  return { vidsrcApi, animePreference, animeTitleSlug };
 });

@@ -6,45 +6,20 @@ import {
 } from "@/lib/anilist-tv-detail";
 import { getTmdbIdFromFribb, type FribbTmdbMapping } from "@/lib/fribb-mapping";
 import { fetchIdsMoeMappingByAniListId } from "@/lib/ids-moe";
+import {
+  dedupeTmdbTvCandidates,
+  getAnilistAirDate,
+  getAnilistTitlesForTmdbMatch,
+  normalizeTitleForTmdbMatch,
+  pickBestTmdbTvCandidate,
+  type TmdbTvMatchCandidate,
+} from "@/lib/anilist-tmdb-match";
 import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
 import { unstable_cache } from "next/cache";
 
-type ExactTmdbTvCandidate = {
-  id: number;
-  media_type: "tv";
-  name: string;
-  original_name: string;
-  first_air_date: string;
-  genre_ids: number[];
-};
-
 const ROUTE_MAPPING_REVALIDATE_SECONDS = 60 * 60 * 24;
 const MAX_STRONG_TITLE_DATE_DRIFT_DAYS = 14;
-const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
-
-const normalizeTitle = (value: string | null | undefined) =>
-  (value ?? "")
-    .normalize("NFKC")
-    .toLocaleLowerCase("en-US")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-
-const getSourceTitles = (media: AniListTvMedia) =>
-  [media.title.english, media.title.romaji, media.title.native]
-    .map(normalizeTitle)
-    .filter((title, index, titles) => title && titles.indexOf(title) === index);
-
-const getSourceAirDate = (media: AniListTvMedia) => {
-  const year = media.startDate?.year ?? media.seasonYear;
-  if (!year) return null;
-
-  const month = media.startDate?.month;
-  const day = media.startDate?.day;
-  if (!month || !day) return String(year);
-
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-};
 
 const getDateDriftDays = (firstDate: string, secondDate: string) => {
   const firstTimestamp = Date.parse(`${firstDate}T00:00:00Z`);
@@ -53,25 +28,27 @@ const getDateDriftDays = (firstDate: string, secondDate: string) => {
     return null;
   }
 
-  return Math.abs(firstTimestamp - secondTimestamp) / MILLISECONDS_PER_DAY;
+  return Math.abs(firstTimestamp - secondTimestamp) / (24 * 60 * 60 * 1000);
 };
 
 export const selectExactTmdbTvRouteCandidate = (
   media: AniListTvMedia,
-  candidates: ExactTmdbTvCandidate[],
-): ExactTmdbTvCandidate | null => {
-  const sourceTitles = new Set(getSourceTitles(media));
-  const sourceAirDate = getSourceAirDate(media);
+  candidates: TmdbTvMatchCandidate[],
+): TmdbTvMatchCandidate | null => {
+  const sourceTitles = new Set(
+    getAnilistTitlesForTmdbMatch(media).map(normalizeTitleForTmdbMatch),
+  );
+  const sourceAirDate = getAnilistAirDate(media);
   if (sourceTitles.size === 0 || !sourceAirDate) return null;
 
-  const matches = new Map<number, ExactTmdbTvCandidate>();
+  const matches = new Map<number, TmdbTvMatchCandidate>();
 
   for (const candidate of candidates) {
     if (!candidate.genre_ids.includes(16)) continue;
 
     const candidateTitles = new Set(
       [candidate.name, candidate.original_name]
-        .map(normalizeTitle)
+        .map(normalizeTitleForTmdbMatch)
         .filter(Boolean),
     );
     const matchingTitleCount = [...candidateTitles].filter((title) =>
@@ -91,7 +68,16 @@ export const selectExactTmdbTvRouteCandidate = (
     matches.set(candidate.id, candidate);
   }
 
-  return matches.size === 1 ? ([...matches.values()][0] ?? null) : null;
+  const uniqueMatches = dedupeTmdbTvCandidates([...matches.values()]);
+  if (uniqueMatches.length === 1) {
+    return uniqueMatches[0] ?? null;
+  }
+
+  if (uniqueMatches.length > 1) {
+    return pickBestTmdbTvCandidate(media, uniqueMatches, 55);
+  }
+
+  return null;
 };
 
 const findExactTmdbTvRoute = async (
@@ -100,14 +86,7 @@ const findExactTmdbTvRoute = async (
   const media = await getCachedAnilistTvMedia(anilistId);
   if (!media || media.format === "MOVIE") return null;
 
-  const queries = [
-    media.title.english,
-    media.title.romaji,
-    media.title.native,
-  ].filter(
-    (title, index, titles): title is string =>
-      Boolean(title?.trim()) && titles.indexOf(title) === index,
-  );
+  const queries = getAnilistTitlesForTmdbMatch(media);
   if (queries.length === 0) return null;
 
   const responses = await Promise.all(
@@ -119,14 +98,26 @@ const findExactTmdbTvRoute = async (
         candidate.media_type === "tv",
     ),
   );
-  const match = selectExactTmdbTvRouteCandidate(media, candidates);
+  const match = selectExactTmdbTvRouteCandidate(
+    media,
+    candidates.map((candidate) => ({
+      id: candidate.id,
+      media_type: "tv",
+      name: candidate.name,
+      original_name: candidate.original_name,
+      first_air_date: candidate.first_air_date ?? "",
+      genre_ids: candidate.genre_ids ?? [],
+      popularity: candidate.popularity,
+      vote_average: candidate.vote_average,
+    })),
+  );
 
   return match ? { id: match.id, type: "tv" } : null;
 };
 
 const getCachedExactTmdbTvRoute = unstable_cache(
   findExactTmdbTvRoute,
-  ["anilist-tmdb-exact-tv-route-v2"],
+  ["anilist-tmdb-exact-tv-route-v3"],
   { revalidate: ROUTE_MAPPING_REVALIDATE_SECONDS },
 );
 

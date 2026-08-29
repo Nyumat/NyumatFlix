@@ -8,18 +8,11 @@ import { scrapeVidrock } from "./providers/vidrock";
 import { scrapeBingr } from "./providers/bingr";
 import { scrapeDirect } from "./providers/direct";
 import { scrapeXPass } from "./providers/xpass";
-import {
-  isMegaplayPlaybackRefresh,
-  isVidsrcPlaybackRefresh,
-  isVixsrcPlaybackRefresh,
-} from "./playback-refresh";
 import { probeScrapePlaybackPath } from "./playback-probe";
-import { resolveScrapePlaybackUpstreamUrl } from "./vidking-playback";
-import { fetchSub1x2Subtitles } from "./subtitles";
+import { fetchScrapeFallbackSubtitles } from "./subtitles";
 import type { ScrapeMediaInput, ScrapeProviderId, ScrapeResult } from "./types";
 import { SCRAPE_PROVIDER_ORDER } from "./types";
 import { looksLikeStreamUrl, type StreamKind } from "./stream-url-patterns";
-import { validateStreamUrlWithReferers } from "./validate-stream";
 import {
   isFreshVidnestSignedUrl,
   isVidnestClientOnlyCdn,
@@ -72,43 +65,6 @@ export async function scrapeProvider(
 
   let next = result;
   const streamKind = inferTmdbStreamKind(result.streamUrl);
-  const hasVidsrcRefresh = isVidsrcPlaybackRefresh(result.playbackRefresh);
-  const hasVixsrcRefresh = isVixsrcPlaybackRefresh(result.playbackRefresh);
-
-  if (
-    !result.validated &&
-    !isWingsdatabaseScrapeProvider(providerId) &&
-    !isDirectScrapeProvider(providerId)
-  ) {
-    const streamUrlForValidation =
-      hasVidsrcRefresh || hasVixsrcRefresh
-        ? await resolveScrapePlaybackUpstreamUrl(
-            result.streamUrl,
-            result.playbackRefresh,
-          )
-        : result.streamUrl;
-    const providerReferer = result.referer ?? "";
-    const validation = await validateStreamUrlWithReferers(
-      streamUrlForValidation,
-      providerReferer,
-      streamKind,
-      { depth: "full" },
-    );
-    if (!validation.ok) {
-      return {
-        ok: false,
-        providerId,
-        error: "Stream URL failed validation",
-      };
-    }
-    // Prefer the provider referer for playback. VidSrc's CDN origin can pass
-    // probes while segments still need the embed/player referer at play time.
-    if (providerReferer) {
-      next = { ...next, referer: providerReferer };
-    } else if (validation.referer) {
-      next = { ...next, referer: validation.referer };
-    }
-  }
 
   if (
     !isWingsdatabaseScrapeProvider(providerId) &&
@@ -142,7 +98,7 @@ export async function scrapeProvider(
   }
 
   if (!next.subtitles?.length) {
-    const fallbackSubtitles = await fetchSub1x2Subtitles(input);
+    const fallbackSubtitles = await fetchScrapeFallbackSubtitles(input);
     if (fallbackSubtitles.length > 0) {
       next = { ...next, subtitles: fallbackSubtitles };
     }

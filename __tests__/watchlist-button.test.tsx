@@ -39,6 +39,7 @@ describe("WatchlistButton", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
   });
 
   test("shows loading state initially", () => {
@@ -154,7 +155,7 @@ describe("WatchlistButton", () => {
     );
   });
 
-  test("adds item to watchlist when clicked", async () => {
+  test("adds item to watchlist as plan to watch when no progress exists", async () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-123" } },
       status: "authenticated",
@@ -192,12 +193,126 @@ describe("WatchlistButton", () => {
         body: JSON.stringify({
           contentId: 123,
           mediaType: "movie",
+          status: "plan_to_watch",
+        }),
+      });
+    });
+
+    expect(mockToast.success).toHaveBeenCalledWith("Saved to Plan to Watch");
+  });
+
+  test("adds item to watchlist as watching when movie has active progress", async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-123" } },
+      status: "authenticated",
+    } as never);
+
+    mockGetWatchlistItem.mockResolvedValue(null);
+
+    window.localStorage.setItem(
+      "nyumatflix.playback.progress",
+      JSON.stringify({
+        "movie:456::": {
+          watched: 300,
+          duration: 3600,
+          updatedAt: Date.now(),
+        },
+      }),
+    );
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ item: { id: "new-item" } }),
+    } as Response);
+
+    const user = userEvent.setup();
+    render(
+      <WatchlistButton contentId={456} mediaType="movie">
+        Add to Watchlist
+      </WatchlistButton>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("watchlist-button-loading"),
+      ).not.toBeInTheDocument();
+    });
+
+    const button = screen.getByTestId("watchlist-button-add");
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/watchlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contentId: 456,
+          mediaType: "movie",
           status: "watching",
         }),
       });
     });
 
-    expect(mockToast.success).toHaveBeenCalledWith("Added to watchlist");
+    expect(mockToast.success).toHaveBeenCalledWith("Saved to Watching");
+  });
+
+  test("adds tv show to watchlist as watching with episode badge when progress exists", async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-123" } },
+      status: "authenticated",
+    } as never);
+
+    mockGetWatchlistItem.mockResolvedValue(null);
+
+    window.localStorage.setItem(
+      "nyumatflix.playback.progress",
+      JSON.stringify({
+        "tv:789:1:3": {
+          watched: 500,
+          duration: 1400,
+          updatedAt: Date.now(),
+        },
+      }),
+    );
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ item: { id: "new-item" } }),
+    } as Response);
+
+    const user = userEvent.setup();
+    render(
+      <WatchlistButton contentId={789} mediaType="tv">
+        Add to Watchlist
+      </WatchlistButton>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("watchlist-button-loading"),
+      ).not.toBeInTheDocument();
+    });
+
+    const button = screen.getByTestId("watchlist-button-add");
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/watchlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contentId: 789,
+          mediaType: "tv",
+          status: "watching",
+        }),
+      });
+    });
+
+    expect(mockToast.success).toHaveBeenCalledWith("Saved to Watching (S1:E3)");
   });
 
   test("removes item from watchlist when clicked", async () => {

@@ -1,5 +1,7 @@
 import type { PlayerSrc } from "@vidstack/react";
 
+import { vidstackCaptionMenuValue } from "@/lib/playback/vidstack-caption-menu";
+
 import {
   buildScrapePlayUrl,
   extractScrapePlaybackRefreshFromPlayUrl,
@@ -32,11 +34,71 @@ const subtitleVariantLabel = (url: string): string | null => {
   return match?.[1] ? match[1].toUpperCase() : null;
 };
 
-const formatScrapeSubtitleLabel = (lang: string, url: string): string => {
+const formatScrapeSubtitleLabel = (
+  lang: string,
+  url: string,
+  source?: string,
+): string => {
   const variant = subtitleVariantLabel(url);
   const base = lang.trim() || "Unknown";
+  const withVariant =
+    variant && variant.length <= 3 ? `${base} (${variant})` : base;
 
-  return variant && variant.length <= 3 ? `${base} (${variant})` : base;
+  return source ? `${withVariant} · ${source}` : withVariant;
+};
+
+const slugifyScrapeSubtitleLang = (lang: string): string => {
+  const slug = lang
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "unknown";
+};
+
+const shortScrapeUrlHash = (url: string): string => {
+  let hash = 0;
+
+  for (let index = 0; index < url.length; index += 1) {
+    hash = (hash * 31 + url.charCodeAt(index)) | 0;
+  }
+
+  return (hash >>> 0).toString(36).slice(0, 8);
+};
+
+const buildScrapeSubtitleTrackId = (
+  track: ScrapeSubtitle,
+  url: string,
+): string => {
+  const langSlug = slugifyScrapeSubtitleLang(track.lang);
+  return `scrape-${langSlug}-${shortScrapeUrlHash(url)}`;
+};
+
+/** Matches Vidstack `useCaptionOptions` radio `value` / React menu keys. */
+export const scrapeSubtitleCaptionMenuValue = (
+  track: ScrapePlayerTextTrack,
+): string =>
+  vidstackCaptionMenuValue({
+    id: track.id,
+    kind: "subtitles",
+    label: track.label,
+  });
+
+const dedupeScrapeSubtitleTracksForCaptionMenu = (
+  tracks: ScrapePlayerTextTrack[],
+): ScrapePlayerTextTrack[] => {
+  const seen = new Set<string>();
+
+  return tracks.filter((track) => {
+    const value = scrapeSubtitleCaptionMenuValue(track);
+    if (seen.has(value)) {
+      return false;
+    }
+
+    seen.add(value);
+    return true;
+  });
 };
 
 export const buildScrapeSubtitleTracks = (
@@ -47,16 +109,15 @@ export const buildScrapeSubtitleTracks = (
     return [];
   }
 
-  const seen = new Set<string>();
-  const tracks = subtitles.flatMap((track, index) => {
-    if (!track.url.startsWith("http") || seen.has(track.url)) {
+  const seenUrls = new Set<string>();
+  const tracks = subtitles.flatMap((track) => {
+    if (!track.url.startsWith("http") || seenUrls.has(track.url)) {
       return [];
     }
 
-    seen.add(track.url);
+    seenUrls.add(track.url);
 
-    // Subtitle CDNs often block self-referers; prefer the player/site referer.
-    let trackReferer = referer;
+    let trackReferer = track.referer ?? referer;
     if (!trackReferer) {
       try {
         trackReferer = new URL(track.url).origin;
@@ -67,14 +128,14 @@ export const buildScrapeSubtitleTracks = (
 
     return [
       {
-        id: `${track.lang}-${index}`,
+        id: buildScrapeSubtitleTrackId(track, track.url),
         src: buildScrapePlayUrl({
           url: track.url,
           referer: trackReferer,
           subtitleFormat: track.format === "ass" ? "ass" : undefined,
         }),
         lang: track.lang,
-        label: formatScrapeSubtitleLabel(track.lang, track.url),
+        label: formatScrapeSubtitleLabel(track.lang, track.url, track.source),
         type:
           track.format === "srt"
             ? "srt"
@@ -86,7 +147,30 @@ export const buildScrapeSubtitleTracks = (
     ];
   });
 
-  return tracks;
+  return dedupeScrapeSubtitleTracksForCaptionMenu(
+    ensureUniqueScrapeSubtitleLabels(tracks),
+  );
+};
+
+const ensureUniqueScrapeSubtitleLabels = (
+  tracks: ScrapePlayerTextTrack[],
+): ScrapePlayerTextTrack[] => {
+  const seen = new Map<string, number>();
+
+  return tracks.map((track) => {
+    const normalized = track.label.toLowerCase();
+    const count = seen.get(normalized) ?? 0;
+    seen.set(normalized, count + 1);
+
+    if (count === 0) {
+      return track;
+    }
+
+    return {
+      ...track,
+      label: `${track.label} (${count + 1})`,
+    };
+  });
 };
 
 export type ScrapeVideoDimensions = {
@@ -309,6 +393,35 @@ export const buildScrapeQualityPlayOptions = (
   return options;
 };
 
+const qualityLabelHeight = (label: string | undefined): number =>
+  parseQualityLabel(label ?? "")?.height ?? 0;
+
+/** Prefer the highest scrape quality tier instead of adaptive Auto. */
+export const pickDefaultScrapeQualityIndex = (
+  options: readonly Pick<ScrapeQualityPlayOption, "label">[],
+): number => {
+  if (options.length <= 1) {
+    return 0;
+  }
+
+  let bestIndex = 0;
+  let bestHeight = qualityLabelHeight(options[0]?.label);
+
+  for (let index = 1; index < options.length; index += 1) {
+    const height = qualityLabelHeight(options[index]?.label);
+    if (height > bestHeight) {
+      bestHeight = height;
+      bestIndex = index;
+    }
+  }
+
+  if (bestHeight === 0 && isAbrOnlyQualityFailover(options)) {
+    return 1;
+  }
+
+  return bestIndex;
+};
+
 export const buildScrapeQualityPlayUrls = (
   playUrl: string,
   qualities: ScrapeQuality[] | undefined,
@@ -326,9 +439,6 @@ export const buildScrapePlayerKey = (input: {
 }) => {
   const qualityKey =
     input.qualities?.map((quality) => quality.label).join(",") ?? "";
-  const subtitleKey =
-    input.subtitles?.map((track) => `${track.lang}:${track.url}`).join("|") ??
-    "";
   const audioKey =
     input.audioVersions
       ?.map(
@@ -337,5 +447,5 @@ export const buildScrapePlayerKey = (input: {
       )
       .join("|") ?? "";
 
-  return `${input.playUrl}-${qualityKey}-${subtitleKey}-${audioKey}`;
+  return `${input.playUrl}-${qualityKey}-${audioKey}`;
 };

@@ -1,5 +1,10 @@
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import {
+  filterDismissedContinueWatching,
+  readContinueWatchingDismissals,
+  type ContinueWatchingDismissalMap,
+} from "@/lib/playback/continue-watching-dismiss";
+import {
   PLAYBACK_FINISH_BUFFER_SECONDS,
   listPlaybackProgress,
   playbackProgressRatio,
@@ -38,6 +43,10 @@ export type RecentlyWatchedItem = {
   voteAverage?: number;
   year?: string;
   isAnime: boolean;
+  lastAiredSeason?: number;
+  lastAiredEpisode?: number;
+  showStatus?: string | null;
+  hasNextEpisode?: boolean;
 };
 
 export type RecentlyWatchedScope = "all" | "movie" | "tv" | "anime";
@@ -191,11 +200,7 @@ const stubsFromVidsrc = (
 
 const stubsFromWatchlist = (items: WatchlistItem[]): RecentlyWatchedStub[] =>
   items
-    .filter(
-      (item) =>
-        item.status === "watching" ||
-        (item.lastWatchedAt != null && item.status !== "finished"),
-    )
+    .filter((item) => item.status === "watching")
     .map((item) => {
       const updatedAt = item.lastWatchedAt
         ? new Date(item.lastWatchedAt).getTime()
@@ -254,6 +259,7 @@ export const collectRecentlyWatchedStubs = (input: {
   playback?: ListedPlaybackProgress[];
   vidsrc?: VidsrcProgressEntry[];
   watchlist?: WatchlistItem[];
+  dismissals?: ContinueWatchingDismissalMap;
   limit?: number;
   mediaTypes?: readonly PlaybackMediaType[];
 }): RecentlyWatchedStub[] => {
@@ -271,9 +277,10 @@ export const collectRecentlyWatchedStubs = (input: {
     merged.set(key, mergeStub(merged.get(key), stub));
   }
 
-  return [...merged.values()]
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, input.limit ?? RECENTLY_WATCHED_LIMIT);
+  return filterDismissedContinueWatching(
+    [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt),
+    input.dismissals ?? {},
+  ).slice(0, input.limit ?? RECENTLY_WATCHED_LIMIT);
 };
 
 export const collectLocalRecentlyWatchedStubs = (
@@ -281,12 +288,14 @@ export const collectLocalRecentlyWatchedStubs = (
   options: {
     limit?: number;
     mediaTypes?: readonly PlaybackMediaType[];
+    dismissals?: ContinueWatchingDismissalMap;
   } = {},
 ): RecentlyWatchedStub[] =>
   collectRecentlyWatchedStubs({
     playback: listPlaybackProgress(),
     vidsrc: readVidsrcProgressEntries(),
     watchlist,
+    dismissals: options.dismissals ?? readContinueWatchingDismissals(),
     limit: options.limit ?? RECENTLY_WATCHED_LIMIT,
     mediaTypes: options.mediaTypes,
   });
@@ -345,6 +354,10 @@ export const toRecentlyWatchedItem = (
     voteAverage?: number;
     year?: string;
     isAnime?: boolean;
+    lastAiredSeason?: number;
+    lastAiredEpisode?: number;
+    showStatus?: string | null;
+    hasNextEpisode?: boolean;
   },
 ): RecentlyWatchedItem => ({
   mediaType: stub.mediaType,
@@ -364,4 +377,8 @@ export const toRecentlyWatchedItem = (
   voteAverage: media.voteAverage ?? stub.voteAverage,
   year: media.year ?? stub.year,
   isAnime: media.isAnime ?? false,
+  lastAiredSeason: media.lastAiredSeason,
+  lastAiredEpisode: media.lastAiredEpisode,
+  showStatus: media.showStatus,
+  hasNextEpisode: media.hasNextEpisode,
 });

@@ -11,6 +11,7 @@ import {
   getMediaLabel,
   getRatingDisplay,
   getRuntimeText,
+  isAnimeSearchCard,
 } from "@/lib/cards/selectors";
 import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import { cn } from "@/lib/utils";
@@ -38,8 +39,7 @@ export function CardMeta({
   variant = "default",
 }: CardMetaProps) {
   const isCompact = variant === "compact";
-  const isAnimeItem =
-    "sourceAnilistId" in item && typeof item.sourceAnilistId === "number";
+  const isAnimeItem = isAnimeSearchCard(item);
   const rating = getRatingDisplay(item);
   const runtime = getRuntimeText(item);
   const contentRating = getContentRatingDisplay(item);

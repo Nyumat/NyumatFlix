@@ -4,15 +4,18 @@ import { WatchlistItem } from "@/lib/domain/watchlist";
 import { DETAIL_CONTENT_CONTAINER_CLASS } from "@/components/layout/page-loading/detail-page-loading";
 import { MediaDetailLayout } from "@/components/media/media-server";
 import { useWatchlistItem } from "@/hooks/useWatchlistItem";
+import { useTvDetailCatalog } from "@/hooks/use-tv-detail-catalog";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
 import {
   resolveAnilistIdFromTvRoute,
   buildAnilistTvDetailHref,
   fromAnilistTvRouteId,
-  isAnilistTvRouteId,
+  parseAnimeAnilistRouteId,
 } from "@/lib/anilist-route-id";
+import { isAnilistBackedTvRouteId } from "@/lib/tv-detail-catalog";
+import { stripSearchParam } from "@/lib/navigation/search-params";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-video";
-import { useDetailRouteStore } from "@/lib/stores/detail-route-store";
 import { TvShowDetails } from "@/lib/domain/typings";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -22,6 +25,7 @@ type TvShowDetailShellProps = {
   tvId: string;
   anilistId: number | null | undefined;
   children: React.ReactNode;
+  routeCatalog?: "anime" | "tvshows";
 };
 
 export const TvShowDetailShell = ({
@@ -29,47 +33,34 @@ export const TvShowDetailShell = ({
   tvId,
   anilistId,
   children,
+  routeCatalog,
 }: TvShowDetailShellProps) => {
+  const detectedCatalog = useTvDetailCatalog();
+  const catalog = routeCatalog ?? detectedCatalog;
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const setDetailRouteMetadata = useDetailRouteStore(
-    (state) => state.setDetailRouteMetadata,
-  );
-  const clearDetailRouteMetadata = useDetailRouteStore(
-    (state) => state.clearDetailRouteMetadata,
-  );
   const queryAnilistId = Number.parseInt(
     searchParams.get("anilistId") ?? "",
     10,
   );
-  const resolvedAnilistId = resolveAnilistIdFromTvRoute(
-    tvId,
-    Number.isInteger(queryAnilistId) ? queryAnilistId : anilistId,
-  );
-  const isAnime = Number.isInteger(resolvedAnilistId);
-  const { watchlistItem, isLoading } = useWatchlistItem(
-    parseInt(tvId, 10),
-    "tv",
-  );
+  const resolvedAnilistId =
+    (catalog === "anime" ? parseAnimeAnilistRouteId(tvId) : null) ??
+    resolveAnilistIdFromTvRoute(
+      tvId,
+      Number.isInteger(queryAnilistId) ? queryAnilistId : anilistId,
+    );
+  const { watchlistItem, isLoading } = useWatchlistItem(details.id, "tv");
 
   const passedWatchlistItem: WatchlistItem | null = isLoading
     ? null
     : watchlistItem;
 
   useEffect(() => {
-    setDetailRouteMetadata({
-      pathname,
-      parentRoute: isAnime ? "/anime" : "/tvshows",
-    });
+    if (!isAnilistBackedTvRouteId(tvId, catalog)) return;
 
-    return () => clearDetailRouteMetadata(pathname);
-  }, [clearDetailRouteMetadata, isAnime, pathname, setDetailRouteMetadata]);
-
-  useEffect(() => {
-    if (!isAnilistTvRouteId(tvId)) return;
-
-    const routeAnilistId = fromAnilistTvRouteId(tvId);
+    const routeAnilistId =
+      parseAnimeAnilistRouteId(tvId) ?? fromAnilistTvRouteId(tvId);
     const franchiseRootId = details.id;
     if (
       !Number.isInteger(franchiseRootId) ||
@@ -82,17 +73,19 @@ export const TvShowDetailShell = ({
       (season) => season.id === routeAnilistId,
     )?.season_number;
 
-    const canonicalHref = buildAnilistTvDetailHref(franchiseRootId, {
-      season: entrySeason,
-    });
+    if (entrySeason) {
+      useEpisodeStore
+        .getState()
+        .setSeasonNumber(String(franchiseRootId), entrySeason);
+    }
 
-    if (
-      `${pathname}${searchParams.toString() ? `?${searchParams}` : ""}` !==
-      canonicalHref
-    ) {
+    const canonicalHref = buildAnilistTvDetailHref(franchiseRootId);
+    const currentHref = stripSearchParam(pathname, searchParams, "season");
+
+    if (currentHref !== canonicalHref) {
       router.replace(canonicalHref);
     }
-  }, [details, pathname, router, searchParams, tvId]);
+  }, [catalog, details, pathname, router, searchParams, tvId]);
 
   return (
     <>
@@ -101,7 +94,6 @@ export const TvShowDetailShell = ({
           {
             ...details,
             title: details.name,
-            // Above-fold stores a video array; full details use `{ results }`.
             videos: extractVideoRowsFromMediaVideos(details.videos),
           },
         ]}

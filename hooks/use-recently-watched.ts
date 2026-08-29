@@ -1,6 +1,16 @@
 "use client";
 
 import type { WatchlistItem } from "@/lib/domain/watchlist";
+import {
+  tvCompleteFieldsFromDetail,
+  watchlistStatusAfterComplete,
+} from "@/lib/playback/continue-watching-complete";
+import {
+  continueWatchingTitleKey,
+  dismissContinueWatchingTitle,
+  readContinueWatchingDismissals,
+} from "@/lib/playback/continue-watching-dismiss";
+import { queryStaleTime } from "@/lib/cache-policy";
 import { queryKeys } from "@/lib/query-keys";
 import {
   RECENTLY_WATCHED_LIMIT,
@@ -12,10 +22,12 @@ import {
   type RecentlyWatchedScope,
   type RecentlyWatchedStub,
 } from "@/lib/playback/recently-watched";
+import { applyContinueWatchingComplete } from "@/lib/watchlist/apply-continue-watching-complete";
 import { isAnime } from "@/utils/anilist-helpers";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 type MediaDetailResponse = {
   title?: string;
@@ -27,6 +39,9 @@ type MediaDetailResponse = {
   first_air_date?: string;
   genre_ids?: number[];
   genres?: Array<{ id: number; name?: string }>;
+  status?: string | null;
+  last_episode_to_air?: unknown;
+  next_episode_to_air?: unknown;
 };
 
 async function fetchWatchlistItems(): Promise<WatchlistItem[]> {
@@ -42,13 +57,7 @@ async function fetchWatchlistItems(): Promise<WatchlistItem[]> {
 }
 
 function detectAnime(detail: MediaDetailResponse): boolean {
-  if (Array.isArray(detail.genre_ids) && detail.genre_ids.length > 0) {
-    return isAnime(detail.genre_ids);
-  }
-  if (Array.isArray(detail.genres) && detail.genres.length > 0) {
-    return isAnime(detail.genres);
-  }
-  return false;
+  return isAnime(detail);
 }
 
 async function fetchMediaDetail(
@@ -85,6 +94,9 @@ async function fetchMediaDetail(
   const date =
     stub.mediaType === "movie" ? detail.release_date : detail.first_air_date;
 
+  const tvFields =
+    stub.mediaType === "tv" ? tvCompleteFieldsFromDetail(detail) : {};
+
   return toRecentlyWatchedItem(stub, {
     title,
     backdropPath: detail.backdrop_path ?? stub.backdropPath,
@@ -92,6 +104,7 @@ async function fetchMediaDetail(
     voteAverage: detail.vote_average,
     year: date?.substring(0, 4),
     isAnime: detectAnime(detail),
+    ...tvFields,
   });
 }
 
@@ -105,9 +118,14 @@ async function enrichStubs(
 }
 
 export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
+  const queryClient = useQueryClient();
   const { data: session, status: sessionStatus } = useSession();
   const isSignedIn = Boolean(session?.user?.id);
   const [hydrated, setHydrated] = useState(false);
+  const [dismissTick, setDismissTick] = useState(0);
+  const [pendingCompleteKey, setPendingCompleteKey] = useState<string | null>(
+    null,
+  );
   const mediaTypes = mediaTypesForScope(scope);
   const collectLimit =
     scope === "tv" || scope === "anime"
@@ -122,7 +140,7 @@ export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
     queryKey: queryKeys.watchlist(),
     queryFn: fetchWatchlistItems,
     enabled: isSignedIn,
-    staleTime: 60_000,
+    staleTime: queryStaleTime(60_000),
   });
 
   const stubs = useMemo(() => {
@@ -132,8 +150,9 @@ export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
     return collectLocalRecentlyWatchedStubs(watchlistQuery.data ?? [], {
       limit: collectLimit,
       mediaTypes,
+      dismissals: readContinueWatchingDismissals(),
     });
-  }, [hydrated, watchlistQuery.data, collectLimit, mediaTypes]);
+  }, [hydrated, watchlistQuery.data, collectLimit, mediaTypes, dismissTick]);
 
   const stubsKey = useMemo(
     () =>
@@ -150,14 +169,20 @@ export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
     queryKey: [...queryKeys.watchlist(), "recently-watched", scope, stubsKey],
     queryFn: () => enrichStubs(stubs ?? []),
     enabled: stubs !== null && stubs.length > 0,
-    staleTime: 5 * 60_000,
+    staleTime: queryStaleTime(5 * 60_000),
   });
 
   const items = useMemo(() => {
     if (!stubs?.length) {
       return [];
     }
+    const stubKeys = new Set(
+      stubs.map((stub) => `${stub.mediaType}:${stub.contentId}`),
+    );
     return (itemsQuery.data ?? [])
+      .filter((item) =>
+        stubKeys.has(continueWatchingTitleKey(item.mediaType, item.contentId)),
+      )
       .filter((item) => matchesRecentlyWatchedScope(item, scope))
       .slice(0, RECENTLY_WATCHED_LIMIT);
   }, [itemsQuery.data, scope, stubs]);
@@ -168,9 +193,65 @@ export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
     (isSignedIn && watchlistQuery.isLoading) ||
     (Boolean(stubs?.length) && itemsQuery.isLoading);
 
+  const markComplete = useCallback(
+    async (item: RecentlyWatchedItem) => {
+      setPendingCompleteKey(
+        continueWatchingTitleKey(item.mediaType, item.contentId),
+      );
+      dismissContinueWatchingTitle(
+        item.mediaType,
+        item.contentId,
+        Math.max(Date.now(), item.updatedAt),
+      );
+      setDismissTick((tick) => tick + 1);
+
+      const status = watchlistStatusAfterComplete({
+        mediaType: item.mediaType,
+        seasonNumber: item.seasonNumber,
+        episodeNumber: item.episodeNumber,
+        lastAiredSeason: item.lastAiredSeason,
+        lastAiredEpisode: item.lastAiredEpisode,
+        showStatus: item.showStatus,
+        hasNextEpisode: item.hasNextEpisode,
+      });
+
+      try {
+        if (isSignedIn) {
+          await applyContinueWatchingComplete({
+            contentId: item.contentId,
+            mediaType: item.mediaType,
+            status,
+            seasonNumber: item.seasonNumber,
+            episodeNumber: item.episodeNumber,
+          });
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.watchlist(),
+          });
+        } else {
+          toast("Marked as complete on this device", {
+            description: "Make an account to sync across devices.",
+            action: {
+              label: "Sign in",
+              onClick: () => {
+                window.location.assign("/login");
+              },
+            },
+          });
+        }
+      } catch {
+        toast.error("Couldn't update watchlist");
+      } finally {
+        setPendingCompleteKey(null);
+      }
+    },
+    [isSignedIn, queryClient],
+  );
+
   return {
     items,
     isLoading,
     isSignedIn,
+    markComplete,
+    pendingCompleteKey,
   };
 }

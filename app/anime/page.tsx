@@ -1,29 +1,36 @@
 import { AniListFiltersDynamic } from "@/components/anilist/anilist-filters-dynamic";
-import { AnimeHubSectionsFallback } from "@/components/anilist/anime-suspense-fallbacks";
-import { AnimeInfiniteGrid } from "@/components/anilist/anime-infinite-grid";
-import { AnimeHero } from "@/components/anilist/anime-hero";
+import {
+  AnimeHubAiringCarousel,
+  AnimeHubGenreRowsPart1,
+  AnimeHubGenreRowsPart2,
+  AnimeHubGenreRowsPart3,
+  AnimeHubHero,
+  AnimeHubHentaiCarousel,
+  AnimeHubMoviesCarousel,
+  AnimeHubPopularCarousel,
+  AnimeHubRankedRow,
+  AnimeHubSeasonCarousel,
+  AnimeHubTrendingCarousel,
+} from "@/components/anilist/anime-hub-sections";
+import { AnimeHeroFallback } from "@/components/anilist/anime-suspense-fallbacks";
+import { AnimeResultsGrid } from "@/components/anilist/anime-results-grid";
 import { CatalogPageShell } from "@/components/catalog/catalog-page-shell";
 import {
   CatalogGridFallback,
+  CatalogRowFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
-import { ContentRow } from "@/components/content/content-row";
 import { RecentlyWatchedRow } from "@/components/home/recently-watched-row";
-import { TrendCarousel } from "@/components/trend/trend-client";
 import { Button } from "@/components/ui/button";
 import {
-  buildAniListUrl,
-  hasActiveAniListFilters,
+  ANIME_BROWSE_PATH,
+  isAniListResultsLayout,
   parseAniListSearchParams,
 } from "@/lib/anilist";
-import { enrichAniListMediaItemsLightweight } from "@/lib/anilist-tmdb";
-import { fetchAnimeHubLayout } from "@/lib/server/anime-hub-data";
-import { fetchStableAniListPage } from "@/lib/server/anilist-page";
 import { normalizeRouteSearchParams } from "@/lib/utils";
-import type { MediaItem } from "@/lib/domain/typings";
-import type { TvShowWithMediaType } from "@/tmdb/models";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 export const revalidate = 3600;
@@ -68,131 +75,80 @@ export async function generateMetadata({
   };
 }
 
-const asTvItems = (items: MediaItem[]) =>
-  items as unknown as TvShowWithMediaType[];
-
 const toPageNumber = (value: string | undefined) => {
   const page = Number.parseInt(value ?? "1", 10);
   return Number.isInteger(page) && page > 0 ? page : 1;
 };
 
-type ParsedAniListParams = ReturnType<typeof parseAniListSearchParams>;
+const redirectLegacyAnimeModeParam = (sp: Record<string, string>) => {
+  if (sp.mode !== "results") return;
 
-const AnimeResults = async ({
-  params,
-  page,
-}: {
-  params: ParsedAniListParams;
-  page: number;
-}) => {
-  const data = await fetchStableAniListPage({
-    page,
-    perPage: 30,
-    params,
-  });
-  const items = await enrichAniListMediaItemsLightweight(data.media, 30);
-
-  return items.length > 0 ? (
-    <AnimeInfiniteGrid
-      initialItems={items}
-      initialPage={data.pageInfo.currentPage}
-      initialHasNextPage={data.pageInfo.hasNextPage}
-      params={params}
-    />
-  ) : (
-    <div className="rounded-lg border border-dashed p-12 text-center">
-      <p className="font-medium">No anime found.</p>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Try removing a filter or searching for a broader title.
-      </p>
-    </div>
-  );
+  const { mode: _mode, ...rest } = sp;
+  const next = new URLSearchParams(rest);
+  const query = next.toString();
+  redirect(query ? `/anime?${query}` : ANIME_BROWSE_PATH);
 };
 
-const AnimeHubSections = async () => {
-  const layout = await fetchAnimeHubLayout();
-  const [trendingRow, popularRow, seasonRow, airingRow, ...restRows] =
-    layout.carouselRows;
+const AnimeHubHome = () => (
+  <>
+    <Suspense fallback={<AnimeHeroFallback />}>
+      <AnimeHubHero />
+    </Suspense>
 
-  return (
-    <>
-      {layout.hero ? (
-        <AnimeHero
-          items={layout.hero.items}
-          label={layout.hero.label}
-          priority
-          count={1}
-        />
-      ) : null}
+    <Suspense fallback={<RecentlyWatchedRowFallback />}>
+      <RecentlyWatchedRow scope="anime" />
+    </Suspense>
 
-      <Suspense fallback={<RecentlyWatchedRowFallback />}>
-        <RecentlyWatchedRow scope="anime" />
-      </Suspense>
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubRankedRow />
+    </Suspense>
 
-      {layout.rankedRow ? (
-        <ContentRow
-          variant="ranked"
-          title={layout.rankedRow.title}
-          href={layout.rankedRow.href}
-          items={layout.rankedRow.items}
-        />
-      ) : null}
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubTrendingCarousel />
+    </Suspense>
 
-      {trendingRow ? (
-        <TrendCarousel
-          type="tv"
-          title={trendingRow.title}
-          link={trendingRow.href}
-          items={asTvItems(trendingRow.items)}
-        />
-      ) : null}
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubPopularCarousel />
+    </Suspense>
 
-      {popularRow ? (
-        <TrendCarousel
-          type="tv"
-          title={popularRow.title}
-          link={popularRow.href}
-          items={asTvItems(popularRow.items)}
-        />
-      ) : null}
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubSeasonCarousel />
+    </Suspense>
 
-      {seasonRow ? (
-        <TrendCarousel
-          type="tv"
-          title={seasonRow.title}
-          link={seasonRow.href}
-          items={asTvItems(seasonRow.items)}
-        />
-      ) : null}
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubAiringCarousel />
+    </Suspense>
 
-      {airingRow ? (
-        <TrendCarousel
-          type="tv"
-          title={airingRow.title}
-          link={airingRow.href}
-          items={asTvItems(airingRow.items)}
-        />
-      ) : null}
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubMoviesCarousel />
+    </Suspense>
 
-      {restRows.map((row) => (
-        <TrendCarousel
-          key={row.title}
-          type="tv"
-          title={row.title}
-          link={row.href}
-          items={asTvItems(row.items)}
-        />
-      ))}
-    </>
-  );
-};
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubGenreRowsPart1 />
+    </Suspense>
+
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubGenreRowsPart2 />
+    </Suspense>
+
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubGenreRowsPart3 />
+    </Suspense>
+
+    <Suspense fallback={<CatalogRowFallback />}>
+      <AnimeHubHentaiCarousel />
+    </Suspense>
+  </>
+);
 
 export default async function AnimePage(props: PageProps) {
   const raw = await props.searchParams;
   const sp = normalizeRouteSearchParams(raw);
+  redirectLegacyAnimeModeParam(sp);
+
   const params = parseAniListSearchParams(sp);
   const currentPage = toPageNumber(sp.page);
-  const isResultsLayout = sp.mode === "results" || hasActiveAniListFilters(sp);
+  const isResultsLayout = isAniListResultsLayout(sp);
 
   return (
     <CatalogPageShell
@@ -200,7 +156,7 @@ export default async function AnimePage(props: PageProps) {
       toolbar={<AniListFiltersDynamic serverParams={sp} />}
       action={
         <Button asChild variant="outline">
-          <Link href={isResultsLayout ? "/anime" : buildAniListUrl({})}>
+          <Link href={isResultsLayout ? "/anime" : ANIME_BROWSE_PATH}>
             {isResultsLayout ? "Anime home" : "All anime"}
           </Link>
         </Button>
@@ -208,12 +164,10 @@ export default async function AnimePage(props: PageProps) {
     >
       {isResultsLayout ? (
         <Suspense fallback={<CatalogGridFallback />}>
-          <AnimeResults params={params} page={currentPage} />
+          <AnimeResultsGrid params={params} page={currentPage} />
         </Suspense>
       ) : (
-        <Suspense fallback={<AnimeHubSectionsFallback />}>
-          <AnimeHubSections />
-        </Suspense>
+        <AnimeHubHome />
       )}
     </CatalogPageShell>
   );

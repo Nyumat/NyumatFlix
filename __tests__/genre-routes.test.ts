@@ -20,14 +20,14 @@ describe("genre route helpers", () => {
     expect(getAniListGenreFromTmdbName("Sci-Fi & Fantasy")).toBe("Sci-Fi");
     expect(getAniListGenreFromTmdbName("Action & Adventure")).toBe("Action");
     expect(buildAnimeGenreUrl("Action & Adventure")).toBe(
-      "/anime?genres=Action&mode=results",
+      "/anime?genres=Action",
     );
   });
 
   test("falls back to the anime browse page when AniList has no matching genre", () => {
-    expect(buildAnimeGenreUrl("Animation")).toBe("/anime?mode=results");
+    expect(buildAnimeGenreUrl("Animation")).toBe("/anime/browse");
     expect(buildGenreBrowseUrl({ id: 16, name: "Animation" }, "tv", true)).toBe(
-      "/anime?mode=results",
+      "/anime/browse",
     );
   });
 });

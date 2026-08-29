@@ -7,6 +7,13 @@ export type PlaybackProgressKey = {
   contentId: number;
   seasonNumber?: number;
   episodeNumber?: number;
+  /**
+   * AniList id for the show, when known. `contentId` is sometimes an AniList
+   * id rather than a TMDB id (e.g. on `/anime/[id]` pages), so this is kept
+   * separate to let MAL scrobbling resolve reliably regardless of which id
+   * `contentId` actually is. Not part of the local storage key.
+   */
+  anilistId?: number | null;
 };
 
 export type PlaybackProgressEntry = {

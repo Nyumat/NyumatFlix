@@ -35,7 +35,9 @@ import {
   isTmdbScrapeProviderEnabled,
 } from "@/lib/flags/site-flags";
 import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
+import { stampDonorSubtitles } from "@/lib/scrape/subtitle-harvest";
 import { isDirectScrapeProviderConfigured } from "@/lib/scrape/calluspirates-config";
+import { preferredAudioLangForTranslation } from "@/lib/scrape/anime/audio-preference";
 import { inferDirectStreamKind } from "@/lib/scrape/providers/direct";
 
 const tmdbProviderIds = TMDB_SCRAPE_PROVIDER_ORDER as unknown as [
@@ -55,6 +57,8 @@ const tmdbScrapeBodySchema = z.object({
   tmdbId: z.number().int().positive(),
   seasonNumber: z.number().int().positive().optional(),
   episodeNumber: z.number().int().positive().optional(),
+  preferMultiTrack: z.boolean().optional(),
+  preferredAudioLang: z.string().min(1).optional(),
 });
 
 const legacyTmdbScrapeBodySchema = z.object({
@@ -154,11 +158,12 @@ export async function handleScrapePost(request: Request) {
     return handleAnimeScrapePost(parsed);
   }
 
-  return handleTmdbScrapePost(parsed);
+  return handleTmdbScrapePost(parsed, request.signal);
 }
 
 async function handleTmdbScrapePost(
   input: z.infer<typeof tmdbScrapeBodySchema> & { mediaKind?: "tmdb" },
+  signal: AbortSignal,
 ) {
   const flags = await getSiteFlags();
   if (input.providerId === "direct" && !isDirectScrapeProviderConfigured()) {
@@ -193,6 +198,9 @@ async function handleTmdbScrapePost(
     tmdbId: input.tmdbId,
     seasonNumber: input.seasonNumber,
     episodeNumber: input.episodeNumber,
+    preferMultiTrack: input.preferMultiTrack,
+    preferredAudioLang: input.preferredAudioLang,
+    signal,
   });
 
   if (!result.ok) {
@@ -260,7 +268,11 @@ async function handleTmdbScrapePost(
     playUrl,
     streamKind,
     referer: result.referer,
-    subtitles: result.subtitles,
+    subtitles: stampDonorSubtitles(result.subtitles, {
+      referer: result.referer,
+      source:
+        TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
+    }),
     qualities: result.qualities,
     audioVersions: result.audioVersions,
     preferredAudioLang: result.preferredAudioLang,
@@ -268,6 +280,8 @@ async function handleTmdbScrapePost(
       ? {
           directPlayback: result.directPlayback,
           directFallbackUrl: result.directFallbackUrl,
+          directStreamName: result.directStreamName,
+          directFileName: result.directFileName,
         }
       : {}),
   });
@@ -340,12 +354,17 @@ async function handleAnimeScrapePost(
     streamKind: result.streamKind,
     playUrl,
     referer: result.referer,
-    subtitles: result.subtitles,
+    subtitles: stampDonorSubtitles(result.subtitles, {
+      referer: result.referer,
+      source: ANIME_SCRAPE_PROVIDER_LABELS[result.providerId],
+    }),
     qualities: result.qualities,
     audioVersions: result.audioVersions,
     defaultAudioLang: result.defaultAudioLang,
     defaultHardSubLang: result.defaultHardSubLang,
-    preferredAudioLang: result.preferredAudioLang,
+    preferredAudioLang:
+      result.preferredAudioLang ??
+      preferredAudioLangForTranslation(input.translationType),
     fallbackFrom: result.fallbackFrom,
   });
 }

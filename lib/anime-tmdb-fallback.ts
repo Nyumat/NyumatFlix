@@ -1,7 +1,8 @@
-import type {
-  AniListMedia,
-  AniListPage,
-  AniListSearchParams,
+import {
+  requiresAdultAniListContent,
+  type AniListMedia,
+  type AniListPage,
+  type AniListSearchParams,
 } from "@/lib/anilist";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { tmdb } from "@/tmdb/api";
@@ -170,6 +171,17 @@ const searchTmdbAnime = async ({
   };
 };
 
+const emptyAniListPage = (page: number, perPage: number): AniListPage => ({
+  pageInfo: {
+    currentPage: page,
+    lastPage: page,
+    hasNextPage: false,
+    total: 0,
+    perPage,
+  },
+  media: [],
+});
+
 export const fetchTmdbAnimeFallbackPage = async ({
   page = 1,
   perPage = 24,
@@ -184,6 +196,13 @@ export const fetchTmdbAnimeFallbackPage = async ({
   console.warn(
     `AniList unavailable${reason ? ` (${reason})` : ""}; using TMDB anime fallback.`,
   );
+
+  if (requiresAdultAniListContent(params.genres)) {
+    console.warn(
+      "Skipping TMDB anime fallback for adult AniList genre filters.",
+    );
+    return emptyAniListPage(page, perPage);
+  }
 
   if (params.query) {
     return searchTmdbAnime({ page, perPage, params });

@@ -6,6 +6,7 @@ import { useEffect, useMemo } from "react";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import type { Episode } from "@/lib/domain/typings";
+import { queryStaleTime } from "@/lib/cache-policy";
 import { queryKeys } from "@/lib/query-keys";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import {
@@ -78,7 +79,7 @@ export function useTvEpisodeHydrate({
       mediaType === "tv" &&
       target?.source === "watchlist" &&
       !shouldSkipHydrate,
-    staleTime: 10 * 60 * 1000,
+    staleTime: queryStaleTime(10 * 60 * 1000),
   });
 
   useEffect(() => {

@@ -3,7 +3,10 @@
 import { useMemo } from "react";
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
-import { filterAnimeScrapeProviderIds } from "@/lib/flags/site-flags";
+import {
+  filterAnimeScrapeProviderIds,
+  getAnimeScrapeProviderMenuOrder,
+} from "@/lib/flags/site-flags";
 import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
 import {
   ANIME_SCRAPE_PROVIDER_LABELS,
@@ -50,6 +53,14 @@ const animeScrapeLoopConfig = {
     query: input.query,
     ...(input.tmdb ? { tmdb: input.tmdb } : {}),
   }),
+  harvestSubtitleProviders: (
+    winnerId: AnimeScrapeProviderId,
+    order: readonly AnimeScrapeProviderId[],
+    failed: ReadonlySet<AnimeScrapeProviderId>,
+  ) =>
+    order.filter(
+      (providerId) => providerId !== winnerId && !failed.has(providerId),
+    ),
 } as const;
 
 export function useAnimeScrape() {
@@ -59,7 +70,7 @@ export function useAnimeScrape() {
       ...animeScrapeLoopConfig,
       providerOrder: filterAnimeScrapeProviderIds(
         flags,
-        ANIME_SCRAPE_PROVIDER_ORDER,
+        getAnimeScrapeProviderMenuOrder(flags),
       ) as typeof ANIME_SCRAPE_PROVIDER_ORDER,
     }),
     [flags],

@@ -11,8 +11,18 @@ import {
   refererForVidnestStream,
 } from "@/lib/scrape/vidnest-shared";
 import { decodeVidnestPayload } from "@/lib/scrape/vidnest-crypto";
+import {
+  VIDNEST_EXTRA_QUALITIES,
+  VIDNEST_PLAYABLE_CANDIDATE_BATCH,
+  VIDNEST_PLAYABLE_CANDIDATE_LIMIT,
+} from "@/lib/scrape/providers/vidnest";
 
 describe("vidnest scrape helpers", () => {
+  it("caps playable probes at four candidates racing two at a time", () => {
+    expect(VIDNEST_PLAYABLE_CANDIDATE_LIMIT).toBe(4);
+    expect(VIDNEST_PLAYABLE_CANDIDATE_BATCH).toBe(2);
+    expect(VIDNEST_EXTRA_QUALITIES).toBe(3);
+  });
   it("builds movie and tv media paths", () => {
     expect(buildVidnestMediaPath({ mediaType: "movie", tmdbId: 550 })).toBe(
       "movie/550",

@@ -4,10 +4,12 @@ import { cn } from "@/lib/utils";
 
 type PlaybackStartingOverlayProps = {
   className?: string;
+  message?: string;
 };
 
 export function PlaybackStartingOverlay({
   className,
+  message = "Starting playback…",
 }: PlaybackStartingOverlayProps) {
   return (
     <div
@@ -23,7 +25,7 @@ export function PlaybackStartingOverlay({
           className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white"
           aria-hidden="true"
         />
-        <p className="text-sm text-white/70">Starting playback…</p>
+        <p className="text-sm text-white/70">{message}</p>
       </div>
     </div>
   );

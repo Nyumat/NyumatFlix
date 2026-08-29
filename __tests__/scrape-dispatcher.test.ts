@@ -41,9 +41,15 @@ describe("scrape dispatchers", () => {
     resetScrapeHostEgressPreferences();
   });
 
-  it("prefers proxy for wingsdatabase.com", () => {
-    expect(scrapePreferProxyHostname("api.wingsdatabase.com")).toBe(true);
+  it("prefers proxy for the VidEasy/VidKing API host", () => {
+    expect(scrapePreferProxyHostname("api.speedracelight.com")).toBe(true);
+    expect(scrapePreferProxyHostname("api.wingsdatabase.com")).toBe(false);
     expect(scrapePreferProxyHostname("kaa.lt")).toBe(false);
+  });
+
+  it("prefers proxy for AllAnime episode API hosts", () => {
+    expect(scrapePreferProxyHostname("api.mkissa.net")).toBe(true);
+    expect(scrapePreferProxyHostname("api.allanime.day")).toBe(true);
   });
 
   it("routes VidSrc through VPN proxy in prod and direct egress locally", () => {
@@ -54,6 +60,9 @@ describe("scrape dispatchers", () => {
     expect(isVidsrcScrapeHostname("vsembed.ru")).toBe(true);
     expect(isVidsrcScrapeHostname("kaleidoscopekernel.space")).toBe(true);
     expect(isVidsrcScrapeHostname("cloudorchestranova.com")).toBe(true);
+    expect(isVidsrcScrapeHostname("data.vidsrcme.ru")).toBe(true);
+    expect(isVidsrcScrapeHostname("comityofcognomen.site")).toBe(true);
+    expect(isVidsrcScrapeHostname("gestaltgazetteer.website")).toBe(true);
     expect(scrapeBypassesProxyHostname("vsembed.ru")).toBe(true);
     expect(scrapePreferProxyHostname("vsembed.ru")).toBe(false);
 
@@ -63,6 +72,9 @@ describe("scrape dispatchers", () => {
     expect(scrapeBypassesProxyHostname("kaleidoscopekernel.space")).toBe(false);
     expect(scrapePreferProxyHostname("vsembed.ru")).toBe(true);
     expect(scrapePreferProxyHostname("kaleidoscopekernel.space")).toBe(true);
+    expect(scrapePreferProxyHostname("data.vidsrcme.ru")).toBe(true);
+    expect(scrapePreferProxyHostname("comityofcognomen.site")).toBe(true);
+    expect(scrapePreferProxyHostname("gestaltgazetteer.website")).toBe(true);
 
     if (previousProxy === undefined) {
       delete process.env.SCRAPE_PROXY_URL;

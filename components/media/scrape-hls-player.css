@@ -40,3 +40,39 @@
   pointer-events: none;
   transform: translateY(-50%) translateZ(0);
 }
+
+/* Scrollable caption track lists in Vidstack settings menus. */
+.nyumat-scrape-player .vds-captions-radio-group {
+  max-height: 11rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.22) transparent;
+}
+
+.nyumat-scrape-player .vds-captions-radio-group::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nyumat-scrape-player .vds-captions-radio-group::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.22);
+}
+
+/* Subtitle configuration submenu styling inside Vidstack layout */
+.nyumat-scrape-player .vds-subtitle-config-items {
+  max-height: 24rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.22) transparent;
+}
+
+.nyumat-scrape-player .vds-subtitle-config-items::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nyumat-scrape-player .vds-subtitle-config-items::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.22);
+}

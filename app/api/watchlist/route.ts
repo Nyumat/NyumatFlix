@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { db, watchlist } from "@/db/schema";
+import { scrobbleToMal } from "@/lib/mal/sync";
 import { eq, and } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -7,7 +8,9 @@ import { z } from "zod";
 const addWatchlistItemSchema = z.object({
   contentId: z.number().int().positive(),
   mediaType: z.enum(["movie", "tv"]),
-  status: z.enum(["watching", "waiting", "finished"]).optional(),
+  status: z
+    .enum(["watching", "plan_to_watch", "on_hold", "dropped", "completed"])
+    .optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -73,6 +76,13 @@ export async function POST(request: NextRequest) {
         status: validatedData.status || "watching",
       })
       .returning();
+
+    // Scrobble addition to MyAnimeList
+    void scrobbleToMal(session.user.id, {
+      tmdbId: validatedData.contentId,
+      mediaType: validatedData.mediaType,
+      status: validatedData.status || "watching",
+    });
 
     return NextResponse.json({ item: newItem }, { status: 201 });
   } catch (error) {

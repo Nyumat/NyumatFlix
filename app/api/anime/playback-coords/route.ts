@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
           animeInfo: coords.animeInfo,
           confidence: "high" as const,
           source: coords.source,
+          isAdult: coords.isAdult,
+          genres: coords.genres,
         },
       },
       { headers: catalogCacheHeaders() },

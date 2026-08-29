@@ -1,10 +1,22 @@
 import { createDecipheriv } from "node:crypto";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../fetch";
+import {
+  SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+  probeScrapePlaybackPath,
+} from "../playback-probe";
+import { firstOkInBatches } from "../race-first";
+import { fetchVdrkCatalogSubtitles } from "../subtitles";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
 import { looksLikeHlsStreamUrl } from "../stream-url-patterns";
-import { validateStreamUrlWithReferers } from "../validate-stream";
 
 const VIDROCK_ORIGIN = "https://vidrock.net";
+export const VIDROCK_SUBTITLE_ORIGIN = "https://sub.vdrk.site";
+export { buildVdrkCatalogSubtitleApiUrl as buildVidrockSubtitleApiUrl } from "../subtitles";
+export { parseVdrkCatalogSubtitleEntries as parseVidrockSubtitleEntries } from "../subtitles";
+export { fetchVdrkCatalogSubtitles as fetchVidrockSubtitles } from "../subtitles";
+export const VIDROCK_PLAYABLE_CANDIDATE_LIMIT = 4;
+export const VIDROCK_PLAYABLE_CANDIDATE_BATCH = 2;
 
 /** Static AES-256-GCM key embedded in VidRock frontend bundle. */
 const VIDROCK_AES_KEY = Buffer.from(
@@ -110,6 +122,8 @@ const resolveMp4Playlist = async (
       Referer: `${VIDROCK_ORIGIN}/`,
       Origin: VIDROCK_ORIGIN,
     },
+    timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+    retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
   });
 
   if (!response.ok) {
@@ -148,11 +162,18 @@ export async function scrapeVidrock(
   const providerId = "vidrock" as const;
 
   try {
-    const api = await scrapeFetchText(buildApiUrl(input), {
-      Accept: "application/json",
-      Referer: `${VIDROCK_ORIGIN}/`,
-      Origin: VIDROCK_ORIGIN,
-    });
+    const api = await scrapeFetchText(
+      buildApiUrl(input),
+      {
+        Accept: "application/json",
+        Referer: `${VIDROCK_ORIGIN}/`,
+        Origin: VIDROCK_ORIGIN,
+      },
+      {
+        timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+        retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+      },
+    );
 
     if (api.status !== 200) {
       return {
@@ -182,51 +203,52 @@ export async function scrapeVidrock(
       };
     }
 
-    for (const source of sources) {
-      let streamUrl = source.url;
+    const subtitlesPromise = fetchVdrkCatalogSubtitles(input);
 
-      if (
-        source.type === "mp4" &&
-        !/\.mp4(?:[?#]|$)/i.test(source.url) &&
-        /\/playlist\//i.test(source.url)
-      ) {
-        const resolved = await resolveMp4Playlist(source.url);
-        if (!resolved) {
-          continue;
+    const winner = await firstOkInBatches(
+      sources.slice(0, VIDROCK_PLAYABLE_CANDIDATE_LIMIT),
+      async (source) => {
+        let streamUrl = source.url;
+
+        if (
+          source.type === "mp4" &&
+          !/\.mp4(?:[?#]|$)/i.test(source.url) &&
+          /\/playlist\//i.test(source.url)
+        ) {
+          const resolved = await resolveMp4Playlist(source.url);
+          if (!resolved) {
+            return null;
+          }
+          streamUrl = resolved;
         }
-        streamUrl = resolved;
-      }
 
-      const referer = `${VIDROCK_ORIGIN}/`;
-      const kind =
-        source.type === "mp4" || /\.mp4(?:[?#]|$)/i.test(streamUrl)
-          ? "mp4"
-          : "hls";
-
-      let validation = await validateStreamUrlWithReferers(
-        streamUrl,
-        referer,
-        kind,
-        { depth: "full" },
-      );
-      if (!validation.ok) {
-        validation = await validateStreamUrlWithReferers(
-          streamUrl,
-          referer,
+        const referer = `${VIDROCK_ORIGIN}/`;
+        const kind =
+          source.type === "mp4" || /\.mp4(?:[?#]|$)/i.test(streamUrl)
+            ? "mp4"
+            : "hls";
+        const ok = await probeScrapePlaybackPath(
+          { url: streamUrl, referer },
           kind,
-          { depth: "full" },
         );
-      }
-      if (!validation.ok) {
-        continue;
-      }
+        if (!ok) {
+          return null;
+        }
 
+        return { streamUrl, referer };
+      },
+      VIDROCK_PLAYABLE_CANDIDATE_BATCH,
+    );
+
+    if (winner) {
+      const subtitles = await subtitlesPromise;
       return {
         ok: true,
         providerId,
-        streamUrl,
-        referer: validation.referer ?? referer,
+        streamUrl: winner.value.streamUrl,
+        referer: winner.value.referer,
         validated: true,
+        ...(subtitles.length > 0 ? { subtitles } : {}),
       };
     }
 

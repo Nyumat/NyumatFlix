@@ -8,9 +8,11 @@ import {
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { type ReactNode, useEffect, useState } from "react";
+import { queryGcTime, queryStaleTime, IS_DEV } from "./cache-policy";
 import { createIDBPersister } from "./idb-persister";
 
 const TWENTY_FOUR_HOURS = 1000 * 60 * 60 * 24;
+const DEFAULT_STALE_MS = 5 * 60 * 1000;
 
 const PERSIST_BUSTER = "v2";
 
@@ -18,10 +20,11 @@ function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 5 * 60 * 1000,
-        gcTime: TWENTY_FOUR_HOURS,
+        staleTime: queryStaleTime(DEFAULT_STALE_MS),
+        gcTime: queryGcTime(TWENTY_FOUR_HOURS),
         retry: 1,
-        refetchOnWindowFocus: false,
+        refetchOnWindowFocus: IS_DEV,
+        refetchOnMount: IS_DEV ? "always" : true,
       },
     },
   });
@@ -39,7 +42,7 @@ function getQueryClient() {
 }
 
 function getPersister() {
-  if (isServer) return undefined;
+  if (isServer || IS_DEV) return undefined;
   if (!persister) persister = createIDBPersister();
   return persister;
 }
@@ -55,6 +58,9 @@ export function QueryProvider({ children }: QueryProviderProps) {
 
   useEffect(() => {
     setIsMounted(true);
+    if (IS_DEV) {
+      void createIDBPersister().removeClient();
+    }
   }, []);
 
   if (!idbPersister) {

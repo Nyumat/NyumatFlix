@@ -8,20 +8,22 @@ import {
 } from "./proxy";
 import { scrapeUpstreamHeaders } from "./upstream-headers";
 import { isVidKingCdnHostname, isVidKingCdnUrl } from "./vidking-cdn-url";
+import { isWingsApiHostname } from "./vidking-constants";
 import {
   rotateScrapeVpnEgress,
   scrapeRateLimitRotateHostname,
 } from "./vpn-rotate";
 import { getCachedRawFlagsSync } from "@/lib/flags/flipt-client";
+import { scrapePreferProxyHostname as scrapeEmbedProxyHostname } from "./proxy-hosts";
 
 const FETCH_TIMEOUT_MS = 30_000;
 const FETCH_RETRY_ATTEMPTS = 3;
 const FETCH_RETRY_DELAY_MS = 750;
 const CURL_FALLBACK_HOSTS =
-  /(?:^kwik\.[a-z]+$|^api\.wingsdatabase\.com$|^cloudorchestranova\.com$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|opstream11\.com|opstream16\.com|goodstream\.cc|astroliteonline\.online|tripplestream\.online|glowhavenmedia\.cyou|1x2\.space|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com|\.space)$)/i;
+  /(?:^kwik\.[a-z]+$|^api\.speedracelight\.com$|^cloudorchestranova\.com$|^data\.vidsrcme\.ru$|(?:^|\.)(?:uwucdn\.top|owocdn\.top|opstream11\.com|opstream16\.com|goodstream\.cc|astroliteonline\.online|tripplestream\.online|glowhavenmedia\.cyou|1x2\.space|peregrinepalaver\.space|meadowlaneeducation\.cfd|tiktokcdn\.com|\.space|\.site|\.website)$)/i;
 
 const VIDSRC_SCRAPE_HOST_PATTERN =
-  /(?:^|\.)vsembed\.ru$|(?:^|\.)vidsrc-embed\.ru$|^cloudorchestranova\.com$|\.space$/i;
+  /(?:^|\.)vsembed\.ru$|(?:^|\.)vidsrc-embed\.ru$|(?:^|\.)data\.vidsrcme\.ru$|^cloudorchestranova\.com$|\.(?:space|site|website)$/i;
 
 const BLOCKED_STATUSES = new Set([403, 429, 503]);
 
@@ -30,15 +32,18 @@ export const isVidsrcScrapeHostname = (hostname: string): boolean =>
   VIDSRC_SCRAPE_HOST_PATTERN.test(hostname);
 
 export const scrapePreferProxyHostname = (hostname: string): boolean =>
-  hostname === "api.wingsdatabase.com" ||
+  isWingsApiHostname(hostname) ||
   isVidKingCdnHostname(hostname) ||
+  hostname === "api.mkissa.net" ||
+  hostname === "api.allanime.day" ||
+  scrapeEmbedProxyHostname(hostname) ||
   (Boolean(scrapeProxyUrl()) && isVidsrcScrapeHostname(hostname));
 
 export const scrapeBypassesProxyHostname = (
   hostname: string,
   url?: string,
 ): boolean => {
-  // Wingsdatabase CDN tokens are minted on VPN egress — never bypass gluetun.
+  // VidEasy/VidKing CDN tokens are minted on VPN egress — never bypass gluetun.
   if (url && isVidKingCdnUrl(url)) {
     return false;
   }
@@ -48,6 +53,11 @@ export const scrapeBypassesProxyHostname = (
 
   // Softsub CDN — must bypass before the VidSrc `*.space` host pattern.
   if (hostname === "sub.1x2.space") {
+    return true;
+  }
+
+  // Anime CDN — must bypass before the VidSrc rotating `*.site` host pattern.
+  if (/(?:^|\.)vivibebe\.site$/.test(hostname)) {
     return true;
   }
 
@@ -89,8 +99,10 @@ type ScrapeFetchInit = RequestInit & {
   headers?: Record<string, string>;
   curlFallback?: boolean;
   timeoutMs?: number;
-  /** Override default 3-attempt retry loop (e.g. wingsdatabase hangs on miss). */
+  /** Override default 3-attempt retry loop (e.g. speedracelight hangs on miss). */
   retryAttempts?: number;
+  /** Skip preferDirect and send this request through SCRAPE_PROXY_URL. */
+  forceProxy?: boolean;
 };
 
 const hostnameOf = (url: string): string => {
@@ -115,7 +127,9 @@ const scrapeCurlFallback = async (
 
   if (
     parsed.protocol !== "https:" ||
-    (!CURL_FALLBACK_HOSTS.test(parsed.hostname) && !isVidKingCdnUrl(url))
+    (!CURL_FALLBACK_HOSTS.test(parsed.hostname) &&
+      !isWingsApiHostname(parsed.hostname) &&
+      !isVidKingCdnUrl(url))
   ) {
     return null;
   }
@@ -218,7 +232,12 @@ async function scrapeFetchOnce(
   url: string,
   init: ScrapeFetchInit = {},
 ): Promise<Response> {
-  const { curlFallback = true, timeoutMs, ...fetchInit } = init;
+  const {
+    curlFallback = true,
+    timeoutMs,
+    forceProxy = false,
+    ...fetchInit
+  } = init;
   const timeoutSignal = AbortSignal.timeout(timeoutMs ?? FETCH_TIMEOUT_MS);
   const signal = fetchInit.signal
     ? AbortSignal.any([fetchInit.signal, timeoutSignal])
@@ -240,13 +259,16 @@ async function scrapeFetchOnce(
   const hostname = hostnameOf(url);
   const proxyUrl = scrapeProxyUrl();
   const proxyDispatcher = proxyUrl ? scrapeProxyDispatcher() : undefined;
+  const forceProxyEgress = forceProxy && Boolean(proxyDispatcher);
   const preferProxyOnly =
-    Boolean(hostname) &&
-    Boolean(proxyUrl) &&
-    Boolean(proxyDispatcher) &&
-    scrapePreferProxyHostname(hostname);
+    forceProxyEgress ||
+    (Boolean(hostname) &&
+      Boolean(proxyUrl) &&
+      Boolean(proxyDispatcher) &&
+      scrapePreferProxyHostname(hostname));
 
   const preferDirect =
+    !forceProxyEgress &&
     !preferProxyOnly &&
     Boolean(proxyUrl) &&
     Boolean(proxyDispatcher) &&
@@ -312,7 +334,11 @@ async function scrapeFetchOnce(
     }
   };
 
-  if (hostname && scrapeBypassesProxyHostname(hostname, url)) {
+  if (
+    !forceProxyEgress &&
+    hostname &&
+    scrapeBypassesProxyHostname(hostname, url)
+  ) {
     const directOnly = await attemptEgress(
       scrapeDirectDispatcher(),
       undefined,
@@ -379,11 +405,17 @@ async function scrapeFetchOnce(
 export async function scrapeFetchText(
   url: string,
   headers: Record<string, string> = {},
-  options: { timeoutMs?: number } = {},
+  options: {
+    timeoutMs?: number;
+    retryAttempts?: number;
+    forceProxy?: boolean;
+  } = {},
 ): Promise<{ status: number; text: string }> {
   const response = await scrapeFetch(url, {
     headers,
     timeoutMs: options.timeoutMs,
+    retryAttempts: options.retryAttempts,
+    forceProxy: options.forceProxy,
   });
   return {
     status: response.status,

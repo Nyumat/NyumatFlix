@@ -23,7 +23,14 @@ describe("anime cdn referer", () => {
 
     expect(
       preferAnimeCdnReferer(
-        "https://megap.kotocdn.site/anime/abc/master.m3u8",
+        "https://cdn.watching.onl/anime/abc/def/master.m3u8",
+        "https://justanime.to/",
+      ),
+    ).toBe("https://megaplay.buzz/");
+
+    expect(
+      preferAnimeCdnReferer(
+        "https://megap.mikora.top/abc/def/master.m3u8",
         "https://justanime.to/",
       ),
     ).toBe("https://megaplay.buzz/");

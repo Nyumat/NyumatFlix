@@ -2,6 +2,10 @@
 
 export type DirectStreamPlayback = "hls" | "direct" | "extended";
 
+export type DirectPlaybackEngineHint = "movi-first" | "hls-first";
+
+export type DirectTranscodeProfile = "light" | "heavy" | "ultra";
+
 export type DirectStream = {
   name: string;
   resolution: string;
@@ -18,6 +22,9 @@ export type DirectStream = {
   ready?: boolean;
   phase?: "addon" | "torbox" | "cached";
   resolveKey?: string;
+  playbackHint?: DirectPlaybackEngineHint;
+  transcodeProfile?: DirectTranscodeProfile;
+  notWebReady?: boolean;
 };
 
 export type DirectStreamsResponse = {

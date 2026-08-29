@@ -1,7 +1,6 @@
-/** VixSrc playlist endpoints can return JSON/HTML stubs that are not playable HLS. */
-export const isVixsrcPlaylistUrl = (streamUrl: string): boolean =>
-  /vixsrc\.to\/playlist\//i.test(streamUrl);
+import { isVixsrcPlaylistUrl } from "./vixsrc-shared";
 
+/** VixSrc playlist endpoints can return JSON/HTML stubs that are not playable HLS. */
 export const isVixsrcStubPlaylistBody = (
   streamUrl: string,
   body: string,

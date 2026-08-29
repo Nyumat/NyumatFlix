@@ -89,6 +89,7 @@ export type AniListMedia = {
   averageScore?: number | null;
   popularity?: number | null;
   trending?: number | null;
+  isAdult?: boolean | null;
   startDate?: {
     year?: number | null;
     month?: number | null;
@@ -239,6 +240,8 @@ export const parseAniListSearchParams = (
   year: parseYear(sp.year),
 });
 
+export const ANIME_BROWSE_PATH = "/anime/browse";
+
 export const hasActiveAniListFilters = (sp: Record<string, string>) =>
   Boolean(
     sp.query ||
@@ -249,6 +252,9 @@ export const hasActiveAniListFilters = (sp: Record<string, string>) =>
       sp.year ||
       (sp.sort && sp.sort !== "TRENDING_DESC"),
   );
+
+/** Grid layout when any AniList filter param is present (no URL mode flag). */
+export const isAniListResultsLayout = hasActiveAniListFilters;
 
 const compact = <T extends Record<string, unknown>>(input: T) =>
   Object.fromEntries(
@@ -364,7 +370,7 @@ export const cleanAniListDescription = (value: string | null | undefined) =>
     .trim() ?? "";
 
 export const buildAniListUrl = (
-  params: Partial<AniListSearchParams> & { mode?: "results"; page?: number },
+  params: Partial<AniListSearchParams> & { page?: number },
 ) => {
   const search = new URLSearchParams();
   if (params.sort && params.sort !== "TRENDING_DESC") {
@@ -377,9 +383,8 @@ export const buildAniListUrl = (
   if (params.season) search.set("season", params.season);
   if (params.year) search.set("year", String(params.year));
   if (params.page && params.page > 1) search.set("page", String(params.page));
-  search.set("mode", "results");
   const query = search.toString();
-  return query ? `/anime?${query}` : "/anime";
+  return query ? `/anime?${query}` : ANIME_BROWSE_PATH;
 };
 
 const toAniListDate = (item: AniListMedia) => {

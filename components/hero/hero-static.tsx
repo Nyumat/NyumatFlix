@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MediaItem } from "@/lib/domain/typings";
+import { cdnUrl } from "@/lib/cdn";
 import { cn } from "@/lib/utils";
 import { Calendar, Clock, DollarSign, Star } from "lucide-react";
 import Image from "next/image";
@@ -171,7 +172,9 @@ export function BackgroundImage({
   hideTitle = false,
   overlayClassName,
 }: BackgroundImageProps) {
-  const backgroundImage = imageUrl;
+  const backgroundImage = imageUrl.startsWith("/")
+    ? cdnUrl(imageUrl)
+    : imageUrl;
 
   return (
     <div
@@ -261,11 +264,13 @@ export function StaticHero({
     pathname.includes("/dmca") ||
     pathname.includes("/ad-free");
   const isWatchlistPage = pathname.includes("/watchlist");
+  const isSettingsPage = pathname.includes("/settings");
   const isFullPageBackground =
     isSearchPage ||
     isBrowsePage ||
     isLegalPage ||
     isWatchlistPage ||
+    isSettingsPage ||
     isCatalogPage;
 
   return (
@@ -276,7 +281,7 @@ export function StaticHero({
       logo={logo}
       hideTitle={hideTitle}
       overlayClassName={
-        isWatchlistPage
+        isWatchlistPage || isSettingsPage
           ? "bg-black/90"
           : isCatalogPage
             ? "bg-black/80"

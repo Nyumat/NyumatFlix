@@ -1,11 +1,15 @@
 import { auth } from "@/auth";
 import { db, watchlist } from "@/db/schema";
+import type { WatchlistStatus } from "@/lib/domain/watchlist";
+import { scrobbleToMal } from "@/lib/mal/sync";
 import { eq, and } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const updateWatchlistItemSchema = z.object({
-  status: z.enum(["watching", "waiting", "finished"]).optional(),
+  status: z
+    .enum(["watching", "plan_to_watch", "on_hold", "dropped", "completed"])
+    .optional(),
   lastWatchedSeason: z.number().int().positive().nullable().optional(),
   lastWatchedEpisode: z.number().int().positive().nullable().optional(),
 });
@@ -41,7 +45,7 @@ export async function PATCH(
     }
 
     const updateData: {
-      status?: "watching" | "waiting" | "finished";
+      status?: WatchlistStatus;
       lastWatchedSeason?: number | null;
       lastWatchedEpisode?: number | null;
       lastWatchedAt?: Date;
@@ -68,6 +72,16 @@ export async function PATCH(
         and(eq(watchlist.id, params.id), eq(watchlist.userId, session.user.id)),
       )
       .returning();
+
+    if (updatedItem) {
+      void scrobbleToMal(session.user.id, {
+        tmdbId: updatedItem.contentId,
+        mediaType: updatedItem.mediaType,
+        seasonNumber: updatedItem.lastWatchedSeason ?? undefined,
+        episodeNumber: updatedItem.lastWatchedEpisode ?? undefined,
+        status: updatedItem.status,
+      });
+    }
 
     return NextResponse.json({ item: updatedItem }, { status: 200 });
   } catch (error) {

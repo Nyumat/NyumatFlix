@@ -3,7 +3,10 @@ import {
   rankDirectMovieStreams,
 } from "@calluspirates/shared";
 
-import { rewriteDirectStreamUrls } from "@/lib/direct/client-streams";
+import {
+  rewriteDirectStreamUrls,
+  type DirectPlaybackTarget,
+} from "@/lib/direct/client-streams";
 import type { DirectStream } from "@/lib/direct/types";
 
 function streamKey(stream: DirectStream): string {
@@ -17,13 +20,15 @@ function streamKey(stream: DirectStream): string {
 export function mergeDirectStreams(
   current: readonly DirectStream[],
   incoming: readonly DirectStream[],
+  target?: DirectPlaybackTarget,
 ): DirectStream[] {
   const merged = new Map<string, DirectStream>();
   for (const stream of [...current, ...incoming]) {
     if (isStereoscopicDirectStream(stream)) {
       continue;
     }
-    merged.set(streamKey(stream), rewriteDirectStreamUrls(stream));
+    const next = target ? rewriteDirectStreamUrls(stream, target) : stream;
+    merged.set(streamKey(next), next);
   }
   return rankDirectMovieStreams([...merged.values()]);
 }

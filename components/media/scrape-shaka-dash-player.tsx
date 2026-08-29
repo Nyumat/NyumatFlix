@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { IntroDbSegmentControl } from "@/components/media/controls/introdb-segment-control";
+import { useSubtitleOffsetKeyboardShortcuts } from "@/components/media/controls/scrape-subtitle-offset-controls";
 import { useIntroDbSegments } from "@/hooks/use-introdb-segments";
+import { useNativeSubtitleOffset } from "@/hooks/use-native-subtitle-offset";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
 import { buildIntroDbChaptersVtt } from "@/lib/playback/introdb";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
@@ -78,6 +80,16 @@ function ScrapeShakaDashPlayerInstance({
     () => buildScrapeSubtitleTracks(subtitles, referer),
     [referer, subtitles],
   );
+  const subtitleOffset = useNativeSubtitleOffset(
+    videoRef,
+    progressKey,
+    (subtitles?.length ?? 0) > 0,
+  );
+  useSubtitleOffsetKeyboardShortcuts({
+    offsetSeconds: subtitleOffset.offsetSeconds,
+    onOffsetChange: subtitleOffset.setOffsetSeconds,
+    visible: subtitleOffset.hasTracks,
+  });
   const { segments: introDbSegments } = useIntroDbSegments(
     progressKey,
     playbackState.duration,

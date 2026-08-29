@@ -56,6 +56,21 @@ export const isRecoverableScrapeHlsStall = (detail: ErrorData) =>
 
 const STALL_RECOVERY_STARTUP_GRACE_MS = 5_000;
 
+export const pickHighestHlsLevelIndex = (levels: readonly Level[]): number => {
+  let bestIndex = 0;
+  let bestHeight = 0;
+
+  for (let index = 0; index < levels.length; index += 1) {
+    const height = inferHeightFromLevel(levels[index]!);
+    if (height > bestHeight) {
+      bestHeight = height;
+      bestIndex = index;
+    }
+  }
+
+  return bestIndex;
+};
+
 export const configureScrapeHlsInstance = (hls: Hls) => {
   let lastStallRecoveryAt = 0;
   let manifestLoadedAt = 0;
@@ -64,7 +79,8 @@ export const configureScrapeHlsInstance = (hls: Hls) => {
     manifestLoadedAt = Date.now();
     normalizeLevelHeights(hls.levels);
     hls.levels.splice(0, hls.levels.length, ...stripInvalidLevels(hls.levels));
-    hls.currentLevel = -1;
+    hls.currentLevel =
+      hls.levels.length > 0 ? pickHighestHlsLevelIndex(hls.levels) : -1;
   });
 
   hls.on(Hls.Events.ERROR, (_event, detail) => {

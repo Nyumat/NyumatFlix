@@ -12,6 +12,13 @@ import type {
   TvShowDetails,
 } from "@/tmdb/models";
 
+import {
+  TV_DETAIL_CATALOG_ANIME,
+  TV_DETAIL_CATALOG_QUERY,
+  withTvDetailCatalogQuery,
+  type TvDetailCatalog,
+} from "@/lib/tv-detail-catalog";
+
 type MediaType = "movie" | "tv";
 type Resource =
   | "above-fold"
@@ -37,10 +44,14 @@ async function fetchMediaTabResource<T>(
   id: string,
   resource: Resource,
   page?: string,
+  catalog?: TvDetailCatalog | null,
 ): Promise<T> {
   const params = new URLSearchParams();
   if (page) {
     params.set("page", page);
+  }
+  if (catalog === "anime") {
+    params.set(TV_DETAIL_CATALOG_QUERY, TV_DETAIL_CATALOG_ANIME);
   }
 
   const query = params.toString();
@@ -95,17 +106,40 @@ export const fetchMovieRecommendationsPageClient = (id: string, page: string) =>
 export const fetchMovieSimilarPageClient = (id: string, page: string) =>
   fetchMediaTabResource<ListResponse<Movie>>("movie", id, "similar", page);
 
-export const fetchTvCreditsClient = (id: string) =>
-  fetchMediaTabResource<Credits>("tv", id, "credits");
+export const fetchTvCreditsClient = (
+  id: string,
+  catalog?: TvDetailCatalog | null,
+) => fetchMediaTabResource<Credits>("tv", id, "credits", undefined, catalog);
 
-export const fetchTvAboveFoldClient = (id: string) =>
-  fetchMediaTabResource<MediaAboveFoldDetail>("tv", id, "above-fold");
+export const fetchTvAboveFoldClient = (
+  id: string,
+  catalog?: TvDetailCatalog | null,
+) =>
+  fetchMediaTabResource<MediaAboveFoldDetail>(
+    "tv",
+    id,
+    "above-fold",
+    undefined,
+    catalog,
+  );
 
-export const fetchTvDetailsClient = (id: string) =>
-  fetchMediaTabResource<TvShowDetails>("tv", id, "details");
+export const fetchTvDetailsClient = (
+  id: string,
+  catalog?: TvDetailCatalog | null,
+) =>
+  fetchMediaTabResource<TvShowDetails>("tv", id, "details", undefined, catalog);
 
-export const fetchTvAllSeasonsClient = (id: string) =>
-  fetchMediaTabResource<Record<number, SeasonDetails>>("tv", id, "all-seasons");
+export const fetchTvAllSeasonsClient = (
+  id: string,
+  catalog?: TvDetailCatalog | null,
+) =>
+  fetchMediaTabResource<Record<number, SeasonDetails>>(
+    "tv",
+    id,
+    "all-seasons",
+    undefined,
+    catalog,
+  );
 
 export const fetchTvImagesClient = (id: string) =>
   fetchMediaTabResource<GetImagesResponse>("tv", id, "images");

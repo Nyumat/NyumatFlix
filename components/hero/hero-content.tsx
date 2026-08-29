@@ -16,10 +16,14 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { Star, Volume2, VolumeX, X } from "lucide-react";
 import Link from "next/link";
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useLayoutEffect, useMemo, useRef } from "react";
 import { useHeroAnimePrefs } from "@/hooks/use-hero-anime-prefs";
+import { useAnilistAdultHint } from "@/hooks/use-anilist-adult-hint";
 import { useAnimeEpisodeMapping } from "@/hooks/use-anime-episode-mapping";
 import { useTvEpisodeHydrate } from "@/hooks/use-tv-episode-hydrate";
+import { useWatchlistItem } from "@/hooks/useWatchlistItem";
+import { tvCompleteMediaFromRecord } from "@/lib/playback/continue-watching-complete";
+import { readMappedTmdbTvIdFromMedia } from "@/lib/tv-playback-tmdb-id";
 import { HeroButtons } from "./hero-buttons";
 import { useScrapeChrome } from "./scrape-chrome-context";
 import type { YouTubePlayer } from "./youtube-types";
@@ -84,8 +88,25 @@ export function HeroContent({
   const scrapeChrome = useScrapeChrome();
   const title = media.title || media.name;
   const isAnime = typeof anilistId === "number";
+  const resolvedMediaType = mediaType ?? "tv";
+  const { watchlistItem: watchlistItemLive, refetch: refetchWatchlist } =
+    useWatchlistItem(media.id, resolvedMediaType);
+  const effectiveWatchlistItem = watchlistItem ?? watchlistItemLive;
+  const completeMedia = useMemo(() => {
+    if (resolvedMediaType !== "tv") {
+      return null;
+    }
+    return tvCompleteMediaFromRecord(media as Record<string, unknown>);
+  }, [media, resolvedMediaType]);
 
-  useHeroAnimePrefs(anilistId, mediaType, media.adult === true);
+  useHeroAnimePrefs(
+    anilistId,
+    mediaType,
+    media.adult === true,
+    media.original_name ?? media.name,
+    readMappedTmdbTvIdFromMedia(media),
+  );
+  useAnilistAdultHint(anilistId, media.adult === true, mediaType);
   useAnimeEpisodeMapping();
   useTvEpisodeHydrate({
     mediaId: media.id,
@@ -286,6 +307,7 @@ export function HeroContent({
                 }
                 onFindNextSource={scrapeChrome.onFindNextSource ?? undefined}
                 canFindNextSource={scrapeChrome.canFindNextSource}
+                findNextSourceLabel={scrapeChrome.findNextSourceLabel}
               />
             )}
             <button
@@ -495,77 +517,87 @@ export function HeroContent({
                       )}
                     </AnimatePresence>
 
-                    <motion.div
-                      layout
-                      className="flex items-center flex-wrap gap-3 pt-2"
-                    >
-                      <HeroButtons
-                        handleWatch={handleWatch}
-                        handlePlayTrailer={handlePlayTrailer}
-                        mediaType={mediaType}
-                        isUpcoming={isUpcoming}
-                        contentId={media.id}
-                        watchlistItem={watchlistItem}
-                        initialEpisode={initialEpisode}
-                        initialSeasonNumber={initialSeasonNumber}
-                        canPlayTrailer={canPlayTrailer}
-                      />
+                    <motion.div layout className="flex flex-col gap-2 pt-2">
+                      <div className="flex items-center flex-wrap gap-3">
+                        <HeroButtons
+                          handleWatch={handleWatch}
+                          handlePlayTrailer={handlePlayTrailer}
+                          mediaType={mediaType}
+                          isUpcoming={isUpcoming}
+                          contentId={media.id}
+                          watchlistItem={effectiveWatchlistItem}
+                          initialEpisode={initialEpisode}
+                          initialSeasonNumber={initialSeasonNumber}
+                          anilistId={anilistId}
+                          showEnded={
+                            completeMedia?.showStatus === "Ended" ||
+                            completeMedia?.showStatus === "Canceled" ||
+                            completeMedia?.showStatus === "Cancelled"
+                          }
+                          canPlayTrailer={canPlayTrailer}
+                          onWatchlistChange={() => {
+                            void refetchWatchlist();
+                          }}
+                        />
 
-                      {showAmbientMuteButton && (
-                        <div className="relative">
-                          <Button
-                            variant="chrome"
-                            size="icon"
-                            onClick={onToggleAmbientMute}
-                            className="rounded-full w-10 h-10"
-                            aria-label={
-                              isAmbientMuted ? "Unmute trailer" : "Mute trailer"
-                            }
-                          >
-                            {isAmbientMuted ? (
-                              <VolumeX className="w-4 h-4" />
-                            ) : (
-                              <Volume2 className="w-4 h-4" />
-                            )}
-                          </Button>
+                        {showAmbientMuteButton && (
+                          <div className="relative">
+                            <Button
+                              variant="chrome"
+                              size="icon"
+                              onClick={onToggleAmbientMute}
+                              className="rounded-full w-10 h-10"
+                              aria-label={
+                                isAmbientMuted
+                                  ? "Unmute trailer"
+                                  : "Mute trailer"
+                              }
+                            >
+                              {isAmbientMuted ? (
+                                <VolumeX className="w-4 h-4" />
+                              ) : (
+                                <Volume2 className="w-4 h-4" />
+                              )}
+                            </Button>
 
-                          <AnimatePresence>
-                            {showAmbientAudioHint && isAmbientMuted && (
-                              <motion.div
-                                initial={{
-                                  opacity: 0,
-                                  scale: 0.94,
-                                  x: -6,
-                                  filter: "blur(8px)",
-                                }}
-                                animate={{
-                                  opacity: 1,
-                                  scale: 1,
-                                  x: 0,
-                                  filter: "blur(0px)",
-                                  transition: {
-                                    duration: 0.55,
-                                    ease: [0.16, 1, 0.3, 1],
-                                  },
-                                }}
-                                exit={{
-                                  opacity: 0,
-                                  scale: 0.98,
-                                  x: 6,
-                                  filter: "blur(6px)",
-                                  transition: { duration: 0.24 },
-                                }}
-                                className="pointer-events-none absolute left-full top-1/2 ml-3 flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/20 bg-black/80 px-3 py-1.5 text-xs font-medium text-white shadow-xl shadow-black/40 backdrop-blur-md"
-                              >
-                                <span className="text-white/80" aria-hidden>
-                                  &larr;
-                                </span>
-                                <span>Click for audio</span>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
+                            <AnimatePresence>
+                              {showAmbientAudioHint && isAmbientMuted && (
+                                <motion.div
+                                  initial={{
+                                    opacity: 0,
+                                    scale: 0.94,
+                                    x: -6,
+                                    filter: "blur(8px)",
+                                  }}
+                                  animate={{
+                                    opacity: 1,
+                                    scale: 1,
+                                    x: 0,
+                                    filter: "blur(0px)",
+                                    transition: {
+                                      duration: 0.55,
+                                      ease: [0.16, 1, 0.3, 1],
+                                    },
+                                  }}
+                                  exit={{
+                                    opacity: 0,
+                                    scale: 0.98,
+                                    x: 6,
+                                    filter: "blur(6px)",
+                                    transition: { duration: 0.24 },
+                                  }}
+                                  className="pointer-events-none absolute left-full top-1/2 ml-3 flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/20 bg-black/80 px-3 py-1.5 text-xs font-medium text-white shadow-xl shadow-black/40 backdrop-blur-md"
+                                >
+                                  <span className="text-white/80" aria-hidden>
+                                    &larr;
+                                  </span>
+                                  <span>Click for audio</span>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
+                      </div>
                     </motion.div>
                   </motion.div>
                 </div>

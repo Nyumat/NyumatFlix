@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveAniBridgePlaybackCoords } from "@/lib/anime/anibridge-mappings";
+import {
+  resolveAniBridgePlaybackCoords,
+  resolveAniBridgeMalPlaybackTarget,
+} from "@/lib/anime/anibridge-mappings";
 import { mapEpisodeAcrossRanges } from "@/lib/anime/mapping-ranges";
 import { relativeEpisodeInSegment } from "@/lib/anime/tmdb-anilist-map";
 import { resolveFribbPlaybackCoords } from "@/lib/fribb-mapping";
@@ -35,6 +38,26 @@ describe("anime playback mapping", () => {
       131,
     );
     expect(coords).toEqual({ anilistId: 11061, relativeEpisode: 131 });
+  });
+
+  it("resolves AniBridge mal: targets when anilist: is missing (Araiya-san)", () => {
+    const mappings = {
+      "tmdb_show:88090:s1": {
+        "anidb:14698:R": { "1-8": "1-8" },
+        "mal:39337": { "1-8": "1-8" },
+        "tvdb_show:360675:s1": { "1-8": "1-8" },
+      },
+    };
+
+    expect(resolveAniBridgePlaybackCoords(mappings, 88090, 1, 1)).toBeNull();
+    expect(resolveAniBridgeMalPlaybackTarget(mappings, 88090, 1, 1)).toEqual({
+      malId: 39337,
+      relativeEpisode: 1,
+    });
+    expect(resolveAniBridgeMalPlaybackTarget(mappings, 88090, 1, 8)).toEqual({
+      malId: 39337,
+      relativeEpisode: 8,
+    });
   });
 
   it("resolves Fribb offsets for split TMDB seasons", () => {

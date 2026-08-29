@@ -1,124 +1,22 @@
 import {
-  getCachedAnilistTvAllSeasons,
-  getCachedAnilistTvCredits,
-  getCachedAnilistTvRecommendations,
-  getCachedAnilistTvShowDetail,
-} from "@/lib/anilist-tv-detail";
-import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
-import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
+  isAnilistBackedTvRouteId,
+  type TvDetailCatalog,
+} from "@/lib/tv-detail-catalog";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
 import { queryKeys } from "@/lib/query-keys";
-import { tmdb } from "@/tmdb/api";
 import type { MediaItem, TvShowDetails } from "@/lib/domain/typings";
 import type { QueryClient } from "@tanstack/react-query";
 
-export async function prefetchTvShowTabQueries(
-  queryClient: QueryClient,
-  id: string,
-) {
-  if (isAnilistTvRouteId(id)) {
-    const [credits, recommendations, seasons, details] = await Promise.all([
-      getCachedAnilistTvCredits(id),
-      getCachedAnilistTvRecommendations(id),
-      getCachedAnilistTvAllSeasons(id),
-      getCachedAnilistTvShowDetail(id),
-    ]);
-
-    queryClient.setQueryData(queryKeys.tvTabCredits(id), credits);
-    queryClient.setQueryData(
-      queryKeys.tvTabRecommendations(id, "1"),
-      recommendations,
-    );
-    queryClient.setQueryData(queryKeys.tvAllSeasons(id), seasons);
-    if (details) {
-      queryClient.setQueryData(queryKeys.tvDetailsRoute(id), details);
-    }
-    queryClient.setQueryData(queryKeys.tvTabImages(id), {
-      backdrops: [],
-      posters: [],
-      logos: [],
-    });
-    queryClient.setQueryData(
-      queryKeys.tvTabVideos(id),
-      details?.videos ?? { results: [] },
-    );
-    queryClient.setQueryData(queryKeys.tvTabReviews(id, "1"), {
-      page: 1,
-      results: [],
-      total_pages: 0,
-      total_results: 0,
-    });
-    queryClient.setQueryData(queryKeys.tvTabSimilar(id, "1"), {
-      page: 1,
-      results: [],
-      total_pages: 0,
-      total_results: 0,
-    });
-    return;
-  }
-
-  const existingDetails = queryClient.getQueryData<TvShowDetails>(
-    queryKeys.tvDetails(Number.parseInt(id, 10)),
-  );
-  const [credits, images, videos, reviews, recommendations, similar, seasons] =
-    await Promise.all([
-      tmdb.tv.credits({ id }),
-      tmdb.tv.images({ id, langs: "en,null" }),
-      tmdb.tv.videos({ id }),
-      tmdb.tv.reviews({ id, page: "1" }),
-      tmdb.tv.recommendations({ id, page: "1" }),
-      tmdb.tv.similar({ id, page: "1" }),
-      existingDetails
-        ? fetchAllSeasonDetails(id, existingDetails.seasons)
-        : Promise.resolve({}),
-    ]);
-
-  queryClient.setQueryData(queryKeys.tvTabCredits(id), credits);
-  queryClient.setQueryData(queryKeys.tvTabImages(id), images);
-  queryClient.setQueryData(queryKeys.tvTabVideos(id), videos);
-  queryClient.setQueryData(queryKeys.tvTabReviews(id, "1"), reviews);
-  queryClient.setQueryData(
-    queryKeys.tvTabRecommendations(id, "1"),
-    recommendations,
-  );
-  queryClient.setQueryData(queryKeys.tvTabSimilar(id, "1"), similar);
-  queryClient.setQueryData(queryKeys.tvAllSeasons(id), seasons);
+function isFullMovieItem(
+  movie: MediaItem | MediaAboveFoldDetail,
+): movie is MediaItem {
+  return "title" in movie && typeof movie.title === "string";
 }
 
-export async function hydrateTvShowDetailQueries(
-  queryClient: QueryClient,
-  id: string,
+function isFullTvDetails(
   details: TvShowDetails | MediaAboveFoldDetail,
-) {
-  queryClient.setQueryData(queryKeys.mediaAboveFold("tv", id), details);
-  if (isAnilistTvRouteId(id)) {
-    queryClient.setQueryData(queryKeys.tvDetailsRoute(id), details);
-  }
-}
-
-export async function prefetchMovieTabQueries(
-  queryClient: QueryClient,
-  id: string,
-) {
-  const [credits, images, videos, reviews, recommendations, similar] =
-    await Promise.all([
-      tmdb.movie.credits({ id }),
-      tmdb.movie.images({ id, langs: "en,null" }),
-      tmdb.movie.videos({ id }),
-      tmdb.movie.reviews({ id, page: "1" }),
-      tmdb.movie.recommendations({ id, page: "1" }),
-      tmdb.movie.similar({ id, page: "1" }),
-    ]);
-
-  queryClient.setQueryData(queryKeys.movieTabCredits(id), credits);
-  queryClient.setQueryData(queryKeys.movieTabImages(id), images);
-  queryClient.setQueryData(queryKeys.movieTabVideos(id), videos);
-  queryClient.setQueryData(queryKeys.movieTabReviews(id, "1"), reviews);
-  queryClient.setQueryData(
-    queryKeys.movieTabRecommendations(id, "1"),
-    recommendations,
-  );
-  queryClient.setQueryData(queryKeys.movieTabSimilar(id, "1"), similar);
+): details is TvShowDetails {
+  return "name" in details && typeof details.name === "string";
 }
 
 export async function hydrateMovieDetailQueries(
@@ -127,4 +25,89 @@ export async function hydrateMovieDetailQueries(
   movie: MediaItem | MediaAboveFoldDetail,
 ) {
   queryClient.setQueryData(queryKeys.mediaAboveFold("movie", id), movie);
+
+  if (!isFullMovieItem(movie)) {
+    return;
+  }
+
+  const numId = Number.parseInt(id, 10);
+  if (!Number.isNaN(numId)) {
+    queryClient.setQueryData(queryKeys.movieDetails(numId), movie);
+  }
+
+  if (movie.credits) {
+    queryClient.setQueryData(queryKeys.movieTabCredits(id), movie.credits);
+  }
+
+  if (movie.recommendations) {
+    queryClient.setQueryData(
+      queryKeys.movieTabRecommendations(id, "1"),
+      movie.recommendations,
+    );
+  }
+
+  if (movie.images) {
+    queryClient.setQueryData(queryKeys.movieTabImages(id), movie.images);
+  }
+
+  if (movie.videos) {
+    queryClient.setQueryData(queryKeys.movieTabVideos(id), movie.videos);
+  }
+
+  if (movie.reviews) {
+    queryClient.setQueryData(queryKeys.movieTabReviews(id, "1"), movie.reviews);
+  }
+
+  if (movie.similar) {
+    queryClient.setQueryData(queryKeys.movieTabSimilar(id, "1"), movie.similar);
+  }
+}
+
+export async function hydrateTvShowDetailQueries(
+  queryClient: QueryClient,
+  id: string,
+  details: TvShowDetails | MediaAboveFoldDetail,
+  catalog: TvDetailCatalog = "tvshows",
+) {
+  queryClient.setQueryData(queryKeys.mediaAboveFold("tv", id), details);
+
+  if (!isFullTvDetails(details)) {
+    return;
+  }
+
+  if (isAnilistBackedTvRouteId(id, catalog)) {
+    queryClient.setQueryData(queryKeys.tvDetailsRoute(id), details);
+  } else {
+    const numId = Number.parseInt(id, 10);
+    if (!Number.isNaN(numId)) {
+      queryClient.setQueryData(queryKeys.tvDetails(numId), details);
+    }
+  }
+
+  if (details.credits) {
+    queryClient.setQueryData(queryKeys.tvTabCredits(id), details.credits);
+  }
+
+  if (details.recommendations) {
+    queryClient.setQueryData(
+      queryKeys.tvTabRecommendations(id, "1"),
+      details.recommendations,
+    );
+  }
+
+  if (details.images) {
+    queryClient.setQueryData(queryKeys.tvTabImages(id), details.images);
+  }
+
+  if (details.videos) {
+    queryClient.setQueryData(queryKeys.tvTabVideos(id), details.videos);
+  }
+
+  if (details.reviews) {
+    queryClient.setQueryData(queryKeys.tvTabReviews(id, "1"), details.reviews);
+  }
+
+  if (details.similar) {
+    queryClient.setQueryData(queryKeys.tvTabSimilar(id, "1"), details.similar);
+  }
 }

@@ -1,9 +1,17 @@
 "use client";
 
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
+import { MalListPopoverButton } from "@/components/media/mal-list-popover-button";
 import { WatchlistButton } from "@/components/watchlist/watchlist";
 import { pages } from "@/config/pages";
+import { useMalSyncStatus } from "@/hooks/use-mal-sync-status";
 import { resolveEpisodeAnimeMapping } from "@/lib/anime/resolve-episode-mapping";
+import {
+  isAnimeAnilistRouteId,
+  resolveTvDetailRouteId,
+} from "@/lib/anilist-route-id";
+import { resolveTvDetailCatalogFromPathname } from "@/lib/tv-detail-catalog";
+import { useTvDetailCatalog } from "@/hooks/use-tv-detail-catalog";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import {
@@ -22,6 +30,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Youtube } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { movieWatchButtonLabel } from "@/lib/playback/movie-watch-label";
 
 interface HeroButtonsProps {
   handleWatch(): void;
@@ -32,7 +42,10 @@ interface HeroButtonsProps {
   watchlistItem?: WatchlistItem | null;
   initialEpisode?: Episode | null;
   initialSeasonNumber?: number | null;
+  anilistId?: number | null;
+  showEnded?: boolean;
   canPlayTrailer: boolean;
+  onWatchlistChange?: () => void;
 }
 
 export function HeroButtons({
@@ -44,7 +57,10 @@ export function HeroButtons({
   watchlistItem,
   initialEpisode,
   initialSeasonNumber,
+  anilistId,
+  showEnded = false,
   canPlayTrailer,
+  onWatchlistChange,
 }: HeroButtonsProps) {
   const {
     selectedEpisode,
@@ -56,6 +72,25 @@ export function HeroButtons({
   } = useEpisodeStore();
   const router = useRouter();
   const pathname = usePathname();
+  const catalog = useTvDetailCatalog();
+  const malStatusQuery = useMalSyncStatus();
+  const malConnected = malStatusQuery.data?.connected === true;
+  const hasAnilistId = typeof anilistId === "number" && anilistId > 0;
+  const isAnimeCatalog = catalog === "anime";
+  const showMalListButton =
+    malConnected &&
+    mediaType === "tv" &&
+    (hasAnilistId || isAnimeCatalog || Boolean(defaultAnilistId));
+  const [movieButtonLabel, setMovieButtonLabel] = useState<"Play" | "Resume">(
+    "Play",
+  );
+
+  useEffect(() => {
+    if (mediaType !== "movie") {
+      return;
+    }
+    setMovieButtonLabel(movieWatchButtonLabel(contentId));
+  }, [contentId, mediaType]);
 
   const watchTarget =
     mediaType === "tv"
@@ -69,8 +104,12 @@ export function HeroButtons({
       : null;
 
   const showEpisodeList = () => {
-    const id = String(contentId);
-    const basePath = `${pages.tv.root.link}/${id}`;
+    const id = resolveTvDetailRouteId(pathname, contentId);
+    const catalogRoot =
+      resolveTvDetailCatalogFromPathname(pathname) === "anime"
+        ? pages.anime.root.link
+        : pages.tv.root.link;
+    const basePath = `${catalogRoot}/${id}`;
 
     useMediaDetailTabStore
       .getState()
@@ -161,12 +200,43 @@ export function HeroButtons({
       | {
           confidence: "high" | "low";
           isAdult: boolean;
+          genres?: string[];
           animeSeasonNumber?: number | null;
           relativeEpisodeNumber?: number;
         }
       | undefined;
 
-    if (defaultAnilistId) {
+    const tvRouteId = resolveTvDetailRouteId(pathname, contentId);
+
+    if (defaultAnilistId && isAnimeAnilistRouteId(tvRouteId)) {
+      const playbackTmdbTvId = storeState.playbackTmdbTvId;
+      if (playbackTmdbTvId) {
+        const coords = await resolveEpisodeAnimeMapping({
+          tmdbShowId: playbackTmdbTvId,
+          seasonNumber: targetSeasonNumber,
+          episodeNumber: episode.episode_number,
+          isAdult: defaultIsAdultAnime,
+        });
+        if (coords) {
+          animeInfo = coords.animeInfo;
+          mapping = {
+            confidence: coords.confidence,
+            isAdult: coords.isAdult,
+            genres: coords.genres,
+            animeSeasonNumber: coords.animeSeasonNumber,
+            relativeEpisodeNumber: coords.relativeEpisodeNumber,
+          };
+        }
+      }
+
+      if (!animeInfo) {
+        mapping = {
+          confidence: "low",
+          isAdult: defaultIsAdultAnime,
+          animeSeasonNumber: targetSeasonNumber,
+        };
+      }
+    } else if (defaultAnilistId) {
       const coords = await resolveEpisodeAnimeMapping({
         tmdbShowId: contentId,
         seasonNumber: targetSeasonNumber,
@@ -178,6 +248,7 @@ export function HeroButtons({
         mapping = {
           confidence: coords.confidence,
           isAdult: coords.isAdult,
+          genres: coords.genres,
           animeSeasonNumber: coords.animeSeasonNumber,
           relativeEpisodeNumber: coords.relativeEpisodeNumber,
         };
@@ -186,7 +257,7 @@ export function HeroButtons({
 
     setSelectedEpisode(
       episode,
-      String(contentId),
+      tvRouteId,
       targetSeasonNumber,
       animeInfo,
       false,
@@ -205,7 +276,7 @@ export function HeroButtons({
       }
       return "Episodes";
     }
-    return "Play";
+    return movieButtonLabel;
   };
 
   const isWatchDisabled = isUpcoming;
@@ -261,13 +332,25 @@ export function HeroButtons({
         </button>
       )}
 
-      <WatchlistButton
-        contentId={contentId}
-        mediaType={mediaType}
-        variant="outline"
-        size="default"
-        className="backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40"
-      />
+      {showMalListButton ? (
+        <MalListPopoverButton
+          anilistId={anilistId ?? defaultAnilistId}
+          contentId={contentId}
+          mediaType="tv"
+          seasonNumber={seasonNumber}
+          showEnded={showEnded}
+          onUpdated={onWatchlistChange}
+        />
+      ) : (
+        <WatchlistButton
+          contentId={contentId}
+          mediaType={mediaType}
+          variant="outline"
+          size="default"
+          className="backdrop-blur-md bg-white/10 border border-white/30 text-white hover:bg-white/20 hover:border-white/40"
+          onWatchlistChange={onWatchlistChange}
+        />
+      )}
 
       {!canPlayTrailer ? (
         <Tooltip>

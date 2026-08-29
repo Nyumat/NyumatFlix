@@ -15,12 +15,16 @@ type PlaybackCoordsResponse = {
     animeInfo: ResolvedAnimeEpisodeCoords["animeInfo"];
     confidence: "high" | "low";
     source: "anibridge" | "fribb";
+    isAdult?: boolean;
+    genres?: string[];
   } | null;
 };
 
 export const resolveEpisodeAnimeMapping = async (
   request: EpisodeMappingRequest,
-): Promise<(ResolvedAnimeEpisodeCoords & { isAdult: boolean }) | null> => {
+): Promise<
+  (ResolvedAnimeEpisodeCoords & { isAdult: boolean; genres: string[] }) | null
+> => {
   const params = new URLSearchParams({
     tmdbShowId: String(request.tmdbShowId),
     seasonNumber: String(request.seasonNumber),
@@ -46,7 +50,8 @@ export const resolveEpisodeAnimeMapping = async (
       animeSeasonNumber: payload.coords.animeSeasonNumber,
       animeInfo: payload.coords.animeInfo,
       confidence: "high",
-      isAdult: request.isAdult === true,
+      isAdult: payload.coords.isAdult === true || request.isAdult === true,
+      genres: payload.coords.genres ?? [],
     };
   } catch {
     return null;

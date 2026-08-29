@@ -4,6 +4,7 @@ import type { TvHeroEpisodeData } from "@/components/hero/types";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StableBackground } from "@/components/layout/stable-background";
+import { MediaDetailRouteMetadata } from "@/components/media/media-detail-route-metadata";
 import { MediaDetailScrollReset } from "@/components/media/media-detail-scroll-reset";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -289,6 +290,7 @@ export function MediaDetailLayout({
 
   return (
     <PageContainer className="pb-16">
+      <MediaDetailRouteMetadata mediaType={mediaType} anilistId={anilistId} />
       <MediaDetailScrollReset restoreKey={scrollKey} />
       <MediaDetailHero
         media={media}

@@ -16,6 +16,7 @@ import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
+import { useHoverSound } from "@/components/providers/hover-sound-provider";
 import { CardMeta } from "./card-meta";
 
 type HorizontalCardProps = {
@@ -50,6 +51,12 @@ export function HorizontalCard({
     item,
     href,
   );
+  const playHoverSound = useHoverSound();
+
+  const handlePointerEnter = () => {
+    schedulePrefetch();
+    playHoverSound?.();
+  };
   const resolvedOverviewLines =
     overviewLines ??
     (isCompact ? "line-clamp-2" : "line-clamp-2 md:line-clamp-3");
@@ -68,7 +75,7 @@ export function HorizontalCard({
       data-testid={`${testIdPrefix}-${item.id}`}
       data-media-type={item.media_type}
       data-content-id={item.id}
-      onPointerEnter={schedulePrefetch}
+      onPointerEnter={handlePointerEnter}
       onPointerLeave={cancelPrefetch}
       onTouchStart={prefetch}
     >

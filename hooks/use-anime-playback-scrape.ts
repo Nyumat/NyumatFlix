@@ -6,6 +6,7 @@ import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import {
   isAnimeScrapeProviderEnabled,
   isTmdbScrapeProviderEnabled,
+  getAnimePlaybackProviderOrders,
 } from "@/lib/flags/site-flags";
 import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
 import {
@@ -15,6 +16,7 @@ import {
 import type { AnimeScrapeInput } from "@/lib/scrape/anime/types";
 import { animeScrapeMediaKeyFor } from "@/lib/scrape/anime/types";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
+import { preferredAudioLangForTranslation } from "@/lib/scrape/anime/audio-preference";
 import type {
   ScrapeAudioVersion,
   ScrapeMediaInput,
@@ -24,9 +26,11 @@ import type {
 import {
   ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS,
   ANIME_SCRAPE_PROVIDER_ORDER,
+  isAnimeScrapeProvider,
   isTmdbScrapeProvider,
   type AnimePlaybackScrapeProviderId,
 } from "@/lib/providers/registry";
+import { ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS } from "@/lib/scrape/provider-race";
 
 export type AnimePlaybackScrapePlayerStatus =
   | "idle"
@@ -36,7 +40,7 @@ export type AnimePlaybackScrapePlayerStatus =
 
 export type AnimePlaybackScrapeInput = {
   anime: AnimeScrapeInput;
-  tmdb: ScrapeMediaInput;
+  tmdb: ScrapeMediaInput | null;
   chain: AnimePlaybackChainContext;
 };
 
@@ -52,6 +56,10 @@ export type AnimePlaybackScrapeSuccessPayload = {
   defaultAudioLang?: string;
   defaultHardSubLang?: string;
   preferredAudioLang?: string;
+  directPlayback?: "hls" | "direct" | "extended";
+  directFallbackUrl?: string;
+  directStreamName?: string;
+  directFileName?: string;
 };
 
 const animePlaybackScrapeLoopConfig = {
@@ -59,6 +67,7 @@ const animePlaybackScrapeLoopConfig = {
   resolveProviderOrder: (input: AnimePlaybackScrapeInput) =>
     buildAnimePlaybackProviderOrder(input.chain),
   providerLabels: ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS,
+  soloFirstProviders: ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS,
   mediaKeyFor: (input: AnimePlaybackScrapeInput) =>
     animeScrapeMediaKeyFor(input.anime),
   allFailedError: "No playable source found.",
@@ -68,6 +77,10 @@ const animePlaybackScrapeLoopConfig = {
     input: AnimePlaybackScrapeInput,
   ) => {
     if (isTmdbScrapeProvider(providerId)) {
+      if (!input.tmdb) {
+        throw new Error("TMDB context is required for this provider.");
+      }
+
       return {
         mediaKind: "tmdb" as const,
         providerId,
@@ -75,6 +88,10 @@ const animePlaybackScrapeLoopConfig = {
         tmdbId: input.tmdb.tmdbId,
         seasonNumber: input.tmdb.seasonNumber,
         episodeNumber: input.tmdb.episodeNumber,
+        preferMultiTrack: providerId === "direct",
+        preferredAudioLang: preferredAudioLangForTranslation(
+          input.anime.translationType,
+        ),
       };
     }
 
@@ -85,12 +102,16 @@ const animePlaybackScrapeLoopConfig = {
       episodeNumber: input.anime.episodeNumber,
       translationType: input.anime.translationType,
       query: input.anime.query,
-      tmdb: {
-        mediaType: input.tmdb.mediaType,
-        tmdbId: input.tmdb.tmdbId,
-        seasonNumber: input.tmdb.seasonNumber,
-        episodeNumber: input.tmdb.episodeNumber,
-      },
+      ...(input.tmdb
+        ? {
+            tmdb: {
+              mediaType: input.tmdb.mediaType,
+              tmdbId: input.tmdb.tmdbId,
+              seasonNumber: input.tmdb.seasonNumber,
+              episodeNumber: input.tmdb.episodeNumber,
+            },
+          }
+        : {}),
     };
   },
 } as const;
@@ -104,7 +125,8 @@ export function useAnimePlaybackScrape(options?: {
     () => ({
       ...animePlaybackScrapeLoopConfig,
       resolveProviderOrder: (input: AnimePlaybackScrapeInput) => {
-        const order = buildAnimePlaybackProviderOrder(input.chain);
+        const orders = getAnimePlaybackProviderOrders(flags);
+        const order = buildAnimePlaybackProviderOrder(input.chain, orders);
         return order.filter((providerId) =>
           isTmdbScrapeProvider(providerId)
             ? isTmdbScrapeProviderEnabled(flags, providerId)
@@ -112,6 +134,23 @@ export function useAnimePlaybackScrape(options?: {
         );
       },
       onAllProvidersFailed,
+      soloFirstProviders: ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS,
+      harvestSubtitleProviders: (
+        winnerId: AnimePlaybackScrapeProviderId,
+        order: readonly AnimePlaybackScrapeProviderId[],
+        failed: ReadonlySet<AnimePlaybackScrapeProviderId>,
+      ) => {
+        if (winnerId === "direct") {
+          return [];
+        }
+
+        return order.filter(
+          (providerId) =>
+            providerId !== winnerId &&
+            isAnimeScrapeProvider(providerId) &&
+            !failed.has(providerId),
+        );
+      },
     }),
     [flags, onAllProvidersFailed],
   );

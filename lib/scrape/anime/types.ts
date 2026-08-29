@@ -22,9 +22,9 @@ export type AnimeScrapeInput = {
   /** Override search query (defaults to AniList romaji/english title). */
   query?: string;
   /**
-   * TMDB season/episode coords for softsub fallback (sub.1x2.space) when the
-   * stream provider omits caption tracks. Season/episode here are TMDB-relative
-   * and may differ from AniList `episodeNumber`.
+   * Optional TMDB coords for softsub fallback. When omitted, the scrape layer
+   * resolves AniList → TMDB via movie routes, Fribb, or AniBridge before
+   * querying sub.1x2.space and sub.vdrk.site.
    */
   tmdb?: Pick<
     ScrapeMediaInput,

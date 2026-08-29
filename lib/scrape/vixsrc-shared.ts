@@ -1,5 +1,16 @@
 export const VIXSRC_ORIGIN = "https://vixsrc.to";
 
+export const isVixsrcHostname = (hostname: string): boolean =>
+  /(?:^|\.)(?:vixsrc\.to|vixcloud\.co)$/i.test(hostname);
+
+export const originOfVixsrcUrl = (value: string): string => {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return VIXSRC_ORIGIN;
+  }
+};
+
 export type VixsrcPlaylistParams = {
   videoId: string;
   token: string;
@@ -34,8 +45,11 @@ export const extractVixsrcPlaylistParams = (
 
 export const buildVixsrcPlaylistUrl = (
   params: Pick<VixsrcPlaylistParams, "videoId" | "token" | "expires">,
+  origin = VIXSRC_ORIGIN,
 ): string => {
-  const playlistUrl = new URL(`${VIXSRC_ORIGIN}/playlist/${params.videoId}`);
+  const playlistUrl = new URL(
+    `${origin.replace(/\/+$/, "")}/playlist/${params.videoId}`,
+  );
   playlistUrl.searchParams.set("token", params.token);
   playlistUrl.searchParams.set("expires", params.expires);
   playlistUrl.searchParams.set("h", "1");
@@ -48,7 +62,7 @@ export const isVixsrcPlaylistUrl = (
 ): boolean => {
   try {
     const parsed = new URL(upstreamUrl);
-    if (!/vixsrc\.to$/i.test(parsed.hostname)) {
+    if (!isVixsrcHostname(parsed.hostname)) {
       return false;
     }
     if (!parsed.pathname.startsWith("/playlist/")) {

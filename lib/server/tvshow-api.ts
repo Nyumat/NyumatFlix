@@ -4,7 +4,10 @@ import {
   getCachedAnilistTvAllSeasons,
   getCachedAnilistTvSeasonDetails,
 } from "@/lib/anilist-tv-detail";
-import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
+import {
+  isAnilistBackedTvRouteId,
+  type TvDetailCatalog,
+} from "@/lib/tv-detail-catalog";
 import {
   CACHE_REVALIDATE_SECONDS,
   CACHE_SEASON_REVALIDATE_SECONDS,
@@ -84,13 +87,6 @@ const pickTvCertification = (
   return usRating?.rating || null;
 };
 
-const tvDetailFetchInit = (id: string, append: string) =>
-  tmdbFetchInit({
-    endpoint: `/tv/${id}`,
-    params: { append_to_response: append },
-    revalidate: CACHE_REVALIDATE_SECONDS,
-  });
-
 const tvSeasonFetchInit = (tvId: string, seasonNumber: number) =>
   tmdbFetchInit({
     endpoint: `/tv/${tvId}/season/${seasonNumber}`,
@@ -140,61 +136,59 @@ const toSlimSeasonDetails = (raw: RawSeasonDetails): SeasonDetails | null => {
 };
 
 export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
+  const TV_DETAIL_APPEND =
+    "content_ratings,keywords,external_ids,videos,images,recommendations,similar,reviews,credits";
+
   try {
-    const baseUrl = `https://api.themoviedb.org/3/tv/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US`;
+    const url = new URL(`https://api.themoviedb.org/3/tv/${id}`);
+    url.searchParams.set("api_key", process.env.TMDB_API_KEY ?? "");
+    url.searchParams.set("language", "en-US");
+    url.searchParams.set("append_to_response", TV_DETAIL_APPEND);
 
-    const [res1, res2, res3] = await Promise.all([
-      fetch(
-        `${baseUrl}&append_to_response=content_ratings,keywords,external_ids`,
-        tvDetailFetchInit(id, "content_ratings,keywords,external_ids"),
-      ),
-      fetch(
-        `${baseUrl}&append_to_response=videos,images`,
-        tvDetailFetchInit(id, "videos,images"),
-      ),
-      fetch(
-        `${baseUrl}&append_to_response=recommendations,similar,reviews`,
-        tvDetailFetchInit(id, "recommendations,similar,reviews"),
-      ),
-    ]);
+    const response = await fetch(
+      url,
+      tmdbFetchInit({
+        endpoint: `/tv/${id}`,
+        params: { append_to_response: TV_DETAIL_APPEND },
+        revalidate: CACHE_REVALIDATE_SECONDS,
+      }),
+    );
 
-    if (!res1.ok || !res2.ok || !res3.ok) {
-      throw new Error(
-        `Failed to fetch TV show details: ${res1.status} ${res2.status} ${res3.status}`,
-      );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch TV show details: ${response.status}`);
     }
 
-    const [data1, data2, data3] = await Promise.all([
-      res1.json(),
-      res2.json(),
-      res3.json(),
-    ]);
+    const data = await response.json();
 
-    const data: TvShowDetails = {
-      ...data1,
-      ...data2,
-      ...data3,
-      credits: {
-        cast: [],
-        crew: [],
-      },
-      content_rating: pickTvCertification(data1.content_ratings),
-      logo: pickEnglishLogo(data2.images?.logos),
+    return {
+      ...data,
+      content_rating: pickTvCertification(data.content_ratings),
+      logo: pickEnglishLogo(data.images?.logos),
     };
-
-    return data;
   } catch (error) {
     console.error(error);
     throw new Error("Failed to fetch TV show details");
   }
 }
 
+export type TvSeasonFetchOptions = {
+  catalog?: TvDetailCatalog | null;
+};
+
+const anilistSeasonResolveOptions = (catalog: TvDetailCatalog | null) =>
+  catalog === "anime" ? { acceptBareNumeric: true as const } : undefined;
+
 export async function fetchSeasonDetailsServer(
   tvId: string,
   seasonNumber: number,
+  options?: TvSeasonFetchOptions,
 ): Promise<SeasonDetails | null> {
-  if (isAnilistTvRouteId(tvId)) {
-    return getCachedAnilistTvSeasonDetails(tvId, seasonNumber);
+  if (isAnilistBackedTvRouteId(tvId, options?.catalog ?? null)) {
+    return getCachedAnilistTvSeasonDetails(
+      tvId,
+      seasonNumber,
+      anilistSeasonResolveOptions(options?.catalog ?? null),
+    );
   }
 
   try {
@@ -215,9 +209,13 @@ export async function fetchSeasonDetailsServer(
 export async function fetchAllSeasonDetails(
   tvId: string,
   seasons: Season[] | undefined,
+  options?: TvSeasonFetchOptions,
 ): Promise<Record<number, SeasonDetails>> {
-  if (isAnilistTvRouteId(tvId)) {
-    return getCachedAnilistTvAllSeasons(tvId);
+  if (isAnilistBackedTvRouteId(tvId, options?.catalog ?? null)) {
+    return getCachedAnilistTvAllSeasons(
+      tvId,
+      anilistSeasonResolveOptions(options?.catalog ?? null),
+    );
   }
 
   const regularSeasons =
@@ -231,7 +229,9 @@ export async function fetchAllSeasonDetails(
     const batch = regularSeasons.slice(i, i + SEASON_DETAIL_BATCH_SIZE);
     const batchResults = await Promise.all(
       batch.map((season: Season) =>
-        fetchSeasonDetailsServer(tvId, season.season_number).catch(() => null),
+        fetchSeasonDetailsServer(tvId, season.season_number, options).catch(
+          () => null,
+        ),
       ),
     );
 

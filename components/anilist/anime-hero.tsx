@@ -33,7 +33,7 @@ const getHref = (item: AnimeHeroItem) => {
 };
 
 const isInternalDetailHref = (href: string) =>
-  /^\/(?:movies|tvshows)\/[^/?#]+(?:[?#].*)?$/.test(href);
+  /^\/(?:movies|tvshows|anime)\/[^/?#]+(?:[?#].*)?$/.test(href);
 
 const getPlayHref = (item: AnimeHeroItem) => {
   const href = getHref(item);

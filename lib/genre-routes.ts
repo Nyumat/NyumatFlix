@@ -29,13 +29,14 @@ const normalizeGenreName = (genreName: string) =>
 export const getAniListGenreFromTmdbName = (genreName: string) =>
   ANILIST_GENRE_BY_TMDB_NAME[normalizeGenreName(genreName)];
 
+import { ANIME_BROWSE_PATH } from "@/lib/anilist";
+
 export const buildAnimeGenreUrl = (genreName: string) => {
   const anilistGenre = getAniListGenreFromTmdbName(genreName);
-  if (!anilistGenre) return "/anime?mode=results";
+  if (!anilistGenre) return ANIME_BROWSE_PATH;
 
   const search = new URLSearchParams({
     genres: anilistGenre,
-    mode: "results",
   });
   return `/anime?${search.toString()}`;
 };

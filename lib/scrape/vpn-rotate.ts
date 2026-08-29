@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isWingsApiHostname } from "./vidking-constants";
+
 const VPN_STATUS_PATH = "/v1/vpn/status";
 const VPN_SETTINGS_PATH = "/v1/vpn/settings";
 const PUBLIC_IP_PATH = "/v1/publicip/ip";
@@ -29,7 +31,7 @@ export const scrapeVpnRotateCountries = (): string[] => {
 };
 
 export const scrapeRateLimitRotateHostname = (hostname: string): boolean =>
-  hostname === "api.wingsdatabase.com";
+  isWingsApiHostname(hostname);
 
 export type VpnRotateOptions = {
   countries?: string[];

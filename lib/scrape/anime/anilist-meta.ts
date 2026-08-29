@@ -166,6 +166,89 @@ export const fetchAnilistMediaMeta = async (
   }
 };
 
+const malToAnilistIdCache = new Map<number, number>();
+const anilistToMalIdCache = new Map<number, number>();
+
+/** Resolve AniList id → MyAnimeList id via AniList's `idMal` field. */
+export const fetchMalIdByAnilist = async (
+  anilistId: number,
+): Promise<number | null> => {
+  const cached = anilistToMalIdCache.get(anilistId);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const response = await scrapeFetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `query { Media(id: ${anilistId}) { idMal } }`,
+      }),
+    });
+
+    if (!response.ok) {
+      await cancelResponseBody(response);
+      return null;
+    }
+
+    const payload = (await response.json()) as {
+      data?: { Media?: { idMal?: number | null } | null };
+    };
+    const malId = payload.data?.Media?.idMal;
+    if (typeof malId !== "number" || !Number.isInteger(malId) || malId <= 0) {
+      return null;
+    }
+
+    setBounded(anilistToMalIdCache, anilistId, malId);
+    return malId;
+  } catch {
+    return null;
+  }
+};
+
+/** Resolve MyAnimeList id → AniList id (AniBridge often maps TMDB→mal only). */
+export const fetchAnilistIdByMal = async (
+  malId: number,
+): Promise<number | null> => {
+  const cached = malToAnilistIdCache.get(malId);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const response = await scrapeFetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `query { Media(idMal: ${malId}, type: ANIME) { id } }`,
+      }),
+    });
+
+    if (!response.ok) {
+      await cancelResponseBody(response);
+      return null;
+    }
+
+    const payload = (await response.json()) as {
+      data?: { Media?: { id?: number | null } | null };
+    };
+    const anilistId = payload.data?.Media?.id;
+    if (
+      typeof anilistId !== "number" ||
+      !Number.isInteger(anilistId) ||
+      anilistId <= 0
+    ) {
+      return null;
+    }
+
+    setBounded(malToAnilistIdCache, malId, anilistId);
+    return anilistId;
+  } catch {
+    return null;
+  }
+};
+
 export const resolveAnimeSearchQueries = async (input: {
   anilistId: number;
   query?: string;

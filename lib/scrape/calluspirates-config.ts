@@ -5,6 +5,20 @@ const NYUMATFLIX_HOSTS = new Set([
   "127.0.0.1",
 ]);
 
+function parseAllowedHosts(): Set<string> {
+  const extra = process.env.CALLUSPIRATES_DIRECT_ALLOWED_HOSTS?.trim();
+  if (!extra) {
+    return NYUMATFLIX_HOSTS;
+  }
+  return new Set([
+    ...NYUMATFLIX_HOSTS,
+    ...extra
+      .split(",")
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean),
+  ]);
+}
+
 export function getCalluspiratesApiUrl(): string | null {
   const raw = process.env.CALLUSPIRATES_API_URL?.trim();
   if (!raw) {
@@ -13,8 +27,17 @@ export function getCalluspiratesApiUrl(): string | null {
   return raw.replace(/\/$/, "");
 }
 
+/** Origin the browser uses for Direct playback. Falls back to the server API URL. */
+export function getCalluspiratesPublicUrl(): string | null {
+  const explicit = process.env.CALLUSPIRATES_PUBLIC_URL?.trim();
+  if (explicit) {
+    return explicit.replace(/\/$/, "");
+  }
+  return getCalluspiratesApiUrl();
+}
+
 export function isDirectProviderSiteHost(hostname: string): boolean {
-  return NYUMATFLIX_HOSTS.has(hostname.toLowerCase());
+  return parseAllowedHosts().has(hostname.toLowerCase());
 }
 
 /** Direct (calluspirates) is only available on nyumatflix.com and local dev. */

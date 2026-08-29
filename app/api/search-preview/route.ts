@@ -11,6 +11,8 @@ import {
   isPremieredTvByDate,
   isReleasedMovieByDate,
 } from "@/lib/released-media";
+import { fetchAniListSearchMedia } from "@/lib/search/anilist-search";
+import { mergeSearchMediaResults } from "@/lib/search/merge-search-media";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -30,9 +32,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const response = await fetch(
-      `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query.trim())}&page=1&include_adult=false`,
-    );
+    const trimmed = query.trim();
+    const [response, anilistResults] = await Promise.all([
+      fetch(
+        `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&query=${encodeURIComponent(trimmed)}&page=1&include_adult=false`,
+      ),
+      fetchAniListSearchMedia(trimmed, { page: 1, perPage: 20 }),
+    ]);
 
     if (!response.ok) {
       console.error(
@@ -77,9 +83,15 @@ export async function GET(request: Request) {
             : undefined,
         })) || [];
 
+    const tmdbCards = mapMediaListToCanonicalCardsValue(filteredResults);
+    const results = mergeSearchMediaResults(tmdbCards, anilistResults.items, {
+      limit: 8,
+      query: trimmed,
+    });
+
     return NextResponse.json(
       {
-        results: mapMediaListToCanonicalCardsValue(filteredResults),
+        results,
       },
       { headers: catalogCacheHeaders() },
     );

@@ -101,4 +101,16 @@ describe("site-flags", () => {
       ),
     ).toBe("iframe");
   });
+
+  it("resolves default proxy playback without forcing iframe lock", () => {
+    const flags = resolveSiteFlags({
+      ...DEFAULT_FLAG_VALUES,
+      "global.default_proxy_playback": true,
+    });
+
+    expect(flags.defaultProxyPlayback).toBe(true);
+    expect(flags.proxyModeOnly).toBe(false);
+    expect(flags.locks.playbackMode).toBe(false);
+    expect(getPlaybackModePolicy(flags)).toBe("choice");
+  });
 });

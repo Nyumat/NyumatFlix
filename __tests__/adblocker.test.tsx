@@ -3,8 +3,13 @@ import {
   AdblockGateProvider,
   useAdblockGateAction,
 } from "@/components/providers/adblock-gate-provider";
+import { FeatureFlagsProvider } from "@/components/providers/feature-flags-provider";
 import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getDefaultSiteFlags } from "@/lib/flags/site-flags";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
+import { scrapeServer, useServerStore } from "@/lib/stores/server-store";
+import { videoServers } from "@/lib/stores/video-servers";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -301,18 +306,74 @@ describe("AdblockerAlert", () => {
 });
 
 describe("AdblockGateProvider", () => {
+  const embedServer = videoServers[0]!;
+
+  const renderGate = (onRun: () => void, flags = getDefaultSiteFlags()) =>
+    renderWithProviders(
+      <FeatureFlagsProvider flags={flags}>
+        <AdblockGateProvider>
+          <GatedAction onRun={onRun} />
+        </AdblockGateProvider>
+      </FeatureFlagsProvider>,
+    );
+
   beforeEach(() => {
     localStorage.clear();
+    useAppSettingsStore.setState({ noAdsMode: false });
+    useServerStore.setState({ selectedServer: embedServer });
+  });
+
+  test("skips the prompt when playback uses scrape/proxy", async () => {
+    const user = userEvent.setup();
+    const onRun = vi.fn();
+    useServerStore.setState({ selectedServer: scrapeServer });
+
+    renderGate(onRun);
+
+    await user.click(screen.getByRole("button", { name: "Play" }));
+
+    expect(onRun).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByTestId("adblocker-alert-dialog"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("skips the prompt when no-ads mode is enabled", async () => {
+    const user = userEvent.setup();
+    const onRun = vi.fn();
+    useAppSettingsStore.setState({ noAdsMode: true });
+
+    renderGate(onRun);
+
+    await user.click(screen.getByRole("button", { name: "Play" }));
+
+    expect(onRun).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByTestId("adblocker-alert-dialog"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("skips the prompt when default proxy playback is enabled", async () => {
+    const user = userEvent.setup();
+    const onRun = vi.fn();
+
+    renderGate(onRun, {
+      ...getDefaultSiteFlags(),
+      defaultProxyPlayback: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Play" }));
+
+    expect(onRun).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByTestId("adblocker-alert-dialog"),
+    ).not.toBeInTheDocument();
   });
 
   test("remembers a no-thanks dismissal across provider mounts", async () => {
     const user = userEvent.setup();
     const firstAction = vi.fn();
-    const firstRender = renderWithProviders(
-      <AdblockGateProvider>
-        <GatedAction onRun={firstAction} />
-      </AdblockGateProvider>,
-    );
+    const firstRender = renderGate(firstAction);
 
     await user.click(screen.getByRole("button", { name: "Play" }));
     await user.click(
@@ -325,11 +386,7 @@ describe("AdblockGateProvider", () => {
     firstRender.unmount();
 
     const subsequentAction = vi.fn();
-    renderWithProviders(
-      <AdblockGateProvider>
-        <GatedAction onRun={subsequentAction} />
-      </AdblockGateProvider>,
-    );
+    renderGate(subsequentAction);
 
     await user.click(screen.getByRole("button", { name: "Play" }));
 

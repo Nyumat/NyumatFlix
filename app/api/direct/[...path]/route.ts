@@ -56,6 +56,10 @@ function shapeDirectProxyHeaders(
   const contentType = inferDirectMediaContentType(
     upstream.headers.get("content-type"),
     requestUrl,
+    {
+      contentDisposition: upstream.headers.get("content-disposition"),
+      finalUrl: upstream.url,
+    },
   );
   if (contentType) {
     outHeaders.set("Content-Type", contentType);
@@ -88,7 +92,35 @@ function buildUpstreamHeaders(request: Request): Record<string, string> {
       headers[key] = value;
     }
   }
+  if (!headers.accept) {
+    headers.accept = "*/*";
+  }
   return headers;
+}
+
+async function probeCalluspiratesMedia(
+  target: string,
+  headers: Record<string, string>,
+  signal: AbortSignal,
+): Promise<Response> {
+  const head = await fetchCalluspirates(target, {
+    method: "HEAD",
+    headers,
+    responseKind: "binary",
+    timeoutMs: 300_000,
+    signal,
+  });
+  if (head.ok || head.status === 206) {
+    return head;
+  }
+
+  return fetchCalluspirates(target, {
+    method: "GET",
+    headers: { ...headers, Range: "bytes=0-0" },
+    responseKind: "binary",
+    timeoutMs: 300_000,
+    signal,
+  });
 }
 
 async function proxyDirectPlayback(request: Request): Promise<Response> {
@@ -104,11 +136,16 @@ async function proxyDirectPlayback(request: Request): Promise<Response> {
 
   let upstream: Response;
   try {
-    upstream = await fetchCalluspirates(target, {
-      method: request.method === "HEAD" ? "HEAD" : "GET",
-      headers,
-      timeoutMs: 300_000,
-    });
+    upstream =
+      request.method === "HEAD"
+        ? await probeCalluspiratesMedia(target, headers, request.signal)
+        : await fetchCalluspirates(target, {
+            method: "GET",
+            headers,
+            responseKind: "binary",
+            timeoutMs: 300_000,
+            signal: request.signal,
+          });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Upstream fetch failed";
@@ -126,7 +163,7 @@ async function proxyDirectPlayback(request: Request): Promise<Response> {
 
   if (request.method === "HEAD") {
     return new NextResponse(null, {
-      status: upstream.status,
+      status: upstream.status === 206 ? 200 : upstream.status,
       headers: outHeaders,
     });
   }
@@ -139,7 +176,8 @@ async function proxyDirectPlayback(request: Request): Promise<Response> {
 
   if (shouldRewrite) {
     const playlist = await upstream.text();
-    const rewritten = rewriteDirectProxyPlaylist(playlist);
+    const accessToken = incoming.searchParams.get("access_token") ?? undefined;
+    const rewritten = rewriteDirectProxyPlaylist(playlist, accessToken);
     const playlistHeaders = shapeDirectProxyHeaders(upstream, request.url, {
       rewrittenPlaylist: true,
     });

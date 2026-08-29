@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { VideoSrc } from "@vidstack/react";
+import type { Level } from "hls.js";
 
-import { isRecoverableScrapeHlsStall } from "@/lib/scrape/hls-quality";
+import {
+  isRecoverableScrapeHlsStall,
+  pickHighestHlsLevelIndex,
+} from "@/lib/scrape/hls-quality";
 import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
 import {
   buildScrapePlayUrl,
@@ -18,6 +21,9 @@ import {
 import {
   looksLikeHlsPlaylistBody,
   shouldTreatAsHlsPlaylist,
+  withScrapePlayProbeOptions,
+  SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  SCRAPE_PLAY_PROBE_TIMEOUT_MS,
 } from "@/lib/scrape/playback-probe";
 import { isVidKingPlaybackRefresh } from "@/lib/scrape/playback-refresh";
 import {
@@ -27,6 +33,16 @@ import {
 } from "@/lib/scrape/player-sources";
 
 describe("scrape hls playback helpers", () => {
+  it("picks the highest parsed HLS level", () => {
+    const levels = [
+      { height: 720, url: "https://cdn.example/720p/index.m3u8" },
+      { height: 1080, url: "https://cdn.example/1080p/index.m3u8" },
+      { height: 480, url: "https://cdn.example/480p/index.m3u8" },
+    ] as unknown as Level[];
+
+    expect(pickHighestHlsLevelIndex(levels)).toBe(1);
+  });
+
   it("treats non-fatal buffer stalls as recoverable", () => {
     expect(
       isRecoverableScrapeHlsStall({
@@ -114,9 +130,13 @@ describe("scrape hls playback helpers", () => {
     }
 
     expect(src).toHaveLength(3);
-    expect((src as VideoSrc[]).map((entry) => entry.height)).toEqual([
-      1080, 720, 480,
-    ]);
+    expect(
+      src.map((entry) =>
+        typeof entry === "object" && entry !== null && "height" in entry
+          ? entry.height
+          : undefined,
+      ),
+    ).toEqual([1080, 720, 480]);
   });
 
   it("keeps a single src for adaptive master playlists", () => {
@@ -253,13 +273,25 @@ describe("scrape hls playback helpers", () => {
     ).toBeNull();
   });
 
-  it("includes stream identity in the player remount key", () => {
-    expect(
-      buildScrapePlayerKey({
-        playUrl: "/api/scrape/play/token/master.m3u8",
-        qualities: [{ label: "1080p", url: "https://cdn/1080.m3u8" }],
-        subtitles: [{ lang: "en", url: "https://cdn/en.vtt" }],
-      }),
-    ).toContain("en:https://cdn/en.vtt");
+  it("keeps stream identity in the player remount key without subtitle URLs", () => {
+    const key = buildScrapePlayerKey({
+      playUrl: "/api/scrape/play/token/master.m3u8",
+      qualities: [{ label: "1080p", url: "https://cdn/1080.m3u8" }],
+      subtitles: [{ lang: "en", url: "https://cdn/en.vtt" }],
+    });
+
+    expect(key).toContain("/api/scrape/play/token/master.m3u8");
+    expect(key).toContain("1080p");
+    expect(key).not.toContain("en:https://cdn/en.vtt");
+  });
+
+  it("defaults play-path probes to 8s and one retry", () => {
+    expect(withScrapePlayProbeOptions()).toEqual({
+      timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+      retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+      signal: undefined,
+    });
+    expect(SCRAPE_PLAY_PROBE_TIMEOUT_MS).toBe(8_000);
+    expect(SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS).toBe(1);
   });
 });

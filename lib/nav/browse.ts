@@ -29,7 +29,15 @@ export const toTitleCase = (label: string) =>
       : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
   );
 
-export const isInNavGroup = (pathname: string, item: NavItem) => {
+export const isInNavGroup = (
+  pathname: string,
+  item: NavItem,
+  parentRouteOverride?: string,
+) => {
+  if (parentRouteOverride) {
+    return item.href === parentRouteOverride;
+  }
+
   if (pathname === item.href) return true;
   if (item.href === "/movies") return pathname.startsWith("/movies/");
   if (item.href === "/tvshows") return pathname.startsWith("/tvshows/");

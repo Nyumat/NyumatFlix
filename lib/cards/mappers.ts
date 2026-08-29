@@ -13,12 +13,21 @@ export type MappableMediaItem = Partial<MediaItem> & {
   media_type?: "movie" | "tv" | "person" | string;
   title?: string;
   name?: string;
+  href?: string;
   release_date?: string;
   first_air_date?: string;
   profile_path?: string | null;
   known_for_department?: string;
   known_for?: unknown[];
   deathday?: string | null;
+};
+
+const resolveMediaHref = <T extends string>(
+  item: MappableMediaItem,
+  fallback: T,
+): T => {
+  const href = item.href?.trim();
+  return (href?.startsWith("/") ? href : fallback) as T;
 };
 
 const toGenreObjects = (item: MappableMediaItem) => {
@@ -64,7 +73,7 @@ export function mapMovieToCanonicalCardValue(
     media_type: "movie",
     title: movie.title || movie.name || "",
     name: movie.name,
-    href: `/movies/${movie.id}`,
+    href: resolveMediaHref(movie, `/movies/${movie.id}`),
     poster_path: movie.poster_path ?? null,
     backdrop_path: movie.backdrop_path ?? null,
     overview: movie.overview,
@@ -94,7 +103,7 @@ export function mapTvShowToCanonicalCardValue(
     media_type: "tv",
     title,
     name: title,
-    href: `/tvshows/${show.id}`,
+    href: resolveMediaHref(show, `/tvshows/${show.id}`),
     poster_path: show.poster_path ?? null,
     backdrop_path: show.backdrop_path ?? null,
     overview: show.overview,

@@ -13,6 +13,7 @@ export function buildServerAvailabilityKey(
     input.anilistId ?? "",
     input.animeEpisodeNumber ?? "",
     input.animePreference ?? "",
+    input.isAdultAnime ? "adult" : "",
     vidsrcApi,
   ].join(":");
 }

@@ -20,4 +20,22 @@ describe("resolveHlsPlaylistUrl", () => {
       ),
     ).toBe("https://cdn.ani.pm/m/abc/seg.jpg");
   });
+
+  it("does not paste playlist tokens onto path-absolute ani.pm segments", () => {
+    expect(
+      resolveHlsPlaylistUrl(
+        "/m/abc/seg.jpg",
+        "https://vps1-cdn.ani.pm:8443/api/anime/src/hls?t=playlist-token",
+      ),
+    ).toBe("https://vps1-cdn.ani.pm:8443/m/abc/seg.jpg");
+  });
+
+  it("still inherits VidSrc JWT query on relative renditions", () => {
+    expect(
+      resolveHlsPlaylistUrl(
+        "720p/index.m3u8",
+        "https://kaleidoscopekernel.space/pl/abc/master.m3u8?token=jwt",
+      ),
+    ).toBe("https://kaleidoscopekernel.space/pl/abc/720p/index.m3u8?token=jwt");
+  });
 });

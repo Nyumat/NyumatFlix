@@ -1,13 +1,13 @@
 import "server-only";
 
 import type { AnimeSeasonContext } from "@/lib/anime-season";
-import { filterAnimeBlocked, isAnimeBlocked } from "@/lib/anime-blocklist";
+import { isAnimeBlocked } from "@/lib/anime-blocklist";
 import type { MediaItem } from "@/lib/domain/typings";
 
-const MIN_VISIBLE_ROW = 8;
-const ROW_CAROUSEL = 20;
-const ROW_RANKED = 24;
-const ROW_GENRE = 18;
+export const ANIME_HUB_MIN_VISIBLE_ROW = 8;
+export const ANIME_HUB_ROW_CAROUSEL = 20;
+export const ANIME_HUB_ROW_RANKED = 24;
+export const ANIME_HUB_ROW_GENRE = 18;
 
 export type AnimeHubGenrePool = {
   genre: string;
@@ -44,6 +44,33 @@ const getItemKey = (item: MediaItem) => {
 
 const hasPoster = (item: MediaItem) =>
   typeof item.poster_path === "string" && item.poster_path.trim() !== "";
+
+/** Pick carousel items with poster + within-row dedupe. */
+export const pickHubCarouselItems = (
+  pool: MediaItem[],
+  count: number,
+): MediaItem[] => {
+  const picked: MediaItem[] = [];
+  const seenKeys = new Set<string>();
+  const seenTitles = new Set<string>();
+
+  for (const item of pool) {
+    if (!hasPoster(item)) continue;
+    if (isAnimeBlocked(item)) continue;
+
+    const key = getItemKey(item);
+    const titleKey = normalizeAnimeTitle(getItemTitle(item));
+    if (seenKeys.has(key)) continue;
+    if (titleKey && seenTitles.has(titleKey)) continue;
+
+    seenKeys.add(key);
+    if (titleKey) seenTitles.add(titleKey);
+    picked.push(item);
+    if (picked.length >= count) break;
+  }
+
+  return picked;
+};
 
 class HubItemAllocator {
   private seenKeys = new Set<string>();
@@ -91,6 +118,7 @@ export type AnimeHubPools = {
   airing: MediaItem[];
   topRated: MediaItem[];
   movies: MediaItem[];
+  hentai: MediaItem[];
   genreRows: AnimeHubGenrePool[];
 };
 
@@ -104,22 +132,23 @@ export const buildAnimeHubLayout = (
     airing: string;
     topRated: string;
     movies: string;
+    hentai: string;
     genre: (name: string) => string;
   },
 ): AnimeHubLayout => {
   const allocator = new HubItemAllocator();
 
   const heroItems = allocator.take(pools.trending, 1);
-  const topRatedRow = allocator.take(pools.topRated, ROW_RANKED);
-  const trendingRow = allocator.take(pools.trending, ROW_CAROUSEL);
-  const popularRow = allocator.take(pools.popular, ROW_CAROUSEL);
-  const seasonRow = allocator.take(pools.seasonPopular, ROW_CAROUSEL);
-  const airingRow = allocator.take(pools.airing, ROW_CAROUSEL);
-  const moviesRow = allocator.take(pools.movies, ROW_CAROUSEL);
+  const topRatedRow = allocator.take(pools.topRated, ANIME_HUB_ROW_RANKED);
+  const trendingRow = allocator.take(pools.trending, ANIME_HUB_ROW_CAROUSEL);
+  const popularRow = allocator.take(pools.popular, ANIME_HUB_ROW_CAROUSEL);
+  const seasonRow = allocator.take(pools.seasonPopular, ANIME_HUB_ROW_CAROUSEL);
+  const airingRow = allocator.take(pools.airing, ANIME_HUB_ROW_CAROUSEL);
+  const moviesRow = allocator.take(pools.movies, ANIME_HUB_ROW_CAROUSEL);
 
   const carouselRows: AnimeHubCarouselRow[] = [];
   const pushRow = (title: string, href: string, items: MediaItem[]) => {
-    if (items.length < MIN_VISIBLE_ROW) return;
+    if (items.length < ANIME_HUB_MIN_VISIBLE_ROW) return;
     carouselRows.push({ title, href, items });
   };
 
@@ -130,15 +159,25 @@ export const buildAnimeHubLayout = (
   pushRow("Movies", links.movies, moviesRow);
 
   for (const { genre, items } of pools.genreRows) {
-    pushRow(genre, links.genre(genre), allocator.take(items, ROW_GENRE));
+    pushRow(
+      genre,
+      links.genre(genre),
+      allocator.take(items, ANIME_HUB_ROW_GENRE),
+    );
   }
+
+  pushRow(
+    "Hentai",
+    links.hentai,
+    allocator.take(pools.hentai, ANIME_HUB_ROW_GENRE),
+  );
 
   return {
     season,
     hero: heroItems.length > 0 ? { label: "Trending", items: heroItems } : null,
     carouselRows,
     rankedRow:
-      topRatedRow.length >= MIN_VISIBLE_ROW
+      topRatedRow.length >= ANIME_HUB_MIN_VISIBLE_ROW
         ? { title: "Highest Rated", href: links.topRated, items: topRatedRow }
         : null,
   };

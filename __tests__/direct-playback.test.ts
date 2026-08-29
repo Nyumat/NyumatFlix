@@ -23,6 +23,19 @@ describe("direct-playback", () => {
     ).toBe("vidstack-hls");
   });
 
+  it("keeps movi when a dual-audio remux fails instead of falling back to hls", () => {
+    expect(
+      nextDirectPlaybackEngine(
+        "extended",
+        "movi",
+        "https://x/fallback.m3u8",
+        "https://x/media",
+        "Naruto.S01E01.1080p.BluRay.Dual.Audio.mkv",
+        "Naruto.S01E01.1080p.BluRay.Dual.Audio.mkv",
+      ),
+    ).toBeNull();
+  });
+
   it("selects direct engine for native mp4 streams", () => {
     expect(selectDirectPlaybackEngine("direct")).toBe("vidstack-direct");
   });
@@ -47,7 +60,7 @@ describe("direct-playback", () => {
     ).toBe("https://calluspirates.com/api/media?u=upstream");
   });
 
-  it("prefers movi for extended remux when WebCodecs is available", () => {
+  it("prefers server transcode for extended remux when a fallback exists", () => {
     const previous = globalThis.VideoDecoder;
     // @ts-expect-error test shim
     globalThis.VideoDecoder = class VideoDecoder {};
@@ -57,6 +70,28 @@ describe("direct-playback", () => {
           "extended",
           "/api/direct/transcode/playlist?u=upstream",
           "/api/direct/media?u=https%3A%2F%2Fcdn%2FFinding.Dory.2016.2160p.BluRay.REMUX.mkv",
+        ),
+      ).toBe("vidstack-hls");
+    } finally {
+      if (previous === undefined) {
+        // @ts-expect-error test cleanup
+        delete globalThis.VideoDecoder;
+      } else {
+        globalThis.VideoDecoder = previous;
+      }
+    }
+  });
+
+  it("prefers client movi decode for lighter extended mkv when WebCodecs is available", () => {
+    const previous = globalThis.VideoDecoder;
+    // @ts-expect-error test shim
+    globalThis.VideoDecoder = class VideoDecoder {};
+    try {
+      expect(
+        selectDirectPlaybackEngine(
+          "extended",
+          "/api/direct/transcode/playlist?u=upstream",
+          "/api/direct/media?u=https%3A%2F%2Fcdn%2Fshow.1080p.WEB-DL.x265.mkv",
         ),
       ).toBe("movi");
     } finally {
@@ -69,7 +104,7 @@ describe("direct-playback", () => {
     }
   });
 
-  it("keeps movi for lighter extended encodes when WebCodecs is available", () => {
+  it("prefers server transcode for extended mkv when hint is hls-first", () => {
     const previous = globalThis.VideoDecoder;
     // @ts-expect-error test shim
     globalThis.VideoDecoder = class VideoDecoder {};
@@ -79,8 +114,13 @@ describe("direct-playback", () => {
           "extended",
           "/api/direct/transcode/playlist?u=upstream",
           "/api/direct/media?u=https%3A%2F%2Fcdn%2Fshow.1080p.WEB-DL.x265.mkv",
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          "hls-first",
         ),
-      ).toBe("movi");
+      ).toBe("vidstack-hls");
     } finally {
       if (previous === undefined) {
         // @ts-expect-error test cleanup

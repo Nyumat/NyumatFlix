@@ -11,27 +11,47 @@ import {
 
 const ANIMEGG_ORIGIN = "https://www.animegg.org";
 
-const extractAnimeggSources = (html: string) =>
+export const extractAnimeggSources = (html: string) =>
   [...html.matchAll(/\{file:\s*"([^"]+)",\s*label:\s*"([^"]+)"/g)]
     .map((match) => ({ path: match[1] ?? "", label: match[2] ?? "" }))
     .filter((source) => source.path.startsWith("/play/") && source.label);
 
-const isUsableAnimeggHtml = (status: number, text: string): boolean =>
+export const isUsableAnimeggHtml = (status: number, text: string): boolean =>
   status === 200 &&
   text.length > 2_000 &&
   !/Attention Required|Just a moment/i.test(text) &&
-  !/504: Gateway time-out|Error 504/i.test(text);
+  !/504: Gateway time-out|Error 504/i.test(text) &&
+  !/Episode not found|An error occurred/i.test(text);
+
+/** CF challenge only — 200 "Episode not found" shells must not wait on FlareSolverr. */
+export const shouldFlareSolveAnimegg = (
+  status: number,
+  text: string,
+): boolean => {
+  if (
+    /Attention Required|Just a moment|cf-browser-verification|challenge-platform/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+  return status === 403 || status === 429 || status === 503;
+};
 
 const fetchAnimeggHtml = async (
   url: string,
 ): Promise<{ status: number; text: string }> => {
+  let page: { status: number; text: string } | null = null;
   try {
-    const page = await scrapeFetchText(
+    page = await scrapeFetchText(
       url,
       { Referer: `${ANIMEGG_ORIGIN}/` },
       { timeoutMs: 12_000 },
     );
     if (isUsableAnimeggHtml(page.status, page.text)) {
+      return page;
+    }
+    if (!shouldFlareSolveAnimegg(page.status, page.text)) {
       return page;
     }
   } catch {
@@ -43,7 +63,7 @@ const fetchAnimeggHtml = async (
     return { status: flared.status, text: flared.body };
   }
 
-  return { status: 0, text: "" };
+  return page ?? { status: 0, text: "" };
 };
 
 const findSeriesSlugFromSearch = async (
@@ -105,43 +125,48 @@ export async function scrapeAnimegg(
       `${ANIMEGG_ORIGIN}/${episodeSlug}`,
     );
 
-    if (episodePage.status !== 200) {
-      let fallbackEpisode: string | null = null;
-      for (const candidateSlug of [seriesSlug]) {
-        const seriesPage = await fetchAnimeggHtml(
-          `${ANIMEGG_ORIGIN}/series/${candidateSlug}`,
-        );
-        fallbackEpisode = extractFirstMatch(
-          seriesPage.text,
-          new RegExp(
-            `href="(/[^"]*episode-${input.episodeNumber}(?:-[^"]+)?)"`,
-          ),
-        );
-        if (fallbackEpisode) {
-          episodeSlug = fallbackEpisode.slice(1);
-          break;
-        }
-      }
-
+    const loadEpisodeFromSeriesPage = async (): Promise<boolean> => {
+      const seriesPage = await fetchAnimeggHtml(
+        `${ANIMEGG_ORIGIN}/series/${seriesSlug}`,
+      );
+      const fallbackEpisode = extractFirstMatch(
+        seriesPage.text,
+        new RegExp(`href="(/[^"]*episode-${input.episodeNumber}(?:-[^"]+)?)"`),
+      );
       if (!fallbackEpisode) {
+        return false;
+      }
+      episodeSlug = fallbackEpisode.slice(1);
+      episodePage = await fetchAnimeggHtml(`${ANIMEGG_ORIGIN}/${episodeSlug}`);
+      return isUsableAnimeggHtml(episodePage.status, episodePage.text);
+    };
+
+    if (!isUsableAnimeggHtml(episodePage.status, episodePage.text)) {
+      const recovered = await loadEpisodeFromSeriesPage();
+      if (!recovered) {
         return {
           ok: false,
           providerId,
           error: `AnimeGG episode page not found (${episodeSlug})`,
         };
       }
-
-      episodePage = await fetchAnimeggHtml(`${ANIMEGG_ORIGIN}/${episodeSlug}`);
     }
 
     const version = input.translationType === "dub" ? "dubbed" : "subbed";
-    const embedId = extractFirstMatch(
-      episodePage.text,
-      new RegExp(
-        `data-id=['"](\\d+)['"][^>]*data-mirror=['"]Animegg['"][^>]*data-version=['"]${version}['"]`,
-        "i",
-      ),
-    );
+    const extractEmbedId = (html: string): string | null =>
+      extractFirstMatch(
+        html,
+        new RegExp(
+          `data-id=['"](\\d+)['"][^>]*data-mirror=['"]Animegg['"][^>]*data-version=['"]${version}['"]`,
+          "i",
+        ),
+      );
+
+    let embedId = extractEmbedId(episodePage.text);
+    if (!embedId) {
+      const recovered = await loadEpisodeFromSeriesPage();
+      embedId = recovered ? extractEmbedId(episodePage.text) : null;
+    }
     if (!embedId) {
       return { ok: false, providerId, error: "AnimeGG embed id missing" };
     }

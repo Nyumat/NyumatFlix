@@ -4,14 +4,15 @@ import { HeroTvEpisodePanel } from "@/components/hero/hero-tv-episode-panel";
 import { ExpandableCastGrid } from "@/components/media/expandable-cast-grid";
 import { TvCard } from "@/components/tv/tv-card";
 import { TvShowSeasonsPage } from "@/components/tvshow/tvshow-seasons-page";
-import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import {
   fetchTvAllSeasonsClient,
   fetchTvCreditsClient,
   fetchTvDetailsClient,
   fetchTvRecommendationsPageClient,
 } from "@/lib/media-detail-tab-client";
-import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
+import { queryStaleTime } from "@/lib/cache-policy";
+import { isAnilistBackedTvRouteId } from "@/lib/tv-detail-catalog";
+import { useTvDetailCatalog } from "@/hooks/use-tv-detail-catalog";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import type { TvShowDetails } from "@/lib/domain/typings";
@@ -90,39 +91,49 @@ const GridSectionFallback = ({ title }: { title: string }) => (
 );
 
 const EpisodesSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const isHydrated = useIsHydrated();
-  const isAnilistRoute = isAnilistTvRouteId(tvId);
+  const catalog = useTvDetailCatalog();
+  const isAnilistRoute = isAnilistBackedTvRouteId(tvId, catalog);
 
-  const { data: details } = useQuery({
+  const { data: allSeasonDetails } = useQuery({
+    queryKey: queryKeys.tvAllSeasons(tvId),
+    queryFn: () => fetchTvAllSeasonsClient(tvId, catalog),
+    staleTime: queryStaleTime(60 * 60 * 1000),
+  });
+
+  const { data: details, isPending } = useQuery({
     queryKey: isAnilistRoute
       ? queryKeys.tvDetailsRoute(tvId)
       : queryKeys.tvDetails(Number.parseInt(tvId, 10)),
     queryFn: async () => {
-      const d = await fetchTvDetailsClient(tvId);
+      const d = await fetchTvDetailsClient(tvId, catalog);
       if (!d) throw new Error("TV show not found");
       return d;
     },
-    enabled: isHydrated,
   });
 
-  if (!isHydrated || !details) return <EpisodesFallback />;
+  if (isPending && !details) return <EpisodesFallback />;
 
   return (
     <DetailSection id="seasons-episodes-panel" title="Seasons & Episodes">
-      <HeroTvEpisodePanel tvId={tvId} details={details as TvShowDetails} />
+      <HeroTvEpisodePanel
+        tvId={tvId}
+        details={details as TvShowDetails}
+        allSeasonDetails={allSeasonDetails}
+      />
     </DetailSection>
   );
 };
 
 const SeriesGraphSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const isHydrated = useIsHydrated();
-  const { data: allSeasonDetails } = useQuery({
+  const catalog = useTvDetailCatalog();
+  const { data: allSeasonDetails, isPending } = useQuery({
     queryKey: queryKeys.tvAllSeasons(tvId),
-    queryFn: () => fetchTvAllSeasonsClient(tvId),
-    enabled: isHydrated,
+    queryFn: () => fetchTvAllSeasonsClient(tvId, catalog),
   });
 
-  if (!isHydrated || !allSeasonDetails) return <SeriesGraphFallback />;
+  if (isPending && !allSeasonDetails) return <SeriesGraphFallback />;
+
+  if (!allSeasonDetails) return <SeriesGraphFallback />;
 
   return <TvShowSeasonsPage allSeasonDetails={allSeasonDetails} />;
 };
@@ -147,14 +158,15 @@ const LazySeriesGraphSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
 };
 
 const CastSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const isHydrated = useIsHydrated();
-  const { data: credits } = useQuery({
+  const catalog = useTvDetailCatalog();
+  const { data: credits, isPending } = useQuery({
     queryKey: queryKeys.tvTabCredits(tvId),
-    queryFn: () => fetchTvCreditsClient(tvId),
-    enabled: isHydrated,
+    queryFn: () => fetchTvCreditsClient(tvId, catalog),
   });
 
-  if (!isHydrated || !credits) return <GridSectionFallback title="Cast" />;
+  if (isPending && !credits) return <GridSectionFallback title="Cast" />;
+
+  if (!credits) return <GridSectionFallback title="Cast" />;
 
   return (
     <DetailSection title="Cast">
@@ -168,14 +180,16 @@ const CastSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
 };
 
 const RecommendationsSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const isHydrated = useIsHydrated();
-  const { data: recommendationsData } = useQuery({
+  const { data: recommendationsData, isPending } = useQuery({
     queryKey: queryKeys.tvTabRecommendations(tvId, "1"),
     queryFn: () => fetchTvRecommendationsPageClient(tvId, "1"),
-    enabled: isHydrated,
   });
 
-  if (!isHydrated || !recommendationsData) {
+  if (isPending && !recommendationsData) {
+    return <GridSectionFallback title="You Might Like" />;
+  }
+
+  if (!recommendationsData) {
     return <GridSectionFallback title="You Might Like" />;
   }
 

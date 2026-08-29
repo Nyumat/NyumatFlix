@@ -10,66 +10,68 @@ import {
   isMoviWasmError,
   type MoviPlayerElement,
 } from "@/lib/movi/movi-player-element";
+import {
+  getMoviVideoElement,
+  isMoviPlayerMakingProgress,
+  isMoviVideoPlaybackReady,
+  resetMoviProgressObservation,
+} from "@/lib/movi/movi-playback-ready";
+import { pickMoviTrackPrefs } from "@/lib/direct/playback";
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import {
+  registerPlaybackProgressFlush,
+  unregisterPlaybackProgressFlush,
+} from "@/lib/playback/progress-flush";
 
 type MoviStreamPlayerProps = {
   src: string;
   poster?: string | null;
   title?: string;
+  preferredAudioLang?: string;
+  streamLabel?: string;
   progressKey: PlaybackProgressKey;
-  onError: () => void;
+  onError: (detail?: { kind?: "error" | "timeout" }) => void;
   onMediaReady?: () => void;
+  onBufferingChange?: (buffering: boolean) => void;
   onEnded?: () => Promise<boolean>;
   className?: string;
 };
 
-const ENGLISH_LANG_PATTERN = /\b(en|eng|english)\b/i;
+const MOVI_STALL_TIMEOUT_MS = 180_000;
+const MOVI_STALL_POLL_MS = 5_000;
+const MOVI_TRACK_PREF_DELAY_MS = 1_500;
 
-const pickEnglishLang = (
-  tracks: Array<{ lang: string; label: string }>,
-): string | null => {
-  const scored = tracks
-    .map((track) => {
-      const hay = `${track.lang} ${track.label}`.trim();
-      let score = 0;
-      if (/\bdub\b/i.test(hay)) {
-        score = 3;
-      } else if (ENGLISH_LANG_PATTERN.test(hay)) {
-        score = 2;
-      }
-      return { lang: track.lang, score };
-    })
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  return scored[0]?.lang ?? null;
-};
-
-const preferEnglishTracks = (player: MoviPlayerElement): boolean => {
-  const audioLangs = player.getAudioLangs?.() ?? [];
-  const englishAudio = pickEnglishLang(audioLangs);
-  if (englishAudio) {
-    return player.selectAudioLang?.(englishAudio) ?? false;
+const applyPreferredMoviTracks = (
+  player: MoviPlayerElement,
+  preferredAudioLang?: string,
+): boolean => {
+  const prefs = pickMoviTrackPrefs(
+    player.getAudioLangs?.() ?? [],
+    player.getSubtitleLangs?.() ?? [],
+    preferredAudioLang,
+  );
+  let applied = false;
+  if (prefs.audioLang) {
+    applied = player.selectAudioLang?.(prefs.audioLang) ?? false;
   }
-
-  const subtitleLangs = player.getSubtitleLangs?.() ?? [];
-  const englishSubtitle = pickEnglishLang(subtitleLangs);
-  if (englishSubtitle) {
-    void player.selectSubtitleLang?.(englishSubtitle);
-    return true;
+  if (prefs.subtitleLang) {
+    void player.selectSubtitleLang?.(prefs.subtitleLang);
+    applied = true;
   }
-
-  return false;
+  return applied;
 };
 
 function MoviStreamPlayerInstance({
   src,
   poster,
   title,
+  preferredAudioLang,
+  streamLabel,
   progressKey,
   onError,
   onMediaReady,
+  onBufferingChange,
   onEnded,
   className,
 }: MoviStreamPlayerProps) {
@@ -77,11 +79,13 @@ function MoviStreamPlayerInstance({
   const playerRef = useRef<MoviPlayerElement | null>(null);
   const onErrorRef = useRef(onError);
   const onMediaReadyRef = useRef(onMediaReady);
+  const onBufferingChangeRef = useRef(onBufferingChange);
   const onEndedRef = useRef(onEnded);
   const errorReportedRef = useRef(false);
   const resumedRef = useRef(false);
   const readyRef = useRef(false);
   const tracksPreferredRef = useRef(false);
+  const lastProgressRef = useRef(Date.now());
   const { resumeTime, persist, persistImmediate } =
     usePlaybackProgress(progressKey);
   const resumeTimeRef = useRef(resumeTime);
@@ -93,57 +97,61 @@ function MoviStreamPlayerInstance({
   persistImmediateRef.current = persistImmediate;
   onErrorRef.current = onError;
   onMediaReadyRef.current = onMediaReady;
+  onBufferingChangeRef.current = onBufferingChange;
   onEndedRef.current = onEnded;
 
   const markMediaReady = useCallback(() => {
-    const handler = createMediaReadyHandler(
-      () => onMediaReadyRef.current?.(),
-      readyRef,
-    );
+    const handler = createMediaReadyHandler(() => {
+      onBufferingChangeRef.current?.(false);
+      onMediaReadyRef.current?.();
+    }, readyRef);
     handler();
   }, []);
 
-  const maybePreferEnglishTracks = useCallback((player: MoviPlayerElement) => {
-    if (tracksPreferredRef.current) {
-      return;
-    }
-    if (preferEnglishTracks(player)) {
-      tracksPreferredRef.current = true;
-    }
-  }, []);
+  const maybePreferEnglishTracks = useCallback(
+    (player: MoviPlayerElement) => {
+      if (tracksPreferredRef.current) {
+        return;
+      }
+      if (applyPreferredMoviTracks(player, preferredAudioLang)) {
+        tracksPreferredRef.current = true;
+      }
+    },
+    [preferredAudioLang],
+  );
 
   useEffect(() => {
     errorReportedRef.current = false;
     resumedRef.current = false;
     readyRef.current = false;
     tracksPreferredRef.current = false;
+    lastProgressRef.current = Date.now();
+    onBufferingChangeRef.current?.(true);
   }, [src, progressKey]);
 
   useEffect(() => {
-    const reportError = () => {
+    const reportError = (kind: "error" | "timeout" = "error") => {
       if (errorReportedRef.current) {
         return;
       }
       errorReportedRef.current = true;
-      onErrorRef.current();
+      onErrorRef.current({ kind });
     };
 
-    const timeout = window.setTimeout(() => {
-      const el = playerRef.current;
-      if (!el) {
-        reportError();
+    const interval = window.setInterval(() => {
+      if (readyRef.current) {
         return;
       }
-      const shadowVideo = el.shadowRoot?.querySelector("video");
-      const isPlaying =
-        shadowVideo instanceof HTMLVideoElement &&
-        shadowVideo.readyState >= 2 &&
-        !shadowVideo.paused &&
-        shadowVideo.currentTime > 0;
-      if (!isPlaying) {
-        reportError();
+      const el = playerRef.current;
+      if (el && isMoviPlayerMakingProgress(el)) {
+        lastProgressRef.current = Date.now();
+        return;
       }
-    }, 90_000);
+      if (Date.now() - lastProgressRef.current < MOVI_STALL_TIMEOUT_MS) {
+        return;
+      }
+      reportError("timeout");
+    }, MOVI_STALL_POLL_MS);
 
     const onWindowError = (event: ErrorEvent) => {
       const message = event.message ?? "";
@@ -173,7 +181,7 @@ function MoviStreamPlayerInstance({
     window.addEventListener("unhandledrejection", onUnhandledRejection);
 
     return () => {
-      window.clearTimeout(timeout);
+      window.clearInterval(interval);
       window.removeEventListener("error", onWindowError);
       window.removeEventListener("unhandledrejection", onUnhandledRejection);
     };
@@ -186,13 +194,14 @@ function MoviStreamPlayerInstance({
     }
 
     let cancelled = false;
+    let trackTimer: number | undefined;
 
     const reportError = () => {
       if (errorReportedRef.current || cancelled) {
         return;
       }
       errorReportedRef.current = true;
-      onErrorRef.current();
+      onErrorRef.current({ kind: "error" });
     };
 
     void loadMoviPlayer()
@@ -206,10 +215,11 @@ function MoviStreamPlayerInstance({
 
         el.addEventListener("error", reportError);
         el.addEventListener("playing", () => {
-          maybePreferEnglishTracks(el);
+          lastProgressRef.current = Date.now();
           markMediaReady();
         });
         el.addEventListener("timeupdate", (event: Event) => {
+          lastProgressRef.current = Date.now();
           const detail = (event as CustomEvent<number>).detail;
           const currentTime =
             typeof detail === "number" && Number.isFinite(detail)
@@ -219,12 +229,15 @@ function MoviStreamPlayerInstance({
             return;
           }
           if (currentTime > 0) {
-            maybePreferEnglishTracks(el);
             markMediaReady();
           }
           persistRef.current(currentTime, el.duration);
         });
         el.addEventListener("loadeddata", () => {
+          const video = getMoviVideoElement(el);
+          if (video && isMoviVideoPlaybackReady(video)) {
+            markMediaReady();
+          }
           const resumeAt = resumeTimeRef.current;
           if (resumedRef.current || resumeAt <= 0) {
             return;
@@ -238,7 +251,11 @@ function MoviStreamPlayerInstance({
         });
         el.addEventListener("statechange", (event: Event) => {
           const state = (event as CustomEvent<string>).detail;
-          if (state === "error") {
+          if (state === "buffering") {
+            onBufferingChangeRef.current?.(true);
+          } else if (state === "playing") {
+            onBufferingChangeRef.current?.(false);
+          } else if (state === "error") {
             reportError();
           }
         });
@@ -248,16 +265,46 @@ function MoviStreamPlayerInstance({
         });
 
         container.appendChild(el);
-        applyMoviSource(el, src, poster, title);
+        resetMoviProgressObservation(el);
+        applyMoviSource(el, src, poster, title, streamLabel);
+
+        trackTimer = window.setTimeout(() => {
+          maybePreferEnglishTracks(el);
+        }, MOVI_TRACK_PREF_DELAY_MS);
       })
       .catch(reportError);
 
     return () => {
       cancelled = true;
+      if (trackTimer !== undefined) {
+        window.clearTimeout(trackTimer);
+      }
       disposeMoviPlayer(playerRef.current);
+      if (playerRef.current) {
+        resetMoviProgressObservation(playerRef.current);
+      }
       playerRef.current = null;
     };
-  }, [src, poster, title, markMediaReady, maybePreferEnglishTracks]);
+  }, [
+    src,
+    poster,
+    title,
+    streamLabel,
+    markMediaReady,
+    maybePreferEnglishTracks,
+  ]);
+
+  useEffect(() => {
+    const flush = () => {
+      const el = playerRef.current;
+      if (!el) {
+        return;
+      }
+      persistImmediateRef.current(el.currentTime, el.duration);
+    };
+    registerPlaybackProgressFlush(flush);
+    return () => unregisterPlaybackProgressFlush(flush);
+  }, [src, progressKey]);
 
   return <div ref={containerRef} className={className ?? "h-full w-full"} />;
 }
@@ -268,5 +315,4 @@ export function MoviStreamPlayer(props: MoviStreamPlayerProps) {
 
 export function prefetchMoviPlayer(): void {
   void loadMoviPlayer();
-  void import("@/components/media/movi-stream-player");
 }

@@ -50,3 +50,12 @@ export const pickTrackIndexByLanguage = <T extends TrackLanguageFields>(
   );
   return index >= 0 ? index : null;
 };
+
+export const isJapaneseAudioPreference = (
+  preferredAudioLang?: string | null,
+): boolean =>
+  Boolean(
+    preferredAudioLang &&
+      (trackMatchesLanguage({ lang: preferredAudioLang }, "jpn") ||
+        trackMatchesLanguage({ lang: preferredAudioLang }, "ja")),
+  );

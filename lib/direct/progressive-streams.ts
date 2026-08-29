@@ -1,20 +1,16 @@
 import { mergeDirectStreams } from "@/lib/direct/merge-direct-streams";
-import { rewriteDirectStreamUrls } from "@/lib/direct/client-streams";
+import { collectDirectStreamsClient } from "@/lib/direct/collect-direct-streams-client";
+import type { DirectPlaybackTarget } from "@/lib/direct/client-streams";
+import { directDiscoveryEventPath } from "@/lib/direct/discovery-paths";
+import { ensureDirectSession } from "@/lib/direct/session";
+import { consumeSseFrames, type SseFrame } from "@/lib/direct/sse-frames";
 import type { DirectStream, DirectStreamsResponse } from "@/lib/direct/types";
 
-export type ProgressiveDirectStreamRequest =
-  | {
-      mediaType: "movie";
-      tmdbId: number;
-      fresh?: boolean;
-    }
-  | {
-      mediaType: "tv";
-      tmdbId: number;
-      season: number;
-      episode: number;
-      fresh?: boolean;
-    };
+export { consumeSseFrames, type SseFrame };
+export { directDiscoveryEventPath } from "@/lib/direct/discovery-paths";
+export type { ProgressiveDirectStreamRequest } from "@/lib/direct/progressive-streams-request";
+
+import type { ProgressiveDirectStreamRequest } from "@/lib/direct/progressive-streams-request";
 
 export interface ProgressiveDirectStreamCallbacks {
   onStatus?: (event: { message: string; loading: string[] }) => void;
@@ -27,16 +23,25 @@ export interface ProgressiveDirectStreamCallbacks {
   onError: (message: string) => void;
 }
 
+export const MAX_SSE_RECONNECTS = 2;
+const RETRY_BASE_MS = 400;
+const RETRY_MAX_MS = 8_000;
+const DISCOVERY_BUDGET_MS = 180_000;
+
+export function shouldLoadJsonFallback(input: {
+  sawTerminalDone: boolean;
+  accumulatedCount: number;
+}): boolean {
+  return !input.sawTerminalDone && input.accumulatedCount === 0;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function parseEventData(event: Event): unknown {
-  if (!(event instanceof MessageEvent) || typeof event.data !== "string") {
-    return null;
-  }
+function parseJson(raw: string): unknown {
   try {
-    return JSON.parse(event.data) as unknown;
+    return JSON.parse(raw) as unknown;
   } catch {
     return null;
   }
@@ -58,7 +63,7 @@ function parseStreams(value: unknown): DirectStream[] | null {
     ) {
       return null;
     }
-    streams.push(rewriteDirectStreamUrls(item as DirectStream));
+    streams.push(item as DirectStream);
   }
   return streams;
 }
@@ -104,108 +109,254 @@ function parseDone(value: unknown): DirectStreamsResponse | null {
   return { streams, ...(message ? { message } : {}) };
 }
 
-function streamEventUrl(request: ProgressiveDirectStreamRequest): string {
-  const params = new URLSearchParams();
-  if (request.fresh) {
-    params.set("fresh", "1");
+function retryDelayMs(attempt: number): number {
+  return Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** Math.max(0, attempt));
+}
+
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted || ms <= 0) {
+    return Promise.resolve();
   }
-  const query = params.toString();
-  if (request.mediaType === "movie") {
-    return `/api/direct/movie/${request.tmdbId}/streams/stream${query ? `?${query}` : ""}`;
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      resolve();
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function loadJsonStreams(
+  request: ProgressiveDirectStreamRequest,
+  signal: AbortSignal,
+): Promise<DirectStreamsResponse> {
+  return collectDirectStreamsClient(request, { signal, quick: true });
+}
+
+async function readSseResponse(
+  response: Response,
+  signal: AbortSignal,
+  onFrame: (frame: SseFrame) => boolean | Promise<boolean>,
+): Promise<void> {
+  if (signal.aborted) {
+    return;
   }
-  params.set("season", String(request.season));
-  params.set("episode", String(request.episode));
-  return `/api/direct/tv/${request.tmdbId}/streams/stream?${params.toString()}`;
+  if (!response.ok || !response.body) {
+    throw new Error(`Stream discovery ${response.status || "failed"}`);
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/event-stream")) {
+    throw new Error("Stream discovery did not return an event stream");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const carry = { buffer: "" };
+  try {
+    while (!signal.aborted) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      const text = decoder.decode(value, { stream: true });
+      for (const frame of consumeSseFrames(text, carry)) {
+        const stop = await onFrame(frame);
+        if (stop) {
+          return;
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 export function subscribeProgressiveDirectStreams(
   request: ProgressiveDirectStreamRequest,
   callbacks: ProgressiveDirectStreamCallbacks,
 ): () => void {
-  let closed = false;
-  let source: EventSource | null = null;
+  const abort = new AbortController();
+  let finished = false;
+  let sawTerminalDone = false;
   let accumulated: DirectStream[] = [];
 
   const close = (): void => {
-    if (closed) {
+    if (abort.signal.aborted) {
       return;
     }
-    closed = true;
-    source?.close();
-    source = null;
+    abort.abort();
   };
 
-  if (typeof EventSource === "undefined") {
-    callbacks.onError("EventSource unavailable");
-    return close;
-  }
-
-  try {
-    source = new EventSource(streamEventUrl(request));
-  } catch {
-    callbacks.onError("Could not open stream discovery");
-    return close;
-  }
-
-  source.addEventListener("status", (event) => {
-    if (closed) {
+  const finishDone = (payload: DirectStreamsResponse): void => {
+    if (finished || abort.signal.aborted) {
       return;
     }
-    const status = parseStatus(parseEventData(event));
-    if (status) {
-      callbacks.onStatus?.(status);
-    }
-  });
-
-  source.addEventListener("streams", (event) => {
-    if (closed) {
-      return;
-    }
-    const chunk = parseChunk(parseEventData(event));
-    if (!chunk) {
-      return;
-    }
-    accumulated = mergeDirectStreams(accumulated, chunk.streams);
-    callbacks.onStreams?.({
-      streams: accumulated,
-      partial: chunk.partial,
-      source: chunk.source,
-    });
-  });
-
-  source.addEventListener("done", (event) => {
-    if (closed) {
-      return;
-    }
-    const response = parseDone(parseEventData(event));
-    if (!response) {
-      callbacks.onError("Invalid stream discovery response");
-      close();
-      return;
-    }
-    accumulated = mergeDirectStreams(accumulated, response.streams);
-    callbacks.onDone({
-      streams: accumulated,
-      ...(response.message ? { message: response.message } : {}),
-    });
+    finished = true;
+    callbacks.onDone(payload);
     close();
-  });
+  };
 
-  source.addEventListener("error", (event) => {
-    if (closed) {
+  const finishError = (message: string): void => {
+    if (finished || abort.signal.aborted) {
       return;
     }
-    if (event instanceof MessageEvent) {
-      const data = parseEventData(event);
-      if (isRecord(data) && typeof data.message === "string") {
-        callbacks.onError(data.message);
-        close();
+    if (accumulated.length > 0) {
+      finishDone({ streams: accumulated });
+      return;
+    }
+    finished = true;
+    callbacks.onError(message);
+    close();
+  };
+
+  const sessionPromise = ensureDirectSession();
+  const resolveTarget = (): Promise<DirectPlaybackTarget> =>
+    sessionPromise.then((session) => ({
+      apiBase: session.apiBase,
+      accessToken: session.token,
+    }));
+
+  const handleFrame = async (frame: SseFrame): Promise<boolean> => {
+    if (finished || abort.signal.aborted) {
+      return true;
+    }
+    const payload = parseJson(frame.data);
+    if (frame.event === "status") {
+      const status = parseStatus(payload);
+      if (status) {
+        callbacks.onStatus?.(status);
+      }
+      return false;
+    }
+    if (frame.event === "streams") {
+      const chunk = parseChunk(payload);
+      if (!chunk) {
+        return false;
+      }
+      const target = await resolveTarget();
+      if (finished || abort.signal.aborted) {
+        return true;
+      }
+      accumulated = mergeDirectStreams(accumulated, chunk.streams, target);
+      callbacks.onStreams?.({
+        streams: accumulated,
+        partial: chunk.partial,
+        source: chunk.source,
+      });
+      return false;
+    }
+    if (frame.event === "done") {
+      const response = parseDone(payload);
+      if (!response) {
+        return false;
+      }
+      const target = await resolveTarget();
+      if (finished || abort.signal.aborted) {
+        return true;
+      }
+      accumulated = mergeDirectStreams(accumulated, response.streams, target);
+      sawTerminalDone = true;
+      finishDone({
+        streams: accumulated,
+        ...(response.message ? { message: response.message } : {}),
+      });
+      return true;
+    }
+    if (frame.event === "error") {
+      return false;
+    }
+    return false;
+  };
+
+  const run = async (): Promise<void> => {
+    const startedAt = Date.now();
+    let reconnects = 0;
+
+    while (!finished && !abort.signal.aborted) {
+      try {
+        const response = await fetch(directDiscoveryEventPath(request), {
+          headers: { Accept: "text/event-stream" },
+          signal: abort.signal,
+        });
+        await readSseResponse(response, abort.signal, handleFrame);
+        if (finished || abort.signal.aborted) {
+          return;
+        }
+        if (accumulated.length > 0) {
+          finishDone({ streams: accumulated });
+          return;
+        }
+      } catch (error) {
+        if (abort.signal.aborted || finished) {
+          return;
+        }
+        if (accumulated.length > 0) {
+          finishDone({ streams: accumulated });
+          return;
+        }
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      }
+
+      if (finished || abort.signal.aborted) {
         return;
       }
-    }
-    callbacks.onError("Stream discovery connection failed");
-    close();
-  });
 
+      if (Date.now() - startedAt >= DISCOVERY_BUDGET_MS) {
+        break;
+      }
+
+      if (reconnects >= MAX_SSE_RECONNECTS) {
+        break;
+      }
+
+      await wait(retryDelayMs(reconnects), abort.signal);
+      reconnects += 1;
+    }
+
+    if (finished || abort.signal.aborted) {
+      return;
+    }
+
+    if (accumulated.length > 0) {
+      finishDone({ streams: accumulated });
+      return;
+    }
+
+    if (
+      !shouldLoadJsonFallback({
+        sawTerminalDone,
+        accumulatedCount: accumulated.length,
+      })
+    ) {
+      finishError("No streams found");
+      return;
+    }
+
+    try {
+      const payload = await loadJsonStreams(request, abort.signal);
+      if (abort.signal.aborted || finished) {
+        return;
+      }
+      if (payload.streams.length > 0) {
+        finishDone(payload);
+        return;
+      }
+      finishError(payload.message ?? "No streams found");
+    } catch (error) {
+      if (abort.signal.aborted || finished) {
+        return;
+      }
+      finishError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load direct streams",
+      );
+    }
+  };
+
+  void run();
   return close;
 }

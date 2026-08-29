@@ -211,6 +211,8 @@ export const TvShowDetailsSchema = TvShowSchema.extend({
   number_of_seasons: z.number(),
   number_of_episodes: z.number(),
   status: z.string(),
+  /** Resolved TMDB tv id for AniList routes (stream discovery only; `id` stays AniList). */
+  mappedTmdbTvId: z.number().int().positive().nullable().optional(),
   seasons: z.array(SeasonSchema),
   networks: z.array(NetworkSchema),
   production_countries: z.array(ProductionCountrySchema),
@@ -412,7 +414,6 @@ export type CanonicalMovieCard = CanonicalCardBase &
   Partial<Movie> & {
     media_type: "movie";
     title: string;
-    href: `/movies/${number}`;
     release_date?: string;
   };
 
@@ -421,7 +422,6 @@ export type CanonicalTvCard = CanonicalCardBase &
     media_type: "tv";
     title: string;
     name?: string;
-    href: `/tvshows/${number}`;
     first_air_date?: string;
   };
 

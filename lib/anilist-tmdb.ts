@@ -2,6 +2,7 @@ import {
   getAniListTitle,
   getAniListYear,
   mapAniListMediaToMediaItem,
+  requiresAdultAniListContent,
   type AniListMedia,
 } from "@/lib/anilist";
 import { fetchIdsMoeMappingByAniListId } from "@/lib/ids-moe";
@@ -23,7 +24,6 @@ import type { MediaItem } from "@/lib/domain/typings";
 import { filterAnimeBlocked } from "@/lib/anime-blocklist";
 import { withAnimePageHrefs } from "@/lib/anilist-page-hrefs";
 import { runInChunks } from "@/lib/server/chunked-parallel";
-import { unstable_cache } from "next/cache";
 
 type TmdbFindResponse = {
   movie_results?: Array<{ id: number }>;
@@ -220,7 +220,6 @@ const fetchTmdbSearchMappedItem = async (
   return null;
 };
 
-const ANIME_ENRICHMENT_REVALIDATE_SECONDS = 60 * 60 * 24;
 const ENRICH_CHUNK_SIZE = 6;
 
 const toAniListFallbackMediaItem = (item: AniListMedia): MediaItem =>
@@ -397,14 +396,6 @@ const enrichOneHeroUncached = async (
   return fallback;
 };
 
-const enrichOneHero = unstable_cache(
-  enrichOneHeroUncached,
-  ["anilist-tmdb-hero"],
-  {
-    revalidate: ANIME_ENRICHMENT_REVALIDATE_SECONDS,
-  },
-);
-
 const enrichOneUncached = async (item: AniListMedia): Promise<MediaItem> => {
   const fallback = toAniListFallbackMediaItem(item);
 
@@ -457,10 +448,6 @@ const enrichOneUncached = async (item: AniListMedia): Promise<MediaItem> => {
   }
 };
 
-const enrichOne = unstable_cache(enrichOneUncached, ["anilist-tmdb-item"], {
-  revalidate: ANIME_ENRICHMENT_REVALIDATE_SECONDS,
-});
-
 export const enrichAniListMediaItemsWithTmdb = async (
   items: AniListMedia[],
   maxLookups = 10,
@@ -468,7 +455,7 @@ export const enrichAniListMediaItemsWithTmdb = async (
 ): Promise<MediaItem[]> => {
   const head = items.slice(0, maxLookups);
   const tail = items.slice(maxLookups).map(toAniListFallbackMediaItem);
-  const enrichedHead = await runInChunks(head, enrichOne, chunkSize);
+  const enrichedHead = await runInChunks(head, enrichOneUncached, chunkSize);
   return filterAnimeBlocked(withAnimePageHrefs([...enrichedHead, ...tail]));
 };
 
@@ -480,6 +467,31 @@ export const enrichAniListMediaItemsLightweight = async (
   const tail = items.slice(maxLookups).map(toAniListFallbackMediaItem);
   const enrichedHead = await enrichBatchLightweight(head);
   return filterAnimeBlocked(withAnimePageHrefs([...enrichedHead, ...tail]));
+};
+
+const isAdultAniListSearchItem = (item: AniListMedia): boolean =>
+  item.isAdult === true || requiresAdultAniListContent(item.genres ?? []);
+
+/** Search catalog: keep adult titles on AniList routes instead of weak TMDB mappings. */
+export const enrichAniListSearchCatalogItems = async (
+  items: AniListMedia[],
+  maxLookups = 24,
+): Promise<MediaItem[]> => {
+  const adultItems = items.filter(isAdultAniListSearchItem);
+  const mainstreamItems = items.filter(
+    (item) => !isAdultAniListSearchItem(item),
+  );
+
+  const head = mainstreamItems.slice(0, maxLookups);
+  const tailMainstream = mainstreamItems
+    .slice(maxLookups)
+    .map(toAniListFallbackMediaItem);
+  const enrichedHead = await enrichBatchLightweight(head);
+  const adultFallback = adultItems.map(toAniListFallbackMediaItem);
+
+  return filterAnimeBlocked(
+    withAnimePageHrefs([...enrichedHead, ...tailMainstream, ...adultFallback]),
+  );
 };
 
 export const enrichAniListHubRow = async (
@@ -499,7 +511,8 @@ export const enrichAniListHubRow = async (
   const fullSlice = items.slice(0, fullEnrichCount);
   const lightSlice = items.slice(fullEnrichCount, lightweightCount);
   const tail = items.slice(lightweightCount).map(toAniListFallbackMediaItem);
-  const enrichHero = heroEnrichment === "fast" ? enrichOneHero : enrichOne;
+  const enrichHero =
+    heroEnrichment === "fast" ? enrichOneHeroUncached : enrichOneUncached;
 
   const [fullResults, lightResults] = await Promise.all([
     runInChunks(fullSlice, enrichHero, chunkSize),

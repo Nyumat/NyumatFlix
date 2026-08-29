@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  ANIBRIDGE_BUNDLED_FILE,
+  readBundledJson,
+} from "@/lib/anime/bundled-mapping-files";
 import type { MappingSegment } from "@/lib/anime/tmdb-anilist-map";
 import {
   episodeInMappingRange,
@@ -26,9 +30,16 @@ let cachedMappings: CachedMappings | null = null;
 let inflightMappings: Promise<AniBridgeSeasonMappings> | null = null;
 
 const loadAniBridgeMappings = async (): Promise<AniBridgeSeasonMappings> => {
+  const bundled = await readBundledJson<AniBridgeSeasonMappings>(
+    ANIBRIDGE_BUNDLED_FILE,
+  );
+  if (bundled) {
+    return bundled;
+  }
+
   const response = await fetch(ANIBRIDGE_URL, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    next: { revalidate: 60 * 60 * 24 },
+    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -82,6 +93,31 @@ export const resolveAniBridgePlaybackCoords = (
     const relativeEpisode = mapEpisodeAcrossRanges(episodeNumber, rangeMap);
     if (relativeEpisode != null) {
       return { anilistId, relativeEpisode };
+    }
+  }
+
+  return null;
+};
+
+/** When AniBridge maps TMDB→MAL but omits anilist:, resolve episode via mal: ranges. */
+export const resolveAniBridgeMalPlaybackTarget = (
+  mappings: AniBridgeSeasonMappings,
+  tmdbShowId: number,
+  seasonNumber: number,
+  episodeNumber: number,
+): { malId: number; relativeEpisode: number } | null => {
+  const entry = mappings[anibridgeTmdbSeasonKey(tmdbShowId, seasonNumber)];
+  if (!entry) return null;
+
+  for (const [target, rangeMap] of Object.entries(entry)) {
+    if (!target.startsWith("mal:")) continue;
+
+    const malId = Number(target.split(":")[1]);
+    if (!Number.isInteger(malId) || malId <= 0) continue;
+
+    const relativeEpisode = mapEpisodeAcrossRanges(episodeNumber, rangeMap);
+    if (relativeEpisode != null) {
+      return { malId, relativeEpisode };
     }
   }
 

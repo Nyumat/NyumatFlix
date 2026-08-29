@@ -1,6 +1,7 @@
 import type { AdapterAccountType } from "@auth/core/adapters";
 import {
   boolean,
+  check,
   integer,
   pgTable,
   primaryKey,
@@ -8,6 +9,7 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -123,12 +125,20 @@ export const watchlist = pgTable(
     status: text("status")
       .notNull()
       .default("watching")
-      .$type<"watching" | "waiting" | "finished">(),
+      .$type<
+        "watching" | "plan_to_watch" | "on_hold" | "dropped" | "completed"
+      >(),
     lastWatchedSeason: integer("lastWatchedSeason"),
     lastWatchedEpisode: integer("lastWatchedEpisode"),
     lastWatchedAt: timestamp("lastWatchedAt", { mode: "date" }),
     createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => [unique().on(table.userId, table.contentId, table.mediaType)],
+  (table) => [
+    unique().on(table.userId, table.contentId, table.mediaType),
+    check(
+      "watchlist_status_check",
+      sql`${table.status} IN ('watching', 'plan_to_watch', 'on_hold', 'dropped', 'completed')`,
+    ),
+  ],
 );

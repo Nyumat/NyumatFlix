@@ -16,7 +16,9 @@ import { PlaybackErrorBoundary } from "@/components/media/playback-error-boundar
 import { ScrapePlayerShell } from "@/components/media/scrape-player-shell";
 import type { UseDirectPlaybackReturn } from "@/hooks/use-direct-movie-playback";
 import type { UseAnimeScrapeReturn } from "@/hooks/use-anime-scrape";
+import { useMoviPlayerLoaded } from "@/hooks/use-movi-player-loaded";
 import type { UseScrapeReturn } from "@/hooks/use-scrape";
+import { selectInitialEngine } from "@/lib/direct/playback";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
 import { USE_SHAKA_DASH } from "@/lib/constants";
 import { buildScrapePlayerKey } from "@/lib/scrape/player-sources";
@@ -69,6 +71,8 @@ type HeroScrapePlayerPanelProps = {
     playUrl: string;
     directPlayback?: "hls" | "direct" | "extended";
     directFallbackUrl?: string;
+    directStreamName?: string;
+    directFileName?: string;
     qualities?: ScrapeQuality[];
     subtitles?: ScrapeSubtitle[];
     audioVersions?: ScrapeAudioVersion[];
@@ -89,6 +93,7 @@ type HeroScrapePlayerPanelProps = {
   onSelectEmbedServer: (serverId: string) => void;
   onRetryAllScraping?: () => void;
   onFatalError: () => void;
+  onDirectPlaybackExhausted?: () => void;
   onEnded?: () => Promise<boolean>;
   isDirectMode?: boolean;
   directPlayback?: UseDirectPlaybackReturn;
@@ -111,6 +116,7 @@ export function HeroScrapePlayerPanel({
   onSelectEmbedServer,
   onRetryAllScraping,
   onFatalError,
+  onDirectPlaybackExhausted,
   onEnded,
   isDirectMode = false,
   directPlayback,
@@ -118,6 +124,7 @@ export function HeroScrapePlayerPanel({
 }: HeroScrapePlayerPanelProps) {
   const { maintenanceMode } = useFeatureFlags();
   const [mediaReady, setMediaReady] = useState(false);
+  const moviLoaded = useMoviPlayerLoaded();
 
   const playbackSessionKey = useMemo(() => {
     if (isDirectMode && directPlayback?.activeStream) {
@@ -166,6 +173,15 @@ export function HeroScrapePlayerPanel({
     const showDiscoveryOverlay = isDiscovering;
     const showBufferingOverlay = hasPlayer && !mediaReady;
     const showErrorOverlay = directStatus === "error";
+    const directEngine = directPlayback.activeStream
+      ? selectInitialEngine(directPlayback.activeStream)
+      : null;
+    const startingMessage =
+      directEngine === "movi" && !moviLoaded
+        ? "Loading video decoder…"
+        : directEngine === "vidstack-hls"
+          ? "Starting transcode…"
+          : "Starting playback…";
 
     return (
       <>
@@ -176,11 +192,12 @@ export function HeroScrapePlayerPanel({
             <CalluspiratesStreamPlayer
               key={`${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`}
               stream={directPlayback.activeStream}
+              candidates={directPlayback.rankedStreams}
               title={playbackTitle}
               poster={playbackPosterUrl}
               progressKey={progressKey}
               className="h-full w-full"
-              onStreamFailed={onFatalError}
+              onStreamFailed={onDirectPlaybackExhausted ?? onFatalError}
               onMediaReady={handleMediaReady}
               onEnded={isTv ? onEnded : undefined}
             />
@@ -196,7 +213,9 @@ export function HeroScrapePlayerPanel({
           />
         ) : null}
 
-        {showBufferingOverlay ? <PlaybackStartingOverlay /> : null}
+        {showBufferingOverlay ? (
+          <PlaybackStartingOverlay message={startingMessage} />
+        ) : null}
 
         {showErrorOverlay ? (
           <ScrapingOverlay
@@ -237,6 +256,8 @@ export function HeroScrapePlayerPanel({
               mediaUrl={scrapeResult.playUrl}
               fallbackUrl={scrapeResult.directFallbackUrl}
               playback={scrapeResult.directPlayback}
+              streamName={scrapeResult.directStreamName}
+              fileName={scrapeResult.directFileName}
               qualities={scrapeResult.qualities}
               referer={scrapeResult.referer}
               subtitles={scrapeResult.subtitles}

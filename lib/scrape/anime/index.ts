@@ -6,23 +6,25 @@ import { scrapeAllmanga } from "./providers/allmanga";
 import { scrapeAnizone } from "./providers/anizone";
 import { scrapeAnipm } from "./providers/anipm";
 import { scrapeHentaigasm } from "./providers/hentaigasm";
+import { scrapeHentaini } from "./providers/hentaini";
 import { scrapeKickassanime } from "./providers/kickassanime";
 import { scrapeJustanime } from "./providers/justanime";
 import { scrapeAnikuro } from "./providers/anikuro";
 import { scrapeKyren } from "./providers/kyren";
 import {
+  ANIME_SCRAPE_PROVIDER_LABELS,
   ANIME_SCRAPE_PROVIDER_ORDER,
   type AnimeScrapeInput,
   type AnimeScrapeProviderId,
   type AnimeScrapeResult,
 } from "./types";
-import { fetchAnilistMediaMeta } from "./anilist-meta";
+import type { ScrapeSubtitle } from "../types";
 import { attachSubtitlesToQualities, dedupeSubtitles } from "../linked-config";
-import { isMegaplayPlaybackRefresh } from "../playback-refresh";
+import { stampDonorSubtitles } from "../subtitle-harvest";
 import { probeScrapePlaybackPath } from "../playback-probe";
-import { fetchSub1x2Subtitles } from "../subtitles";
-import { resolveScrapePlaybackUpstreamUrl } from "../vidking-playback";
-import { validateStreamUrlWithReferers } from "../validate-stream";
+import { fetchScrapeFallbackSubtitles } from "../subtitles";
+import { resolveAnimeSubtitleTmdbLookup } from "./resolve-subtitle-tmdb-lookup";
+import type { ScrapeMediaInput } from "../types";
 
 const ANIME_SCRAPERS: Record<
   AnimeScrapeProviderId,
@@ -31,6 +33,7 @@ const ANIME_SCRAPERS: Record<
   anizone: scrapeAnizone,
   anipm: scrapeAnipm,
   hentaigasm: scrapeHentaigasm,
+  hentaini: scrapeHentaini,
   kickassanime: scrapeKickassanime,
   animeonsen: scrapeAnimeonsen,
   allmanga: scrapeAllmanga,
@@ -42,19 +45,41 @@ const ANIME_SCRAPERS: Record<
   kyren: scrapeKyren,
 };
 
-const ANIME_MOVIE_FORMATS = new Set(["MOVIE", "ONE_SHOT", "SPECIAL", "OVA"]);
+const mergeAnimeCatalogSubtitles = async (
+  input: AnimeScrapeInput,
+  subtitles: ScrapeSubtitle[] | undefined,
+): Promise<ScrapeSubtitle[] | undefined> => {
+  const tmdbLookup: ScrapeMediaInput | null = input.tmdb?.tmdbId
+    ? {
+        mediaType: input.tmdb.mediaType,
+        tmdbId: input.tmdb.tmdbId,
+        seasonNumber: input.tmdb.seasonNumber,
+        episodeNumber: input.tmdb.episodeNumber,
+      }
+    : await resolveAnimeSubtitleTmdbLookup(input);
 
-const expectedDurationMinutesForValidation = (
-  format: string | null | undefined,
-  durationMinutes: number | null | undefined,
-): number | null | undefined => {
-  if (!durationMinutes) {
-    return durationMinutes;
+  if (!tmdbLookup?.tmdbId) {
+    return subtitles;
   }
-  if (format && ANIME_MOVIE_FORMATS.has(format)) {
-    return null;
+
+  try {
+    const catalogSubtitles = await fetchScrapeFallbackSubtitles(tmdbLookup);
+    if (catalogSubtitles.length === 0) {
+      return subtitles;
+    }
+
+    const existing = subtitles ?? [];
+    const seenLangs = new Set(
+      existing.map((track) => track.lang.trim().toLowerCase()),
+    );
+    const extras = catalogSubtitles.filter(
+      (track) => !seenLangs.has(track.lang.trim().toLowerCase()),
+    );
+
+    return dedupeSubtitles([...existing, ...extras]);
+  } catch {
+    return subtitles;
   }
-  return durationMinutes;
 };
 
 export async function scrapeAnimeProvider(
@@ -68,45 +93,9 @@ export async function scrapeAnimeProvider(
     return result;
   }
 
-  const mediaMeta = await fetchAnilistMediaMeta(input.anilistId);
   let next = result;
 
   if (!result.validated) {
-    const streamUrlForValidation = isMegaplayPlaybackRefresh(
-      result.playbackRefresh,
-    )
-      ? await resolveScrapePlaybackUpstreamUrl(
-          result.streamUrl,
-          result.playbackRefresh,
-        )
-      : result.streamUrl;
-    const validation = await validateStreamUrlWithReferers(
-      streamUrlForValidation,
-      result.referer ?? "",
-      result.streamKind,
-      {
-        depth: "full",
-        expectedDurationMinutes: expectedDurationMinutesForValidation(
-          mediaMeta?.format,
-          mediaMeta?.durationMinutes,
-        ),
-      },
-    );
-
-    if (!validation.ok) {
-      return {
-        ok: false,
-        providerId,
-        error: "Stream URL failed validation",
-      };
-    }
-
-    // Prefer the provider referer when present — CDN-origin can pass probes
-    // while segments still need the embed referer at play time.
-    if (!result.referer && validation.referer) {
-      next = { ...next, referer: validation.referer };
-    }
-
     const playProbeOk = await probeScrapePlaybackPath(
       {
         url: next.streamUrl,
@@ -125,32 +114,25 @@ export async function scrapeAnimeProvider(
     }
   }
 
-  // Softsub catalog for every mapped title — fill gaps when hosts ship bare
-  // video or only a single embedded track.
-  if (input.tmdb?.tmdbId) {
-    try {
-      const fallbackSubtitles = await fetchSub1x2Subtitles({
-        mediaType: input.tmdb.mediaType,
-        tmdbId: input.tmdb.tmdbId,
-        seasonNumber: input.tmdb.seasonNumber,
-        episodeNumber: input.tmdb.episodeNumber,
-      });
-      if (fallbackSubtitles.length > 0) {
-        const existing = next.subtitles ?? [];
-        const seenLangs = new Set(
-          existing.map((track) => track.lang.trim().toLowerCase()),
-        );
-        const extras = fallbackSubtitles.filter(
-          (track) => !seenLangs.has(track.lang.trim().toLowerCase()),
-        );
-        next = {
-          ...next,
-          subtitles: dedupeSubtitles([...existing, ...extras]),
-        };
-      }
-    } catch {
-      // Softsub miss must not fail an otherwise playable stream.
-    }
+  if (next.subtitles?.length) {
+    next = {
+      ...next,
+      subtitles: stampDonorSubtitles(next.subtitles, {
+        referer: next.referer,
+        source: ANIME_SCRAPE_PROVIDER_LABELS[providerId],
+      }),
+    };
+  }
+
+  const mergedSubtitles = await mergeAnimeCatalogSubtitles(
+    input,
+    next.subtitles,
+  );
+  if (mergedSubtitles !== next.subtitles) {
+    next = {
+      ...next,
+      subtitles: mergedSubtitles,
+    };
   }
 
   const qualities = attachSubtitlesToQualities(next.qualities, next.subtitles);

@@ -1,4 +1,5 @@
 import { MovieDb } from "moviedb-promise";
+import { cdnUrl } from "@/lib/cdn";
 
 export const isBrowser = typeof window !== "undefined";
 
@@ -20,6 +21,7 @@ export const DEFAULT_DESCRIPTION =
   "Nyumatflix is an open-source, no-cost, and ad-free movie and TV stream aggregator.";
 export const SITE_TAGLINE = "Watch Movies and TV Shows";
 export const SITE_HERO_BANNER_PATH = "/movie-banner.webp";
+export const SITE_HERO_BANNER_URL = cdnUrl(SITE_HERO_BANNER_PATH);
 export const SITE_OG_HEADLINE = "Find where anything streams.";
 /** AnimeOnsen (and ani.pm) serve MPEG-DASH; Shaka handles MPD more reliably than Vidstack+dashjs. */
 export const USE_SHAKA_DASH = true;

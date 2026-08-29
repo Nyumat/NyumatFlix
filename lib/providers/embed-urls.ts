@@ -16,6 +16,39 @@ export const VIDSRC_MIRROR_APIS: {
 export type EmbedUrlPrefs = {
   vidsrcApi: VidsrcApi;
   animePreference: "sub" | "dub";
+  /** Slugified romaji title for adult anime embed hosts (e.g. Hentaini). */
+  animeTitleSlug?: string;
+};
+
+/** Explicit AniList → Hentaini slug overrides when title slugify diverges from catalog. */
+export const HENTAINI_ANILIST_SLUGS: Readonly<Record<number, string>> = {
+  186827: "fuuki-iin-to-fuuzoku-katsudou",
+};
+
+export const resolveHentainiAnimeSlug = (
+  anilistId: number,
+  prefs: EmbedUrlPrefs,
+): string | null => {
+  const explicit = HENTAINI_ANILIST_SLUGS[anilistId]?.trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  const fromTitle = prefs.animeTitleSlug?.trim();
+  return fromTitle || null;
+};
+
+export const buildHentainiAnimeUrl = (
+  anilistId: number,
+  episode: number,
+  prefs: EmbedUrlPrefs,
+): string => {
+  const slug = resolveHentainiAnimeSlug(anilistId, prefs);
+  if (!slug) {
+    return "";
+  }
+
+  return `https://hentaini.com/h/${slug}/${episode}`;
 };
 
 export const buildVidsrcMirrorMovieUrl = (

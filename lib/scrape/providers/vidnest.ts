@@ -1,7 +1,12 @@
 import { scrapeFetchText } from "../fetch";
 import { attachSubtitlesToQualities, dedupeSubtitles } from "../linked-config";
+import {
+  SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+  probeScrapePlaybackPath,
+} from "../playback-probe";
+import { firstOkInBatches } from "../race-first";
 import type { ScrapeMediaInput, ScrapeQuality, ScrapeResult } from "../types";
-import { validateStreamUrlWithReferers } from "../validate-stream";
 import { decodeVidnestPayload } from "../vidnest-crypto";
 import {
   buildVidnestMediaPath,
@@ -16,6 +21,10 @@ import {
 
 const VIDNEST_API_ORIGIN = "https://new.vidnest.fun";
 const VIDNEST_REFERER = "https://vidnest.fun/";
+
+export const VIDNEST_PLAYABLE_CANDIDATE_LIMIT = 4;
+export const VIDNEST_PLAYABLE_CANDIDATE_BATCH = 2;
+export const VIDNEST_EXTRA_QUALITIES = 3;
 
 const VIDNEST_SCRAPE_RESOLVERS = [
   "movies5f",
@@ -71,6 +80,9 @@ const scoreStream = (url: string, language?: string): number => {
   return score;
 };
 
+const vidnestStreamKind = (streamUrl: string): "mp4" | "hls" =>
+  /\.mp4(?:[?#]|$)/i.test(streamUrl) ? "mp4" : "hls";
+
 const fetchResolverCandidates = async (
   resolver: (typeof VIDNEST_SCRAPE_RESOLVERS)[number],
   mediaPath: string,
@@ -80,6 +92,10 @@ const fetchResolverCandidates = async (
     {
       Accept: "application/json",
       Referer: VIDNEST_REFERER,
+    },
+    {
+      timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+      retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
     },
   );
 
@@ -121,6 +137,26 @@ const fetchResolverCandidates = async (
   });
 };
 
+const probeVidnestCandidate = async (
+  candidate: RankedVidnestCandidate,
+): Promise<true | null> => {
+  if (
+    isVidnestClientOnlyCdn(candidate.streamUrl) &&
+    isFreshVidnestSignedUrl(candidate.streamUrl)
+  ) {
+    return true;
+  }
+
+  const ok = await probeScrapePlaybackPath(
+    {
+      url: candidate.streamUrl,
+      referer: candidate.referer,
+    },
+    vidnestStreamKind(candidate.streamUrl),
+  );
+  return ok ? true : null;
+};
+
 export async function scrapeVidNest(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
@@ -142,92 +178,25 @@ export async function scrapeVidNest(
       ),
     );
 
-    const playable: RankedVidnestCandidate[] = [];
     const seenUrls = new Set<string>();
-
-    const collectPlayable = async (depth: "master" | "full") => {
-      for (const candidates of resolverResults) {
-        for (const candidate of candidates) {
-          if (seenUrls.has(candidate.streamUrl)) {
-            continue;
-          }
-
-          const kind = /\.mp4(?:[?#]|$)/i.test(candidate.streamUrl)
-            ? "mp4"
-            : "hls";
-          const validation = await validateStreamUrlWithReferers(
-            candidate.streamUrl,
-            candidate.referer,
-            kind,
-            { depth },
-          );
-          if (!validation.ok) {
-            if (
-              !isVidnestClientOnlyCdn(candidate.streamUrl) ||
-              !isFreshVidnestSignedUrl(candidate.streamUrl)
-            ) {
-              continue;
-            }
-
-            seenUrls.add(candidate.streamUrl);
-            playable.push(candidate);
-            continue;
-          }
-
-          seenUrls.add(candidate.streamUrl);
-          playable.push({
-            ...candidate,
-            referer: validation.referer ?? candidate.referer,
-          });
-        }
-      }
-    };
-
-    // Master pass ranks candidates cheaply; full pass is the accept gate.
-    await collectPlayable("master");
-    const masterCandidates = [...playable];
-    playable.length = 0;
-    seenUrls.clear();
-
-    if (masterCandidates.length > 0) {
-      for (const candidate of masterCandidates) {
+    const ranked = resolverResults
+      .flat()
+      .filter((candidate) => {
         if (seenUrls.has(candidate.streamUrl)) {
-          continue;
-        }
-        const kind = /\.mp4(?:[?#]|$)/i.test(candidate.streamUrl)
-          ? "mp4"
-          : "hls";
-        const validation = await validateStreamUrlWithReferers(
-          candidate.streamUrl,
-          candidate.referer,
-          kind,
-          { depth: "full" },
-        );
-        if (!validation.ok) {
-          if (
-            isVidnestClientOnlyCdn(candidate.streamUrl) &&
-            isFreshVidnestSignedUrl(candidate.streamUrl)
-          ) {
-            seenUrls.add(candidate.streamUrl);
-            playable.push(candidate);
-          }
-          continue;
+          return false;
         }
         seenUrls.add(candidate.streamUrl);
-        playable.push({
-          ...candidate,
-          referer: validation.referer ?? candidate.referer,
-        });
-      }
-    }
+        return true;
+      })
+      .sort((left, right) => right.score - left.score);
 
-    if (playable.length === 0) {
-      await collectPlayable("full");
-    }
+    const winner = await firstOkInBatches(
+      ranked.slice(0, VIDNEST_PLAYABLE_CANDIDATE_LIMIT),
+      probeVidnestCandidate,
+      VIDNEST_PLAYABLE_CANDIDATE_BATCH,
+    );
+    const primary = winner?.item;
 
-    playable.sort((left, right) => right.score - left.score);
-
-    const primary = playable[0];
     if (!primary) {
       return {
         ok: false,
@@ -247,13 +216,15 @@ export async function scrapeVidNest(
       };
     }
 
-    // Alternate resolver streams only — not ABR heights from one master.
-    const qualities: ScrapeQuality[] = playable.slice(1).map((candidate) => ({
-      label: candidate.label,
-      url: candidate.streamUrl,
-      referer: candidate.referer,
-      subtitles: candidate.subtitles,
-    }));
+    const qualities: ScrapeQuality[] = ranked
+      .filter((candidate) => candidate.streamUrl !== primary.streamUrl)
+      .slice(0, VIDNEST_EXTRA_QUALITIES)
+      .map((candidate) => ({
+        label: candidate.label,
+        url: candidate.streamUrl,
+        referer: candidate.referer,
+        subtitles: candidate.subtitles,
+      }));
 
     return {
       ok: true,
