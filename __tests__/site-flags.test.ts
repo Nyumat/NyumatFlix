@@ -38,8 +38,8 @@ describe("site-flags", () => {
       "vidsrc",
     ]);
     expect(
-      filterAnimeScrapeProviderIds(flags, ["anizone", "animepahe"]),
-    ).toEqual(["animepahe"]);
+      filterAnimeScrapeProviderIds(flags, ["anizone", "justanime"]),
+    ).toEqual(["justanime"]);
   });
 
   it("keeps direct in scrape order when server resolved it as available", () => {
