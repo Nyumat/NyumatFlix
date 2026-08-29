@@ -1,4 +1,5 @@
 import { catalogCacheHeaders } from "@/lib/http-cache";
+import { isTmdbNotFoundError } from "@/lib/tmdb-errors";
 import { NextResponse } from "next/server";
 import { movieDb } from "@/lib/constants";
 
@@ -25,6 +26,10 @@ export async function GET(
 
     return NextResponse.json(movieDetails, { headers: catalogCacheHeaders() });
   } catch (error) {
+    if (isTmdbNotFoundError(error)) {
+      return NextResponse.json({ error: "Movie not found" }, { status: 404 });
+    }
+
     console.error(`Error fetching movie details for ID ${id}:`, error);
     return NextResponse.json(
       { error: "Failed to fetch movie details" },

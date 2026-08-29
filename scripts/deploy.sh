@@ -32,6 +32,13 @@ HEALTH_WAIT_SECONDS="${HEALTH_WAIT_SECONDS:-60}"
 DRAIN_SECONDS="${DRAIN_SECONDS:-95}"
 DEPLOY_LOCK_FILE="${DEPLOY_LOCK_FILE:-$ROOT/.deploy.lock}"
 
+CONTAINER_MEMORY="${CONTAINER_MEMORY:-4200m}"
+CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:-4200m}"
+CONTAINER_HEALTH_INTERVAL="${CONTAINER_HEALTH_INTERVAL:-30s}"
+CONTAINER_HEALTH_TIMEOUT="${CONTAINER_HEALTH_TIMEOUT:-5s}"
+CONTAINER_HEALTH_RETRIES="${CONTAINER_HEALTH_RETRIES:-5}"
+CONTAINER_HEALTH_START_PERIOD="${CONTAINER_HEALTH_START_PERIOD:-45s}"
+
 cmd="${1:-}"
 if [[ -z "$cmd" ]]; then
   echo "usage: $0 bp | serve | stop" >&2
@@ -56,6 +63,7 @@ build_push() {
   load_build_env
   docker build --platform linux/amd64 \
     --build-arg TMDB_API_KEY="${TMDB_API_KEY:-}" \
+    --build-arg CAP_API_ENDPOINT="${CAP_API_ENDPOINT:-}" \
     -t "$DOCKER_IMAGE" .
   docker push "$DOCKER_IMAGE"
   echo "pushed $DOCKER_IMAGE"
@@ -82,7 +90,9 @@ serve() {
     exit 1
   fi
   ensure_runtime_infra
-  sudo docker pull "$DOCKER_IMAGE"
+  if [[ "${SKIP_DOCKER_PULL:-}" != "1" ]]; then
+    sudo docker pull "$DOCKER_IMAGE"
+  fi
 
   local current_port target_port candidate old_name upstream_backup
   current_port="$(sudo sed -nE 's/^[[:space:]]*server[[:space:]]+127\.0\.0\.1:([0-9]+);/\1/p' "$NGINX_UPSTREAM_FILE" 2>/dev/null | head -n 1)"
@@ -104,15 +114,15 @@ serve() {
     --name "$candidate" \
     --restart unless-stopped \
     --init \
-    --memory 3g \
-    --memory-swap 3g \
+    --memory "${CONTAINER_MEMORY}" \
+    --memory-swap "${CONTAINER_MEMORY_SWAP}" \
     --pids-limit 256 \
     --stop-timeout 30 \
-    --health-cmd "curl -fsS http://localhost:${CONTAINER_APP_PORT}/api/healthz" \
-    --health-interval 15s \
-    --health-timeout 5s \
-    --health-retries 3 \
-    --health-start-period 20s \
+    --health-cmd "curl -fsS --max-time 5 http://127.0.0.1:${CONTAINER_APP_PORT}/api/healthz || exit 1" \
+    --health-interval "${CONTAINER_HEALTH_INTERVAL}" \
+    --health-timeout "${CONTAINER_HEALTH_TIMEOUT}" \
+    --health-retries "${CONTAINER_HEALTH_RETRIES}" \
+    --health-start-period "${CONTAINER_HEALTH_START_PERIOD}" \
     --log-opt max-size=20m \
     --log-opt max-file=3 \
     --network "$DOCKER_NETWORK" \

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
+import { queryStaleTime } from "@/lib/cache-policy";
 import { buildServerAvailabilityKey } from "@/lib/server-availability-key";
 import { queryKeys } from "@/lib/query-keys";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
@@ -35,6 +36,6 @@ export function useServerAvailabilityQuery(
       return null;
     },
     enabled: Boolean(availabilityKey) && !noAdsMode,
-    staleTime: 5 * 60 * 1000,
+    staleTime: queryStaleTime(5 * 60 * 1000),
   });
 }

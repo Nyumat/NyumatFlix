@@ -8,7 +8,12 @@ import { getDefaultSiteFlags } from "@/lib/flags/site-flags";
 import { useDetailRouteStore } from "@/lib/stores/detail-route-store";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+
+vi.mock("next-auth/react", () => ({
+  useSession: vi.fn(() => ({ data: null, status: "unauthenticated" })),
+}));
 
 vi.mock("@/components/layout/site-nav-desktop", () => ({
   SiteNavDesktop: () => null,
@@ -44,10 +49,10 @@ vi.mock("@/components/layout/nav/user-avatar", () => ({
 const mockUsePathname = vi.mocked(usePathname);
 const mockUseRouter = vi.mocked(useRouter);
 
-const renderNavbarClient = (session: null = null) =>
+const renderNavbarClient = () =>
   render(
     <FeatureFlagsProvider flags={getDefaultSiteFlags()}>
-      <NavbarClient session={session} />
+      <NavbarClient />
     </FeatureFlagsProvider>,
   );
 

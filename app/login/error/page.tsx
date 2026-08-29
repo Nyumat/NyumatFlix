@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { loginHref } from "@/lib/auth/callback-url";
 import { SITE_URL } from "@/lib/constants";
 import {
   DEFAULT_OG_IMAGE,
@@ -12,7 +13,7 @@ import Link from "next/link";
 import { AuthShell } from "../auth-shell";
 
 type AuthErrorPageProps = {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 };
 
 type AuthErrorCopy = {
@@ -292,7 +293,7 @@ export const metadata: Metadata = {
 export default async function AuthErrorPage({
   searchParams,
 }: AuthErrorPageProps) {
-  const { error } = await searchParams;
+  const { error, callbackUrl } = await searchParams;
   const copy = error
     ? (authErrorCopy[error] ?? authErrorCopy.default)
     : authErrorCopy.default;
@@ -328,7 +329,7 @@ export default async function AuthErrorPage({
               size="lg"
               className="h-11 flex-1 rounded-xl border-sky-300/20 bg-sky-300/15 px-5 text-sm font-semibold text-sky-50 shadow-none hover:border-sky-300/35 hover:bg-sky-300/22"
             >
-              <Link href="/login">
+              <Link href={loginHref(callbackUrl)}>
                 <Mail className="mr-2 size-4" />
                 Request new link
               </Link>

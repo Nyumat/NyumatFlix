@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { getNavigationItems } from "@/lib/navigation";
+import { useDetailRouteParentOverride } from "@/lib/stores/detail-route-store";
 import { getNavIcon, isInNavGroup, toTitleCase } from "@/lib/nav/browse";
 import { cn } from "@/lib/utils";
-import { BrowseSettings } from "@/components/layout/nav/browse-settings";
-import { Check, LayoutGrid } from "lucide-react";
+import { Check, LayoutGrid, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -30,9 +30,21 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
   const flags = useFeatureFlags();
   const navigationItems = getNavigationItems(flags.liveTvEnabled);
   const pathname = usePathname();
+  const parentRouteOverride = useDetailRouteParentOverride(pathname);
   const activeItem = navigationItems.find((item) =>
-    isInNavGroup(pathname, item),
+    isInNavGroup(pathname, item, parentRouteOverride),
   );
+  const isSettingsActive = pathname.startsWith("/settings");
+
+  const browseTileClassName = (isActive: boolean) =>
+    cn(
+      "group relative flex h-20 w-full flex-col justify-between rounded-xl border border-white/10 bg-white/[0.04] p-3.5 text-left text-white outline-hidden transition-all duration-150",
+      "hover:border-white/20 hover:bg-white/[0.08] data-[highlighted]:border-white/20 data-[highlighted]:bg-white/[0.08]",
+      isActive &&
+        "border-primary/40 bg-primary/10 text-primary ring-1 ring-primary/25",
+    );
+
+  const isTrending = (title: string) => title.toLowerCase() === "trending";
 
   return (
     <DropdownMenu>
@@ -62,54 +74,121 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
         align="end"
         sideOffset={8}
         className={cn(
-          "w-[320px] rounded-lg border-white/12 bg-black/92 p-0 text-white shadow-2xl shadow-black/60 backdrop-blur-xl",
+          "w-[300px] rounded-2xl border-white/12 bg-black/90 p-2 text-white shadow-2xl shadow-black/80 backdrop-blur-2xl",
           "data-[side=bottom]:slide-in-from-top-1",
         )}
       >
-        <div className="px-4 py-3 text-center text-sm font-medium">Browse</div>
-        <DropdownMenuSeparator className="m-0 bg-white/8" />
+        <div className="grid grid-cols-2 gap-2 p-1">
+          {navigationItems.map((item) => {
+            const Icon = getNavIcon(item);
+            const isActive = item.title === activeItem?.title;
+            const trendingItem = isTrending(item.title);
 
-        <div className="space-y-3 p-3">
-          <p className="px-1 text-xs font-normal tracking-wide text-muted-foreground">
-            Content
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {navigationItems.map((item) => {
-              const Icon = getNavIcon(item);
-              const isActive = item.title === activeItem?.title;
-
+            if (trendingItem) {
               return (
                 <DropdownMenuItem
                   key={item.title}
                   asChild
-                  className="rounded-md p-0 focus:bg-transparent"
+                  className="col-span-2 rounded-xl p-0 focus:bg-transparent data-[highlighted]:bg-transparent"
                 >
                   <Link
                     href={item.href}
                     className={cn(
-                      "group flex h-[72px] cursor-pointer flex-col items-start justify-between rounded-md border border-white/10 bg-card/55 p-3 text-left text-white outline-hidden transition-all",
-                      "hover:border-white/25 hover:bg-white/8 focus:border-primary/35 focus:bg-primary/10",
+                      "group flex h-12 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-left text-white outline-hidden transition-all duration-150",
+                      "hover:border-white/20 hover:bg-white/[0.08] data-[highlighted]:border-white/20 data-[highlighted]:bg-white/[0.08]",
                       isActive &&
-                        "border-primary/35 bg-primary/10 text-primary ring-1 ring-primary/25",
+                        "border-primary/40 bg-primary/10 text-primary ring-1 ring-primary/25",
                     )}
                   >
-                    <div className="flex w-full items-center justify-between">
-                      <Icon className="size-5" strokeWidth={1.65} />
-                      {isActive ? (
-                        <Check className="size-4" strokeWidth={1.75} />
-                      ) : null}
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        className="size-5 shrink-0 text-amber-400"
+                        strokeWidth={1.75}
+                      />
+                      <span
+                        className={cn(
+                          "text-sm font-medium",
+                          isActive
+                            ? "text-primary font-semibold"
+                            : "text-white",
+                        )}
+                      >
+                        {toTitleCase(item.title)}
+                      </span>
                     </div>
-                    <span className="text-sm font-normal text-white">
-                      {toTitleCase(item.title)}
-                    </span>
+                    {isActive ? (
+                      <Check
+                        className="size-4 shrink-0 text-primary"
+                        strokeWidth={1.75}
+                      />
+                    ) : null}
                   </Link>
                 </DropdownMenuItem>
               );
-            })}
-          </div>
+            }
+
+            return (
+              <DropdownMenuItem
+                key={item.title}
+                asChild
+                className="rounded-xl p-0 focus:bg-transparent data-[highlighted]:bg-transparent"
+              >
+                <Link
+                  href={item.href}
+                  className={browseTileClassName(isActive)}
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <Icon
+                      className="size-5 shrink-0 text-white/70 group-hover:text-white"
+                      strokeWidth={1.65}
+                    />
+                    {isActive ? (
+                      <Check
+                        className="size-3.5 shrink-0 text-primary"
+                        strokeWidth={2}
+                      />
+                    ) : null}
+                  </div>
+                  <span
+                    className={cn(
+                      "text-xs font-semibold tracking-tight",
+                      isActive ? "text-primary" : "text-white",
+                    )}
+                  >
+                    {toTitleCase(item.title)}
+                  </span>
+                </Link>
+              </DropdownMenuItem>
+            );
+          })}
         </div>
 
-        <BrowseSettings variant="desktop" />
+        <DropdownMenuSeparator className="my-1.5 bg-white/8" />
+
+        <div className="p-1">
+          <DropdownMenuItem
+            asChild
+            className="rounded-xl p-0 focus:bg-transparent data-[highlighted]:bg-transparent"
+          >
+            <Link
+              href="/settings"
+              className={cn(
+                "flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-white/70 outline-hidden transition-colors duration-150",
+                "hover:bg-white/[0.08] hover:text-white data-[highlighted]:bg-white/[0.08] data-[highlighted]:text-white",
+                isSettingsActive && "bg-primary/10 text-primary font-semibold",
+              )}
+            >
+              <Settings
+                className={cn(
+                  "size-4 shrink-0",
+                  isSettingsActive ? "text-primary" : "text-white/60",
+                )}
+                strokeWidth={1.65}
+              />
+              <span>Settings</span>
+            </Link>
+          </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

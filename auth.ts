@@ -6,6 +6,12 @@ import {
 } from "@/lib/constants";
 import { setDevMagicLink } from "@/lib/dev-magic-link-store";
 import { isCapVerifiedSignIn } from "@/lib/cap/auth-authorization";
+import {
+  applyAuthDbProfileToJwt,
+  applyAuthSessionUpdateToJwt,
+  applyAuthUserToJwt,
+  shouldRefreshAuthJwtFromDatabase,
+} from "@/lib/auth/jwt-profile";
 import { getSiteFlags } from "@/lib/flags/site-flags";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
@@ -21,6 +27,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
+  // The adapter above defaults the session strategy to "database", which
+  // makes every `/api/auth/session` call (every `useSession()` mount, every
+  // window focus, every page load) round-trip to Postgres. Force JWT
+  // sessions instead: the adapter is still needed for magic-link
+  // verification tokens and user/account records, but the session itself
+  // lives in a signed cookie so reads are free. See
+  // https://github.com/nextauthjs/next-auth/issues/4891.
+  session: { strategy: "jwt" },
   providers: [
     Resend({
       apiKey: process.env.AUTH_RESEND_KEY,
@@ -93,17 +107,68 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    session: async ({ session, token }) => {
-      if (session?.user && token?.sub) {
-        session.user.id = token.sub;
+    jwt: async ({ token, user, trigger, session }) => {
+      if (user) {
+        token = applyAuthUserToJwt(token, user);
       }
+
+      if (trigger === "update" && session) {
+        token = applyAuthSessionUpdateToJwt(token, session);
+      }
+
+      if (shouldRefreshAuthJwtFromDatabase(token, trigger)) {
+        const uid = token.uid;
+        if (typeof uid !== "string") {
+          return token;
+        }
+
+        const [dbUser] = await db
+          .select({
+            name: users.name,
+            image: users.image,
+            email: users.email,
+          })
+          .from(users)
+          .where(eq(users.id, uid))
+          .limit(1);
+
+        if (dbUser) {
+          token = applyAuthDbProfileToJwt(token, dbUser);
+        } else {
+          token.profileHydrated = true;
+        }
+      }
+
+      return token;
+    },
+    session: async ({ session, token }) => {
+      if (session?.user && typeof token.uid === "string") {
+        session.user.id = token.uid;
+        if (typeof token.name === "string") {
+          session.user.name = token.name;
+        }
+        if (typeof token.email === "string") {
+          session.user.email = token.email;
+        }
+        if (typeof token.picture === "string") {
+          session.user.image = token.picture;
+        }
+      }
+
       return session;
     },
-    jwt: async ({ user, token }) => {
-      if (user) {
-        token.uid = user.id;
+    redirect: async ({ url, baseUrl }) => {
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
       }
-      return token;
+      try {
+        if (new URL(url).origin === new URL(baseUrl).origin) {
+          return url;
+        }
+      } catch {
+        // Fall through to the app root.
+      }
+      return baseUrl;
     },
   },
   pages: {

@@ -255,7 +255,7 @@ ensure_flipt_env() {
   upsert_env_var "$LOCAL_ENV_FILE" FLIPT_ENVIRONMENT "default"
   upsert_env_var "$LOCAL_ENV_FILE" FLIPT_NAMESPACE "default"
   if [[ -z "$(read_env_value "$LOCAL_ENV_FILE" FLIPT_FLAG_CACHE_TTL_MS || true)" ]]; then
-    upsert_env_var "$LOCAL_ENV_FILE" FLIPT_FLAG_CACHE_TTL_MS "5000"
+    upsert_env_var "$LOCAL_ENV_FILE" FLIPT_FLAG_CACHE_TTL_MS "600000"
   fi
 }
 

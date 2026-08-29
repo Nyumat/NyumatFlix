@@ -4,11 +4,16 @@ const moviPlayerResolveAliases = {
   "movi-player": false,
 };
 
+const CDN_ORIGIN = (
+  process.env.NEXT_PUBLIC_CDN_ORIGIN ??
+  (process.env.NODE_ENV === "production" ? "https://cdn.nyumatflix.com" : "")
+).replace(/\/$/, "");
+
 const nextConfig = {
-  assetPrefix:
-    process.env.NODE_ENV === "production"
-      ? "https://cdn.nyumatflix.com"
-      : undefined,
+  assetPrefix: CDN_ORIGIN || undefined,
+  env: {
+    NEXT_PUBLIC_CDN_ORIGIN: CDN_ORIGIN,
+  },
   output: "standalone",
   outputFileTracingIncludes: {
     "/api/scrape": ["./node_modules/undici/**/*"],
@@ -38,6 +43,43 @@ const nextConfig = {
       },
     ];
   },
+  headers: async () => {
+    const immutablePublicAsset = {
+      key: "Cache-Control",
+      value: "public, max-age=31536000, immutable",
+    };
+
+    return [
+      {
+        source: "/vendor/movi-player/:path*",
+        headers: [immutablePublicAsset],
+      },
+      {
+        source: "/movie-banner.webp",
+        headers: [immutablePublicAsset],
+      },
+      {
+        source: "/favicon.ico",
+        headers: [immutablePublicAsset],
+      },
+      {
+        source: "/icon.png",
+        headers: [immutablePublicAsset],
+      },
+      {
+        source: "/apple-touch-icon.png",
+        headers: [immutablePublicAsset],
+      },
+      {
+        source: "/apple-touch-icon-120x120.png",
+        headers: [immutablePublicAsset],
+      },
+      {
+        source: "/movi-player-sw.js",
+        headers: [immutablePublicAsset],
+      },
+    ];
+  },
   rewrites: async () => {
     return [
       {
@@ -55,6 +97,11 @@ const nextConfig = {
     unoptimized: true,
     minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cdn.nyumatflix.com",
+        pathname: "/**",
+      },
       {
         protocol: "https",
         hostname: "i.pravatar.cc",

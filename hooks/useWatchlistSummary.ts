@@ -1,6 +1,7 @@
 "use client";
 
 import type { WatchlistItem } from "@/lib/domain/watchlist";
+import { queryStaleTime } from "@/lib/cache-policy";
 import { queryKeys } from "@/lib/query-keys";
 import { useQuery } from "@tanstack/react-query";
 
@@ -48,6 +49,6 @@ export function useWatchlistSummary(enabled: boolean) {
     queryKey: queryKeys.watchlistSummary(),
     queryFn: fetchWatchlistSummary,
     enabled,
-    staleTime: 60_000,
+    staleTime: queryStaleTime(60_000),
   });
 }

@@ -2,9 +2,10 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getCapApiEndpoint } from "@/lib/cap/config";
+import { CAP_SESSION_TTL_SECONDS } from "@/lib/cap/constants";
 
+export { CAP_SESSION_TTL_SECONDS } from "@/lib/cap/constants";
 export const CAP_SESSION_COOKIE = "nyumatflix_cap_session";
-export const CAP_SESSION_TTL_SECONDS = 15 * 60;
 
 type SiteverifyResponse = {
   success?: unknown;

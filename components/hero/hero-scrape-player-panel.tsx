@@ -21,6 +21,7 @@ import type { UseScrapeReturn } from "@/hooks/use-scrape";
 import { selectInitialEngine } from "@/lib/direct/playback";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
 import { USE_SHAKA_DASH } from "@/lib/constants";
+import { PLAYBACK_START_TIMEOUT_MS } from "@/lib/playback/playbackStart";
 import { buildScrapePlayerKey } from "@/lib/scrape/player-sources";
 import type { SourceOverlayItem } from "@/lib/scrape/source-overlay";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
@@ -124,6 +125,9 @@ export function HeroScrapePlayerPanel({
 }: HeroScrapePlayerPanelProps) {
   const { maintenanceMode } = useFeatureFlags();
   const [mediaReady, setMediaReady] = useState(false);
+  const [playbackStartError, setPlaybackStartError] = useState<string | null>(
+    null,
+  );
   const moviLoaded = useMoviPlayerLoaded();
 
   const playbackSessionKey = useMemo(() => {
@@ -144,8 +148,43 @@ export function HeroScrapePlayerPanel({
 
   useEffect(() => {
     setMediaReady(false);
+    setPlaybackStartError(null);
     onMediaReadyChange?.(false);
   }, [onMediaReadyChange, playbackSessionKey]);
+
+  const directHasPlayer = (() => {
+    if (!isDirectMode || !directPlayback) {
+      return false;
+    }
+
+    return (
+      directPlayback.status === "playing" &&
+      Boolean(directPlayback.activeStream) &&
+      Boolean(progressKey)
+    );
+  })();
+
+  const scrapeHasPlayer =
+    !isDirectMode &&
+    scrapeStatus === "playing" &&
+    Boolean(scrapeResult?.playUrl) &&
+    Boolean(progressKey);
+
+  const hasActivePlayer = directHasPlayer || scrapeHasPlayer;
+
+  useEffect(() => {
+    if (!hasActivePlayer || mediaReady) {
+      setPlaybackStartError(null);
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setPlaybackStartError("Playback didn't start in time.");
+      onFatalError();
+    }, PLAYBACK_START_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [hasActivePlayer, mediaReady, onFatalError, playbackSessionKey]);
 
   const handleMediaReady = useCallback(() => {
     setMediaReady(true);
@@ -214,7 +253,12 @@ export function HeroScrapePlayerPanel({
         ) : null}
 
         {showBufferingOverlay ? (
-          <PlaybackStartingOverlay message={startingMessage} />
+          <PlaybackStartingOverlay
+            message={
+              playbackStartError ? "Trying another source…" : startingMessage
+            }
+            error={playbackStartError}
+          />
         ) : null}
 
         {showErrorOverlay ? (
@@ -332,7 +376,14 @@ export function HeroScrapePlayerPanel({
         />
       ) : null}
 
-      {showBufferingOverlay ? <PlaybackStartingOverlay /> : null}
+      {showBufferingOverlay ? (
+        <PlaybackStartingOverlay
+          message={
+            playbackStartError ? "Trying another source…" : "Starting playback…"
+          }
+          error={playbackStartError}
+        />
+      ) : null}
 
       {showErrorOverlay ? (
         <ScrapingOverlay

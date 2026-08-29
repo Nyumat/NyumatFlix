@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import {
   ANNOUNCEMENT_ICON_NAMES,
   type AnnouncementBannerConfig,
-  type AnnouncementIconName,
 } from "@/lib/flags/announcement-banner";
 import {
   announcementBannerConfigToJsx,
@@ -208,10 +207,16 @@ export function AnnouncementBannerPanel({
                   id="announcement-banner-icon"
                   value={config.icon}
                   onChange={(event) =>
-                    update("icon", event.target.value as AnnouncementIconName)
+                    update(
+                      "icon",
+                      event.target.value as AnnouncementBannerConfig["icon"],
+                    )
                   }
                   className="flex h-10 w-full rounded-md border border-white/25 bg-black/30 px-3 py-2 text-sm text-white shadow-md outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
+                  <option value="" className="bg-zinc-950">
+                    None
+                  </option>
                   {ANNOUNCEMENT_ICON_NAMES.map((icon) => (
                     <option key={icon} value={icon} className="bg-zinc-950">
                       {icon}

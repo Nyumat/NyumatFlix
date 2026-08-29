@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import {
   CAP_SESSION_COOKIE,
+  CAP_SESSION_TTL_SECONDS,
   createCapSessionToken,
   isValidCapSessionToken,
   requestHasCapSession,
@@ -22,7 +23,12 @@ describe("Cap server verification", () => {
     const now = Date.now();
     const token = createCapSessionToken(now);
     expect(isValidCapSessionToken(token, now)).toBe(true);
-    expect(isValidCapSessionToken(token, now + 16 * 60 * 1000)).toBe(false);
+    expect(
+      isValidCapSessionToken(
+        token,
+        now + (CAP_SESSION_TTL_SECONDS + 60) * 1000,
+      ),
+    ).toBe(false);
     expect(isValidCapSessionToken(`${token}x`, now)).toBe(false);
 
     const request = new Request("http://localhost/api/scrape", {

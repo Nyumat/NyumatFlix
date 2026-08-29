@@ -8,7 +8,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FfsToggleRow } from "@/components/ffs/ffs-toggle-row";
-import { GLOBAL_FLAG_DEFINITIONS } from "@/lib/flags/flag-catalog";
+import {
+  applyPlaybackMutualExclusion,
+  GLOBAL_FLAG_DEFINITIONS,
+} from "@/lib/flags/flag-catalog";
 import type { AdminFlagState } from "@/lib/flags/flag-catalog";
 
 type GlobalTogglesPanelProps = {
@@ -25,13 +28,19 @@ export function GlobalTogglesPanel({
   onChange,
 }: GlobalTogglesPanelProps) {
   const handleChange = (key: string, value: boolean) => {
-    if (key === "global.proxy_mode_only" && value) {
-      onChange("global.iframe_mode_only", false);
+    const merged = applyPlaybackMutualExclusion(
+      { ...flags, [key]: value },
+      key,
+    );
+
+    for (const def of PLAYBACK_FLAGS) {
+      const flagKey = def.key;
+      const previous = flags[flagKey] ?? def.defaultValue;
+      const next = merged[flagKey] ?? def.defaultValue;
+      if (previous !== next) {
+        onChange(flagKey, next);
+      }
     }
-    if (key === "global.iframe_mode_only" && value) {
-      onChange("global.proxy_mode_only", false);
-    }
-    onChange(key, value);
   };
 
   return (
@@ -39,7 +48,8 @@ export function GlobalTogglesPanel({
       <CardHeader>
         <CardTitle className="text-lg">Global playback & UX</CardTitle>
         <CardDescription>
-          Site-wide playback mode, hero, and Live TV defaults.
+          Hard locks apply to everyone. Default flags only affect new visitors
+          (until they change server in Settings).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">

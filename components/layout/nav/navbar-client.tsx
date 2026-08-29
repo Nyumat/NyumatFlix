@@ -7,10 +7,12 @@ import { AnniversaryBanner } from "@/components/layout/anniversary-banner";
 import { NavbarSearchClient, SearchDialog } from "@/components/search/search";
 import { Button } from "@/components/ui/button";
 import { useDetailRouteParentOverride } from "@/lib/stores/detail-route-store";
+import { loginHref } from "@/lib/auth/callback-url";
 import { cn } from "@/lib/utils";
 import { prepareNavigationBack } from "@/lib/navigation/route-restoration";
 import { ChevronLeft, Search, UserRound } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -20,13 +22,9 @@ import {
   navbarActionButtonClassName,
   navbarActionIconClassName,
 } from "./navbar-action-button";
-import { NavbarAuth } from "./navbar-auth";
+import { NavbarAuthSlot } from "./navbar-auth-slot";
 import { NavbarMobileNavigation } from "./navbar-mobile-navigation";
 import { UserAvatar } from "./user-avatar";
-
-interface NavbarClientProps {
-  session: Session | null;
-}
 
 const DETAIL_PARENT_ROUTES: Array<{
   pattern: RegExp;
@@ -34,6 +32,7 @@ const DETAIL_PARENT_ROUTES: Array<{
 }> = [
   { pattern: /^\/movies\/[^/]+(?:\/.*)?$/, parent: "/movies" },
   { pattern: /^\/tvshows\/[^/]+(?:\/.*)?$/, parent: "/tvshows" },
+  { pattern: /^\/anime\/[^/]+(?:\/.*)?$/, parent: "/anime" },
   { pattern: /^\/person\/[^/]+(?:\/.*)?$/, parent: "/people" },
   {
     pattern: /^\/collection\/[^/]+(?:\/.*)?$/,
@@ -51,7 +50,9 @@ const isAuthRoute = (pathname: string) =>
 const detailNavbarActionButtonClassName =
   "border-white/25 bg-black/35 text-white shadow-lg shadow-black/35 ring-white/20 hover:border-white/35 hover:bg-black/45 hover:ring-white/30";
 
-export const NavbarClient = ({ session }: NavbarClientProps) => {
+export const NavbarClient = () => {
+  const { data: sessionData } = useSession();
+  const session = sessionData ?? null;
   const { liveTvEnabled } = useFeatureFlags();
   const isCatalogRoute = (pathname: string) => {
     const patterns = [
@@ -70,9 +71,11 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const onAuthRoute = isAuthRoute(pathname);
+  const isSettingsRoute = pathname.startsWith("/settings");
   const detailRouteConfig = getDetailRouteConfig(pathname);
   const parentRouteOverride = useDetailRouteParentOverride(pathname);
-  const isTransparentHeaderRoute = isCatalogRoute(pathname) || onAuthRoute;
+  const isTransparentHeaderRoute =
+    isCatalogRoute(pathname) || onAuthRoute || isSettingsRoute;
   const headerPositionClassName = isTransparentHeaderRoute
     ? "absolute"
     : "relative md:sticky";
@@ -125,8 +128,8 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
             <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
           </Suspense>
 
-          <div className="hidden md:flex">
-            <NavbarAuth session={session} />
+          <div className="flex">
+            <NavbarAuthSlot />
           </div>
           <div className={cn("flex shrink-0", navMobileMenuClassName)}>
             <NavbarMobileNavigation session={session}>
@@ -173,7 +176,9 @@ const DetailPageActions = ({
   setIsSearchOpen: (open: boolean) => void;
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { authEnabled } = useFeatureFlags();
+  const { status } = useSession();
 
   const handleBack = () => {
     if (
@@ -245,6 +250,15 @@ const DetailPageActions = ({
               session={session}
               triggerClassName={detailNavbarActionButtonClassName}
             />
+          ) : status === "loading" && authEnabled ? (
+            <div
+              className={cn(
+                navbarActionButtonClassName,
+                detailNavbarActionButtonClassName,
+                "inline-flex size-9 shrink-0 animate-pulse rounded-md bg-muted/40",
+              )}
+              aria-hidden
+            />
           ) : authEnabled ? (
             <Button
               asChild
@@ -255,7 +269,7 @@ const DetailPageActions = ({
                 detailNavbarActionButtonClassName,
               )}
             >
-              <Link href="/login" aria-label="Sign in">
+              <Link href={loginHref(pathname)} aria-label="Sign in">
                 <UserRound
                   className={navbarActionIconClassName}
                   strokeWidth={1.75}

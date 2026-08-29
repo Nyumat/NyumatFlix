@@ -8,12 +8,14 @@ import {
 } from "@/lib/flags/flag-catalog";
 import { assertFfsHost, isFfsHost } from "@/lib/ffs/require-ffs-host";
 import { DEFAULT_ANNOUNCEMENT_BANNER_CONFIG } from "@/lib/flags/announcement-banner";
+import { DEFAULT_PROVIDER_MENU_ORDER } from "@/lib/flags/provider-menu-order";
 
 vi.mock("@/lib/flags/flipt-admin", () => ({
   readAdminFlagState: vi.fn(async () => buildDefaultAdminFlagState()),
   readAnnouncementBannerConfig: vi.fn(
     async () => DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
   ),
+  readProviderMenuOrderConfig: vi.fn(async () => DEFAULT_PROVIDER_MENU_ORDER),
   writeAdminFlagState: vi.fn(async () => undefined),
 }));
 
@@ -55,6 +57,43 @@ describe("ffs admin flags", () => {
 
     expect(next["global.proxy_mode_only"]).toBe(true);
     expect(next["global.iframe_mode_only"]).toBe(false);
+  });
+
+  it("clears soft defaults when a hard playback lock is enabled", () => {
+    const next = applyPlaybackMutualExclusion({
+      ...buildDefaultAdminFlagState(),
+      "global.proxy_mode_only": true,
+      "global.default_proxy_playback": true,
+      "global.no_ads_mode_default": true,
+    });
+
+    expect(next["global.default_proxy_playback"]).toBe(false);
+    expect(next["global.no_ads_mode_default"]).toBe(false);
+  });
+
+  it("keeps only one soft default when both are set without a changed key", () => {
+    const next = applyPlaybackMutualExclusion({
+      ...buildDefaultAdminFlagState(),
+      "global.default_proxy_playback": true,
+      "global.no_ads_mode_default": true,
+    });
+
+    expect(next["global.no_ads_mode_default"]).toBe(true);
+    expect(next["global.default_proxy_playback"]).toBe(false);
+  });
+
+  it("prefers default proxy when that flag was toggled on", () => {
+    const next = applyPlaybackMutualExclusion(
+      {
+        ...buildDefaultAdminFlagState(),
+        "global.default_proxy_playback": true,
+        "global.no_ads_mode_default": true,
+      },
+      "global.default_proxy_playback",
+    );
+
+    expect(next["global.default_proxy_playback"]).toBe(true);
+    expect(next["global.no_ads_mode_default"]).toBe(false);
   });
 
   it("returns 404 for admin API on the main site host", async () => {

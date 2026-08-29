@@ -1,15 +1,11 @@
+import { CapWarmup } from "@/components/cap/cap-warmup";
 import { JsonLdScript } from "@/components/seo/json-ld-script";
 import { buildWebsiteStructuredData } from "@/lib/seo/structured-data";
-import { NavbarClient } from "@/components/layout/nav/navbar-client";
+import { AppChrome } from "@/components/layout/app-chrome";
 import { RouteScrollReset } from "@/components/layout/route-scroll-reset";
-import { FooterSection } from "@/components/layout/sections/footer";
 import { AdblockGateProvider } from "@/components/providers/adblock-gate-provider";
-import { OnboardingProvider } from "@/components/providers/onboarding-provider";
-import { AppSettingsSync } from "@/components/providers/app-settings-sync";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
-import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { HoverSoundProvider } from "@/components/providers/hover-sound-provider";
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/lib/query-client";
 import { cn, validateEnv } from "@/lib/utils";
@@ -22,7 +18,6 @@ import {
   SITE_NAME,
   SITE_TAGLINE,
   SITE_URL,
-  UMAMI_CLOUD_WEBSITE_ID,
   UMAMI_URL,
   UMAMI_WEBSITE_ID,
 } from "@/lib/constants";
@@ -31,11 +26,8 @@ import {
   DEFAULT_OG_IMAGE_TYPE,
   OG_IMAGE_SIZE,
 } from "@/lib/seo/constants";
-import { auth } from "@/auth";
 import { FeatureFlagsProvider } from "@/components/providers/feature-flags-provider";
-import { getSiteFlags } from "@/lib/flags/site-flags";
-import { isFfsHost } from "@/lib/ffs/require-ffs-host";
-import { headers } from "next/headers";
+import { getCdnOrigin } from "@/lib/cdn";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -95,33 +87,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
-  const host = (await headers()).get("host");
-  const ffsAdminHost = isFfsHost(host);
-  const siteFlags = await getSiteFlags();
-
-  const chrome = ffsAdminHost ? (
-    <>
-      <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-      <Toaster richColors closeButton />
-    </>
-  ) : (
-    <>
-      <AppSettingsSync />
-      <GlobalDockProvider>
-        <NavbarClient session={session} />
-        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-        <FooterSection />
-        <Toaster richColors closeButton />
-      </GlobalDockProvider>
-    </>
-  );
-
   return (
     <html
       lang="en"
@@ -129,6 +99,13 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {getCdnOrigin() ? (
+          <link
+            rel="preconnect"
+            href={getCdnOrigin()}
+            crossOrigin="anonymous"
+          />
+        ) : null}
         <script
           dangerouslySetInnerHTML={{
             __html: "history.scrollRestoration='manual'",
@@ -137,21 +114,15 @@ export default async function RootLayout({
         {process.env.NODE_ENV === "production" && (
           <>
             <Script
-              defer
-              src="/assets/client-runtime.js"
-              data-host-url={`${SITE_URL}/client`}
-              data-website-id={UMAMI_CLOUD_WEBSITE_ID}
+              id="umami-recorder-sample"
               strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `(function(){try{if(Math.random()>=0.05)return;var s=document.createElement('script');s.defer=true;s.src=${JSON.stringify(`${UMAMI_URL}/recorder.js`)};s.dataset.websiteId=${JSON.stringify(UMAMI_WEBSITE_ID)};document.head.appendChild(s);}catch(e){}})();`,
+              }}
             />
             <Script
               defer
               src={`${UMAMI_URL}/script.js`}
-              data-website-id={UMAMI_WEBSITE_ID}
-              strategy="afterInteractive"
-            />
-            <Script
-              defer
-              src={`${UMAMI_URL}/recorder.js`}
               data-website-id={UMAMI_WEBSITE_ID}
               strategy="afterInteractive"
             />
@@ -160,17 +131,18 @@ export default async function RootLayout({
       </head>
       <body className={cn("flex min-h-dvh flex-col bg-background font-sans")}>
         <JsonLdScript data={buildWebsiteStructuredData()} />
+        <CapWarmup />
         <RouteScrollReset />
         <QueryProvider>
-          <FeatureFlagsProvider flags={siteFlags}>
-            <AuthSessionProvider session={session}>
-              <OnboardingProvider>
-                <TooltipProvider>
-                  <AdblockGateProvider>
-                    <HoverSoundProvider>{chrome}</HoverSoundProvider>
-                  </AdblockGateProvider>
-                </TooltipProvider>
-              </OnboardingProvider>
+          <FeatureFlagsProvider>
+            <AuthSessionProvider>
+              <TooltipProvider>
+                <AdblockGateProvider>
+                  <HoverSoundProvider>
+                    <AppChrome>{children}</AppChrome>
+                  </HoverSoundProvider>
+                </AdblockGateProvider>
+              </TooltipProvider>
             </AuthSessionProvider>
           </FeatureFlagsProvider>
         </QueryProvider>

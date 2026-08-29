@@ -5,7 +5,10 @@ import {
   getCachedAnilistTvRecommendations,
   getCachedAnilistTvShowDetail,
 } from "@/lib/anilist-tv-detail";
-import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
+import {
+  isAnilistBackedTvRouteId,
+  readTvDetailCatalogFromRequestUrl,
+} from "@/lib/tv-detail-catalog";
 import { catalogCacheHeaders, seasonCacheHeaders } from "@/lib/http-cache";
 import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
 import {
@@ -83,13 +86,17 @@ export async function GET(
 
   try {
     const typedMediaType = mediaType as MediaType;
-    const isAnilistTv = typedMediaType === "tv" && isAnilistTvRouteId(id);
+    const catalog = readTvDetailCatalogFromRequestUrl(url);
+    const isAnilistTv =
+      typedMediaType === "tv" && isAnilistBackedTvRouteId(id, catalog);
+    const anilistResolveOptions =
+      catalog === "anime" ? { acceptBareNumeric: true as const } : undefined;
     const mediaApi = typedMediaType === "movie" ? tmdb.movie : tmdb.tv;
 
     switch (resource as Resource) {
       case "above-fold": {
         const detail = isAnilistTv
-          ? await getCachedAnilistTvAboveFoldDetail(id)
+          ? await getCachedAnilistTvAboveFoldDetail(id, anilistResolveOptions)
           : await getCachedMediaAboveFoldDetail(typedMediaType, id);
         if (!detail) {
           return NextResponse.json(
@@ -104,7 +111,7 @@ export async function GET(
           typedMediaType === "movie"
             ? await getCachedMovieDetail(id)
             : isAnilistTv
-              ? await getCachedAnilistTvShowDetail(id)
+              ? await getCachedAnilistTvShowDetail(id, anilistResolveOptions)
               : await getCachedTvShowDetail(id);
         if (!details) {
           return NextResponse.json(
@@ -124,7 +131,7 @@ export async function GET(
 
         if (isAnilistTv) {
           return jsonCached(
-            await getCachedAnilistTvAllSeasons(id),
+            await getCachedAnilistTvAllSeasons(id, anilistResolveOptions),
             "all-seasons",
           );
         }
@@ -135,14 +142,14 @@ export async function GET(
         }
 
         return jsonCached(
-          await fetchAllSeasonDetails(id, details.seasons),
+          await fetchAllSeasonDetails(id, details.seasons, { catalog }),
           "all-seasons",
         );
       }
       case "credits":
         return jsonCached(
           isAnilistTv
-            ? await getCachedAnilistTvCredits(id)
+            ? await getCachedAnilistTvCredits(id, anilistResolveOptions)
             : await mediaApi.credits({ id }),
           "credits",
         );
@@ -159,7 +166,10 @@ export async function GET(
         );
       case "videos":
         if (isAnilistTv) {
-          const detail = await getCachedAnilistTvAboveFoldDetail(id);
+          const detail = await getCachedAnilistTvAboveFoldDetail(
+            id,
+            anilistResolveOptions,
+          );
           return jsonCached(
             { results: extractVideoRowsFromMediaVideos(detail?.videos) },
             "videos",
@@ -177,7 +187,7 @@ export async function GET(
       case "recommendations":
         return jsonCached(
           isAnilistTv
-            ? await getCachedAnilistTvRecommendations(id)
+            ? await getCachedAnilistTvRecommendations(id, anilistResolveOptions)
             : await mediaApi.recommendations({ id, page }),
           "recommendations",
         );

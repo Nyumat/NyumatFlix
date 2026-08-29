@@ -5,11 +5,18 @@ import { FfsSaveBar } from "@/components/ffs/ffs-save-bar";
 import { GlobalTogglesPanel } from "@/components/ffs/global-toggles-panel";
 import { PowerFeaturesPanel } from "@/components/ffs/power-features-panel";
 import { ProviderMatrixPanel } from "@/components/ffs/provider-matrix-panel";
+import { ProviderMenuOrderPanel } from "@/components/ffs/provider-menu-order-panel";
 import { AnnouncementBannerPanel } from "@/components/ffs/announcement-banner-panel";
 import {
   DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
   type AnnouncementBannerConfig,
 } from "@/lib/flags/announcement-banner";
+import {
+  DEFAULT_PROVIDER_MENU_ORDER,
+  providerMenuOrderEquals,
+  type ProviderMenuOrderConfig,
+} from "@/lib/flags/provider-menu-order";
+import { broadcastSiteFlagsUpdated } from "@/lib/flags/flags-sync";
 import {
   applyPlaybackMutualExclusion,
   buildDefaultAdminFlagState,
@@ -21,23 +28,32 @@ import { toast } from "sonner";
 type FfsDashboardProps = {
   initialFlags: AdminFlagState;
   initialAnnouncementBanner: AnnouncementBannerConfig;
+  initialProviderMenuOrder: ProviderMenuOrderConfig;
 };
 
 export function FfsDashboard({
   initialFlags,
   initialAnnouncementBanner,
+  initialProviderMenuOrder,
 }: FfsDashboardProps) {
   const [saved, setSaved] = useState(initialFlags);
   const [draft, setDraft] = useState(initialFlags);
   const [saving, setSaving] = useState(false);
   const [savedBanner, setSavedBanner] = useState(initialAnnouncementBanner);
   const [draftBanner, setDraftBanner] = useState(initialAnnouncementBanner);
+  const [savedMenuOrder, setSavedMenuOrder] = useState(
+    initialProviderMenuOrder,
+  );
+  const [draftMenuOrder, setDraftMenuOrder] = useState(
+    initialProviderMenuOrder,
+  );
 
   const dirty = useMemo(
     () =>
       JSON.stringify(saved) !== JSON.stringify(draft) ||
-      JSON.stringify(savedBanner) !== JSON.stringify(draftBanner),
-    [saved, draft, savedBanner, draftBanner],
+      JSON.stringify(savedBanner) !== JSON.stringify(draftBanner) ||
+      !providerMenuOrderEquals(savedMenuOrder, draftMenuOrder),
+    [saved, draft, savedBanner, draftBanner, savedMenuOrder, draftMenuOrder],
   );
 
   const onChange = useCallback((key: string, value: boolean) => {
@@ -55,7 +71,8 @@ export function FfsDashboard({
   const onReset = useCallback(() => {
     setDraft(saved);
     setDraftBanner(savedBanner);
-  }, [saved, savedBanner]);
+    setDraftMenuOrder(savedMenuOrder);
+  }, [saved, savedBanner, savedMenuOrder]);
 
   const onSave = useCallback(async () => {
     setSaving(true);
@@ -67,6 +84,7 @@ export function FfsDashboard({
         body: JSON.stringify({
           flags: payload,
           announcementBanner: draftBanner,
+          providerMenuOrder: draftMenuOrder,
         }),
       });
       if (!res.ok) {
@@ -76,18 +94,22 @@ export function FfsDashboard({
       const data = (await res.json()) as {
         flags: AdminFlagState;
         announcementBanner: AnnouncementBannerConfig;
+        providerMenuOrder: ProviderMenuOrderConfig;
       };
       setSaved(data.flags);
       setDraft(data.flags);
       setSavedBanner(data.announcementBanner);
       setDraftBanner(data.announcementBanner);
+      setSavedMenuOrder(data.providerMenuOrder);
+      setDraftMenuOrder(data.providerMenuOrder);
+      broadcastSiteFlagsUpdated();
       toast.success("Flags saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Save failed");
     } finally {
       setSaving(false);
     }
-  }, [draft, draftBanner]);
+  }, [draft, draftBanner, draftMenuOrder]);
 
   return (
     <>
@@ -100,7 +122,8 @@ export function FfsDashboard({
             NyumatFlix admin
           </h1>
           <p className="text-sm text-white/55">
-            Global toggles apply to all users within ~30s (flag cache TTL).
+            Global toggles apply to all users after save (open tabs refresh on
+            focus).
           </p>
         </header>
 
@@ -123,6 +146,11 @@ export function FfsDashboard({
           onChange={onChange}
           onBulkChange={onBulkChange}
         />
+        <ProviderMenuOrderPanel
+          flags={draft}
+          menuOrder={draftMenuOrder}
+          onMenuOrderChange={setDraftMenuOrder}
+        />
       </div>
 
       <FfsSaveBar
@@ -140,6 +168,7 @@ export function FfsDashboardFallback() {
     <FfsDashboard
       initialFlags={buildDefaultAdminFlagState()}
       initialAnnouncementBanner={DEFAULT_ANNOUNCEMENT_BANNER_CONFIG}
+      initialProviderMenuOrder={DEFAULT_PROVIDER_MENU_ORDER}
     />
   );
 }

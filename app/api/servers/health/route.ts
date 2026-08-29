@@ -4,7 +4,7 @@ import {
   type VideoServerHealthResult,
 } from "@/lib/server/video-server-health";
 import { NextResponse } from "next/server";
-import { requestHasCapSession } from "@/lib/cap/server";
+import { allowsCapProtectedAccess } from "@/lib/cap/access";
 
 type HealthRequestBody = {
   url?: unknown;
@@ -46,7 +46,7 @@ const checkCached = async (
 };
 
 export async function POST(request: Request) {
-  if (!requestHasCapSession(request)) {
+  if (!(await allowsCapProtectedAccess(request))) {
     return NextResponse.json(
       { error: "Human verification required" },
       { status: 403, headers: { "X-Cap-Required": "1" } },

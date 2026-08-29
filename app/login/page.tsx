@@ -1,5 +1,6 @@
-import { signIn } from "@/auth";
-import { FloatingCapLoginForm } from "@/components/auth/floating-cap-login-form";
+import { auth, signIn } from "@/auth";
+import { CapLoginForm } from "@/components/auth/cap-login-form";
+import { MalLoginButton } from "@/components/auth/mal-login-button";
 import {
   Card,
   CardContent,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { getCapApiEndpoint } from "@/lib/cap/config";
 import { withCapVerifiedSignIn } from "@/lib/cap/auth-authorization";
+import { isCapDevBypassEnabled } from "@/lib/cap/constants";
 import { verifyCapToken } from "@/lib/cap/server";
 import { getDevMagicLink } from "@/lib/dev-magic-link-store";
 import { SITE_URL } from "@/lib/constants";
@@ -22,6 +24,11 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSiteFlags } from "@/lib/flags/site-flags";
+import {
+  loginErrorHref,
+  loginVerifyHref,
+  safeAuthCallbackPath,
+} from "@/lib/auth/callback-url";
 import { AuthShell } from "./auth-shell";
 
 export const metadata: Metadata = {
@@ -67,10 +74,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function LoginPage() {
-  const flags = await getSiteFlags();
+type LoginPageProps = {
+  searchParams: Promise<{ callbackUrl?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const [flags, session, params] = await Promise.all([
+    getSiteFlags(),
+    auth(),
+    searchParams,
+  ]);
+  const callbackUrl = safeAuthCallbackPath(params.callbackUrl);
   if (!flags.authEnabled) {
     redirect("/");
+  }
+  if (session?.user?.id) {
+    redirect(callbackUrl);
   }
 
   const handleLogin = async (formData: FormData) => {
@@ -79,8 +98,11 @@ export default async function LoginPage() {
     const email = formData.get("email") as string;
     const capToken = formData.get("cap-token");
 
-    if (!email || !(await verifyCapToken(capToken))) {
-      redirect("/login/error?error=Captcha");
+    if (
+      !email ||
+      (!isCapDevBypassEnabled() && !(await verifyCapToken(capToken)))
+    ) {
+      redirect(loginErrorHref("Captcha", callbackUrl));
       return;
     }
 
@@ -89,6 +111,7 @@ export default async function LoginPage() {
         signIn("resend", {
           email,
           redirect: false,
+          redirectTo: callbackUrl,
         }),
       );
     } catch (error) {
@@ -99,11 +122,20 @@ export default async function LoginPage() {
     if (process.env.NODE_ENV === "development") {
       const magicLink = getDevMagicLink(email);
       if (magicLink) {
-        redirect(`/login/verify?devLink=${encodeURIComponent(magicLink)}`);
+        // Server actions can't redirect() to a route handler directly: the
+        // client router fetches it, follows the 302 internally, and renders
+        // the result under the callback URL. The verify page performs a full
+        // browser navigation to the magic link instead.
+        redirect(
+          loginVerifyHref({
+            callbackUrl,
+            devLink: magicLink,
+          }),
+        );
       }
     }
 
-    redirect("/login/verify");
+    redirect(loginVerifyHref({ callbackUrl }));
   };
 
   return (
@@ -122,15 +154,19 @@ export default async function LoginPage() {
               Sign in
             </CardTitle>
             <CardDescription className="text-sm leading-6 text-zinc-400">
-              Enter your email and we will send a magic link to login.
+              {flags.signupDisabled
+                ? "New accounts are paused. Existing members can still request a magic link."
+                : "Enter your email and we will send a magic link to login."}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
-          <FloatingCapLoginForm
-            action={handleLogin}
-            endpoint={getCapApiEndpoint()}
-          />
+          <CapLoginForm action={handleLogin} endpoint={getCapApiEndpoint()} />
+          {process.env.MAL_CLIENT_ID ? (
+            <div className="mt-5">
+              <MalLoginButton callbackUrl={callbackUrl} />
+            </div>
+          ) : null}
           <p className="mt-5 text-center text-xs leading-5 text-zinc-500">
             By continuing, you agree to the{" "}
             <Link

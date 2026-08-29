@@ -1,23 +1,44 @@
 "use client";
 
-const SESSION_SAFETY_WINDOW_MS = 14 * 60 * 1000;
+import {
+  CAP_SESSION_CLIENT_SAFETY_WINDOW_MS,
+  isCapDevBypassEnabled,
+} from "@/lib/cap/constants";
+import { warmCapWidgetAssets } from "@/lib/cap/warmup-client";
+
+const SESSION_SAFETY_WINDOW_MS = CAP_SESSION_CLIENT_SAFETY_WINDOW_MS;
 
 let verifiedUntil = 0;
 let verificationPromise: Promise<void> | null = null;
-let endpointPromise: Promise<string> | null = null;
+let endpointPromise: Promise<{ endpoint: string; wasmUrl?: string }> | null =
+  null;
 
-const getEndpoint = async (): Promise<string> => {
+const getCapClientConfig = async (): Promise<{
+  endpoint: string;
+  wasmUrl?: string;
+}> => {
   endpointPromise ??= fetch("/api/cap/config", { cache: "no-store" }).then(
     async (response) => {
       if (!response.ok) throw new Error("Cap is unavailable");
-      const data = (await response.json()) as { endpoint?: unknown };
+      const data = (await response.json()) as {
+        endpoint?: unknown;
+        wasmUrl?: unknown;
+      };
       if (typeof data.endpoint !== "string") {
         throw new Error("Cap endpoint is invalid");
       }
-      return data.endpoint;
+      return {
+        endpoint: data.endpoint,
+        wasmUrl: typeof data.wasmUrl === "string" ? data.wasmUrl : undefined,
+      };
     },
   );
   return endpointPromise;
+};
+
+const loadCapWidget = async (): Promise<typeof import("@cap.js/widget")> => {
+  await warmCapWidgetAssets();
+  return import("@cap.js/widget");
 };
 
 const createSession = async (): Promise<void> => {
@@ -30,9 +51,9 @@ const createSession = async (): Promise<void> => {
     return;
   }
 
-  const [{ default: Cap }, endpoint] = await Promise.all([
-    import("@cap.js/widget"),
-    getEndpoint(),
+  const [{ default: Cap }, { endpoint }] = await Promise.all([
+    loadCapWidget(),
+    getCapClientConfig(),
   ]);
   const cap = new Cap({ apiEndpoint: endpoint });
   const result = await cap.solve();
@@ -51,6 +72,7 @@ const createSession = async (): Promise<void> => {
 };
 
 export const ensureCapSession = async (): Promise<void> => {
+  if (isCapDevBypassEnabled()) return;
   if (verifiedUntil > Date.now()) return;
   verificationPromise ??= createSession().finally(() => {
     verificationPromise = null;

@@ -12,6 +12,7 @@
 /.next/
 /out/
 /public/vendor/movi-player/
+/data/anime-mappings/
 
 # production
 /build

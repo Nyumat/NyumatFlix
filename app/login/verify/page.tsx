@@ -1,5 +1,8 @@
+import { auth } from "@/auth";
+import { DevMagicLinkRedirect } from "@/components/auth/dev-magic-link-redirect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { loginHref, safeAuthCallbackPath } from "@/lib/auth/callback-url";
 import { SITE_URL } from "@/lib/constants";
 import {
   DEFAULT_OG_IMAGE,
@@ -9,10 +12,11 @@ import {
 import { ArrowLeft, ExternalLink, MailCheck } from "lucide-react";
 import { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AuthShell } from "../auth-shell";
 
 type VerifyRequestPageProps = {
-  searchParams: Promise<{ devLink?: string }>;
+  searchParams: Promise<{ devLink?: string; callbackUrl?: string }>;
 };
 
 export const metadata: Metadata = {
@@ -51,7 +55,14 @@ export const metadata: Metadata = {
 export default async function VerifyRequestPage({
   searchParams,
 }: VerifyRequestPageProps) {
-  const { devLink } = await searchParams;
+  const [params, session] = await Promise.all([searchParams, auth()]);
+  const callbackUrl = safeAuthCallbackPath(params.callbackUrl);
+  const devLink =
+    process.env.NODE_ENV === "development" ? params.devLink : undefined;
+
+  if (session?.user?.id) {
+    redirect(callbackUrl);
+  }
 
   return (
     <AuthShell
@@ -77,9 +88,10 @@ export default async function VerifyRequestPage({
           <div className="rounded-2xl border border-white/10 bg-black/28 p-5">
             {devLink ? (
               <div className="space-y-4">
+                <DevMagicLinkRedirect devLink={devLink} />
                 <p className="text-sm font-medium text-zinc-200">
-                  Development mode detected. Use the generated link below to
-                  finish signing in.
+                  Development mode detected. Signing you in automatically, or
+                  use the link below.
                 </p>
                 <Button
                   asChild
@@ -111,7 +123,7 @@ export default async function VerifyRequestPage({
             size="sm"
             className="h-10 rounded-xl px-4 text-zinc-300 shadow-none hover:bg-white/8 hover:text-white"
           >
-            <Link href="/login">
+            <Link href={loginHref(callbackUrl)}>
               <ArrowLeft className="mr-2 size-4" />
               Back to sign in
             </Link>
