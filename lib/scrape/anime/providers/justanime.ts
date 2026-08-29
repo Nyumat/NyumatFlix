@@ -1,16 +1,15 @@
 import { preferredAudioLangForTranslation } from "../audio-preference";
 import { preferAnimeCdnReferer } from "../cdn-referer";
-import { isBaitHlsPlaylist, probeHlsPlaylistBody } from "../hls-sanity";
+import { isPlayableHlsStream } from "../hls-sanity";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeQuality, ScrapeSubtitle } from "../../types";
 import type { MegaplayPlaybackRefresh } from "../../megaplay-constants";
+import { wrapJustanimeMegaplayStreamUrl } from "../../justanime-momo-proxy";
 import {
-  refererForJustanimeStreamUrl,
-  wrapJustanimeMegaplayStreamUrl,
-} from "../../justanime-momo-proxy";
-import { MEGAPLAY_ORIGIN } from "../../megaplay-sources";
+  MEGAPLAY_ORIGIN,
+  megaplayPlaybackCandidateUrls,
+} from "../../megaplay-sources";
 import { cancelResponseBody, scrapeFetch } from "../../fetch";
-import { validateStreamUrlWithReferers } from "../../validate-stream";
 
 const JUSTANIME_ORIGIN = "https://justanime.to";
 const JUSTANIME_API = "https://core.justanime.to/api";
@@ -55,20 +54,14 @@ const qualityRank = (label: string | undefined): number => {
   return 0;
 };
 
-const pickBestSource = (
-  sources: JustAnimeSource[] | undefined,
-): JustAnimeSource | undefined => {
-  const playable = (sources ?? []).filter(
-    (source) => Boolean(source.url) && source.isM3U8 !== false,
-  );
-  if (playable.length === 0) {
-    return undefined;
-  }
+export const ANINEKO_MIRRORS = ["hd2", "hd3", "hd1"] as const;
 
-  return [...playable].sort(
-    (a, b) => qualityRank(b.quality) - qualityRank(a.quality),
-  )[0];
-};
+export const rankJustanimeSources = (
+  sources: JustAnimeSource[] | undefined,
+): JustAnimeSource[] =>
+  [...(sources ?? [])]
+    .filter((source) => Boolean(source.url) && source.isM3U8 !== false)
+    .sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
 
 const mapQualities = (
   sources: JustAnimeSource[] | undefined,
@@ -119,22 +112,6 @@ const mapMegaplaySubtitles = (
   return mapped.length > 0 ? mapped : undefined;
 };
 
-const isPlayableAninekoStream = async (
-  streamUrl: string,
-  referer: string,
-): Promise<boolean> => {
-  const body = await probeHlsPlaylistBody(streamUrl, referer);
-  if (!body?.includes("#EXTM3U") || isBaitHlsPlaylist(body)) {
-    return false;
-  }
-
-  return (
-    await validateStreamUrlWithReferers(streamUrl, referer, "hls", {
-      depth: "master",
-    })
-  ).ok;
-};
-
 const fetchJson = async <T>(url: string): Promise<T | null> => {
   const response = await scrapeFetch(url, {
     headers: {
@@ -157,7 +134,7 @@ const scrapeAnineko = async (
 ): Promise<AnimeScrapeResult | null> => {
   const lang = input.translationType === "dub" ? "dub" : "sub";
 
-  for (const mirror of ["hd2", "hd3", "hd1"] as const) {
+  for (const mirror of ANINEKO_MIRRORS) {
     const payload = await fetchJson<JustAnimeAninekoResponse>(
       `${JUSTANIME_API}/watch/${input.anilistId}/episode/${input.episodeNumber}/anineko/${lang}/${mirror}`,
     );
@@ -166,12 +143,10 @@ const scrapeAnineko = async (
       continue;
     }
 
-    const ranked = [...(payload.sources ?? [])].sort(
-      (a, b) => qualityRank(b.quality) - qualityRank(a.quality),
-    );
+    const ranked = rankJustanimeSources(payload.sources);
 
     for (const candidate of ranked) {
-      if (!candidate.url || candidate.isM3U8 === false) {
+      if (!candidate.url) {
         continue;
       }
 
@@ -182,13 +157,14 @@ const scrapeAnineko = async (
         "https://vivibebe.site/",
       );
 
-      if (!(await isPlayableAninekoStream(candidate.url, referer))) {
+      if (!(await isPlayableHlsStream(candidate.url, referer))) {
         continue;
       }
 
       return {
         ok: true,
         providerId: "justanime",
+        validated: true,
         streamUrl: candidate.url,
         streamKind: "hls",
         referer,
@@ -220,58 +196,61 @@ const scrapeMegaplay = async (
       ? (payload.dub ?? payload.sub)
       : (payload.sub ?? payload.dub);
 
-  const best = pickBestSource(track?.sources);
-  if (!best?.url) {
-    return null;
+  const ranked = rankJustanimeSources(track?.sources);
+
+  for (const source of ranked) {
+    if (!source.url) {
+      continue;
+    }
+
+    const seedStreamUrl = source.url;
+    for (const streamUrl of megaplayPlaybackCandidateUrls(seedStreamUrl)) {
+      const referer = preferAnimeCdnReferer(
+        streamUrl,
+        track?.headers?.Referer ?? `${MEGAPLAY_ORIGIN}/`,
+        `${MEGAPLAY_ORIGIN}/`,
+      );
+
+      if (!(await isPlayableHlsStream(streamUrl, referer))) {
+        continue;
+      }
+
+      const playbackRefresh: MegaplayPlaybackRefresh = {
+        providerId: "megaplay",
+        referer,
+        seedStreamUrl: streamUrl,
+        justanime: {
+          anilistId: input.anilistId,
+          episodeNumber: input.episodeNumber,
+          translationType: input.translationType,
+        },
+      };
+
+      return {
+        ok: true,
+        providerId: "justanime",
+        validated: true,
+        streamUrl,
+        streamKind: "hls",
+        referer,
+        playbackRefresh,
+        subtitles: mapMegaplaySubtitles(track?.subtitles),
+        qualities: mapQualities(track?.sources, seedStreamUrl, referer)?.map(
+          (quality) => ({
+            ...quality,
+            url:
+              megaplayPlaybackCandidateUrls(quality.url)[0] ??
+              wrapJustanimeMegaplayStreamUrl(quality.url),
+          }),
+        ),
+        preferredAudioLang: preferredAudioLangForTranslation(
+          input.translationType,
+        ),
+      };
+    }
   }
 
-  const seedStreamUrl = best.url;
-  const streamUrl = wrapJustanimeMegaplayStreamUrl(seedStreamUrl);
-  const referer = refererForJustanimeStreamUrl(
-    streamUrl,
-    track?.headers?.Referer,
-    `${MEGAPLAY_ORIGIN}/`,
-  );
-
-  // nekostream/kotocdn bait VPN egress with PNG segments; momo master is enough when wrapped.
-  const playable = (
-    await validateStreamUrlWithReferers(streamUrl, referer, "hls", {
-      depth: "master",
-    })
-  ).ok;
-  if (!playable) {
-    return null;
-  }
-
-  const playbackRefresh: MegaplayPlaybackRefresh = {
-    providerId: "megaplay",
-    referer,
-    seedStreamUrl,
-    justanime: {
-      anilistId: input.anilistId,
-      episodeNumber: input.episodeNumber,
-      translationType: input.translationType,
-    },
-  };
-
-  return {
-    ok: true,
-    providerId: "justanime",
-    // Momo-wrapped nekostream can't pass segment probes from VPN egress (PNG bait).
-    validated: streamUrl.includes("momo.justanime.to") ? true : undefined,
-    streamUrl,
-    streamKind: "hls",
-    referer,
-    playbackRefresh,
-    subtitles: mapMegaplaySubtitles(track?.subtitles),
-    qualities: mapQualities(track?.sources, seedStreamUrl, referer)?.map(
-      (quality) => ({
-        ...quality,
-        url: wrapJustanimeMegaplayStreamUrl(quality.url),
-      }),
-    ),
-    preferredAudioLang: preferredAudioLangForTranslation(input.translationType),
-  };
+  return null;
 };
 
 export async function scrapeJustanime(

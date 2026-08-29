@@ -1,3 +1,4 @@
+import { IS_DEV } from "@/lib/cache-policy";
 import {
   ALL_FLAG_DEFINITIONS,
   DEFAULT_FLAG_VALUES,
@@ -9,6 +10,11 @@ import {
   sanitizeAnnouncementBannerConfig,
   type AnnouncementBannerConfig,
 } from "@/lib/flags/announcement-banner";
+import {
+  DEFAULT_PROVIDER_MENU_ORDER,
+  sanitizeProviderMenuOrderConfig,
+  type ProviderMenuOrderConfig,
+} from "@/lib/flags/provider-menu-order";
 
 export const FLIPT_URL =
   process.env.FLIPT_URL?.replace(/\/$/, "") ??
@@ -19,7 +25,10 @@ export const FLIPT_ENVIRONMENT = process.env.FLIPT_ENVIRONMENT ?? "default";
 export const FLIPT_NAMESPACE = process.env.FLIPT_NAMESPACE ?? "default";
 export const FLIPT_API_TOKEN = process.env.FLIPT_API_TOKEN ?? "";
 
-const CACHE_TTL_MS = Number(process.env.FLIPT_FLAG_CACHE_TTL_MS ?? "30000");
+/** Flags change rarely; long TTL avoids Flipt fan-out under scrape load. */
+const CACHE_TTL_MS = IS_DEV
+  ? 0
+  : Number(process.env.FLIPT_FLAG_CACHE_TTL_MS ?? "600000");
 const FLAG_TYPE_URL = "flipt.core.Flag";
 
 /** Flipt v2 keys only allow [-_,A-Za-z0-9]; catalog keys use dots. */
@@ -258,6 +267,7 @@ export async function readAdminFlagState(): Promise<AdminFlagState> {
 export async function writeAdminFlagState(
   state: AdminFlagState,
   announcementBanner?: AnnouncementBannerConfig,
+  providerMenuOrder?: ProviderMenuOrderConfig,
 ): Promise<void> {
   const listed = await listFlags();
   const existing = new Map(
@@ -272,17 +282,27 @@ export async function writeAdminFlagState(
     const enabled = state[def.key] ?? def.defaultValue;
     const current = existing.get(toFliptStorageKey(def.key));
     const isAnnouncement = def.key === "global.announcement_banner";
+    const isMenuOrder = def.key === "global.provider_menu_order";
     const bannerConfig =
       isAnnouncement && announcementBanner
         ? sanitizeAnnouncementBannerConfig(announcementBanner)
         : undefined;
+    const menuOrderConfig =
+      isMenuOrder && providerMenuOrder
+        ? sanitizeProviderMenuOrderConfig(providerMenuOrder)
+        : undefined;
     const metadata = bannerConfig
       ? { ...(current?.metadata ?? {}), announcementBanner: bannerConfig }
-      : undefined;
+      : menuOrderConfig
+        ? { ...(current?.metadata ?? {}), providerMenuOrder: menuOrderConfig }
+        : undefined;
     const configChanged = Boolean(
-      bannerConfig &&
+      (bannerConfig &&
         JSON.stringify(current?.metadata?.announcementBanner) !==
-          JSON.stringify(bannerConfig),
+          JSON.stringify(bannerConfig)) ||
+        (menuOrderConfig &&
+          JSON.stringify(current?.metadata?.providerMenuOrder) !==
+            JSON.stringify(menuOrderConfig)),
     );
     if (!current) {
       revision = await mutateFlag(
@@ -326,6 +346,27 @@ export async function readAnnouncementBannerConfig(): Promise<AnnouncementBanner
   } catch (error) {
     enterFailureCooldown(now, error);
     return { ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG };
+  }
+}
+
+export async function readProviderMenuOrderConfig(): Promise<ProviderMenuOrderConfig> {
+  const now = Date.now();
+  if (failureCacheExpiresAt > now) {
+    return { ...DEFAULT_PROVIDER_MENU_ORDER };
+  }
+
+  try {
+    const listed = await listFlags();
+    const menuOrderFlag = (listed.resources ?? []).find(
+      (resource) =>
+        resource.key === toFliptStorageKey("global.provider_menu_order"),
+    );
+    return sanitizeProviderMenuOrderConfig(
+      menuOrderFlag?.payload.metadata?.providerMenuOrder,
+    );
+  } catch (error) {
+    enterFailureCooldown(now, error);
+    return { ...DEFAULT_PROVIDER_MENU_ORDER };
   }
 }
 

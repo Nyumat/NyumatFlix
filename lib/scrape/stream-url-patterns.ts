@@ -6,7 +6,7 @@ export const looksLikeHlsStreamUrl = (url: string): boolean =>
   /goodstream\.cc\/(?:streamsvr|pl)\//i.test(url) ||
   /1x2\.space\/playlist\//i.test(url) ||
   /api\.kyren\.moe\/v1\/hls\//i.test(url) ||
-  /vixsrc\.to\/playlist\//i.test(url) ||
+  /(?:vixsrc\.to|vixcloud\.co)\/playlist\//i.test(url) ||
   /wormhole\.filmu\.in\/proxy\/m3u8/i.test(url) ||
   /ani\.pm\/api\/anime\/src\/hls(?:[?#].*|$)/i.test(url) ||
   /\/pl\/[A-Za-z0-9._-]{20,}/i.test(url);

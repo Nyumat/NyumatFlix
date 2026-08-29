@@ -5,13 +5,15 @@ export type ParsedVidKingCdnUrl = {
 };
 
 /**
- * VidKing rotates CDN hostnames (shadowlemon → ironbubble → …). Fingerprint the
- * stable path shape instead of hardcoding hosts so playback keeps working.
+ * VidKing rotates CDN hostnames (shadowlemon → ironbubble → peakstorm → …).
+ * Fingerprint the stable path shape instead of hardcoding hosts so playback
+ * keeps working. Current mint path is `/vd/{token}/…`; older `/r2/cdn{1,2}/`
+ * URLs still parse for in-flight refreshes.
  */
-const VIDKING_CDN_PATHNAME = /^\/(?:r2\/)?cdn[12]\/[^/]+\/.+/i;
+const VIDKING_CDN_PATHNAME = /^\/(?:(?:r2\/)?cdn[12]|vd)\/[^/]+\/.+/i;
 
 const VIDKING_CDN_PATH =
-  /^((?:https?:\/\/[^/?#]+)(?:\/r2)?\/cdn[12])\/([^/]+)\/(.+)$/i;
+  /^((?:https?:\/\/[^/?#]+)(?:(?:\/r2)?\/cdn[12]|\/vd))\/([^/]+)\/(.+)$/i;
 
 const VIDKING_CDN_HOST_PATTERN =
   /(?:^|\.)ironwallnet\.net$|(?:^|\.)ironbubble\.site$|(?:^|\.)realworkers\.workers\.dev$/i;
@@ -81,10 +83,10 @@ export const normalizeVidKingAssetHost = (
     const asset = new URL(assetUrl);
     const playlist = new URL(playlistUrl);
     const assetPath = asset.pathname.match(
-      /^\/(?:r2\/)?cdn[12]\/([^/]+)\/(.+)$/i,
+      /^\/(?:(?:r2\/)?cdn[12]|vd)\/([^/]+)\/(.+)$/i,
     );
     const playlistPath = playlist.pathname.match(
-      /^\/(?:r2\/)?cdn[12]\/([^/]+)\/(.+)$/i,
+      /^\/(?:(?:r2\/)?cdn[12]|vd)\/([^/]+)\/(.+)$/i,
     );
     if (
       asset.protocol === "https:" &&

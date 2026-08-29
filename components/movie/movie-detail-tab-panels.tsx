@@ -3,7 +3,6 @@
 import { ExpandableCastGrid } from "@/components/media/expandable-cast-grid";
 import { MovieCard } from "@/components/movie/movie-card";
 import { MovieOverviewTab } from "@/components/movie/movie-overview-tab";
-import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import {
   fetchMovieCreditsClient,
   fetchMovieDetailsClient,
@@ -66,19 +65,17 @@ const GridSectionFallback = ({ title }: { title: string }) => (
 
 const OverviewSection = ({ movieId }: MovieDetailTabPanelsProps) => {
   const numId = Number.parseInt(movieId, 10);
-  const isHydrated = useIsHydrated();
 
-  const { data: raw } = useQuery({
+  const { data: raw, isPending } = useQuery({
     queryKey: queryKeys.movieDetails(numId),
     queryFn: async () => {
       const movie = await fetchMovieDetailsClient(movieId);
       if (!movie || !("title" in movie)) throw new Error("Movie not found");
       return movie;
     },
-    enabled: isHydrated,
   });
 
-  if (!isHydrated || !raw) return <OverviewFallback />;
+  if (isPending && !raw) return <OverviewFallback />;
 
   return (
     <DetailSection title="Overview">
@@ -91,14 +88,14 @@ const OverviewSection = ({ movieId }: MovieDetailTabPanelsProps) => {
 };
 
 const CastSection = ({ movieId }: MovieDetailTabPanelsProps) => {
-  const isHydrated = useIsHydrated();
-  const { data: credits } = useQuery({
+  const { data: credits, isPending } = useQuery({
     queryKey: queryKeys.movieTabCredits(movieId),
     queryFn: () => fetchMovieCreditsClient(movieId),
-    enabled: isHydrated,
   });
 
-  if (!isHydrated || !credits) return <GridSectionFallback title="Cast" />;
+  if (isPending && !credits) return <GridSectionFallback title="Cast" />;
+
+  if (!credits) return <GridSectionFallback title="Cast" />;
 
   return (
     <DetailSection title="Cast">
@@ -112,14 +109,16 @@ const CastSection = ({ movieId }: MovieDetailTabPanelsProps) => {
 };
 
 const RecommendationsSection = ({ movieId }: MovieDetailTabPanelsProps) => {
-  const isHydrated = useIsHydrated();
-  const { data: recommendationsData } = useQuery({
+  const { data: recommendationsData, isPending } = useQuery({
     queryKey: queryKeys.movieTabRecommendations(movieId, "1"),
     queryFn: () => fetchMovieRecommendationsPageClient(movieId, "1"),
-    enabled: isHydrated,
   });
 
-  if (!isHydrated || !recommendationsData) {
+  if (isPending && !recommendationsData) {
+    return <GridSectionFallback title="You Might Like" />;
+  }
+
+  if (!recommendationsData) {
     return <GridSectionFallback title="You Might Like" />;
   }
 

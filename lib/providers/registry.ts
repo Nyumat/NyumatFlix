@@ -18,6 +18,7 @@ export type AnimeScrapeProviderId =
   | "anizone"
   | "anipm"
   | "hentaigasm"
+  | "hentaini"
   | "kickassanime"
   | "animeonsen"
   | "allmanga"
@@ -42,7 +43,8 @@ export type EmbedProviderId =
   | "vidlink"
   | "vidcore"
   | "1embed"
-  | "vidlux";
+  | "vidlux"
+  | "hentaini";
 
 export type ProviderCapabilities = {
   embed: boolean;
@@ -98,6 +100,7 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("vidcore", "VidCore", { embed: true }),
   provider("1embed", "1Embed", { embed: true }),
   provider("vidlux", "VidLux", { embed: true }),
+  provider("hentaini", "Hentaini", { embed: true, animeEmbed: true }),
 ];
 
 /** Order from latency bench (scripts/bench-scrape-latency.mts); client races batches of 3. */
@@ -125,8 +128,9 @@ export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
 /**
  * Order from latency bench (non-adult). Client races batches of 3 via
  * useProviderScrapeLoop; all providers pass full validate + play-path gates.
- * Adult-only `anipm` / `hentaigasm` stay last — `buildAnimePlaybackProviderOrder`
- * promotes them when eligible.
+ * Adult-only `anipm` / `hentaigasm` / `hentaini` stay last — `buildAnimePlaybackProviderOrder`
+ * promotes them when eligible, then races Direct with the first two anime scrapers
+ * on high-confidence TMDB mappings.
  */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("justanime", "JustAnime", { embed: false, animeScrape: true }),
@@ -141,6 +145,7 @@ export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("anikuro", "AniKuro", { embed: false, animeScrape: true }),
   provider("anipm", "ani.pm", { embed: false, animeScrape: true }),
   provider("hentaigasm", "Hentaigasm", { embed: false, animeScrape: true }),
+  provider("hentaini", "Hentaini", { embed: false, animeScrape: true }),
 ];
 
 export const TMDB_SCRAPE_PROVIDER_ORDER = TMDB_SCRAPE_PROVIDER_REGISTRY.map(
@@ -195,7 +200,10 @@ const animeScrapeIdSet = new Set<string>(ANIME_SCRAPE_PROVIDER_ORDER);
 
 export const embedOnlyProviderIds = (): string[] =>
   EMBED_PROVIDER_REGISTRY.filter(
-    (entry) => entry.capabilities.embed && !tmdbScrapeIdSet.has(entry.id),
+    (entry) =>
+      entry.capabilities.embed &&
+      !tmdbScrapeIdSet.has(entry.id) &&
+      !animeScrapeIdSet.has(entry.id),
   ).map((entry) => entry.id);
 
 export const dualCapabilityEmbedProviderIds = (): string[] =>

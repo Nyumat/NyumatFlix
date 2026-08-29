@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 
-import { fetchCalluspirates } from "@/lib/scrape/calluspirates-fetch";
 import { rewriteStreamsResponse } from "@/lib/direct/client-streams";
-import type { DirectStreamsResponse } from "@/lib/direct/types";
+import { discoverTvStreamsUpstream } from "@/lib/direct/discover-streams-upstream";
+import { mintCalluspiratesClientSession } from "@/lib/direct/server-session";
 import {
   getCalluspiratesApiUrl,
   isDirectScrapeProviderConfigured,
 } from "@/lib/scrape/calluspirates-config";
+
+export const maxDuration = 300;
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -51,33 +53,29 @@ export async function GET(request: Request, context: RouteContext) {
     );
   }
 
-  let upstream: Response;
+  const fresh = url.searchParams.get("fresh") === "1";
+  const quick = url.searchParams.get("quick") === "1";
+
   try {
-    const params = new URLSearchParams({
-      season: String(season),
-      episode: String(episode),
-    });
-    if (url.searchParams.get("fresh") === "1") {
-      params.set("fresh", "1");
-    }
-    upstream = await fetchCalluspirates(
-      `${apiBase}/api/tv/${tmdbId}/streams?${params.toString()}`,
-      { timeoutMs: 120_000 },
+    const sessionPromise = mintCalluspiratesClientSession();
+    const payload = await discoverTvStreamsUpstream(
+      apiBase,
+      tmdbId,
+      season,
+      episode,
+      { fresh, quick, signal: request.signal },
+    );
+    const session = await sessionPromise;
+    return NextResponse.json(
+      rewriteStreamsResponse(
+        session?.apiBase ?? apiBase,
+        payload,
+        session?.token,
+      ),
     );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Upstream fetch failed";
     return NextResponse.json({ error: message }, { status: 502 });
   }
-
-  if (!upstream.ok) {
-    const detail = await upstream.text().catch(() => "");
-    return NextResponse.json(
-      { error: detail || `Upstream ${upstream.status}` },
-      { status: upstream.status },
-    );
-  }
-
-  const payload = (await upstream.json()) as DirectStreamsResponse;
-  return NextResponse.json(rewriteStreamsResponse(apiBase, payload));
 }

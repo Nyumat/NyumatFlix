@@ -1,5 +1,6 @@
 import {
   getSearchAutocompleteItemCount,
+  getSearchResultHref,
   resolveSearchAutocompleteSelection,
 } from "@/components/search/search-autocomplete";
 import type { SearchPreviewResult } from "@/lib/api";
@@ -45,5 +46,16 @@ describe("search autocomplete helpers", () => {
         includeFooter: false,
       }),
     ).toBeNull();
+  });
+
+  test("uses custom href for AniList routes", () => {
+    const animeResult = {
+      id: 21222,
+      title: "Mankitsu Happening",
+      media_type: "tv",
+      href: "/anime/21222",
+    } as SearchPreviewResult;
+
+    expect(getSearchResultHref(animeResult)).toBe("/anime/21222");
   });
 });

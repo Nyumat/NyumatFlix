@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import { queryStaleTime } from "@/lib/cache-policy";
 import {
   extractVideoRowsFromMediaVideos,
   selectPrimaryTrailerVideo,
@@ -49,6 +50,6 @@ export function useMediaVideosQuery(
     },
     enabled,
     initialData: initialVideos,
-    staleTime: 30 * 60 * 1000,
+    staleTime: queryStaleTime(30 * 60 * 1000),
   });
 }

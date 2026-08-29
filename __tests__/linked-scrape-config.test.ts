@@ -8,6 +8,7 @@ import {
 import {
   buildScrapeQualityPlayOptions,
   isAbrOnlyQualityFailover,
+  pickDefaultScrapeQualityIndex,
 } from "@/lib/scrape/player-sources";
 import {
   aggregateWingsdatabaseQualities,
@@ -161,6 +162,45 @@ describe("linked scrape config", () => {
     ).toBe(false);
 
     expect(isAbrOnlyQualityFailover([{ label: "Auto" }])).toBe(false);
+  });
+
+  it("defaults scrape playback to the highest available quality tier", () => {
+    const options = buildScrapeQualityPlayOptions(
+      "https://cdn.example/r2/cdn2/tok/playlist.m3u8",
+      [
+        {
+          label: "1080p",
+          url: "https://cdn.example/r2/cdn2/tok/1080p/index.m3u8",
+        },
+        {
+          label: "720p",
+          url: "https://cdn.example/r2/cdn2/tok/720p/index.m3u8",
+        },
+      ],
+      "https://referer.example/",
+    );
+
+    expect(pickDefaultScrapeQualityIndex(options)).toBe(1);
+    expect(options[1]?.label).toBe("1080p");
+  });
+
+  it("keeps the primary tier when it is already the highest quality", () => {
+    const options = buildScrapeQualityPlayOptions(
+      "https://cdn.example/r2/cdn2/tok/1080p/index.m3u8",
+      [
+        {
+          label: "1080p",
+          url: "https://cdn.example/r2/cdn2/tok/1080p/index.m3u8",
+        },
+        {
+          label: "720p",
+          url: "https://cdn.example/r2/cdn2/tok/720p/index.m3u8",
+        },
+      ],
+      "https://referer.example/",
+    );
+
+    expect(pickDefaultScrapeQualityIndex(options)).toBe(0);
   });
 
   it("dedupes identical subtitle urls", () => {

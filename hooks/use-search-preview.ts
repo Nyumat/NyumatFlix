@@ -1,6 +1,7 @@
 "use client";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { queryStaleTime } from "@/lib/cache-policy";
 import { fetchSearchPreview, type SearchPreviewResult } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { useQuery } from "@tanstack/react-query";
@@ -26,7 +27,7 @@ export function useSearchPreview(
     queryKey: queryKeys.searchPreview(debouncedQuery),
     queryFn: ({ signal }) => fetchSearchPreview(debouncedQuery, signal),
     enabled: debouncedQuery.length >= 2,
-    staleTime: 2 * 60 * 1000,
+    staleTime: queryStaleTime(2 * 60 * 1000),
   });
 
   const errorMessage = useMemo(() => {

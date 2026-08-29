@@ -1,9 +1,15 @@
+import { scrapePreferProxyHostname } from "@/lib/scrape/proxy-hosts";
+import { scrapeProxyDispatcher, scrapeProxyUrl } from "@/lib/scrape/proxy";
+
 export const VIDEO_SERVER_HEALTH_TIMEOUT_MS = 4_000;
 
 const ALLOWED_VIDEO_SERVER_HOSTS = new Set([
   "vsembed.ru",
   "vidsrc.wtf",
+  "viduki.net",
+  "www.viduki.net",
   "multiembed.mov",
+  "www.multiembed.mov",
   "www.2embed.cc",
   "111movies.com",
   "vidnest.fun",
@@ -15,6 +21,7 @@ const ALLOWED_VIDEO_SERVER_HOSTS = new Set([
   "www.vidcore.org",
   "1embed.cc",
   "vidlux.xyz",
+  "hentaini.com",
 ]);
 
 const VIDNEST_RESOLVERS = [
@@ -76,12 +83,30 @@ async function fetchBounded(
   signal?: AbortSignal,
 ): Promise<Response> {
   const timeoutSignal = AbortSignal.timeout(VIDEO_SERVER_HEALTH_TIMEOUT_MS);
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutSignal])
+    : timeoutSignal;
+
+  let hostname = "";
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    hostname = "";
+  }
+
+  const proxyDispatcher =
+    scrapeProxyUrl() && scrapePreferProxyHostname(hostname)
+      ? scrapeProxyDispatcher()
+      : undefined;
+
   return fetch(url, {
     method: "GET",
     headers,
     redirect: "follow",
-    signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
+    signal: combinedSignal,
     cache: "no-store",
+    // @ts-expect-error undici dispatcher for gluetun egress
+    dispatcher: proxyDispatcher,
   });
 }
 
@@ -267,6 +292,28 @@ async function check2Embed(
   }
 }
 
+async function checkMultiembed(
+  value: string,
+  signal?: AbortSignal,
+): Promise<VideoServerHealthResult> {
+  try {
+    const response = await fetchBounded(
+      value,
+      { Accept: "text/html,application/xhtml+xml" },
+      signal,
+    );
+    const status = response.status;
+    await response.body?.cancel();
+
+    if (status >= 200 && status < 400) {
+      return result("available", status, "http-status");
+    }
+    return result("unavailable", status, "http-status");
+  } catch {
+    return result("unknown", null, "network");
+  }
+}
+
 export async function checkVideoServerUrl(
   value: string,
   signal?: AbortSignal,
@@ -275,7 +322,20 @@ export async function checkVideoServerUrl(
 
   if (url.hostname === "vidnest.fun") return checkVidnest(url, signal);
   if (url.hostname === "www.2embed.cc") return check2Embed(value, signal);
-  if (url.hostname === "vsembed.ru" || url.hostname === "player.videasy.net") {
+  if (
+    url.hostname === "multiembed.mov" ||
+    url.hostname === "www.multiembed.mov"
+  ) {
+    return checkMultiembed(value, signal);
+  }
+  if (
+    url.hostname === "vsembed.ru" ||
+    url.hostname === "player.videasy.net" ||
+    url.hostname === "vidsrc.wtf" ||
+    url.hostname === "www.vidsrc.wtf" ||
+    url.hostname === "viduki.net" ||
+    url.hostname === "www.viduki.net"
+  ) {
     return checkHttpStatus(value, signal);
   }
 

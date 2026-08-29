@@ -6,7 +6,6 @@ import { fetchWithCapSession } from "@/lib/cap/client";
 import { areScrapeProvidersExhausted } from "@/lib/scrape/scrape-provider-menu";
 import {
   clearPreferredScrapeProvider,
-  getPreferredScrapeProvider,
   setPreferredScrapeProvider,
 } from "@/lib/scrape/preferred-provider";
 import {
@@ -14,22 +13,57 @@ import {
   getScrapeAttemptTimeoutMs,
   nextRaceBatch,
   pickRaceWinner,
+  pickScoredRaceWinner,
   reorderProvidersWithPreferred,
   SCRAPE_RACE_CONCURRENCY,
+  SCRAPE_RACE_FIRST_WIN,
+  SOLO_FIRST_SCRAPE_PROVIDERS,
   type RaceAttemptEntry,
 } from "@/lib/scrape/provider-race";
 import {
   classifySiblingCancel,
   shouldFinalizeBatchWinner,
+  shouldFinalizeRaceWinner,
   type ScrapeCancelReason,
 } from "@/lib/scrape/scrape-race-batch";
-import type { ScrapeItem, ScrapeItemStatus } from "@/lib/scrape/types";
+import type {
+  ScrapeItem,
+  ScrapeItemStatus,
+  ScrapeSubtitle,
+} from "@/lib/scrape/types";
+import {
+  mapWithConcurrency,
+  mergePayloadSubtitles,
+  SUBTITLE_HARVEST_CONCURRENCY,
+  type HarvestableScrapePayload,
+} from "@/lib/scrape/subtitle-harvest";
 
 export type ProviderScrapePlayerStatus =
   | "idle"
   | "scraping"
   | "playing"
   | "error";
+
+export const DEFAULT_SCRAPE_RETRY_ATTEMPTS = 2;
+export const DEFAULT_SCRAPE_RETRY_DELAY_MS = 500;
+
+function waitWithSignal(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
 
 type ScrapeAttemptResult<TPayload> =
   | { outcome: "success"; payload: TPayload }
@@ -39,7 +73,7 @@ type ScrapeAttemptResult<TPayload> =
 export type ProviderScrapeLoopConfig<
   TProviderId extends string,
   TInput,
-  _TPayload extends { providerId: TProviderId },
+  _TPayload extends { providerId: TProviderId } & HarvestableScrapePayload,
 > = {
   providerOrder: readonly TProviderId[];
   resolveProviderOrder?: (input: TInput) => readonly TProviderId[];
@@ -52,6 +86,20 @@ export type ProviderScrapeLoopConfig<
     input: TInput,
   ) => Record<string, unknown>;
   onAllProvidersFailed?: () => void;
+  soloFirstProviders?: ReadonlySet<string>;
+  /** First successful scrape in a batch wins (TMDB overlay). */
+  raceFirstWin?: boolean;
+  /** Number of retries on failure (default 2, meaning 3 attempts total). */
+  retryAttempts?: number;
+  /** Delay between retries in milliseconds (default 500). */
+  retryDelayMs?: number;
+  /** When set, wait for the batch to finish and pick the best-scoring success. */
+  scoreRacePayload?: (payload: _TPayload) => number;
+  harvestSubtitleProviders?: (
+    winnerId: TProviderId,
+    order: readonly TProviderId[],
+    failed: ReadonlySet<TProviderId>,
+  ) => readonly TProviderId[];
 };
 
 const initialItems = <TProviderId extends string>(
@@ -67,7 +115,7 @@ const initialItems = <TProviderId extends string>(
 export function useProviderScrapeLoop<
   TProviderId extends string,
   TInput,
-  TPayload extends { providerId: TProviderId },
+  TPayload extends { providerId: TProviderId } & HarvestableScrapePayload,
 >(config: ProviderScrapeLoopConfig<TProviderId, TInput, TPayload>) {
   const {
     providerOrder,
@@ -78,7 +126,16 @@ export function useProviderScrapeLoop<
     apiPath,
     buildRequestBody,
     onAllProvidersFailed,
+    soloFirstProviders = SOLO_FIRST_SCRAPE_PROVIDERS,
+    raceFirstWin = SCRAPE_RACE_FIRST_WIN,
+    retryAttempts = DEFAULT_SCRAPE_RETRY_ATTEMPTS,
+    retryDelayMs = DEFAULT_SCRAPE_RETRY_DELAY_MS,
+    scoreRacePayload,
+    harvestSubtitleProviders,
   } = config;
+
+  const useScoredRaceWinner = Boolean(scoreRacePayload) && !raceFirstWin;
+  const shouldRaceFirstWin = raceFirstWin;
 
   const activeProviderOrderRef = useRef<readonly TProviderId[]>(providerOrder);
 
@@ -95,11 +152,9 @@ export function useProviderScrapeLoop<
 
   const syncItems = useCallback(
     (updater: (current: ScrapeItem[]) => ScrapeItem[]) => {
-      setItems((current) => {
-        const next = updater(current);
-        itemsRef.current = next;
-        return next;
-      });
+      const next = updater(itemsRef.current);
+      itemsRef.current = next;
+      setItems(next);
     },
     [],
   );
@@ -252,70 +307,197 @@ export function useProviderScrapeLoop<
       input: TInput,
       runId: number,
       signal: AbortSignal,
+      options: { quiet?: boolean; maxRetries?: number } = {},
     ): Promise<ScrapeAttemptResult<TPayload>> => {
-      updateItem(providerId, { status: "pending", error: undefined });
+      const quiet = options.quiet === true;
+      const retries = options.maxRetries ?? retryAttempts;
 
-      let response: Response;
+      if (!quiet) {
+        updateItem(providerId, { status: "pending", error: undefined });
+      }
 
-      try {
-        response = await fetchWithCapSession(apiPath, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildRequestBody(providerId, input)),
-          signal,
-        });
-      } catch {
+      let lastErrorMessage = "Request failed";
+      let isUnavailable = false;
+
+      for (let attempt = 0; attempt <= retries; attempt++) {
         if (runId !== runIdRef.current || signal.aborted) {
           return { outcome: "cancelled", reason: resolveCancelReason(signal) };
         }
 
-        updateItem(providerId, {
-          status: "failure",
-          error: "Request failed",
-        });
-        return { outcome: "failure" };
-      }
+        if (attempt > 0) {
+          await waitWithSignal(retryDelayMs * attempt, signal);
+          if (runId !== runIdRef.current || signal.aborted) {
+            return {
+              outcome: "cancelled",
+              reason: resolveCancelReason(signal),
+            };
+          }
+        }
 
-      if (runId !== runIdRef.current || signal.aborted) {
-        return { outcome: "cancelled", reason: resolveCancelReason(signal) };
-      }
+        let response: Response;
 
-      let rawPayload: Record<string, unknown>;
+        try {
+          response = await fetchWithCapSession(apiPath, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildRequestBody(providerId, input)),
+            signal,
+          });
+        } catch {
+          if (runId !== runIdRef.current || signal.aborted) {
+            return {
+              outcome: "cancelled",
+              reason: resolveCancelReason(signal),
+            };
+          }
+          lastErrorMessage = "Request failed";
+          continue;
+        }
 
-      try {
-        rawPayload = (await response.json()) as Record<string, unknown>;
-      } catch {
         if (runId !== runIdRef.current || signal.aborted) {
           return { outcome: "cancelled", reason: resolveCancelReason(signal) };
         }
 
+        let rawPayload: Record<string, unknown>;
+
+        try {
+          rawPayload = (await response.json()) as Record<string, unknown>;
+        } catch {
+          if (runId !== runIdRef.current || signal.aborted) {
+            return {
+              outcome: "cancelled",
+              reason: resolveCancelReason(signal),
+            };
+          }
+          lastErrorMessage = "Invalid response";
+          continue;
+        }
+
+        if (runId !== runIdRef.current || signal.aborted) {
+          return { outcome: "cancelled", reason: resolveCancelReason(signal) };
+        }
+
+        if (!rawPayload.ok) {
+          lastErrorMessage =
+            typeof rawPayload.error === "string"
+              ? rawPayload.error
+              : "Unknown error";
+          isUnavailable = rawPayload.unavailable === true;
+
+          // Non-retryable permanent failures
+          if (
+            isUnavailable ||
+            response.status === 403 ||
+            lastErrorMessage === "Provider disabled by site policy" ||
+            lastErrorMessage === "Direct provider is not available on this site"
+          ) {
+            break;
+          }
+
+          continue;
+        }
+
+        if (!quiet) {
+          updateItem(providerId, { status: "success", error: undefined });
+        }
+        return { outcome: "success", payload: rawPayload as TPayload };
+      }
+
+      if (!quiet) {
         updateItem(providerId, {
-          status: "failure",
-          error: "Invalid response",
+          status: isUnavailable ? "unavailable" : "failure",
+          error: lastErrorMessage,
         });
-        return { outcome: "failure" };
       }
-
-      if (runId !== runIdRef.current || signal.aborted) {
-        return { outcome: "cancelled", reason: resolveCancelReason(signal) };
-      }
-
-      if (!rawPayload.ok) {
-        const errorMessage =
-          typeof rawPayload.error === "string"
-            ? rawPayload.error
-            : "Unknown error";
-        updateItem(providerId, {
-          status: rawPayload.unavailable === true ? "unavailable" : "failure",
-          error: errorMessage,
-        });
-        return { outcome: "failure" };
-      }
-
-      updateItem(providerId, { status: "success", error: undefined });
-      return { outcome: "success", payload: rawPayload as TPayload };
+      return { outcome: "failure" };
     },
-    [apiPath, buildRequestBody, resolveCancelReason, updateItem],
+    [
+      apiPath,
+      buildRequestBody,
+      resolveCancelReason,
+      retryAttempts,
+      retryDelayMs,
+      updateItem,
+    ],
+  );
+
+  const payloadSubtitles = (payload: TPayload | undefined): ScrapeSubtitle[] =>
+    payload?.subtitles ?? [];
+
+  const harvestRemainingSubtitles = useCallback(
+    async (
+      runId: number,
+      input: TInput,
+      winnerId: TProviderId,
+      order: readonly TProviderId[],
+      failed: ReadonlySet<TProviderId>,
+      alreadyHarvested: ReadonlySet<TProviderId>,
+    ) => {
+      if (!harvestSubtitleProviders) {
+        return;
+      }
+
+      const donorIds = harvestSubtitleProviders(winnerId, order, failed).filter(
+        (providerId) =>
+          providerId !== winnerId && !alreadyHarvested.has(providerId),
+      );
+
+      await mapWithConcurrency(
+        donorIds,
+        SUBTITLE_HARVEST_CONCURRENCY,
+        async (providerId) => {
+          if (runId !== runIdRef.current) {
+            return;
+          }
+
+          const controller = new AbortController();
+          abortControllersRef.current.add(controller);
+          const timeoutId = window.setTimeout(
+            () => {
+              if (!controller.signal.aborted) {
+                controller.abort("timeout");
+              }
+            },
+            getScrapeAttemptTimeoutMs(providerId, true),
+          );
+          controller.signal.addEventListener(
+            "abort",
+            () => window.clearTimeout(timeoutId),
+            { once: true },
+          );
+
+          try {
+            const attempt = await scrapeProvider(
+              providerId,
+              input,
+              runId,
+              controller.signal,
+              { quiet: true },
+            );
+
+            if (runId !== runIdRef.current) {
+              return;
+            }
+
+            if (attempt.outcome !== "success") {
+              return;
+            }
+
+            const incoming = payloadSubtitles(attempt.payload);
+            if (incoming.length === 0) {
+              return;
+            }
+
+            setResult((current) =>
+              current ? mergePayloadSubtitles(current, incoming) : current,
+            );
+          } finally {
+            abortControllersRef.current.delete(controller);
+          }
+        },
+      );
+    },
+    [harvestSubtitleProviders, scrapeProvider],
   );
 
   const reopenSkippedProviders = useCallback(
@@ -437,6 +619,7 @@ export function useProviderScrapeLoop<
           batchStartIndex,
           failed,
           SCRAPE_RACE_CONCURRENCY,
+          soloFirstProviders,
         );
         batchStartIndex = nextIndex;
 
@@ -461,21 +644,34 @@ export function useProviderScrapeLoop<
           }
         };
 
+        let batchWinner: ScrapeAttemptResult<TPayload> | null = null;
+        let resolveBatchEarly: (() => void) | undefined;
+        const batchEarlyPromise = new Promise<void>((resolve) => {
+          resolveBatchEarly = resolve;
+        });
+
         const tryFinalizeWinner = (): ScrapeAttemptResult<TPayload> | null => {
-          const winnerEntry = shouldFinalizeBatchWinner(
-            order,
-            successes,
-            pending,
-          );
+          const winnerEntry = shouldRaceFirstWin
+            ? shouldFinalizeRaceWinner(successes)
+            : shouldFinalizeBatchWinner(
+                order,
+                successes,
+                pending,
+                useScoredRaceWinner ? scoreRacePayload : undefined,
+              );
           if (!winnerEntry?.attempt.payload) {
             return null;
           }
 
           cancelSiblings(winnerEntry.providerId);
-          return {
+          const finalizedAttempt: ScrapeAttemptResult<TPayload> = {
             outcome: "success",
             payload: winnerEntry.attempt.payload,
           };
+          batchWinner = finalizedAttempt;
+          resolveBatchEarly?.();
+          resolveBatchEarly = undefined;
+          return finalizedAttempt;
         };
 
         const attemptPromises = batch.map(
@@ -490,11 +686,14 @@ export function useProviderScrapeLoop<
             controllers.set(providerId, controller);
             abortControllersRef.current.add(controller);
 
-            const timeoutId = window.setTimeout(() => {
-              if (!controller.signal.aborted) {
-                controller.abort("timeout");
-              }
-            }, getScrapeAttemptTimeoutMs(providerId));
+            const timeoutId = window.setTimeout(
+              () => {
+                if (!controller.signal.aborted) {
+                  controller.abort("timeout");
+                }
+              },
+              getScrapeAttemptTimeoutMs(providerId, batch.length > 1),
+            );
             controller.signal.addEventListener(
               "abort",
               () => window.clearTimeout(timeoutId),
@@ -547,30 +746,39 @@ export function useProviderScrapeLoop<
           },
         );
 
-        const settled = await Promise.all(attemptPromises);
+        const settledPromise = Promise.all(attemptPromises);
+        await Promise.race([settledPromise, batchEarlyPromise]);
 
         if (runId !== runIdRef.current) {
           return;
         }
 
-        let finalized = settled
-          .map((entry) => entry.winner)
-          .find(
-            (
-              winner,
-            ): winner is Extract<
-              ScrapeAttemptResult<TPayload>,
-              { outcome: "success" }
-            > => Boolean(winner && winner.outcome === "success"),
-          );
+        let finalized: ScrapeAttemptResult<TPayload> | null = batchWinner;
 
         if (!finalized) {
-          const winnerEntry = pickRaceWinner(order, successes);
-          if (winnerEntry?.attempt.payload) {
-            finalized = {
-              outcome: "success",
-              payload: winnerEntry.attempt.payload,
-            };
+          const settled = await settledPromise;
+          finalized =
+            settled
+              .map((entry) => entry.winner)
+              .find(
+                (
+                  winner,
+                ): winner is Extract<
+                  ScrapeAttemptResult<TPayload>,
+                  { outcome: "success" }
+                > => Boolean(winner && winner.outcome === "success"),
+              ) ?? null;
+
+          if (!finalized) {
+            const winnerEntry = useScoredRaceWinner
+              ? pickScoredRaceWinner(order, successes, scoreRacePayload!)
+              : pickRaceWinner(order, successes);
+            if (winnerEntry?.attempt.payload) {
+              finalized = {
+                outcome: "success",
+                payload: winnerEntry.attempt.payload,
+              };
+            }
           }
         }
 
@@ -579,10 +787,35 @@ export function useProviderScrapeLoop<
           failed.delete(winnerId);
           finalizeBatchWinner(order, winnerId, batch);
           setPreferredScrapeProvider(mediaKey, winnerId);
-          setResult(finalized.payload);
+
+          let payload = finalized.payload;
+          const siblingSubtitles = harvestSubtitleProviders
+            ? successes.flatMap((entry) =>
+                entry.providerId === winnerId
+                  ? []
+                  : payloadSubtitles(entry.attempt.payload),
+              )
+            : [];
+          if (siblingSubtitles.length > 0) {
+            payload = mergePayloadSubtitles(payload, siblingSubtitles);
+          }
+
+          setResult(payload);
           setStatus("playing");
           setActiveProviderId(winnerId);
           failedProvidersRef.current.set(mediaKey, failed);
+
+          const alreadyHarvested = new Set(
+            successes.map((entry) => entry.providerId),
+          );
+          void harvestRemainingSubtitles(
+            runId,
+            input,
+            winnerId,
+            order,
+            failed,
+            alreadyHarvested,
+          );
           return;
         }
       }
@@ -636,12 +869,18 @@ export function useProviderScrapeLoop<
       applyItemsForOrder,
       finalizeBatchWinner,
       getOrderForInput,
+      harvestRemainingSubtitles,
+      harvestSubtitleProviders,
       mediaKeyFor,
       onAllProvidersFailed,
       resetItems,
       scrapeProvider,
+      soloFirstProviders,
+      scoreRacePayload,
+      shouldRaceFirstWin,
       syncItems,
       updateItem,
+      useScoredRaceWinner,
     ],
   );
 
@@ -654,13 +893,10 @@ export function useProviderScrapeLoop<
       // Direct is the calluspirates bridge — always retry on a fresh scrape pass.
       failed.delete("direct" as TProviderId);
       failedProvidersRef.current.set(mediaKey, failed);
-      const storedPreferred = getPreferredScrapeProvider(mediaKey);
-      const preferredFromArg =
+      const preferred =
         preferredProviderId && baseOrder.includes(preferredProviderId)
           ? preferredProviderId
           : undefined;
-      const preferredFromStore = baseOrder.find((id) => id === storedPreferred);
-      const preferred = preferredFromArg ?? preferredFromStore;
       let order = reorderProvidersWithPreferred(baseOrder, preferred);
       if (failed.size > 0) {
         order = deprioritizeProviders(order, failed);

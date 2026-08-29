@@ -1,6 +1,6 @@
 import "server-only";
 
-import { scrapeFetchText } from "./fetch";
+import { fetchVixsrcProtectedText } from "./providers/vixsrc";
 import type { VixsrcPlaybackRefresh } from "./vixsrc-constants";
 import {
   VIXSRC_PROACTIVE_REFRESH_AFTER_MS,
@@ -11,7 +11,7 @@ import {
   buildVixsrcPlaylistUrl,
   extractVixsrcPlaylistParams,
   isVixsrcPlaylistUrl,
-  VIXSRC_ORIGIN,
+  originOfVixsrcUrl,
 } from "./vixsrc-shared";
 
 export {
@@ -71,9 +71,10 @@ const sessionStillValid = (session: VixsrcSession, nowMs: number): boolean => {
 export const fetchVixsrcPlaylistUrl = async (
   refresh: VixsrcPlaybackRefresh,
 ): Promise<string | null> => {
-  const embed = await scrapeFetchText(refresh.embedUrl, {
-    Referer: `${VIXSRC_ORIGIN}/`,
-    Origin: VIXSRC_ORIGIN,
+  const embedOrigin = originOfVixsrcUrl(refresh.embedUrl);
+  const embed = await fetchVixsrcProtectedText(refresh.embedUrl, {
+    Referer: `${embedOrigin}/`,
+    Origin: embedOrigin,
   });
 
   if (embed.status !== 200) {
@@ -85,7 +86,7 @@ export const fetchVixsrcPlaylistUrl = async (
     return null;
   }
 
-  return buildVixsrcPlaylistUrl(params);
+  return buildVixsrcPlaylistUrl(params, embedOrigin);
 };
 
 const refreshVixsrcSession = async (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { queryStaleTime } from "@/lib/cache-policy";
 import { fetchCombinedGenres, fetchSearchResults } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { CanonicalMediaCard } from "@/lib/domain/typings";
@@ -46,14 +47,14 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
   const genresQuery = useQuery({
     queryKey: queryKeys.combinedGenres(),
     queryFn: fetchCombinedGenres,
-    staleTime: 30 * 60 * 1000, // 30 minutes - genres rarely change
+    staleTime: queryStaleTime(30 * 60 * 1000), // 30 minutes - genres rarely change
   });
 
   const searchQuery = useQuery({
     queryKey: queryKeys.searchResults(debouncedQuery, currentPage),
     queryFn: () => fetchSearchResults(debouncedQuery, currentPage),
     enabled: !!debouncedQuery,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: queryStaleTime(5 * 60 * 1000), // 5 minutes
   });
 
   const items = useMemo(

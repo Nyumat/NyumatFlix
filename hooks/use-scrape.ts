@@ -3,8 +3,12 @@
 import { useCallback, useMemo } from "react";
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
-import { filterTmdbScrapeProviderIds } from "@/lib/flags/site-flags";
+import {
+  filterTmdbScrapeProviderIds,
+  getTmdbScrapeProviderMenuOrder,
+} from "@/lib/flags/site-flags";
 import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
+import { TMDB_SCRAPE_SOLO_FIRST_PROVIDERS } from "@/lib/scrape/provider-race";
 import {
   SCRAPE_PROVIDER_LABELS,
   SCRAPE_PROVIDER_ORDER,
@@ -32,6 +36,8 @@ export type ScrapeSuccessPayload = {
   preferredAudioLang?: string;
   directPlayback?: "hls" | "direct" | "extended";
   directFallbackUrl?: string;
+  directStreamName?: string;
+  directFileName?: string;
 };
 
 const scrapeLoopConfig = {
@@ -51,6 +57,8 @@ const scrapeLoopConfig = {
     seasonNumber: input.seasonNumber,
     episodeNumber: input.episodeNumber,
   }),
+  soloFirstProviders: TMDB_SCRAPE_SOLO_FIRST_PROVIDERS,
+  raceFirstWin: true,
 } as const;
 
 type UseScrapeOptions = {
@@ -65,7 +73,7 @@ export function useScrape(options?: UseScrapeOptions) {
       ...scrapeLoopConfig,
       providerOrder: filterTmdbScrapeProviderIds(
         flags,
-        SCRAPE_PROVIDER_ORDER,
+        getTmdbScrapeProviderMenuOrder(flags),
       ) as typeof SCRAPE_PROVIDER_ORDER,
       onAllProvidersFailed,
     }),

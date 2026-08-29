@@ -14,6 +14,8 @@ import {
   TvShow,
 } from "@/lib/domain/typings";
 import { catalogCacheHeaders } from "@/lib/http-cache";
+import { fetchAniListSearchMedia } from "@/lib/search/anilist-search";
+import { mergeSearchMediaResults } from "@/lib/search/merge-search-media";
 import { NextResponse } from "next/server";
 
 interface Person {
@@ -62,9 +64,17 @@ export async function GET(request: Request) {
       language: "en-US",
     });
 
-    const [movieResponse, tvResponse] = await Promise.all([
+    const [movieResponse, tvResponse, anilistResults] = await Promise.all([
       fetch(`${baseUrl}/movie?${commonParams}`),
       fetch(`${baseUrl}/tv?${commonParams}`),
+      page === "1"
+        ? fetchAniListSearchMedia(query.trim(), { page: 1, perPage: 20 })
+        : Promise.resolve({
+            items: [],
+            page: 1,
+            totalPages: 1,
+            totalResults: 0,
+          }),
     ]);
 
     if (!movieResponse.ok || !tvResponse.ok) {
@@ -158,10 +168,16 @@ export async function GET(request: Request) {
       tvData.total_pages || 1,
     );
     const totalResults =
-      (movieData.total_results || 0) + (tvData.total_results || 0);
+      (movieData.total_results || 0) +
+      (tvData.total_results || 0) +
+      (page === "1" ? anilistResults.totalResults : 0);
 
     const result: SearchResult = {
-      media: mapMediaListToCanonicalCardsValue(allMedia),
+      media: mergeSearchMediaResults(
+        mapMediaListToCanonicalCardsValue(allMedia),
+        anilistResults.items,
+        { query: query.trim() },
+      ),
       people: people
         .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
         .map((person) => mapPersonToCanonicalCardValue(person as never)),

@@ -3,17 +3,17 @@ import {
   DetailPageLoading,
 } from "@/components/layout/page-loading/detail-page-loading";
 import { MediaDetailLayout } from "@/components/media/media-server";
+import { DirectPlaybackWarmup } from "@/components/media/direct-playback-warmup";
 import { hydrateMovieDetailQueries } from "@/lib/prefetch-media-detail-queries";
-import { getCachedMovieAboveFoldDetail } from "@/lib/media-above-fold-server";
+import { getCachedMovieDetail } from "@/lib/media-detail-cache";
+import { getDetailRouteSearchParams } from "@/lib/detail-search-params";
 import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
 import { isUpcomingMovie } from "@/utils/movie-helpers";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import { Suspense } from "react";
-import type { MediaItem } from "@/lib/domain/typings";
 
 export const revalidate = 3600;
 
@@ -29,36 +29,33 @@ const parsePositiveInt = (value: string | null) => {
 
 async function MovieDetailLayoutContent({ children, params }: Props) {
   const { id } = await params;
-  const details = await getCachedMovieAboveFoldDetail(id);
-  if (!details || !("title" in details)) {
+  const movie = await getCachedMovieDetail(id);
+
+  if (!movie || !("title" in movie)) {
     notFound();
   }
-  if ("adult" in details && details.adult) {
+  if ("adult" in movie && movie.adult) {
     notFound();
   }
 
-  const detailMedia = details as MediaItem;
-  const requestSearchParams = new URLSearchParams(
-    (await headers()).get("x-search-params") ?? "",
-  );
+  const requestSearchParams = await getDetailRouteSearchParams();
   const queryAnilistId = parsePositiveInt(requestSearchParams.get("anilistId"));
   const mappedAnilistId = await getAnilistIdFromFribb(
     Number.parseInt(id, 10),
     "movie",
   );
   const anilistId =
-    queryAnilistId ??
-    mappedAnilistId ??
-    (await getAnilistIdForMedia(detailMedia));
-  const isUpcoming = isUpcomingMovie(detailMedia);
+    queryAnilistId ?? mappedAnilistId ?? (await getAnilistIdForMedia(movie));
+  const isUpcoming = isUpcomingMovie(movie);
 
   const queryClient = new QueryClient();
-  await hydrateMovieDetailQueries(queryClient, id, details);
+  await hydrateMovieDetailQueries(queryClient, id, movie);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
+      <DirectPlaybackWarmup />
       <MediaDetailLayout
-        media={[detailMedia]}
+        media={[movie]}
         mediaType="movie"
         isUpcoming={isUpcoming}
         anilistId={anilistId}

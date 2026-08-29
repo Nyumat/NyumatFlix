@@ -7,10 +7,13 @@ import {
   getHref,
   getPosterPath,
   getRatingDisplay,
+  getSearchMediaTypeLabel,
+  isAnimeSearchCard,
 } from "@/lib/cards/selectors";
 import type { CanonicalMediaCard } from "@/lib/domain/typings";
 import { cn } from "@/lib/utils";
 import { Film, Star, Tv } from "lucide-react";
+import { SearchAnimeMark } from "./search-anime-mark";
 import { HighlightedText } from "./highlighted-text";
 import { SearchListRow } from "./search-list-row";
 import { SearchPosterThumb } from "./search-poster-thumb";
@@ -41,8 +44,26 @@ export function SearchResultRow({
   const posterPath = getPosterPath(item) ?? undefined;
   const year = getDisplayYear(item);
   const rating = getRatingDisplay(item);
-  const isMovie = item.media_type === "movie";
+  const mediaTypeLabel = getSearchMediaTypeLabel(item);
+  const isAnime = isAnimeSearchCard(item);
+  const isMovie = item.media_type === "movie" && !isAnime;
   const { schedulePrefetch, cancelPrefetch } = useMediaCardPrefetch(item, href);
+
+  const typeIcon = isAnime ? (
+    <SearchAnimeMark className="size-3 text-[11px]" />
+  ) : isMovie ? (
+    <Film className="size-3 shrink-0" aria-hidden />
+  ) : (
+    <Tv className="size-3 shrink-0" aria-hidden />
+  );
+
+  const posterFallbackIcon = isAnime ? (
+    <SearchAnimeMark className="text-sm" />
+  ) : isMovie ? (
+    <Film className="size-4" aria-hidden />
+  ) : (
+    <Tv className="size-4" aria-hidden />
+  );
 
   return (
     <SearchListRow
@@ -61,23 +82,20 @@ export function SearchResultRow({
       onPointerLeave={cancelPrefetch}
       onFocus={onPrefetch}
       isSelected={isSelected}
-      className={className}
+      className={cn("gap-3.5 py-2.5", className)}
       data-testid={`${testIdPrefix}-${item.id}`}
-      data-media-type={item.media_type}
+      data-media-type={isAnime ? "anime" : item.media_type}
       data-selected={isSelected ? "true" : undefined}
     >
       <SearchPosterThumb
         posterPath={posterPath}
         alt={title}
-        className="h-14 w-10"
-        sizes="40px"
+        className="h-20 w-14"
+        imageSize="w342"
+        sizes="56px"
         fallback={
           <div className="flex h-full w-full items-center justify-center text-muted-foreground/70">
-            {isMovie ? (
-              <Film className="size-3.5" aria-hidden />
-            ) : (
-              <Tv className="size-3.5" aria-hidden />
-            )}
+            {posterFallbackIcon}
           </div>
         }
       />
@@ -92,12 +110,8 @@ export function SearchResultRow({
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            {isMovie ? (
-              <Film className="size-3 shrink-0" aria-hidden />
-            ) : (
-              <Tv className="size-3 shrink-0" aria-hidden />
-            )}
-            {isMovie ? "Movie" : "TV"}
+            {typeIcon}
+            {mediaTypeLabel}
           </span>
           {year ? <span>{year}</span> : null}
           {rating ? (

@@ -11,28 +11,38 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
-import { isAnilistTvRouteId } from "@/lib/anilist-route-id";
+import { useTvDetailCatalog } from "@/hooks/use-tv-detail-catalog";
+import {
+  fromAnilistTvRouteId,
+  parseAnimeAnilistRouteId,
+} from "@/lib/anilist-route-id";
+import { isAnilistBackedTvRouteId } from "@/lib/tv-detail-catalog";
 import {
   animeSeasonNumberForEpisode,
   findSegmentForEpisode,
   toAnimeDisplayCoords,
   type MappingSegment,
 } from "@/lib/anime/tmdb-anilist-map";
+import { readMappedTmdbTvIdFromMedia } from "@/lib/tv-playback-tmdb-id";
 import { resolveEpisodeThumbnailUrl } from "@/lib/anime/episode-thumbnail-url";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
+import { stripSearchParam } from "@/lib/navigation/search-params";
+import { slugifyHentainiTitle } from "@/lib/scrape/anime/hentaini-slug";
 import {
   matchesEpisodeSearch,
   parseEpisodeSearchQuery,
 } from "@/lib/parse-episode-search-query";
 import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import { queryStaleTime } from "@/lib/cache-policy";
 import { buildEpisodeIndex, type IndexedEpisode } from "@/lib/tv-episode-index";
 import { cn } from "@/lib/utils";
 import { Episode, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { ArrowDownAZ, ArrowUpZA, Search, Tv } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { tmdbImage } from "@/tmdb/utils";
 
 export type HeroTvEpisodePanelProps = {
@@ -43,6 +53,7 @@ export type HeroTvEpisodePanelProps = {
 
 type AnimeSeasonMap = {
   segments?: MappingSegment[];
+  isAdult?: boolean;
 };
 
 type KitsuThumbnailRequest =
@@ -95,27 +106,61 @@ export function HeroTvEpisodePanel({
   allSeasonDetails,
 }: HeroTvEpisodePanelProps) {
   const isHydrated = useIsHydrated();
-  const seasonNumbers = useMemo(
-    () =>
-      (details.seasons ?? [])
-        .filter((s) => s.season_number > 0)
-        .map((s) => s.season_number)
-        .sort((a, b) => a - b),
-    [details.seasons],
-  );
+  const catalog = useTvDetailCatalog();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const consumedSeasonParamRef = useRef(false);
+  const isAnilistRoute = isAnilistBackedTvRouteId(tvId, catalog);
+  const routeAnilistId = isAnilistRoute
+    ? (parseAnimeAnilistRouteId(tvId) ?? fromAnilistTvRouteId(tvId))
+    : null;
+  const mappedTmdbTvId = readMappedTmdbTvIdFromMedia(details);
+  const seasonNumbers = useMemo(() => {
+    const fromDetails = (details.seasons ?? [])
+      .filter((season) => season.season_number > 0)
+      .map((season) => season.season_number)
+      .sort((left, right) => left - right);
+
+    const declaredCount = details.number_of_seasons ?? 0;
+    if (
+      isAnilistRoute &&
+      mappedTmdbTvId &&
+      declaredCount > fromDetails.length &&
+      declaredCount > 1
+    ) {
+      return Array.from({ length: declaredCount }, (_, index) => index + 1);
+    }
+
+    return fromDetails.length > 0 ? fromDetails : [1];
+  }, [
+    details.number_of_seasons,
+    details.seasons,
+    isAnilistRoute,
+    mappedTmdbTvId,
+  ]);
 
   const {
     selectedEpisode,
     seasonNumber: storeSeason,
     tvShowId,
     defaultAnilistId,
+    defaultIsAdultAnime,
     setSelectedEpisode,
     setDefaultAnilistId,
+    setSeasonNumber,
   } = useEpisodeStore();
-  const searchParams = useSearchParams();
   const requestedSeason = Number.parseInt(searchParams.get("season") ?? "", 10);
 
-  const [selectedSeason, setSelectedSeason] = useState<number>(() => {
+  const selectedSeason = useMemo(() => {
+    if (
+      tvShowId === tvId &&
+      storeSeason &&
+      seasonNumbers.includes(storeSeason)
+    ) {
+      return storeSeason;
+    }
+
     if (
       Number.isInteger(requestedSeason) &&
       requestedSeason > 0 &&
@@ -123,15 +168,9 @@ export function HeroTvEpisodePanel({
     ) {
       return requestedSeason;
     }
-    if (
-      storeSeason &&
-      seasonNumbers.length > 0 &&
-      seasonNumbers.includes(storeSeason)
-    ) {
-      return storeSeason;
-    }
+
     return seasonNumbers[0] ?? 1;
-  });
+  }, [requestedSeason, seasonNumbers, storeSeason, tvId, tvShowId]);
   const [selectedAnimeSegment, setSelectedAnimeSegment] = useState(0);
 
   const [query, setQuery] = useState("");
@@ -145,29 +184,62 @@ export function HeroTvEpisodePanel({
     [loadedSeasonDetails],
   );
 
+  useEffect(() => {
+    if (!allSeasonDetails) return;
+    setLoadedSeasonDetails((current) => ({ ...allSeasonDetails, ...current }));
+  }, [allSeasonDetails]);
+
   const parsedQuery = useMemo(() => parseEpisodeSearchQuery(query), [query]);
 
   useEffect(() => {
-    if (storeSeason && seasonNumbers.includes(storeSeason)) {
-      setSelectedSeason(storeSeason);
+    if (!isHydrated || consumedSeasonParamRef.current) {
+      return;
     }
-  }, [storeSeason, seasonNumbers]);
+
+    consumedSeasonParamRef.current = true;
+
+    if (
+      Number.isInteger(requestedSeason) &&
+      requestedSeason > 0 &&
+      seasonNumbers.includes(requestedSeason)
+    ) {
+      setSeasonNumber(tvId, requestedSeason);
+    }
+
+    if (!searchParams.has("season")) {
+      return;
+    }
+
+    router.replace(stripSearchParam(pathname, searchParams, "season"), {
+      scroll: false,
+    });
+  }, [
+    isHydrated,
+    pathname,
+    requestedSeason,
+    router,
+    searchParams,
+    seasonNumbers,
+    setSeasonNumber,
+    tvId,
+  ]);
 
   useEffect(() => {
-    if (!isAnilistTvRouteId(tvId)) return;
+    if (!isAnilistRoute || routeAnilistId === null) return;
 
-    const seasonMeta = details.seasons?.find(
-      (season) => season.season_number === selectedSeason,
-    );
-    if (!seasonMeta?.id) return;
-
-    setDefaultAnilistId(seasonMeta.id, details.adult === true);
+    setDefaultAnilistId(routeAnilistId, details.adult === true);
+    useEmbedServerStore
+      .getState()
+      .setAnimeTitleSlug(
+        slugifyHentainiTitle(details.original_name ?? details.name),
+      );
   }, [
     details.adult,
-    details.seasons,
-    selectedSeason,
+    details.name,
+    details.original_name,
+    isAnilistRoute,
+    routeAnilistId,
     setDefaultAnilistId,
-    tvId,
   ]);
 
   const selectedSeasonQuery = useQuery({
@@ -177,11 +249,17 @@ export function HeroTvEpisodePanel({
       isHydrated &&
       seasonNumbers.includes(selectedSeason) &&
       !loadedSeasonDetails[selectedSeason],
-    staleTime: 60 * 60 * 1000,
+    staleTime: queryStaleTime(60 * 60 * 1000),
   });
 
   const animeSeasonMapQuery = useQuery({
-    queryKey: ["nyumatflix", "anime-season-map", tvId, selectedSeason],
+    queryKey: [
+      "nyumatflix",
+      "anime-season-map",
+      tvId,
+      selectedSeason,
+      defaultAnilistId,
+    ],
     queryFn: async (): Promise<AnimeSeasonMap> => {
       const response = await fetch(
         `/api/map?tmdbShowId=${encodeURIComponent(tvId)}&tmdbSeason=${selectedSeason}&sourceAnilistId=${defaultAnilistId}`,
@@ -190,15 +268,13 @@ export function HeroTvEpisodePanel({
       return response.json() as Promise<AnimeSeasonMap>;
     },
     enabled:
-      isHydrated &&
-      !isAnilistTvRouteId(tvId) &&
-      Number.isInteger(defaultAnilistId),
-    staleTime: 60 * 60 * 1000,
+      isHydrated && !isAnilistRoute && Number.isInteger(defaultAnilistId),
+    staleTime: queryStaleTime(60 * 60 * 1000),
   });
 
   const animeSegments = animeSeasonMapQuery.data?.segments ?? [];
   const useAnimeSeasonGroups =
-    seasonNumbers.length === 1 && animeSegments.length > 1;
+    !isAnilistRoute && seasonNumbers.length === 1 && animeSegments.length > 1;
 
   useEffect(() => {
     setSelectedAnimeSegment(0);
@@ -253,11 +329,19 @@ export function HeroTvEpisodePanel({
   ]);
 
   const searchActive = query.trim().length > 0;
-  const isAnimeTmdbPage =
-    !isAnilistTvRouteId(tvId) && Number.isInteger(defaultAnilistId);
+  const isAnimeTmdbPage = !isAnilistRoute && Number.isInteger(defaultAnilistId);
   const tmdbSeasonCount = seasonNumbers.length;
 
   const kitsuThumbnailRequests = useMemo((): KitsuThumbnailRequest[] => {
+    if (isAnilistRoute && routeAnilistId !== null) {
+      return [
+        {
+          kind: "anilist" as const,
+          anilistId: routeAnilistId,
+        },
+      ];
+    }
+
     if (
       !isAnimeTmdbPage ||
       defaultAnilistId === null ||
@@ -300,7 +384,11 @@ export function HeroTvEpisodePanel({
     selectedSeason,
     tmdbSeasonCount,
     useAnimeSeasonGroups,
+    tvId,
   ]);
+
+  const kitsuThumbnailsEnabled =
+    isHydrated && (isAnimeTmdbPage || isAnilistRoute);
 
   const kitsuThumbnailQueries = useQueries({
     queries: kitsuThumbnailRequests.map((request) => ({
@@ -316,8 +404,8 @@ export function HeroTvEpisodePanel({
               request.tmdbSeasonCount,
             ],
       queryFn: () => fetchKitsuEpisodeThumbnails(tvId, request),
-      enabled: isHydrated && isAnimeTmdbPage,
-      staleTime: 24 * 60 * 60 * 1000,
+      enabled: kitsuThumbnailsEnabled,
+      staleTime: queryStaleTime(24 * 60 * 60 * 1000),
     })),
   });
 
@@ -347,6 +435,13 @@ export function HeroTvEpisodePanel({
 
   const resolveKitsuThumbnail = useCallback(
     (episode: Episode, seasonNumber: number) => {
+      if (isAnilistRoute && routeAnilistId !== null) {
+        return (
+          kitsuThumbnailsByAnilist[routeAnilistId]?.[episode.episode_number] ??
+          null
+        );
+      }
+
       if (useAnimeSeasonGroups) {
         const segment = findSegmentForEpisode(
           animeSegments,
@@ -369,6 +464,7 @@ export function HeroTvEpisodePanel({
       animeSegments,
       kitsuThumbnailsByAnilist,
       kitsuThumbnailsBySeason,
+      tvId,
       useAnimeSeasonGroups,
     ],
   );
@@ -417,40 +513,52 @@ export function HeroTvEpisodePanel({
             episode.episode_number >= entry.startEpisode &&
             episode.episode_number <= entry.endEpisode,
         ) ?? null;
+      const anilistRouteId = routeAnilistId;
+      // On AniList routes we disable the season map, so never guess coords from the
+      // route id (e.g. 16498 + ep 21 is S1E21, not TMDB S3E21). Wait for playback-coords.
+      const animeInfo = segment
+        ? {
+            anilistId: segment.anilistMediaId,
+            startEpisode: segment.startEpisode,
+            endEpisode: segment.endEpisode,
+          }
+        : undefined;
       const animeSeasonNumber = segment
         ? useAnimeSeasonGroups
           ? animeSeasonNumberForEpisode(animeSegments, episode.episode_number)
           : episodeSeason
-        : null;
+        : anilistRouteId
+          ? episodeSeason
+          : null;
 
+      const mapIsAdult = animeSeasonMapQuery.data?.isAdult === true;
       setSelectedEpisode(
         episode,
         tvId,
         episodeSeason,
-        segment
-          ? {
-              anilistId: segment.anilistMediaId,
-              startEpisode: segment.startEpisode,
-              endEpisode: segment.endEpisode,
-            }
-          : undefined,
+        animeInfo,
         false,
         seasonEpisodes,
-        segment
+        segment || anilistRouteId
           ? {
-              confidence: "high",
-              isAdult: details.adult === true,
+              confidence: segment ? "high" : "low",
+              // TMDB often omits adult for hentai OVAs — prefer AniList map / defaults.
+              isAdult:
+                mapIsAdult || defaultIsAdultAnime || details.adult === true,
               animeSeasonNumber,
             }
           : undefined,
       );
-      setSelectedSeason(episodeSeason);
     },
     [
       allSeasonDetails,
+      animeSeasonMapQuery.data?.isAdult,
       animeSegments,
+      defaultIsAdultAnime,
       details.adult,
+      details.number_of_episodes,
       loadedSeasonDetails,
+      routeAnilistId,
       setSelectedEpisode,
       tvId,
       useAnimeSeasonGroups,
@@ -507,8 +615,17 @@ export function HeroTvEpisodePanel({
             onValueChange={(value) => {
               if (value.startsWith("anime-")) {
                 setSelectedAnimeSegment(Number(value.slice(6)));
-              } else {
-                setSelectedSeason(Number(value));
+                return;
+              }
+
+              setSeasonNumber(tvId, Number(value));
+              if (searchParams.has("season")) {
+                router.replace(
+                  stripSearchParam(pathname, searchParams, "season"),
+                  {
+                    scroll: false,
+                  },
+                );
               }
             }}
           >

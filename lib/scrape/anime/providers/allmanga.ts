@@ -8,12 +8,16 @@ import {
   isOkCdnHlsUrl,
   normalizeAllanimeStreamUrl,
 } from "../allanime-stream-url";
-import { validateStreamUrl } from "../../validate-stream";
 import { extractM3u8Urls, isDirectMediaUrl } from "../html-utils";
 import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import type { ScrapeQuality } from "../../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
+import {
+  SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+  probeScrapePlaybackPath,
+} from "../../playback-probe";
 import { isExactAnimeTitleMatch } from "../title-match";
 
 const ALLMANGA_ORIGIN = "https://allmanga.to";
@@ -83,6 +87,8 @@ const allanimePost = async <T>(
       Origin: ALLMANGA_ORIGIN,
     },
     body: JSON.stringify({ query, variables }),
+    timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+    retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
   });
 
   if (!response.ok) {
@@ -201,7 +207,10 @@ const resolveAllanimeProviderLink = async (
   const page = await scrapeFetchText(
     normalized,
     { Referer: `${ALLMANGA_ORIGIN}/` },
-    { timeoutMs: 12_000 },
+    {
+      timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+      retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+    },
   );
 
   if (page.status !== 200) {
@@ -284,7 +293,12 @@ const resolveAllanimeProviderLink = async (
 const preferredSourceRank = (source: AllanimeSourceUrl): number => {
   const name = (source.sourceName ?? "").toLowerCase();
   // Direct CDNs first — iframe embeds (Ok/Uni/Mp4upload) often hang or bot-block.
-  if (name === "yt-mp4" || name === "s-mp4" || name === "luv-mp4") {
+  if (
+    name === "yt-mp4" ||
+    name === "s-mp4" ||
+    name === "luv-mp4" ||
+    name === "luf-mp4"
+  ) {
     return 500;
   }
   if (source.type === "player" && source.sourceUrl?.startsWith("http")) {
@@ -444,12 +458,12 @@ export async function scrapeAllmanga(
       const referer = refererForResolvedStream(playable.url);
 
       if (playable.kind === "mp4") {
-        const playableMp4 = await validateStreamUrl(
-          playable.url,
-          referer,
+        const playableMp4 = await probeScrapePlaybackPath(
+          {
+            url: playable.url,
+            referer,
+          },
           "mp4",
-          null,
-          "full",
         );
         if (!playableMp4) {
           continue;
@@ -470,9 +484,20 @@ export async function scrapeAllmanga(
           fallbackHls ??= playable;
           continue;
         }
+        const playableHls = await probeScrapePlaybackPath(
+          {
+            url: playable.url,
+            referer,
+          },
+          "hls",
+        );
+        if (!playableHls) {
+          continue;
+        }
         return {
           ok: true,
           providerId,
+          validated: true,
           streamUrl: playable.url,
           streamKind: "hls",
           referer,
@@ -483,12 +508,28 @@ export async function scrapeAllmanga(
 
     if (fallbackHls) {
       const playable = finalizeResolvedStream(fallbackHls);
+      const referer = refererForResolvedStream(playable.url);
+      const playableHls = await probeScrapePlaybackPath(
+        {
+          url: playable.url,
+          referer,
+        },
+        "hls",
+      );
+      if (!playableHls) {
+        return {
+          ok: false,
+          providerId,
+          error: "AllManga HLS stream failed playback-path probe",
+        };
+      }
       return {
         ok: true,
         providerId,
+        validated: true,
         streamUrl: playable.url,
         streamKind: playable.kind,
-        referer: refererForResolvedStream(playable.url),
+        referer,
         qualities: playable.qualities,
       };
     }

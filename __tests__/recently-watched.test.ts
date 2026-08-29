@@ -158,6 +158,87 @@ describe("collectRecentlyWatchedStubs", () => {
     expect(item.isAnime).toBe(false);
   });
 
+  it("omits non-watching watchlist titles", () => {
+    const watchlist: WatchlistItem[] = [
+      {
+        id: "watching",
+        userId: "u1",
+        contentId: 1,
+        mediaType: "tv",
+        status: "watching",
+        lastWatchedSeason: 1,
+        lastWatchedEpisode: 2,
+        lastWatchedAt: new Date("2026-07-01T12:00:00.000Z"),
+        createdAt: new Date("2026-06-01T12:00:00.000Z"),
+        updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+      },
+      {
+        id: "plan_to_watch",
+        userId: "u1",
+        contentId: 2,
+        mediaType: "tv",
+        status: "plan_to_watch",
+        lastWatchedSeason: 2,
+        lastWatchedEpisode: 8,
+        lastWatchedAt: new Date("2026-07-02T12:00:00.000Z"),
+        createdAt: new Date("2026-06-01T12:00:00.000Z"),
+        updatedAt: new Date("2026-07-02T12:00:00.000Z"),
+      },
+      {
+        id: "completed",
+        userId: "u1",
+        contentId: 3,
+        mediaType: "movie",
+        status: "completed",
+        lastWatchedSeason: null,
+        lastWatchedEpisode: null,
+        lastWatchedAt: new Date("2026-07-03T12:00:00.000Z"),
+        createdAt: new Date("2026-06-01T12:00:00.000Z"),
+        updatedAt: new Date("2026-07-03T12:00:00.000Z"),
+      },
+    ];
+
+    const stubs = collectRecentlyWatchedStubs({
+      watchlist,
+      limit: 10,
+    });
+
+    expect(stubs).toHaveLength(1);
+    expect(stubs[0]?.contentId).toBe(1);
+  });
+
+  it("hides dismissed titles until newer progress", () => {
+    const stubs = collectRecentlyWatchedStubs({
+      playback: [
+        {
+          mediaType: "movie",
+          contentId: 550,
+          watched: 400,
+          duration: 1000,
+          updatedAt: 1_000,
+          storageKey: "movie:550::",
+        },
+        {
+          mediaType: "tv",
+          contentId: 1399,
+          seasonNumber: 1,
+          episodeNumber: 1,
+          watched: 100,
+          duration: 1000,
+          updatedAt: 2_000,
+          storageKey: "tv:1399:1:1",
+        },
+      ],
+      dismissals: {
+        "movie:550": { dismissedAt: 1_000 },
+      },
+      limit: 10,
+    });
+
+    expect(stubs).toHaveLength(1);
+    expect(stubs[0]?.contentId).toBe(1399);
+  });
+
   it("filters stubs by media type", () => {
     const stubs = collectRecentlyWatchedStubs({
       playback: [

@@ -13,25 +13,32 @@ import type {
   ScrapeResult,
   ScrapeSubtitle,
 } from "../types";
+import { decryptVidKingPayload } from "../vidking-cipher";
 import { isVidKingCdnUrl } from "../vidking-cdn-url";
-
-const VIDKING_ORIGIN = "https://www.vidking.net";
-const VIDKING_CDN_REFERERS = [
-  "https://www.vidking.net/",
-  "https://vidking.net/",
-] as const;
-const VIDKING_API = "https://api.wingsdatabase.com";
+import {
+  SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+} from "../playback-probe";
+import {
+  getWingsCdnReferers,
+  WINGS_SOURCE_FETCH_TIMEOUT_MS,
+  wingsApiHeaders,
+  wingsSourceUrl,
+} from "../vidking-constants";
+import { fetchWingsSeed } from "../wings-api-discover";
 
 /**
- * VidKing embed server → API endpoint map (from their VideoPlayer bundle).
- * Query fast mirrors first; `neon2` (Oxygen) hangs on catalog misses.
+ * VidKing embed server → API endpoint map (VideoPlayer bundle, 2026-08).
+ * `meine` is German-only; skip it for the default English scrape.
  */
 const VIDKING_SOURCE_ENDPOINTS = [
-  "cdn/sources-with-title", // Hydrogen
-  "downloader2/sources-with-title", // Lithium
-  "tejo/sources-with-title", // Titanium
-  "1movies/sources-with-title", // Helium
-  "neon2/sources-with-title", // Oxygen — best when present, slowest on miss
+  "cdn/sources-with-title", // Yoru
+  "downloader2/sources-with-title", // Cypher
+  "m4uhd/sources-with-title", // Breach
+  "vsrc/sources-with-title", // Neon
+  "hdmovie/sources-with-title", // Vyse / Fade
+  "superflix/sources-with-title", // Raze
+  "lamovie/sources-with-title", // Omen
 ] as const;
 
 export type VidKingPlayableCandidate = {
@@ -102,7 +109,10 @@ export const classifyVidKingSource = (
     return "master";
   }
 
-  if (/\/\d+p\/index\.m3u8(?:[?#].*)?$/i.test(url)) {
+  if (
+    /\/\d+p\/index\.m3u8(?:[?#].*)?$/i.test(url) ||
+    /index-s\d+p/i.test(url)
+  ) {
     return "variant";
   }
 
@@ -308,6 +318,10 @@ const inferWingsdatabaseQualityLabel = (
   if (/\.mp4(?:[?#]|$)|\/mp4\//i.test(url)) {
     return "MP4";
   }
+  const indexed = url.match(/index-s(\d+)p/i);
+  if (indexed?.[1]) {
+    return `${indexed[1]}p`;
+  }
   if (/\/playlist\.m3u8|\/master\.m3u8/i.test(url)) {
     return "Auto";
   }
@@ -461,7 +475,7 @@ const probeVidKingReferers = (referer: string, streamUrl: string): string[] => {
   };
 
   // Wings CDN currently requires vidking.net — videasy/player origins 403.
-  for (const cdnReferer of VIDKING_CDN_REFERERS) {
+  for (const cdnReferer of getWingsCdnReferers()) {
     push(cdnReferer);
   }
   push(referer);
@@ -478,13 +492,17 @@ export const probeWingsdatabaseStreamReferer = async (
   streamUrl: string,
   referer: string,
 ): Promise<string | null> => {
-  for (const candidateReferer of probeVidKingReferers(referer, streamUrl)) {
-    if (await probeVidKingStreamOnce(streamUrl, candidateReferer)) {
-      return candidateReferer;
-    }
-  }
+  const referers = probeVidKingReferers(referer, streamUrl);
+  const results = await Promise.all(
+    referers.map(async (candidateReferer) => {
+      if (await probeVidKingStreamOnce(streamUrl, candidateReferer)) {
+        return candidateReferer;
+      }
+      return null;
+    }),
+  );
 
-  return null;
+  return results.find((candidate) => candidate !== null) ?? null;
 };
 
 export const probeWingsdatabaseStream = async (
@@ -505,6 +523,8 @@ const probeVidKingStreamOnce = async (
           ? { Range: "bytes=0-1023" }
           : {}),
       },
+      timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+      retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
     });
 
     if (!response.ok) {
@@ -534,6 +554,59 @@ const probeVidKingStreamOnce = async (
   } catch {
     return false;
   }
+};
+
+export type WingsTmdbLookup = {
+  title: string;
+  year: string;
+  imdbId: string;
+};
+
+export const resolveWingsTmdbLookup = async (
+  input: ScrapeMediaInput,
+): Promise<WingsTmdbLookup | null> => {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  const path =
+    input.mediaType === "movie"
+      ? `movie/${input.tmdbId}`
+      : `tv/${input.tmdbId}`;
+  const response = await scrapeFetch(
+    `https://api.themoviedb.org/3/${path}?api_key=${apiKey}&language=en-US&append_to_response=external_ids`,
+    { retryAttempts: 1 },
+  );
+
+  if (!response.ok) {
+    await cancelResponseBody(response);
+    return null;
+  }
+
+  const data = (await response.json()) as {
+    title?: string;
+    name?: string;
+    release_date?: string;
+    first_air_date?: string;
+    imdb_id?: string | null;
+    external_ids?: { imdb_id?: string | null };
+  };
+
+  const title = input.mediaType === "movie" ? data.title : data.name;
+  const date =
+    input.mediaType === "movie" ? data.release_date : data.first_air_date;
+  const imdbId = data.external_ids?.imdb_id ?? data.imdb_id ?? "";
+
+  if (!title?.trim()) {
+    return null;
+  }
+
+  return {
+    title: title.trim(),
+    year: date?.slice(0, 4) ?? "",
+    imdbId,
+  };
 };
 
 /** Prefer one track per language label — VidKing often repeats every lang dozens of times. */
@@ -567,29 +640,24 @@ export const mapVidKingSubtitles = (
 const fetchVidKingPayload = async (
   endpoint: string,
   input: ScrapeMediaInput,
+  lookup: WingsTmdbLookup,
   seed: string,
   headers: Record<string, string>,
 ): Promise<VidKingPayload | null> => {
-  const params = new URLSearchParams({
-    tmdbId: String(input.tmdbId),
-    mediaType: input.mediaType,
-    imdbId: "",
-    enc: "2",
-    seed,
-  });
-
-  if (input.mediaType === "tv") {
-    if (input.seasonNumber) params.set("season", String(input.seasonNumber));
-    if (input.episodeNumber) {
-      params.set("episode", String(input.episodeNumber));
-    }
-  }
-
   const encryptedResponse = await scrapeFetch(
-    `${VIDKING_API}/${endpoint}?${params.toString()}`,
+    wingsSourceUrl(endpoint, {
+      title: lookup.title,
+      mediaType: input.mediaType,
+      year: lookup.year,
+      tmdbId: input.tmdbId,
+      imdbId: lookup.imdbId,
+      seasonId: String(input.seasonNumber ?? 1),
+      episodeId: String(input.episodeNumber ?? 1),
+      seed,
+    }),
     {
       headers,
-      timeoutMs: 8_000,
+      timeoutMs: WINGS_SOURCE_FETCH_TIMEOUT_MS,
       curlFallback: false,
       retryAttempts: 1,
     },
@@ -605,7 +673,6 @@ const fetchVidKingPayload = async (
     return null;
   }
 
-  const { decryptVidKingPayload } = await import("../vidking-cipher");
   const decrypted = decryptVidKingPayload(encrypted, seed, input.tmdbId);
 
   return JSON.parse(decrypted) as VidKingPayload;
@@ -615,35 +682,29 @@ export async function scrapeVidKing(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
   const providerId = "vidking";
-  const headers = {
-    Origin: VIDKING_ORIGIN,
-    Referer: `${VIDKING_ORIGIN}/`,
-  };
   try {
-    const seedResponse = await scrapeFetch(
-      `${VIDKING_API}/seed?mediaId=${input.tmdbId}`,
-      { headers },
-    );
+    const lookup = (await resolveWingsTmdbLookup(input)) ?? {
+      title: "",
+      year: "",
+      imdbId: "",
+    };
 
-    if (!seedResponse.ok) {
-      await cancelResponseBody(seedResponse);
+    const seedResult = await fetchWingsSeed("vidking", input.tmdbId);
+    if (!seedResult.ok) {
       return {
         ok: false,
         providerId,
-        error: `Seed request failed (${seedResponse.status})`,
+        error: seedResult.error,
       };
     }
 
-    const seedPayload = (await seedResponse.json()) as { seed?: string };
-    const seed = seedPayload.seed;
-    if (!seed) {
-      return { ok: false, providerId, error: "Missing VidKing seed" };
-    }
+    const seed = seedResult.seed;
+    const headers = wingsApiHeaders(seedResult.origin);
 
     // Hit every embed mirror in parallel, then probe every source URL we get back.
     let sawSources = false;
     let bestSubtitles: VidKingSubtitle[] = [];
-    const referer = `${VIDKING_ORIGIN}/`;
+    const referer = `${seedResult.origin}/`;
 
     const payloads = await Promise.all(
       VIDKING_SOURCE_ENDPOINTS.map(async (mirror) => {
@@ -651,6 +712,7 @@ export async function scrapeVidKing(
           const payload = await fetchVidKingPayload(
             mirror,
             input,
+            lookup,
             seed,
             headers,
           );

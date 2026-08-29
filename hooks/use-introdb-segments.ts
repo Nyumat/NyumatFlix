@@ -12,6 +12,7 @@ import {
   progressStorageKey,
   type PlaybackProgressKey,
 } from "@/lib/playback/progress-storage";
+import { queryGcTime, queryStaleTime } from "@/lib/cache-policy";
 import { queryKeys } from "@/lib/query-keys";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -35,8 +36,8 @@ export function useIntroDbSegments(
     queryFn: ({ signal }) =>
       fetchIntroDbSegments(progressKey, durationSeconds, imdbId, signal),
     enabled,
-    staleTime: TWENTY_FOUR_HOURS_MS,
-    gcTime: TWENTY_FOUR_HOURS_MS,
+    staleTime: queryStaleTime(TWENTY_FOUR_HOURS_MS),
+    gcTime: queryGcTime(TWENTY_FOUR_HOURS_MS),
     retry: false,
   });
 

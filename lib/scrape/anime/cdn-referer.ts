@@ -22,7 +22,9 @@ export const preferAnimeCdnReferer = (
   if (
     streamUrl.includes("mewstream") ||
     streamUrl.includes("megaplay") ||
-    streamUrl.includes("kotocdn.site")
+    streamUrl.includes("kotocdn.site") ||
+    streamUrl.includes("watching.onl") ||
+    /\/\/megap\./i.test(streamUrl)
   ) {
     return "https://megaplay.buzz/";
   }
@@ -49,7 +51,9 @@ export const appendAnimeCdnReferers = (
   if (/vivibebe\.site/i.test(streamUrl)) {
     push("https://vivibebe.site/");
   }
-  if (/megaplay|mewstream|kotocdn\.site/i.test(streamUrl)) {
+  if (
+    /megaplay|mewstream|kotocdn\.site|watching\.onl|megap\./i.test(streamUrl)
+  ) {
     push("https://megaplay.buzz/");
   }
   if (isOkCdnHlsUrl(streamUrl)) {

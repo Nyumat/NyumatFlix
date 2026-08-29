@@ -31,6 +31,7 @@ type RelationEdge = {
 
 type RelationMedia = {
   id: number;
+  format?: string | null;
   title?: {
     romaji?: string | null;
     english?: string | null;
@@ -57,6 +58,7 @@ const RELATION_WALK_QUERY = `
   query AniListRelationWalk($id: Int) {
     Media(id: $id, type: ANIME) {
       id
+      format
       title {
         romaji
         english
@@ -87,6 +89,24 @@ const isAnimeRelationNode = (node: RelationNode | null | undefined) =>
   node.id > 0 &&
   node.format !== "MANGA" &&
   node.format !== "NOVEL";
+
+/**
+ * AniList marks side-story OVAs/movies as PREQUEL/SEQUEL of mainline TV
+ * entries (e.g. Attack on Titan: No Regrets is a "PREQUEL" of Attack on
+ * Titan). Walking into those would make a 2-episode OVA the franchise root
+ * and shift every real season by one. Only series-like formats participate
+ * in the season chain; unknown formats stay allowed to be safe.
+ */
+const NON_SEASON_CHAIN_FORMATS = new Set(["OVA", "SPECIAL", "MOVIE", "MUSIC"]);
+
+export const isSeasonChainRelationNode = (
+  node: RelationNode | null | undefined,
+): boolean =>
+  isAnimeRelationNode(node) &&
+  !NON_SEASON_CHAIN_FORMATS.has(node?.format ?? "");
+
+const isSeasonChainMedia = (media: RelationMedia): boolean =>
+  !NON_SEASON_CHAIN_FORMATS.has(media.format ?? "");
 
 const fetchRelationMedia = async (
   anilistId: number,
@@ -133,7 +153,7 @@ const getAnimeRelation = (
   const matches = (media.relations?.edges ?? []).filter(
     (edge) =>
       edge.relationType === relationType &&
-      isAnimeRelationNode(edge.node ?? undefined) &&
+      isSeasonChainRelationNode(edge.node ?? undefined) &&
       areAnimeFranchiseTitlesCompatible(media.title, edge.node?.title),
   );
 
@@ -155,7 +175,7 @@ const getAnimeRelationForSeasonChain = (
   const matches = (media.relations?.edges ?? []).filter(
     (edge) =>
       edge.relationType === relationType &&
-      isAnimeRelationNode(edge.node ?? undefined),
+      isSeasonChainRelationNode(edge.node ?? undefined),
   );
 
   if (matches.length === 0) return null;
@@ -176,7 +196,7 @@ const findFranchiseRoot = async (entryAnilistId: number): Promise<number> => {
   while (!visited.has(currentId)) {
     visited.add(currentId);
     const media = await fetchRelationMedia(currentId);
-    if (!media) break;
+    if (!media || !isSeasonChainMedia(media)) break;
 
     const prequel = getAnimeRelation(media, "PREQUEL");
     if (!prequel) break;
@@ -196,7 +216,9 @@ export const collectForwardSequelChain = async (
 
   while (true) {
     const media = await fetchRelationMedia(currentId);
-    if (!media) break;
+    // Non-series entries (OVAs, movies) stand alone: their "sequel" is the
+    // mainline show, which has its own franchise page.
+    if (!media || !isSeasonChainMedia(media)) break;
 
     const sequel = getAnimeRelation(media, "SEQUEL");
     if (!sequel || visited.has(sequel.id)) break;
@@ -304,7 +326,7 @@ const resolveAniListFranchiseUncached = async (
 
 export const resolveAniListFranchise = unstable_cache(
   resolveAniListFranchiseUncached,
-  ["anilist-franchise-resolve-v1"],
+  ["anilist-franchise-resolve-v2"],
   { revalidate: 3600 },
 );
 

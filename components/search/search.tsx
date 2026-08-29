@@ -121,7 +121,7 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Search movies, TV shows..."
+            placeholder="Search movies, TV shows, and anime..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
@@ -181,7 +181,7 @@ function SearchExperience({
   inputClassName,
   formClassName,
   iconClassName,
-  placeholder = "Search movies and TV shows...",
+  placeholder = "Search movies, TV, and anime...",
   autoFocus = false,
   variant = "page",
   onResultsVisibleChange,
@@ -464,7 +464,7 @@ export function SearchDialog({
             formClassName="w-full"
             iconClassName="left-3.5 size-4 text-muted-foreground"
             inputClassName="border-white/10 bg-white/[0.04] shadow-none backdrop-blur-sm placeholder:text-muted-foreground/70 focus-visible:border-white/15 focus-visible:bg-white/[0.06] focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0"
-            placeholder="Search movies and TV shows..."
+            placeholder="Search movies, TV, and anime..."
           />
         </DialogPrimitive.Content>
       </DialogPortal>

@@ -1,4 +1,3 @@
-import { stripSeasonSuffix } from "@/lib/anilist-franchise";
 import {
   fetchAnilistMediaMeta,
   resolveAnimeSearchQueries,
@@ -10,10 +9,20 @@ import {
 } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
+import {
+  SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+  probeScrapePlaybackPath,
+} from "../../playback-probe";
+import { raceFirstOk } from "../../race-first";
 
 /** Site captured in animestream.my.id HAR (replaces dead UniqueStream API). */
 const ANIMESTREAM_ORIGIN = "https://animestream.my.id";
 const ANIMESTREAM_REFERER = `${ANIMESTREAM_ORIGIN}/`;
+const animestreamFetchOptions = {
+  timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+  retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+};
 
 type AnimestreamSearchHit = {
   title?: string;
@@ -57,6 +66,7 @@ const decodeDataUrlValue = (raw: string): string | null => {
 const warmAnimestreamSession = async (): Promise<string | null> => {
   const home = await scrapeFetch(ANIMESTREAM_ORIGIN, {
     headers: { Referer: ANIMESTREAM_REFERER },
+    ...animestreamFetchOptions,
   });
   if (!home.ok) {
     await cancelResponseBody(home);
@@ -78,11 +88,15 @@ const searchAnimestream = async (
   cookie: string | null,
 ): Promise<AnimestreamSearchHit[]> => {
   const url = `${ANIMESTREAM_ORIGIN}/ajax.php?action=ajax-proxy&endpoint=/ajax-search&q=${encodeURIComponent(query)}`;
-  const response = await scrapeFetchText(url, {
-    ...sessionHeaders(cookie),
-    "X-Requested-With": "XMLHttpRequest",
-    Accept: "application/json, text/plain, */*",
-  });
+  const response = await scrapeFetchText(
+    url,
+    {
+      ...sessionHeaders(cookie),
+      "X-Requested-With": "XMLHttpRequest",
+      Accept: "application/json, text/plain, */*",
+    },
+    animestreamFetchOptions,
+  );
   if (response.status !== 200) {
     return [];
   }
@@ -166,6 +180,7 @@ const fetchEpisodePage = async (
   scrapeFetchText(
     `${ANIMESTREAM_ORIGIN}${episodePath}`,
     sessionHeaders(cookie),
+    animestreamFetchOptions,
   );
 
 const resolveEpisodePage = async (
@@ -244,30 +259,33 @@ export async function scrapeAnimestream(
       mediaMeta?.format === "MOVIE" || mediaMeta?.episodes === 1;
 
     const cookie = await warmAnimestreamSession();
+    const searches = await Promise.all(
+      expectedTitles.map((title) => searchAnimestream(title, cookie)),
+    );
     let hit: AnimestreamSearchHit | undefined;
-
-    for (const title of expectedTitles) {
-      const results = await searchAnimestream(title, cookie);
+    for (const results of searches) {
       hit = selectSearchHit(results, expectedTitles, preferMovie);
-      if (hit?.slug) break;
+      if (hit?.slug) {
+        break;
+      }
     }
 
     let seriesSlug = hit?.slug ? normalizeSeriesSlug(hit.slug) : "";
 
     if (!seriesSlug) {
-      for (const title of expectedTitles) {
+      const slugHit = await raceFirstOk(expectedTitles, async (title) => {
         const slug = slugifyTitle(title);
-        if (!slug) continue;
+        if (!slug) {
+          return null;
+        }
         const probe = await resolveEpisodePage(
           `/${slug}`,
           input.episodeNumber,
           cookie,
         );
-        if (probe) {
-          seriesSlug = `/${slug}`;
-          break;
-        }
-      }
+        return probe ? `/${slug}` : null;
+      });
+      seriesSlug = slugHit?.value ?? "";
     }
 
     if (!seriesSlug) {
@@ -300,10 +318,27 @@ export async function scrapeAnimestream(
       };
     }
 
+    const streamUrl = buildMasterPlaylistUrl(playerId);
+    const playable = await probeScrapePlaybackPath(
+      {
+        url: streamUrl,
+        referer: ANIMESTREAM_REFERER,
+      },
+      "hls",
+    );
+    if (!playable) {
+      return {
+        ok: false,
+        providerId,
+        error: "AnimeStream stream failed playback-path probe",
+      };
+    }
+
     return {
       ok: true,
       providerId,
-      streamUrl: buildMasterPlaylistUrl(playerId),
+      validated: true,
+      streamUrl,
       streamKind: "hls",
       referer: ANIMESTREAM_REFERER,
     };

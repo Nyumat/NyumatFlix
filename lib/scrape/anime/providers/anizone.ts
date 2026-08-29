@@ -1,11 +1,32 @@
 import { preferredAudioLangForTranslation } from "../audio-preference";
 import { extractHtmlSubtitleTracks, extractM3u8Urls } from "../html-utils";
-import { searchAnizoneSlug } from "../anizone-livewire";
+import {
+  extractAnizoneVidstackPlayer,
+  searchAnizoneSlugFromQueries,
+} from "../anizone-livewire";
 import { resolveAnimeSearchQueries } from "../anilist-meta";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
+import type { ScrapeSubtitle } from "../../types";
 import { scrapeFetchText } from "../../fetch";
+import {
+  SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+} from "../../playback-probe";
 
 const ANIZONE_ORIGIN = "https://anizone.to";
+
+const subtitleFormatFromUrl = (
+  url: string,
+  declared?: string,
+): NonNullable<ScrapeSubtitle["format"]> => {
+  if (declared === "ass" || /\.ass(?:[?#]|$)/i.test(url)) {
+    return "ass";
+  }
+  if (declared === "srt" || /\.srt(?:[?#]|$)/i.test(url)) {
+    return "srt";
+  }
+  return "vtt";
+};
 
 export async function scrapeAnizone(
   input: AnimeScrapeInput,
@@ -14,13 +35,7 @@ export async function scrapeAnizone(
 
   try {
     const queries = await resolveAnimeSearchQueries(input);
-    let slug: string | null = null;
-    for (const query of queries) {
-      slug = await searchAnizoneSlug(query);
-      if (slug) {
-        break;
-      }
-    }
+    const slug = await searchAnizoneSlugFromQueries(queries);
 
     if (!slug) {
       return { ok: false, providerId, error: "AniZone slug not found" };
@@ -29,6 +44,10 @@ export async function scrapeAnizone(
     const episode = await scrapeFetchText(
       `${ANIZONE_ORIGIN}/anime/${slug}/${input.episodeNumber}`,
       { Referer: `${ANIZONE_ORIGIN}/` },
+      {
+        timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+        retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+      },
     );
 
     if (episode.status !== 200) {
@@ -39,9 +58,12 @@ export async function scrapeAnizone(
       };
     }
 
+    const player = extractAnizoneVidstackPlayer(episode.text);
     const streamUrls = extractM3u8Urls(episode.text);
     const master =
-      streamUrls.find((url) => url.includes("master.m3u8")) ?? streamUrls[0];
+      player?.src ??
+      streamUrls.find((url) => url.includes("master.m3u8")) ??
+      streamUrls[0];
 
     if (!master) {
       return {
@@ -51,13 +73,26 @@ export async function scrapeAnizone(
       };
     }
 
-    const subtitles = extractHtmlSubtitleTracks(episode.text);
+    const playerSubtitles: ScrapeSubtitle[] = [];
+    for (const track of player?.subtitles ?? []) {
+      if (!track.file?.startsWith("http")) {
+        continue;
+      }
+      playerSubtitles.push({
+        lang: track.language?.trim() || track.title?.trim() || "Unknown",
+        url: track.file,
+        format: subtitleFormatFromUrl(track.file, track.format),
+      });
+    }
+    const htmlSubtitles = extractHtmlSubtitleTracks(episode.text);
+    const subtitles =
+      playerSubtitles.length > 0 ? playerSubtitles : htmlSubtitles;
 
     return {
       ok: true,
       providerId,
       streamUrl: master,
-      streamKind: "hls",
+      streamKind: /\.m3u8(?:[?#]|$)/i.test(master) ? "hls" : "mp4",
       referer: ANIZONE_ORIGIN,
       subtitles: subtitles.length > 0 ? subtitles : undefined,
       preferredAudioLang: preferredAudioLangForTranslation(

@@ -1,9 +1,17 @@
 import { scrapeFetchText } from "../fetch";
-import { attachSubtitlesToQualities } from "../linked-config";
-import { fetchSub1x2Subtitles } from "../subtitles";
+import {
+  SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+  SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+  probeScrapePlaybackPath,
+} from "../playback-probe";
+import { firstOkInBatches } from "../race-first";
 import { rankSourcesHlsFirst } from "../source-resolve";
+import {
+  decryptXPassDataResponse,
+  extractXPassDataUrl,
+  playlistPathsFromXPassBackups,
+} from "../xpass-data";
 import type { ScrapeMediaInput, ScrapeQuality, ScrapeResult } from "../types";
-import { validateStreamUrlWithReferers } from "../validate-stream";
 import { scrapeVidSrcMirrorEmbed } from "./vidsrc";
 
 const XPASS_ORIGIN = "https://play.xpass.top";
@@ -25,18 +33,117 @@ type XPassPlaylist = {
 };
 
 const PLAYLIST_PATH_FALLBACK =
-  /(?:mvid|meg\/(?:tv|movie)|vip|mdata|vxr|vrk)\/[^"'\s<>]+\/playlist\.json/;
+  /(?:mvid|meg\/(?:tv|movie)|vip|mdata|vxr|vrk)\/[^"'\s<>]+\/playlist\.json/g;
 
-export const extractXPassPlaylistPath = (html: string): string | null => {
+const MAX_XPASS_PLAYLISTS = 12;
+export const XPASS_PLAYABLE_CANDIDATE_LIMIT = 2;
+export const XPASS_PLAYABLE_CANDIDATE_BATCH = 2;
+
+const xpassFetchOptions = {
+  timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+  retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+};
+
+type XPassBackupEntry = {
+  url?: unknown;
+};
+
+const pushPlaylistPath = (paths: string[], seen: Set<string>, raw: string) => {
+  const path = raw.replace(/^\//, "");
+  if (!path.includes("playlist.json") || seen.has(path)) {
+    return;
+  }
+  seen.add(path);
+  paths.push(path);
+};
+
+export const extractXPassPlaylistPaths = (html: string): string[] => {
+  const paths: string[] = [];
+  const seen = new Set<string>();
+
   const playlistMatch = html.match(
     /"playlist"\s*:\s*"(\/?[^"]+\/playlist\.json)"/,
   );
   if (playlistMatch?.[1]) {
-    return playlistMatch[1].replace(/^\//, "");
+    pushPlaylistPath(paths, seen, playlistMatch[1]);
   }
 
-  const fallbackMatch = html.match(PLAYLIST_PATH_FALLBACK);
-  return fallbackMatch?.[0] ?? null;
+  const backupsMatch = html.match(/var backups=(\[[\s\S]*?\])\s*<\/script>/);
+  if (backupsMatch?.[1]) {
+    try {
+      const backups = JSON.parse(backupsMatch[1]) as XPassBackupEntry[];
+      for (const backup of backups) {
+        if (typeof backup.url === "string") {
+          pushPlaylistPath(paths, seen, backup.url);
+        }
+      }
+    } catch {
+      void 0;
+    }
+  }
+
+  for (const match of html.matchAll(PLAYLIST_PATH_FALLBACK)) {
+    if (match[0]) {
+      pushPlaylistPath(paths, seen, match[0]);
+    }
+  }
+
+  return paths.slice(0, MAX_XPASS_PLAYLISTS);
+};
+
+export const extractXPassPlaylistPath = (html: string): string | null =>
+  extractXPassPlaylistPaths(html)[0] ?? null;
+
+const resolveXPassPlaylistPaths = async (
+  embedHtml: string,
+  embedPageUrl: string,
+): Promise<string[]> => {
+  const inlinePaths = extractXPassPlaylistPaths(embedHtml);
+  if (inlinePaths.length > 0) {
+    return inlinePaths;
+  }
+
+  const dataUrlPath = extractXPassDataUrl(embedHtml);
+  if (!dataUrlPath) {
+    return [];
+  }
+
+  const dataUrl = new URL(dataUrlPath, XPASS_ORIGIN);
+  const token = dataUrl.searchParams.get("token");
+  if (!token) {
+    return [];
+  }
+
+  let encrypted: { status: number; text: string };
+  try {
+    encrypted = await scrapeFetchText(
+      dataUrl.toString(),
+      {
+        Referer: embedPageUrl,
+        Accept: "*/*",
+      },
+      xpassFetchOptions,
+    );
+  } catch {
+    return [];
+  }
+
+  if (encrypted.status !== 200 || encrypted.text.trim().length === 0) {
+    return [];
+  }
+
+  try {
+    const hostname = dataUrl.hostname.toLowerCase();
+    const backups = await decryptXPassDataResponse(encrypted.text, {
+      hostname,
+      dataPathname: dataUrl.pathname,
+      token,
+      embedContext: embedPageUrl,
+    });
+    return playlistPathsFromXPassBackups(backups).slice(0, MAX_XPASS_PLAYLISTS);
+  } catch {
+    return [];
+  }
 };
 
 const resolveImdbId = async (
@@ -45,6 +152,7 @@ const resolveImdbId = async (
   const response = await scrapeFetchText(
     `${TWOEMBED_API}/movie?tmdb_id=${input.tmdbId}`,
     { Accept: "application/json" },
+    xpassFetchOptions,
   );
 
   if (response.status !== 200) {
@@ -59,24 +167,19 @@ const resolveImdbId = async (
   }
 };
 
-const resolveTvImdbId = async (
+/** TV embeds use TMDB ids — IMDB paths can resolve to tmdb 0 on niche/anime titles. */
+export const buildXPassEmbedPath = (
   input: ScrapeMediaInput,
-): Promise<string | null> => {
-  const response = await scrapeFetchText(
-    `${TWOEMBED_API}/tv?tmdb_id=${input.tmdbId}`,
-    { Accept: "application/json" },
-  );
-
-  if (response.status !== 200) {
-    return null;
+  imdbId: string | null,
+): string | null => {
+  if (input.mediaType === "movie") {
+    if (!imdbId) {
+      return null;
+    }
+    return `e/movie/${imdbId}?autostart=true`;
   }
 
-  try {
-    const payload = JSON.parse(response.text) as TwoEmbedMovie;
-    return payload.imdb_id ?? null;
-  } catch {
-    return null;
-  }
+  return `e/tv/${input.tmdbId}/${input.seasonNumber ?? 1}/${input.episodeNumber ?? 1}?autostart=true`;
 };
 
 const isPlayableCandidate = (file: string): boolean =>
@@ -85,7 +188,20 @@ const isPlayableCandidate = (file: string): boolean =>
   (file.includes(".m3u8") ||
     file.includes("cf-master") ||
     file.includes(".txt") ||
-    file.includes("1x2.space/playlist"));
+    file.includes("1x2.space") ||
+    file.includes("m3u8-proxy") ||
+    file.includes("/enproxy/") ||
+    file.includes("/pl/"));
+
+const tryVidSrcMirrorFallback = async (
+  input: ScrapeMediaInput,
+  error: string,
+): Promise<ScrapeResult> => {
+  const alternate = await scrapeVidSrcMirrorEmbed(input);
+  return alternate.ok
+    ? { ...alternate, providerId: "2embed" }
+    : { ok: false, providerId: "2embed", error };
+};
 
 export async function scrapeXPass(
   input: ScrapeMediaInput,
@@ -94,22 +210,22 @@ export async function scrapeXPass(
 
   try {
     const imdbId =
-      input.mediaType === "movie"
-        ? await resolveImdbId(input)
-        : await resolveTvImdbId(input);
+      input.mediaType === "movie" ? await resolveImdbId(input) : null;
 
-    if (!imdbId) {
+    const embedPath = buildXPassEmbedPath(input, imdbId);
+    if (!embedPath) {
       return { ok: false, providerId, error: "2Embed IMDB id not found" };
     }
 
-    const embedPath =
-      input.mediaType === "movie"
-        ? `e/movie/${imdbId}?autostart=true`
-        : `e/tv/${imdbId}/${input.seasonNumber ?? 1}/${input.episodeNumber ?? 1}?autostart=true`;
+    const embedPageUrl = `${XPASS_ORIGIN}/${embedPath}`;
 
-    const embedPage = await scrapeFetchText(`${XPASS_ORIGIN}/${embedPath}`, {
-      Referer: `${XPASS_ORIGIN}/`,
-    });
+    const embedPage = await scrapeFetchText(
+      embedPageUrl,
+      {
+        Referer: `${XPASS_ORIGIN}/`,
+      },
+      xpassFetchOptions,
+    );
 
     if (embedPage.status !== 200) {
       return {
@@ -119,75 +235,99 @@ export async function scrapeXPass(
       };
     }
 
-    const playlistPath = extractXPassPlaylistPath(embedPage.text);
-    if (!playlistPath) {
-      return { ok: false, providerId, error: "XPass playlist path missing" };
-    }
-
-    const playlistResponse = await scrapeFetchText(
-      `${XPASS_ORIGIN}/${playlistPath}`,
-      {
-        Referer: `${XPASS_ORIGIN}/`,
-        Accept: "application/json",
-      },
+    const playlistPaths = await resolveXPassPlaylistPaths(
+      embedPage.text,
+      embedPageUrl,
     );
-
-    if (playlistResponse.status !== 200) {
-      return {
-        ok: false,
-        providerId,
-        error: `XPass playlist failed (${playlistResponse.status})`,
-      };
+    if (playlistPaths.length === 0) {
+      return tryVidSrcMirrorFallback(input, "XPass playlist path missing");
     }
-
-    const payload = JSON.parse(playlistResponse.text) as XPassPlaylist;
-    const sources =
-      payload.playlist?.flatMap((entry) => entry.sources ?? []) ?? [];
-
-    const streamSources = rankSourcesHlsFirst(
-      sources.filter((source) =>
-        isPlayableCandidate(source.file ?? source.url ?? ""),
-      ),
-      (source) => source.file ?? source.url ?? null,
-    );
 
     const playable: ScrapeQuality[] = [];
-    // Full depth only — TikTok CDN masters look valid but serve PNG "segments".
-    for (const source of streamSources) {
-      const candidate = source.file ?? source.url ?? "";
-      const label = source.label?.trim() || `Source ${playable.length + 1}`;
-      if (playable.some((entry) => entry.url === candidate)) {
-        continue;
+    for (const playlistPath of playlistPaths) {
+      if (playable.length > 0) {
+        break;
       }
-      const validation = await validateStreamUrlWithReferers(
-        candidate,
-        XPASS_ORIGIN,
-        "hls",
-        { depth: "full" },
-      );
-      if (!validation.ok) {
+
+      let playlistResponse: { status: number; text: string };
+      try {
+        playlistResponse = await scrapeFetchText(
+          `${XPASS_ORIGIN}/${playlistPath}`,
+          {
+            Referer: embedPageUrl,
+            Accept: "application/json",
+          },
+          xpassFetchOptions,
+        );
+      } catch {
         continue;
       }
 
-      const referer = validation.referer ?? XPASS_ORIGIN;
-      // Keep the master/candidate URL — expanding ABR renditions makes the
-      // player remount each height on fatal errors (flicker then next source).
-      playable.push({ label, url: candidate, referer });
+      if (playlistResponse.status !== 200) {
+        continue;
+      }
+
+      let payload: XPassPlaylist;
+      try {
+        payload = JSON.parse(playlistResponse.text) as XPassPlaylist;
+      } catch {
+        continue;
+      }
+
+      const sources =
+        payload.playlist?.flatMap((entry) => entry.sources ?? []) ?? [];
+      const streamSources = rankSourcesHlsFirst(
+        sources.filter((source) =>
+          isPlayableCandidate(source.file ?? source.url ?? ""),
+        ),
+        (source) => source.file ?? source.url ?? null,
+      );
+
+      const uniqueSources = streamSources.filter((source, index) => {
+        const candidate = source.file ?? source.url ?? "";
+        return (
+          streamSources.findIndex(
+            (other) => (other.file ?? other.url ?? "") === candidate,
+          ) === index
+        );
+      });
+
+      const winner = await firstOkInBatches(
+        uniqueSources.slice(0, XPASS_PLAYABLE_CANDIDATE_LIMIT),
+        async (source) => {
+          const candidate = source.file ?? source.url ?? "";
+          const ok = await probeScrapePlaybackPath(
+            {
+              url: candidate,
+              referer: XPASS_ORIGIN,
+            },
+            "hls",
+          );
+          if (!ok) {
+            return null;
+          }
+          return {
+            label: source.label?.trim() || "Source 1",
+            url: candidate,
+            referer: XPASS_ORIGIN,
+          } satisfies ScrapeQuality;
+        },
+        XPASS_PLAYABLE_CANDIDATE_BATCH,
+      );
+
+      if (winner) {
+        playable.push(winner.value);
+      }
     }
 
     if (playable.length === 0) {
-      const alternate = await scrapeVidSrcMirrorEmbed(input);
-      return alternate.ok
-        ? { ...alternate, providerId, validated: true }
-        : {
-            ok: false,
-            providerId,
-            error: "2Embed returned no playable internal servers",
-          };
+      return tryVidSrcMirrorFallback(
+        input,
+        "2Embed returned no playable internal servers",
+      );
     }
 
     const primary = playable[0]!;
-    const subtitles = await fetchSub1x2Subtitles(input);
 
     return {
       ok: true,
@@ -195,11 +335,7 @@ export async function scrapeXPass(
       streamUrl: primary.url,
       validated: true,
       referer: primary.referer ?? XPASS_ORIGIN,
-      qualities: attachSubtitlesToQualities(
-        playable.length > 1 ? playable : undefined,
-        subtitles,
-      ),
-      subtitles: subtitles.length > 0 ? subtitles : undefined,
+      qualities: playable.length > 1 ? playable : undefined,
     };
   } catch (error) {
     return {

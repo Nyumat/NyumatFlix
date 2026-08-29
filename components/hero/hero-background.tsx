@@ -12,8 +12,12 @@ import {
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { isScrapeServer, useServerStore } from "@/lib/stores/server-store";
 import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
+import { useValidatedHeroBackdrop } from "@/hooks/use-validated-hero-backdrop";
+import {
+  heroBackgroundImageUrl,
+  resolveHeroBackgroundImage,
+} from "@/lib/hero-background-image";
 import { readIntroDbImdbId } from "@/lib/playback/introdb";
-import { logger } from "@/lib/utils";
 import type { MediaItem } from "@/lib/domain/typings";
 import {
   AnimatePresence,
@@ -23,6 +27,8 @@ import {
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { tmdbImage } from "@/tmdb/utils";
+import { cn } from "@/lib/utils";
+import { logger } from "@/lib/utils";
 import { AmbientVideoBackdrop } from "./ambient-video-backdrop";
 import {
   HeroEmbedPlayerPanel,
@@ -103,6 +109,7 @@ export function HeroBackground({
     sourceOverlayItems,
     handleSelectEmbedServer,
     handleScrapedPlaybackError,
+    handleDirectPlaybackExhausted,
     handleRetryAllScraping,
     handleScrapePlaybackEnded,
   } = scrapePlayback;
@@ -166,13 +173,39 @@ export function HeroBackground({
     trailerVideos[selectedTrailerIndex] ?? trailerVideos[0];
   const canSwitchTrailers = trailerVideos.length > 1;
 
-  const playbackBackdropPath = media.backdrop_path ?? media.poster_path ?? null;
-  const playbackBackdropUrl = playbackBackdropPath
-    ? tmdbImage.backdrop(playbackBackdropPath, "w1280")
+  const selectedEpisode = useEpisodeStore((state) => state.selectedEpisode);
+
+  const preferPosterHero =
+    typeof anilistId === "number" &&
+    Number.isFinite(anilistId) &&
+    anilistId > 0;
+
+  const heroImage = resolveHeroBackgroundImage(media, {
+    preferPosterWhenNoBackdrop: preferPosterHero,
+    episodeStillPath: selectedEpisode?.still_path,
+  });
+  const heroImageSrc = heroImage
+    ? heroBackgroundImageUrl(heroImage, "original")
     : null;
-  const playbackPosterUrl = playbackBackdropPath
-    ? tmdbImage.backdrop(playbackBackdropPath, "w780")
-    : null;
+  const { usePosterHero, showBackdropImage } = useValidatedHeroBackdrop({
+    heroImage,
+    heroImageSrc,
+    preferPosterWhenNoBackdrop: preferPosterHero,
+  });
+  const playbackBackdropUrl = selectedEpisode?.still_path
+    ? tmdbImage.backdrop(selectedEpisode.still_path, "w1280")
+    : heroImage
+      ? heroBackgroundImageUrl(
+          heroImage,
+          heroImage.kind === "poster" || usePosterHero ? "w780" : "w1280",
+        )
+      : null;
+  const playbackPosterUrl = media.poster_path
+    ? tmdbImage.poster(media.poster_path, "w780")
+    : heroImageSrc;
+  const posterHeroSrc = media.poster_path
+    ? tmdbImage.poster(media.poster_path, "original")
+    : heroImageSrc;
   const playbackImdbId = readIntroDbImdbId(media);
 
   const getVideoSrc = () => {
@@ -276,12 +309,9 @@ export function HeroBackground({
     ],
   );
   const embedIframeKey = `${embedVideoSrc}-${vidnestContentType}-${animePreference}-${selectedServer.id}`;
-  const backdropSrc = `https://image.tmdb.org/t/p/original${
-    media.backdrop_path ?? media.poster_path
-  }`;
   const ambientVideoKey = hasVideasySource
     ? `${videasyTrailerUrl ?? ""}|${videasyTrailerHlsUrl ?? ""}`
-    : String(media.backdrop_path ?? media.poster_path ?? media.id);
+    : String(heroImage?.path ?? media.id);
 
   useEffect(() => {
     if (!isPlayingTrailer || !selectedTrailer?.key) {
@@ -370,28 +400,58 @@ export function HeroBackground({
     <div className="absolute inset-0 z-0 bg-black">
       <AnimatePresence mode="popLayout">
         <motion.div
-          key={media.backdrop_path}
+          key={heroImage?.path ?? media.id}
           className="relative h-full w-full"
           animate={controls}
         >
-          {!isPlayingTrailer && !isPlayingVideo && !videasyBackdropReady && (
-            <motion.img
-              src={backdropSrc}
-              fetchPriority="high"
-              alt={(media.title || media.name) as string}
-              className="w-full h-full object-cover absolute inset-0 z-0"
-              initial={false}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={HERO_MEDIA_TRANSITION}
-            />
-          )}
+          {!isPlayingTrailer &&
+            !videasyBackdropReady &&
+            heroImageSrc &&
+            (!isPlayingVideo || !mediaReady) && (
+              <>
+                {usePosterHero && posterHeroSrc ? (
+                  <motion.img
+                    src={posterHeroSrc}
+                    alt=""
+                    aria-hidden
+                    className="absolute inset-0 z-0 h-full w-full scale-110 object-cover opacity-35 blur-3xl"
+                    initial={false}
+                    animate={{ opacity: 0.35 }}
+                    exit={{ opacity: 0 }}
+                    transition={HERO_MEDIA_TRANSITION}
+                  />
+                ) : null}
+                {showBackdropImage && heroImageSrc ? (
+                  <motion.img
+                    src={heroImageSrc}
+                    fetchPriority="high"
+                    alt={(media.title || media.name) as string}
+                    className="absolute inset-0 z-0 h-full w-full object-cover"
+                    initial={false}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={HERO_MEDIA_TRANSITION}
+                  />
+                ) : usePosterHero && posterHeroSrc ? (
+                  <motion.img
+                    src={posterHeroSrc}
+                    fetchPriority="high"
+                    alt={(media.title || media.name) as string}
+                    className="absolute inset-0 z-0 h-full w-full object-contain object-top"
+                    initial={false}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={HERO_MEDIA_TRANSITION}
+                  />
+                ) : null}
+              </>
+            )}
 
-          {videasyBackdropReady ? (
+          {videasyBackdropReady && heroImageSrc ? (
             <AmbientVideoBackdrop
               key={ambientVideoKey}
               ambientVideoKey={ambientVideoKey}
-              backdropSrc={backdropSrc}
+              backdropSrc={heroImageSrc}
               backdropAlt={(media.title || media.name) as string}
               mp4Url={videasyTrailerUrl}
               hlsUrl={videasyTrailerHlsUrl}
@@ -491,6 +551,7 @@ export function HeroBackground({
                       onSelectEmbedServer={handleSelectEmbedServer}
                       onRetryAllScraping={handleRetryAllScraping}
                       onFatalError={handleScrapedPlaybackError}
+                      onDirectPlaybackExhausted={handleDirectPlaybackExhausted}
                       onEnded={handleScrapePlaybackEnded}
                       isDirectMode={isDirectMode}
                       directPlayback={directPlayback}
