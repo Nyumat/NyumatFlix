@@ -48,7 +48,6 @@ describe("buildSourceOverlayItems", () => {
     expect(embedItems.map((item) => item.id)).toEqual([
       "vidfast",
       "vidsrc-mirror",
-      "videasy",
       "vidlink",
       "vidcore",
       "1embed",
