@@ -30,31 +30,29 @@ describe("API functions", () => {
       const result = await fetchSearchPreview("a");
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(result).toEqual({ results: [], suggestions: [] });
+      expect(result).toEqual({ results: [] });
     });
 
     test("returns empty preview data for empty queries", async () => {
       const result = await fetchSearchPreview("");
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(result).toEqual({ results: [], suggestions: [] });
+      expect(result).toEqual({ results: [] });
     });
 
     test("returns empty preview data for whitespace-only queries", async () => {
       const result = await fetchSearchPreview("   ");
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(result).toEqual({ results: [], suggestions: [] });
+      expect(result).toEqual({ results: [] });
     });
 
     test("fetches search preview for valid queries", async () => {
       const mockResults = [{ id: 1, title: "Test", media_type: "movie" }];
-      const mockSuggestions = ["Test", "Christopher Nolan"];
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           results: mockResults,
-          suggestions: mockSuggestions,
         }),
       } as Response);
 
@@ -66,14 +64,13 @@ describe("API functions", () => {
       );
       expect(result).toEqual({
         results: mockResults,
-        suggestions: mockSuggestions,
       });
     });
 
     test("passes abort signal to fetch", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ results: [], suggestions: [] }),
+        json: async () => ({ results: [] }),
       } as Response);
 
       const controller = new AbortController();
@@ -103,7 +100,7 @@ describe("API functions", () => {
 
       const result = await fetchSearchPreview("test");
 
-      expect(result).toEqual({ results: [], suggestions: [] });
+      expect(result).toEqual({ results: [] });
     });
   });
 

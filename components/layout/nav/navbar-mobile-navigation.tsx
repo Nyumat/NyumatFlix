@@ -21,23 +21,14 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import type { NavbarSearchClientProps } from "@/components/search/search";
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { type NavItem } from "@/config/site";
 import { getNavigationItems } from "@/lib/navigation";
 import { useWatchlistSummary } from "@/hooks/useWatchlistSummary";
-import {
-  getBrowseLinkLabel,
-  getBrowseLinks,
-  getNavIcon,
-  hasBrowseSubmenu,
-  isCurrentHref,
-  isInNavGroup,
-  toTitleCase,
-} from "@/lib/nav/browse";
+import { getNavIcon, isInNavGroup, toTitleCase } from "@/lib/nav/browse";
 import { cn } from "@/lib/utils";
 import {
   Check,
-  ChevronLeft,
   ChevronRight,
   List,
   Loader2,
@@ -48,9 +39,9 @@ import {
 } from "lucide-react";
 import type { Session } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
-import Image from "next/image";
+import { BrandLogo, BRAND_NAME } from "@/components/brand-logo";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   cloneElement,
   isValidElement,
@@ -92,17 +83,14 @@ export const NavbarMobileNavigation = ({
   session,
   triggerClassName,
 }: NavbarMobileNavigationProps) => {
-  const flags = useFeatureFlagsOptional();
-  const navigationItems = getNavigationItems(flags?.liveTvEnabled ?? false);
-  const authEnabled = flags?.authEnabled ?? true;
+  const { liveTvEnabled, authEnabled } = useFeatureFlags();
+  const navigationItems = getNavigationItems(liveTvEnabled);
   const [open, setOpen] = useState(false);
-  const [detailItemTitle, setDetailItemTitle] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { data: clientSession } = useSession();
   const activeSession = clientSession ?? session;
 
@@ -112,12 +100,6 @@ export const NavbarMobileNavigation = ({
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (!open) {
-      setDetailItemTitle(null);
-    }
-  }, [open]);
 
   const handleSignOut = async () => {
     setOpen(false);
@@ -155,17 +137,27 @@ export const NavbarMobileNavigation = ({
   const searchContent =
     isValidElement(children) && typeof children.type !== "string"
       ? cloneElement(children as React.ReactElement<NavbarSearchClientProps>, {
-          onAfterNavigation: handleLinkClick,
+          onAfterNavigation: () => {
+            handleLinkClick();
+            (
+              children as React.ReactElement<NavbarSearchClientProps>
+            ).props.onAfterNavigation?.();
+          },
           className: "mx-0 max-w-none",
+          onOpenDialog: () => {
+            handleLinkClick();
+            (
+              children as React.ReactElement<NavbarSearchClientProps>
+            ).props.onOpenDialog?.();
+          },
+          mode: (children as React.ReactElement<NavbarSearchClientProps>).props
+            .mode,
         })
       : children;
 
   const activeItem = navigationItems.find((item) =>
-    isInNavGroup(pathname, searchParams, item),
+    isInNavGroup(pathname, item),
   );
-  const detailItem = detailItemTitle
-    ? navigationItems.find((item) => item.title === detailItemTitle)
-    : null;
 
   if (!isMounted) {
     return (
@@ -209,23 +201,9 @@ export const NavbarMobileNavigation = ({
           )}
         >
           <SheetHeader className="border-b border-white/10 px-5 py-4 text-left">
-            <div className="flex items-center gap-3 pr-10">
-              <Link
-                href="/"
-                onClick={handleLinkClick}
-                className="flex size-8 shrink-0 items-center justify-center"
-              >
-                <Image
-                  src="/logo.svg"
-                  alt=""
-                  width={32}
-                  height={32}
-                  className="size-8"
-                />
-              </Link>
-              <SheetTitle className="text-left text-lg font-semibold tracking-tight text-white">
-                NyumatFlix
-              </SheetTitle>
+            <div className="flex items-center pr-10">
+              <BrandLogo placement="mobile-menu" onClick={handleLinkClick} />
+              <SheetTitle className="sr-only">{BRAND_NAME}</SheetTitle>
             </div>
           </SheetHeader>
 
@@ -245,38 +223,16 @@ export const NavbarMobileNavigation = ({
               ) : null}
 
               <section className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <p className="text-sm font-medium text-white/70">Browse</p>
-                  {detailItem ? (
-                    <button
-                      type="button"
-                      onClick={() => setDetailItemTitle(null)}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-primary transition hover:text-primary/80"
-                    >
-                      <ChevronLeft className="size-3.5" strokeWidth={1.75} />
-                      Back
-                    </button>
-                  ) : null}
-                </div>
+                <p className="px-1 text-sm font-medium text-white/70">Browse</p>
 
-                {detailItem ? (
-                  <MobileBrowseDetail
-                    item={detailItem}
-                    pathname={pathname}
-                    searchParams={searchParams}
-                    onNavigate={handleLinkClick}
-                  />
-                ) : (
-                  <MobileBrowseRoot
-                    items={navigationItems}
-                    activeTitle={activeItem?.title}
-                    onOpenDetail={setDetailItemTitle}
-                    onNavigate={handleLinkClick}
-                  />
-                )}
+                <MobileBrowseRoot
+                  items={navigationItems}
+                  activeTitle={activeItem?.title}
+                  onNavigate={handleLinkClick}
+                />
               </section>
 
-              {!detailItem ? <BrowseSettings variant="mobile" /> : null}
+              <BrowseSettings variant="mobile" />
             </div>
           </div>
 
@@ -458,12 +414,10 @@ const WatchlistStat = ({
 const MobileBrowseRoot = ({
   items,
   activeTitle,
-  onOpenDetail,
   onNavigate,
 }: {
   items: NavItem[];
   activeTitle?: string;
-  onOpenDetail: (title: string) => void;
   onNavigate: () => void;
 }) => (
   <div className="grid grid-cols-2 gap-2">
@@ -478,107 +432,22 @@ const MobileBrowseRoot = ({
           "border-primary/35 bg-primary/10 text-primary ring-1 ring-primary/20",
       );
 
-      if (!hasBrowseSubmenu(item)) {
-        return (
-          <Link
-            key={item.title}
-            href={item.href}
-            onClick={onNavigate}
-            className={tileClassName}
-          >
-            <div className="flex w-full items-center justify-between">
-              <Icon className="size-5" strokeWidth={1.65} />
-              {isActive ? (
-                <Check className="size-4" strokeWidth={1.75} />
-              ) : null}
-            </div>
-            <span className="text-sm font-medium text-white">
-              {toTitleCase(item.title)}
-            </span>
-          </Link>
-        );
-      }
-
       return (
-        <button
+        <Link
           key={item.title}
-          type="button"
-          onClick={() => onOpenDetail(item.title)}
+          href={item.href}
+          onClick={onNavigate}
           className={tileClassName}
         >
           <div className="flex w-full items-center justify-between">
             <Icon className="size-5" strokeWidth={1.65} />
-            {isActive ? (
-              <Check className="size-4" strokeWidth={1.75} />
-            ) : (
-              <ChevronRight
-                className="size-4 opacity-55 transition group-hover:translate-x-0.5 group-hover:opacity-90"
-                strokeWidth={1.75}
-              />
-            )}
+            {isActive ? <Check className="size-4" strokeWidth={1.75} /> : null}
           </div>
           <span className="text-sm font-medium text-white">
             {toTitleCase(item.title)}
           </span>
-        </button>
+        </Link>
       );
     })}
   </div>
 );
-
-const MobileBrowseDetail = ({
-  item,
-  pathname,
-  searchParams,
-  onNavigate,
-}: {
-  item: NavItem;
-  pathname: string;
-  searchParams: URLSearchParams;
-  onNavigate: () => void;
-}) => {
-  const Icon = getNavIcon(item);
-
-  return (
-    <div className="space-y-3">
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-xl px-3 py-2.5",
-          drawerSurfaceClassName,
-        )}
-      >
-        <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="size-4" strokeWidth={1.65} />
-        </span>
-        <p className="text-sm font-semibold text-white">
-          {toTitleCase(item.title)}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {getBrowseLinks(item).map((child) => {
-          const isActive = isCurrentHref(pathname, searchParams, child.href);
-
-          return (
-            <Link
-              key={child.href}
-              href={child.href}
-              onClick={onNavigate}
-              className={cn(
-                "flex min-h-12 items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-white transition-all",
-                drawerSurfaceClassName,
-                "hover:border-primary/35 hover:bg-primary/10 active:scale-[0.98]",
-                isActive && "border-primary/40 bg-primary/12 text-primary",
-              )}
-            >
-              <span>{getBrowseLinkLabel(item, child)}</span>
-              {isActive ? (
-                <Check className="size-4" strokeWidth={1.75} />
-              ) : null}
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-};

@@ -161,17 +161,29 @@ export function WatchlistButton({
 
   useEffect(() => {
     if (!mediaType) return;
+
+    let cancelled = false;
+
     const checkWatchlistStatus = async () => {
       try {
         const item = await getWatchlistItem(contentId, mediaType);
+        if (cancelled) return;
         setIsInWatchlist(!!item);
       } catch (error) {
         console.error("Error checking watchlist status:", error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
-    checkWatchlistStatus();
+
+    setIsLoading(true);
+    void checkWatchlistStatus();
+
+    return () => {
+      cancelled = true;
+    };
   }, [contentId, mediaType]);
 
   const handleToggle = async () => {

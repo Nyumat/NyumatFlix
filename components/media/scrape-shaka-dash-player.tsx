@@ -9,6 +9,7 @@ import { buildIntroDbChaptersVtt } from "@/lib/playback/introdb";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
 import { buildScrapeSubtitleTracks } from "@/lib/scrape/player-sources";
 import type { ScrapeSubtitle } from "@/lib/scrape/types";
+import { createMediaReadyHandler } from "@/lib/playback/media-ready";
 import { cn } from "@/lib/utils";
 
 type ScrapeShakaDashPlayerProps = {
@@ -21,6 +22,7 @@ type ScrapeShakaDashPlayerProps = {
   imdbId?: string | null;
   className?: string;
   onFatalError?: () => void;
+  onMediaReady?: () => void;
   onEnded?: () => Promise<boolean>;
 };
 
@@ -36,7 +38,11 @@ const absolutizeUrl = (url: string): string => {
   }
 };
 
-export function ScrapeShakaDashPlayer({
+export function ScrapeShakaDashPlayer(props: ScrapeShakaDashPlayerProps) {
+  return <ScrapeShakaDashPlayerInstance key={props.playUrl} {...props} />;
+}
+
+function ScrapeShakaDashPlayerInstance({
   playUrl,
   referer,
   subtitles,
@@ -46,10 +52,18 @@ export function ScrapeShakaDashPlayer({
   imdbId = null,
   className,
   onFatalError,
+  onMediaReady,
   onEnded,
 }: ScrapeShakaDashPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<import("shaka-player").default.Player | null>(null);
+  const readyRef = useRef(false);
+  const onMediaReadyRef = useRef(onMediaReady);
+  onMediaReadyRef.current = onMediaReady;
+
+  const markMediaReady = useCallback(() => {
+    createMediaReadyHandler(() => onMediaReadyRef.current?.(), readyRef)();
+  }, []);
   const [playbackState, setPlaybackState] = useState({
     currentTime: 0,
     duration: 0,
@@ -96,6 +110,7 @@ export function ScrapeShakaDashPlayer({
   }, []);
 
   useEffect(() => {
+    readyRef.current = false;
     let cancelled = false;
 
     const setup = async () => {
@@ -141,10 +156,6 @@ export function ScrapeShakaDashPlayer({
   }, [destroyPlayer, onFatalError, playbackUrl]);
 
   useEffect(() => {
-    setPlaybackState({ currentTime: 0, duration: 0 });
-  }, [playbackUrl]);
-
-  useEffect(() => {
     const video = videoRef.current;
     if (!video || resumeTime <= 0) {
       return;
@@ -187,8 +198,14 @@ export function ScrapeShakaDashPlayer({
             duration: state.duration || video.duration || 0,
           }));
         }}
+        onPlaying={() => {
+          markMediaReady();
+        }}
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
+          if (video.currentTime > 0) {
+            markMediaReady();
+          }
           setPlaybackState((state) => ({
             currentTime: video.currentTime,
             duration: state.duration || video.duration || 0,

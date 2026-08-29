@@ -32,17 +32,11 @@ export const useAdaptiveLiveHls = (
   const playUrlRef = useRef(playUrl);
   const lowLatencyModeRef = useRef(lowLatencyMode);
   const lowLatencyBlockedRef = useRef(lowLatencyBlocked);
+  playUrlRef.current = playUrl;
+  lowLatencyModeRef.current = lowLatencyMode;
+  lowLatencyBlockedRef.current = lowLatencyBlocked;
 
   useEffect(() => {
-    lowLatencyModeRef.current = lowLatencyMode;
-  }, [lowLatencyMode]);
-
-  useEffect(() => {
-    lowLatencyBlockedRef.current = lowLatencyBlocked;
-  }, [lowLatencyBlocked]);
-
-  useEffect(() => {
-    playUrlRef.current = playUrl;
     setLowLatencyMode(true);
     setLowLatencyBlocked(false);
     setReloadNonce(0);

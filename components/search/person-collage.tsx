@@ -65,6 +65,43 @@ const getCollageLayout = (
   return { imagesToShow: 10, gridCols: "grid-cols-4", gridRows: "grid-rows-3" };
 };
 
+export function PersonSearchAvatar({
+  profilePath,
+  name,
+  className,
+}: {
+  profilePath?: string | null;
+  name: string;
+  className?: string;
+}) {
+  if (profilePath) {
+    return (
+      <div className={cn("relative h-full w-full", className)}>
+        <Image
+          src={`https://image.tmdb.org/t/p/w185${profilePath}`}
+          fill
+          sizes="80px"
+          alt={name}
+          className="object-cover"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex h-full w-full items-center justify-center bg-muted text-muted-foreground",
+        className,
+      )}
+    >
+      <User size={20} aria-hidden />
+      <span className="sr-only">{name}</span>
+    </div>
+  );
+}
+
 export function PersonCollage({
   knownFor = [],
   profilePath,

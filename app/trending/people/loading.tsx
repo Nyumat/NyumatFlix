@@ -1,5 +1,5 @@
-import { PersonPageLoading } from "@/components/layout/page-loading/person-page-loading";
+import { CatalogListLoading } from "@/components/layout/page-loading/catalog-list-loading";
 
 export default function TrendingPeopleLoading() {
-  return <PersonPageLoading />;
+  return <CatalogListLoading centered />;
 }

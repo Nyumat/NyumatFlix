@@ -85,6 +85,7 @@ export interface BaseContentGridProps {
   onViewModeChange?: (mode: ViewMode) => void;
   showItemsCount?: boolean;
   showViewModeControls?: boolean;
+  hideViewModeControlsOnMobile?: boolean;
   showDock?: boolean;
   dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   itemsPerRow?: number;
@@ -100,6 +101,7 @@ export function BaseContentGrid({
   onViewModeChange,
   showItemsCount = false,
   showViewModeControls = true,
+  hideViewModeControlsOnMobile = false,
   showDock = false,
   itemsPerRow = 4,
   gridMinItemWidth,
@@ -196,7 +198,14 @@ export function BaseContentGrid({
     return (
       <div className={cn("w-full space-y-4", className)}>
         {(showItemsCount || (showViewModeControls && !showDock)) && (
-          <div className="flex items-center justify-between">
+          <div
+            className={cn(
+              "items-center justify-between",
+              showItemsCount || !hideViewModeControlsOnMobile
+                ? "flex"
+                : "hidden md:flex",
+            )}
+          >
             {showItemsCount && <Skeleton className="h-8 w-32" />}
             {showViewModeControls && !showDock && (
               <div className="flex border rounded-lg p-1 gap-1">
@@ -218,7 +227,14 @@ export function BaseContentGrid({
   return (
     <div className={cn("w-full space-y-4", className)}>
       {(showItemsCount || (showViewModeControls && !showDock)) && (
-        <div className="flex items-center justify-between">
+        <div
+          className={cn(
+            "items-center justify-between",
+            showItemsCount || !hideViewModeControlsOnMobile
+              ? "flex"
+              : "hidden md:flex",
+          )}
+        >
           {showItemsCount && (
             <h2 className="text-2xl font-bold">
               {itemsToDisplay.length}{" "}
@@ -227,7 +243,12 @@ export function BaseContentGrid({
           )}
 
           {showViewModeControls && !showDock && (
-            <div className="flex border rounded-lg p-1 gap-1">
+            <div
+              className={cn(
+                "gap-1 rounded-lg border p-1",
+                hideViewModeControlsOnMobile ? "hidden md:flex" : "flex",
+              )}
+            >
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 size="sm"

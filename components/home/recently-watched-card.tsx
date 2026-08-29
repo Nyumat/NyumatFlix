@@ -10,13 +10,17 @@ import Link from "next/link";
 
 export interface RecentlyWatchedCardProps {
   item: RecentlyWatchedItem;
+  priority?: boolean;
 }
 
 const continueWatchingProgressFillClass = "bg-pink-500";
 const continueWatchingProgressFallbackFillClass = "bg-pink-500/40";
 const continueWatchingProgressTrackClass = "bg-pink-500/15";
 
-export function RecentlyWatchedCard({ item }: RecentlyWatchedCardProps) {
+export function RecentlyWatchedCard({
+  item,
+  priority = false,
+}: RecentlyWatchedCardProps) {
   const backdropUrl = item.backdropPath
     ? tmdbImage.backdrop(item.backdropPath, "w1280")
     : item.posterPath
@@ -44,6 +48,7 @@ export function RecentlyWatchedCard({ item }: RecentlyWatchedCardProps) {
           className="pointer-events-none object-cover transition-transform duration-500 group-hover:scale-105"
           sizes="(max-width: 768px) 85vw, 28vw"
           draggable={false}
+          priority={priority}
         />
       ) : (
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-pink-500/20 to-pink-500/5" />

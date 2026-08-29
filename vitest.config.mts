@@ -28,6 +28,11 @@ export default defineConfig({
     setupFiles: ["./setupTests.ts"],
     globals: true,
     silent: false,
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "packages/calluspirates-shared/**",
+    ],
     env: loadEnv("", process.cwd(), ""),
     server: {
       deps: {

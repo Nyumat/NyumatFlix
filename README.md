@@ -126,19 +126,19 @@ The remaining operational commands all use the same reconciliation path:
 Docker uses the same image shape for local and production. Build-time secrets are not used. Copy the example env file and fill in the values:
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
 For local Docker, use `APP_URL=http://localhost:8080`, then run:
 
 ```bash
-docker compose --env-file .env up --build
+./scripts/local-compose.sh up --build -d
 ```
 
 The app will be available at [http://localhost:8080](http://localhost:8080). To use a different port:
 
 ```bash
-APP_PORT=3001 docker compose --env-file .env up --build
+APP_PORT=3001 ./scripts/local-compose.sh up --build -d
 ```
 
 For production, build and publish the image without secrets:

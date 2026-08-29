@@ -1,6 +1,6 @@
 "use client";
 
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { SiteNav } from "@/components/layout/site-nav";
 import { SiteNavDesktop } from "@/components/layout/site-nav-desktop";
 import { AnniversaryBanner } from "@/components/layout/anniversary-banner";
@@ -34,7 +34,7 @@ const DETAIL_PARENT_ROUTES: Array<{
 }> = [
   { pattern: /^\/movies\/[^/]+(?:\/.*)?$/, parent: "/movies" },
   { pattern: /^\/tvshows\/[^/]+(?:\/.*)?$/, parent: "/tvshows" },
-  { pattern: /^\/person\/[^/]+(?:\/.*)?$/, parent: "/people/popular" },
+  { pattern: /^\/person\/[^/]+(?:\/.*)?$/, parent: "/people" },
   {
     pattern: /^\/collection\/[^/]+(?:\/.*)?$/,
     parent: "/movies",
@@ -52,8 +52,7 @@ const detailNavbarActionButtonClassName =
   "border-white/25 bg-black/35 text-white shadow-lg shadow-black/35 ring-white/20 hover:border-white/35 hover:bg-black/45 hover:ring-white/30";
 
 export const NavbarClient = ({ session }: NavbarClientProps) => {
-  const flags = useFeatureFlagsOptional();
-  const liveTvEnabled = flags?.liveTvEnabled ?? false;
+  const { liveTvEnabled } = useFeatureFlags();
   const isCatalogRoute = (pathname: string) => {
     const patterns = [
       /^\/$/,
@@ -70,13 +69,13 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
 
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const onAuthRoute = isAuthRoute(pathname);
   const detailRouteConfig = getDetailRouteConfig(pathname);
   const parentRouteOverride = useDetailRouteParentOverride(pathname);
-  const isTransparentHeaderRoute =
-    isCatalogRoute(pathname) || isAuthRoute(pathname);
+  const isTransparentHeaderRoute = isCatalogRoute(pathname) || onAuthRoute;
   const headerPositionClassName = isTransparentHeaderRoute
     ? "absolute"
-    : "sticky";
+    : "relative md:sticky";
 
   useSearchDialogShortcut(setIsSearchOpen);
 
@@ -98,12 +97,14 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
         "top-0 z-50 w-full bg-transparent",
       )}
     >
-      {!isAuthRoute(pathname) && <AnniversaryBanner />}
-      <div className="site-container flex min-h-14 items-center gap-2 py-2.5 lg:gap-3">
-        <div className="flex shrink-0 items-center gap-1 lg:gap-2">
-          <BackButton />
-          <SiteNav />
-        </div>
+      {!onAuthRoute && <AnniversaryBanner />}
+      <div className="site-container flex min-h-16 items-center gap-2 md:min-h-20 lg:gap-3">
+        {!onAuthRoute ? (
+          <div className="flex shrink-0 items-center gap-1 lg:gap-2">
+            <BackButton />
+            <SiteNav />
+          </div>
+        ) : null}
 
         <div className="min-w-0 flex-1" />
 
@@ -129,7 +130,10 @@ export const NavbarClient = ({ session }: NavbarClientProps) => {
           </div>
           <div className={cn("flex shrink-0", navMobileMenuClassName)}>
             <NavbarMobileNavigation session={session}>
-              <NavbarSearchClient />
+              <NavbarSearchClient
+                mode="trigger"
+                onOpenDialog={() => setIsSearchOpen(true)}
+              />
             </NavbarMobileNavigation>
           </div>
         </div>
@@ -169,8 +173,7 @@ const DetailPageActions = ({
   setIsSearchOpen: (open: boolean) => void;
 }) => {
   const router = useRouter();
-  const flags = useFeatureFlagsOptional();
-  const authEnabled = flags?.authEnabled ?? true;
+  const { authEnabled } = useFeatureFlags();
 
   const handleBack = () => {
     if (

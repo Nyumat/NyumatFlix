@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { fetchCombinedGenres, fetchSearchResults } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { CanonicalMediaCard } from "@/lib/domain/typings";
@@ -38,6 +39,9 @@ export interface UseSearchResultsReturn
 export const useSearchResults = (query: string): UseSearchResultsReturn => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
+  const trimmedQuery = query.trim();
+  const debouncedQuery = useDebouncedValue(trimmedQuery, 300);
+  const isDebouncing = trimmedQuery !== debouncedQuery;
 
   const genresQuery = useQuery({
     queryKey: queryKeys.combinedGenres(),
@@ -46,9 +50,9 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
   });
 
   const searchQuery = useQuery({
-    queryKey: queryKeys.searchResults(query.trim(), currentPage),
-    queryFn: () => fetchSearchResults(query.trim(), currentPage),
-    enabled: !!query.trim(),
+    queryKey: queryKeys.searchResults(debouncedQuery, currentPage),
+    queryFn: () => fetchSearchResults(debouncedQuery, currentPage),
+    enabled: !!debouncedQuery,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
@@ -81,10 +85,9 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
     searchQuery.refetch();
   }, [searchQuery]);
 
-  const trimmedQuery = query.trim();
-  const [lastQuery, setLastQuery] = useState(trimmedQuery);
-  if (trimmedQuery !== lastQuery) {
-    setLastQuery(trimmedQuery);
+  const [lastQuery, setLastQuery] = useState(debouncedQuery);
+  if (debouncedQuery !== lastQuery) {
+    setLastQuery(debouncedQuery);
     setCurrentPage(1);
   }
 
@@ -92,13 +95,13 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
     items,
     currentPage,
     totalPages: searchQuery.data?.totalPages ?? 1,
-    isLoading: searchQuery.isLoading,
-    isFetching: searchQuery.isFetching,
+    isLoading: isDebouncing || searchQuery.isLoading,
+    isFetching: isDebouncing || searchQuery.isFetching,
     error: searchQuery.error?.message ?? null,
     selectedGenreIds,
     allGenres: genresQuery.data ?? {},
     genresLoading: genresQuery.isLoading,
-    currentQuery: trimmedQuery,
+    currentQuery: debouncedQuery,
     filteredItems,
     genreOptions,
     setCurrentPage,

@@ -4,9 +4,17 @@ import {
   type AdminFlagState,
   type FlagDefinition,
 } from "@/lib/flags/flag-catalog";
+import {
+  DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+  sanitizeAnnouncementBannerConfig,
+  type AnnouncementBannerConfig,
+} from "@/lib/flags/announcement-banner";
 
 export const FLIPT_URL =
-  process.env.FLIPT_URL?.replace(/\/$/, "") ?? "http://flipt:8080";
+  process.env.FLIPT_URL?.replace(/\/$/, "") ??
+  (process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:8090"
+    : "http://flipt:8080");
 export const FLIPT_ENVIRONMENT = process.env.FLIPT_ENVIRONMENT ?? "default";
 export const FLIPT_NAMESPACE = process.env.FLIPT_NAMESPACE ?? "default";
 export const FLIPT_API_TOKEN = process.env.FLIPT_API_TOKEN ?? "";
@@ -30,6 +38,59 @@ if (FLAG_DEFINITIONS_BY_STORAGE_KEY.size !== ALL_FLAG_DEFINITIONS.length) {
 type CacheEntry = { expiresAt: number; state: AdminFlagState };
 
 let flagCache: CacheEntry | null = null;
+let failureCacheExpiresAt = 0;
+const FAILURE_CACHE_TTL_MS = 5000;
+
+let fliptUnavailableLogged = false;
+
+function isFliptConnectionError(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === "fetch failed") {
+    return true;
+  }
+
+  const cause =
+    error && typeof error === "object" && "cause" in error
+      ? (error as { cause?: unknown }).cause
+      : null;
+
+  if (cause && typeof cause === "object" && "code" in cause) {
+    const code = (cause as { code?: string }).code;
+    return code === "ECONNREFUSED" || code === "ENOTFOUND";
+  }
+
+  return false;
+}
+
+function logFliptFallback(error: unknown): void {
+  if (fliptUnavailableLogged) {
+    return;
+  }
+
+  fliptUnavailableLogged = true;
+
+  if (isFliptConnectionError(error)) {
+    console.info(
+      `[flipt] not reachable at ${FLIPT_URL}, using defaults (start the container when you need live flags)`,
+    );
+    return;
+  }
+
+  console.warn("[flipt] read failed, using defaults:", error);
+}
+
+function enterFailureCooldown(now: number, error: unknown): void {
+  if (failureCacheExpiresAt > now) {
+    return;
+  }
+
+  logFliptFallback(error);
+  failureCacheExpiresAt = now + FAILURE_CACHE_TTL_MS;
+}
+
+function clearFailureCooldown(): void {
+  failureCacheExpiresAt = 0;
+  fliptUnavailableLogged = false;
+}
 
 type FliptFlag = {
   "@type"?: typeof FLAG_TYPE_URL;
@@ -114,6 +175,7 @@ function flagPayload(
   def: FlagDefinition,
   enabled: boolean,
   current?: FliptFlag,
+  metadata?: Record<string, unknown>,
 ): FliptFlag {
   return {
     ...current,
@@ -123,6 +185,7 @@ function flagPayload(
     description: def.description ?? "",
     enabled,
     type: "BOOLEAN_FLAG_TYPE",
+    ...(metadata ? { metadata } : {}),
   };
 }
 
@@ -132,6 +195,7 @@ async function mutateFlag(
   enabled: boolean,
   revision: string | undefined,
   current?: FliptFlag,
+  metadata?: Record<string, unknown>,
 ): Promise<string | undefined> {
   const action = method === "POST" ? "create" : "update";
   const res = await fliptFetch(flagsResourcePath(), {
@@ -139,7 +203,7 @@ async function mutateFlag(
     body: JSON.stringify({
       key: toFliptStorageKey(def.key),
       revision,
-      payload: flagPayload(def, enabled, current),
+      payload: flagPayload(def, enabled, current, metadata),
     }),
   });
   if (!res.ok) {
@@ -167,6 +231,9 @@ export async function readAdminFlagState(): Promise<AdminFlagState> {
   if (flagCache && flagCache.expiresAt > now) {
     return flagCache.state;
   }
+  if (failureCacheExpiresAt > now) {
+    return { ...DEFAULT_FLAG_VALUES };
+  }
 
   try {
     await ensureFlagsSeeded();
@@ -179,16 +246,18 @@ export async function readAdminFlagState(): Promise<AdminFlagState> {
         state[def.key] = flag.enabled;
       }
     }
+    clearFailureCooldown();
     flagCache = { expiresAt: now + CACHE_TTL_MS, state };
     return state;
   } catch (error) {
-    console.warn("[flipt] read failed, using defaults:", error);
+    enterFailureCooldown(now, error);
     return { ...DEFAULT_FLAG_VALUES };
   }
 }
 
 export async function writeAdminFlagState(
   state: AdminFlagState,
+  announcementBanner?: AnnouncementBannerConfig,
 ): Promise<void> {
   const listed = await listFlags();
   const existing = new Map(
@@ -202,14 +271,62 @@ export async function writeAdminFlagState(
   for (const def of ALL_FLAG_DEFINITIONS) {
     const enabled = state[def.key] ?? def.defaultValue;
     const current = existing.get(toFliptStorageKey(def.key));
+    const isAnnouncement = def.key === "global.announcement_banner";
+    const bannerConfig =
+      isAnnouncement && announcementBanner
+        ? sanitizeAnnouncementBannerConfig(announcementBanner)
+        : undefined;
+    const metadata = bannerConfig
+      ? { ...(current?.metadata ?? {}), announcementBanner: bannerConfig }
+      : undefined;
+    const configChanged = Boolean(
+      bannerConfig &&
+        JSON.stringify(current?.metadata?.announcementBanner) !==
+          JSON.stringify(bannerConfig),
+    );
     if (!current) {
-      revision = await mutateFlag("POST", def, enabled, revision);
-    } else if (current.enabled !== enabled) {
-      revision = await mutateFlag("PUT", def, enabled, revision, current);
+      revision = await mutateFlag(
+        "POST",
+        def,
+        enabled,
+        revision,
+        undefined,
+        metadata,
+      );
+    } else if (current.enabled !== enabled || configChanged) {
+      revision = await mutateFlag(
+        "PUT",
+        def,
+        enabled,
+        revision,
+        current,
+        metadata,
+      );
     }
   }
 
   invalidateFlagCache();
+}
+
+export async function readAnnouncementBannerConfig(): Promise<AnnouncementBannerConfig> {
+  const now = Date.now();
+  if (failureCacheExpiresAt > now) {
+    return { ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG };
+  }
+
+  try {
+    const listed = await listFlags();
+    const banner = (listed.resources ?? []).find(
+      (resource) =>
+        resource.key === toFliptStorageKey("global.announcement_banner"),
+    );
+    return sanitizeAnnouncementBannerConfig(
+      banner?.payload.metadata?.announcementBanner,
+    );
+  } catch (error) {
+    enterFailureCooldown(now, error);
+    return { ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG };
+  }
 }
 
 export async function evaluateBooleanFlag(

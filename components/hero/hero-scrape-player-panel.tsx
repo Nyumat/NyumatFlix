@@ -1,11 +1,20 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
-import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { PlaybackStartingOverlay } from "@/components/media/controls/playback-starting-overlay";
 import { ScrapingOverlay } from "@/components/media/controls/scraping-overlay";
+import { PlaybackErrorBoundary } from "@/components/media/playback-error-boundary";
 import { ScrapePlayerShell } from "@/components/media/scrape-player-shell";
+import type { UseDirectPlaybackReturn } from "@/hooks/use-direct-movie-playback";
 import type { UseAnimeScrapeReturn } from "@/hooks/use-anime-scrape";
 import type { UseScrapeReturn } from "@/hooks/use-scrape";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
@@ -20,19 +29,28 @@ import type {
 } from "@/lib/scrape/types";
 import { isScrapeServer, type VideoServer } from "@/lib/stores/server-store";
 
+const DirectStreamPlayer = dynamic(
+  () =>
+    import("@/components/media/direct-stream-player").then(
+      (module) => module.DirectStreamPlayer,
+    ),
+  { ssr: false, loading: () => null },
+);
+
+const CalluspiratesStreamPlayer = dynamic(
+  () =>
+    import("@/components/media/calluspirates-stream-player").then(
+      (module) => module.CalluspiratesStreamPlayer,
+    ),
+  { ssr: false, loading: () => null },
+);
+
 const ScrapeHlsPlayer = dynamic(
   () =>
     import("@/components/media/scrape-hls-player").then(
       (module) => module.ScrapeHlsPlayer,
     ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full w-full items-center justify-center rounded-lg border border-border/20 bg-black text-sm text-muted-foreground shadow-2xl">
-        Loading player...
-      </div>
-    ),
-  },
+  { ssr: false, loading: () => null },
 );
 
 const ScrapeShakaDashPlayer = dynamic(
@@ -40,16 +58,17 @@ const ScrapeShakaDashPlayer = dynamic(
     import("@/components/media/scrape-shaka-dash-player").then(
       (module) => module.ScrapeShakaDashPlayer,
     ),
-  {
-    ssr: false,
-  },
+  { ssr: false, loading: () => null },
 );
 
 type HeroScrapePlayerPanelProps = {
   selectedServer: VideoServer;
   scrapeStatus: UseScrapeReturn["status"];
   scrapeResult: {
+    providerId?: string;
     playUrl: string;
+    directPlayback?: "hls" | "direct" | "extended";
+    directFallbackUrl?: string;
     qualities?: ScrapeQuality[];
     subtitles?: ScrapeSubtitle[];
     audioVersions?: ScrapeAudioVersion[];
@@ -71,6 +90,9 @@ type HeroScrapePlayerPanelProps = {
   onRetryAllScraping?: () => void;
   onFatalError: () => void;
   onEnded?: () => Promise<boolean>;
+  isDirectMode?: boolean;
+  directPlayback?: UseDirectPlaybackReturn;
+  onMediaReadyChange?: (ready: boolean) => void;
 };
 
 export function HeroScrapePlayerPanel({
@@ -90,9 +112,38 @@ export function HeroScrapePlayerPanel({
   onRetryAllScraping,
   onFatalError,
   onEnded,
+  isDirectMode = false,
+  directPlayback,
+  onMediaReadyChange,
 }: HeroScrapePlayerPanelProps) {
-  const flags = useFeatureFlagsOptional();
-  const maintenanceMode = flags?.maintenanceMode ?? false;
+  const { maintenanceMode } = useFeatureFlags();
+  const [mediaReady, setMediaReady] = useState(false);
+
+  const playbackSessionKey = useMemo(() => {
+    if (isDirectMode && directPlayback?.activeStream) {
+      return `direct:${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`;
+    }
+    if (scrapeResult?.playUrl) {
+      return `scrape:${scrapeResult.providerId ?? "unknown"}:${scrapeResult.playUrl}`;
+    }
+    return "idle";
+  }, [
+    directPlayback?.activeStream,
+    directPlayback?.streamIndex,
+    isDirectMode,
+    scrapeResult?.playUrl,
+    scrapeResult?.providerId,
+  ]);
+
+  useEffect(() => {
+    setMediaReady(false);
+    onMediaReadyChange?.(false);
+  }, [onMediaReadyChange, playbackSessionKey]);
+
+  const handleMediaReady = useCallback(() => {
+    setMediaReady(true);
+    onMediaReadyChange?.(true);
+  }, [onMediaReadyChange]);
 
   if (!isScrapeServer(selectedServer)) {
     return null;
@@ -104,20 +155,106 @@ export function HeroScrapePlayerPanel({
     </div>
   ) : null;
 
+  if (isDirectMode && directPlayback) {
+    const directStatus = directPlayback.status;
+    const directError = directPlayback.error ?? scrapeError;
+    const isDiscovering = directStatus === "loading" || directStatus === "idle";
+    const hasPlayer =
+      directStatus === "playing" &&
+      Boolean(directPlayback.activeStream) &&
+      Boolean(progressKey);
+    const showDiscoveryOverlay = isDiscovering;
+    const showBufferingOverlay = hasPlayer && !mediaReady;
+    const showErrorOverlay = directStatus === "error";
+
+    return (
+      <>
+        {maintenanceBanner}
+
+        {hasPlayer && progressKey && directPlayback.activeStream ? (
+          <PlaybackErrorBoundary onClose={onFatalError}>
+            <CalluspiratesStreamPlayer
+              key={`${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`}
+              stream={directPlayback.activeStream}
+              title={playbackTitle}
+              poster={playbackPosterUrl}
+              progressKey={progressKey}
+              className="h-full w-full"
+              onStreamFailed={onFatalError}
+              onMediaReady={handleMediaReady}
+              onEnded={isTv ? onEnded : undefined}
+            />
+          </PlaybackErrorBoundary>
+        ) : null}
+
+        {showDiscoveryOverlay ? (
+          <ScrapingOverlay
+            items={sourceOverlayItems}
+            activeProviderId="direct"
+            error={directError}
+            onSelectEmbedServer={onSelectEmbedServer}
+          />
+        ) : null}
+
+        {showBufferingOverlay ? <PlaybackStartingOverlay /> : null}
+
+        {showErrorOverlay ? (
+          <ScrapingOverlay
+            items={sourceOverlayItems}
+            activeProviderId="direct"
+            error={directError}
+            onSelectEmbedServer={onSelectEmbedServer}
+            onRetryAll={onRetryAllScraping}
+          />
+        ) : null}
+      </>
+    );
+  }
+
+  const isDiscovering = scrapeStatus === "scraping";
+  const hasPlayer =
+    scrapeStatus === "playing" &&
+    Boolean(scrapeResult?.playUrl) &&
+    Boolean(progressKey);
+  const showDiscoveryOverlay = isDiscovering;
+  const showBufferingOverlay = hasPlayer && !mediaReady;
+  const showErrorOverlay = scrapeStatus === "error";
+
   return (
     <>
       {maintenanceBanner}
-      {scrapeStatus === "scraping" ? (
-        <ScrapingOverlay
-          items={sourceOverlayItems}
-          activeProviderId={activeProviderId}
-          error={scrapeError}
-          onSelectEmbedServer={onSelectEmbedServer}
-        />
-      ) : null}
 
-      {scrapeStatus === "playing" && scrapeResult?.playUrl && progressKey ? (
-        USE_SHAKA_DASH && streamKind === "dash" ? (
+      {hasPlayer && scrapeResult?.playUrl && progressKey ? (
+        scrapeResult.providerId === "direct" && scrapeResult.directPlayback ? (
+          <PlaybackErrorBoundary onClose={onFatalError}>
+            <DirectStreamPlayer
+              key={buildScrapePlayerKey({
+                playUrl: scrapeResult.playUrl,
+                qualities: scrapeResult.qualities,
+                subtitles: scrapeResult.subtitles,
+                audioVersions: scrapeResult.audioVersions,
+              })}
+              mediaUrl={scrapeResult.playUrl}
+              fallbackUrl={scrapeResult.directFallbackUrl}
+              playback={scrapeResult.directPlayback}
+              qualities={scrapeResult.qualities}
+              referer={scrapeResult.referer}
+              subtitles={scrapeResult.subtitles}
+              audioVersions={scrapeResult.audioVersions}
+              defaultAudioLang={scrapeResult.defaultAudioLang}
+              defaultHardSubLang={scrapeResult.defaultHardSubLang}
+              preferredAudioLang={scrapeResult.preferredAudioLang}
+              title={playbackTitle}
+              poster={playbackPosterUrl}
+              progressKey={progressKey}
+              imdbId={imdbId}
+              className="h-full w-full"
+              onFatalError={onFatalError}
+              onMediaReady={handleMediaReady}
+              onEnded={isTv ? onEnded : undefined}
+            />
+          </PlaybackErrorBoundary>
+        ) : USE_SHAKA_DASH && streamKind === "dash" ? (
           <ScrapeShakaDashPlayer
             key={buildScrapePlayerKey({
               playUrl: scrapeResult.playUrl,
@@ -133,6 +270,7 @@ export function HeroScrapePlayerPanel({
             imdbId={imdbId}
             className="h-full w-full"
             onFatalError={onFatalError}
+            onMediaReady={handleMediaReady}
             onEnded={isTv ? onEnded : undefined}
           />
         ) : (
@@ -158,12 +296,24 @@ export function HeroScrapePlayerPanel({
             imdbId={imdbId}
             className="h-full w-full"
             onFatalError={onFatalError}
+            onMediaReady={handleMediaReady}
             onEnded={isTv ? onEnded : undefined}
           />
         )
       ) : null}
 
-      {scrapeStatus === "error" ? (
+      {showDiscoveryOverlay ? (
+        <ScrapingOverlay
+          items={sourceOverlayItems}
+          activeProviderId={activeProviderId}
+          error={scrapeError}
+          onSelectEmbedServer={onSelectEmbedServer}
+        />
+      ) : null}
+
+      {showBufferingOverlay ? <PlaybackStartingOverlay /> : null}
+
+      {showErrorOverlay ? (
         <ScrapingOverlay
           items={sourceOverlayItems}
           activeProviderId={activeProviderId}
@@ -206,23 +356,30 @@ export function HeroPlaybackShell({
   selectedServer,
   scrapeStatus,
   playbackBackdropUrl,
+  mediaReady = false,
+  isPlaybackBuffering = false,
   children,
 }: {
   selectedServer: VideoServer;
   scrapeStatus: UseScrapeReturn["status"] | UseAnimeScrapeReturn["status"];
   playbackBackdropUrl: string | null;
+  mediaReady?: boolean;
+  isPlaybackBuffering?: boolean;
   children: ReactNode;
 }) {
+  const playbackStarted =
+    isScrapeServer(selectedServer) && isPlaybackBuffering && mediaReady;
+
   return (
     <ScrapePlayerShell
       backdropUrl={playbackBackdropUrl}
       blurBackdrop={
         isScrapeServer(selectedServer) &&
-        (scrapeStatus === "scraping" || scrapeStatus === "error")
+        (scrapeStatus === "scraping" ||
+          scrapeStatus === "error" ||
+          (isPlaybackBuffering && !mediaReady))
       }
-      hideBackdrop={
-        isScrapeServer(selectedServer) && scrapeStatus === "playing"
-      }
+      hideBackdrop={playbackStarted}
     >
       {children}
     </ScrapePlayerShell>
