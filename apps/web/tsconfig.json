@@ -33,8 +33,5 @@
     "setupTests.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "../../packages/**"
-  ]
+  "exclude": ["node_modules", "../../packages/**"]
 }
