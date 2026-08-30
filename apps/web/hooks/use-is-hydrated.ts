@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
-export const useIsHydrated = (): boolean => {
-  const [isHydrated, setIsHydrated] = useState(false);
+const subscribe = () => () => undefined;
 
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  return isHydrated;
-};
+export const useIsHydrated = (): boolean =>
+  useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );

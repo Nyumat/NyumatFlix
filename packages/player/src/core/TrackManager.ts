@@ -128,6 +128,33 @@ export class TrackManager extends EventEmitter<TrackManagerEvents> {
   }
   
   /**
+   * Select the highest-resolution video rendition (ties break on bitrate).
+   * Falls back to Auto (-1) when no manual renditions exist.
+   */
+  selectHighestVideoTrack(): boolean {
+    const renditions = this.getVideoTracks().filter((track) => track.id !== -1);
+    if (renditions.length === 0) {
+      return this.selectVideoTrack(-1);
+    }
+
+    let best = renditions[0];
+    for (const track of renditions) {
+      if (track.height > best.height) {
+        best = track;
+        continue;
+      }
+      if (
+        track.height === best.height &&
+        (track.bitRate ?? 0) > (best.bitRate ?? 0)
+      ) {
+        best = track;
+      }
+    }
+
+    return this.selectVideoTrack(best.id);
+  }
+
+  /**
    * Select video track
    */
   selectVideoTrack(trackId: number): boolean {

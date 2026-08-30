@@ -250,7 +250,7 @@ export const fetchAnilistIdByMal = async (
 };
 
 export type AnimeSearchContext = {
-  /** Keywords to submit to a provider's search endpoint (generic query first). */
+  /** Keywords to submit to a provider's search endpoint (season-specific titles first). */
   searchQueries: string[];
   /**
    * Titles a search hit must match — season-specific AniList titles only.
@@ -270,7 +270,7 @@ export const buildAnimeSearchContext = (
   const trimmed = query?.trim();
   const searchQueries = [
     ...new Set(
-      [trimmed, ...anilistTitles].filter((title): title is string =>
+      [...anilistTitles, trimmed].filter((title): title is string =>
         Boolean(title),
       ),
     ),

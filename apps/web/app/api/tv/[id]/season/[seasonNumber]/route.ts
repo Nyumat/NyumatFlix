@@ -1,7 +1,6 @@
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { seasonCacheHeaders } from "@/lib/http-cache";
 import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
-import { readTvDetailCatalogFromRequestUrl } from "@/lib/tv-detail-catalog";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -14,7 +13,6 @@ export async function GET(
   const params = await props.params;
   try {
     const { id, seasonNumber } = params;
-    const catalog = readTvDetailCatalogFromRequestUrl(new URL(request.url));
 
     const parsedSeasonNumber = Number.parseInt(seasonNumber, 10);
     if (!Number.isInteger(parsedSeasonNumber) || parsedSeasonNumber < 0) {
@@ -25,7 +23,7 @@ export async function GET(
     }
 
     const data = await fetchSeasonDetailsServer(id, parsedSeasonNumber, {
-      catalog,
+      source: "tmdb",
     });
     if (!data) {
       return NextResponse.json({ error: "Season not found" }, { status: 404 });

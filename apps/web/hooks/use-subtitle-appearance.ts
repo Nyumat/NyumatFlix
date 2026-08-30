@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useSyncExternalStore,
+  type RefObject,
+} from "react";
 import type { MediaPlayerInstance } from "@vidstack/react";
 
 import {
@@ -14,7 +19,7 @@ import {
   getSubtitleAppearance,
   resetSubtitleAppearance,
   setSubtitleAppearance,
-  SUBTITLE_APPEARANCE_CHANGE_EVENT,
+  subscribeSubtitleAppearance,
 } from "@/lib/playback/subtitle-appearance-storage";
 
 export function useSubtitleAppearance(
@@ -24,31 +29,11 @@ export function useSubtitleAppearance(
   setAppearance: (patch: Partial<SubtitleAppearance>) => void;
   resetAppearance: () => void;
 } {
-  const [appearance, setAppearanceState] = useState<SubtitleAppearance>(
-    DEFAULT_SUBTITLE_APPEARANCE,
+  const appearance = useSyncExternalStore(
+    subscribeSubtitleAppearance,
+    getSubtitleAppearance,
+    () => DEFAULT_SUBTITLE_APPEARANCE,
   );
-
-  useEffect(() => {
-    setAppearanceState(getSubtitleAppearance());
-
-    const handleExternalChange = () => {
-      setAppearanceState(getSubtitleAppearance());
-    };
-
-    window.addEventListener(
-      SUBTITLE_APPEARANCE_CHANGE_EVENT,
-      handleExternalChange,
-    );
-    window.addEventListener("storage", handleExternalChange);
-
-    return () => {
-      window.removeEventListener(
-        SUBTITLE_APPEARANCE_CHANGE_EVENT,
-        handleExternalChange,
-      );
-      window.removeEventListener("storage", handleExternalChange);
-    };
-  }, []);
 
   const applyToPlayer = useCallback(
     (next: SubtitleAppearance) => {
@@ -64,35 +49,14 @@ export function useSubtitleAppearance(
 
   useEffect(() => {
     if (playerRef) {
-      applyToPlayer(appearance);
+      const frame = requestAnimationFrame(() => applyToPlayer(appearance));
+      return () => cancelAnimationFrame(frame);
     }
-  }, [appearance, applyToPlayer, playerRef]);
-
-  useEffect(() => {
-    if (!playerRef) {
-      return;
-    }
-
-    const player = playerRef.current;
-    if (!player) {
-      return;
-    }
-
-    const frame = requestAnimationFrame(() => {
-      applyToPlayer(appearance);
-    });
-
-    return () => {
-      cancelAnimationFrame(frame);
-    };
   }, [appearance, applyToPlayer, playerRef]);
 
   const setAppearance = useCallback((patch: Partial<SubtitleAppearance>) => {
-    setAppearanceState((current) => {
-      const next = mergeSubtitleAppearance(current, patch);
-      setSubtitleAppearance(next);
-      return next;
-    });
+    const current = getSubtitleAppearance();
+    setSubtitleAppearance(mergeSubtitleAppearance(current, patch));
   }, []);
 
   const resetAppearance = useCallback(() => {
@@ -102,7 +66,6 @@ export function useSubtitleAppearance(
       clearSubtitleAppearanceFromElement(player.el);
       applySubtitleAppearanceToElement(player.el, next);
     }
-    setAppearanceState(next);
   }, [playerRef]);
 
   return {

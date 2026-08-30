@@ -19,11 +19,11 @@ describe("resolveMediaPeekTarget", () => {
   it("marks anime catalog routes", () => {
     const target = resolveMediaPeekTarget(
       { id: 21, media_type: "tv", name: "One Piece" },
-      "/anime/21",
+      "/anime/anilist-21",
     );
     expect(target).toMatchObject({
       mediaType: "tv",
-      id: "21",
+      id: "anilist-21",
       catalog: "anime",
     });
   });

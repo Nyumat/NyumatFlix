@@ -23,11 +23,21 @@ import {
 } from "@/lib/scrape/provider-race";
 import {
   classifySiblingCancel,
+  hasPendingStartupProbes,
   shouldFinalizeBatchWinner,
   shouldFinalizeFirstPreferenceMatch,
+  shouldFinalizeFirstPreferenceMatchWithStartup,
   shouldFinalizeRaceWinner,
   type ScrapeCancelReason,
 } from "@/lib/scrape/scrape-race-batch";
+import {
+  probeClientPlaybackStartup,
+  prefetchScrapePlayback,
+} from "@/lib/scrape/client-playback-startup-probe";
+import {
+  scorePayloadWithStartupProbe,
+  pickBestCachedFallback,
+} from "@/lib/scrape/playback-startup-score";
 import type {
   ScrapeItem,
   ScrapeItemStatus,
@@ -99,6 +109,8 @@ export type ProviderScrapeLoopConfig<
   scoreRacePayload?: (payload: _TPayload) => number;
   /** Start playback on the first success that satisfies these hard prefs. */
   matchesPlaybackPreferences?: (payload: _TPayload) => boolean;
+  /** Probe master → first segment in-browser; prefer fastest buffer path. */
+  raceStartupProbe?: boolean;
   harvestSubtitleProviders?: (
     winnerId: TProviderId,
     order: readonly TProviderId[],
@@ -136,6 +148,7 @@ export function useProviderScrapeLoop<
     retryDelayMs = DEFAULT_SCRAPE_RETRY_DELAY_MS,
     scoreRacePayload,
     matchesPlaybackPreferences,
+    raceStartupProbe = false,
     harvestSubtitleProviders,
   } = config;
 
@@ -144,6 +157,20 @@ export function useProviderScrapeLoop<
   const useScoredRaceWinner =
     Boolean(scoreRacePayload) && !raceFirstWin && !usePreferenceMatchFirstWin;
   const shouldRaceFirstWin = raceFirstWin;
+  const useStartupAwareRace = raceStartupProbe && Boolean(scoreRacePayload);
+
+  const scoreRacePayloadWithStartup = useCallback(
+    (payload: TPayload): number => {
+      if (!scoreRacePayload) {
+        return 0;
+      }
+      const base = scoreRacePayload(payload);
+      return useStartupAwareRace
+        ? scorePayloadWithStartupProbe(base, payload)
+        : base;
+    },
+    [scoreRacePayload, useStartupAwareRace],
+  );
 
   const activeProviderOrderRef = useRef<readonly TProviderId[]>(providerOrder);
 
@@ -251,6 +278,16 @@ export function useProviderScrapeLoop<
         }
 
         if (failed.has(providerId)) {
+          const previousStatus = statusByProvider.get(providerId);
+          if (previousStatus === "skipped") {
+            return {
+              providerId,
+              name: providerLabels[providerId],
+              status: "skipped" as ScrapeItemStatus,
+              error: undefined,
+            };
+          }
+
           return {
             providerId,
             name: providerLabels[providerId],
@@ -335,7 +372,10 @@ export function useProviderScrapeLoop<
       input: TInput,
       runId: number,
       signal: AbortSignal,
-      options: { quiet?: boolean; maxRetries?: number } = {},
+      options: {
+        quiet?: boolean;
+        maxRetries?: number;
+      } = {},
     ): Promise<ScrapeAttemptResult<TPayload>> => {
       const quiet = options.quiet === true;
       const retries = options.maxRetries ?? retryAttempts;
@@ -367,7 +407,9 @@ export function useProviderScrapeLoop<
         try {
           response = await fetchWithCapSession(apiPath, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify(buildRequestBody(providerId, input)),
             signal,
           });
@@ -412,7 +454,6 @@ export function useProviderScrapeLoop<
               : "Unknown error";
           isUnavailable = rawPayload.unavailable === true;
 
-          // Non-retryable permanent failures
           if (
             isUnavailable ||
             response.status === 403 ||
@@ -611,20 +652,20 @@ export function useProviderScrapeLoop<
         return null;
       }
 
-      for (const providerId of order) {
-        if (failed.has(providerId) || excludeIds.has(providerId)) {
-          continue;
-        }
+      const scoreFn = useStartupAwareRace
+        ? scoreRacePayloadWithStartup
+        : scoreRacePayload;
 
-        const payload = cache.get(providerId);
-        if (payload) {
-          return { providerId, payload };
-        }
-      }
-
-      return null;
+      return pickBestCachedFallback({
+        order,
+        cache,
+        failed,
+        excludeIds,
+        scorePayload: scoreFn,
+        requireStartupProbePass: useStartupAwareRace,
+      });
     },
-    [],
+    [scoreRacePayload, scoreRacePayloadWithStartup, useStartupAwareRace],
   );
 
   const startBackgroundHarvest = useCallback(
@@ -900,6 +941,49 @@ export function useProviderScrapeLoop<
           resolveBatchEarly = resolve;
         });
 
+        const scheduleStartupProbe = (
+          providerId: TProviderId,
+          payload: TPayload,
+          signal?: AbortSignal,
+        ) => {
+          if (!useStartupAwareRace) {
+            return;
+          }
+
+          const playUrl =
+            typeof payload.playUrl === "string" ? payload.playUrl : "";
+          if (!playUrl) {
+            return;
+          }
+
+          prefetchScrapePlayback(playUrl);
+
+          void probeClientPlaybackStartup(playUrl, { signal }).then((probe) => {
+            if (runId !== runIdRef.current || signal?.aborted) {
+              return;
+            }
+
+            const enriched = {
+              ...payload,
+              startupProbeMs: probe.ms,
+              startupProbeOk: probe.ok,
+            };
+            storePayloadCache(mediaKey, providerId, enriched);
+
+            const successEntry = successes.find(
+              (entry) => entry.providerId === providerId,
+            );
+            if (successEntry?.attempt.outcome === "success") {
+              successEntry.attempt.payload = enriched;
+            }
+
+            const winner = tryFinalizeWinner();
+            if (winner?.outcome === "success") {
+              resolveBatchEarly?.();
+            }
+          });
+        };
+
         const tryFinalizeWinner = (): ScrapeAttemptResult<TPayload> | null => {
           if (playbackLockedRef.current) {
             return null;
@@ -910,20 +994,26 @@ export function useProviderScrapeLoop<
           if (shouldRaceFirstWin) {
             winnerEntry = shouldFinalizeRaceWinner(successes);
           } else if (usePreferenceMatchFirstWin && matchesPlaybackPreferences) {
-            winnerEntry = shouldFinalizeFirstPreferenceMatch(
-              successes,
-              matchesPlaybackPreferences,
-            );
+            winnerEntry = useStartupAwareRace
+              ? shouldFinalizeFirstPreferenceMatchWithStartup(
+                  successes,
+                  matchesPlaybackPreferences,
+                )
+              : shouldFinalizeFirstPreferenceMatch(
+                  successes,
+                  matchesPlaybackPreferences,
+                );
             if (
               !winnerEntry &&
               pending.size === 0 &&
               successes.length > 0 &&
-              scoreRacePayload
+              scoreRacePayload &&
+              (!useStartupAwareRace || !hasPendingStartupProbes(successes))
             ) {
               winnerEntry = pickScoredRaceWinner(
                 order,
                 successes,
-                scoreRacePayload,
+                scoreRacePayloadWithStartup,
               );
             }
           } else {
@@ -931,7 +1021,10 @@ export function useProviderScrapeLoop<
               order,
               successes,
               pending,
-              useScoredRaceWinner ? scoreRacePayload : undefined,
+              useScoredRaceWinner || useStartupAwareRace
+                ? scoreRacePayloadWithStartup
+                : undefined,
+              useStartupAwareRace,
             );
           }
 
@@ -996,6 +1089,11 @@ export function useProviderScrapeLoop<
                 providerId,
                 attempt: { outcome: "success", payload: attempt.payload },
               });
+              scheduleStartupProbe(
+                providerId,
+                attempt.payload,
+                controller.signal,
+              );
               return { providerId, attempt, winner: tryFinalizeWinner() };
             }
 
@@ -1061,8 +1159,14 @@ export function useProviderScrapeLoop<
           if (!finalized) {
             const winnerEntry =
               scoreRacePayload &&
-              (usePreferenceMatchFirstWin || useScoredRaceWinner)
-                ? pickScoredRaceWinner(order, successes, scoreRacePayload)
+              (usePreferenceMatchFirstWin ||
+                useScoredRaceWinner ||
+                useStartupAwareRace)
+                ? pickScoredRaceWinner(
+                    order,
+                    successes,
+                    scoreRacePayloadWithStartup,
+                  )
                 : pickRaceWinner(order, successes);
             if (winnerEntry?.attempt.payload) {
               finalized = {
@@ -1233,6 +1337,7 @@ export function useProviderScrapeLoop<
       scrapeProvider,
       soloFirstProviders,
       scoreRacePayload,
+      scoreRacePayloadWithStartup,
       shouldRaceFirstWin,
       startBackgroundHarvest,
       storePayloadCache,
@@ -1240,6 +1345,7 @@ export function useProviderScrapeLoop<
       updateItem,
       usePreferenceMatchFirstWin,
       useScoredRaceWinner,
+      useStartupAwareRace,
     ],
   );
 
@@ -1345,7 +1451,7 @@ export function useProviderScrapeLoop<
     (
       input: TInput,
       fromProviderId: TProviderId,
-      failureReason = "Playback failed",
+      _failureReason = "Playback failed",
     ) => {
       const mediaKey = mediaKeyFor(input);
       const failed =
@@ -1354,8 +1460,8 @@ export function useProviderScrapeLoop<
       failedProvidersRef.current.set(mediaKey, failed);
       clearPreferredScrapeProvider(mediaKey);
       updateItem(fromProviderId, {
-        status: "failure",
-        error: failureReason,
+        status: "skipped" as ScrapeItemStatus,
+        error: undefined,
       });
 
       const order = deprioritizeProviders(getOrderForInput(input), failed);

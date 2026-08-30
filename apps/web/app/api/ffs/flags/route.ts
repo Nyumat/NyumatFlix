@@ -22,7 +22,6 @@ import {
   type AdminFlagState,
 } from "@/lib/flags/flag-catalog";
 import { assertFfsHost } from "@/lib/ffs/require-ffs-host";
-import { revalidateSiteFlagsCache } from "@/lib/flags/revalidate-site-flags";
 
 export async function GET(request: NextRequest) {
   if (!assertFfsHost(request)) {
@@ -95,7 +94,6 @@ export async function PATCH(request: NextRequest) {
 
   try {
     await writeAdminFlagState(flags, announcementBanner, providerMenuOrder);
-    revalidateSiteFlagsCache();
     return NextResponse.json({
       flags,
       announcementBanner,

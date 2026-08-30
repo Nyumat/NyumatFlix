@@ -5,6 +5,7 @@ import {
   getCachedAnilistTvRecommendations,
   getCachedAnilistTvShowDetail,
 } from "@/lib/anilist-tv-detail";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import {
   isAnilistBackedTvRouteId,
   readTvDetailCatalogFromRequestUrl,
@@ -91,8 +92,11 @@ export async function GET(
   try {
     const typedMediaType = mediaType as MediaType;
     const catalog = readTvDetailCatalogFromRequestUrl(url);
+    const tmdbLookupId = unwrapTmdbLookupId(id);
     const isAnilistTv =
-      typedMediaType === "tv" && isAnilistBackedTvRouteId(id, catalog);
+      typedMediaType === "tv" &&
+      tmdbLookupId === id &&
+      isAnilistBackedTvRouteId(id, catalog);
     const anilistResolveOptions =
       catalog === "anime" ? { acceptBareNumeric: true as const } : undefined;
     const mediaApi = typedMediaType === "movie" ? tmdb.movie : tmdb.tv;
@@ -101,7 +105,7 @@ export async function GET(
       case "above-fold": {
         const detail = isAnilistTv
           ? await getCachedAnilistTvAboveFoldDetail(id, anilistResolveOptions)
-          : await getCachedMediaAboveFoldDetail(typedMediaType, id);
+          : await getCachedMediaAboveFoldDetail(typedMediaType, tmdbLookupId);
         if (!detail) {
           return NextResponse.json(
             { error: "Media not found" },
@@ -113,10 +117,10 @@ export async function GET(
       case "details": {
         const details =
           typedMediaType === "movie"
-            ? await getCachedMovieDetail(id)
+            ? await getCachedMovieDetail(tmdbLookupId)
             : isAnilistTv
               ? await getCachedAnilistTvShowDetail(id, anilistResolveOptions)
-              : await getCachedTvShowDetail(id);
+              : await getCachedTvShowDetail(tmdbLookupId);
         if (!details) {
           return NextResponse.json(
             { error: "Media not found" },
@@ -140,13 +144,15 @@ export async function GET(
           );
         }
 
-        const details = await getCachedTvShowDetail(id);
+        const details = await getCachedTvShowDetail(tmdbLookupId);
         if (!details) {
           return jsonCached({}, "all-seasons");
         }
 
         return jsonCached(
-          await fetchAllSeasonDetails(id, details.seasons, { catalog }),
+          await fetchAllSeasonDetails(tmdbLookupId, details.seasons, {
+            catalog,
+          }),
           "all-seasons",
         );
       }
@@ -154,7 +160,7 @@ export async function GET(
         return jsonCached(
           isAnilistTv
             ? await getCachedAnilistTvCredits(id, anilistResolveOptions)
-            : await mediaApi.credits({ id }),
+            : await mediaApi.credits({ id: tmdbLookupId }),
           "credits",
         );
       case "images":
@@ -165,7 +171,7 @@ export async function GET(
           );
         }
         return jsonCached(
-          await mediaApi.images({ id, langs: "en,null" }),
+          await mediaApi.images({ id: tmdbLookupId, langs: "en,null" }),
           "images",
         );
       case "videos":
@@ -179,7 +185,10 @@ export async function GET(
             "videos",
           );
         }
-        return jsonCached(await mediaApi.videos({ id }), "videos");
+        return jsonCached(
+          await mediaApi.videos({ id: tmdbLookupId }),
+          "videos",
+        );
       case "reviews":
         if (isAnilistTv) {
           return jsonCached(
@@ -187,12 +196,15 @@ export async function GET(
             "reviews",
           );
         }
-        return jsonCached(await mediaApi.reviews({ id, page }), "reviews");
+        return jsonCached(
+          await mediaApi.reviews({ id: tmdbLookupId, page }),
+          "reviews",
+        );
       case "recommendations":
         return jsonCached(
           isAnilistTv
             ? await getCachedAnilistTvRecommendations(id, anilistResolveOptions)
-            : await mediaApi.recommendations({ id, page }),
+            : await mediaApi.recommendations({ id: tmdbLookupId, page }),
           "recommendations",
         );
       case "similar":
@@ -202,7 +214,10 @@ export async function GET(
             "similar",
           );
         }
-        return jsonCached(await mediaApi.similar({ id, page }), "similar");
+        return jsonCached(
+          await mediaApi.similar({ id: tmdbLookupId, page }),
+          "similar",
+        );
     }
   } catch (error) {
     console.error(

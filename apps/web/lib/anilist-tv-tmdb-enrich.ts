@@ -17,6 +17,7 @@ import {
 } from "@/lib/anilist-tmdb-match";
 import {
   fetchAllSeasonDetails,
+  fetchSeasonDetailsServer,
   fetchTVShowDetails,
 } from "@/lib/server/tvshow-api";
 import type {
@@ -27,6 +28,7 @@ import type {
 import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 const ENRICH_REVALIDATE_SECONDS = 60 * 60 * 24;
 
@@ -133,6 +135,7 @@ const mergeEpisode = (
 export const mergeTmdbEpisodesIntoSeason = (
   season: SeasonDetails,
   tmdbEpisodes: Episode[] | undefined,
+  options?: { preserveSplitCourAppendix?: boolean },
 ): SeasonDetails => {
   if (!tmdbEpisodes?.length) return season;
 
@@ -149,13 +152,32 @@ export const mergeTmdbEpisodesIntoSeason = (
         : tmdbEpisode;
     });
 
+  if (!options?.preserveSplitCourAppendix) {
+    return {
+      ...season,
+      overview: hasUsableText(season.overview)
+        ? season.overview
+        : (tmdbEpisodes.find((episode) => hasUsableText(episode.overview))
+            ?.overview ?? season.overview),
+      episodes,
+    };
+  }
+
+  const maxTmdbEpisodeNumber = episodes.reduce(
+    (max, episode) => Math.max(max, episode.episode_number),
+    0,
+  );
+  const trailingAnilistEpisodes = season.episodes
+    .filter((episode) => episode.episode_number > maxTmdbEpisodeNumber)
+    .sort((left, right) => left.episode_number - right.episode_number);
+
   return {
     ...season,
     overview: hasUsableText(season.overview)
       ? season.overview
       : (tmdbEpisodes.find((episode) => hasUsableText(episode.overview))
           ?.overview ?? season.overview),
-    episodes,
+    episodes: [...episodes, ...trailingAnilistEpisodes],
   };
 };
 
@@ -280,25 +302,72 @@ export const enrichAnilistTvDetailsWithTmdb = async (
   return merged;
 };
 
-export const enrichAnilistSeasonDetailsWithTmdb = async (
-  _routeId: string,
-  season: SeasonDetails,
+export type TmdbSeasonEnrichmentContext = {
+  tmdbId: number;
+  tmdbSeasons: Record<number, SeasonDetails>;
+};
+
+const resolveTmdbSeasonEnrichmentContext = async (
   resolved: ResolvedAniListTvShow,
-): Promise<SeasonDetails> => {
-  if (!shouldMergeTmdbSeasonData(resolved)) return season;
+): Promise<TmdbSeasonEnrichmentContext | null> => {
+  if (!shouldMergeTmdbSeasonData(resolved)) {
+    return null;
+  }
 
   const tmdbId = await resolveAnilistTmdbTvIdForEnrichment(resolved.entry.id);
-  if (!tmdbId) return season;
+  if (!tmdbId) {
+    return null;
+  }
 
   try {
     const tmdbDetails = await fetchTVShowDetails(String(tmdbId));
     const tmdbSeasons = await fetchAllSeasonDetails(
       String(tmdbId),
       tmdbDetails.seasons,
+      { source: "tmdb" },
     );
-    const tmdbSeason = tmdbSeasons[season.season_number];
-    return mergeTmdbEpisodesIntoSeason(season, tmdbSeason?.episodes);
+    return { tmdbId, tmdbSeasons };
   } catch {
-    return season;
+    return null;
   }
+};
+
+export const getTmdbSeasonEnrichmentContext = cache(
+  resolveTmdbSeasonEnrichmentContext,
+);
+
+export const enrichAnilistSeasonDetailsWithTmdb = async (
+  _routeId: string,
+  season: SeasonDetails,
+  resolved: ResolvedAniListTvShow,
+  options?: {
+    preserveSplitCourAppendix?: boolean;
+    tmdbContext?: TmdbSeasonEnrichmentContext | null;
+  },
+): Promise<SeasonDetails> => {
+  if (!shouldMergeTmdbSeasonData(resolved)) return season;
+
+  let tmdbEpisodes: Episode[] | undefined;
+  if (options?.tmdbContext) {
+    tmdbEpisodes =
+      options.tmdbContext.tmdbSeasons[season.season_number]?.episodes;
+  } else {
+    const tmdbId = await resolveAnilistTmdbTvIdForEnrichment(resolved.entry.id);
+    if (!tmdbId) return season;
+
+    try {
+      const tmdbSeason = await fetchSeasonDetailsServer(
+        String(tmdbId),
+        season.season_number,
+        { source: "tmdb" },
+      );
+      tmdbEpisodes = tmdbSeason?.episodes;
+    } catch {
+      return season;
+    }
+  }
+
+  return mergeTmdbEpisodesIntoSeason(season, tmdbEpisodes, {
+    preserveSplitCourAppendix: options?.preserveSplitCourAppendix,
+  });
 };

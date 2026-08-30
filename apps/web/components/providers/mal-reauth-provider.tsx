@@ -18,17 +18,15 @@ export function MalReauthProvider() {
   const statusQuery = useMalSyncStatus();
   const reauthRequired = statusQuery.data?.reauthRequired === true;
 
-  const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (!isSignedIn || dismissed) {
-      return;
-    }
     if (reauthRequired) {
-      setOpen(true);
+      setDismissed(false);
     }
-  }, [dismissed, isSignedIn, reauthRequired]);
+  }, [reauthRequired]);
+
+  const open = isSignedIn && reauthRequired && !dismissed;
 
   if (!isSignedIn) {
     return null;
@@ -38,7 +36,6 @@ export function MalReauthProvider() {
     <MalReauthModal
       open={open}
       onOpenChange={(next) => {
-        setOpen(next);
         if (!next) {
           setDismissed(true);
         }

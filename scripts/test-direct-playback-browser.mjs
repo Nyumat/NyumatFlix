@@ -5,6 +5,20 @@
  * Usage:
  *   node scripts/test-direct-playback-browser.mjs nyumatflix
  *   node scripts/test-direct-playback-browser.mjs calluspirates
+ *   node scripts/test-direct-playback-browser.mjs nyumatflix movi
+ *
+ * movi mode sets nyumat:playerEngine=movi and asserts
+ * movi-player mounts with native presentation on HLS (no full-size canvas copy).
+ *
+ * Manual parity checklist (Vidstack vs Movi harness, same title):
+ * - Scrape HLS: start, seek, quality, subs, offset, intro skip
+ * - Direct MP4: fast start
+ * - Direct light MKV: canvas decode, audio/sub tracks
+ * - Direct dual-audio MKV: stays on canvas
+ * - Direct heavy remux: transcode HLS on native
+ * - Live TV: play, channel switch, Cast
+ * - Chrome / Safari / Firefox / iOS Safari
+ * - PiP, fullscreen, Cast (where supported)
  */
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -32,6 +46,7 @@ if (!playwrightPath) {
 const { chromium } = require(playwrightPath);
 
 const app = process.argv[2] ?? "nyumatflix";
+const moviPreviewMode = process.argv[3] === "movi";
 
 const NYUMAT_TITLES = [
   ["Shrek", 808],
@@ -50,8 +65,48 @@ const CUP_TITLES = [
   ["Matrix", 603],
 ];
 
-async function videoState(page) {
+async function moviHarnessState(page) {
   return page.evaluate(() => {
+    const movi = document.querySelector("movi-player");
+    if (!movi) {
+      return {
+        hasMovi: false,
+        presentation: null,
+        hasFullSizeCanvas: false,
+        hasVideo: false,
+      };
+    }
+
+    const shadow = movi.shadowRoot;
+    const video = shadow?.querySelector("video") ?? document.querySelector("video");
+    const canvas = shadow?.querySelector("canvas");
+    const rect = canvas?.getBoundingClientRect();
+    const hostRect = movi.getBoundingClientRect();
+    const hasFullSizeCanvas = Boolean(
+      canvas &&
+        hostRect.width > 0 &&
+        hostRect.height > 0 &&
+        rect &&
+        rect.width >= hostRect.width * 0.9 &&
+        rect.height >= hostRect.height * 0.9,
+    );
+
+    const presentation =
+      typeof movi.getPresentationMode === "function"
+        ? movi.getPresentationMode()
+        : movi.getAttribute("presentation");
+
+    return {
+      hasMovi: true,
+      presentation,
+      hasFullSizeCanvas,
+      hasVideo: video instanceof HTMLVideoElement,
+    };
+  });
+}
+
+async function videoState(page) {
+  const base = await page.evaluate(() => {
     const video = document.querySelector("video");
     const movi = document.querySelector("movi-player");
     const failed =
@@ -78,6 +133,13 @@ async function videoState(page) {
       duration: video.duration,
     };
   });
+
+  if (!moviPreviewMode) {
+    return base;
+  }
+
+  const harness = await moviHarnessState(page);
+  return { ...base, harness };
 }
 
 async function seekVideo(page, seconds) {
@@ -139,8 +201,16 @@ async function testNyumatFlix(page, name, tmdbId) {
     state = await videoState(page);
   }
 
+  if (moviPreviewMode && !state.harness?.hasMovi) {
+    return { name, tmdbId, ok: false, phase: "movi-missing", state };
+  }
+
   if (state.failed || !state.hasVideo) {
     return { name, tmdbId, ok: false, phase: "load", state };
+  }
+
+  if (moviPreviewMode && state.harness?.hasFullSizeCanvas) {
+    return { name, tmdbId, ok: false, phase: "canvas-copy-loop", state };
   }
 
   if (state.paused) {
@@ -266,13 +336,21 @@ async function testCalluspirates(page, name, tmdbId) {
 }
 
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage();
+const context = await browser.newContext();
+if (moviPreviewMode) {
+  await context.addInitScript(() => {
+    localStorage.setItem("nyumat:playerEngine", "movi");
+  });
+}
+const page = await context.newPage();
 
 const titles = app === "calluspirates" ? CUP_TITLES : NYUMAT_TITLES;
 const tester = app === "calluspirates" ? testCalluspirates : testNyumatFlix;
 
 let passed = 0;
-console.log(`Direct browser playback test (${app})\n`);
+console.log(
+  `Direct browser playback test (${app}${moviPreviewMode ? ", movi" : ""})\n`,
+);
 
 for (const [name, tmdbId] of titles) {
   const result = await tester(page, name, tmdbId);

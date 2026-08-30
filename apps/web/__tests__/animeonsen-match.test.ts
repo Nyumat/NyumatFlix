@@ -101,9 +101,9 @@ describe("buildAnimeSearchContext", () => {
     ]);
 
     expect(context.searchQueries).toEqual([
-      "Attack on Titan",
       "Attack on Titan Season 3 Part 2",
       "Shingeki no Kyojin Season 3 Part 2",
+      "Attack on Titan",
     ]);
     expect(context.matchTitles).toEqual([
       "Attack on Titan Season 3 Part 2",

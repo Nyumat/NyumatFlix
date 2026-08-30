@@ -13,4 +13,6 @@ yarn-debug.log*
 .DS_Store
 .env
 .env.*
+apps/web/.env
+apps/web/.env.*
 certificates

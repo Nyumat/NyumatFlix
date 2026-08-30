@@ -242,9 +242,16 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
   genres,
   onChange,
 }) => {
-  const [matchMode, setMatchMode] = React.useState<"or" | "and">(() =>
-    value.includes(",") && !value.includes("|") ? "and" : "or",
+  const derivedMatchMode =
+    value.includes(",") && !value.includes("|") ? "and" : "or";
+  const [matchMode, setMatchMode] = React.useState<"or" | "and">(
+    derivedMatchMode,
   );
+  const [prevValue, setPrevValue] = React.useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setMatchMode(derivedMatchMode);
+  }
   const selectedIds = React.useMemo(
     () =>
       value
@@ -258,10 +265,6 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
     logic: matchMode,
     onChange,
   });
-
-  React.useEffect(() => {
-    setMatchMode(value.includes(",") && !value.includes("|") ? "and" : "or");
-  }, [value]);
 
   const handleMatchModeChange = (nextMode: string) => {
     if (nextMode !== "or" && nextMode !== "and") return;

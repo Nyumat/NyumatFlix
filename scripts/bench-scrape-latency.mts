@@ -178,11 +178,6 @@ const benchAnime = async () => {
       label: "OP ep1",
     },
     {
-      providerId: "animestream",
-      input: { anilistId: 21, episodeNumber: 1, query: "One Piece" },
-      label: "OP ep1",
-    },
-    {
       providerId: "animeonsen",
       input: { anilistId: 154587, episodeNumber: 1 },
       label: "Frieren ep1",

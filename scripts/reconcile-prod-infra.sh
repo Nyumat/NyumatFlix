@@ -170,8 +170,23 @@ scrape_compose() {
 }
 
 flipt_compose() {
-  sudo docker compose --env-file "$APP_ENV_FILE" \
+  sudo env "FLIPT_VOLUME_NAME=${FLIPT_VOLUME_NAME:-nyumatflix_flipt-data}" \
+    docker compose --env-file "$APP_ENV_FILE" \
     -p "$FLIPT_PROJECT" -f "$FLIPT_COMPOSE_FILE" "$@"
+}
+
+mounted_flipt_volume() {
+  sudo docker inspect flipt --format '{{range .Mounts}}{{if eq .Destination "/var/opt/flipt"}}{{.Name}}{{end}}{{end}}' 2>/dev/null || true
+}
+
+ensure_flipt_volume_name() {
+  local mounted
+  mounted="$(mounted_flipt_volume)"
+  if [[ -n "$mounted" ]]; then
+    export FLIPT_VOLUME_NAME="$mounted"
+    return
+  fi
+  export FLIPT_VOLUME_NAME="${FLIPT_VOLUME_NAME:-nyumatflix_flipt-data}"
 }
 
 imgproxy_compose() {
@@ -267,6 +282,7 @@ reconcile() {
   acquire_lock
   ensure_env_files
   sudo docker network create "$DOCKER_NETWORK" 2>/dev/null || true
+  ensure_flipt_volume_name
   validate_compose
   reconcile_container_owner gluetun gluetun
   reconcile_container_owner flaresolverr flaresolverr

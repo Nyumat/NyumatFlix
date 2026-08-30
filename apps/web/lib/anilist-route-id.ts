@@ -1,4 +1,4 @@
-/** AniList-backed anime catalog routes use bare numeric ids under `/anime/`. */
+/** AniList-backed anime catalog routes use `anilist-{id}` slugs under `/anime/`. */
 
 import { isMalAnimeRouteId } from "@/lib/mal/route-id";
 import { isTmdbAnimeRouteId } from "@/lib/tmdb-anime-route-id";
@@ -13,7 +13,7 @@ export const toAnilistTvRouteSlug = (anilistId: number): string =>
 export const isBareAnilistRouteId = (routeId: string): boolean =>
   BARE_ANILIST_ROUTE_ID.test(routeId) && Number.parseInt(routeId, 10) > 0;
 
-/** Route ids for `/anime/[id]` detail pages (bare numeric, legacy slug, or negative). */
+/** Route ids for `/anime/[id]` detail pages (prefixed slug, legacy bare numeric, or negative). */
 export const isAnimeAnilistRouteId = (routeId: string): boolean => {
   if (isMalAnimeRouteId(routeId) || isTmdbAnimeRouteId(routeId)) {
     return false;
@@ -64,6 +64,10 @@ export const normalizeAnilistTvRouteSlug = (routeId: string): string => {
     return routeId;
   }
 
+  if (isBareAnilistRouteId(routeId)) {
+    return toAnilistTvRouteSlug(Number.parseInt(routeId, 10));
+  }
+
   if (routeId.startsWith("-")) {
     return toAnilistTvRouteSlug(fromAnilistTvRouteId(routeId));
   }
@@ -80,8 +84,21 @@ export const buildAnilistTvDetailHref = (
     params.set("season", String(options.season));
   }
   const query = params.toString();
-  const path = `/anime/${Math.abs(anilistId)}`;
+  const path = `/anime/${toAnilistTvRouteSlug(anilistId)}`;
   return query ? `${path}?${query}` : path;
+};
+
+/** Upgrade legacy `/anime/{id}` links to prefixed AniList slugs. */
+export const normalizeAnilistAnimeDetailHref = (href: string): string => {
+  const trimmed = href.trim();
+  const match = trimmed.match(/^\/anime\/(\d+)(.*)$/);
+  if (!match?.[1] || !isBareAnilistRouteId(match[1])) {
+    return trimmed;
+  }
+
+  const anilistId = Number.parseInt(match[1], 10);
+  const suffix = match[2] ?? "";
+  return `${buildAnilistTvDetailHref(anilistId)}${suffix}`;
 };
 
 /** Route slug for detail APIs/navigation: AniList slugs from the path, else TMDB id. */
@@ -99,7 +116,7 @@ export const resolveTvDetailRouteId = (
   }
   if (routeSegment && pathname.startsWith("/anime/")) {
     if (isAnimeAnilistRouteId(routeSegment)) {
-      return routeSegment;
+      return normalizeAnilistTvRouteSlug(routeSegment);
     }
   } else if (routeSegment && isAnilistTvRouteId(routeSegment)) {
     return routeSegment;

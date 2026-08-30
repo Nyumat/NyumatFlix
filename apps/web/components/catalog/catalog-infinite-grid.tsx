@@ -5,6 +5,7 @@ import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
+import { useScrollFetchLock } from "@/hooks/use-scroll-fetch-lock";
 import type { MediaItem } from "@/lib/domain/typings";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -55,6 +56,7 @@ const CatalogInfiniteGridBody = ({
   );
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [isLoading, setIsLoading] = useState(false);
+  const { beginFetch, endFetch, isCurrent } = useScrollFetchLock();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const items = useMemo(
@@ -66,12 +68,24 @@ const CatalogInfiniteGridBody = ({
   );
 
   const fetchNextPage = useCallback(async () => {
-    if (isLoading || currentPage >= totalPages) return;
+    if (currentPage >= totalPages) {
+      return;
+    }
+
+    const generation = beginFetch();
+    if (generation === null) {
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
-      setIsLoading(true);
       const nextPage = currentPage + 1;
       const data = await fetchCatalogNextPage(mediaType, queryParams, nextPage);
+      if (!isCurrent(generation)) {
+        return;
+      }
+
       const raw = filterWithPosterPath(
         (data.results ?? []) as unknown as MediaItem[],
       );
@@ -97,9 +111,20 @@ const CatalogInfiniteGridBody = ({
     } catch (error) {
       console.error("Catalog infinite scroll error:", error);
     } finally {
-      setIsLoading(false);
+      endFetch(generation);
+      if (isCurrent(generation)) {
+        setIsLoading(false);
+      }
     }
-  }, [currentPage, isLoading, mediaType, queryParams, totalPages]);
+  }, [
+    beginFetch,
+    currentPage,
+    endFetch,
+    isCurrent,
+    mediaType,
+    queryParams,
+    totalPages,
+  ]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(

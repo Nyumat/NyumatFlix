@@ -56,7 +56,7 @@ describe("mergeSearchMediaResults", () => {
     );
 
     expect(merged).toHaveLength(1);
-    expect(merged[0]?.href).toBe("/anime/21222");
+    expect(merged[0]?.href).toBe("/anime/anilist-21222");
     expect(merged[0]?.title).toBe("Mankitsu Happening");
   });
 
@@ -84,13 +84,15 @@ describe("mergeSearchMediaResults", () => {
       [
         anilistMediaItem(21222, {
           id: 12345,
-          href: "/anime/21222",
+          href: "/anime/anilist-21222",
         }),
       ],
     );
 
     expect(merged).toHaveLength(2);
-    expect(merged.some((card) => card.href === "/anime/21222")).toBe(true);
+    expect(merged.some((card) => card.href === "/anime/anilist-21222")).toBe(
+      true,
+    );
   });
 
   it("ranks mainstream TMDB matches above adult anime for ambiguous titles", () => {

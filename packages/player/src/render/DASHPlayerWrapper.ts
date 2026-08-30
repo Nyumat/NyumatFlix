@@ -11,6 +11,11 @@ import {
 import { CanvasRenderer } from "./CanvasRenderer";
 import { TrackManager } from "../core/TrackManager";
 import { Logger } from "../utils/Logger";
+import {
+  applyStreamVideoVisibility,
+  usesCanvasCopyLoop,
+} from "../core/presentation";
+import { VideoPlayGate } from "../utils/safeMediaPlay";
 
 const TAG = "DASHPlayerWrapper";
 
@@ -29,6 +34,7 @@ export class DASHPlayerWrapper extends EventEmitter<PlayerEventMap> {
   private state: PlayerState = "idle";
   public trackManager: TrackManager;
   private frameCallbackId: number | null = null;
+  private readonly videoPlayGate = new VideoPlayGate();
   private _framesRendered: number = 0;
   // Representations from the manifest, indexed to match the VideoTrack ids we
   // hand the TrackManager (track id === array index; -1 is Auto/ABR).
@@ -42,16 +48,14 @@ export class DASHPlayerWrapper extends EventEmitter<PlayerEventMap> {
     this.videoElement = document.createElement("video");
     this.videoElement.crossOrigin = "anonymous";
     this.videoElement.playsInline = true;
-    this.videoElement.style.display = "none"; // Hidden; canvas renderer draws frames
+    applyStreamVideoVisibility(this.videoElement, config);
 
     // Preserve pitch when changing playback speed
     (this.videoElement as any).preservesPitch = true;
     (this.videoElement as any).mozPreservesPitch = true; // Firefox
     (this.videoElement as any).webkitPreservesPitch = true; // Safari/older Chrome
 
-    // DRM mode: use native video element directly (no canvas) — canvas can't
-    // access DRM-protected frames (browser blocks VideoFrame copy).
-    if (!config.drm && config.renderer === "canvas" && config.canvas) {
+    if (usesCanvasCopyLoop(config) && config.canvas) {
       this.canvasRenderer = new CanvasRenderer(config.canvas);
     }
 
@@ -91,23 +95,27 @@ export class DASHPlayerWrapper extends EventEmitter<PlayerEventMap> {
 
   private setupEventHandlers(): void {
     this.videoElement.addEventListener("play", () => this.setState("playing"));
-    this.videoElement.addEventListener("playing", () =>
-      this.setState("playing"),
-    );
+    this.videoElement.addEventListener("playing", () => {
+      this.setState("playing");
+      this.emit("playing", undefined);
+    });
     this.videoElement.addEventListener("pause", () => {
       if (this.state !== "ended") this.setState("paused");
     });
     this.videoElement.addEventListener("ended", () => this.setState("ended"));
-    this.videoElement.addEventListener("seeking", () =>
-      this.setState("seeking"),
-    );
+    this.videoElement.addEventListener("seeking", () => {
+      this.setState("seeking");
+      this.emit("seeking", this.videoElement.currentTime);
+    });
     this.videoElement.addEventListener("seeked", () => {
+      this.emit("seeked", this.videoElement.currentTime);
       if (this.videoElement.paused) this.setState("paused");
       else this.setState("playing");
     });
-    this.videoElement.addEventListener("waiting", () =>
-      this.setState("buffering"),
-    );
+    this.videoElement.addEventListener("waiting", () => {
+      this.setState("buffering");
+      this.emit("waiting", undefined);
+    });
     this.videoElement.addEventListener("timeupdate", () => {
       this.emit("timeUpdate", this.videoElement.currentTime);
     });
@@ -300,7 +308,7 @@ export class DASHPlayerWrapper extends EventEmitter<PlayerEventMap> {
     });
 
     this.trackManager.setTracks(tracks);
-    this.trackManager.selectVideoTrack(-1); // default Auto
+    this.trackManager.selectHighestVideoTrack();
 
     if (this.canvasRenderer && reps.length > 0) {
       // Size the canvas from the highest rendition; fall back to the <video>
@@ -337,10 +345,14 @@ export class DASHPlayerWrapper extends EventEmitter<PlayerEventMap> {
   }
 
   async play(): Promise<void> {
-    await this.videoElement.play();
+    if (!this.videoElement.paused && this.state === "playing") {
+      return;
+    }
+    await this.videoPlayGate.play(this.videoElement);
   }
 
   pause(): void {
+    this.videoPlayGate.reset();
     this.videoElement.pause();
   }
 

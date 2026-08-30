@@ -7,8 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const playerRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(playerRoot, "../..");
 const source = path.join(playerRoot, "dist/element.js");
+const compatSource = path.join(playerRoot, "dist/compat.js");
 const targetDir = path.join(repoRoot, "apps/web/public/vendor/player");
 const target = path.join(targetDir, "element.js");
+const compatTarget = path.join(targetDir, "compat.js");
 const versionFile = path.join(
   repoRoot,
   "apps/web/lib/player/player-asset.generated.ts",
@@ -22,6 +24,13 @@ if (!fs.existsSync(source)) {
 const code = fs.readFileSync(source, "utf8");
 fs.mkdirSync(targetDir, { recursive: true });
 fs.writeFileSync(target, code);
+
+if (fs.existsSync(compatSource)) {
+  fs.writeFileSync(compatTarget, fs.readFileSync(compatSource, "utf8"));
+  console.log(
+    `[copy-vendor] wrote ${path.relative(repoRoot, compatTarget)}`,
+  );
+}
 
 const wasmDir = path.join(playerRoot, "dist/wasm");
 const targetWasmDir = path.join(targetDir, "wasm");

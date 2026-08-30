@@ -67,9 +67,18 @@ export type ScorableAnimeScrapePayload = {
   directFileName?: string;
 };
 
+/** JustAnime Megaplay paths scrape fast but decode slowly — prefer direct HLS siblings. */
+export const JUSTANIME_MEGAPLAY_SCORE_PENALTY = 800;
+
 const MULTI_AUDIO_AND_SUBS_BONUS = 3_000;
 const MULTI_AUDIO_BONUS = 2_000;
 const NATIVE_SUBTITLE_MENU_BONUS = 400;
+const ENGLISH_SUBTITLE_MATCH_BONUS = 500;
+const ENGLISH_SUBTITLE_MISS_PENALTY = 20;
+const AUDIO_PREFERENCE_MATCH_BONUS = 1_000;
+const DUB_AVAILABLE_BONUS = 3_000;
+const QUALITY_ABOVE_TARGET_BONUS_SCALE = 0.25;
+const QUALITY_BELOW_TARGET_PENALTY_SCALE = 0.5;
 
 const uniqueAudioVersionLangs = (
   audioVersions: ScrapeAudioVersion[] | undefined,
@@ -202,6 +211,23 @@ export const getPayloadMaxQualityHeight = (
   return 0;
 };
 
+export const payloadHasDubAudio = (
+  payload: ScorableAnimeScrapePayload,
+): boolean => payloadMatchesAudioPreference(payload, "dub");
+
+/** First-win only for in-player sub/dub menus — not dedicated English Megaplay. */
+export const payloadMatchesAnimeEarlyWin = (
+  payload: ScorableAnimeScrapePayload & { providerId?: string },
+): boolean => {
+  if (payload.providerId === "justanime") {
+    return false;
+  }
+
+  return (
+    payloadHasDubAudio(payload) && payloadHasInPlayerAudioSwitching(payload)
+  );
+};
+
 export const payloadMatchesAudioPreference = (
   payload: ScorableAnimeScrapePayload,
   audio: PlaybackAudioPreference,
@@ -250,12 +276,28 @@ export const payloadMatchesQualityPreference = (
   return false;
 };
 
-export const payloadMatchesPlaybackPreferences = (
+/** Early playback win — audio (and optional subs), not resolution. */
+export const payloadMatchesCorePlaybackPreferences = (
   payload: ScorableAnimeScrapePayload,
   preferences: PlaybackPreferences,
-): boolean =>
-  payloadMatchesAudioPreference(payload, preferences.playbackAudio) &&
-  payloadMatchesQualityPreference(payload, preferences.playbackQuality);
+): boolean => {
+  if (!payloadMatchesAudioPreference(payload, preferences.playbackAudio)) {
+    return false;
+  }
+
+  if (
+    preferences.playbackEnglishSubtitles &&
+    !hasEnglishSubtitles(payload.subtitles) &&
+    !payloadHasInPlayerSubtitleSwitching(payload)
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+export const payloadMatchesPlaybackPreferences =
+  payloadMatchesCorePlaybackPreferences;
 
 export const scoreAnimeScrapePayload = (
   payload: ScorableAnimeScrapePayload,
@@ -266,24 +308,29 @@ export const scoreAnimeScrapePayload = (
   const maxHeight =
     heights.length > 0 ? Math.max(...heights) : ADAPTIVE_QUALITY_NEUTRAL_HEIGHT;
 
-  if (
-    matchesAudioPreference(
-      payload.preferredAudioLang,
-      preferences.playbackAudio,
-    )
-  ) {
-    score += 1_000;
+  if (payloadMatchesAudioPreference(payload, preferences.playbackAudio)) {
+    score += AUDIO_PREFERENCE_MATCH_BONUS;
+  }
+
+  if (payloadHasDubAudio(payload)) {
+    score += DUB_AVAILABLE_BONUS;
   }
 
   const targetHeight = PLAYBACK_QUALITY_MIN_HEIGHT[preferences.playbackQuality];
-  score += Math.max(0, maxHeight - targetHeight);
-  score += heights.length * 10;
+  score +=
+    Math.max(0, maxHeight - targetHeight) * QUALITY_ABOVE_TARGET_BONUS_SCALE;
+  score += heights.length * 5;
   if (maxHeight < targetHeight) {
-    score -= (targetHeight - maxHeight) * 2;
+    score -= (targetHeight - maxHeight) * QUALITY_BELOW_TARGET_PENALTY_SCALE;
   }
 
   if (preferences.playbackEnglishSubtitles) {
-    score += hasEnglishSubtitles(payload.subtitles) ? 80 : -40;
+    const hasSubs =
+      hasEnglishSubtitles(payload.subtitles) ||
+      payloadHasInPlayerSubtitleSwitching(payload);
+    score += hasSubs
+      ? ENGLISH_SUBTITLE_MATCH_BONUS
+      : -ENGLISH_SUBTITLE_MISS_PENALTY;
   }
 
   const multiAudio = payloadHasInPlayerAudioSwitching(payload);
@@ -297,6 +344,17 @@ export const scoreAnimeScrapePayload = (
     score += NATIVE_SUBTITLE_MENU_BONUS;
   }
 
+  return score;
+};
+
+export const scoreAnimePlaybackRacePayload = (
+  payload: ScorableAnimeScrapePayload & { providerId?: string },
+  preferences: PlaybackPreferences,
+): number => {
+  let score = scoreAnimeScrapePayload(payload, preferences);
+  if (payload.providerId === "justanime") {
+    score -= JUSTANIME_MEGAPLAY_SCORE_PENALTY;
+  }
   return score;
 };
 

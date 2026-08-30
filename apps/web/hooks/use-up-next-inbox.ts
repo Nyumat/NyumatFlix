@@ -3,6 +3,7 @@
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 import {
+  buildAnimeUpNextHref,
   buildUpNextHref,
   collectUpNextCandidates,
   parseEpisodeDataResponse,
@@ -13,6 +14,7 @@ import {
   toRecentlyWatchedItem,
   type RecentlyWatchedItem,
 } from "@/lib/playback/recently-watched";
+import { fetchTvShowDetailClient } from "@/lib/tv-show-detail-client";
 import { isAnime } from "@/utils/anilist-helpers";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
@@ -21,17 +23,6 @@ import { useMemo } from "react";
 export type UpNextInboxItem = RecentlyWatchedItem & {
   episodeInfo: EpisodeInfo;
   upNextHref: string;
-};
-
-type MediaDetailResponse = {
-  id?: number;
-  name?: string;
-  backdrop_path?: string | null;
-  poster_path?: string | null;
-  vote_average?: number;
-  first_air_date?: string;
-  genre_ids?: number[];
-  genres?: Array<{ id: number; name?: string }>;
 };
 
 async function fetchWatchlistItems(): Promise<WatchlistItem[]> {
@@ -65,20 +56,18 @@ async function fetchUpNextEpisodeData(): Promise<Record<number, EpisodeInfo>> {
 async function enrichUpNextCandidate(
   candidate: UpNextCandidate,
 ): Promise<UpNextInboxItem | null> {
-  const response = await fetch(`/api/tv/${candidate.contentId}`);
-  if (!response.ok) {
+  const fetched = await fetchTvShowDetailClient(candidate.contentId);
+  if (!fetched) {
     return null;
   }
 
-  const detail = (await response.json()) as MediaDetailResponse;
-  if (detail.id !== candidate.contentId) {
-    return null;
-  }
-
+  const detail = fetched.detail;
   const title = detail.name;
   if (!title) {
     return null;
   }
+
+  const isAnimeItem = fetched.catalog === "anime" || isAnime(detail);
 
   const stub = {
     mediaType: "tv" as const,
@@ -103,15 +92,22 @@ async function enrichUpNextCandidate(
     posterPath: detail.poster_path,
     voteAverage: detail.vote_average,
     year: detail.first_air_date?.substring(0, 4),
-    isAnime: isAnime(detail),
+    isAnime: isAnimeItem,
   });
 
-  const upNextHref = buildUpNextHref(
-    candidate.contentId,
-    candidate.episodeInfo.nextUnwatchedEpisode,
-    candidate.watchlistItem.lastWatchedSeason,
-    candidate.watchlistItem.lastWatchedEpisode,
-  );
+  const upNextHref = isAnimeItem
+    ? buildAnimeUpNextHref(
+        candidate.contentId,
+        candidate.episodeInfo.nextUnwatchedEpisode,
+        candidate.watchlistItem.lastWatchedSeason,
+        candidate.watchlistItem.lastWatchedEpisode,
+      )
+    : buildUpNextHref(
+        candidate.contentId,
+        candidate.episodeInfo.nextUnwatchedEpisode,
+        candidate.watchlistItem.lastWatchedSeason,
+        candidate.watchlistItem.lastWatchedEpisode,
+      );
 
   return {
     ...item,

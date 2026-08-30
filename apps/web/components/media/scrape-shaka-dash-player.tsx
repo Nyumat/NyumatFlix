@@ -67,6 +67,7 @@ function ScrapeShakaDashPlayerInstance({
 }: ScrapeShakaDashPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<import("shaka-player").default.Player | null>(null);
+  const loadGenerationRef = useRef(0);
   const readyRef = useRef(false);
   const startedRef = useRef(false);
   const fatalReportedRef = useRef(false);
@@ -177,6 +178,7 @@ function ScrapeShakaDashPlayerInstance({
     readyRef.current = false;
     startedRef.current = false;
     fatalReportedRef.current = false;
+    const loadGeneration = ++loadGenerationRef.current;
     let cancelled = false;
 
     const setup = async () => {
@@ -188,7 +190,7 @@ function ScrapeShakaDashPlayerInstance({
       await destroyPlayer();
 
       const shaka = (await import("shaka-player")).default;
-      if (cancelled) {
+      if (cancelled || loadGeneration !== loadGenerationRef.current) {
         return;
       }
 
@@ -224,11 +226,28 @@ function ScrapeShakaDashPlayerInstance({
           }
         }
       } catch {
+        try {
+          await player.unload();
+        } catch {
+          void 0;
+        }
+        if (
+          cancelled ||
+          loadGeneration !== loadGenerationRef.current ||
+          playerRef.current !== player
+        ) {
+          return;
+        }
         reportFatal();
         return;
       }
 
-      if (cancelled) {
+      if (cancelled || loadGeneration !== loadGenerationRef.current) {
+        try {
+          await player.unload();
+        } catch {
+          void 0;
+        }
         return;
       }
 
@@ -239,6 +258,7 @@ function ScrapeShakaDashPlayerInstance({
 
     return () => {
       cancelled = true;
+      loadGenerationRef.current += 1;
       void destroyPlayer();
     };
   }, [attemptPlaybackStart, destroyPlayer, playbackUrl, reportFatal]);

@@ -1,6 +1,6 @@
 import {
+  getLatestTvPlaybackCoords,
   getPlaybackProgress,
-  listPlaybackProgress,
   resolveResumeTime,
 } from "@/lib/playback/progress-storage";
 import type { WatchlistStatus } from "@/lib/domain/watchlist";
@@ -58,27 +58,20 @@ export function resolveInitialWatchlistStatus(params: {
     };
   }
 
-  // TV Shows: check for any recorded episode progress
-  const allProgress = listPlaybackProgress();
-  const tvEntries = allProgress.filter(
-    (item) => item.mediaType === "tv" && item.contentId === contentId,
-  );
+  const latest = getLatestTvPlaybackCoords(contentId);
 
-  if (tvEntries.length > 0) {
-    // List is already sorted by updatedAt desc
-    const latest = tvEntries[0];
-    if (latest && latest.watched > 0) {
-      const hasEpisodeInfo =
-        typeof latest.seasonNumber === "number" &&
-        typeof latest.episodeNumber === "number";
+  if (latest) {
+    const progress = getPlaybackProgress({
+      mediaType: "tv",
+      contentId,
+      seasonNumber: latest.seasonNumber,
+      episodeNumber: latest.episodeNumber,
+    });
 
-      const epLabel = hasEpisodeInfo
-        ? ` (S${latest.seasonNumber}:E${latest.episodeNumber})`
-        : "";
-
+    if (progress && progress.watched > 0) {
       return {
         status: "watching",
-        label: `Saved to Watching${epLabel}`,
+        label: `Saved to Watching (S${latest.seasonNumber}:E${latest.episodeNumber})`,
         seasonNumber: latest.seasonNumber,
         episodeNumber: latest.episodeNumber,
       };

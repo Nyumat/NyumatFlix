@@ -62,6 +62,22 @@ export async function resolveMegaplayPlaybackUrl(
   return fresh ?? upstreamUrl;
 }
 
+/** Resolve Megaplay once at scrape time so mount → play is one hop. */
+export async function resolveMegaplayStreamAtScrapeTime(
+  streamUrl: string,
+  refresh: MegaplayPlaybackRefresh,
+): Promise<{ streamUrl: string; refresh: MegaplayPlaybackRefresh }> {
+  const fresh = await fetchMegaplayStreamUrl(refresh);
+  if (!fresh) {
+    return { streamUrl, refresh };
+  }
+
+  return {
+    streamUrl: fresh,
+    refresh: { ...refresh, seedStreamUrl: fresh },
+  };
+}
+
 export const isRetryableMegaplayUpstreamStatus = (status: number) =>
   status === 401 ||
   status === 403 ||

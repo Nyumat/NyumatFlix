@@ -24,6 +24,7 @@ import {
   isVidsrcPlaybackRefresh,
   isVixsrcPlaybackRefresh,
 } from "@/lib/scrape/playback-refresh";
+import { resolveMegaplayStreamAtScrapeTime } from "@/lib/scrape/megaplay-playback";
 import { primeVidKingSession } from "@/lib/scrape/vidking-playback";
 import { primeVidsrcJwtSession } from "@/lib/scrape/vidsrc-playback";
 import { primeVixsrcSession } from "@/lib/scrape/vixsrc-playback";
@@ -156,15 +157,16 @@ export async function handleScrapePost(request: Request) {
   }
 
   if (parsed.mediaKind === "anime") {
-    return handleAnimeScrapePost(parsed);
+    return handleAnimeScrapePost(parsed, request.signal);
   }
 
-  return handleTmdbScrapePost(parsed, request.signal);
+  return handleTmdbScrapePost(parsed, request.signal, request);
 }
 
 async function handleTmdbScrapePost(
   input: z.infer<typeof tmdbScrapeBodySchema> & { mediaKind?: "tmdb" },
   signal: AbortSignal,
+  request: Request,
 ) {
   const flags = await getSiteFlags();
   if (input.providerId === "direct" && !isDirectScrapeProviderConfigured()) {
@@ -296,7 +298,11 @@ async function handleTmdbScrapePost(
 
 async function handleAnimeScrapePost(
   input: z.infer<typeof animeScrapeBodySchema>,
+  signal: AbortSignal,
 ) {
+  if (signal.aborted) {
+    return new NextResponse(null, { status: 499 });
+  }
   const flags = await getSiteFlags();
   if (
     input.providerId &&
@@ -322,6 +328,7 @@ async function handleAnimeScrapePost(
     episodeNumber: input.episodeNumber,
     translationType: input.translationType,
     query: input.query,
+    signal,
     ...(input.tmdb ? { tmdb: input.tmdb } : {}),
   };
 
@@ -342,12 +349,24 @@ async function handleAnimeScrapePost(
     });
   }
 
+  let streamUrl = result.streamUrl;
+  let megaplayRefresh = isMegaplayPlaybackRefresh(result.playbackRefresh)
+    ? result.playbackRefresh
+    : undefined;
+
+  if (megaplayRefresh) {
+    const resolved = await resolveMegaplayStreamAtScrapeTime(
+      streamUrl,
+      megaplayRefresh,
+    );
+    streamUrl = resolved.streamUrl;
+    megaplayRefresh = resolved.refresh;
+  }
+
   const playbackToken: ScrapePlaybackToken = {
-    url: result.streamUrl,
+    url: streamUrl,
     referer: result.referer,
-    ...(isMegaplayPlaybackRefresh(result.playbackRefresh)
-      ? { refresh: result.playbackRefresh }
-      : {}),
+    ...(megaplayRefresh ? { refresh: megaplayRefresh } : {}),
     ...(result.cookies ? { cookies: result.cookies } : {}),
   };
 
@@ -445,7 +464,7 @@ export async function handleAnimeScrapeGet() {
       naruto: {
         anilistId: 20,
         nyumatflixApiQuery: {
-          providerId: "animestream",
+          providerId: "animegg",
           anilistId: 20,
           episodeNumber: 1,
           query: "Naruto",

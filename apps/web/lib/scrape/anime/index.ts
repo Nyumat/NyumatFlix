@@ -1,4 +1,3 @@
-import { scrapeAnimestream } from "./providers/animestream";
 import { scrapeAnimegg } from "./providers/animegg";
 import { scrapeAnimeonsen } from "./providers/animeonsen";
 import { scrapeAllmanga } from "./providers/allmanga";
@@ -22,6 +21,7 @@ import type { ScrapeSubtitle } from "../types";
 import { attachSubtitlesToQualities, dedupeSubtitles } from "../linked-config";
 import { stampDonorSubtitles } from "../subtitle-harvest";
 import { attachHlsTrackCapabilities } from "../hls-track-capabilities";
+import { isScrapeAborted } from "../abort";
 import { probeScrapePlaybackPath } from "../playback-probe";
 import { fetchScrapeFallbackSubtitles } from "../subtitles";
 import { resolveAnimeSubtitleTmdbLookup } from "./resolve-subtitle-tmdb-lookup";
@@ -37,7 +37,6 @@ const ANIME_SCRAPERS: Record<
   kickassanime: scrapeKickassanime,
   animeonsen: scrapeAnimeonsen,
   allmanga: scrapeAllmanga,
-  animestream: scrapeAnimestream,
   animegg: scrapeAnimegg,
   justanime: scrapeJustanime,
   kyren: scrapeKyren,
@@ -87,11 +86,27 @@ export async function scrapeAnimeProvider(
   providerId: AnimeScrapeProviderId,
   input: AnimeScrapeInput,
 ): Promise<AnimeScrapeResult> {
+  if (isScrapeAborted(input.signal)) {
+    return {
+      ok: false,
+      providerId,
+      error: "Request aborted",
+    };
+  }
+
   const scraper = ANIME_SCRAPERS[providerId];
   const result = await scraper(input);
 
   if (!result.ok) {
     return result;
+  }
+
+  if (isScrapeAborted(input.signal)) {
+    return {
+      ok: false,
+      providerId,
+      error: "Request aborted",
+    };
   }
 
   let next = result;
@@ -105,6 +120,7 @@ export async function scrapeAnimeProvider(
         cookies: next.cookies,
       },
       next.streamKind,
+      { signal: input.signal },
     );
     if (!playProbeOk) {
       return {
@@ -122,6 +138,14 @@ export async function scrapeAnimeProvider(
         referer: next.referer,
         source: ANIME_SCRAPE_PROVIDER_LABELS[providerId],
       }),
+    };
+  }
+
+  if (isScrapeAborted(input.signal)) {
+    return {
+      ok: false,
+      providerId,
+      error: "Request aborted",
     };
   }
 
@@ -149,6 +173,14 @@ export async function scrapeAllAnimeProviders(
   providerIds: readonly AnimeScrapeProviderId[] = ANIME_SCRAPE_PROVIDER_ORDER,
 ): Promise<AnimeScrapeResult> {
   for (const providerId of providerIds) {
+    if (isScrapeAborted(input.signal)) {
+      return {
+        ok: false,
+        providerId,
+        error: "Request aborted",
+      };
+    }
+
     const result = await scrapeAnimeProvider(providerId, input);
     if (result.ok) {
       return result;

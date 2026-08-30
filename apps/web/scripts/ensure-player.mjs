@@ -9,9 +9,14 @@ const webRoot = path.resolve(
 );
 const repoRoot = path.resolve(webRoot, "../..");
 const vendorElement = path.join(webRoot, "public/vendor/player/element.js");
+const vendorCompat = path.join(webRoot, "public/vendor/player/compat.js");
 const vendorWasm = path.join(webRoot, "public/vendor/player/wasm/movi.js");
 
-if (existsSync(vendorElement) && existsSync(vendorWasm)) {
+if (
+  existsSync(vendorElement) &&
+  existsSync(vendorCompat) &&
+  existsSync(vendorWasm)
+) {
   process.exit(0);
 }
 

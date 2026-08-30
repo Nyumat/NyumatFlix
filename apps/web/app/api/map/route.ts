@@ -9,6 +9,7 @@ import {
   buildAniBridgeSeasonSegments,
   getAniBridgeMappings,
 } from "@/lib/anime/anibridge-mappings";
+import { extendSeasonMapSegments } from "@/lib/anime/map-segment-appendix";
 import {
   buildUnknownEpisodeCountSegment,
   inferMappingConfidence,
@@ -119,6 +120,23 @@ const cache = new Map<
 >();
 const CACHE_TTL = process.env.NODE_ENV === "development" ? 0 : 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 250;
+const inflightRequests = new Map<string, Promise<unknown>>();
+
+async function coalesceCachedRequest<T>(
+  key: string,
+  load: () => Promise<T>,
+): Promise<T> {
+  const pending = inflightRequests.get(key);
+  if (pending) {
+    return pending as Promise<T>;
+  }
+
+  const promise = load().finally(() => {
+    inflightRequests.delete(key);
+  });
+  inflightRequests.set(key, promise);
+  return promise;
+}
 
 function getCached(key: string) {
   const cached = cache.get(key);
@@ -193,25 +211,39 @@ async function fetchTmdbShow(showId: number): Promise<TmdbShow | null> {
     "id" in cached &&
     "name" in cached &&
     "first_air_date" in cached
-  )
+  ) {
     return cached as TmdbShow;
+  }
 
-  try {
-    const response = await fetch(
-      `https://api.themoviedb.org/3/tv/${showId}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
-    );
-
-    if (!response.ok) {
-      throw new Error(`TMDB API error: ${response.status}`);
+  return coalesceCachedRequest(cacheKey, async () => {
+    const cachedAgain = getCached(cacheKey);
+    if (
+      cachedAgain &&
+      typeof cachedAgain === "object" &&
+      "id" in cachedAgain &&
+      "name" in cachedAgain &&
+      "first_air_date" in cachedAgain
+    ) {
+      return cachedAgain as TmdbShow;
     }
 
-    const data = await response.json();
-    setCached(cacheKey, data);
-    return data;
-  } catch (error) {
-    console.error(`Error fetching TMDB show ${showId}:`, error);
-    return null;
-  }
+    try {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/tv/${showId}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`TMDB API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setCached(cacheKey, data);
+      return data as TmdbShow;
+    } catch (error) {
+      console.error(`Error fetching TMDB show ${showId}:`, error);
+      return null;
+    }
+  });
 }
 
 async function fetchTmdbSeason(
@@ -226,32 +258,46 @@ async function fetchTmdbSeason(
     "season_number" in cached &&
     "episode_count" in cached &&
     "episodes" in cached
-  )
+  ) {
     return cached as TmdbSeason;
-
-  try {
-    const response = await fetch(
-      `https://api.themoviedb.org/3/tv/${showId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
-      { cache: "no-store" },
-    );
-
-    if (!response.ok) {
-      throw new Error(`TMDB API error: ${response.status}`);
-    }
-
-    const data = toSlimTmdbSeason(await response.json());
-    if (!data) {
-      throw new Error("Invalid TMDB season response");
-    }
-    setCached(cacheKey, data);
-    return data;
-  } catch (error) {
-    console.error(
-      `Error fetching TMDB season ${showId}/${seasonNumber}:`,
-      error,
-    );
-    return null;
   }
+
+  return coalesceCachedRequest(cacheKey, async () => {
+    const cachedAgain = getCached(cacheKey);
+    if (
+      cachedAgain &&
+      typeof cachedAgain === "object" &&
+      "season_number" in cachedAgain &&
+      "episode_count" in cachedAgain &&
+      "episodes" in cachedAgain
+    ) {
+      return cachedAgain as TmdbSeason;
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/tv/${showId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+        { cache: "no-store" },
+      );
+
+      if (!response.ok) {
+        throw new Error(`TMDB API error: ${response.status}`);
+      }
+
+      const data = toSlimTmdbSeason(await response.json());
+      if (!data) {
+        throw new Error("Invalid TMDB season response");
+      }
+      setCached(cacheKey, data);
+      return data;
+    } catch (error) {
+      console.error(
+        `Error fetching TMDB season ${showId}/${seasonNumber}:`,
+        error,
+      );
+      return null;
+    }
+  });
 }
 
 async function fetchAniListMediaById(
@@ -337,12 +383,18 @@ async function fetchAniListCandidates(
     return [];
   }
 
-  try {
-    const candidates: AnilistMediaExtended[] = [];
-    const primaryId = await fetchAnilistId(title);
+  return coalesceCachedRequest(cacheKey, async () => {
+    const cachedAgain = getCached(cacheKey);
+    if (cachedAgain && Array.isArray(cachedAgain)) {
+      return cachedAgain as AnilistMediaExtended[];
+    }
 
-    if (primaryId) {
-      const detailQuery = `
+    try {
+      const candidates: AnilistMediaExtended[] = [];
+      const primaryId = await fetchAnilistId(title);
+
+      if (primaryId) {
+        const detailQuery = `
         query ($id: Int) {
           Media(id: $id, type: ANIME) {
             id
@@ -368,82 +420,83 @@ async function fetchAniListCandidates(
         }
       `;
 
-      const response = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: detailQuery,
-          variables: { id: primaryId },
-        }),
-      });
+        const response = await fetch("https://graphql.anilist.co", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query: detailQuery,
+            variables: { id: primaryId },
+          }),
+        });
 
-      if (response.ok) {
-        const data: AnilistResponseExtended = await response.json();
-        if (data.data.Media) {
-          candidates.push(data.data.Media);
+        if (response.ok) {
+          const data: AnilistResponseExtended = await response.json();
+          if (data.data.Media) {
+            candidates.push(data.data.Media);
+          }
         }
-      }
 
-      const franchise = await resolveAniListFranchise(primaryId);
-      const related = await Promise.all(
-        franchise.seasons
-          .filter(({ anilistId }) => anilistId !== primaryId)
-          .map(({ anilistId }) => fetchAniListMediaById(anilistId)),
-      );
-      for (const candidate of related) {
-        if (candidate && candidate.format !== "MOVIE") {
-          candidates.push(candidate);
+        const franchise = await resolveAniListFranchise(primaryId);
+        const related = await Promise.all(
+          franchise.seasons
+            .filter(({ anilistId }) => anilistId !== primaryId)
+            .map(({ anilistId }) => fetchAniListMediaById(anilistId)),
+        );
+        for (const candidate of related) {
+          if (candidate && candidate.format !== "MOVIE") {
+            candidates.push(candidate);
+          }
         }
-      }
 
-      if (seasonNumber) {
-        const seasonVariations = [
-          `${title} Season ${seasonNumber}`,
-          `${title} Final Season`,
-          `${title} The Final Season`,
-        ];
+        if (seasonNumber) {
+          const seasonVariations = [
+            `${title} Season ${seasonNumber}`,
+            `${title} Final Season`,
+            `${title} The Final Season`,
+          ];
 
-        for (const variation of seasonVariations) {
-          const variationId = await fetchAnilistId(variation);
-          if (
-            variationId &&
-            variationId !== primaryId &&
-            !candidates.find((c) => c.id === variationId)
-          ) {
-            const variationResponse = await fetch(
-              "https://graphql.anilist.co",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
+          for (const variation of seasonVariations) {
+            const variationId = await fetchAnilistId(variation);
+            if (
+              variationId &&
+              variationId !== primaryId &&
+              !candidates.find((c) => c.id === variationId)
+            ) {
+              const variationResponse = await fetch(
+                "https://graphql.anilist.co",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    query: detailQuery,
+                    variables: { id: variationId },
+                  }),
                 },
-                body: JSON.stringify({
-                  query: detailQuery,
-                  variables: { id: variationId },
-                }),
-              },
-            );
+              );
 
-            if (variationResponse.ok) {
-              const variationData: AnilistResponseExtended =
-                await variationResponse.json();
-              if (variationData.data.Media) {
-                candidates.push(variationData.data.Media);
+              if (variationResponse.ok) {
+                const variationData: AnilistResponseExtended =
+                  await variationResponse.json();
+                if (variationData.data.Media) {
+                  candidates.push(variationData.data.Media);
+                }
               }
             }
           }
         }
       }
-    }
 
-    setCached(cacheKey, candidates);
-    return candidates;
-  } catch (error) {
-    console.error(`Error fetching AniList candidates for "${title}":`, error);
-    return [];
-  }
+      setCached(cacheKey, candidates);
+      return candidates;
+    } catch (error) {
+      console.error(`Error fetching AniList candidates for "${title}":`, error);
+      return [];
+    }
+  });
 }
 
 function resolveMappings(
@@ -589,6 +642,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const resolvedSeasonNumber =
+      seasonNumber ?? tmdbSeasonData?.season_number ?? 1;
+    const anibridgeMappings = await getAniBridgeMappings();
+    const anibridgeSegments = buildAniBridgeSeasonSegments(
+      anibridgeMappings,
+      showId,
+      resolvedSeasonNumber,
+    );
+
+    if (anibridgeSegments.length > 0) {
+      const segments = await extendSeasonMapSegments(
+        anibridgeSegments,
+        showId,
+        resolvedSeasonNumber,
+      );
+      const response: MapResponse = {
+        tmdbShowId: showId,
+        tmdbSeason: seasonNumber,
+        segments,
+        confidence: "high",
+        isAdult: false,
+        source: "anibridge",
+      };
+      return NextResponse.json(response, { headers: catalogCacheHeaders() });
+    }
+
     const mediaItemAdapter: MediaItem = {
       id: tmdbShow.id,
       name: tmdbShow.name,
@@ -642,21 +721,9 @@ export async function GET(request: NextRequest) {
 
     let segments: MappingSegment[] = [];
     let debugInfo: DebugInfo | undefined = undefined;
-    let source = "date+title heuristic";
+    const source = "date+title heuristic";
 
-    const anibridgeMappings = await getAniBridgeMappings();
-    const resolvedSeasonNumber =
-      seasonNumber ?? tmdbSeasonData?.season_number ?? 1;
-    const anibridgeSegments = buildAniBridgeSeasonSegments(
-      anibridgeMappings,
-      showId,
-      resolvedSeasonNumber,
-    );
-
-    if (anibridgeSegments.length > 0) {
-      segments = anibridgeSegments;
-      source = "anibridge";
-    } else if (tmdbSeasonData) {
+    if (tmdbSeasonData) {
       const result = resolveMappings(
         tmdbShow,
         tmdbSeasonData,
@@ -679,22 +746,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const confidence =
-      source === "anibridge"
-        ? "high"
-        : inferMappingConfidence(
-            segments,
-            orderedCandidates.length,
-            sourceAnilistId,
-          );
+    const confidence = inferMappingConfidence(
+      segments,
+      orderedCandidates.length,
+      sourceAnilistId,
+    );
     const isAdult = orderedCandidates.some(
       (candidate) => candidate.isAdult === true,
     );
 
+    const extendedSegments =
+      tmdbSeasonData && segments.length > 0
+        ? await extendSeasonMapSegments(segments, showId, resolvedSeasonNumber)
+        : segments;
+
     const response: MapResponse = {
       tmdbShowId: showId,
       tmdbSeason: seasonNumber,
-      segments,
+      segments: extendedSegments,
       confidence,
       isAdult,
       source,

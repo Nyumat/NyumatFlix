@@ -1,4 +1,3 @@
-import { IS_DEV } from "@/lib/cache-policy";
 import {
   ALL_FLAG_DEFINITIONS,
   DEFAULT_FLAG_VALUES,
@@ -25,11 +24,35 @@ export const FLIPT_ENVIRONMENT = process.env.FLIPT_ENVIRONMENT ?? "default";
 export const FLIPT_NAMESPACE = process.env.FLIPT_NAMESPACE ?? "default";
 export const FLIPT_API_TOKEN = process.env.FLIPT_API_TOKEN ?? "";
 
-/** Flags change rarely; long TTL avoids Flipt fan-out under scrape load. */
-const CACHE_TTL_MS = IS_DEV
-  ? 0
-  : Number(process.env.FLIPT_FLAG_CACHE_TTL_MS ?? "600000");
 const FLAG_TYPE_URL = "flipt.core.Flag";
+const ANNOUNCEMENT_FLAG_KEY = "global.announcement_banner";
+const PROVIDER_MENU_ORDER_FLAG_KEY = "global.provider_menu_order";
+
+export function readFliptMetadataValue(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+): unknown {
+  const value = metadata?.[key];
+  if (typeof value !== "string") {
+    return value;
+  }
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function withJsonMetadata(
+  current: Record<string, unknown> | undefined,
+  key: string,
+  value: unknown,
+): Record<string, unknown> {
+  return {
+    ...(current ?? {}),
+    [key]: JSON.stringify(value),
+  };
+}
 
 /** Flipt v2 keys only allow [-_,A-Za-z0-9]; catalog keys use dots. */
 export function toFliptStorageKey(catalogKey: string): string {
@@ -44,9 +67,7 @@ if (FLAG_DEFINITIONS_BY_STORAGE_KEY.size !== ALL_FLAG_DEFINITIONS.length) {
   throw new Error("Flipt flag storage keys must be unique");
 }
 
-type CacheEntry = { expiresAt: number; state: AdminFlagState };
-
-let flagCache: CacheEntry | null = null;
+let lastKnownFlagState: AdminFlagState | null = null;
 let failureCacheExpiresAt = 0;
 const FAILURE_CACHE_TTL_MS = 5000;
 
@@ -139,20 +160,18 @@ function authHeaders(): HeadersInit {
 }
 
 export function invalidateFlagCache(): void {
-  flagCache = null;
+  lastKnownFlagState = null;
 }
 
 export function getCachedRawFlagsSync(): AdminFlagState | null {
-  if (flagCache && flagCache.expiresAt > Date.now()) {
-    return flagCache.state;
-  }
-  return null;
+  return lastKnownFlagState;
 }
 
 async function fliptFetch(path: string, init?: RequestInit): Promise<Response> {
   const url = `${FLIPT_URL}${path}`;
   return fetch(url, {
     ...init,
+    cache: "no-store",
     headers: {
       ...authHeaders(),
       ...(init?.headers ?? {}),
@@ -180,12 +199,45 @@ async function listFlags(): Promise<FliptResourceList<FliptFlag>> {
   return (await res.json()) as FliptResourceList<FliptFlag>;
 }
 
+async function getFlag(storageKey: string): Promise<FliptFlag | undefined> {
+  const res = await fliptFetch(
+    `${flagsResourcePath()}/${encodeURIComponent(FLAG_TYPE_URL)}/${encodeURIComponent(storageKey)}`,
+  );
+  if (res.status === 404) {
+    return undefined;
+  }
+  if (!res.ok) {
+    throw await responseError(`Flipt get flag ${storageKey} failed`, res);
+  }
+  const body = (await res.json()) as FliptResourceResponse<FliptFlag>;
+  return body.resource?.payload;
+}
+
+async function hydrateFlagMetadata(
+  existing: Map<string, FliptFlag>,
+  storageKeys: readonly string[],
+): Promise<void> {
+  await Promise.all(
+    storageKeys.map(async (storageKey) => {
+      const current = existing.get(storageKey);
+      if (current?.metadata && Object.keys(current.metadata).length > 0) {
+        return;
+      }
+      const fetched = await getFlag(storageKey);
+      if (fetched) {
+        existing.set(storageKey, fetched);
+      }
+    }),
+  );
+}
+
 function flagPayload(
   def: FlagDefinition,
   enabled: boolean,
   current?: FliptFlag,
   metadata?: Record<string, unknown>,
 ): FliptFlag {
+  const nextMetadata = metadata ?? current?.metadata;
   return {
     ...current,
     "@type": FLAG_TYPE_URL,
@@ -194,7 +246,7 @@ function flagPayload(
     description: def.description ?? "",
     enabled,
     type: "BOOLEAN_FLAG_TYPE",
-    ...(metadata ? { metadata } : {}),
+    ...(nextMetadata ? { metadata: nextMetadata } : {}),
   };
 }
 
@@ -235,15 +287,10 @@ export async function ensureFlagsSeeded(): Promise<void> {
   }
 }
 
-export async function readAdminFlagState(options?: {
-  skipCache?: boolean;
-}): Promise<AdminFlagState> {
+export async function readAdminFlagState(): Promise<AdminFlagState> {
   const now = Date.now();
-  if (!options?.skipCache && flagCache && flagCache.expiresAt > now) {
-    return flagCache.state;
-  }
   if (failureCacheExpiresAt > now) {
-    return { ...DEFAULT_FLAG_VALUES };
+    return lastKnownFlagState ?? { ...DEFAULT_FLAG_VALUES };
   }
 
   try {
@@ -258,11 +305,11 @@ export async function readAdminFlagState(options?: {
       }
     }
     clearFailureCooldown();
-    flagCache = { expiresAt: now + CACHE_TTL_MS, state };
+    lastKnownFlagState = state;
     return state;
   } catch (error) {
     enterFailureCooldown(now, error);
-    return { ...DEFAULT_FLAG_VALUES };
+    return lastKnownFlagState ?? { ...DEFAULT_FLAG_VALUES };
   }
 }
 
@@ -278,13 +325,17 @@ export async function writeAdminFlagState(
       resource.payload,
     ]),
   );
+  await hydrateFlagMetadata(existing, [
+    toFliptStorageKey(ANNOUNCEMENT_FLAG_KEY),
+    toFliptStorageKey(PROVIDER_MENU_ORDER_FLAG_KEY),
+  ]);
   let revision = listed.revision;
 
   for (const def of ALL_FLAG_DEFINITIONS) {
     const enabled = state[def.key] ?? def.defaultValue;
     const current = existing.get(toFliptStorageKey(def.key));
-    const isAnnouncement = def.key === "global.announcement_banner";
-    const isMenuOrder = def.key === "global.provider_menu_order";
+    const isAnnouncement = def.key === ANNOUNCEMENT_FLAG_KEY;
+    const isMenuOrder = def.key === PROVIDER_MENU_ORDER_FLAG_KEY;
     const bannerConfig =
       isAnnouncement && announcementBanner
         ? sanitizeAnnouncementBannerConfig(announcementBanner)
@@ -294,17 +345,23 @@ export async function writeAdminFlagState(
         ? sanitizeProviderMenuOrderConfig(providerMenuOrder)
         : undefined;
     const metadata = bannerConfig
-      ? { ...(current?.metadata ?? {}), announcementBanner: bannerConfig }
+      ? withJsonMetadata(current?.metadata, "announcementBanner", bannerConfig)
       : menuOrderConfig
-        ? { ...(current?.metadata ?? {}), providerMenuOrder: menuOrderConfig }
+        ? withJsonMetadata(
+            current?.metadata,
+            "providerMenuOrder",
+            menuOrderConfig,
+          )
         : undefined;
     const configChanged = Boolean(
       (bannerConfig &&
-        JSON.stringify(current?.metadata?.announcementBanner) !==
-          JSON.stringify(bannerConfig)) ||
+        JSON.stringify(
+          readFliptMetadataValue(current?.metadata, "announcementBanner"),
+        ) !== JSON.stringify(bannerConfig)) ||
         (menuOrderConfig &&
-          JSON.stringify(current?.metadata?.providerMenuOrder) !==
-            JSON.stringify(menuOrderConfig)),
+          JSON.stringify(
+            readFliptMetadataValue(current?.metadata, "providerMenuOrder"),
+          ) !== JSON.stringify(menuOrderConfig)),
     );
     if (!current) {
       revision = await mutateFlag(
@@ -337,13 +394,9 @@ export async function readAnnouncementBannerConfig(): Promise<AnnouncementBanner
   }
 
   try {
-    const listed = await listFlags();
-    const banner = (listed.resources ?? []).find(
-      (resource) =>
-        resource.key === toFliptStorageKey("global.announcement_banner"),
-    );
+    const banner = await getFlag(toFliptStorageKey(ANNOUNCEMENT_FLAG_KEY));
     return sanitizeAnnouncementBannerConfig(
-      banner?.payload.metadata?.announcementBanner,
+      readFliptMetadataValue(banner?.metadata, "announcementBanner"),
     );
   } catch (error) {
     enterFailureCooldown(now, error);
@@ -358,13 +411,11 @@ export async function readProviderMenuOrderConfig(): Promise<ProviderMenuOrderCo
   }
 
   try {
-    const listed = await listFlags();
-    const menuOrderFlag = (listed.resources ?? []).find(
-      (resource) =>
-        resource.key === toFliptStorageKey("global.provider_menu_order"),
+    const menuOrderFlag = await getFlag(
+      toFliptStorageKey(PROVIDER_MENU_ORDER_FLAG_KEY),
     );
     return sanitizeProviderMenuOrderConfig(
-      menuOrderFlag?.payload.metadata?.providerMenuOrder,
+      readFliptMetadataValue(menuOrderFlag?.metadata, "providerMenuOrder"),
     );
   } catch (error) {
     enterFailureCooldown(now, error);

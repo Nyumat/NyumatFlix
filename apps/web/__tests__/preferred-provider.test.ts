@@ -31,4 +31,9 @@ describe("preferred-provider", () => {
     setPreferredScrapeProvider("198511:1:sub", "");
     expect(getPreferredScrapeProvider("198511:1:sub")).toBeNull();
   });
+
+  it("stores vidrock as a preferred provider", () => {
+    setPreferredScrapeProvider("808:movie", "vidrock");
+    expect(getPreferredScrapeProvider("808:movie")).toBe("vidrock");
+  });
 });

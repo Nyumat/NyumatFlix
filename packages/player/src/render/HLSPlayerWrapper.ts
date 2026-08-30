@@ -6,12 +6,109 @@ import {
   PlayerConfig,
   Track,
   VideoTrack,
+  AudioTrack,
+  SubtitleTrack,
 } from "../types";
 import { CanvasRenderer } from "./CanvasRenderer";
 import { TrackManager } from "../core/TrackManager";
 import { Logger } from "../utils/Logger";
+import {
+  applyStreamVideoVisibility,
+  shouldPreferNativeHls,
+  usesCanvasCopyLoop,
+} from "../core/presentation";
+import { VideoPlayGate } from "../utils/safeMediaPlay";
 
 const TAG = "HLSPlayerWrapper";
+
+export type HlsAudioRenditionLike = {
+  id?: number;
+  name?: string;
+  lang?: string;
+};
+
+type BrowserAudioTrack = {
+  id: string;
+  language: string;
+  label: string;
+  enabled: boolean;
+};
+
+type BrowserAudioTrackList = {
+  length: number;
+  [index: number]: BrowserAudioTrack | undefined;
+  addEventListener?: (type: string, listener: () => void) => void;
+  removeEventListener?: (type: string, listener: () => void) => void;
+};
+
+const isBrowserAudioTrackList = (
+  value: unknown,
+): value is BrowserAudioTrackList => {
+  if (typeof value !== "object" || value === null || !("length" in value)) {
+    return false;
+  }
+  return typeof (value as { length: unknown }).length === "number";
+};
+
+const getBrowserAudioTrackList = (
+  video: HTMLVideoElement,
+): BrowserAudioTrackList | null => {
+  if (!("audioTracks" in video)) {
+    return null;
+  }
+  const list = Reflect.get(video, "audioTracks");
+  return isBrowserAudioTrackList(list) && list.length > 0 ? list : null;
+};
+
+export const mapHlsAudioRenditions = (
+  renditions: readonly HlsAudioRenditionLike[],
+): AudioTrack[] => {
+  if (renditions.length <= 1) {
+    return [];
+  }
+
+  return renditions.map((track, index) => {
+    const lang = track.lang && track.lang !== "und" ? track.lang : "";
+    const label = track.name || lang || `Audio ${index + 1}`;
+    return {
+      id: typeof track.id === "number" ? track.id : index,
+      type: "audio",
+      codec: "",
+      language: lang,
+      label,
+      channels: 0,
+      sampleRate: 0,
+    };
+  });
+};
+
+export const mapNativeAudioTracks = (
+  list: BrowserAudioTrackList,
+): AudioTrack[] => {
+  if (list.length <= 1) {
+    return [];
+  }
+
+  const tracks: AudioTrack[] = [];
+  for (let index = 0; index < list.length; index++) {
+    const track = list[index];
+    if (!track) {
+      continue;
+    }
+    const lang =
+      track.language && track.language !== "und" ? track.language : "";
+    tracks.push({
+      id: index,
+      type: "audio",
+      codec: "",
+      language: lang,
+      label: track.label || lang || `Audio ${index + 1}`,
+      channels: 0,
+      sampleRate: 0,
+    });
+  }
+  return tracks;
+};
 
 export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
   private config: PlayerConfig;
@@ -22,6 +119,7 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
   public trackManager: TrackManager;
   private frameCallbackId: number | null = null;
   private _framesRendered: number = 0;
+  private readonly videoPlayGate = new VideoPlayGate();
 
   constructor(config: PlayerConfig) {
     super();
@@ -31,20 +129,48 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
     this.videoElement = document.createElement("video");
     this.videoElement.crossOrigin = "anonymous";
     this.videoElement.playsInline = true;
-    this.videoElement.style.display = "none"; // Hidden by default, canvas renderer will draw frames
+    applyStreamVideoVisibility(this.videoElement, config);
 
     // Preserve pitch when changing playback speed
     (this.videoElement as any).preservesPitch = true;
     (this.videoElement as any).mozPreservesPitch = true; // Firefox
     (this.videoElement as any).webkitPreservesPitch = true; // Safari/older Chrome
 
-    // DRM mode: use native video element directly (no canvas)
-    // Canvas can't access DRM-protected frames (browser blocks VideoFrame copy)
-    if (!config.drm && config.renderer === "canvas" && config.canvas) {
+    // Native presentation: light-DOM video, no canvas copy loop.
+    if (usesCanvasCopyLoop(config) && config.canvas) {
       this.canvasRenderer = new CanvasRenderer(config.canvas);
     }
 
     this.setupEventHandlers();
+
+    this.trackManager.on("subtitleTrackChange", (track: SubtitleTrack | null) => {
+      if (this.hls) {
+        this.hls.subtitleTrack = track ? track.id : -1;
+        Logger.info(
+          TAG,
+          track
+            ? `Selected HLS subtitle track ${track.id} (${track.language || track.label || ""})`
+            : "HLS subtitles disabled",
+        );
+        return;
+      }
+      this.applyNativeTextTrackSelection(track);
+    });
+
+    this.trackManager.on("audioTrackChange", (track: AudioTrack | null) => {
+      if (!track) {
+        return;
+      }
+      if (this.hls) {
+        this.hls.audioTrack = track.id;
+        Logger.info(
+          TAG,
+          `Selected HLS audio track ${track.id} (${track.language || track.label || ""})`,
+        );
+        return;
+      }
+      this.applyNativeAudioTrackSelection(track.id);
+    });
 
     // Listen to track manager changes to update HLS level
     this.trackManager.on("videoTrackChange", (track: VideoTrack | null) => {
@@ -88,23 +214,27 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
 
   private setupEventHandlers(): void {
     this.videoElement.addEventListener("play", () => this.setState("playing"));
-    this.videoElement.addEventListener("playing", () =>
-      this.setState("playing"),
-    );
+    this.videoElement.addEventListener("playing", () => {
+      this.setState("playing");
+      this.emit("playing", undefined);
+    });
     this.videoElement.addEventListener("pause", () => {
       if (this.state !== "ended") this.setState("paused");
     });
     this.videoElement.addEventListener("ended", () => this.setState("ended"));
-    this.videoElement.addEventListener("seeking", () =>
-      this.setState("seeking"),
-    );
+    this.videoElement.addEventListener("seeking", () => {
+      this.setState("seeking");
+      this.emit("seeking", this.videoElement.currentTime);
+    });
     this.videoElement.addEventListener("seeked", () => {
+      this.emit("seeked", this.videoElement.currentTime);
       if (this.videoElement.paused) this.setState("paused");
       else this.setState("playing");
     });
-    this.videoElement.addEventListener("waiting", () =>
-      this.setState("buffering"),
-    );
+    this.videoElement.addEventListener("waiting", () => {
+      this.setState("buffering");
+      this.emit("waiting", undefined);
+    });
     this.videoElement.addEventListener("timeupdate", () => {
       this.emit("timeUpdate", this.videoElement.currentTime);
     });
@@ -181,22 +311,27 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
     this.setState("loading");
     this.emit("loadStart", undefined);
 
-    if (!Hls.isSupported()) {
-      if (this.videoElement.canPlayType("application/vnd.apple.mpegurl")) {
-        return this.loadNative();
-      } else {
-        const err = new Error("HLS not supported in this browser");
-        this.emit("error", err);
-        this.setState("error");
-        throw err;
-      }
-    }
-
     const source = this.config.source;
     const url = source && source.type === "url" ? source.url : null;
 
     if (!url) {
       throw new Error("HLS source must be a URL");
+    }
+
+    if (shouldPreferNativeHls(url) || !Hls.isSupported()) {
+      if (this.videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        if (this.config.drm && this.config.licenseUrl) {
+          this.setupEME(this.config.licenseUrl, this.config.licenseHeaders);
+        }
+        return this.loadNative();
+      }
+    }
+
+    if (!Hls.isSupported()) {
+      const err = new Error("HLS not supported in this browser");
+      this.emit("error", err);
+      this.setState("error");
+      throw err;
     }
 
     if (this.config.drm) {
@@ -215,6 +350,8 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
       backBufferLength: 90,
       maxBufferLength: 30,
       maxMaxBufferLength: 600,
+      enableWebVTT: true,
+      enableCEA708Captions: true,
       ...(mediaHeaders && {
         xhrSetup: (xhr: XMLHttpRequest) => {
           for (const [k, v] of Object.entries(mediaHeaders)) {
@@ -260,6 +397,36 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
           "tracksChange",
           this.trackManager.getTracks(),
         );
+      });
+
+      this.hls!.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
+        this.syncSubtitleTracksFromHls();
+      });
+
+      this.hls!.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
+        this.syncAudioTracksFromHls();
+      });
+
+      this.hls!.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event: string, data: { id: number }) => {
+        const active = this.trackManager
+          .getAudioTracks()
+          .find((track) => track.id === data.id);
+        if (!active || active.id === this.trackManager.getActiveAudioTrack()?.id) {
+          return;
+        }
+        this.trackManager.selectAudioTrack(data.id);
+      });
+
+      this.hls!.on(Hls.Events.SUBTITLE_TRACK_SWITCH, (_event: string, data: { id: number }) => {
+        const active =
+          data.id >= 0
+            ? (this.trackManager.getSubtitleTracks().find((t) => t.id === data.id) ??
+              null)
+            : null;
+        if (active?.id === this.trackManager.getActiveSubtitleTrack()?.id) {
+          return;
+        }
+        this.trackManager.selectSubtitleTrack(data.id >= 0 ? data.id : null);
       });
 
       let networkRetries = 0;
@@ -330,6 +497,8 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
       const onLoaded = () => {
         this.videoElement.removeEventListener("loadedmetadata", onLoaded);
         this.videoElement.removeEventListener("error", onError);
+        this.syncNativeAudioTracks();
+        this.syncNativeManifestSubtitleTracks();
         this.setState("ready");
         this.emit("loadEnd", undefined);
         resolve();
@@ -390,8 +559,9 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
 
     this.trackManager.setTracks(tracks);
 
-    // Select Auto by default
-    this.trackManager.selectVideoTrack(-1);
+    this.trackManager.selectHighestVideoTrack();
+    this.syncAudioTracksFromHls();
+    this.syncSubtitleTracksFromHls();
 
     if (this.canvasRenderer && data.levels.length > 0) {
       const level = data.levels[0];
@@ -433,10 +603,14 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
   }
 
   async play(): Promise<void> {
-    await this.videoElement.play();
+    if (!this.videoElement.paused && this.state === "playing") {
+      return;
+    }
+    await this.videoPlayGate.play(this.videoElement);
   }
 
   pause(): void {
+    this.videoPlayGate.reset();
     this.videoElement.pause();
   }
 
@@ -597,17 +771,146 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
     this.trackManager.selectVideoTrack(id);
   }
 
-  getAudioTracks() {
-    return [];
+  getAudioTracks(): AudioTrack[] {
+    return this.trackManager.getAudioTracks();
   }
-  selectAudioTrack(_id: number): boolean {
-    return false;
+  selectAudioTrack(id: number): boolean {
+    return this.trackManager.selectAudioTrack(id);
   }
-  getSubtitleTracks() {
-    return [];
+  getSubtitleTracks(): SubtitleTrack[] {
+    return this.trackManager.getSubtitleTracks();
   }
-  selectSubtitleTrack(_id: number | null): Promise<boolean> {
-    return Promise.resolve(false);
+
+  async selectSubtitleTrack(id: number | null): Promise<boolean> {
+    return this.trackManager.selectSubtitleTrack(id);
+  }
+
+  private syncAudioTracksFromHls(): void {
+    if (!this.hls) return;
+
+    const preserved = this.trackManager
+      .getTracks()
+      .filter((track) => track.type !== "audio");
+    const audioTracks = mapHlsAudioRenditions(this.hls.audioTracks ?? []);
+    this.trackManager.setTracks([...preserved, ...audioTracks]);
+
+    const activeId = this.hls.audioTrack;
+    if (audioTracks.some((track) => track.id === activeId)) {
+      this.trackManager.selectAudioTrack(activeId);
+    }
+  }
+
+  private syncNativeAudioTracks(): void {
+    const list = getBrowserAudioTrackList(this.videoElement);
+    const preserved = this.trackManager
+      .getTracks()
+      .filter((track) => track.type !== "audio");
+    if (!list) {
+      this.trackManager.setTracks(preserved);
+      return;
+    }
+
+    const audioTracks = mapNativeAudioTracks(list);
+    this.trackManager.setTracks([...preserved, ...audioTracks]);
+
+    let activeId = -1;
+    for (let index = 0; index < list.length; index++) {
+      if (list[index]?.enabled) {
+        activeId = index;
+        break;
+      }
+    }
+    if (audioTracks.some((track) => track.id === activeId)) {
+      this.trackManager.selectAudioTrack(activeId);
+    }
+  }
+
+  private applyNativeAudioTrackSelection(trackId: number): void {
+    const list = getBrowserAudioTrackList(this.videoElement);
+    if (!list) return;
+    for (let index = 0; index < list.length; index++) {
+      const track = list[index];
+      if (track) {
+        track.enabled = index === trackId;
+      }
+    }
+  }
+
+  private syncSubtitleTracksFromHls(): void {
+    if (!this.hls) return;
+
+    const preserved = this.trackManager
+      .getTracks()
+      .filter((track) => track.type !== "subtitle");
+    const subtitleTracks: SubtitleTrack[] = (this.hls.subtitleTracks ?? []).map(
+      (track, index) => {
+        const lang =
+          track.lang && track.lang !== "und" ? track.lang : track.name || "";
+        const label = track.name || lang || `Subtitle ${index + 1}`;
+        return {
+          id: index,
+          type: "subtitle",
+          codec: "webvtt",
+          language: lang,
+          label,
+          subtitleType: "text",
+        };
+      },
+    );
+
+    this.trackManager.setTracks([...preserved, ...subtitleTracks]);
+  }
+
+  private syncNativeManifestSubtitleTracks(): void {
+    const preserved = this.trackManager
+      .getTracks()
+      .filter((track) => track.type !== "subtitle");
+    const subtitleTracks: SubtitleTrack[] = [];
+    let index = 0;
+
+    for (let i = 0; i < this.videoElement.textTracks.length; i++) {
+      const textTrack = this.videoElement.textTracks[i];
+      if (textTrack.kind !== "subtitles" && textTrack.kind !== "captions") {
+        continue;
+      }
+      const lang =
+        textTrack.language && textTrack.language !== "und"
+          ? textTrack.language
+          : "";
+      subtitleTracks.push({
+        id: index,
+        type: "subtitle",
+        codec: "webvtt",
+        language: lang,
+        label: textTrack.label || lang || `Subtitle ${index + 1}`,
+        subtitleType: "text",
+      });
+      index++;
+    }
+
+    if (subtitleTracks.length === 0) {
+      return;
+    }
+
+    this.trackManager.setTracks([...preserved, ...subtitleTracks]);
+  }
+
+  private applyNativeTextTrackSelection(track: SubtitleTrack | null): void {
+    let subtitleIndex = 0;
+    for (let i = 0; i < this.videoElement.textTracks.length; i++) {
+      const textTrack = this.videoElement.textTracks[i];
+      if (textTrack.kind !== "subtitles" && textTrack.kind !== "captions") {
+        continue;
+      }
+      if (!track) {
+        textTrack.mode = "hidden";
+      } else if (subtitleIndex === track.id) {
+        textTrack.mode = "showing";
+      } else {
+        textTrack.mode = "hidden";
+      }
+      subtitleIndex++;
+    }
   }
 
   setFitMode(mode: any) {

@@ -29,7 +29,10 @@ describe("AppSettingsSync", () => {
     await useAppSettingsStore.persist.rehydrate();
     await usePlaybackModeStore.persist.rehydrate();
     useAppSettingsStore.setState({ noAdsMode: false });
-    usePlaybackModeStore.setState({ selectedServer: embedServer });
+    usePlaybackModeStore.setState({
+      selectedServer: embedServer,
+      hasUserSelectedPlaybackServer: false,
+    });
   });
 
   it("seeds scrape when no-ads default flag is enabled after flags load", async () => {
@@ -76,11 +79,36 @@ describe("AppSettingsSync", () => {
     });
   });
 
-  it("does not override a persisted embed server for default proxy playback alone", async () => {
+  it("seeds scrape when persisted embed is only the store default", async () => {
     localStorage.setItem(
       "playback-mode-storage",
       JSON.stringify({
         state: { selectedServerId: embedServer.id },
+        version: 0,
+      }),
+    );
+    await usePlaybackModeStore.persist.rehydrate();
+
+    renderSync({
+      ...getDefaultSiteFlags(),
+      defaultProxyPlayback: true,
+    });
+
+    await waitFor(() => {
+      expect(usePlaybackModeStore.getState().selectedServer.id).toBe(
+        scrapeServer.id,
+      );
+    });
+  });
+
+  it("does not override a user-chosen embed server for default proxy playback", async () => {
+    localStorage.setItem(
+      "playback-mode-storage",
+      JSON.stringify({
+        state: {
+          selectedServerId: embedServer.id,
+          hasUserSelectedPlaybackServer: true,
+        },
         version: 0,
       }),
     );

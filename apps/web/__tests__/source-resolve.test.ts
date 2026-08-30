@@ -10,6 +10,7 @@ import {
   classifySiblingCancel,
   shouldFinalizeBatchWinner,
   shouldFinalizeFirstPreferenceMatch,
+  shouldFinalizeFirstPreferenceMatchWithStartup,
   shouldFinalizeRaceWinner,
 } from "@/lib/scrape/scrape-race-batch";
 
@@ -138,6 +139,56 @@ describe("shouldFinalizeFirstPreferenceMatch", () => {
         },
       ],
       (payload: { ok: boolean }) => payload.ok,
+    );
+
+    expect(winner?.providerId).toBe("kickassanime");
+  });
+});
+
+describe("shouldFinalizeFirstPreferenceMatchWithStartup", () => {
+  it("requires a passing startup probe", () => {
+    const winner = shouldFinalizeFirstPreferenceMatchWithStartup(
+      [
+        {
+          providerId: "justanime",
+          attempt: {
+            outcome: "success",
+            payload: { ok: true, startupProbeOk: false, startupProbeMs: 200 },
+          },
+        },
+        {
+          providerId: "anizone",
+          attempt: {
+            outcome: "success",
+            payload: { ok: true, startupProbeOk: true, startupProbeMs: 900 },
+          },
+        },
+      ],
+      (payload: { ok: boolean }) => payload.ok,
+    );
+
+    expect(winner?.providerId).toBe("anizone");
+  });
+
+  it("takes the first dub that already passed startup even if an earlier source is still probing", () => {
+    const winner = shouldFinalizeFirstPreferenceMatchWithStartup(
+      [
+        {
+          providerId: "vidking",
+          attempt: {
+            outcome: "success",
+            payload: { dub: false, startupProbeOk: true, startupProbeMs: 200 },
+          },
+        },
+        {
+          providerId: "kickassanime",
+          attempt: {
+            outcome: "success",
+            payload: { dub: true, startupProbeOk: true, startupProbeMs: 800 },
+          },
+        },
+      ],
+      (payload: { dub: boolean }) => payload.dub,
     );
 
     expect(winner?.providerId).toBe("kickassanime");

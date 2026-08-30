@@ -132,9 +132,6 @@ const { scrapeXPass } = await import("../lib/scrape/providers/xpass.ts");
 const { scrapeVixsrc } = await import("../lib/scrape/providers/vixsrc.ts");
 const { scrapeVidrock } = await import("../lib/scrape/providers/vidrock.ts");
 const { scrapeBingr } = await import("../lib/scrape/providers/bingr.ts");
-const { scrapeAnimestream } = await import(
-  "../lib/scrape/anime/providers/animestream.ts"
-);
 const { scrapeAnimegg } = await import(
   "../lib/scrape/anime/providers/animegg.ts"
 );
@@ -189,7 +186,6 @@ const ANIME_SCRAPERS = {
   animegg: scrapeAnimegg,
   kickassanime: scrapeKickassanime,
   anizone: scrapeAnizone,
-  animestream: scrapeAnimestream,
   animepahe: scrapeAnimepahe,
   anipm: scrapeAnipm,
   hentaigasm: scrapeHentaigasm,

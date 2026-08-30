@@ -8,9 +8,6 @@ import {
   parseAnimeAnilistRouteId,
 } from "@/lib/anilist-route-id";
 import { hydrateTvShowDetailQueries } from "@/lib/prefetch-media-detail-queries";
-import { getCachedAnilistTvAllSeasons } from "@/lib/anilist-tv-detail";
-import { queryKeys } from "@/lib/query-keys";
-import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
 import type { TvDetailCatalog } from "@/lib/tv-detail-catalog";
 import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
@@ -99,18 +96,6 @@ export async function TvShowDetailLayoutContent({
     routeNamespace === "anime" ? "anime" : "tvshows";
   const queryClient = new QueryClient();
   await hydrateTvShowDetailQueries(queryClient, id, details, catalog);
-
-  if (catalog === "anime") {
-    const allSeasons = await getCachedAnilistTvAllSeasons(id, {
-      acceptBareNumeric: true,
-    });
-    queryClient.setQueryData(queryKeys.tvAllSeasons(id), allSeasons);
-  } else if (details.seasons?.length) {
-    const allSeasons = await fetchAllSeasonDetails(id, details.seasons, {
-      catalog,
-    });
-    queryClient.setQueryData(queryKeys.tvAllSeasons(id), allSeasons);
-  }
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

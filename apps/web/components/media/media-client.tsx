@@ -22,6 +22,7 @@ import { EpisodeIndicator } from "@/components/watchlist/watchlist";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import useMedia from "@/hooks/useMedia";
 import { sortWithProfilePathFirst } from "@/lib/media-poster-path";
+import { resolveCastPersonHref } from "@/lib/cast-person-href";
 import { cn } from "@/lib/utils";
 import type { Genre, MediaItem, ProductionCountry } from "@/lib/domain/typings";
 import { Actor, Movie, TvShow, Video } from "@/lib/domain/typings";
@@ -298,10 +299,6 @@ export function CastCarousel({ cast }: CastCarouselProps) {
   if (!cast.length) return null;
   const castWithImagesFirst = sortWithProfilePathFirst(cast);
 
-  const handlePersonMouseEnter = (person: Actor) => {
-    router.prefetch(`/person/${person.id}`);
-  };
-
   return (
     <section id="section-cast" className="scroll-mt-24 py-2">
       <h2 className="text-2xl font-semibold text-foreground mb-4">Cast</h2>
@@ -314,42 +311,69 @@ export function CastCarousel({ cast }: CastCarouselProps) {
           className="w-full"
         >
           <CarouselContent>
-            {castWithImagesFirst.slice(0, 20).map((person: Actor) => (
-              <CarouselItem
-                key={person.id}
-                className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8"
-              >
-                <div
-                  className="w-full shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => router.push(`/person/${person.id}`)}
-                  onMouseEnter={() => handlePersonMouseEnter(person)}
+            {castWithImagesFirst.slice(0, 20).map((person: Actor) => {
+              const personHref = resolveCastPersonHref(person);
+              const handlePersonClick = () => {
+                if (!personHref) return;
+                router.push(personHref);
+              };
+              const handlePersonMouseEnter = () => {
+                if (!personHref) return;
+                router.prefetch(personHref);
+              };
+
+              return (
+                <CarouselItem
+                  key={person.id}
+                  className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8"
                 >
-                  <div className="rounded-lg overflow-hidden mb-3 aspect-2/3 bg-muted">
-                    {person.profile_path ? (
-                      <Image
-                        src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
-                        alt={person.name}
-                        width={185}
-                        height={278}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <User size={48} />
-                      </div>
+                  <div
+                    className={cn(
+                      "w-full shrink-0 transition-opacity",
+                      personHref && "cursor-pointer hover:opacity-80",
                     )}
+                    onClick={handlePersonClick}
+                    onMouseEnter={handlePersonMouseEnter}
+                    onKeyDown={
+                      personHref
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              handlePersonClick();
+                            }
+                          }
+                        : undefined
+                    }
+                    role={personHref ? "link" : undefined}
+                    tabIndex={personHref ? 0 : undefined}
+                  >
+                    <div className="rounded-lg overflow-hidden mb-3 aspect-2/3 bg-muted">
+                      {person.profile_path ? (
+                        <Image
+                          src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
+                          alt={person.name}
+                          width={185}
+                          height={278}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                          <User size={48} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <h3 className="text-foreground font-medium text-sm mb-1 line-clamp-2">
+                        {person.name}
+                      </h3>
+                      <p className="text-muted-foreground text-xs line-clamp-2">
+                        {person.character}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <h3 className="text-foreground font-medium text-sm mb-1 line-clamp-2">
-                      {person.name}
-                    </h3>
-                    <p className="text-muted-foreground text-xs line-clamp-2">
-                      {person.character}
-                    </p>
-                  </div>
-                </div>
-              </CarouselItem>
-            ))}
+                </CarouselItem>
+              );
+            })}
           </CarouselContent>
           <CarouselPrevious className="left-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-xs" />
           <CarouselNext className="right-2 bg-background/80 hover:bg-background/90 border border-border text-foreground backdrop-blur-xs" />

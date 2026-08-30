@@ -13,7 +13,11 @@ export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
 export const tmdbImageUrl = (
   path: string | null | undefined,
   size: "w342" | "w500" | "w780" | "w1280" | "original" = "w780",
-) => (path ? `${TMDB_IMAGE_BASE}/${size}${path}` : null);
+) => {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${TMDB_IMAGE_BASE}/${size}${path.startsWith("/") ? path : `/${path}`}`;
+};
 
 export const buildCanonicalUrl = (path = "/") => {
   const normalized = path.startsWith("/") ? path : `/${path}`;

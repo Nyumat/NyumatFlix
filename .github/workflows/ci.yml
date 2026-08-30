@@ -12,7 +12,6 @@ env:
   FLIPT_URL: http://flipt:8080
   FLIPT_ENVIRONMENT: default
   FLIPT_NAMESPACE: default
-  FLIPT_FLAG_CACHE_TTL_MS: "30000"
 
 on:
   push:
@@ -87,7 +86,6 @@ jobs:
           FLIPT_ENVIRONMENT=${FLIPT_ENVIRONMENT}
           FLIPT_NAMESPACE=${FLIPT_NAMESPACE}
           FLIPT_API_TOKEN=${FLIPT_API_TOKEN}
-          FLIPT_FLAG_CACHE_TTL_MS=${FLIPT_FLAG_CACHE_TTL_MS}
           EOF
 
       - name: Build WASM and app

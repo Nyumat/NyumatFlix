@@ -51,5 +51,6 @@ networks:
 
 volumes:
   flipt-data:
+    name: ${FLIPT_VOLUME_NAME:-nyumatflix_flipt-data}
   cap-valkey-data:
     name: nyumatflix-cap-valkey-data

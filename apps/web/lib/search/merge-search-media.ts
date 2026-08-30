@@ -17,7 +17,7 @@ const readSourceAnilistId = (
 };
 
 const isAnilistOnlyHref = (href: string): boolean =>
-  /\/(?:tvshows\/anilist-\d+|anime\/\d+)/i.test(href);
+  /\/(?:tvshows\/anilist-\d+|anime\/(?:anilist-)?\d+)/i.test(href);
 
 const normalizeSearchTitle = (value: string): string =>
   value
@@ -47,6 +47,13 @@ export const rankSearchMediaResults = (
       score += 200;
     } else if (title.includes(normalizedQuery)) {
       score += 80;
+    }
+
+    if (
+      normalizedQuery.includes("final chapter") &&
+      title.includes("final chapter")
+    ) {
+      score += 160;
     }
 
     score += (card.vote_average ?? 0) * 12;
@@ -80,8 +87,17 @@ const dedupeAnilistAgainstTmdb = (
       seenAnilistIds.add(sourceAnilistId);
     }
 
-    if (tmdbIds.has(card.id) && !isAnilistOnlyHref(card.href)) {
-      return false;
+    if (tmdbIds.has(card.id)) {
+      if (
+        sourceAnilistId !== null &&
+        sourceAnilistId !== card.id &&
+        isAnilistOnlyHref(card.href)
+      ) {
+        return true;
+      }
+      if (!isAnilistOnlyHref(card.href)) {
+        return false;
+      }
     }
 
     return true;

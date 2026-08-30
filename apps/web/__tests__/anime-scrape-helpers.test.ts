@@ -123,6 +123,13 @@ describe("anime scrape helpers", () => {
 
     expect(selectAllmangaShow(shows, ["ONE PIECE"], 21)?._id).toBe("one-piece");
     expect(selectAllmangaShow(shows, ["ONE PIECE"])?._id).toBe("one-piece");
+    expect(
+      selectAllmangaShow(
+        [{ _id: "final-season-p2", name: "AOT FS P2", aniListId: 131681 }],
+        ["Attack on Titan: The Final Season Part 2"],
+        131681,
+      )?._id,
+    ).toBe("final-season-p2");
   });
 
   it("matches AnimeGG search labels that embed episodes metadata", () => {
