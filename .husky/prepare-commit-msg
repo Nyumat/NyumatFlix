@@ -20,12 +20,40 @@ if ! command -v node >/dev/null 2>&1; then
   fi
 fi
 
-# Always run the checker when possible so we skip emojify if the subject already has an emoji.
-# Previously, the no-bun path skipped the checker and always ran emojify (duplicate emojis).
-if command -v bun >/dev/null 2>&1; then
-  bun "$SCRIPT_DIR/check-emoji.js" "$1" || bunx --bun @humankode/git-commit-emojify@latest "$1"
-elif command -v node >/dev/null 2>&1; then
-  node "$SCRIPT_DIR/check-emoji.js" "$1" || npx --yes @humankode/git-commit-emojify@latest "$1"
-else
+run_checker() {
+  if command -v bun >/dev/null 2>&1; then
+    bun "$SCRIPT_DIR/check-emoji.js" "$1"
+    return $?
+  fi
+
+  if command -v node >/dev/null 2>&1; then
+    node "$SCRIPT_DIR/check-emoji.js" "$1"
+    return $?
+  fi
+
+  return 2
+}
+
+run_emojify() {
+  if command -v bun >/dev/null 2>&1; then
+    bunx --bun @humankode/git-commit-emojify@latest "$1"
+    return $?
+  fi
+
   npx --yes @humankode/git-commit-emojify@latest "$1"
+}
+
+run_checker "$1"
+status=$?
+
+if [ "$status" -eq 0 ]; then
+  exit 0
 fi
+
+if [ "$status" -eq 1 ]; then
+  run_emojify "$1"
+  exit $?
+fi
+
+echo "prepare-commit-msg: emoji check failed (exit $status)" >&2
+exit "$status"

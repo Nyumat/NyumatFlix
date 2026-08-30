@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { suppressConsole } from "@/test/suppress-console";
 
 vi.mock("next-auth/react", () => ({
   useSession: vi.fn(),
@@ -393,6 +394,7 @@ describe("WatchlistButton", () => {
     });
 
     const button = screen.getByTestId("watchlist-button-add");
+    const restoreConsole = suppressConsole("error");
     await user.click(button);
 
     await waitFor(() => {
@@ -400,6 +402,7 @@ describe("WatchlistButton", () => {
         "Failed to add to watchlist",
       );
     });
+    restoreConsole();
   });
 
   test("does not fetch when mediaType is missing", async () => {

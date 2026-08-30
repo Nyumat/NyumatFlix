@@ -24,10 +24,14 @@ describe("useMovieWatchButtonLabel", () => {
       .mockReturnValueOnce("Play")
       .mockReturnValueOnce("Resume");
 
-    const { result } = renderHook(() => useMovieWatchButtonLabel(424_242, "movie"));
+    const { result } = renderHook(() =>
+      useMovieWatchButtonLabel(424_242, "movie"),
+    );
 
     await waitFor(() => {
-      expect(movieWatchLabel.movieWatchButtonLabel).toHaveBeenCalledWith(424_242);
+      expect(movieWatchLabel.movieWatchButtonLabel).toHaveBeenCalledWith(
+        424_242,
+      );
     });
     expect(result.current).toBe("Play");
 
@@ -42,7 +46,9 @@ describe("useMovieWatchButtonLabel", () => {
   });
 
   it("returns Play for non-movie media types", () => {
-    const { result } = renderHook(() => useMovieWatchButtonLabel(424_242, "tv"));
+    const { result } = renderHook(() =>
+      useMovieWatchButtonLabel(424_242, "tv"),
+    );
 
     expect(result.current).toBe("Play");
     expect(movieWatchLabel.movieWatchButtonLabel).not.toHaveBeenCalled();

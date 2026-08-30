@@ -721,7 +721,7 @@ export async function GET(request: NextRequest) {
 
     let segments: MappingSegment[] = [];
     let debugInfo: DebugInfo | undefined = undefined;
-    let source = "date+title heuristic";
+    const source = "date+title heuristic";
 
     if (tmdbSeasonData) {
       const result = resolveMappings(
