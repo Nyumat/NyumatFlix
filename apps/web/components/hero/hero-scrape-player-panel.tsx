@@ -5,11 +5,13 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { useMoviPreview } from "@/hooks/use-movi-preview";
 import { PlaybackStartingOverlay } from "@/components/media/controls/playback-starting-overlay";
 import { ScrapingOverlay } from "@/components/media/controls/scraping-overlay";
 import { PlaybackErrorBoundary } from "@/components/media/playback-error-boundary";
@@ -17,11 +19,15 @@ import { ScrapePlayerShell } from "@/components/media/scrape-player-shell";
 import type { UseDirectPlaybackReturn } from "@/hooks/use-direct-movie-playback";
 import type { UseAnimeScrapeReturn } from "@/hooks/use-anime-scrape";
 import { useMoviPlayerLoaded } from "@/hooks/use-movi-player-loaded";
+import { ANIME_PLAYBACK_RESOLVING_MESSAGE } from "@/lib/anime/anime-playback-policy";
 import type { UseScrapeReturn } from "@/hooks/use-scrape";
 import { selectInitialEngine } from "@nyumatflix/playback";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
 import { USE_SHAKA_DASH } from "@/lib/constants";
-import { PLAYBACK_START_TIMEOUT_MS } from "@/lib/playback/playbackStart";
+import {
+  PLAYBACK_STALL_FAILOVER_MS,
+  PLAYBACK_START_TIMEOUT_MS,
+} from "@/lib/playback/playbackStart";
 import { buildScrapePlayerKey } from "@/lib/scrape/player-sources";
 import type { SourceOverlayItem } from "@/lib/scrape/source-overlay";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
@@ -44,6 +50,22 @@ const CalluspiratesStreamPlayer = dynamic(
   () =>
     import("@/components/media/calluspirates-stream-player").then(
       (module) => module.CalluspiratesStreamPlayer,
+    ),
+  { ssr: false, loading: () => null },
+);
+
+const MoviScrapePlayer = dynamic(
+  () =>
+    import("@/components/media/movi-scrape-player").then(
+      (module) => module.MoviScrapePlayer,
+    ),
+  { ssr: false, loading: () => null },
+);
+
+const MoviDirectPlayer = dynamic(
+  () =>
+    import("@/components/media/movi-direct-player").then(
+      (module) => module.MoviDirectPlayer,
     ),
   { ssr: false, loading: () => null },
 );
@@ -94,11 +116,13 @@ type HeroScrapePlayerPanelProps = {
   onSelectEmbedServer: (serverId: string) => void;
   onRetryAllScraping?: () => void;
   onFatalError: () => void;
+  onPlaybackStallFailover?: () => void;
   onDirectPlaybackExhausted?: () => void;
   onEnded?: () => Promise<boolean>;
   isDirectMode?: boolean;
   directPlayback?: UseDirectPlaybackReturn;
   onMediaReadyChange?: (ready: boolean) => void;
+  isResolvingEpisode?: boolean;
 };
 
 export function HeroScrapePlayerPanel({
@@ -117,13 +141,16 @@ export function HeroScrapePlayerPanel({
   onSelectEmbedServer,
   onRetryAllScraping,
   onFatalError,
+  onPlaybackStallFailover,
   onDirectPlaybackExhausted,
   onEnded,
   isDirectMode = false,
   directPlayback,
   onMediaReadyChange,
+  isResolvingEpisode = false,
 }: HeroScrapePlayerPanelProps) {
   const { maintenanceMode } = useFeatureFlags();
+  const moviPreview = useMoviPreview();
   const [mediaReady, setMediaReady] = useState(false);
   const [playbackStartError, setPlaybackStartError] = useState<string | null>(
     null,
@@ -146,11 +173,18 @@ export function HeroScrapePlayerPanel({
     scrapeResult?.providerId,
   ]);
 
+  const onMediaReadyChangeRef = useRef(onMediaReadyChange);
+  const onPlaybackStallFailoverRef = useRef(onPlaybackStallFailover);
+  const onFatalErrorRef = useRef(onFatalError);
+  onMediaReadyChangeRef.current = onMediaReadyChange;
+  onPlaybackStallFailoverRef.current = onPlaybackStallFailover;
+  onFatalErrorRef.current = onFatalError;
+
   useEffect(() => {
     setMediaReady(false);
     setPlaybackStartError(null);
-    onMediaReadyChange?.(false);
-  }, [onMediaReadyChange, playbackSessionKey]);
+    onMediaReadyChangeRef.current?.(false);
+  }, [playbackSessionKey]);
 
   const directHasPlayer = (() => {
     if (!isDirectMode || !directPlayback) {
@@ -173,6 +207,23 @@ export function HeroScrapePlayerPanel({
   const hasActivePlayer = directHasPlayer || scrapeHasPlayer;
 
   useEffect(() => {
+    if (
+      !hasActivePlayer ||
+      mediaReady ||
+      isDirectMode ||
+      !onPlaybackStallFailover
+    ) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => {
+      onPlaybackStallFailoverRef.current?.();
+    }, PLAYBACK_STALL_FAILOVER_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [hasActivePlayer, isDirectMode, mediaReady, playbackSessionKey]);
+
+  useEffect(() => {
     if (!hasActivePlayer || mediaReady) {
       setPlaybackStartError(null);
       return undefined;
@@ -180,11 +231,11 @@ export function HeroScrapePlayerPanel({
 
     const timeout = window.setTimeout(() => {
       setPlaybackStartError("Playback didn't start in time.");
-      onFatalError();
+      onFatalErrorRef.current();
     }, PLAYBACK_START_TIMEOUT_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [hasActivePlayer, mediaReady, onFatalError, playbackSessionKey]);
+  }, [hasActivePlayer, mediaReady, playbackSessionKey]);
 
   const handleMediaReady = useCallback(() => {
     setMediaReady(true);
@@ -228,18 +279,33 @@ export function HeroScrapePlayerPanel({
 
         {hasPlayer && progressKey && directPlayback.activeStream ? (
           <PlaybackErrorBoundary onClose={onFatalError}>
-            <CalluspiratesStreamPlayer
-              key={`${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`}
-              stream={directPlayback.activeStream}
-              candidates={directPlayback.rankedStreams}
-              title={playbackTitle}
-              poster={playbackPosterUrl}
-              progressKey={progressKey}
-              className="h-full w-full"
-              onStreamFailed={onDirectPlaybackExhausted ?? onFatalError}
-              onMediaReady={handleMediaReady}
-              onEnded={isTv ? onEnded : undefined}
-            />
+            {moviPreview ? (
+              <MoviDirectPlayer
+                key={`movi-direct:${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`}
+                stream={directPlayback.activeStream}
+                candidates={directPlayback.rankedStreams}
+                title={playbackTitle}
+                poster={playbackPosterUrl}
+                progressKey={progressKey}
+                className="h-full w-full"
+                onStreamFailed={onDirectPlaybackExhausted ?? onFatalError}
+                onMediaReady={handleMediaReady}
+                onEnded={isTv ? onEnded : undefined}
+              />
+            ) : (
+              <CalluspiratesStreamPlayer
+                key={`${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`}
+                stream={directPlayback.activeStream}
+                candidates={directPlayback.rankedStreams}
+                title={playbackTitle}
+                poster={playbackPosterUrl}
+                progressKey={progressKey}
+                className="h-full w-full"
+                onStreamFailed={onDirectPlaybackExhausted ?? onFatalError}
+                onMediaReady={handleMediaReady}
+                onEnded={isTv ? onEnded : undefined}
+              />
+            )}
           </PlaybackErrorBoundary>
         ) : null}
 
@@ -279,13 +345,18 @@ export function HeroScrapePlayerPanel({
     scrapeStatus === "playing" &&
     Boolean(scrapeResult?.playUrl) &&
     Boolean(progressKey);
-  const showDiscoveryOverlay = isDiscovering;
+  const showDiscoveryOverlay = isDiscovering && !isResolvingEpisode;
+  const showResolvingOverlay = isResolvingEpisode && scrapeStatus === "idle";
   const showBufferingOverlay = hasPlayer && !mediaReady;
   const showErrorOverlay = scrapeStatus === "error";
 
   return (
     <>
       {maintenanceBanner}
+
+      {showResolvingOverlay ? (
+        <PlaybackStartingOverlay message={ANIME_PLAYBACK_RESOLVING_MESSAGE} />
+      ) : null}
 
       {hasPlayer && scrapeResult?.playUrl && progressKey ? (
         scrapeResult.providerId === "direct" && scrapeResult.directPlayback ? (
@@ -296,6 +367,7 @@ export function HeroScrapePlayerPanel({
                 qualities: scrapeResult.qualities,
                 subtitles: scrapeResult.subtitles,
                 audioVersions: scrapeResult.audioVersions,
+                progressKey,
               })}
               mediaUrl={scrapeResult.playUrl}
               fallbackUrl={scrapeResult.directFallbackUrl}
@@ -325,10 +397,38 @@ export function HeroScrapePlayerPanel({
               playUrl: scrapeResult.playUrl,
               qualities: scrapeResult.qualities,
               subtitles: scrapeResult.subtitles,
+              progressKey,
             })}
             playUrl={scrapeResult.playUrl}
             referer={scrapeResult.referer}
             subtitles={scrapeResult.subtitles}
+            title={playbackTitle}
+            poster={playbackPosterUrl}
+            progressKey={progressKey}
+            imdbId={imdbId}
+            className="h-full w-full"
+            onFatalError={onFatalError}
+            onMediaReady={handleMediaReady}
+            onEnded={isTv ? onEnded : undefined}
+          />
+        ) : moviPreview ? (
+          <MoviScrapePlayer
+            key={buildScrapePlayerKey({
+              playUrl: scrapeResult.playUrl,
+              qualities: scrapeResult.qualities,
+              subtitles: scrapeResult.subtitles,
+              audioVersions: scrapeResult.audioVersions,
+              progressKey,
+            })}
+            playUrl={scrapeResult.playUrl}
+            streamKind={streamKind}
+            qualities={scrapeResult.qualities}
+            referer={scrapeResult.referer}
+            subtitles={scrapeResult.subtitles}
+            audioVersions={scrapeResult.audioVersions}
+            defaultAudioLang={scrapeResult.defaultAudioLang}
+            defaultHardSubLang={scrapeResult.defaultHardSubLang}
+            preferredAudioLang={scrapeResult.preferredAudioLang}
             title={playbackTitle}
             poster={playbackPosterUrl}
             progressKey={progressKey}
@@ -345,6 +445,7 @@ export function HeroScrapePlayerPanel({
               qualities: scrapeResult.qualities,
               subtitles: scrapeResult.subtitles,
               audioVersions: scrapeResult.audioVersions,
+              progressKey,
             })}
             playUrl={scrapeResult.playUrl}
             streamKind={streamKind}
