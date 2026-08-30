@@ -32,8 +32,9 @@ describe("provider registry", () => {
     ]);
   });
 
-  it("keeps unreliable TMDB scrape providers last in the chain", () => {
+  it("keeps Direct first and unreliable TMDB scrape providers last", () => {
     const order = TMDB_SCRAPE_PROVIDER_ORDER;
+    expect(order[0]).toBe("direct");
     expect(order.at(-1)).toBe("2embed");
     expect(order).not.toContain("vixsrc");
   });
@@ -52,6 +53,7 @@ describe("provider registry", () => {
     expect(ANIME_SCRAPE_PROVIDER_ORDER).not.toContain("hentaini");
     expect(ANIME_SCRAPE_PROVIDER_ORDER).not.toContain("animepahe");
     expect(ANIME_SCRAPE_PROVIDER_ORDER).not.toContain("anikuro");
+    expect(ANIME_SCRAPE_PROVIDER_ORDER).not.toContain("animestream");
     expect(embedOnlyProviderIds()).toEqual(
       expect.arrayContaining(["vixsrc", "hentaini"]),
     );

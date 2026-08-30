@@ -1,5 +1,9 @@
 import type { PlayerSrc } from "@vidstack/react";
 
+import {
+  progressStorageKey,
+  type PlaybackProgressKey,
+} from "@/lib/playback/progress-storage";
 import { vidstackCaptionMenuValue } from "@/lib/playback/vidstack-caption-menu";
 
 import {
@@ -436,6 +440,7 @@ export const buildScrapePlayerKey = (input: {
   qualities?: ScrapeQuality[];
   subtitles?: ScrapeSubtitle[];
   audioVersions?: ScrapeAudioVersion[];
+  progressKey?: PlaybackProgressKey;
 }) => {
   const qualityKey =
     input.qualities?.map((quality) => quality.label).join(",") ?? "";
@@ -446,6 +451,9 @@ export const buildScrapePlayerKey = (input: {
           `${version.lang}:${version.hardSubs?.map((track) => track.lang).join(",") ?? ""}`,
       )
       .join("|") ?? "";
+  const coordsKey = input.progressKey
+    ? progressStorageKey(input.progressKey)
+    : "";
 
-  return `${input.playUrl}-${qualityKey}-${audioKey}`;
+  return `${input.playUrl}-${qualityKey}-${audioKey}-${coordsKey}`;
 };

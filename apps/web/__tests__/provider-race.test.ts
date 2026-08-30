@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS,
+  TMDB_SCRAPE_SOLO_FIRST_PROVIDERS,
   deprioritizeProviders,
   getScrapeAttemptTimeoutMs,
   nextRaceBatch,
@@ -18,7 +19,7 @@ describe("nextRaceBatch", () => {
     "anipm",
     "anizone",
     "kickassanime",
-    "animestream",
+    "animegg",
   ] as const;
 
   it("takes concurrency providers from the start index", () => {
@@ -50,6 +51,10 @@ describe("nextRaceBatch", () => {
     expect(nextIndex).toBe(order.length);
   });
 
+  it("solos Direct on the TMDB scrape overlay", () => {
+    expect([...TMDB_SCRAPE_SOLO_FIRST_PROVIDERS]).toEqual(["direct"]);
+  });
+
   it("runs direct solo when solo-first is enabled", () => {
     const order = ["direct", "bingr", "videasy", "vidking"] as const;
     const first = nextRaceBatch(order, 0, new Set());
@@ -78,13 +83,13 @@ describe("nextRaceBatch", () => {
   it("skips failed providers and advances past them", () => {
     const failed = new Set<string>(["hentaigasm", "anipm"]);
     const { batch, nextIndex } = nextRaceBatch(order, 0, failed);
-    expect(batch).toEqual(["anizone", "kickassanime", "animestream"]);
+    expect(batch).toEqual(["anizone", "kickassanime", "animegg"]);
     expect(nextIndex).toBe(5);
   });
 
   it("continues forward from a preferred start index without wrapping", () => {
     const { batch, nextIndex } = nextRaceBatch(order, 2, new Set());
-    expect(batch).toEqual(["anizone", "kickassanime", "animestream"]);
+    expect(batch).toEqual(["anizone", "kickassanime", "animegg"]);
     expect(nextIndex).toBe(5);
   });
 
