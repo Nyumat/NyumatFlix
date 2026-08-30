@@ -355,7 +355,8 @@ const cmdList = async () => {
   console.log("");
 };
 
-const cmdDeploy = async () => {
+const cmdDeploy = async (options: { fast?: boolean } = {}) => {
+  const fast = options.fast === true;
   printHeader();
   const meta = gitMeta();
   const deploy = resolveDeployIdentity(meta);
@@ -379,10 +380,19 @@ const cmdDeploy = async () => {
       `${c.yellow}       local changes will ship · image ${DOCKER_REPO}:${deploy.sha}${c.reset}`,
     );
   }
+  if (fast) {
+    console.log(
+      `${c.cyan}fast deploy${c.reset} ${c.dim}(skip movi/wasm rebuild when artifacts exist)${c.reset}`,
+    );
+  }
   console.log("");
 
   console.log(`${c.bold}steps${c.reset}`);
-  for (const step of ["build & push", "sync prod", "roll container"]) {
+  for (const step of [
+    fast ? "build & push (fast)" : "build & push",
+    "sync prod",
+    "roll container",
+  ]) {
     console.log(`  ${c.dim}○${c.reset} ${step}`);
   }
   console.log("");
@@ -394,7 +404,7 @@ const cmdDeploy = async () => {
   }
 
   console.log("");
-  const env = {
+  const env: Record<string, string> = {
     DEPLOY_SHA: deploy.sha,
     DEPLOY_SHORT_SHA: deploy.shortSha,
     DEPLOY_MESSAGE: deploy.message,
@@ -402,6 +412,10 @@ const cmdDeploy = async () => {
     DEPLOY_SOURCE: deploy.source,
     DOCKER_IMAGE: `${DOCKER_REPO}:${deploy.sha}`,
   };
+  if (fast) {
+    env.SKIP_PLAYER_BUILD = "1";
+    env.SKIP_SCRAPE_STACK = "1";
+  }
 
   await runStep("build & push", async () => {
     const result = runLocal(`${ROOT}/scripts/deploy.sh`, ["bp"], env);
@@ -535,6 +549,7 @@ const printHelp = () => {
 ${c.bold}nyumatflix deploy${c.reset}
 
   ${c.cyan}bun run deploy${c.reset}                 ship HEAD to ${SSH_HOST}
+  ${c.cyan}bun run deploy:fast${c.reset}            ship without movi/wasm rebuild
   ${c.cyan}bun run deploy status${c.reset}          live deploy + service health
   ${c.cyan}bun run deploy ls${c.reset}              recent deployments
   ${c.cyan}bun run deploy rollback${c.reset}        pick a previous deploy
@@ -553,6 +568,9 @@ const main = async () => {
   switch (command) {
     case "deploy":
       await cmdDeploy();
+      break;
+    case "fast":
+      await cmdDeploy({ fast: true });
       break;
     case "status":
       await cmdStatus();

@@ -37,12 +37,15 @@
     "cap:logs": "./scripts/local-compose.sh logs -f cap",
     "bp": "./scripts/deploy.sh bp",
     "deploy": "bun scripts/nyumatflix.ts",
+    "deploy:fast": "bun scripts/nyumatflix.ts fast",
     "deploy:plain": "./scripts/deploy-remote.sh",
+    "prepare-movi-player": "node apps/web/scripts/prepare-movi-player.mjs",
     "deploy:env": "./scripts/sync-prod-env.sh push",
     "rotate": "bun scripts/rotate-vpn.mts"
   },
   "devDependencies": {
-    "turbo": "^2.5.4",
-    "husky": "^9.1.6"
+    "husky": "^9.1.6",
+    "playwright": "^1.62.1",
+    "turbo": "^2.5.4"
   }
 }

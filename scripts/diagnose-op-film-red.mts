@@ -8,7 +8,7 @@ const TMDB_ID = 900667;
 const ANILIST_ID = 141902;
 const QUERY = "One Piece Film Red";
 
-const { scrapeFetch, scrapeFetchText, cancelResponseBody } = await import(
+const { scrapeFetch, scrapeFetchText } = await import(
   "../lib/scrape/fetch.ts"
 );
 const { scrapeVidKing } = await import("../lib/scrape/providers/vidking.ts");
@@ -16,9 +16,6 @@ const { scrapeVixsrc } = await import("../lib/scrape/providers/vixsrc.ts");
 const { scrapeKyren } = await import("../lib/scrape/anime/providers/kyren.ts");
 const { scrapeAllmanga } = await import(
   "../lib/scrape/anime/providers/allmanga.ts"
-);
-const { scrapeAnimestream } = await import(
-  "../lib/scrape/anime/providers/animestream.ts"
 );
 const { scrapeAnimepahe } = await import(
   "../lib/scrape/anime/providers/animepahe.ts"
@@ -122,36 +119,12 @@ const am = await scrapeAllmanga({
 });
 console.log("scrapeAllmanga:", am.ok ? "OK" : am.error);
 
-// --- animestream ---
-console.log("\n=== ANIMESTREAM ===");
 const expected = await resolveAnimeSearchQueries({
   anilistId: ANILIST_ID,
   episodeNumber: 1,
   query: QUERY,
 });
 console.log("expected titles:", expected);
-const home = await scrapeFetch("https://animestream.my.id/", {
-  headers: { Referer: "https://animestream.my.id/" },
-});
-const cookie = home.headers.get("set-cookie") ?? "";
-await cancelResponseBody(home);
-for (const q of expected) {
-  const search = await scrapeFetchText(
-    `https://animestream.my.id/ajax.php?action=ajax-proxy&endpoint=/ajax-search&q=${encodeURIComponent(q)}`,
-    {
-      Referer: "https://animestream.my.id/",
-      Cookie: cookie,
-      "X-Requested-With": "XMLHttpRequest",
-    },
-  );
-  console.log(`search "${q}":`, search.status, search.text.slice(0, 300));
-}
-const as = await scrapeAnimestream({
-  anilistId: ANILIST_ID,
-  episodeNumber: 1,
-  query: QUERY,
-});
-console.log("scrapeAnimestream:", as.ok ? "OK" : as.error);
 
 // --- animepahe ---
 console.log("\n=== ANIMEPAHE ===");

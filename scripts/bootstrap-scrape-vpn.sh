@@ -254,9 +254,6 @@ ensure_flipt_env() {
   upsert_env_var "$LOCAL_ENV_FILE" FLIPT_URL "http://127.0.0.1:8090"
   upsert_env_var "$LOCAL_ENV_FILE" FLIPT_ENVIRONMENT "default"
   upsert_env_var "$LOCAL_ENV_FILE" FLIPT_NAMESPACE "default"
-  if [[ -z "$(read_env_value "$LOCAL_ENV_FILE" FLIPT_FLAG_CACHE_TTL_MS || true)" ]]; then
-    upsert_env_var "$LOCAL_ENV_FILE" FLIPT_FLAG_CACHE_TTL_MS "600000"
-  fi
 }
 
 flipt_is_healthy() {

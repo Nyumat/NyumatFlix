@@ -7,6 +7,7 @@
 # Override defaults:
 #   DOCKER_IMAGE=whotypes/nyumatflix:latest CONTAINER_NAME=nyumatflix \
 #   ENV_FILE="$HOME/apps/nyumatflix/.env" \
+#   DEPLOY_FROM_GIT=1 \
 #   ./scripts/deploy.sh serve
 
 set -euo pipefail
@@ -62,27 +63,128 @@ load_build_env() {
   set +a
 }
 
+player_wasm_path() {
+  printf '%s/packages/player/dist/wasm/movi.js' "$ROOT"
+}
+
+player_vendor_element_path() {
+  printf '%s/apps/web/public/vendor/player/element.js' "$ROOT"
+}
+
+player_artifacts_ready() {
+  [[ -f "$(player_wasm_path)" && -f "$(player_vendor_element_path)" ]]
+}
+
+maybe_build_player_artifacts() {
+  if [[ "${FORCE_PLAYER_BUILD:-}" == "1" ]]; then
+    echo "FORCE_PLAYER_BUILD=1 — rebuilding player + wasm"
+    bunx turbo build --filter=@nyumatflix/player
+    return
+  fi
+
+  if player_artifacts_ready; then
+    echo "player artifacts present — skipping wasm/player rebuild"
+    return
+  fi
+
+  if [[ ! -f "$(player_wasm_path)" ]]; then
+    echo "wasm missing — building @nyumatflix/player wasm (needs docker)"
+    bunx turbo build:wasm --filter=@nyumatflix/player
+  fi
+
+  if [[ ! -f "$(player_vendor_element_path)" ]]; then
+    echo "vendor player missing — building @nyumatflix/player"
+    bunx turbo build --filter=@nyumatflix/player
+  fi
+}
+
+copy_player_artifacts_into() {
+  local dest="$1"
+
+  if [[ -f "$(player_wasm_path)" ]]; then
+    mkdir -p "$dest/packages/player/dist/wasm"
+    cp "$(player_wasm_path)" "$dest/packages/player/dist/wasm/movi.js"
+  fi
+
+  if [[ -f "$ROOT/packages/player/dist/element.js" ]]; then
+    mkdir -p "$dest/packages/player/dist"
+    cp "$ROOT/packages/player/dist/element.js" "$dest/packages/player/dist/element.js"
+  fi
+
+  if [[ -d "$ROOT/apps/web/public/vendor/player" ]]; then
+    mkdir -p "$dest/apps/web/public/vendor/player"
+    cp -R "$ROOT/apps/web/public/vendor/player/." "$dest/apps/web/public/vendor/player/"
+  fi
+}
+
+prepare_git_archive_context() {
+  local context_dir
+  context_dir="$(mktemp -d "${TMPDIR:-/tmp}/nyumatflix-build.XXXXXX")"
+  git -C "$ROOT" archive HEAD | tar -x -C "$context_dir"
+  copy_player_artifacts_into "$context_dir"
+  printf '%s' "$context_dir"
+}
+
+resolve_build_context() {
+  if [[ "${DEPLOY_FROM_GIT:-}" == "1" ]]; then
+    echo "DEPLOY_FROM_GIT=1 — docker build uses committed tree only"
+    prepare_git_archive_context
+    return
+  fi
+
+  printf '%s' "$ROOT"
+}
+
 build_push() {
   resolve_deploy_git_meta || true
   if [[ -n "${DEPLOY_SHA:-}" ]]; then
     DOCKER_IMAGE="$DOCKER_REPO:$DEPLOY_SHA"
   fi
 
-  "$ROOT/scripts/bootstrap-scrape-vpn.sh" ensure-local
+  if [[ "${SKIP_SCRAPE_STACK:-}" != "1" ]]; then
+    "$ROOT/scripts/bootstrap-scrape-vpn.sh" ensure-local
+  else
+    echo "SKIP_SCRAPE_STACK=1 — scrape bootstrap skipped"
+  fi
   cd "$ROOT"
   load_build_env
 
-  bunx turbo build:wasm --filter=@nyumatflix/player
+  maybe_build_player_artifacts
 
   local -a tags=(-t "$DOCKER_IMAGE")
   if [[ -n "${DEPLOY_SHA:-}" && "$DOCKER_IMAGE" != "$DOCKER_REPO:latest" ]]; then
     tags+=(-t "$DOCKER_REPO:latest")
   fi
 
-  docker build --platform linux/amd64 \
+  local skip_player_build=0
+  if [[ "${SKIP_PLAYER_BUILD:-}" == "1" ]] || player_artifacts_ready; then
+    skip_player_build=1
+  fi
+
+  docker pull "$DOCKER_REPO:latest" >/dev/null 2>&1 || true
+
+  local build_context=""
+  local cleanup_context=0
+  build_context="$(resolve_build_context)"
+  if [[ "${DEPLOY_FROM_GIT:-}" == "1" ]]; then
+    cleanup_context=1
+  fi
+
+  if ! DOCKER_BUILDKIT=1 docker build --platform linux/amd64 \
     --build-arg TMDB_API_KEY="${TMDB_API_KEY:-}" \
     --build-arg CAP_API_ENDPOINT="${CAP_API_ENDPOINT:-}" \
-    "${tags[@]}" .
+    --build-arg SKIP_PLAYER_BUILD="$skip_player_build" \
+    --cache-from "$DOCKER_REPO:latest" \
+    "${tags[@]}" "$build_context"; then
+    if [[ "$cleanup_context" == "1" ]]; then
+      rm -rf "$build_context"
+    fi
+    exit 1
+  fi
+
+  if [[ "$cleanup_context" == "1" ]]; then
+    rm -rf "$build_context"
+  fi
 
   docker push "$DOCKER_IMAGE"
   if [[ -n "${DEPLOY_SHA:-}" && "$DOCKER_IMAGE" != "$DOCKER_REPO:latest" ]]; then
