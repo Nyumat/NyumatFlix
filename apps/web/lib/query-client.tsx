@@ -5,6 +5,7 @@ import {
   QueryClientProvider,
   isServer,
 } from "@tanstack/react-query";
+import { cache } from "react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { type ReactNode, useEffect, useState } from "react";
@@ -33,9 +34,11 @@ function makeQueryClient() {
 let browserQueryClient: QueryClient | undefined = undefined;
 let persister: ReturnType<typeof createIDBPersister> | undefined = undefined;
 
+const getServerQueryClient = cache(() => makeQueryClient());
+
 function getQueryClient() {
   if (isServer) {
-    return makeQueryClient();
+    return getServerQueryClient();
   }
   if (!browserQueryClient) browserQueryClient = makeQueryClient();
   return browserQueryClient;

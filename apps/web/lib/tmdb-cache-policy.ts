@@ -7,7 +7,6 @@ const LARGE_APPEND_ITEMS = new Set([
 
 const LARGE_ENDPOINT_PATTERNS = [
   /\/(?:aggregate_credits|combined_credits|credits|images)(?:\/|$)/,
-  /\/tv\/[^/]+\/season\/\d+(?:\/|$)/,
 ];
 
 type TmdbParams =

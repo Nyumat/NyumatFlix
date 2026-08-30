@@ -7,6 +7,7 @@ type GenerateMediaMetadataOptions = {
   media: MediaItem | null;
   mediaType: "movie" | "tv";
   mediaId: string;
+  path?: string;
   notFoundTitle?: string;
   notFoundDescription?: string;
 };
@@ -35,6 +36,7 @@ export async function generateMediaMetadata({
   media,
   mediaType,
   mediaId,
+  path: canonicalPath,
   notFoundTitle,
   notFoundDescription,
 }: GenerateMediaMetadataOptions): Promise<Metadata> {
@@ -59,7 +61,8 @@ export async function generateMediaMetadata({
   const year = dateField ? new Date(dateField).getFullYear() : "";
   const titleWithYear = year ? `${title} (${year})` : title;
   const path =
-    mediaType === "movie" ? `/movies/${mediaId}` : `/tvshows/${mediaId}`;
+    canonicalPath ??
+    (mediaType === "movie" ? `/movies/${mediaId}` : `/tvshows/${mediaId}`);
 
   return buildPageMetadata({
     title: titleWithYear,
