@@ -1,13 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 
-export const useClientMounted = () => {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  return mounted;
-};
+export const useClientMounted = () => useIsHydrated();

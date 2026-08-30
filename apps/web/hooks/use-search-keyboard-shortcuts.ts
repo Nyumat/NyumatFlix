@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 type UseSearchKeyboardShortcutsOptions = {
   inputRef: RefObject<HTMLInputElement | null>;
@@ -19,6 +19,9 @@ export function useSearchKeyboardShortcuts({
   focusOnModK = true,
   onEscape,
 }: UseSearchKeyboardShortcutsOptions) {
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
+
   useEffect(() => {
     if (!enabled) {
       return;
@@ -39,7 +42,7 @@ export function useSearchKeyboardShortcuts({
       }
 
       if (event.key === "Escape") {
-        onEscape?.();
+        onEscapeRef.current?.();
         inputRef.current?.blur();
       }
 
@@ -68,12 +71,5 @@ export function useSearchKeyboardShortcuts({
     const target = focusOnModK ? document : window;
     target.addEventListener("keydown", handleKeyDown);
     return () => target.removeEventListener("keydown", handleKeyDown);
-  }, [
-    enabled,
-    focusOnModK,
-    focusOnPrintable,
-    focusOnSlash,
-    inputRef,
-    onEscape,
-  ]);
+  }, [enabled, focusOnModK, focusOnPrintable, focusOnSlash, inputRef]);
 }
