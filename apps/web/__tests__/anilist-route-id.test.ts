@@ -3,6 +3,7 @@ import {
   fromAnilistTvRouteId,
   isAnimeAnilistRouteId,
   isAnilistTvRouteId,
+  normalizeAnilistAnimeDetailHref,
   normalizeAnilistTvRouteSlug,
   parseAnimeAnilistRouteId,
   resolveAnilistIdFromTvRoute,
@@ -12,11 +13,23 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("anilist route ids", () => {
-  it("encodes AniList ids as bare anime detail hrefs", () => {
+  it("encodes AniList ids as prefixed anime detail hrefs", () => {
     expect(toAnilistTvRouteSlug(188)).toBe("anilist-188");
-    expect(buildAnilistTvDetailHref(188)).toBe("/anime/188");
+    expect(buildAnilistTvDetailHref(188)).toBe("/anime/anilist-188");
     expect(buildAnilistTvDetailHref(200637, { season: 3 })).toBe(
-      "/anime/200637?season=3",
+      "/anime/anilist-200637?season=3",
+    );
+  });
+
+  it("upgrades legacy bare anime detail hrefs", () => {
+    expect(normalizeAnilistAnimeDetailHref("/anime/9936")).toBe(
+      "/anime/anilist-9936",
+    );
+    expect(normalizeAnilistAnimeDetailHref("/anime/anilist-9936")).toBe(
+      "/anime/anilist-9936",
+    );
+    expect(normalizeAnilistAnimeDetailHref("/anime/tmdb-123")).toBe(
+      "/anime/tmdb-123",
     );
   });
 
@@ -48,7 +61,9 @@ describe("anilist route ids", () => {
     expect(resolveTvDetailRouteId("/tvshows/anilist-113417", 113417)).toBe(
       "anilist-113417",
     );
-    expect(resolveTvDetailRouteId("/anime/113417", 113417)).toBe("113417");
+    expect(resolveTvDetailRouteId("/anime/113417", 113417)).toBe(
+      "anilist-113417",
+    );
     expect(resolveTvDetailRouteId("/tvshows/85937", 85937)).toBe("85937");
     expect(
       resolveTvDetailRouteId("/tvshows/85937?anilistId=154587", 85937),

@@ -15,7 +15,7 @@ import type {
 import {
   TV_DETAIL_CATALOG_ANIME,
   TV_DETAIL_CATALOG_QUERY,
-  withTvDetailCatalogQuery,
+  toTvApiRouteId,
   type TvDetailCatalog,
 } from "@/lib/tv-detail-catalog";
 
@@ -55,8 +55,9 @@ async function fetchMediaTabResource<T>(
   }
 
   const query = params.toString();
+  const apiId = mediaType === "tv" ? toTvApiRouteId(id, catalog ?? null) : id;
   const response = await fetch(
-    `/api/media/${mediaType}/${id}/${resource}${query ? `?${query}` : ""}`,
+    `/api/media/${mediaType}/${apiId}/${resource}${query ? `?${query}` : ""}`,
   );
 
   if (!response.ok) {
@@ -141,22 +142,65 @@ export const fetchTvAllSeasonsClient = (
     catalog,
   );
 
-export const fetchTvImagesClient = (id: string) =>
-  fetchMediaTabResource<GetImagesResponse>("tv", id, "images");
+export const fetchTvImagesClient = (
+  id: string,
+  catalog?: TvDetailCatalog | null,
+) =>
+  fetchMediaTabResource<GetImagesResponse>(
+    "tv",
+    id,
+    "images",
+    undefined,
+    catalog,
+  );
 
-export const fetchTvVideosClient = (id: string) =>
-  fetchMediaTabResource<GetVideosResponse>("tv", id, "videos");
+export const fetchTvVideosClient = (
+  id: string,
+  catalog?: TvDetailCatalog | null,
+) =>
+  fetchMediaTabResource<GetVideosResponse>(
+    "tv",
+    id,
+    "videos",
+    undefined,
+    catalog,
+  );
 
-export const fetchTvReviewsPageClient = (id: string, page: string) =>
-  fetchMediaTabResource<ListResponse<Review>>("tv", id, "reviews", page);
+export const fetchTvReviewsPageClient = (
+  id: string,
+  page: string,
+  catalog?: TvDetailCatalog | null,
+) =>
+  fetchMediaTabResource<ListResponse<Review>>(
+    "tv",
+    id,
+    "reviews",
+    page,
+    catalog,
+  );
 
-export const fetchTvRecommendationsPageClient = (id: string, page: string) =>
+export const fetchTvRecommendationsPageClient = (
+  id: string,
+  page: string,
+  catalog?: TvDetailCatalog | null,
+) =>
   fetchMediaTabResource<ListResponse<TvShow>>(
     "tv",
     id,
     "recommendations",
     page,
+    catalog,
   );
 
-export const fetchTvSimilarPageClient = (id: string, page: string) =>
-  fetchMediaTabResource<ListResponse<TvShow>>("tv", id, "similar", page);
+export const fetchTvSimilarPageClient = (
+  id: string,
+  page: string,
+  catalog?: TvDetailCatalog | null,
+) =>
+  fetchMediaTabResource<ListResponse<TvShow>>(
+    "tv",
+    id,
+    "similar",
+    page,
+    catalog,
+  );

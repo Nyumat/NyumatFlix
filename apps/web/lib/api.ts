@@ -3,6 +3,7 @@ import type {
   CanonicalPersonCard,
   Genre,
 } from "@/lib/domain/typings";
+import { withPageTvApiPath } from "@/lib/tv-detail-catalog";
 
 export type SearchPreviewResult = CanonicalMediaCard;
 
@@ -159,7 +160,13 @@ export async function fetchTvSeason(
   tvId: number,
   seasonNumber: number,
 ): Promise<SeasonData> {
-  const response = await fetch(`/api/tv/${tvId}/season/${seasonNumber}`);
+  const pathname =
+    typeof window !== "undefined" ? (window.location?.pathname ?? "") : "";
+  const path = withPageTvApiPath(
+    `/api/tv/${tvId}/season/${seasonNumber}`,
+    pathname,
+  );
+  const response = await fetch(path);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch season ${seasonNumber}`);
