@@ -122,11 +122,9 @@ export function resolveSiteFlags(
   };
 }
 
-export async function getSiteFlags(options?: {
-  skipCache?: boolean;
-}): Promise<SiteFlags> {
+export async function getSiteFlags(): Promise<SiteFlags> {
   const [raw, announcementConfig, menuOrder] = await Promise.all([
-    readAdminFlagState(options),
+    readAdminFlagState(),
     readAnnouncementBannerConfig(),
     readProviderMenuOrderConfig(),
   ]);
@@ -141,6 +139,20 @@ export function getPlaybackModePolicy(flags: SiteFlags): PlaybackModePolicy {
   if (flags.proxyModeOnly) return "proxy";
   if (flags.iframeModeOnly) return "iframe";
   return "choice";
+}
+
+export function shouldSeedDefaultProxyPlayback(input: {
+  policy: PlaybackModePolicy;
+  defaultProxyPlayback: boolean;
+  hasUserSelectedPlaybackServer: boolean;
+  selectedServerIsScrape: boolean;
+}): boolean {
+  return (
+    input.policy === "choice" &&
+    input.defaultProxyPlayback &&
+    !input.hasUserSelectedPlaybackServer &&
+    !input.selectedServerIsScrape
+  );
 }
 
 export function isEmbedProviderEnabled(

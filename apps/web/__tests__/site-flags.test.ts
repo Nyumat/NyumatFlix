@@ -8,6 +8,7 @@ import {
   getDefaultSiteFlags,
   getPlaybackModePolicy,
   resolveSiteFlags,
+  shouldSeedDefaultProxyPlayback,
 } from "@/lib/flags/site-flags";
 
 describe("site-flags", () => {
@@ -112,5 +113,32 @@ describe("site-flags", () => {
     expect(flags.proxyModeOnly).toBe(false);
     expect(flags.locks.playbackMode).toBe(false);
     expect(getPlaybackModePolicy(flags)).toBe("choice");
+  });
+
+  it("seeds default proxy playback until the user picks iframe", () => {
+    expect(
+      shouldSeedDefaultProxyPlayback({
+        policy: "choice",
+        defaultProxyPlayback: true,
+        hasUserSelectedPlaybackServer: false,
+        selectedServerIsScrape: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldSeedDefaultProxyPlayback({
+        policy: "choice",
+        defaultProxyPlayback: true,
+        hasUserSelectedPlaybackServer: true,
+        selectedServerIsScrape: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSeedDefaultProxyPlayback({
+        policy: "proxy",
+        defaultProxyPlayback: true,
+        hasUserSelectedPlaybackServer: false,
+        selectedServerIsScrape: false,
+      }),
+    ).toBe(false);
   });
 });
