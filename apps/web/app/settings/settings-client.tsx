@@ -87,7 +87,7 @@ export function SettingsClient({ session }: SettingsClientProps) {
   const handleNoAdsModeChange = (enabled: boolean) => {
     setNoAdsMode(enabled);
     if (enabled) {
-      setSelectedServer(scrapeServer);
+      setSelectedServer(scrapeServer, { userInitiated: true });
     }
   };
 

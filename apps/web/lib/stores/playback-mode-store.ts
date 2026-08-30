@@ -26,9 +26,17 @@ if (!defaultServer) {
   throw new Error("At least one iframe video server must be configured");
 }
 
+export type SetSelectedServerOptions = {
+  userInitiated?: boolean;
+};
+
 interface PlaybackModeState {
   selectedServer: VideoServer;
-  setSelectedServer: (server: VideoServer) => void;
+  hasUserSelectedPlaybackServer: boolean;
+  setSelectedServer: (
+    server: VideoServer,
+    options?: SetSelectedServerOptions,
+  ) => void;
 }
 
 const resolveStoredServer = (serverId: string): VideoServer => {
@@ -42,12 +50,24 @@ export const usePlaybackModeStore = create<PlaybackModeState>()(
   persist(
     (set) => ({
       selectedServer: defaultServer,
-      setSelectedServer: (server) => {
-        set((state) =>
-          state.selectedServer.id === server.id
-            ? state
-            : { selectedServer: server },
-        );
+      hasUserSelectedPlaybackServer: false,
+      setSelectedServer: (server, options) => {
+        set((state) => {
+          const userInitiated = options?.userInitiated === true;
+          const sameServer = state.selectedServer.id === server.id;
+          if (
+            sameServer &&
+            (!userInitiated || state.hasUserSelectedPlaybackServer)
+          ) {
+            return state;
+          }
+
+          return {
+            selectedServer: server,
+            hasUserSelectedPlaybackServer:
+              state.hasUserSelectedPlaybackServer || userInitiated,
+          };
+        });
       },
     }),
     {

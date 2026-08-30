@@ -44,6 +44,16 @@ const nextConfig = {
     ];
   },
   headers: async () => {
+    const isDev = process.env.NODE_ENV !== "production";
+    const playerAssetCache = isDev
+      ? {
+          key: "Cache-Control",
+          value: "no-cache, must-revalidate",
+        }
+      : {
+          key: "Cache-Control",
+          value: "public, max-age=31536000, immutable",
+        };
     const immutablePublicAsset = {
       key: "Cache-Control",
       value: "public, max-age=31536000, immutable",
@@ -52,11 +62,11 @@ const nextConfig = {
     return [
       {
         source: "/vendor/player/:path*",
-        headers: [immutablePublicAsset],
+        headers: [playerAssetCache],
       },
       {
         source: "/vendor/movi-player/:path*",
-        headers: [immutablePublicAsset],
+        headers: [playerAssetCache],
       },
       {
         source: "/movie-banner.webp",

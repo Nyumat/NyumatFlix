@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Icons } from "@/components/icons";
 import { pages } from "@/config/pages";
+import { resolveCastPersonHref } from "@/lib/cast-person-href";
 import {
   hasPosterPath,
   sortWithProfilePathFirst,
@@ -154,6 +155,7 @@ type MediaCastCardProps = {
   name: string;
   profile_path?: string | null;
   character: string;
+  href?: string | null;
 };
 
 export const mediaCastGridClass =
@@ -164,8 +166,10 @@ export const MediaCastCard: React.FC<MediaCastCardProps> = ({
   name,
   profile_path,
   character,
-}) => (
-  <Link href={`${pages.person.detail.link}/${id}`} prefetch={false}>
+  href,
+}) => {
+  const personHref = resolveCastPersonHref({ id, href, profile_path });
+  const card = (
     <MediaCardRoot className="rounded-xl">
       <MediaPoster
         image={profile_path ?? undefined}
@@ -182,16 +186,27 @@ export const MediaCastCard: React.FC<MediaCastCardProps> = ({
         </MediaCardExcerpt>
       </MediaCardContent>
     </MediaCardRoot>
-  </Link>
-);
+  );
+
+  if (!personHref) {
+    return card;
+  }
+
+  return (
+    <Link href={personHref} prefetch={false}>
+      {card}
+    </Link>
+  );
+};
 
 export const MediaCrewCard: React.FC<Crew> = ({
   id,
   name,
   profile_path,
   job,
-}) => (
-  <Link href={`${pages.person.detail.link}/${id}`} prefetch={false}>
+}) => {
+  const personHref = resolveCastPersonHref({ id, profile_path });
+  const card = (
     <MediaCardRoot>
       <MediaPoster
         image={profile_path ?? undefined}
@@ -203,8 +218,18 @@ export const MediaCrewCard: React.FC<Crew> = ({
         <MediaCardExcerpt>{job}</MediaCardExcerpt>
       </MediaCardContent>
     </MediaCardRoot>
-  </Link>
-);
+  );
+
+  if (!personHref) {
+    return card;
+  }
+
+  return (
+    <Link href={personHref} prefetch={false}>
+      {card}
+    </Link>
+  );
+};
 
 interface MediaCreditsListProps {
   cast?: Cast[];

@@ -1,5 +1,6 @@
 "use client";
 
+import { PlayerEngineSwitch } from "@/components/media/controls/player-engine-switch";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
@@ -67,6 +68,8 @@ export function PlaybackPreferencesPanel() {
 
   return (
     <div className="space-y-4">
+      <PlayerEngineSwitch />
+
       <PreferenceOptionGroup<PlaybackAudioPreference>
         label="Audio"
         value={playbackAudio}

@@ -18,7 +18,14 @@ import type {
   ScrapeQuality,
   ScrapeSubtitle,
 } from "@/lib/scrape/types";
+import { useMoviPreview } from "@/hooks/use-movi-preview";
 import { cn } from "@/lib/utils";
+
+const MoviScrapePlayer = lazy(() =>
+  import("@/components/media/movi-scrape-player").then((module) => ({
+    default: module.MoviScrapePlayer,
+  })),
+);
 
 const ScrapeHlsPlayer = dynamic(
   () =>
@@ -79,6 +86,7 @@ function DirectStreamPlayerInstance({
   onMediaReady,
   onEnded,
 }: DirectStreamPlayerProps) {
+  const moviPreview = useMoviPreview();
   const [engine, setEngine] = useState<DirectPlaybackEngine | null>(() =>
     selectDirectPlaybackEngine(
       playback,
@@ -168,33 +176,38 @@ function DirectStreamPlayerInstance({
     );
   }
 
+  const HlsPlayer = moviPreview ? MoviScrapePlayer : ScrapeHlsPlayer;
+
   return (
-    <ScrapeHlsPlayer
-      key={buildScrapePlayerKey({
-        playUrl: sourceUrl,
-        qualities,
-        subtitles,
-        audioVersions,
-      })}
-      playUrl={sourceUrl}
-      streamKind={streamKind}
-      qualities={qualities}
-      referer={referer}
-      subtitles={subtitles}
-      audioVersions={audioVersions}
-      defaultAudioLang={defaultAudioLang}
-      defaultHardSubLang={defaultHardSubLang}
-      preferredAudioLang={preferredAudioLang}
-      title={title}
-      poster={poster}
-      progressKey={progressKey}
-      imdbId={imdbId}
-      className={className}
-      autoPlay
-      onFatalError={handleEngineError}
-      onMediaReady={onMediaReady}
-      onEnded={onEnded}
-    />
+    <Suspense fallback={null}>
+      <HlsPlayer
+        key={buildScrapePlayerKey({
+          playUrl: sourceUrl,
+          qualities,
+          subtitles,
+          audioVersions,
+          progressKey,
+        })}
+        playUrl={sourceUrl}
+        streamKind={streamKind}
+        qualities={qualities}
+        referer={referer}
+        subtitles={subtitles}
+        audioVersions={audioVersions}
+        defaultAudioLang={defaultAudioLang}
+        defaultHardSubLang={defaultHardSubLang}
+        preferredAudioLang={preferredAudioLang}
+        title={title}
+        poster={poster}
+        progressKey={progressKey}
+        imdbId={imdbId}
+        className={className}
+        autoPlay
+        onFatalError={handleEngineError}
+        onMediaReady={onMediaReady}
+        onEnded={onEnded}
+      />
+    </Suspense>
   );
 }
 

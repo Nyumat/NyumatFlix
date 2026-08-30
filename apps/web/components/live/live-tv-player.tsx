@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   isHLSProvider,
   MediaAnnouncer,
@@ -15,6 +16,7 @@ import { LiveChannelSidebar } from "@/components/live/live-channel-sidebar";
 import { LiveTvGuideProvider } from "@/components/live/live-tv-guide-context";
 import { LiveVideoLayout } from "@/components/live/live-video-layout";
 import { useAdaptiveLiveHls } from "@/hooks/use-adaptive-live-hls";
+import { useMoviPreview } from "@/hooks/use-movi-preview";
 import { mergeScrapeHlsClientAuthConfig } from "@/lib/api/scrape-hls-client-auth";
 import { buildLiveHlsConfig } from "@/lib/live/adaptive-hls";
 import { buildLiveChannelShareUrl } from "@/lib/live/channel-slugs";
@@ -22,6 +24,14 @@ import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
 import { cn } from "@/lib/utils";
 
 import "./live-hls-player.css";
+
+const MoviLivePlayer = dynamic(
+  () =>
+    import("@/components/live/movi-live-player").then(
+      (module) => module.MoviLivePlayer,
+    ),
+  { ssr: false, loading: () => null },
+);
 
 type LiveGuideCategory = LiveChannelsResponse["categories"][number];
 
@@ -54,7 +64,17 @@ const configureHlsProvider = (
   provider.config = mergeScrapeHlsClientAuthConfig(config);
 };
 
-export function LiveTvPlayer({
+export function LiveTvPlayer(props: LiveTvPlayerProps) {
+  const moviPreview = useMoviPreview();
+
+  if (moviPreview) {
+    return <MoviLivePlayer {...props} />;
+  }
+
+  return <VidstackLiveTvPlayer {...props} />;
+}
+
+function VidstackLiveTvPlayer({
   categories,
   channels,
   loadingMoreChannels = false,
