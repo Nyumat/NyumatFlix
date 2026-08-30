@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import {
+  buildAnimeUpNextHref,
   buildUpNextHref,
   collectUpNextCandidates,
   isUpNextInboxCandidate,
@@ -54,6 +55,12 @@ describe("up next inbox helpers", () => {
     expect(buildUpNextHref(1399, null, 1, 5)).toBe(
       "/tvshows/1399?season=1&episode=6&autoplay=true",
     );
+  });
+
+  it("builds anime autoplay hrefs under /anime", () => {
+    expect(
+      buildAnimeUpNextHref(11757, { seasonNumber: 2, episodeNumber: 1 }, 1, 5),
+    ).toBe("/anime/anilist-11757?season=2&episode=1&autoplay=true");
   });
 
   it("only keeps watching tv titles with unwatched aired episodes", () => {

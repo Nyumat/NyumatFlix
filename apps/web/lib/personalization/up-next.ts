@@ -1,3 +1,4 @@
+import { buildAnilistTvDetailHref } from "@/lib/anilist-route-id";
 import type { EpisodeCoordinates, EpisodeInfo } from "@/lib/domain/episodes";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 
@@ -7,21 +8,54 @@ export type UpNextCandidate = {
   episodeInfo: EpisodeInfo;
 };
 
+const upNextEpisodeQuery = (
+  nextUnwatchedEpisode: EpisodeCoordinates | null,
+  fallbackSeason?: number | null,
+  fallbackEpisode?: number | null,
+): { season: number; episode: number } => {
+  if (nextUnwatchedEpisode) {
+    return {
+      season: nextUnwatchedEpisode.seasonNumber,
+      episode: nextUnwatchedEpisode.episodeNumber,
+    };
+  }
+
+  return {
+    season: fallbackSeason && fallbackSeason > 0 ? fallbackSeason : 1,
+    episode: fallbackEpisode && fallbackEpisode > 0 ? fallbackEpisode + 1 : 1,
+  };
+};
+
 export const buildUpNextHref = (
   contentId: number,
   nextUnwatchedEpisode: EpisodeCoordinates | null,
   fallbackSeason?: number | null,
   fallbackEpisode?: number | null,
 ): string => {
-  if (nextUnwatchedEpisode) {
-    return `/tvshows/${contentId}?season=${nextUnwatchedEpisode.seasonNumber}&episode=${nextUnwatchedEpisode.episodeNumber}&autoplay=true`;
-  }
-
-  const season = fallbackSeason && fallbackSeason > 0 ? fallbackSeason : 1;
-  const episode =
-    fallbackEpisode && fallbackEpisode > 0 ? fallbackEpisode + 1 : 1;
-
+  const { season, episode } = upNextEpisodeQuery(
+    nextUnwatchedEpisode,
+    fallbackSeason,
+    fallbackEpisode,
+  );
   return `/tvshows/${contentId}?season=${season}&episode=${episode}&autoplay=true`;
+};
+
+export const buildAnimeUpNextHref = (
+  contentId: number,
+  nextUnwatchedEpisode: EpisodeCoordinates | null,
+  fallbackSeason?: number | null,
+  fallbackEpisode?: number | null,
+): string => {
+  const { season, episode } = upNextEpisodeQuery(
+    nextUnwatchedEpisode,
+    fallbackSeason,
+    fallbackEpisode,
+  );
+  const base = buildAnilistTvDetailHref(contentId, { season });
+  const params = new URLSearchParams();
+  params.set("episode", String(episode));
+  params.set("autoplay", "true");
+  return `${base}${base.includes("?") ? "&" : "?"}${params.toString()}`;
 };
 
 export const isUpNextInboxCandidate = (

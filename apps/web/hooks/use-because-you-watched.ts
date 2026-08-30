@@ -8,7 +8,8 @@ import {
 } from "@/lib/playback/recently-watched";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import { useMemo } from "react";
 
 async function fetchWatchlistItems(): Promise<WatchlistItem[]> {
   const response = await fetch("/api/watchlist");
@@ -23,11 +24,7 @@ async function fetchWatchlistItems(): Promise<WatchlistItem[]> {
 }
 
 export function useBecauseYouWatched() {
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
+  const hydrated = useIsHydrated();
 
   const watchlistQuery = useQuery({
     queryKey: queryKeys.watchlist(),

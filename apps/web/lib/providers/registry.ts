@@ -19,7 +19,6 @@ export type AnimeScrapeProviderId =
   | "kickassanime"
   | "animeonsen"
   | "allmanga"
-  | "animestream"
   | "animegg"
   | "justanime"
   | "kyren"
@@ -102,11 +101,11 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
 ];
 
 /**
- * Order from latency bench + reliability audits.
- * VidNest scrape removed (resolvers down / poisoned streams). VixSrc is embed-only
- * in the iframe chain, not listed here.
+ * Direct leads so the overlay solos it first. Remaining order is from latency
+ * bench + reliability audits. VidNest scrape removed. VixSrc is embed-only.
  */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
+  provider("direct", "Direct", { embed: false, tmdbScrape: true }),
   provider("vidsrc", "VidSrc", { embed: true, tmdbScrape: true }),
   provider("vidking", "VidKing", { embed: true, tmdbScrape: true }),
   provider("videasy", "VidEasy", {
@@ -116,7 +115,6 @@ export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   }),
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
   provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
-  provider("direct", "Direct", { embed: false, tmdbScrape: true }),
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
 ];
 
@@ -128,14 +126,14 @@ export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
  * races Direct with the first two anime scrapers on high-confidence TMDB mappings.
  *
  * Embed-only (not scraped): hentaini (iframe), animepahe (VidNest animepahe route).
- * Removed from scrape: anikuro (redundant allmanga wrapper).
+ * Removed from scrape: anikuro (redundant allmanga wrapper), animestream
+ * (Indonesian hardsub-only, no English/softsub/dub variants).
  */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("kickassanime", "KickAssAnime", { embed: false, animeScrape: true }),
   provider("anizone", "AniZone", { embed: false, animeScrape: true }),
   provider("allmanga", "AllManga", { embed: false, animeScrape: true }),
   provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),
-  provider("animestream", "AnimeStream", { embed: false, animeScrape: true }),
   provider("animegg", "AnimeGG", { embed: false, animeScrape: true }),
   provider("kyren", "Kyren", { embed: false, animeScrape: true }),
   provider("justanime", "JustAnime", { embed: false, animeScrape: true }),

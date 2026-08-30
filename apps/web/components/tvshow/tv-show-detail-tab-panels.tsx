@@ -4,6 +4,7 @@ import { HeroTvEpisodePanel } from "@/components/hero/hero-tv-episode-panel";
 import { ExpandableCastGrid } from "@/components/media/expandable-cast-grid";
 import { TvCard } from "@/components/tv/tv-card";
 import { TvShowSeasonsPage } from "@/components/tvshow/tvshow-seasons-page";
+import { useTvDetailBootstrap } from "@/components/tvshow/tv-detail-bootstrap-context";
 import {
   fetchTvAllSeasonsClient,
   fetchTvCreditsClient,
@@ -12,12 +13,12 @@ import {
 } from "@/lib/media-detail-tab-client";
 import { queryStaleTime } from "@/lib/cache-policy";
 import { isAnilistBackedTvRouteId } from "@/lib/tv-detail-catalog";
-import { useTvDetailCatalog } from "@/hooks/use-tv-detail-catalog";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import type { TvShowDetails } from "@/lib/domain/typings";
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useInView } from "react-intersection-observer";
 
 type TvShowDetailTabPanelsProps = {
@@ -51,24 +52,15 @@ const DetailSection = ({
   </section>
 );
 
-const EpisodesFallback = () => (
-  <DetailSection id="seasons-episodes-panel" title="Seasons & Episodes">
-    <div className="flex h-[min(680px,72vh)] w-full flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="h-12 w-full rounded-lg bg-card/50 sm:w-56" />
-        <div className="h-12 min-w-0 flex-1 rounded-lg bg-card/50" />
-        <div className="h-12 w-12 shrink-0 rounded-lg bg-card/50" />
-      </div>
-      <div className="space-y-3">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-28 rounded-xl border border-border/70 bg-card/25"
-          />
-        ))}
-      </div>
-    </div>
-  </DetailSection>
+const GridSectionSkeleton = () => (
+  <div className="grid-list">
+    {Array.from({ length: 8 }).map((_, index) => (
+      <div
+        key={index}
+        className="aspect-poster rounded-lg border border-border/60 bg-card/25"
+      />
+    ))}
+  </div>
 );
 
 const SeriesGraphFallback = () => (
@@ -77,68 +69,53 @@ const SeriesGraphFallback = () => (
   </DetailSection>
 );
 
-const GridSectionFallback = ({ title }: { title: string }) => (
-  <DetailSection title={title}>
-    <div className="grid-list">
-      {Array.from({ length: 8 }).map((_, index) => (
-        <div
-          key={index}
-          className="aspect-poster rounded-lg border border-border/60 bg-card/25"
-        />
-      ))}
-    </div>
-  </DetailSection>
-);
-
-const EpisodesSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const catalog = useTvDetailCatalog();
+const EpisodesSection = () => {
+  const { tvId, catalog, details: bootstrapDetails } = useTvDetailBootstrap();
   const isAnilistRoute = isAnilistBackedTvRouteId(tvId, catalog);
 
-  const { data: allSeasonDetails } = useQuery({
-    queryKey: queryKeys.tvAllSeasons(tvId),
-    queryFn: () => fetchTvAllSeasonsClient(tvId, catalog),
-    staleTime: queryStaleTime(60 * 60 * 1000),
-  });
-
-  const { data: details, isPending } = useQuery({
+  const { data: details = bootstrapDetails } = useQuery({
     queryKey: isAnilistRoute
       ? queryKeys.tvDetailsRoute(tvId)
       : queryKeys.tvDetails(Number.parseInt(tvId, 10)),
     queryFn: async () => {
-      const d = await fetchTvDetailsClient(tvId, catalog);
-      if (!d) throw new Error("TV show not found");
-      return d;
+      const nextDetails = await fetchTvDetailsClient(tvId, catalog);
+      if (!nextDetails) throw new Error("TV show not found");
+      return nextDetails;
     },
+    initialData: bootstrapDetails,
+    staleTime: queryStaleTime(60 * 60 * 1000),
   });
-
-  if (isPending && !details) return <EpisodesFallback />;
 
   return (
     <DetailSection id="seasons-episodes-panel" title="Seasons & Episodes">
-      <HeroTvEpisodePanel
-        tvId={tvId}
-        details={details as TvShowDetails}
-        allSeasonDetails={allSeasonDetails}
-      />
+      <HeroTvEpisodePanel tvId={tvId} details={details as TvShowDetails} />
     </DetailSection>
   );
 };
 
-const SeriesGraphSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const catalog = useTvDetailCatalog();
-  const { data: allSeasonDetails, isPending } = useQuery({
+const SeriesGraphSection = () => {
+  const { tvId, catalog } = useTvDetailBootstrap();
+  const isAnilistRoute = isAnilistBackedTvRouteId(tvId, catalog);
+  const { data: allSeasonDetails } = useQuery({
     queryKey: queryKeys.tvAllSeasons(tvId),
     queryFn: () => fetchTvAllSeasonsClient(tvId, catalog),
+    staleTime: queryStaleTime(60 * 60 * 1000),
+    enabled: !isAnilistRoute,
   });
 
-  if (isPending && !allSeasonDetails) return <SeriesGraphFallback />;
+  if (isAnilistRoute) {
+    return null;
+  }
 
-  if (!allSeasonDetails) return <SeriesGraphFallback />;
+  if (!allSeasonDetails) {
+    return <SeriesGraphFallback />;
+  }
 
   return <TvShowSeasonsPage allSeasonDetails={allSeasonDetails} />;
 };
 
-const LazySeriesGraphSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
+const LazySeriesGraphSection = () => {
+  const isHydrated = useIsHydrated();
   const { ref, inView } = useInView({
     rootMargin: "600px 0px",
     triggerOnce: true,
@@ -146,84 +123,77 @@ const LazySeriesGraphSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
 
   return (
     <div ref={ref}>
-      {inView ? (
-        <Suspense fallback={<SeriesGraphFallback />}>
-          <SeriesGraphSection tvId={tvId} />
-        </Suspense>
-      ) : (
+      {!isHydrated || !inView ? (
         <SeriesGraphFallback />
+      ) : (
+        <SeriesGraphSection />
       )}
     </div>
   );
 };
 
-const CastSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const catalog = useTvDetailCatalog();
-  const { data: credits, isPending } = useQuery({
+const CastSection = () => {
+  const { tvId, catalog, details: bootstrapDetails } = useTvDetailBootstrap();
+  const { data: credits } = useQuery({
     queryKey: queryKeys.tvTabCredits(tvId),
     queryFn: () => fetchTvCreditsClient(tvId, catalog),
+    initialData: bootstrapDetails.credits,
+    staleTime: queryStaleTime(60 * 60 * 1000),
   });
-
-  if (isPending && !credits) return <GridSectionFallback title="Cast" />;
-
-  if (!credits) return <GridSectionFallback title="Cast" />;
 
   return (
     <DetailSection title="Cast">
-      {credits.cast?.length ? (
+      {credits?.cast?.length ? (
         <ExpandableCastGrid cast={credits.cast} />
-      ) : (
+      ) : credits ? (
         <div className="empty-box">No cast information available</div>
+      ) : (
+        <GridSectionSkeleton />
       )}
     </DetailSection>
   );
 };
 
-const RecommendationsSection = ({ tvId }: TvShowDetailTabPanelsProps) => {
-  const { data: recommendationsData, isPending } = useQuery({
+const RecommendationsSection = () => {
+  const { tvId, catalog, details: bootstrapDetails } = useTvDetailBootstrap();
+  const { data: recommendationsData } = useQuery({
     queryKey: queryKeys.tvTabRecommendations(tvId, "1"),
-    queryFn: () => fetchTvRecommendationsPageClient(tvId, "1"),
+    queryFn: () => fetchTvRecommendationsPageClient(tvId, "1", catalog),
+    initialData: bootstrapDetails.recommendations,
+    staleTime: queryStaleTime(60 * 60 * 1000),
   });
-
-  if (isPending && !recommendationsData) {
-    return <GridSectionFallback title="You Might Like" />;
-  }
-
-  if (!recommendationsData) {
-    return <GridSectionFallback title="You Might Like" />;
-  }
 
   return (
     <DetailSection title="You Might Like">
-      {recommendationsData.results?.length ? (
-        <section className="grid-list">
+      {recommendationsData?.results?.length ? (
+        <div className="grid-list">
           {recommendationsData.results.map((show) => (
-            <TvCard key={show.id} {...show} variant="linkOnly" />
+            <TvCard
+              key={show.id}
+              {...show}
+              variant="linkOnly"
+              catalog={catalog}
+            />
           ))}
-        </section>
-      ) : (
+        </div>
+      ) : recommendationsData ? (
         <div className="empty-box">No recommendations available</div>
+      ) : (
+        <GridSectionSkeleton />
       )}
     </DetailSection>
   );
 };
 
-export const TvShowDetailTabPanels = ({ tvId }: TvShowDetailTabPanelsProps) => {
+export const TvShowDetailTabPanels = ({
+  tvId: _tvId,
+}: TvShowDetailTabPanelsProps) => {
   return (
     <div className="space-y-8">
-      <Suspense fallback={<EpisodesFallback />}>
-        <EpisodesSection tvId={tvId} />
-      </Suspense>
-
-      <Suspense fallback={<GridSectionFallback title="Cast" />}>
-        <CastSection tvId={tvId} />
-      </Suspense>
-
-      <Suspense fallback={<GridSectionFallback title="You Might Like" />}>
-        <RecommendationsSection tvId={tvId} />
-      </Suspense>
-
-      <LazySeriesGraphSection tvId={tvId} />
+      <EpisodesSection />
+      <CastSection />
+      <RecommendationsSection />
+      <LazySeriesGraphSection />
     </div>
   );
 };

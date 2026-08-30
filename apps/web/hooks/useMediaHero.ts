@@ -15,6 +15,7 @@ import type { MediaItem } from "@/lib/domain/typings";
 import { getFirstRegularSeason, isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
 import { stabilizeScrollTop } from "@/components/layout/route-scroll-reset";
+import { withPageTvApiPath } from "@/lib/tv-detail-catalog";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   useCallback,
@@ -99,7 +100,8 @@ export const useMediaHero = ({
   const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(false);
   const [isPlayingTrailer, setIsPlayingTrailer] = useState<boolean>(false);
   const [youtubePlayer, setYoutubePlayer] = useState<YouTubePlayer>(null);
-  const [historyLength, setHistoryLength] = useState<number>(2);
+  const historyLength =
+    typeof window !== "undefined" ? window.history.length : 2;
   const controls = useAnimation();
   const gateAction = useAdblockGateAction();
 
@@ -210,10 +212,16 @@ export const useMediaHero = ({
         if (firstSeason) {
           seasonAbort = new AbortController();
           try {
-            const res = await fetch(
+            const seasonPath = withPageTvApiPath(
               `/api/tv/${currentItem.id}/season/${firstSeason.season_number}`,
-              { signal: seasonAbort.signal },
+              pathname,
             );
+            const res = await fetch(seasonPath, {
+              signal: seasonAbort.signal,
+            });
+            if (!res.ok) {
+              return;
+            }
             const seasonData = await res.json();
             if (cancelled) {
               return;
@@ -296,12 +304,6 @@ export const useMediaHero = ({
     setIsPlayingTrailer(false);
     setIsPlayingVideo(false);
   }, [onPlaybackStop]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setHistoryLength(window.history.length);
-    }
-  }, []);
 
   const canPlayTrailer = useMemo(() => {
     const rows = extractVideoRowsFromMediaVideos(currentItem?.videos);

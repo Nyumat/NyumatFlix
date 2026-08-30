@@ -4,10 +4,13 @@ import {
   getCachedAnilistTvAllSeasons,
   getCachedAnilistTvSeasonDetails,
 } from "@/lib/anilist-tv-detail";
+import { movieDb } from "@/lib/constants";
 import {
   isAnilistBackedTvRouteId,
   type TvDetailCatalog,
 } from "@/lib/tv-detail-catalog";
+import { isTmdbNotFoundError } from "@/lib/tmdb-errors";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import {
   CACHE_REVALIDATE_SECONDS,
   CACHE_SEASON_REVALIDATE_SECONDS,
@@ -41,7 +44,7 @@ type RawSeasonDetails = {
   season_number?: unknown;
 };
 
-const SEASON_DETAIL_BATCH_SIZE = 3;
+const SEASON_DETAIL_BATCH_SIZE = 6;
 
 const readString = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
@@ -113,11 +116,12 @@ const toSlimSeasonDetails = (raw: RawSeasonDetails): SeasonDetails | null => {
 };
 
 export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
+  const tmdbId = unwrapTmdbLookupId(id);
   const TV_DETAIL_APPEND =
     "content_ratings,keywords,external_ids,videos,images,recommendations,similar,reviews,credits";
 
   try {
-    const url = new URL(`https://api.themoviedb.org/3/tv/${id}`);
+    const url = new URL(`https://api.themoviedb.org/3/tv/${tmdbId}`);
     url.searchParams.set("api_key", process.env.TMDB_API_KEY ?? "");
     url.searchParams.set("language", "en-US");
     url.searchParams.set("append_to_response", TV_DETAIL_APPEND);
@@ -125,7 +129,7 @@ export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
     const response = await fetch(
       url,
       tmdbFetchInit({
-        endpoint: `/tv/${id}`,
+        endpoint: `/tv/${tmdbId}`,
         params: { append_to_response: TV_DETAIL_APPEND },
         revalidate: CACHE_REVALIDATE_SECONDS,
       }),
@@ -150,17 +154,41 @@ export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
 
 export type TvSeasonFetchOptions = {
   catalog?: TvDetailCatalog | null;
+  source?: "tmdb" | "auto";
 };
 
 const anilistSeasonResolveOptions = (catalog: TvDetailCatalog | null) =>
   catalog === "anime" ? { acceptBareNumeric: true as const } : undefined;
+
+const shouldResolveAnilistSeason = (
+  tvId: string,
+  options?: TvSeasonFetchOptions,
+): boolean =>
+  options?.source !== "tmdb" &&
+  isAnilistBackedTvRouteId(tvId, options?.catalog ?? null);
+
+export async function resolveTvShowDetailForApiRoute(
+  id: string,
+): Promise<TvShowDetails | null> {
+  const tmdbId = unwrapTmdbLookupId(id);
+
+  try {
+    const tmdbDetail = await movieDb.tvInfo({ id: tmdbId });
+    return (tmdbDetail ?? null) as TvShowDetails | null;
+  } catch (error) {
+    if (isTmdbNotFoundError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
 
 export async function fetchSeasonDetailsServer(
   tvId: string,
   seasonNumber: number,
   options?: TvSeasonFetchOptions,
 ): Promise<SeasonDetails | null> {
-  if (isAnilistBackedTvRouteId(tvId, options?.catalog ?? null)) {
+  if (shouldResolveAnilistSeason(tvId, options)) {
     return getCachedAnilistTvSeasonDetails(
       tvId,
       seasonNumber,
@@ -168,10 +196,12 @@ export async function fetchSeasonDetailsServer(
     );
   }
 
+  const tmdbId = unwrapTmdbLookupId(tvId);
+
   try {
     const response = await fetch(
-      `https://api.themoviedb.org/3/tv/${tvId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
-      tvSeasonFetchInit(tvId, seasonNumber),
+      `https://api.themoviedb.org/3/tv/${tmdbId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+      tvSeasonFetchInit(tmdbId, seasonNumber),
     );
     if (!response.ok) {
       throw new Error(`Failed to fetch season details: ${response.status}`);
@@ -188,7 +218,7 @@ export async function fetchAllSeasonDetails(
   seasons: Season[] | undefined,
   options?: TvSeasonFetchOptions,
 ): Promise<Record<number, SeasonDetails>> {
-  if (isAnilistBackedTvRouteId(tvId, options?.catalog ?? null)) {
+  if (shouldResolveAnilistSeason(tvId, options)) {
     return getCachedAnilistTvAllSeasons(
       tvId,
       anilistSeasonResolveOptions(options?.catalog ?? null),

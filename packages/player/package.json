@@ -27,6 +27,11 @@
       "import": "./dist/element.js",
       "require": "./dist/element.cjs",
       "types": "./dist/element.d.ts"
+    },
+    "./compat": {
+      "import": "./dist/compat.js",
+      "require": "./dist/compat.cjs",
+      "types": "./dist/compat.d.ts"
     }
   },
   "files": [
@@ -42,7 +47,7 @@
     "copy:vendor": "node scripts/copy-vendor.mjs",
     "build:wasm:force": "mkdir -p dist/wasm && docker compose run --rm -e FORCE_FFMPEG=true -e FORCE_DAV1D=true build",
     "dev": "vite --open /dev/",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run src --passWithNoTests",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build && npm run typecheck",

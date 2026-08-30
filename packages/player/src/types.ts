@@ -118,15 +118,50 @@ export interface SubtitleSourceEntry {
   lang: string;       // BCP 47 language code
   label: string;      // Display name
   format?: "vtt" | "srt"; // Auto-detected from URL extension if omitted
+  /** Stable track id — required when multiple tracks share the same lang */
+  id?: string;
 }
+
+export const getExternalSubtitleId = (track: SubtitleSourceEntry): string =>
+  track.id ?? track.url;
 
 export interface CacheConfig {
   type: "lru";
   maxSizeMB: number;
 }
 
-export type RendererType = "canvas";
+export type RendererType = "canvas" | "video";
+export type PresentationMode = "native" | "canvas";
 export type DecoderType = "auto" | "software";
+
+export type PlayerErrorCategory =
+  | "network"
+  | "decode"
+  | "drm"
+  | "manifest"
+  | "unknown";
+
+export type PlayerErrorSeverity = "fatal" | "recoverable";
+
+export interface PlayerErrorInfo {
+  message: string;
+  category: PlayerErrorCategory;
+  severity: PlayerErrorSeverity;
+  cause?: Error;
+}
+
+export interface ExternalQualityEntry {
+  label: string;
+  url: string;
+  height?: number;
+  type?: string;
+}
+
+export interface ChapterMarker {
+  title: string;
+  start: number;
+  end?: number;
+}
 
 export interface PlayerConfig {
   /**
@@ -148,6 +183,8 @@ export interface PlayerConfig {
   /** External subtitle tracks (VTT/SRT) with language metadata */
   subtitleTracks?: SubtitleSourceEntry[];
   renderer?: RendererType;
+  /** Auto-selected from source when omitted. Canvas forces WASM/WebCodecs path. */
+  presentation?: PresentationMode;
   decoder?: DecoderType;
   cache?: CacheConfig;
   canvas?: HTMLCanvasElement | OffscreenCanvas;
@@ -287,6 +324,9 @@ export interface PlayerEventMap {
   durationChange: number;
   tracksChange: Track[];
   error: Error;
+  playerError: PlayerErrorInfo;
+  waiting: void;
+  playing: void;
   filerevoked: { offset: number; length: number; reason: string };
   loadStart: void;
   loadEnd: void;

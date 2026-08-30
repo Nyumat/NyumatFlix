@@ -4,6 +4,7 @@ import {
   fetchTvRecommendationsPageClient,
 } from "@/lib/media-detail-tab-client";
 import type { RecentlyWatchedStub } from "@/lib/playback/recently-watched";
+import { fetchTvShowDetailClient } from "@/lib/tv-show-detail-client";
 import type { MovieWithMediaType, TvShowWithMediaType } from "@/tmdb/models";
 
 export const BECAUSE_YOU_WATCHED_LIMIT = 20;
@@ -20,38 +21,43 @@ export type BecauseYouWatchedResult =
       items: TvShowWithMediaType[];
     };
 
-type MediaDetailResponse = {
+type MovieDetailResponse = {
   id?: number;
   title?: string;
-  name?: string;
 };
 
-const isMatchingTmdbDetail = (
+const isMatchingMovieDetail = (
   stub: RecentlyWatchedStub,
-  detail: MediaDetailResponse,
+  detail: MovieDetailResponse,
 ): boolean => detail.id === stub.contentId;
 
 async function fetchSeedTitle(
   stub: RecentlyWatchedStub,
-): Promise<string | null> {
-  const path =
-    stub.mediaType === "movie"
-      ? `/api/movies/${stub.contentId}`
-      : `/api/tv/${stub.contentId}`;
+): Promise<{ title: string; catalog: "anime" | null } | null> {
+  if (stub.mediaType === "movie") {
+    const response = await fetch(`/api/movies/${stub.contentId}`);
+    if (!response.ok) {
+      return stub.title ? { title: stub.title, catalog: null } : null;
+    }
 
-  const response = await fetch(path);
-  if (!response.ok) {
-    return stub.title ?? null;
+    const detail = (await response.json()) as MovieDetailResponse;
+    if (!isMatchingMovieDetail(stub, detail)) {
+      return null;
+    }
+
+    const title = detail.title ?? stub.title ?? null;
+    return title ? { title, catalog: null } : null;
   }
 
-  const detail = (await response.json()) as MediaDetailResponse;
-  if (!isMatchingTmdbDetail(stub, detail)) {
-    return null;
+  const fetched = await fetchTvShowDetailClient(stub.contentId, {
+    expectedTitle: stub.title,
+  });
+  if (!fetched) {
+    return stub.title ? { title: stub.title, catalog: null } : null;
   }
 
-  return stub.mediaType === "movie"
-    ? (detail.title ?? stub.title ?? null)
-    : (detail.name ?? stub.title ?? null);
+  const title = fetched.detail.name ?? stub.title ?? null;
+  return title ? { title, catalog: fetched.catalog } : null;
 }
 
 export async function fetchBecauseYouWatchedRow(
@@ -61,10 +67,11 @@ export async function fetchBecauseYouWatchedRow(
   const seen = new Set(excludeIds);
 
   for (const stub of stubs) {
-    const seedTitle = await fetchSeedTitle(stub);
-    if (!seedTitle) {
+    const seed = await fetchSeedTitle(stub);
+    if (!seed) {
       continue;
     }
+    const { title: seedTitle, catalog } = seed;
 
     if (stub.mediaType === "movie") {
       const page = await fetchMovieRecommendationsPageClient(
@@ -97,6 +104,7 @@ export async function fetchBecauseYouWatchedRow(
     const page = await fetchTvRecommendationsPageClient(
       String(stub.contentId),
       "1",
+      catalog,
     );
     const items = takeUniqueByIdInOrder(
       (page.results ?? []).map(

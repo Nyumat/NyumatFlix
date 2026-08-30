@@ -1,10 +1,9 @@
 import {
   buildAnilistTvDetailHref,
   fromAnilistTvRouteId,
-  isAnilistTvRouteId,
   isAnimeAnilistRouteId,
-  normalizeAnilistTvRouteSlug,
   parseAnimeAnilistRouteId,
+  toAnilistTvRouteSlug,
 } from "@/lib/anilist-route-id";
 import { resolveAnilistMovieTmdbRoute } from "@/lib/anilist-movie-route";
 import { resolveCanonicalAnilistRoute } from "@/lib/anilist-tv-detail";
@@ -26,14 +25,6 @@ const appendSearchParams = (
   }
   const mergedQuery = params.toString();
   return mergedQuery ? `${path}?${mergedQuery}` : path;
-};
-
-const toCanonicalLookupRouteId = (id: string): string => {
-  if (isAnilistTvRouteId(id)) {
-    return normalizeAnilistTvRouteSlug(id);
-  }
-
-  return id;
 };
 
 export async function resolveAnilistTvDetailRedirects(
@@ -61,21 +52,19 @@ export async function resolveAnilistTvDetailRedirects(
     );
   }
 
-  if (isAnilistTvRouteId(id)) {
-    redirect(
-      appendSearchParams(
-        buildAnilistTvDetailHref(entryAnilistId),
-        requestSearchParams,
-      ),
-    );
-  }
-
   const canonical = await resolveCanonicalAnilistRoute(
-    toCanonicalLookupRouteId(id),
+    toAnilistTvRouteSlug(entryAnilistId),
     { acceptBareNumeric: true },
   );
-  if (!canonical) {
-    // If AniList does not have this bare ID directly, check if it is a TMDB ID that maps to AniList
+  if (canonical) {
+    const canonicalAnilistId = fromAnilistTvRouteId(canonical.slug);
+    if (canonicalAnilistId !== entryAnilistId) {
+      const canonicalHref = buildAnilistTvDetailHref(canonicalAnilistId, {
+        season: canonical.season > 1 ? canonical.season : undefined,
+      });
+      redirect(appendSearchParams(canonicalHref, requestSearchParams));
+    }
+  } else {
     const mappedAnilistId =
       (await getAnilistIdFromFribb(entryAnilistId, "tv")) ??
       (await resolveTmdbToAnilistFromMappings(entryAnilistId, "tv")) ??
@@ -90,17 +79,15 @@ export async function resolveAnilistTvDetailRedirects(
         ),
       );
     }
-
-    return;
   }
 
-  const canonicalAnilistId = fromAnilistTvRouteId(canonical.slug);
-  if (canonicalAnilistId === entryAnilistId) {
-    return;
+  const canonicalSlug = toAnilistTvRouteSlug(entryAnilistId);
+  if (id !== canonicalSlug) {
+    redirect(
+      appendSearchParams(
+        buildAnilistTvDetailHref(entryAnilistId),
+        requestSearchParams,
+      ),
+    );
   }
-
-  const canonicalHref = buildAnilistTvDetailHref(canonicalAnilistId, {
-    season: canonical.season > 1 ? canonical.season : undefined,
-  });
-  redirect(appendSearchParams(canonicalHref, requestSearchParams));
 }

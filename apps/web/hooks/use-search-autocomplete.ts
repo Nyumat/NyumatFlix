@@ -44,6 +44,16 @@ export function useSearchAutocomplete({
   const listboxId = useId();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [focusTarget, setFocusTarget] = useState<"input" | "list">("input");
+  const resultsKey = useMemo(
+    () => results.map((result) => result.id).join("|"),
+    [results],
+  );
+
+  useEffect(() => {
+    setSelectedIndex(-1);
+    setFocusTarget("input");
+  }, [query, resultsKey, footer]);
+
   const includeFooter = footer !== "none";
 
   const itemCount = getSearchAutocompleteItemCount(results, {
@@ -84,11 +94,6 @@ export function useSearchAutocomplete({
     setSelectedIndex(-1);
     inputRef?.current?.focus();
   }, [inputRef]);
-
-  useEffect(() => {
-    setSelectedIndex(-1);
-    setFocusTarget("input");
-  }, [query, results, footer]);
 
   const handleInputFocus = useCallback(() => {
     setFocusTarget("input");

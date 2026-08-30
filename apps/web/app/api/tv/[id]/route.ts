@@ -1,8 +1,8 @@
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
+import { resolveTvShowDetailForApiRoute } from "@/lib/server/tvshow-api";
 import { isTmdbNotFoundError } from "@/lib/tmdb-errors";
 import { NextResponse } from "next/server";
-import { movieDb } from "@/lib/constants";
 
 export async function GET(
   request: Request,
@@ -22,7 +22,7 @@ export async function GET(
   }
 
   try {
-    const tvDetails = await movieDb.tvInfo({ id });
+    const tvDetails = await resolveTvShowDetailForApiRoute(id);
 
     if (!tvDetails) {
       return NextResponse.json({ error: "TV show not found" }, { status: 404 });

@@ -27,6 +27,7 @@ import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-vi
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useMediaPeekStore } from "@/lib/stores/media-peek-store";
 import { useRootTrailerAudioStore } from "@/lib/stores/root-trailer-audio-store";
+import { useLocalTvWatchCoords } from "@/hooks/use-local-tv-watch-coords";
 import {
   formatTvWatchLabel,
   isTvPlaybackResume,
@@ -34,7 +35,9 @@ import {
   resolveTvWatchTarget,
 } from "@/lib/tv-watch-target";
 import { formatRuntime, formatYear } from "@/lib/cards/formatters";
+import { resolveCastPersonHref } from "@/lib/cast-person-href";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
+import { resolveTvCardHref } from "@/lib/tv-card-href";
 import { cn } from "@/lib/utils";
 import type { ListResponse } from "@/tmdb/api";
 import type {
@@ -189,6 +192,7 @@ const MediaPeekBody = ({
     "Play",
   );
   const [tvPlaybackResume, setTvPlaybackResume] = useState(false);
+  const localCoords = useLocalTvWatchCoords(target.contentId);
   const [activeTrailerKey, setActiveTrailerKey] = useState<string | null>(null);
   const [stuck, setStuck] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -247,7 +251,7 @@ const MediaPeekBody = ({
       if (target.mediaType === "movie") {
         return fetchMovieSimilarPageClient(target.id, "1");
       }
-      return fetchTvSimilarPageClient(target.id, "1");
+      return fetchTvSimilarPageClient(target.id, "1", target.catalog);
     },
   });
 
@@ -263,7 +267,7 @@ const MediaPeekBody = ({
       if (target.mediaType === "movie") {
         return fetchMovieVideosClient(target.id);
       }
-      return fetchTvVideosClient(target.id);
+      return fetchTvVideosClient(target.id, target.catalog);
     },
   });
 
@@ -354,11 +358,16 @@ const MediaPeekBody = ({
           target.contentId,
           { selectedEpisode, tvShowId, seasonNumber },
           watchlistItem,
+          null,
+          null,
+          localCoords,
         )
       : null;
   const tvResume =
     tvWatchTarget != null &&
-    (isTvWatchlistResume(tvWatchTarget, watchlistItem) || tvPlaybackResume);
+    (isTvWatchlistResume(tvWatchTarget, watchlistItem) ||
+      tvPlaybackResume ||
+      tvWatchTarget.source === "progress");
   const playLabel =
     target.mediaType === "movie"
       ? movieButtonLabel
@@ -464,12 +473,14 @@ const MediaPeekBody = ({
     setActiveTrailerKey(null);
   };
 
-  const resolveSimilarHref = (item: { id: number }) =>
+  const resolveSimilarHref = (item: {
+    id: number;
+    href?: string;
+    poster_path?: string | null;
+  }) =>
     target.mediaType === "movie"
       ? `/movies/${item.id}`
-      : target.catalog === "anime"
-        ? `/anime/${item.id}`
-        : `/tvshows/${item.id}`;
+      : resolveTvCardHref(item, target.catalog === "anime" ? "anime" : null);
 
   return (
     <DialogPrimitive.Content
@@ -681,7 +692,7 @@ const MediaPeekBody = ({
                 <div className="flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto pb-1 active:cursor-grabbing [scrollbar-width:none] sm:gap-4">
                   {cast.map((person) => (
                     <MediaPeekCastChip
-                      key={person.credit_id}
+                      key={`${person.credit_id || person.id}-${person.order}`}
                       person={person}
                       onNavigate={handleCloseNavigate}
                     />
@@ -833,28 +844,42 @@ const MediaPeekCastChip = ({
   person,
   onNavigate,
 }: {
-  person: Cast & { profile_path: string };
+  person: Cast & { profile_path: string; href?: string | null };
   onNavigate: () => void;
-}) => (
-  <Link
-    href={`/person/${person.id}`}
-    onClick={onNavigate}
-    className="group w-[5.75rem] shrink-0 cursor-inherit snap-start sm:w-[6.5rem]"
-  >
-    <div className="relative mb-2 aspect-square overflow-hidden rounded-2xl border border-white/10 bg-card/40 ring-1 ring-white/8 transition duration-300 group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-lg">
-      <Image
-        src={tmdbImage.profile(person.profile_path, "w185")}
-        alt=""
-        fill
-        sizes="80px"
-        className="object-cover transition duration-500 group-hover:scale-105"
-      />
-    </div>
-    <p className="line-clamp-2 text-[11px] font-semibold leading-4 text-foreground sm:text-xs">
-      {person.name}
-    </p>
-    <p className="line-clamp-2 text-[10px] leading-4 text-muted-foreground sm:text-[11px]">
-      {person.character}
-    </p>
-  </Link>
-);
+}) => {
+  const personHref = resolveCastPersonHref(person);
+  const chipClassName = "group w-[5.75rem] shrink-0 snap-start sm:w-[6.5rem]";
+  const inner = (
+    <>
+      <div className="relative mb-2 aspect-square overflow-hidden rounded-2xl border border-white/10 bg-card/40 ring-1 ring-white/8 transition duration-300 group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-lg">
+        <Image
+          src={tmdbImage.profile(person.profile_path, "w185")}
+          alt=""
+          fill
+          sizes="80px"
+          className="object-cover transition duration-500 group-hover:scale-105"
+        />
+      </div>
+      <p className="line-clamp-2 text-[11px] font-semibold leading-4 text-foreground sm:text-xs">
+        {person.name}
+      </p>
+      <p className="line-clamp-2 text-[10px] leading-4 text-muted-foreground sm:text-[11px]">
+        {person.character}
+      </p>
+    </>
+  );
+
+  if (!personHref) {
+    return <div className={chipClassName}>{inner}</div>;
+  }
+
+  return (
+    <Link
+      href={personHref}
+      onClick={onNavigate}
+      className={`${chipClassName} cursor-inherit`}
+    >
+      {inner}
+    </Link>
+  );
+};

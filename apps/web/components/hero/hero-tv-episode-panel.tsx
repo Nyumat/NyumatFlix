@@ -18,13 +18,16 @@ import {
 } from "@/lib/anilist-route-id";
 import { isAnilistBackedTvRouteId } from "@/lib/tv-detail-catalog";
 import {
-  animeSeasonNumberForEpisode,
+  episodeListPresentation,
   findSegmentForEpisode,
+  formatCourSelectLabel,
   toAnimeDisplayCoords,
   type MappingSegment,
 } from "@/lib/anime/tmdb-anilist-map";
 import { readMappedTmdbTvIdFromMedia } from "@/lib/tv-playback-tmdb-id";
+import { normalizeTvContentKey } from "@/lib/tv-watch-target";
 import { resolveEpisodeThumbnailUrl } from "@/lib/anime/episode-thumbnail-url";
+import { resolveEpisodeAnimeSelection } from "@/lib/anime/episode-playback-source";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
 import { stripSearchParam } from "@/lib/navigation/search-params";
@@ -34,11 +37,15 @@ import {
   parseEpisodeSearchQuery,
 } from "@/lib/parse-episode-search-query";
 import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import { useLocalTvWatchCoords } from "@/hooks/use-local-tv-watch-coords";
+import { TvEpisodesPanelSkeleton } from "@/components/tvshow/tv-detail-bootstrap-context";
 import { queryStaleTime } from "@/lib/cache-policy";
+import { fetchTvAllSeasonsClient } from "@/lib/media-detail-tab-client";
 import { buildEpisodeIndex, type IndexedEpisode } from "@/lib/tv-episode-index";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Episode, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownAZ, ArrowUpZA, Search, Tv } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -64,6 +71,11 @@ type KitsuThumbnailRequest =
       tmdbSeasonCount: number;
     }
   | { kind: "anilist"; anilistId: number };
+
+const seasonHasLoadedEpisodes = (
+  seasons: Record<number, SeasonDetails>,
+  seasonNumber: number,
+): boolean => (seasons[seasonNumber]?.episodes?.length ?? 0) > 0;
 
 const fetchKitsuEpisodeThumbnails = async (
   tvId: string,
@@ -106,6 +118,7 @@ export function HeroTvEpisodePanel({
   allSeasonDetails,
 }: HeroTvEpisodePanelProps) {
   const isHydrated = useIsHydrated();
+  const queryClient = useQueryClient();
   const catalog = useTvDetailCatalog();
   const router = useRouter();
   const pathname = usePathname();
@@ -151,10 +164,14 @@ export function HeroTvEpisodePanel({
     setSeasonNumber,
   } = useEpisodeStore();
   const requestedSeason = Number.parseInt(searchParams.get("season") ?? "", 10);
+  const localCoords = useLocalTvWatchCoords(details.id);
 
   const selectedSeason = useMemo(() => {
+    const storeMatchesRoute =
+      normalizeTvContentKey(tvShowId ?? "") === normalizeTvContentKey(tvId);
+
     if (
-      tvShowId === tvId &&
+      storeMatchesRoute &&
       storeSeason &&
       seasonNumbers.includes(storeSeason)
     ) {
@@ -169,8 +186,19 @@ export function HeroTvEpisodePanel({
       return requestedSeason;
     }
 
+    if (localCoords && seasonNumbers.includes(localCoords.seasonNumber)) {
+      return localCoords.seasonNumber;
+    }
+
     return seasonNumbers[0] ?? 1;
-  }, [requestedSeason, seasonNumbers, storeSeason, tvId, tvShowId]);
+  }, [
+    localCoords,
+    requestedSeason,
+    seasonNumbers,
+    storeSeason,
+    tvId,
+    tvShowId,
+  ]);
   const [selectedAnimeSegment, setSelectedAnimeSegment] = useState(0);
 
   const [query, setQuery] = useState("");
@@ -186,7 +214,23 @@ export function HeroTvEpisodePanel({
 
   useEffect(() => {
     if (!allSeasonDetails) return;
-    setLoadedSeasonDetails((current) => ({ ...allSeasonDetails, ...current }));
+    setLoadedSeasonDetails((current) => {
+      const merged: Record<number, SeasonDetails> = {
+        ...allSeasonDetails,
+        ...current,
+      };
+      for (const [key, season] of Object.entries(allSeasonDetails)) {
+        const seasonNumber = Number(key);
+        if (!Number.isInteger(seasonNumber) || seasonNumber <= 0) continue;
+        const existing = merged[seasonNumber];
+        if (
+          (existing?.episodes?.length ?? 0) < (season.episodes?.length ?? 0)
+        ) {
+          merged[seasonNumber] = season;
+        }
+      }
+      return merged;
+    });
   }, [allSeasonDetails]);
 
   const parsedQuery = useMemo(() => parseEpisodeSearchQuery(query), [query]);
@@ -242,50 +286,72 @@ export function HeroTvEpisodePanel({
     setDefaultAnilistId,
   ]);
 
+  const selectedSeasonHasEpisodes = seasonHasLoadedEpisodes(
+    loadedSeasonDetails,
+    selectedSeason,
+  );
+
   const selectedSeasonQuery = useQuery({
-    queryKey: ["nyumatflix", "media", "tv", tvId, "season", selectedSeason],
-    queryFn: () => fetchSeasonDetails(tvId, selectedSeason),
+    queryKey: queryKeys.tvSeasonRoute(tvId, selectedSeason),
+    queryFn: async () => {
+      const seasonDetail = await fetchSeasonDetails(tvId, selectedSeason);
+      if (!seasonDetail?.episodes?.length) {
+        throw new Error(`Season ${selectedSeason} has no episodes`);
+      }
+      return seasonDetail;
+    },
     enabled:
       isHydrated &&
       seasonNumbers.includes(selectedSeason) &&
-      !loadedSeasonDetails[selectedSeason],
+      !selectedSeasonHasEpisodes,
     staleTime: queryStaleTime(60 * 60 * 1000),
+    retry: 2,
   });
 
+  const animeMapTmdbShowId =
+    typeof mappedTmdbTvId === "number" && mappedTmdbTvId > 0
+      ? mappedTmdbTvId
+      : isAnilistRoute
+        ? null
+        : Number(tvId);
+  const canMapAnimeSeason =
+    Number.isInteger(defaultAnilistId) &&
+    typeof animeMapTmdbShowId === "number" &&
+    Number.isInteger(animeMapTmdbShowId) &&
+    animeMapTmdbShowId > 0;
+
   const animeSeasonMapQuery = useQuery({
-    queryKey: [
-      "nyumatflix",
-      "anime-season-map",
-      tvId,
+    queryKey: queryKeys.animeSeasonMap(
+      animeMapTmdbShowId ?? 0,
       selectedSeason,
-      defaultAnilistId,
-    ],
+      defaultAnilistId ?? 0,
+    ),
     queryFn: async (): Promise<AnimeSeasonMap> => {
       const response = await fetch(
-        `/api/map?tmdbShowId=${encodeURIComponent(tvId)}&tmdbSeason=${selectedSeason}&sourceAnilistId=${defaultAnilistId}`,
+        `/api/map?tmdbShowId=${encodeURIComponent(String(animeMapTmdbShowId))}&tmdbSeason=${selectedSeason}&sourceAnilistId=${defaultAnilistId}`,
       );
-      if (!response.ok) return {};
+      if (!response.ok) {
+        throw new Error("anime season map failed");
+      }
       return response.json() as Promise<AnimeSeasonMap>;
     },
-    enabled:
-      isHydrated && !isAnilistRoute && Number.isInteger(defaultAnilistId),
+    enabled: isHydrated && canMapAnimeSeason,
     staleTime: queryStaleTime(60 * 60 * 1000),
   });
 
   const animeSegments = animeSeasonMapQuery.data?.segments ?? [];
-  const useAnimeSeasonGroups =
-    !isAnilistRoute && seasonNumbers.length === 1 && animeSegments.length > 1;
+  const listPresentation = episodeListPresentation({
+    tmdbSeasonCount: seasonNumbers.length,
+    segmentCount: animeSegments.length,
+  });
+  const { splitCour, showTmdbSeasonSelect, showCourSelect } = listPresentation;
 
   useEffect(() => {
     setSelectedAnimeSegment(0);
   }, [selectedSeason, animeSegments.length]);
 
   useEffect(() => {
-    if (
-      !useAnimeSeasonGroups ||
-      !selectedEpisode ||
-      animeSegments.length === 0
-    ) {
+    if (!splitCour || !selectedEpisode || animeSegments.length === 0) {
       return;
     }
 
@@ -299,7 +365,7 @@ export function HeroTvEpisodePanel({
     }
     // Only re-sync when the selected episode changes or segments first arrive —
     // not when the user manually browses another anime season group.
-  }, [animeSegments, selectedEpisode?.id, useAnimeSeasonGroups]);
+  }, [animeSegments, selectedEpisode?.id, splitCour]);
 
   useEffect(() => {
     const seasonDetail = selectedSeasonQuery.data;
@@ -312,27 +378,131 @@ export function HeroTvEpisodePanel({
 
   const seasonEpisodes = useMemo(() => {
     const episodes = loadedSeasonDetails[selectedSeason]?.episodes ?? [];
-    if (!useAnimeSeasonGroups) return episodes;
+    if (!splitCour) return episodes;
     const segment = animeSegments[selectedAnimeSegment];
     if (!segment) return episodes;
-    return episodes.filter(
+
+    const maxSegmentEnd = Math.max(
+      ...animeSegments.map((entry) => entry.endEpisode),
+      0,
+    );
+    const lastSegmentIndex = animeSegments.length - 1;
+
+    const filtered = episodes.filter(
       (episode) =>
         episode.episode_number >= segment.startEpisode &&
         episode.episode_number <= segment.endEpisode,
     );
+
+    if (selectedAnimeSegment !== lastSegmentIndex) {
+      return filtered.length > 0 ? filtered : episodes;
+    }
+
+    const trailingAppendix = episodes.filter(
+      (episode) => episode.episode_number > maxSegmentEnd,
+    );
+    if (trailingAppendix.length === 0) {
+      return filtered.length > 0 ? filtered : episodes;
+    }
+
+    const seen = new Set(filtered.map((episode) => episode.id));
+    return [
+      ...filtered,
+      ...trailingAppendix.filter((episode) => !seen.has(episode.id)),
+    ];
   }, [
     animeSegments,
     loadedSeasonDetails,
     selectedAnimeSegment,
     selectedSeason,
-    useAnimeSeasonGroups,
+    splitCour,
   ]);
 
   const searchActive = query.trim().length > 0;
   const isAnimeTmdbPage = !isAnilistRoute && Number.isInteger(defaultAnilistId);
   const tmdbSeasonCount = seasonNumbers.length;
 
+  const allSeasonsForSearchQuery = useQuery({
+    queryKey: queryKeys.tvAllSeasons(tvId),
+    queryFn: () => fetchTvAllSeasonsClient(tvId, catalog),
+    enabled: isHydrated && searchActive,
+    staleTime: queryStaleTime(60 * 60 * 1000),
+  });
+
+  useEffect(() => {
+    const searchedSeasons = allSeasonsForSearchQuery.data;
+    if (!searchedSeasons) return;
+    setLoadedSeasonDetails((current) => {
+      const merged: Record<number, SeasonDetails> = { ...current };
+      for (const [key, season] of Object.entries(searchedSeasons)) {
+        const seasonNumber = Number(key);
+        if (!Number.isInteger(seasonNumber) || seasonNumber <= 0) continue;
+        const existing = merged[seasonNumber];
+        if (
+          (existing?.episodes?.length ?? 0) < (season.episodes?.length ?? 0)
+        ) {
+          merged[seasonNumber] = season;
+        }
+      }
+      return merged;
+    });
+  }, [allSeasonsForSearchQuery.data]);
+
+  useEffect(() => {
+    if (!isHydrated || !selectedSeasonHasEpisodes || searchActive) {
+      return;
+    }
+
+    const unloadedSeasons = seasonNumbers.filter(
+      (seasonNumber) =>
+        !seasonHasLoadedEpisodes(loadedSeasonDetails, seasonNumber),
+    );
+    if (unloadedSeasons.length === 0) {
+      return;
+    }
+
+    const selectedIndex = seasonNumbers.indexOf(selectedSeason);
+    const prefetchOrder = [
+      seasonNumbers[selectedIndex + 1],
+      seasonNumbers[selectedIndex - 1],
+      ...unloadedSeasons,
+    ].filter(
+      (seasonNumber): seasonNumber is number =>
+        Number.isInteger(seasonNumber) &&
+        seasonNumber > 0 &&
+        seasonNumber !== selectedSeason &&
+        !seasonHasLoadedEpisodes(loadedSeasonDetails, seasonNumber),
+    );
+
+    const nextSeason = prefetchOrder[0];
+    if (!nextSeason) {
+      return;
+    }
+
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.tvSeasonRoute(tvId, nextSeason),
+      queryFn: () => fetchSeasonDetails(tvId, nextSeason),
+      staleTime: queryStaleTime(60 * 60 * 1000),
+    });
+  }, [
+    isHydrated,
+    loadedSeasonDetails,
+    queryClient,
+    searchActive,
+    seasonNumbers,
+    selectedSeason,
+    selectedSeasonHasEpisodes,
+    tvId,
+  ]);
+
   const kitsuThumbnailRequests = useMemo((): KitsuThumbnailRequest[] => {
+    if (splitCour) {
+      return animeSegments.map((segment) => ({
+        kind: "anilist" as const,
+        anilistId: segment.anilistMediaId,
+      }));
+    }
+
     if (isAnilistRoute && routeAnilistId !== null) {
       return [
         {
@@ -351,13 +521,6 @@ export function HeroTvEpisodePanel({
     }
 
     const sourceAnilistId = defaultAnilistId;
-
-    if (useAnimeSeasonGroups) {
-      return animeSegments.map((segment) => ({
-        kind: "anilist" as const,
-        anilistId: segment.anilistMediaId,
-      }));
-    }
 
     const seasonNumbersToFetch = new Set<number>([selectedSeason]);
     if (searchActive) {
@@ -383,7 +546,9 @@ export function HeroTvEpisodePanel({
     searchActive,
     selectedSeason,
     tmdbSeasonCount,
-    useAnimeSeasonGroups,
+    splitCour,
+    isAnilistRoute,
+    routeAnilistId,
     tvId,
   ]);
 
@@ -435,14 +600,7 @@ export function HeroTvEpisodePanel({
 
   const resolveKitsuThumbnail = useCallback(
     (episode: Episode, seasonNumber: number) => {
-      if (isAnilistRoute && routeAnilistId !== null) {
-        return (
-          kitsuThumbnailsByAnilist[routeAnilistId]?.[episode.episode_number] ??
-          null
-        );
-      }
-
-      if (useAnimeSeasonGroups) {
+      if (splitCour && seasonNumber === selectedSeason) {
         const segment = findSegmentForEpisode(
           animeSegments,
           episode.episode_number,
@@ -456,16 +614,25 @@ export function HeroTvEpisodePanel({
         );
       }
 
+      if (isAnilistRoute && routeAnilistId !== null) {
+        return (
+          kitsuThumbnailsByAnilist[routeAnilistId]?.[episode.episode_number] ??
+          null
+        );
+      }
+
       return (
         kitsuThumbnailsBySeason[seasonNumber]?.[episode.episode_number] ?? null
       );
     },
     [
       animeSegments,
+      isAnilistRoute,
       kitsuThumbnailsByAnilist,
       kitsuThumbnailsBySeason,
-      tvId,
-      useAnimeSeasonGroups,
+      routeAnilistId,
+      selectedSeason,
+      splitCour,
     ],
   );
 
@@ -508,28 +675,31 @@ export function HeroTvEpisodePanel({
         allSeasonDetails?.[episodeSeason]?.episodes;
 
       const segment =
-        animeSegments.find(
-          (entry) =>
-            episode.episode_number >= entry.startEpisode &&
-            episode.episode_number <= entry.endEpisode,
-        ) ?? null;
+        episodeSeason === selectedSeason
+          ? findSegmentForEpisode(animeSegments, episode.episode_number)
+          : null;
+      const animeDisplay = segment
+        ? toAnimeDisplayCoords(animeSegments, episode.episode_number)
+        : null;
       const anilistRouteId = routeAnilistId;
-      // On AniList routes we disable the season map, so never guess coords from the
-      // route id (e.g. 16498 + ep 21 is S1E21, not TMDB S3E21). Wait for playback-coords.
+      const embeddedSelection = resolveEpisodeAnimeSelection(episode, {
+        animeSeasonNumber: anilistRouteId ? episodeSeason : null,
+        isAdult:
+          animeSeasonMapQuery.data?.isAdult === true ||
+          defaultIsAdultAnime ||
+          details.adult === true,
+      });
       const animeInfo = segment
         ? {
             anilistId: segment.anilistMediaId,
             startEpisode: segment.startEpisode,
             endEpisode: segment.endEpisode,
           }
-        : undefined;
-      const animeSeasonNumber = segment
-        ? useAnimeSeasonGroups
-          ? animeSeasonNumberForEpisode(animeSegments, episode.episode_number)
-          : episodeSeason
-        : anilistRouteId
-          ? episodeSeason
-          : null;
+        : embeddedSelection?.animeInfo;
+      const animeSeasonNumber = animeDisplay
+        ? animeDisplay.seasonNumber
+        : (embeddedSelection?.mapping.animeSeasonNumber ??
+          (anilistRouteId ? episodeSeason : null));
 
       const mapIsAdult = animeSeasonMapQuery.data?.isAdult === true;
       setSelectedEpisode(
@@ -539,15 +709,25 @@ export function HeroTvEpisodePanel({
         animeInfo,
         false,
         seasonEpisodes,
-        segment || anilistRouteId
+        segment
           ? {
-              confidence: segment ? "high" : "low",
-              // TMDB often omits adult for hentai OVAs — prefer AniList map / defaults.
+              confidence: "high",
               isAdult:
                 mapIsAdult || defaultIsAdultAnime || details.adult === true,
               animeSeasonNumber,
+              relativeEpisodeNumber: animeDisplay?.episodeNumber,
             }
-          : undefined,
+          : (embeddedSelection?.mapping ??
+              (anilistRouteId
+                ? {
+                    confidence: "low",
+                    isAdult:
+                      mapIsAdult ||
+                      defaultIsAdultAnime ||
+                      details.adult === true,
+                    animeSeasonNumber,
+                  }
+                : undefined)),
       );
     },
     [
@@ -556,12 +736,11 @@ export function HeroTvEpisodePanel({
       animeSegments,
       defaultIsAdultAnime,
       details.adult,
-      details.number_of_episodes,
       loadedSeasonDetails,
       routeAnilistId,
+      selectedSeason,
       setSelectedEpisode,
       tvId,
-      useAnimeSeasonGroups,
     ],
   );
 
@@ -578,83 +757,81 @@ export function HeroTvEpisodePanel({
   }
 
   if (!isHydrated) {
-    return (
-      <div className="flex h-[min(680px,72vh)] w-full flex-col gap-5">
-        <div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="h-12 w-full rounded-lg border border-border/80 bg-card/50 sm:w-56" />
-            <div className="h-12 min-w-0 flex-1 rounded-lg border border-border/80 bg-card/50" />
-            <div className="h-12 w-12 shrink-0 rounded-lg border border-border/80 bg-card/50" />
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 pr-1">
-          <div className="space-y-3 pb-1 pt-0.5">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-28 rounded-xl border border-border/70 bg-card/25"
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <TvEpisodesPanelSkeleton />;
   }
 
   return (
     <div className={cn("flex h-[min(680px,72vh)] w-full flex-col gap-5")}>
       <div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Select
-            value={
-              useAnimeSeasonGroups
-                ? `anime-${selectedAnimeSegment}`
-                : String(selectedSeason)
-            }
-            onValueChange={(value) => {
-              if (value.startsWith("anime-")) {
-                setSelectedAnimeSegment(Number(value.slice(6)));
-                return;
-              }
-
-              setSeasonNumber(tvId, Number(value));
-              if (searchParams.has("season")) {
-                router.replace(
-                  stripSearchParam(pathname, searchParams, "season"),
-                  {
-                    scroll: false,
-                  },
-                );
-              }
-            }}
-          >
-            <SelectTrigger
-              aria-label="Select season"
-              className={cn(
-                "h-12 w-full cursor-pointer rounded-lg border-border/80 bg-card/50 px-4 text-base shadow-none sm:w-56",
-                "focus:ring-offset-background",
-              )}
+          {showTmdbSeasonSelect ? (
+            <Select
+              value={String(selectedSeason)}
+              onValueChange={(value) => {
+                setSeasonNumber(tvId, Number(value));
+                if (searchParams.has("season")) {
+                  router.replace(
+                    stripSearchParam(pathname, searchParams, "season"),
+                    {
+                      scroll: false,
+                    },
+                  );
+                }
+              }}
             >
-              <SelectValue placeholder="Season" />
-            </SelectTrigger>
-            <SelectContent className="border-border bg-popover/95">
-              {useAnimeSeasonGroups
-                ? animeSegments.map((segment, index) => (
-                    <SelectItem
-                      key={segment.anilistMediaId}
-                      value={`anime-${index}`}
-                    >
-                      Season {index + 1}
-                    </SelectItem>
-                  ))
-                : seasonNumbers.map((num) => (
-                    <SelectItem key={num} value={String(num)}>
-                      Season {num}
-                    </SelectItem>
-                  ))}
-            </SelectContent>
-          </Select>
+              <SelectTrigger
+                aria-label="Select season"
+                className={cn(
+                  "h-12 w-full cursor-pointer rounded-lg border-border/80 bg-card/50 px-4 text-base shadow-none",
+                  showCourSelect ? "sm:w-40" : "sm:w-56",
+                  "focus:ring-offset-background",
+                )}
+              >
+                <SelectValue placeholder="Season" />
+              </SelectTrigger>
+              <SelectContent className="border-border bg-popover/95">
+                {seasonNumbers.map((num) => (
+                  <SelectItem key={num} value={String(num)}>
+                    Season {num}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
+          {showCourSelect ? (
+            <Select
+              value={`anime-${selectedAnimeSegment}`}
+              onValueChange={(value) => {
+                setSelectedAnimeSegment(Number(value.slice(6)));
+              }}
+            >
+              <SelectTrigger
+                aria-label={
+                  showTmdbSeasonSelect ? "Select part" : "Select season"
+                }
+                className={cn(
+                  "h-12 w-full cursor-pointer rounded-lg border-border/80 bg-card/50 px-4 text-base shadow-none",
+                  showTmdbSeasonSelect ? "sm:w-48" : "sm:w-56",
+                  "focus:ring-offset-background",
+                )}
+              >
+                <SelectValue placeholder="Part" />
+              </SelectTrigger>
+              <SelectContent className="border-border bg-popover/95">
+                {animeSegments.map((segment, index) => (
+                  <SelectItem
+                    key={segment.anilistMediaId}
+                    value={`anime-${index}`}
+                  >
+                    {formatCourSelectLabel(segment, index, {
+                      besideTmdbSeasons: showTmdbSeasonSelect,
+                    })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
 
           <div className="relative min-w-0 flex-1">
             <Search
@@ -705,7 +882,7 @@ export function HeroTvEpisodePanel({
 
       <ScrollArea className="min-h-0 flex-1 pr-1">
         <div className="space-y-3 pb-1 pt-0.5">
-          {selectedSeasonQuery.isLoading ? (
+          {selectedSeasonQuery.isPending || selectedSeasonQuery.isFetching ? (
             Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
@@ -715,18 +892,26 @@ export function HeroTvEpisodePanel({
           ) : displayedList.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {!searchActive && seasonEpisodes.length === 0
-                ? "No episodes for this season."
+                ? selectedSeasonQuery.isError
+                  ? "Couldn't load episodes for this season. Try again."
+                  : "No episodes for this season."
                 : "No episodes match your search."}
             </p>
           ) : (
             displayedList.map(({ episode, seasonNumber: epSeason }) => {
               const active = isRowSelected(episode, epSeason);
-              const animeDisplay = useAnimeSeasonGroups
-                ? toAnimeDisplayCoords(animeSegments, episode.episode_number)
-                : null;
+              const animeDisplay =
+                splitCour && epSeason === selectedSeason
+                  ? toAnimeDisplayCoords(animeSegments, episode.episode_number)
+                  : null;
               const badgeEpisodeNumber =
                 animeDisplay?.episodeNumber ?? episode.episode_number;
               const labelSeasonNumber = animeDisplay?.seasonNumber ?? epSeason;
+              const seasonHeading = animeDisplay
+                ? showTmdbSeasonSelect
+                  ? `Part ${labelSeasonNumber}`
+                  : `Season ${labelSeasonNumber}`
+                : `Season ${labelSeasonNumber}`;
               const thumbnailUrl = resolveEpisodeThumbnailUrl({
                 stillPath: episode.still_path,
                 kitsuUrl: resolveKitsuThumbnail(episode, epSeason),
@@ -769,11 +954,11 @@ export function HeroTvEpisodePanel({
                   </div>
                   <div className="min-w-0 flex-1 self-center">
                     {searchActive ||
-                    (useAnimeSeasonGroups
+                    (splitCour
                       ? labelSeasonNumber !== selectedAnimeSegment + 1
                       : epSeason !== selectedSeason) ? (
                       <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-primary">
-                        Season {labelSeasonNumber}
+                        {seasonHeading}
                       </p>
                     ) : null}
                     <p

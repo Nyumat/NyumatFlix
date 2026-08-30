@@ -17,3 +17,4 @@ networks:
 
 volumes:
   flipt-data:
+    name: ${FLIPT_VOLUME_NAME:-nyumatflix_flipt-data}

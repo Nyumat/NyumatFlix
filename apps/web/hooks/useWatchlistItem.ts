@@ -49,6 +49,8 @@ export function useWatchlistItem(
     [contentId, mediaType],
   );
 
+  const refetch = useCallback(() => fetchWatchlistItem(), [fetchWatchlistItem]);
+
   useEffect(() => {
     const controller = new AbortController();
     void fetchWatchlistItem(controller.signal);
@@ -59,6 +61,6 @@ export function useWatchlistItem(
     watchlistItem,
     isLoading,
     error,
-    refetch: () => fetchWatchlistItem(),
+    refetch,
   };
 }

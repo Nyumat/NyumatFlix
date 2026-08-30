@@ -6,7 +6,12 @@ export interface MoviHostElement extends HTMLElement {
 export function getMoviVideoElement(
   player: MoviHostElement,
 ): HTMLVideoElement | null {
-  return player.shadowRoot?.querySelector("video") ?? null;
+  const fromShadow = player.shadowRoot?.querySelector("video");
+  if (fromShadow instanceof HTMLVideoElement) {
+    return fromShadow;
+  }
+  const fromLight = player.querySelector("video");
+  return fromLight instanceof HTMLVideoElement ? fromLight : null;
 }
 
 export function isMoviVideoPlaybackReady(video: HTMLVideoElement): boolean {

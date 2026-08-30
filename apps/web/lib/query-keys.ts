@@ -16,6 +16,8 @@ export const queryKeys = {
   media: () => [...queryKeys.all, "media"] as const,
   tvSeason: (tvId: number, seasonNumber: number) =>
     [...queryKeys.media(), "tv", tvId, "season", seasonNumber] as const,
+  tvSeasonRoute: (tvRouteId: string, seasonNumber: number) =>
+    [...queryKeys.media(), "tv", tvRouteId, "season", seasonNumber] as const,
   movieDetails: (movieId: number) =>
     [...queryKeys.media(), "movie", movieId] as const,
   tvDetails: (tvId: number) => [...queryKeys.media(), "tv", tvId] as const,
@@ -23,6 +25,18 @@ export const queryKeys = {
     [...queryKeys.media(), "tv", tvRouteId, "details"] as const,
   mediaAboveFold: (mediaType: "movie" | "tv", id: string) =>
     [...queryKeys.media(), mediaType, id, "above-fold"] as const,
+  animeSeasonMap: (
+    tmdbShowId: number,
+    seasonNumber: number,
+    sourceAnilistId: number,
+  ) =>
+    [
+      ...queryKeys.media(),
+      "anime-season-map",
+      tmdbShowId,
+      seasonNumber,
+      sourceAnilistId,
+    ] as const,
 
   tvAllSeasons: (tvId: string) =>
     [...queryKeys.media(), "tv", tvId, "all-seasons"] as const,

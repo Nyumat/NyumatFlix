@@ -40,6 +40,7 @@ export async function fetchCalluspirates(
 
   return fetch(input, {
     ...rest,
+    cache: rest.cache ?? "no-store",
     headers,
     signal: rest.signal
       ? AbortSignal.any([rest.signal, timeoutSignal])

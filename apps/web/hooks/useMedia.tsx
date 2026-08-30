@@ -1,39 +1,35 @@
-import { useEffect, useState } from "react";
-import { isBrowser } from "@/lib/constants";
-
-const getInitialState = (query: string, defaultState?: boolean) => {
-  if (defaultState !== undefined) return defaultState;
-  if (isBrowser) return window.matchMedia(query).matches;
-  if (process.env.NODE_ENV !== "production")
-    console.warn(
-      "`useMedia` When server side rendering, defaultState should be defined to prevent hydration mismatches.",
-    );
-  return false;
-};
+import { useCallback, useSyncExternalStore } from "react";
 
 const useMedia = (query: string, defaultState?: boolean) => {
-  const [state, setState] = useState(getInitialState(query, defaultState));
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const mediaQueryList = window.matchMedia(query);
+      mediaQueryList.addEventListener("change", onStoreChange);
+      return () => mediaQueryList.removeEventListener("change", onStoreChange);
+    },
+    [query],
+  );
 
-  useEffect(() => {
-    let mounted = true;
-    const mql = window.matchMedia(query);
-    const onChange = () => {
-      if (!mounted) {
-        return;
-      }
-      setState(!!mql.matches);
-    };
+  const getSnapshot = useCallback(
+    () => window.matchMedia(query).matches,
+    [query],
+  );
 
-    mql.addEventListener("change", onChange);
-    setState(mql.matches);
+  const getServerSnapshot = useCallback(() => {
+    if (defaultState !== undefined) {
+      return defaultState;
+    }
 
-    return () => {
-      mounted = false;
-      mql.removeEventListener("change", onChange);
-    };
-  }, [query]);
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "`useMedia` When server side rendering, defaultState should be defined to prevent hydration mismatches.",
+      );
+    }
 
-  return state;
+    return false;
+  }, [defaultState]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 };
 
 export default useMedia;

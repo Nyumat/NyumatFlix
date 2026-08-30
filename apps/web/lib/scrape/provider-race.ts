@@ -9,11 +9,8 @@ export const SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS = 300_000;
 /** Run alone before parallel races (legacy default). */
 export const SOLO_FIRST_SCRAPE_PROVIDERS = new Set<string>(["direct"]);
 
-/**
- * TMDB overlay races Direct with the first scraper batch so obscure titles do not
- * wait out a solo Direct crawl before Bingr/VidEasy/VidKing start.
- */
-export const TMDB_SCRAPE_SOLO_FIRST_PROVIDERS = new Set<string>();
+/** TMDB overlay solos Direct first so it is the default source when healthy. */
+export const TMDB_SCRAPE_SOLO_FIRST_PROVIDERS = new Set<string>(["direct"]);
 
 /** Anime playback races Direct with leading anime scrapers instead of soloing it. */
 export const ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS = new Set<string>();
@@ -30,7 +27,6 @@ const PROVIDER_ATTEMPT_TIMEOUT_MS: Partial<Record<string, number>> = {
   vidnest: 30_000,
   videasy: 60_000,
   vidking: 30_000,
-  animestream: 20_000,
   animegg: 18_000,
   anizone: 20_000,
   kickassanime: 20_000,
@@ -57,11 +53,6 @@ export function getScrapeAttemptTimeoutMs(
 
   return SCRAPE_ATTEMPT_TIMEOUT_MS;
 }
-
-/** Fast scrapers that often pass probes but fail in the player — never pin as preferred. */
-export const UNTRUSTED_PREFERRED_SCRAPE_PROVIDERS = new Set<string>([
-  "vidrock",
-]);
 
 export type RaceBatchResult<T> = {
   batch: T[];

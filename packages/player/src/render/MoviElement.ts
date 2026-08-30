@@ -11,6 +11,7 @@
  */
 
 import { MoviPlayer } from "../core/MoviPlayer";
+import { resolvePresentationMode } from "../core/presentation";
 import type {
   SourceConfig,
   RendererType,
@@ -19,9 +20,23 @@ import type {
   SubtitleTrack,
   DecoderType,
   PlayerState,
+  PresentationMode,
+  ExternalQualityEntry,
+  ChapterMarker,
 } from "../types";
 import { Logger, LogLevel } from "../utils/Logger";
+import {
+  chapterSegmentPercent,
+  findChapterAtTime,
+  introDbSegmentClassName,
+} from "../utils/chapterMarkers";
 import type { SourceAdapter } from "../source/SourceAdapter";
+import {
+  CanvasVideoPresenter,
+  NativeVideoPresenter,
+  type VideoPresenter,
+} from "./VideoPresenter";
+import { RemotePlaybackController } from "./RemotePlaybackController";
 
 import { SettingsStorage } from "../utils/SettingsStorage";
 import { QoECollector, beaconSink, type QoESink, type QoESession } from "../utils/QoE";
@@ -201,7 +216,20 @@ export class MoviElement extends HTMLElement {
   // menu for plain MP4 sources (where there's no HLS manifest to enumerate).
   private _videoQualities: { src: string; type?: string; height: number; label: string; fps?: number; badge?: string }[] = [];
   private _audioTracks: { src: string; type?: string; lang: string; label: string }[] = []; // Multi-language audio
-  private _subtitleTracks: { src: string; lang: string; label: string; format?: string }[] = []; // External subtitles
+  private _subtitleTracks: {
+    src: string;
+    lang: string;
+    label: string;
+    format?: string;
+    default?: boolean;
+    id?: string;
+  }[] = [];
+  private _presentation: PresentationMode | null = null;
+  private _videoPresenter: VideoPresenter | null = null;
+  private _remotePlayback: RemotePlaybackController | null = null;
+  private _nativeCueStyle: HTMLStyleElement | null = null;
+  private _nativeSubDelayFrameId: number | null = null;
+  private _castFallbackSrc: string = "";
   private _autoplay: boolean = false;
   // True from the moment an autoplay attempt is kicked off until playback
   // actually reaches "playing" or the browser blocks it. While set, the
@@ -232,6 +260,8 @@ export class MoviElement extends HTMLElement {
   // once the player has settled into "playing" again.
   private _loopRestartInFlight: boolean = false;
   private _pendingPlay: boolean = false;
+  private _elementPlayPromise: Promise<void> | null = null;
+  private _autoplayInvoked: boolean = false;
   // True while loading spinner + play() must wait for FileSource preload to
   // complete (mobile only, height >= 2160). Released by the player's
   // 'preloadcomplete' event, which always fires once preload settles.
@@ -438,6 +468,7 @@ export class MoviElement extends HTMLElement {
       "volume",
       "playbackrate",
       "subtitledelay",
+      "castfallbacksrc",
       "subtitlesize",
       "subtitlecolor",
       "subtitlebg",
@@ -445,6 +476,7 @@ export class MoviElement extends HTMLElement {
       "ambientmode",
       "ambientwrapper",
       "renderer",
+      "presentation",
       "objectfit",
       "thumb",
       "hdr",
@@ -1241,6 +1273,18 @@ export class MoviElement extends HTMLElement {
                 </svg>
               </button>
 
+              <button class="movi-btn movi-cast-btn" aria-label="Cast" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 16.1A5 5 0 0 1 7 11h14"/><path d="M7 16h10"/><path d="M12 20h4"/>
+                </svg>
+              </button>
+
+              <button class="movi-btn movi-airplay-btn" aria-label="AirPlay" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><polygon points="12 15 17 21 7 21 12 15"/>
+                </svg>
+              </button>
+
               <button class="movi-btn movi-pip-btn" aria-label="Picture in Picture" style="display:none">
                 <svg class="movi-icon-pip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1" fill="currentColor" opacity="0.3"/>
@@ -1812,10 +1856,7 @@ export class MoviElement extends HTMLElement {
       const chapterTitleEl = shadowRoot.querySelector(".movi-seek-chapter-title") as HTMLElement;
       if (chapterTitleEl) {
         const chapters = this.player?.getChapters() ?? [];
-        const chapter = chapters.find((ch, i) => {
-          const end = i < chapters.length - 1 ? chapters[i + 1].start : duration;
-          return time >= ch.start && time < end;
-        });
+        const chapter = findChapterAtTime(chapters, time);
         if (chapter) {
           chapterTitleEl.textContent = chapter.title;
           chapterTitleEl.style.display = "block";
@@ -3749,11 +3790,7 @@ export class MoviElement extends HTMLElement {
           break;
         }
         case "ArrowLeft":
-          // Left Arrow: Seek backward 5 seconds or single frame (if Ctrl)
-          // Only enabled if fastseek is true. In linear mode the seek clamps to
-          // the buffered RAM window.
-          if (!this._fastSeek) break;
-
+          // Left Arrow: Seek backward 10 seconds or single frame (if Ctrl)
           e.preventDefault();
           if (e.ctrlKey || e.metaKey) {
             // Frame backward - only work if paused (auto-pause if playing)
@@ -3773,11 +3810,7 @@ export class MoviElement extends HTMLElement {
           }
           break;
         case "ArrowRight":
-          // Right Arrow: Seek forward 5 seconds or single frame (if Ctrl)
-          // Only enabled if fastseek is true. In linear mode the seek clamps to
-          // the buffered RAM window.
-          if (!this._fastSeek) break;
-
+          // Right Arrow: Seek forward 10 seconds or single frame (if Ctrl).
           e.preventDefault();
           {
             if (e.ctrlKey || e.metaKey) {
@@ -3925,16 +3958,16 @@ export class MoviElement extends HTMLElement {
               const activeIdx = extSubs.findIndex((t) => t.active);
               if (activeIdx === -1) {
                 // Currently off → select first
-                this.player.selectSubtitleLang(extSubs[0].lang);
+                this.player.selectExternalSubtitle(extSubs[0].id);
                 this.showOSD(subOsdOn, `${extSubs[0].label} [${extSubs[0].lang.toUpperCase()}] (1/${extSubs.length})`);
               } else if (activeIdx + 1 < extSubs.length) {
                 // Next track
                 const next = extSubs[activeIdx + 1];
-                this.player.selectSubtitleLang(next.lang);
+                this.player.selectExternalSubtitle(next.id);
                 this.showOSD(subOsdOn, `${next.label} [${next.lang.toUpperCase()}] (${activeIdx + 2}/${extSubs.length})`);
               } else {
                 // Last → off
-                this.player.selectSubtitleLang(null);
+                this.player.selectExternalSubtitle(null);
                 this.showOSD(subOsdOff, "Subtitles Off");
               }
               this.updateSubtitleTrackMenu();
@@ -4738,7 +4771,7 @@ export class MoviElement extends HTMLElement {
       const audioOutputId = item.dataset.audioOutputId;
       const audioOutputUnlock = item.dataset.audioOutputUnlock;
       const subtitleTrackId = item.dataset.subtitleTrackId;
-      const subtitleLang = item.dataset.subtitleLang;
+      const subtitleId = item.dataset.subtitleId;
 
       if (action === "play-pause") {
         if (this.player) {
@@ -4835,15 +4868,15 @@ export class MoviElement extends HTMLElement {
           contextMenu.scrollTop = 0;
           submenu.classList.add("movi-context-menu-submenu-visible");
         }
-      } else if (subtitleLang !== undefined) {
-        // Select external subtitle language
+      } else if (subtitleId !== undefined) {
+        // Select external subtitle track
         if (this.player) {
-          const subTrack = this.player.getSubtitleLangs().find(t => t.lang === subtitleLang);
-          this.player.selectSubtitleLang(subtitleLang);
+          const subTrack = this.player.getSubtitleLangs().find((t) => t.id === subtitleId);
+          this.player.selectExternalSubtitle(subtitleId);
           this.updateSubtitleTrackMenu();
           this.showOSD(
             OSD.subOn,
-            subTrack?.label || subtitleLang,
+            subTrack?.label || subtitleId,
           );
         }
         hideContextMenu();
@@ -4854,13 +4887,13 @@ export class MoviElement extends HTMLElement {
           const subOsdIcon = OSD.subOn;
           if (trackId === -1) {
             this.player.selectSubtitleTrack(null);
-            this.player.selectSubtitleLang(null);
+            this.player.selectExternalSubtitle(null);
             this.showOSD(
               OSD.subOff,
               "Subtitles Off",
             );
           } else {
-            this.player.selectSubtitleLang(null);
+            this.player.selectExternalSubtitle(null);
             this.player.selectSubtitleTrack(trackId);
             const trk = this.player.getSubtitleTracks().find(t => t.id === trackId);
             const ctxSubLang = trk?.language?.toUpperCase() || "";
@@ -5213,7 +5246,7 @@ export class MoviElement extends HTMLElement {
       html += ctxExternalSubs
         .map((t) => {
           const activeClass = t.active ? " movi-context-menu-active" : "";
-          return `<div class="movi-context-menu-item${activeClass}" data-subtitle-lang="${t.lang}">${t.label} (${t.lang.toUpperCase()})</div>`;
+          return `<div class="movi-context-menu-item${activeClass}" data-subtitle-id="${t.id}">${t.label} (${t.lang.toUpperCase()})</div>`;
         })
         .join("");
 
@@ -5456,6 +5489,15 @@ export class MoviElement extends HTMLElement {
     // API only works on <video>, and we render to a canvas — so fall back to a
     // CSS viewport-fill "pseudo fullscreen" instead of throwing on requestFullscreen.
     if (!this.nativeFullscreenSupported()) {
+      if (this._presentation === "native") {
+        const v = this.video as HTMLVideoElement & {
+          webkitEnterFullscreen?: () => void;
+        };
+        if (typeof v.webkitEnterFullscreen === "function") {
+          v.webkitEnterFullscreen();
+          return;
+        }
+      }
       this.setPseudoFullscreen(!this._pseudoFullscreen);
       return;
     }
@@ -5833,6 +5875,12 @@ export class MoviElement extends HTMLElement {
   /** Whether the browser exposes the element Fullscreen API for this element
    *  (false on iOS Safari, which only fullscreens <video>). */
   private nativeFullscreenSupported(): boolean {
+    if (this._presentation === "native") {
+      const v = this.video as HTMLVideoElement & {
+        webkitEnterFullscreen?: () => void;
+      };
+      if (typeof v.webkitEnterFullscreen === "function") return true;
+    }
     return (
       typeof this.requestFullscreen === "function" && !!document.fullscreenEnabled
     );
@@ -6812,12 +6860,21 @@ export class MoviElement extends HTMLElement {
    *               into the bitmap.
    *   - null    → no subtitle selected → no customize gear shown.
    */
+  private resolveExternalSubtitleId(sub: {
+    src: string;
+    id?: string;
+  }): string {
+    return sub.id ?? sub.src;
+  }
+
   private getActiveSubtitleKind(): "vtt" | "text" | "image" | null {
     if (!this.player) return null;
     // External (declared via <track> children) — has a `format` hint.
     const ext = this.player.getSubtitleLangs().find((t) => t.active);
     if (ext) {
-      const meta = this._subtitleTracks.find((t) => t.lang === ext.lang);
+      const meta = this._subtitleTracks.find(
+        (t) => this.resolveExternalSubtitleId(t) === ext.id,
+      );
       const fmt = (meta?.format || "").toLowerCase();
       return fmt === "vtt" ? "vtt" : "text";
     }
@@ -7765,7 +7822,7 @@ export class MoviElement extends HTMLElement {
 
     const subtitleTracks = this.player.getSubtitleTracks();
     const activeTrack = this.player.trackManager.getActiveSubtitleTrack();
-    const externalSubs = this.player.getSubtitleLangs();
+    const externalSubs = this.getSubtitleLangs();
     const hasExternalSubs = externalSubs.length > 0;
 
     // Hide container if no subtitle tracks (muxed or external)
@@ -7882,7 +7939,7 @@ export class MoviElement extends HTMLElement {
     menuHTML += externalSubs
       .map((t) => `
         <div class="movi-subtitle-track-item ${t.active ? "movi-subtitle-track-active" : ""}"
-             data-subtitle-lang="${t.lang}">
+             data-subtitle-id="${t.id}">
           ${ICON}
           <span class="movi-subtitle-track-label">${t.label}</span>
           <span class="movi-subtitle-track-info">${t.lang.toUpperCase()}</span>
@@ -7913,28 +7970,28 @@ export class MoviElement extends HTMLElement {
         item.addEventListener("click", (e) => {
           e.stopPropagation();
           const trackIdStr = (item as HTMLElement).dataset.trackId;
-          const subtitleLang = (item as HTMLElement).dataset.subtitleLang;
+          const subtitleId = (item as HTMLElement).dataset.subtitleId;
 
           if (this.player) {
             const subIconOn = OSD.subOn;
             const subIconOff = OSD.subOff;
-            if (subtitleLang !== undefined) {
+            if (subtitleId !== undefined) {
               // External subtitle track
-              const st = this.player.getSubtitleLangs().find(t => t.lang === subtitleLang);
-              this.player.selectSubtitleLang(subtitleLang);
+              const st = this.player.getSubtitleLangs().find((t) => t.id === subtitleId);
+              this.player.selectExternalSubtitle(subtitleId);
               this.updateSubtitleTrackMenu();
-              const extSubOsd = st ? `${st.label} [${subtitleLang.toUpperCase()}]` : subtitleLang.toUpperCase();
+              const extSubOsd = st ? `${st.label} [${st.lang.toUpperCase()}]` : subtitleId;
               this.showOSD(subIconOn, extSubOsd);
             } else if (trackIdStr === "null") {
               // Disable all subtitles (muxed + external)
               this.player.selectSubtitleTrack(null).catch(() => {});
-              this.player.selectSubtitleLang(null);
+              this.player.selectExternalSubtitle(null);
               this.updateSubtitleTrackMenu();
               this.showOSD(subIconOff, "Subtitles Off");
             } else {
               // Muxed subtitle track
               const trackId = parseInt(trackIdStr || "0");
-              this.player.selectSubtitleLang(null);
+              this.player.selectExternalSubtitle(null);
               this.player.selectSubtitleTrack(trackId).catch(() => {});
               const trk = this.player.getSubtitleTracks().find(t => t.id === trackId);
               const muxSubLangC = trk?.language?.toUpperCase() || "";
@@ -10107,6 +10164,23 @@ export class MoviElement extends HTMLElement {
         top: 0;
         height: 100%;
         pointer-events: none;
+        border-radius: 100px;
+      }
+
+      .movi-chapter-segment--intro {
+        background: rgb(217 70 239 / 0.42);
+      }
+
+      .movi-chapter-segment--recap {
+        background: rgb(245 158 11 / 0.42);
+      }
+
+      .movi-chapter-segment--credits {
+        background: rgb(99 102 241 / 0.42);
+      }
+
+      .movi-chapter-segment--preview {
+        background: rgb(34 197 94 / 0.42);
       }
 
       .movi-progress-buffer {
@@ -14591,6 +14665,7 @@ export class MoviElement extends HTMLElement {
       const parsed = parseFloat(subtitleDelayAttr);
       if (Number.isFinite(parsed)) this._subtitleDelay = parsed;
     }
+    this._castFallbackSrc = this.getAttribute("castfallbacksrc") || "";
     this._ambientMode = this.hasAttribute("ambientmode");
     this._ambientWrapper = this.getAttribute("ambientwrapper");
     const objectFitAttr = this.getAttribute("objectfit");
@@ -15296,6 +15371,15 @@ export class MoviElement extends HTMLElement {
           }
         }
         break;
+      case "castfallbacksrc":
+        this._castFallbackSrc = newValue || "";
+        if (this._remotePlayback) {
+          const canCast =
+            (this._remotePlayback.canCast && !!this.player?.canCast()) ||
+            !!this._castFallbackSrc;
+          this.updateRemotePlaybackUi(canCast, this._remotePlayback.canAirPlay);
+        }
+        break;
       case "ambientmode":
         this._ambientMode = newValue !== null;
         this.updateAmbientMode();
@@ -15540,7 +15624,9 @@ export class MoviElement extends HTMLElement {
     const canvas = this.coverArtCanvas;
     if (!overlay || !canvas) return;
 
-    const hasVideoTrack = !!this.player?.trackManager?.getActiveVideoTrack?.();
+    const hasVideoTrack =
+      !!this.player?.trackManager?.getActiveVideoTrack?.() ||
+      (this._presentation === "native" && (this.video?.videoWidth ?? 0) > 0);
     const hasAudio = !!this.player?.hasAudibleSource?.();
 
     // Two related-but-distinct host states for an audio source (audio
@@ -15726,6 +15812,7 @@ export class MoviElement extends HTMLElement {
    */
   private async _startAutoplay(): Promise<void> {
     if (!this.player || !this._autoplay || this._isUnsupported) return;
+    this._autoplayInvoked = true;
     // Suppress the center play overlay through the startup window so the big
     // play icon doesn't flash before playback begins on its own.
     this._autoplayStarting = true;
@@ -15847,6 +15934,7 @@ export class MoviElement extends HTMLElement {
     if (this.player) {
       this.player.setSubtitleDelay(this._subtitleDelay);
     }
+    this.updateNativeSubtitleDelayRendering();
   }
 
   private updatePlaybackRate() {
@@ -16036,6 +16124,29 @@ export class MoviElement extends HTMLElement {
         ...(this._sourceAdapter && { sourceAdapter: this._sourceAdapter }),
       };
 
+      // Native vs canvas presentation. Adaptive streams, progressive MP4/WebM,
+      // and DRM use the light-DOM <video> path unless presentation="canvas".
+      const licenseUrl = this.getAttribute("licenseurl") || "";
+      const isDrm = this.hasAttribute("drm") || licenseUrl.length > 0;
+      const presentationAttr = this.getAttribute("presentation");
+      const presentationOverride =
+        presentationAttr === "canvas" || presentationAttr === "native"
+          ? presentationAttr
+          : undefined;
+      const sourceForPresentation: SourceConfig | undefined =
+        source?.type === "url" || source?.type === "file" || source?.type === "encrypted"
+          ? source
+          : undefined;
+      const presentation = resolvePresentationMode({
+        source: sourceForPresentation,
+        presentation: presentationOverride,
+        drm: isDrm,
+        lcevc: this.hasAttribute("lcevc"),
+        sourceAdapter: this._sourceAdapter ?? undefined,
+      });
+      this._presentation = presentation;
+      playerConfig.presentation = presentation;
+
       // Separate audio source — multi-language or single
       if (this._audioTracks.length > 0) {
         playerConfig.audioTracks = this._audioTracks.map((t) => ({
@@ -16055,26 +16166,13 @@ export class MoviElement extends HTMLElement {
           lang: t.lang,
           label: t.label,
           format: (t.format as "vtt" | "srt" | undefined),
+          id: t.id ?? t.src,
         }));
       }
 
-      // DRM mode: use the native video element for adaptive streams (EME
-      // requires <video>; protected frames can't be copied to a canvas) —
-      // applies to HLS (.m3u8) and DASH (.mpd) alike. Providing a `licenseurl`
-      // is enough to enable it; the bare `drm` boolean attribute still works.
-      const licenseUrl = this.getAttribute("licenseurl") || "";
-      const isDrm = this.hasAttribute("drm") || licenseUrl.length > 0;
-      const isAdaptiveStream = typeof this._src === "string" &&
-        (this._src.toLowerCase().includes(".m3u8") ||
-          this._src.toLowerCase().includes(".mpd") ||
-          this._src.toLowerCase().includes(".ism"));
-
-      if (isDrm && isAdaptiveStream) {
-        playerConfig.renderer = "video";
+      if (isDrm) {
         playerConfig.drm = true;
         if (licenseUrl) playerConfig.licenseUrl = licenseUrl;
-        // Optional auth headers for the license request, as a JSON object,
-        // e.g. licenseheaders='{"Authorization":"Bearer <token>"}'.
         const rawHeaders = this.getAttribute("licenseheaders");
         if (rawHeaders) {
           try {
@@ -16083,8 +16181,15 @@ export class MoviElement extends HTMLElement {
             Logger.warn(TAG, "Invalid licenseheaders JSON attribute; ignoring");
           }
         }
+      }
+
+      if (presentation === "native") {
+        playerConfig.renderer = "video";
         this.canvas.style.display = "none";
         this.video.style.display = "block";
+        this.video.setAttribute("playsinline", "");
+        this.video.setAttribute("webkit-playsinline", "");
+        this.video.disableRemotePlayback = false;
       } else {
         playerConfig.renderer = "canvas";
         playerConfig.canvas = this.canvas;
@@ -16092,17 +16197,14 @@ export class MoviElement extends HTMLElement {
         this.video.style.display = "none";
       }
 
-      // MPEG-5 LCEVC (opt-in): Shaka composites the enhanced layer onto the
-      // canvas. Needs the external lcevc_dec.js library — point `lcevcurl` at
-      // it to lazy-load, or load it yourself (global LCEVCdec). Without DRM.
       if (!playerConfig.drm && this.hasAttribute("lcevc")) {
         playerConfig.lcevc = true;
         const lcevcUrl = this.getAttribute("lcevcurl");
         if (lcevcUrl) playerConfig.lcevcUrl = lcevcUrl;
       }
 
-      // Create Player instance
-      const mode = playerConfig.drm ? "DRM/Native Video" : "Canvas Renderer";
+      const mode =
+        presentation === "native" ? "Native Video" : playerConfig.drm ? "DRM/Native Video" : "Canvas Renderer";
       Logger.info(TAG, `Initializing MoviPlayer (${mode} Mode)`);
       this.player = new MoviPlayer(playerConfig);
 
@@ -16118,22 +16220,6 @@ export class MoviElement extends HTMLElement {
           (this.player as any).adoptNativeAudio?.(this._carryAudioEl);
         } catch {}
         this._carryAudioEl = null;
-      }
-
-      // In DRM mode, use the stream wrapper's native <video> element directly
-      // (Shaka manages EME on it; protected frames can't go through canvas).
-      if (playerConfig.drm) {
-        const streamVideo = this.player.getHLSVideoElement();
-        if (streamVideo && this.video) {
-          // Replace our video element with the stream's native video element
-          streamVideo.style.width = "100%";
-          streamVideo.style.height = "100%";
-          streamVideo.style.display = "block";
-          streamVideo.style.objectFit = "contain";
-          this.video.replaceWith(streamVideo);
-          this.video = streamVideo;
-          Logger.info(TAG, "DRM: Swapped in native stream video element");
-        }
       }
 
       // Reset unsupported state
@@ -16154,7 +16240,6 @@ export class MoviElement extends HTMLElement {
       }
 
       // Load the video
-      // Load the video
       if (this.player) {
         await this.player.load();
         // Apply any `buffersize` attribute set on the element before
@@ -16162,6 +16247,29 @@ export class MoviElement extends HTMLElement {
         // the attributeChangedCallback path couldn't have reached it.
         if (this._bufferSize > 0) {
           this.player.setMaxBufferSize(this._bufferSize);
+        }
+      }
+
+      if (presentation === "native") {
+        this.mountNativeStreamVideo();
+        this._videoPresenter = new NativeVideoPresenter(this.video);
+        this.setupRemotePlaybackControls();
+        this.applyNativeCueStyles();
+        this.syncNativeSubtitleTracks();
+        this.updateSubtitleTrackMenu();
+      } else {
+        this._videoPresenter = new CanvasVideoPresenter(
+          this.canvas,
+          this.player,
+          this,
+        );
+        if (this._castFallbackSrc) {
+          this.setupRemotePlaybackControls();
+        } else {
+          this.updateRemotePlaybackUi(false);
+          this.dispatchEvent(
+            new CustomEvent("cancastchange", { detail: { canCast: false } }),
+          );
         }
       }
 
@@ -16356,10 +16464,13 @@ export class MoviElement extends HTMLElement {
       this.handleUnsupportedVideo(title, message);
     } finally {
       this.isLoading = false;
-      // Flush any play() calls that were deferred while loading was in flight.
+      // Flush deferred host play() calls, but not when autoplay already started
+      // the internal player — that duplicates play() and races pause/buffer.
       if (this._pendingPlay && this.player && !this._isUnsupported) {
         this._pendingPlay = false;
-        this.player.play().catch(() => {});
+        if (!this._autoplayInvoked) {
+          this.player.play().catch(() => {});
+        }
       } else {
         this._pendingPlay = false;
       }
@@ -16375,6 +16486,268 @@ export class MoviElement extends HTMLElement {
   /**
    * Set up event handlers for the player
    */
+  get presenter(): VideoPresenter | null {
+    return this._videoPresenter;
+  }
+
+  private mountNativeStreamVideo(): void {
+    if (!this.player) return;
+    const streamVideo = this.player.getNativeVideoElement();
+    if (!streamVideo || streamVideo === this.video) return;
+
+    streamVideo.style.width = "100%";
+    streamVideo.style.height = "100%";
+    streamVideo.style.display = "block";
+    streamVideo.style.objectFit = this.video.style.objectFit || "contain";
+    streamVideo.className = this.video.className;
+    this.video.replaceWith(streamVideo);
+    this.video = streamVideo;
+    Logger.info(TAG, "Mounted native stream video element in light DOM");
+  }
+
+  private setupRemotePlaybackControls(): void {
+    const castBtn = this.shadowRoot?.querySelector(
+      ".movi-cast-btn",
+    ) as HTMLButtonElement | null;
+    const airplayBtn = this.shadowRoot?.querySelector(
+      ".movi-airplay-btn",
+    ) as HTMLButtonElement | null;
+
+    this._remotePlayback = new RemotePlaybackController({
+      video: this.video,
+      getSourceUrl: () =>
+        typeof this._src === "string" ? this._src : this.video.currentSrc || null,
+      getContentType: () => {
+        const src = typeof this._src === "string" ? this._src.toLowerCase() : "";
+        if (src.includes(".m3u8")) return "application/vnd.apple.mpegurl";
+        if (src.includes(".mpd")) return "application/dash+xml";
+        if (src.includes(".webm")) return "video/webm";
+        return "video/mp4";
+      },
+      onCanCastChange: (canCast) => {
+        this.updateRemotePlaybackUi(canCast);
+        this.dispatchEvent(
+          new CustomEvent("cancastchange", { detail: { canCast } }),
+        );
+      },
+    });
+
+    const canCast =
+      (this._remotePlayback.canCast && !!this.player?.canCast()) ||
+      !!this._castFallbackSrc;
+    const canAirPlay = this._remotePlayback.canAirPlay;
+    this.updateRemotePlaybackUi(canCast, canAirPlay);
+    this.dispatchEvent(
+      new CustomEvent("cancastchange", {
+        detail: { canCast: !!this.player?.canCast() },
+      }),
+    );
+
+    castBtn?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!this._remotePlayback) return;
+      if (!this.player?.canCast() && this._castFallbackSrc) {
+        this.dispatchEvent(
+          new CustomEvent("castfallback", {
+            detail: { src: this._castFallbackSrc },
+            bubbles: true,
+          }),
+        );
+        return;
+      }
+      try {
+        await this._remotePlayback.requestCast();
+      } catch (err) {
+        Logger.warn(TAG, "Cast request failed", err);
+        this.dispatchEvent(
+          new CustomEvent("casterror", {
+            detail: {
+              message: err instanceof Error ? err.message : String(err),
+            },
+          }),
+        );
+      }
+    });
+
+    airplayBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this._remotePlayback?.showAirPlayPicker();
+    });
+  }
+
+  private updateRemotePlaybackUi(canCast: boolean, canAirPlay?: boolean): void {
+    const castBtn = this.shadowRoot?.querySelector(
+      ".movi-cast-btn",
+    ) as HTMLElement | null;
+    const airplayBtn = this.shadowRoot?.querySelector(
+      ".movi-airplay-btn",
+    ) as HTMLElement | null;
+    const showCast =
+      canCast ||
+      (!!this._castFallbackSrc && (this._remotePlayback?.canCast ?? false));
+    if (castBtn) castBtn.style.display = showCast ? "" : "none";
+    if (airplayBtn) {
+      airplayBtn.style.display =
+        canAirPlay ?? this._remotePlayback?.canAirPlay ?? false ? "" : "none";
+    }
+  }
+
+  private applyNativeCueStyles(): void {
+    if (!this.shadowRoot) return;
+    if (!this._nativeCueStyle) {
+      const style = document.createElement("style");
+      style.textContent =
+        "video::cue{" +
+        "font-size:calc(clamp(20px,calc(var(--movi-player-width,100vw)*0.032),40px)*var(--movi-sub-size-mult,1));" +
+        "color:var(--movi-sub-color,#fff);" +
+        "background-color:rgba(var(--movi-sub-bg-rgb,0,0,0),var(--movi-sub-bg-alpha,0.75));" +
+        "text-shadow:var(--movi-sub-edge,none);" +
+        "line-height:1.3;}";
+      this.shadowRoot.appendChild(style);
+      this._nativeCueStyle = style;
+    }
+    this.applySubtitleSettings();
+  }
+
+  private resolveNativeSubtitleSrc(src: string): string | null {
+    if (!src) return null;
+    if (src.startsWith("/")) return src;
+    try {
+      const parsed = new URL(src, window.location.origin);
+      if (parsed.origin === window.location.origin) {
+        return parsed.href;
+      }
+    } catch {
+      return null;
+    }
+    Logger.warn(
+      TAG,
+      `Skipping subtitle track with non-proxied URL (native <track> cannot send auth headers): ${src}`,
+    );
+    return null;
+  }
+
+  private syncNativeSubtitleTracks(): void {
+    if (this._presentation !== "native") return;
+    const video = this.video;
+    for (const track of [...video.querySelectorAll("track")]) {
+      track.remove();
+    }
+    for (const sub of this._subtitleTracks) {
+      const src = this.resolveNativeSubtitleSrc(sub.src);
+      if (!src) continue;
+      const track = document.createElement("track");
+      track.kind = "subtitles";
+      track.label = sub.label;
+      track.srclang = sub.lang;
+      track.src = src;
+      if (sub.default) {
+        track.default = true;
+      }
+      video.appendChild(track);
+    }
+    const textTracks = video.textTracks;
+    let defaultShown = false;
+    for (let i = 0; i < textTracks.length; i++) {
+      if (textTracks[i].mode === "showing") {
+        defaultShown = true;
+        const matchingSub = this._subtitleTracks.find(
+          (sub) => sub.label === textTracks[i].label,
+        );
+        if (matchingSub && this.player) {
+          void this.player.selectExternalSubtitle(
+            this.resolveExternalSubtitleId(matchingSub),
+          );
+        }
+        continue;
+      }
+      textTracks[i].mode = "hidden";
+    }
+    if (!defaultShown && this.player) {
+      const preferredSub =
+        this._subtitleTracks.find((sub) => sub.default) ??
+        (this._subtitleTracks.length === 1
+          ? this._subtitleTracks[0]
+          : undefined);
+      if (preferredSub) {
+        void this.player.selectExternalSubtitle(
+          this.resolveExternalSubtitleId(preferredSub),
+        );
+      }
+    }
+    this.updateNativeSubtitleDelayRendering();
+  }
+
+  private stopNativeSubtitleDelayRendering(): void {
+    if (this._nativeSubDelayFrameId !== null) {
+      this.video.cancelVideoFrameCallback(this._nativeSubDelayFrameId);
+      this._nativeSubDelayFrameId = null;
+    }
+    if (this.subtitleOverlay) {
+      this.subtitleOverlay.innerHTML = "";
+    }
+  }
+
+  private updateNativeSubtitleDelayRendering(): void {
+    this.stopNativeSubtitleDelayRendering();
+    if (this._presentation !== "native" || this._subtitleDelay === 0) {
+      return;
+    }
+
+    const renderDelayedNativeSubtitles = () => {
+      if (this._presentation !== "native" || this._subtitleDelay === 0) {
+        return;
+      }
+
+      const adjustedTime = this.video.currentTime - this._subtitleDelay;
+      let activeText = "";
+
+      for (let i = 0; i < this.video.textTracks.length; i++) {
+        const textTrack = this.video.textTracks[i];
+        if (textTrack.kind !== "subtitles" && textTrack.kind !== "captions") {
+          continue;
+        }
+        if (textTrack.mode === "showing") {
+          textTrack.mode = "hidden";
+        }
+        const cues = textTrack.cues;
+        if (!cues) continue;
+        for (let j = 0; j < cues.length; j++) {
+          const cue = cues[j];
+          if (
+            cue &&
+            adjustedTime >= cue.startTime &&
+            adjustedTime <= cue.endTime
+          ) {
+            activeText = (cue as VTTCue).text;
+            break;
+          }
+        }
+        if (activeText) break;
+      }
+
+      if (this.subtitleOverlay) {
+        this.subtitleOverlay.innerHTML = "";
+        if (activeText) {
+          const block = document.createElement("div");
+          block.className = "movi-subtitle-block";
+          const line = document.createElement("div");
+          line.className = "movi-subtitle-line";
+          line.textContent = activeText;
+          block.appendChild(line);
+          this.subtitleOverlay.appendChild(block);
+        }
+      }
+
+      this._nativeSubDelayFrameId = this.video.requestVideoFrameCallback(() => {
+        this._nativeSubDelayFrameId = null;
+        renderDelayedNativeSubtitles();
+      });
+    };
+
+    renderDelayedNativeSubtitles();
+  }
+
   private setupEventHandlers(): void {
     if (!this.player) return;
 
@@ -16429,6 +16802,7 @@ export class MoviElement extends HTMLElement {
 
     // Handle tracks change (when media loads)
     const tracksChangeHandler = () => {
+      this.updateCoverArtOverlay();
       this.updateAudioTrackMenu();
       this.updateSubtitleTrackMenu();
       this.updateQualityMenu();
@@ -16445,6 +16819,35 @@ export class MoviElement extends HTMLElement {
     this.player.trackManager.on("tracksChange", tracksChangeHandler);
     this.eventHandlers.set("tracksChange", () =>
       this.player?.trackManager.off("tracksChange", tracksChangeHandler),
+    );
+
+    const forwardDom = <K extends "waiting" | "playing" | "seeked">(
+      event: K,
+      mapper?: (value: unknown) => CustomEventInit,
+    ) => {
+      const handler = (detail: unknown) => {
+        const init = mapper ? mapper(detail) : { detail };
+        this.dispatchEvent(new CustomEvent(event, init));
+      };
+      this.player!.on(event, handler as never);
+      this.eventHandlers.set(event, () =>
+        this.player?.off(event, handler as never),
+      );
+    };
+    forwardDom("waiting", () => ({}));
+    forwardDom("playing", () => ({}));
+    forwardDom("seeked", (time) => ({ detail: time }));
+
+    const playerErrorHandler = (info: {
+      message: string;
+      category: string;
+      severity: string;
+    }) => {
+      this.dispatchEvent(new CustomEvent("playererror", { detail: info }));
+    };
+    this.player.on("playerError", playerErrorHandler);
+    this.eventHandlers.set("playerError", () =>
+      this.player?.off("playerError", playerErrorHandler),
     );
 
     // Forward player events to element
@@ -16864,6 +17267,16 @@ export class MoviElement extends HTMLElement {
    */
   async play(): Promise<void> {
     if (this._isUnsupported) return;
+    if (this._elementPlayPromise) {
+      return this._elementPlayPromise;
+    }
+    this._elementPlayPromise = this.playInternal().finally(() => {
+      this._elementPlayPromise = null;
+    });
+    return this._elementPlayPromise;
+  }
+
+  private async playInternal(): Promise<void> {
     // If a load is in flight, defer the play. initializePlayer() flushes
     // this once loading settles, matching HTMLMediaElement.play() semantics.
     if (this.isLoading) {
@@ -16891,6 +17304,7 @@ export class MoviElement extends HTMLElement {
     // Cancel any queued play() intent so a late load doesn't start playback
     // after the caller explicitly paused.
     this._pendingPlay = false;
+    this._elementPlayPromise = null;
     if (this.player && !this.isLoading && !this._isUnsupported) {
       this.player.pause();
     }
@@ -17124,6 +17538,8 @@ export class MoviElement extends HTMLElement {
   dispose(): void {
     // Cancel any queued play intent
     this._pendingPlay = false;
+    this._elementPlayPromise = null;
+    this._autoplayInvoked = false;
     this._preloadGateActive = false;
     this._resumeDialogPending = false;
     this._autoplayPendingVisible = false;
@@ -17579,7 +17995,6 @@ export class MoviElement extends HTMLElement {
     const duration = this.player.getDuration();
     if (chapters.length === 0 || duration <= 0) return;
 
-    // Add chapter dividers (gaps between chapters)
     for (let i = 1; i < chapters.length; i++) {
       const ch = chapters[i];
       const percent = (ch.start / duration) * 100;
@@ -17587,26 +18002,27 @@ export class MoviElement extends HTMLElement {
       const marker = document.createElement("div");
       marker.className = "movi-chapter-marker";
       marker.style.left = `${percent}%`;
-
-      // Tooltip with chapter title
       marker.setAttribute("data-title", ch.title);
 
       container.appendChild(marker);
     }
 
-    // Add chapter segment hover labels
-    for (let i = 0; i < chapters.length; i++) {
-      const ch = chapters[i];
-      const startPct = (ch.start / duration) * 100;
-      const endPct = i < chapters.length - 1
-        ? (chapters[i + 1].start / duration) * 100
-        : 100;
+    for (const ch of chapters) {
+      const { left, width } = chapterSegmentPercent(ch, duration);
+      if (width <= 0) {
+        continue;
+      }
 
       const segment = document.createElement("div");
       segment.className = "movi-chapter-segment";
-      segment.style.left = `${startPct}%`;
-      segment.style.width = `${endPct - startPct}%`;
+      segment.style.left = `${left}%`;
+      segment.style.width = `${width}%`;
       segment.setAttribute("data-title", ch.title);
+
+      const segmentClass = introDbSegmentClassName(ch.title);
+      if (segmentClass) {
+        segment.classList.add(segmentClass);
+      }
 
       container.appendChild(segment);
     }
@@ -18402,13 +18818,68 @@ export class MoviElement extends HTMLElement {
   /**
    * Get available external subtitle tracks
    */
-  getSubtitleLangs(): { lang: string; label: string; active: boolean }[] {
-    if (this.player) return this.player.getSubtitleLangs();
+  getSubtitleLangs(): {
+    id: string;
+    lang: string;
+    label: string;
+    active: boolean;
+  }[] {
+    if (this.player) {
+      const fromPlayer = this.player.getSubtitleLangs();
+      if (fromPlayer.length > 0) {
+        return fromPlayer;
+      }
+    }
     return this._subtitleTracks.map((t) => ({
+      id: this.resolveExternalSubtitleId(t),
       lang: t.lang,
       label: t.label,
       active: false,
     }));
+  }
+
+  /**
+   * Select an external subtitle track by stable id (null to disable)
+   */
+  async selectExternalSubtitle(id: string | null): Promise<boolean> {
+    if (this.player) return this.player.selectExternalSubtitle(id);
+    return false;
+  }
+
+  setExternalSubtitles(
+    subtitles: {
+      id?: string;
+      src: string;
+      lang: string;
+      label: string;
+      format?: string;
+      default?: boolean;
+    }[],
+  ): void {
+    this._subtitleTracks = subtitles.map((sub) => ({
+      src: sub.src,
+      lang: sub.lang,
+      label: sub.label,
+      format: sub.format,
+      id: sub.id,
+      default: sub.default,
+    }));
+
+    if (this.player) {
+      this.player.setExternalSubtitleTracks(
+        this._subtitleTracks.map((track) => ({
+          url: track.src,
+          lang: track.lang,
+          label: track.label,
+          format: track.format as "vtt" | "srt" | undefined,
+          id: track.id ?? track.src,
+        })),
+      );
+    }
+
+    if (this._presentation === "native" && this.player) {
+      this.syncNativeSubtitleTracks();
+    }
   }
 
   /**
@@ -18417,6 +18888,67 @@ export class MoviElement extends HTMLElement {
   async selectSubtitleLang(lang: string | null): Promise<boolean> {
     if (this.player) return this.player.selectSubtitleLang(lang);
     return false;
+  }
+
+  /**
+   * Manifest / muxed subtitle tracks (HLS, MKV, etc.)
+   */
+  getSubtitleTracks(): ReturnType<MoviPlayer["getSubtitleTracks"]> {
+    return this.player?.getSubtitleTracks() ?? [];
+  }
+
+  /**
+   * Select a manifest / muxed subtitle track (null to disable)
+   */
+  async selectSubtitleTrack(trackId: number | null): Promise<boolean> {
+    if (!this.player) return false;
+    return this.player.selectSubtitleTrack(trackId);
+  }
+
+  /**
+   * Active subtitle language for preference persistence ("off" when disabled)
+   */
+  getActiveSubtitlePreference(): string {
+    const external = this.player?.getSubtitleLangs().find((track) => track.active);
+    if (external) {
+      return external.lang || external.label || "unknown";
+    }
+
+    const muxed = this.player?.trackManager.getActiveSubtitleTrack();
+    if (muxed) {
+      return muxed.language || muxed.label || "unknown";
+    }
+
+    return "off";
+  }
+
+  setExternalQualities(qualities: ExternalQualityEntry[]): void {
+    this.player?.setExternalQualities(qualities);
+  }
+
+  getExternalQualities(): ExternalQualityEntry[] {
+    return this.player?.getExternalQualities() ?? [];
+  }
+
+  setChapterMarkers(chapters: ChapterMarker[]): void {
+    this.player?.setChapterMarkers(chapters);
+    this.renderChapterMarkers();
+  }
+
+  getChapterMarkers(): ChapterMarker[] {
+    return this.player?.getChapterMarkers() ?? [];
+  }
+
+  getPresentationMode(): PresentationMode {
+    return (
+      this.player?.getPresentationMode() ??
+      this._presentation ??
+      "canvas"
+    );
+  }
+
+  canCast(): boolean {
+    return this.player?.canCast() ?? false;
   }
 
   set src(value: string | File | null) {
@@ -18653,7 +19185,13 @@ export class MoviElement extends HTMLElement {
           audio?:
             | { src: string; type?: string }
             | { src: string; type?: string; lang: string; label: string }[];
-          subtitles?: { src: string; lang: string; label: string; format?: string }[];
+          subtitles?: {
+            src: string;
+            lang: string;
+            label: string;
+            format?: string;
+            id?: string;
+          }[];
         }
   ): { src: string | File | null; type: string; audioSrc?: string | null } | void {
     // Getter
@@ -20891,6 +21429,9 @@ export class MoviElement extends HTMLElement {
 
 // Register the custom element
 // Note: Custom element names must contain a hyphen per HTML spec
-if (typeof customElements !== "undefined") {
+if (
+  typeof customElements !== "undefined" &&
+  !customElements.get("movi-player")
+) {
   customElements.define("movi-player", MoviElement);
 }

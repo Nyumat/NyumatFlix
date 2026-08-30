@@ -2,8 +2,19 @@ import { Episode } from "@/lib/domain/typings";
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { episodeNumberForProviders } from "@/lib/tv-provider-episode";
 import type { MappingConfidence } from "@/lib/anime/tmdb-anilist-map";
+import { rememberLastTvEpisode } from "@/lib/playback/progress-storage";
+import { normalizeTvContentKey } from "@/lib/tv-watch-target";
 import { create } from "zustand";
 import { useServerStore, isScrapeServer } from "./server-store";
+
+export type AnimeEpisodeMappingContext = {
+  tvShowId: string;
+  seasonNumber: number;
+  episodeNumber: number;
+};
+
+let advanceRequestId = 0;
+let advanceInFlight: Promise<boolean> | null = null;
 
 export type NextEpisodeTarget = {
   episode: Episode;
@@ -64,18 +75,21 @@ interface EpisodeState {
       relativeEpisodeNumber?: number;
     },
   ) => void;
-  applyAnimeEpisodeMapping: (mapping: {
-    animeInfo: {
-      anilistId: number;
-      startEpisode: number;
-      endEpisode: number;
-    };
-    confidence: MappingConfidence;
-    isAdult: boolean;
-    genres?: string[];
-    animeSeasonNumber?: number | null;
-    relativeEpisodeNumber?: number;
-  }) => void;
+  applyAnimeEpisodeMapping: (
+    mapping: {
+      animeInfo: {
+        anilistId: number;
+        startEpisode: number;
+        endEpisode: number;
+      };
+      confidence: MappingConfidence;
+      isAdult: boolean;
+      genres?: string[];
+      animeSeasonNumber?: number | null;
+      relativeEpisodeNumber?: number;
+    },
+    context?: AnimeEpisodeMappingContext,
+  ) => void;
   setAnimeCoordsStatus: (status: EpisodeState["animeCoordsStatus"]) => void;
   clearSelectedEpisode: () => void;
   setDefaultAnilistId: (anilistId: number | null, isAdult?: boolean) => void;
@@ -171,6 +185,11 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
             ? "pending"
             : "idle";
 
+    const contentKey = normalizeTvContentKey(tvShowId);
+    if (contentKey !== null) {
+      rememberLastTvEpisode(contentKey, seasonNumber, episode.episode_number);
+    }
+
     set({
       selectedEpisode: episode,
       tvShowId,
@@ -217,10 +236,21 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       animeCoordsStatus: "idle",
     });
   },
-  applyAnimeEpisodeMapping: (mapping) => {
-    const { selectedEpisode } = get();
-    if (!selectedEpisode) {
+  applyAnimeEpisodeMapping: (mapping, context) => {
+    const state = get();
+    const { selectedEpisode, tvShowId, seasonNumber } = state;
+    if (!selectedEpisode || !tvShowId || seasonNumber == null) {
       return;
+    }
+
+    if (context) {
+      if (
+        tvShowId !== context.tvShowId ||
+        seasonNumber !== context.seasonNumber ||
+        selectedEpisode.episode_number !== context.episodeNumber
+      ) {
+        return;
+      }
     }
 
     const relativeEpisodeNumber =
@@ -326,14 +356,21 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       if (selectedServer.getAnimePaheUrl) {
         return selectedServer.getAnimePaheUrl(anilistId, relativeEpisodeNumber);
       }
+
+      return null;
     }
 
-    const url = selectedServer.getEpisodeUrl(
-      parseInt(tvShowId),
+    const { playbackTmdbTvId } = get();
+    const tmdbShowId = playbackTmdbTvId ?? normalizeTvContentKey(tvShowId);
+    if (!tmdbShowId) {
+      return null;
+    }
+
+    return selectedServer.getEpisodeUrl(
+      tmdbShowId,
       seasonNumber,
       providerEpisodeNumber ?? selectedEpisode.episode_number,
     );
-    return url;
   },
   getNextEpisodeTarget: () => {
     const { selectedEpisode, seasonNumber, seasonEpisodes } = get();
@@ -364,6 +401,12 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     };
   },
   advanceToNextEpisode: async () => {
+    if (advanceInFlight) {
+      return advanceInFlight;
+    }
+
+    const requestId = ++advanceRequestId;
+    const started = get();
     const {
       selectedEpisode,
       seasonNumber,
@@ -371,17 +414,38 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       seasonEpisodes,
       setSelectedEpisode,
       getNextEpisodeTarget,
-    } = get();
+    } = started;
 
     if (!selectedEpisode || seasonNumber == null || !tvShowId) {
       return false;
     }
+
+    const startEpisodeId = selectedEpisode.id;
+    const startEpisodeNumber = selectedEpisode.episode_number;
+
+    const isStale = () => {
+      if (requestId !== advanceRequestId) {
+        return true;
+      }
+
+      const state = get();
+      return (
+        state.tvShowId !== tvShowId ||
+        state.seasonNumber !== seasonNumber ||
+        state.selectedEpisode?.id !== startEpisodeId ||
+        state.selectedEpisode?.episode_number !== startEpisodeNumber
+      );
+    };
 
     const advanceEpisode = (
       episode: Episode,
       targetSeason: number,
       episodes: Episode[],
     ) => {
+      if (isStale()) {
+        return;
+      }
+
       const {
         anilistId,
         animeSeasonNumber,
@@ -423,50 +487,80 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
       );
     };
 
-    const inSeasonNext = getNextEpisodeTarget();
-    if (inSeasonNext) {
-      advanceEpisode(
-        inSeasonNext.episode,
-        inSeasonNext.seasonNumber,
-        inSeasonNext.seasonEpisodes,
-      );
-      return true;
-    }
+    advanceInFlight = (async () => {
+      try {
+        const inSeasonNext = getNextEpisodeTarget();
+        if (inSeasonNext) {
+          if (isStale()) {
+            return false;
+          }
+          advanceEpisode(
+            inSeasonNext.episode,
+            inSeasonNext.seasonNumber,
+            inSeasonNext.seasonEpisodes,
+          );
+          return !isStale();
+        }
 
-    let currentSeasonEpisodes = seasonEpisodes;
-    if (!currentSeasonEpisodes?.length) {
-      const currentSeason = await fetchSeasonDetails(tvShowId, seasonNumber);
-      currentSeasonEpisodes = currentSeason?.episodes ?? [];
-    }
+        let currentSeasonEpisodes = seasonEpisodes;
+        if (!currentSeasonEpisodes?.length) {
+          const currentSeason = await fetchSeasonDetails(
+            tvShowId,
+            seasonNumber,
+          );
+          if (isStale()) {
+            return false;
+          }
+          currentSeasonEpisodes = currentSeason?.episodes ?? [];
+        }
 
-    if (currentSeasonEpisodes.length > 0) {
-      const sorted = [...currentSeasonEpisodes].sort(
-        (a, b) => a.episode_number - b.episode_number,
-      );
-      const currentIndex = sorted.findIndex(
-        (episode) =>
-          episode.id === selectedEpisode.id ||
-          episode.episode_number === selectedEpisode.episode_number,
-      );
+        if (currentSeasonEpisodes.length > 0) {
+          const sorted = [...currentSeasonEpisodes].sort(
+            (a, b) => a.episode_number - b.episode_number,
+          );
+          const currentIndex = sorted.findIndex(
+            (episode) =>
+              episode.id === startEpisodeId ||
+              episode.episode_number === startEpisodeNumber,
+          );
 
-      if (currentIndex >= 0 && currentIndex < sorted.length - 1) {
-        advanceEpisode(sorted[currentIndex + 1]!, seasonNumber, sorted);
-        return true;
+          if (currentIndex >= 0 && currentIndex < sorted.length - 1) {
+            if (isStale()) {
+              return false;
+            }
+            advanceEpisode(sorted[currentIndex + 1]!, seasonNumber, sorted);
+            return !isStale();
+          }
+        }
+
+        const nextSeasonNumber = seasonNumber + 1;
+        const nextSeason = await fetchSeasonDetails(tvShowId, nextSeasonNumber);
+        if (isStale()) {
+          return false;
+        }
+
+        const nextSeasonEpisodes = nextSeason?.episodes ?? [];
+        if (nextSeasonEpisodes.length === 0) {
+          return false;
+        }
+
+        const sortedNextSeason = [...nextSeasonEpisodes].sort(
+          (a, b) => a.episode_number - b.episode_number,
+        );
+        advanceEpisode(
+          sortedNextSeason[0]!,
+          nextSeasonNumber,
+          sortedNextSeason,
+        );
+        return !isStale();
+      } finally {
+        if (requestId === advanceRequestId) {
+          advanceInFlight = null;
+        }
       }
-    }
+    })();
 
-    const nextSeasonNumber = seasonNumber + 1;
-    const nextSeason = await fetchSeasonDetails(tvShowId, nextSeasonNumber);
-    const nextSeasonEpisodes = nextSeason?.episodes ?? [];
-    if (nextSeasonEpisodes.length === 0) {
-      return false;
-    }
-
-    const sortedNextSeason = [...nextSeasonEpisodes].sort(
-      (a, b) => a.episode_number - b.episode_number,
-    );
-    advanceEpisode(sortedNextSeason[0]!, nextSeasonNumber, sortedNextSeason);
-    return true;
+    return advanceInFlight;
   },
   setWatchCallback: (callback) => {
     set({ watchCallback: callback });

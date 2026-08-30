@@ -18,7 +18,6 @@ const PROVIDERS: AnimeScrapeProviderId[] = [
   "kickassanime",
   "animeonsen",
   "allmanga",
-  "animestream",
   "animegg",
   "animepahe",
 ];

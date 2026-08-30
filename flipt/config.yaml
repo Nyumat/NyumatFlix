@@ -15,6 +15,9 @@ authentication:
             metadata:
               description: "NyumatFlix app read/write"
 
+evaluation:
+  include_flag_metadata: true
+
 storage:
   default:
     backend:

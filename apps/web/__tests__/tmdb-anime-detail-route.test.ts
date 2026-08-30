@@ -68,7 +68,7 @@ describe("resolveTmdbAnimeDetailRedirects", () => {
 
     await expect(
       resolveTmdbAnimeDetailRedirects("tmdb-207840"),
-    ).rejects.toThrow("REDIRECT:/anime/153567?");
+    ).rejects.toThrow("REDIRECT:/anime/anilist-153567?");
   });
 
   it("redirects tmdb-movie-1234 to canonical AniList anime URL when mapped", async () => {
@@ -76,7 +76,7 @@ describe("resolveTmdbAnimeDetailRedirects", () => {
 
     await expect(
       resolveTmdbAnimeDetailRedirects("tmdb-movie-1234"),
-    ).rejects.toThrow("REDIRECT:/anime/4321?");
+    ).rejects.toThrow("REDIRECT:/anime/anilist-4321?");
   });
 
   it("falls back to standard tvshow route when anime cannot be mapped to AniList", async () => {

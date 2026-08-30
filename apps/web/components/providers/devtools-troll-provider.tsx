@@ -10,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 const DETECT_DELAY_MS = 400;
 
 const isDevtoolsTrapDisabled = (): boolean =>
+  process.env.NODE_ENV === "development" ||
   process.env.NEXT_PUBLIC_DISABLE_DEVTOOLS_TRAP === "true" ||
   process.env.NEXT_PUBLIC_DISABLE_DEVTOOLS_TRAP === "1";
 

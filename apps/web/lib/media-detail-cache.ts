@@ -4,6 +4,7 @@ import {
   parseAnimeAnilistRouteId,
 } from "@/lib/anilist-route-id";
 import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
 import { type MediaItem } from "@/lib/domain/typings";
 import { pickEnglishLogo } from "@/lib/tmdb-logo";
@@ -45,13 +46,14 @@ const movieDetailFetchInit = (id: string) =>
 
 export const getCachedMovieDetail = cache(
   async (id: string): Promise<MediaItem | null> => {
+    const tmdbId = unwrapTmdbLookupId(id);
     try {
-      const url = new URL(`${TMDB_BASE_URL}/movie/${id}`);
+      const url = new URL(`${TMDB_BASE_URL}/movie/${tmdbId}`);
       url.searchParams.set("api_key", process.env.TMDB_API_KEY ?? "");
       url.searchParams.set("language", "en-US");
       url.searchParams.set("append_to_response", MOVIE_DETAIL_APPEND);
 
-      const response = await fetch(url, movieDetailFetchInit(id));
+      const response = await fetch(url, movieDetailFetchInit(tmdbId));
 
       if (!response.ok) {
         return null;
@@ -74,16 +76,21 @@ export type TvShowDetailCacheOptions = {
   animeCatalog?: boolean;
 };
 
-export const getCachedTvShowDetail = cache(
-  (id: string, options?: TvShowDetailCacheOptions) => {
-    const useAnilist = options?.animeCatalog
+const getCachedTvShowDetailCached = cache(
+  (id: string, animeCatalog: boolean) => {
+    const useAnilist = animeCatalog
       ? parseAnimeAnilistRouteId(id) !== null
       : isAnilistTvRouteId(id);
 
     return useAnilist
       ? getCachedAnilistTvShowDetail(id, {
-          acceptBareNumeric: options?.animeCatalog === true,
+          acceptBareNumeric: animeCatalog,
         })
-      : fetchTVShowDetails(id);
+      : fetchTVShowDetails(unwrapTmdbLookupId(id));
   },
 );
+
+export const getCachedTvShowDetail = (
+  id: string,
+  options?: TvShowDetailCacheOptions,
+) => getCachedTvShowDetailCached(id, options?.animeCatalog === true);

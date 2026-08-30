@@ -7,8 +7,18 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("TMDB cache policy", () => {
-  it("bypasses Next data cache for raw season details", () => {
-    expect(shouldBypassTmdbDataCache("/tv/95479/season/1")).toBe(true);
+  it("keeps raw season details cacheable", () => {
+    expect(shouldBypassTmdbDataCache("/tv/95479/season/1")).toBe(false);
+  });
+
+  it("uses revalidate for raw season details", () => {
+    const init = tmdbFetchInit({
+      endpoint: "/tv/95479/season/1",
+      revalidate: 3600,
+    });
+
+    expect(init.cache).toBeUndefined();
+    expect(init.next?.revalidate).toBe(3600);
   });
 
   it("bypasses Next data cache for large appended detail payloads", () => {

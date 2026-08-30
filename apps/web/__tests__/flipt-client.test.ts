@@ -7,12 +7,35 @@ import {
 import {
   ensureFlagsSeeded,
   invalidateFlagCache,
+  readAnnouncementBannerConfig,
+  readFliptMetadataValue,
   toFliptStorageKey,
   writeAdminFlagState,
 } from "@/lib/flags/flipt-client";
 import { DEFAULT_ANNOUNCEMENT_BANNER_CONFIG } from "@/lib/flags/announcement-banner";
 
 const originalFetch = globalThis.fetch;
+
+const notFoundResponse = () => new Response("not found", { status: 404 });
+
+const mockFlagWrites = (
+  listBody: Response,
+  mutateBody: Response,
+): ReturnType<typeof vi.fn<typeof fetch>> =>
+  vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+    const method = init?.method ?? "GET";
+    if (method === "PUT" || method === "POST") {
+      return mutateBody;
+    }
+    const url = String(input);
+    if (
+      url.includes("/resources/flipt.core.Flag/") &&
+      !url.endsWith("/resources/flipt.core.Flag")
+    ) {
+      return notFoundResponse();
+    }
+    return listBody;
+  });
 
 const resource = (def: (typeof ALL_FLAG_DEFINITIONS)[number]) => ({
   key: toFliptStorageKey(def.key),
@@ -85,14 +108,10 @@ describe("Flipt v2 client", () => {
           }
         : current;
     });
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        Response.json({ resources, revision: "revision-1" }),
-      )
-      .mockResolvedValueOnce(
-        Response.json({ revision: "revision-2" }, { status: 200 }),
-      );
+    const fetchMock = mockFlagWrites(
+      Response.json({ resources, revision: "revision-1" }),
+      Response.json({ revision: "revision-2" }, { status: 200 }),
+    );
     globalThis.fetch = fetchMock;
 
     await writeAdminFlagState({
@@ -100,8 +119,11 @@ describe("Flipt v2 client", () => {
       [changed.key]: !changed.defaultValue,
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [url, init] = fetchMock.mock.calls[1] ?? [];
+    const putCall = fetchMock.mock.calls.find(
+      ([, init]) => init?.method === "PUT",
+    );
+    expect(putCall).toBeDefined();
+    const [url, init] = putCall ?? [];
     expect(url).toContain(
       "/api/v2/environments/default/namespaces/default/resources",
     );
@@ -126,14 +148,10 @@ describe("Flipt v2 client", () => {
 
   it("stores announcement presentation in flag metadata", async () => {
     const resources = ALL_FLAG_DEFINITIONS.map(resource);
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        Response.json({ resources, revision: "revision-1" }),
-      )
-      .mockResolvedValueOnce(
-        Response.json({ revision: "revision-2" }, { status: 200 }),
-      );
+    const fetchMock = mockFlagWrites(
+      Response.json({ resources, revision: "revision-1" }),
+      Response.json({ revision: "revision-2" }, { status: 200 }),
+    );
     globalThis.fetch = fetchMock;
 
     const announcementBanner = {
@@ -142,15 +160,63 @@ describe("Flipt v2 client", () => {
     };
     await writeAdminFlagState(buildDefaultAdminFlagState(), announcementBanner);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(
-      JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)),
-    ).toMatchObject({
+    const putCall = fetchMock.mock.calls.find(
+      ([, init]) => init?.method === "PUT",
+    );
+    expect(JSON.parse(String(putCall?.[1]?.body))).toMatchObject({
       key: toFliptStorageKey("global.announcement_banner"),
       payload: {
-        metadata: { announcementBanner },
+        metadata: { announcementBanner: JSON.stringify(announcementBanner) },
       },
     });
+  });
+
+  it("reads announcement presentation from GetResource metadata", async () => {
+    const announcementBanner = {
+      ...DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
+      title: "Service update",
+    };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      Response.json({
+        resource: {
+          key: toFliptStorageKey("global.announcement_banner"),
+          payload: {
+            "@type": "flipt.core.Flag",
+            key: toFliptStorageKey("global.announcement_banner"),
+            enabled: true,
+            type: "BOOLEAN_FLAG_TYPE",
+            name: "Announcement",
+            description: "",
+            metadata: {
+              announcementBanner: JSON.stringify(announcementBanner),
+            },
+          },
+        },
+      }),
+    );
+    globalThis.fetch = fetchMock;
+
+    await expect(readAnnouncementBannerConfig()).resolves.toEqual(
+      announcementBanner,
+    );
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      `/resources/flipt.core.Flag/${toFliptStorageKey("global.announcement_banner")}`,
+    );
+  });
+
+  it("parses string or object flag metadata values", () => {
+    expect(
+      readFliptMetadataValue(
+        { announcementBanner: '{"title":"Hi"}' },
+        "announcementBanner",
+      ),
+    ).toEqual({ title: "Hi" });
+    expect(
+      readFliptMetadataValue(
+        { announcementBanner: { title: "Hi" } },
+        "announcementBanner",
+      ),
+    ).toEqual({ title: "Hi" });
   });
 
   it("does not attempt writes when the initial read fails", async () => {

@@ -53,9 +53,9 @@ describe("search autocomplete helpers", () => {
       id: 21222,
       title: "Mankitsu Happening",
       media_type: "tv",
-      href: "/anime/21222",
+      href: "/anime/anilist-21222",
     } as SearchPreviewResult;
 
-    expect(getSearchResultHref(animeResult)).toBe("/anime/21222");
+    expect(getSearchResultHref(animeResult)).toBe("/anime/anilist-21222");
   });
 });

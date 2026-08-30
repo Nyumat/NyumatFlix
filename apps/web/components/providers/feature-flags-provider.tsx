@@ -14,7 +14,10 @@ import {
 const FeatureFlagsContext = createContext<SiteFlags | null>(null);
 
 async function fetchSiteFlags(signal?: AbortSignal): Promise<SiteFlags | null> {
-  const response = await fetch("/api/site/flags", { signal });
+  const response = await fetch("/api/site/flags", {
+    signal,
+    cache: "no-store",
+  });
   if (!response.ok) {
     return null;
   }
@@ -28,26 +31,21 @@ export function FeatureFlagsProvider({
   flags?: SiteFlags;
   children: React.ReactNode;
 }) {
-  const [flags, setFlags] = useState<SiteFlags>(
+  const [fetchedFlags, setFetchedFlags] = useState<SiteFlags>(
     flagsOverride ?? getDefaultSiteFlags(),
   );
+  const flags = flagsOverride ?? fetchedFlags;
 
   const refreshFlags = useCallback(async () => {
     try {
       const data = await fetchSiteFlags();
       if (data) {
-        setFlags(data);
+        setFetchedFlags(data);
       }
     } catch {
       void 0;
     }
   }, []);
-
-  useEffect(() => {
-    if (flagsOverride) {
-      setFlags(flagsOverride);
-    }
-  }, [flagsOverride]);
 
   useEffect(() => {
     if (flagsOverride) {
@@ -59,7 +57,7 @@ export function FeatureFlagsProvider({
     void fetchSiteFlags(controller.signal)
       .then((data) => {
         if (data) {
-          setFlags(data);
+          setFetchedFlags(data);
         }
       })
       .catch(() => undefined);

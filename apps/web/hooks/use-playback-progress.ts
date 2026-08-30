@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   clampPlaybackProgress,
   getPlaybackProgress,
+  progressStorageKey,
   resolveResumeTime,
   setPlaybackProgress,
   shouldPersistPlaybackProgress,
@@ -17,12 +18,21 @@ const SAVE_INTERVAL_MS = 5_000;
 const WATCHLIST_SYNC_INTERVAL_MS = 30_000;
 
 export function usePlaybackProgress(key: PlaybackProgressKey) {
-  const savedEntryRef = useRef(getPlaybackProgress(key));
+  const storageKey = progressStorageKey(key);
   const lastSavedAtRef = useRef(0);
   const lastWatchlistSyncRef = useRef(0);
   const watchlistSyncedRef = useRef(false);
 
-  const resumeTime = resolveResumeTime(savedEntryRef.current);
+  useEffect(() => {
+    lastSavedAtRef.current = 0;
+    lastWatchlistSyncRef.current = 0;
+    watchlistSyncedRef.current = false;
+  }, [storageKey]);
+
+  const resumeTime = useMemo(
+    () => resolveResumeTime(getPlaybackProgress(key)),
+    [key, storageKey],
+  );
 
   const syncWatchlist = useCallback(async () => {
     await postWatchProgressIfSignedIn({
@@ -94,9 +104,12 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
     [key.mediaType, persist, syncWatchlist],
   );
 
-  return {
-    resumeTime,
-    persist,
-    persistImmediate,
-  };
+  return useMemo(
+    () => ({
+      resumeTime,
+      persist,
+      persistImmediate,
+    }),
+    [resumeTime, persist, persistImmediate],
+  );
 }

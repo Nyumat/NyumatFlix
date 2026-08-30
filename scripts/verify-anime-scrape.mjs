@@ -20,15 +20,6 @@ const CASES = [
     body: { providerId: "allmanga", anilistId: 21, episodeNumber: 1 },
   },
   {
-    label: "One Piece ep1 / AnimeStream",
-    body: {
-      providerId: "animestream",
-      anilistId: 21,
-      episodeNumber: 1,
-      query: "One Piece",
-    },
-  },
-  {
     label: "Naruto ep1 / AnimeGG",
     body: {
       providerId: "animegg",

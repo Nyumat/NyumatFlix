@@ -21,6 +21,7 @@ export type AnimeScrapeInput = {
   translationType?: AnimeTranslationType;
   /** Override search query (defaults to AniList romaji/english title). */
   query?: string;
+  signal?: AbortSignal;
   /**
    * Optional TMDB coords for softsub fallback. When omitted, the scrape layer
    * resolves AniList → TMDB via movie routes, Fribb, or AniBridge before

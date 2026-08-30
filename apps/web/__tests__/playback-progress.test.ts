@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { movieWatchButtonLabel } from "@/lib/playback/movie-watch-label";
 import {
   clampPlaybackProgress,
+  getLatestTvPlaybackCoords,
   getPlaybackProgress,
   progressStorageKey,
   resolveResumeTime,
@@ -109,5 +110,28 @@ describe("movieWatchButtonLabel", () => {
       { watched: 7100, duration: 7200 },
     );
     expect(movieWatchButtonLabel(424_243)).toBe("Play");
+  });
+});
+
+describe("last tv episode memory", () => {
+  it("remembers the latest tv episode when progress is saved", () => {
+    window.localStorage.removeItem(PLAYBACK_PROGRESS_STORAGE_KEY);
+
+    setPlaybackProgress(
+      {
+        mediaType: "tv",
+        contentId: 1399,
+        seasonNumber: 2,
+        episodeNumber: 4,
+      },
+      { watched: 400, duration: 3600 },
+    );
+
+    expect(getLatestTvPlaybackCoords(1399)).toEqual(
+      expect.objectContaining({
+        seasonNumber: 2,
+        episodeNumber: 4,
+      }),
+    );
   });
 });

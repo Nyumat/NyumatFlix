@@ -6,6 +6,7 @@ import {
   resolveAniBridgeMalPlaybackTarget,
   resolveAniBridgePlaybackCoords,
 } from "@/lib/anime/anibridge-mappings";
+import { advanceFribbPlaybackAcrossSpecialSequels } from "@/lib/anime/split-cour-appendix";
 import {
   animeSeasonNumberForEpisode,
   findSegmentForEpisode,
@@ -21,6 +22,7 @@ import {
   fetchAnilistIdByMal,
   fetchAnilistMediaMeta,
 } from "@/lib/scrape/anime/anilist-meta";
+import { getCachedAnilistTvMedia } from "@/lib/anilist-tv-detail";
 
 export type AnimePlaybackCoords = {
   anilistId: number;
@@ -151,13 +153,30 @@ export const resolveAnimePlaybackCoords = async (input: {
   );
   if (!fribb) return null;
 
-  return enrichCoordsWithAnilistMeta({
+  const baseMedia = await getCachedAnilistTvMedia(fribb.anilistId);
+  const sequelNode = baseMedia?.relations?.edges?.find(
+    (edge) =>
+      edge.relationType === "SEQUEL" &&
+      edge.node?.type === "ANIME" &&
+      edge.node.format === "SPECIAL" &&
+      typeof edge.node.id === "number" &&
+      edge.node.id > 0,
+  )?.node;
+  const adjusted = advanceFribbPlaybackAcrossSpecialSequels({
     anilistId: fribb.anilistId,
-    relativeEpisodeNumber: fribb.relativeEpisode,
+    relativeEpisode: fribb.relativeEpisode,
+    segmentStart: fribb.segmentStart,
+    episodeCount: baseMedia?.episodes,
+    sequelSpecialId: sequelNode?.id,
+  });
+
+  return enrichCoordsWithAnilistMeta({
+    anilistId: adjusted.anilistId,
+    relativeEpisodeNumber: adjusted.relativeEpisode,
     animeSeasonNumber: input.seasonNumber,
     animeInfo: {
-      anilistId: fribb.anilistId,
-      startEpisode: fribb.segmentStart,
+      anilistId: adjusted.anilistId,
+      startEpisode: adjusted.segmentStart,
       endEpisode: Number.MAX_SAFE_INTEGER,
     },
     source: "fribb",

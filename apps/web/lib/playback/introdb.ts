@@ -519,6 +519,8 @@ const formatVttTimestamp = (seconds: number): string => {
 const segmentTitle = (type: IntroDbSegmentType): string =>
   type.charAt(0).toUpperCase() + type.slice(1);
 
+export { segmentTitle as formatIntroDbSegmentTitle };
+
 const introDbChapterColors: Record<IntroDbSegmentType, string> = {
   intro: "rgb(217 70 239 / 0.92)",
   recap: "rgb(245 158 11 / 0.92)",

@@ -162,3 +162,19 @@ export const resetSubtitleAppearance = (): SubtitleAppearance => {
 
   return DEFAULT_SUBTITLE_APPEARANCE;
 };
+
+export const subscribeSubtitleAppearance = (
+  listener: () => void,
+): (() => void) => {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  window.addEventListener(SUBTITLE_APPEARANCE_CHANGE_EVENT, listener);
+  window.addEventListener("storage", listener);
+
+  return () => {
+    window.removeEventListener(SUBTITLE_APPEARANCE_CHANGE_EVENT, listener);
+    window.removeEventListener("storage", listener);
+  };
+};

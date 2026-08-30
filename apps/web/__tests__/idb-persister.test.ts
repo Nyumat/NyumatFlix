@@ -1,4 +1,5 @@
 import { createIDBPersister } from "@/lib/idb-persister";
+import { suppressConsole } from "@/test/suppress-console";
 import type { PersistedClient } from "@tanstack/react-query-persist-client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -102,9 +103,11 @@ describe("createIDBPersister", () => {
       },
     };
 
+    const restoreConsole = suppressConsole("warn");
     await expect(persister.persistClient(mockClient)).rejects.toThrow(
       "Storage quota exceeded",
     );
+    restoreConsole();
   });
 
   test("handles get errors gracefully", async () => {
@@ -112,9 +115,11 @@ describe("createIDBPersister", () => {
 
     const persister = createIDBPersister();
 
+    const restoreConsole = suppressConsole("warn");
     await expect(persister.restoreClient()).rejects.toThrow(
       "IndexedDB unavailable",
     );
+    restoreConsole();
   });
 
   test("handles del errors gracefully", async () => {
@@ -122,6 +127,8 @@ describe("createIDBPersister", () => {
 
     const persister = createIDBPersister();
 
+    const restoreConsole = suppressConsole("warn");
     await expect(persister.removeClient()).rejects.toThrow("Delete failed");
+    restoreConsole();
   });
 });

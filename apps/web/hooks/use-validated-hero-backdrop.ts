@@ -42,8 +42,6 @@ export const useValidatedHeroBackdrop = ({
 
   useEffect(() => {
     if (!preferPosterWhenNoBackdrop) {
-      setBackdropAccepted(true);
-      lastAcceptedRef.current = true;
       return;
     }
 

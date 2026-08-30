@@ -16,7 +16,11 @@ import type {
   SubtitleSourceEntry,
   SubtitleCue,
   Packet,
+  PresentationMode,
+  ExternalQualityEntry,
+  ChapterMarker,
 } from "../types";
+import { getExternalSubtitleId } from "../types";
 import { EventEmitter } from "../events/EventEmitter";
 import {
   HttpSource,
@@ -42,7 +46,14 @@ import { loadWasmModuleNew } from "../wasm/FFmpegLoader";
 import { ShakaPlayerWrapper } from "../render/ShakaPlayerWrapper";
 import { HLSPlayerWrapper } from "../render/HLSPlayerWrapper";
 import { DASHPlayerWrapper } from "../render/DASHPlayerWrapper";
+import { ProgressiveVideoWrapper } from "../render/ProgressiveVideoWrapper";
 import { ThumbnailRenderer } from "../utils/ThumbnailRenderer";
+import {
+  isProgressiveNativeUrl,
+  resolvePresentationMode,
+  shouldPreferHlsJs,
+  shouldPreferNativeHls,
+} from "./presentation";
 
 // Any of the three adaptive-streaming engines (Shaka primary; hls.js / dash.js
 // as fallbacks). They share the same surface; the Shaka-only extras (isLive,
@@ -50,7 +61,8 @@ import { ThumbnailRenderer } from "../utils/ThumbnailRenderer";
 type StreamWrapper =
   | ShakaPlayerWrapper
   | HLSPlayerWrapper
-  | DASHPlayerWrapper;
+  | DASHPlayerWrapper
+  | ProgressiveVideoWrapper;
 
 const TAG = "MoviPlayer";
 
@@ -93,7 +105,7 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
 
   // External subtitle tracks (VTT/SRT)
   private _subtitleTracks: SubtitleSourceEntry[] = [];
-  private _activeSubtitleLang: string = "";
+  private _activeExternalSubtitleId: string = "";
   private _externalSubCues: SubtitleCue[] = [];
   private _externalSubTimer: number | null = null;
   public trackManager: TrackManager;
@@ -102,6 +114,7 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
   private mediaInfo: MediaInfo | null = null;
   private fileSize: number = -1; // Cached file size for buffer calculations
   private lastBufferedTime: number = 0;
+  private streamTrackHandlerUnsubs: Array<() => void> = [];
 
   /**
    * Enable/disable seek-bar scrub previews on an already-constructed player.
@@ -135,19 +148,22 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     return true;
   }
 
-  /** Proxy a stream wrapper's events + mirror its TrackManager onto the player. */
   private wireStreamWrapper(wrapper: StreamWrapper): void {
     const events = [
-      "loadStart", "loadEnd", "play", "pause", "ended", "timeUpdate",
-      "durationChange", "stateChange", "error", "buffering", "seeking", "seeked",
+      "loadStart", "loadEnd", "timeUpdate",
+      "durationChange", "stateChange", "error", "seeking", "seeked",
+      "waiting", "playing",
     ] as const;
     events.forEach((evt) => {
-      // @ts-ignore — event names line up across the wrapper and player maps
-      wrapper.on(evt, (arg) => this.emit(evt, arg));
+      wrapper.on(evt, (arg: unknown) => {
+        this.emit(evt, arg as never);
+      });
     });
-    wrapper.trackManager.on("tracksChange", (tracks) => {
-      this.trackManager.setTracks(tracks);
-    });
+    if ("trackManager" in wrapper && wrapper.trackManager) {
+      wrapper.trackManager.on("tracksChange", (tracks: Track[]) => {
+        this.trackManager.setTracks(tracks);
+      });
+    }
   }
 
   // Decoders and Renderers
@@ -161,16 +177,18 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
   // the user nudges the delay value while the same track is active.
   private prefetchedSubtitleStream: number | null = null;
   private prefetchInFlight: boolean = false;
+  private _nativeSubtitleDelay = 0;
 
   // Embedded cover art (ID3v2 APIC, FLAC PICTURE, MP4 covr, MKV attachment).
   // Extracted once at load time when the demuxer reports an attached_pic
   // pseudo-stream; null for plain video files or audio without artwork.
   private coverArt: ImageBitmap | null = null;
 
-  // Active adaptive-streaming wrapper (Shaka primary, hls.js/dash.js fallback).
-  // Non-null only while a stream source is active; delegation throughout the
-  // player stays format-agnostic.
+  // Active adaptive-streaming / progressive-native wrapper.
   private streamWrapper: StreamWrapper | null = null;
+  private presentationMode: PresentationMode = "canvas";
+  private externalQualities: ExternalQualityEntry[] = [];
+  private externalChapterMarkers: ChapterMarker[] = [];
 
   // Preview pipeline (C-based FFmpeg software decoding)
   private thumbnailBindings: ThumbnailBindings | null = null;
@@ -281,6 +299,8 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     super();
 
     this.config = config;
+    this.presentationMode = resolvePresentationMode(config);
+    this.config.presentation = this.presentationMode;
     this._audioOnly = !!config.audioOnly;
     this.cache = new LRUCache(config.cache?.maxSizeMB ?? 100);
     this.trackManager = new TrackManager();
@@ -567,6 +587,8 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     this.emit("loadStart", undefined);
     this.lastBufferedTime = 0;
 
+    this.applyConfiguredSubtitleTracks();
+
     // Drop the previous source's cover art so a soft-reload on the same
     // instance (no destroy) doesn't keep showing stale artwork when the
     // new source has none.
@@ -595,63 +617,112 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
         lowerUrl.includes(".mpd") ||
         lowerUrl.includes(".ism"));
 
+    const wireStreamTrackHandlers = (): void => {
+      this.clearStreamTrackHandlers();
+      this.streamTrackHandlerUnsubs.push(
+        this.trackManager.on("videoTrackChange", (track) => {
+          const w = this.streamWrapper;
+          if (w && "selectVideoTrack" in w) {
+            w.selectVideoTrack(track ? track.id : -1);
+          }
+        }),
+        this.trackManager.on("audioTrackChange", (track) => {
+          const w = this.streamWrapper;
+          if (track && w && "selectAudioTrack" in w) {
+            w.selectAudioTrack(track.id);
+          }
+        }),
+        this.trackManager.on("subtitleTrackChange", (track) => {
+          const w = this.streamWrapper;
+          if (w && "selectSubtitleTrack" in w) {
+            void w.selectSubtitleTrack(track ? track.id : null);
+          }
+        }),
+      );
+    };
+
+    const finishStreamLoad = async (
+      wrapper: StreamWrapper,
+      label: string,
+    ): Promise<boolean> => {
+      this.streamWrapper = wrapper;
+      this.wireStreamWrapper(wrapper);
+      Logger.info(TAG, label);
+      await wrapper.load();
+      this.stateManager.setState("ready");
+      return true;
+    };
+
+    if (
+      streamUrl &&
+      this.presentationMode === "native" &&
+      isProgressiveNativeUrl(streamUrl)
+    ) {
+      wireStreamTrackHandlers();
+      const progressive = new ProgressiveVideoWrapper(this.config);
+      await finishStreamLoad(
+        progressive,
+        "Detected progressive URL, using native <video>",
+      );
+      return;
+    }
+
     if (isStream) {
       const isHls = lowerUrl.includes(".m3u8");
       const isDash = lowerUrl.includes(".mpd");
       const kind = isHls ? "HLS" : lowerUrl.includes(".ism") ? "Smooth Streaming" : "DASH";
+      wireStreamTrackHandlers();
 
-      // Forward track selections from the main TrackManager to whichever stream
-      // wrapper is currently active (added once; resolves the live field).
-      this.trackManager.on("videoTrackChange", (track) => {
-        this.streamWrapper?.selectVideoTrack(track ? track.id : -1);
-      });
-      this.trackManager.on("audioTrackChange", (track) => {
-        if (track) this.streamWrapper?.selectAudioTrack(track.id);
-      });
-      this.trackManager.on("subtitleTrackChange", (track) => {
-        this.streamWrapper?.selectSubtitleTrack(track ? track.id : null);
-      });
+      if (isHls && shouldPreferNativeHls(streamUrl)) {
+        try {
+          const hls = new HLSPlayerWrapper(this.config);
+          await finishStreamLoad(hls, `Detected ${kind} stream, using native HLS`);
+          return;
+        } catch (eNativeHls) {
+          Logger.warn(TAG, "Safari native HLS failed, falling back", eNativeHls);
+          try { this.streamWrapper?.destroy(); } catch {}
+          this.streamWrapper = null;
+        }
+      }
 
-      // --- Tier 1: Shaka (HLS + DASH + MSS + muxed). ---
+      if (isHls && shouldPreferHlsJs(streamUrl)) {
+        try {
+          const hls = new HLSPlayerWrapper(this.config);
+          await finishStreamLoad(hls, `Detected ${kind} stream, using hls.js (Firefox)`);
+          return;
+        } catch (eHlsJs) {
+          Logger.warn(TAG, "hls.js failed on Firefox, falling back to Shaka", eHlsJs);
+          try { this.streamWrapper?.destroy(); } catch {}
+          this.streamWrapper = null;
+        }
+      }
+
       try {
         const shaka = new ShakaPlayerWrapper(this.config);
-        this.streamWrapper = shaka;
-        this.wireStreamWrapper(shaka);
-        Logger.info(TAG, `Detected ${kind} stream, using ShakaPlayerWrapper`);
-        await shaka.load();
-        this.stateManager.setState("ready");
+        await finishStreamLoad(shaka, `Detected ${kind} stream, using ShakaPlayerWrapper`);
         return;
       } catch (eShaka) {
         Logger.warn(TAG, `Shaka failed on ${kind} stream`, eShaka);
         try { this.streamWrapper?.destroy(); } catch {}
         this.streamWrapper = null;
 
-        // --- Tier 2: hls.js / dash.js. Their MSE engines play streams Shaka
-        // rejects (e.g. under-specified single-file DASH the browser demuxer
-        // handles but Shaka/FFmpeg won't). ---
         if (isHls || isDash) {
           try {
             const fb = isHls
               ? new HLSPlayerWrapper(this.config)
               : new DASHPlayerWrapper(this.config);
-            this.streamWrapper = fb;
-            this.wireStreamWrapper(fb);
-            Logger.info(TAG, `Shaka failed; retrying with ${isHls ? "hls.js" : "dash.js"}`);
-            await fb.load();
-            this.stateManager.setState("ready");
-            Logger.info(TAG, `Recovered via ${isHls ? "hls.js" : "dash.js"}`);
+            await finishStreamLoad(
+              fb,
+              `Shaka failed; retrying with ${isHls ? "hls.js" : "dash.js"}`,
+            );
             return;
           } catch (eFallback) {
             Logger.warn(TAG, `${isHls ? "hls.js" : "dash.js"} fallback also failed`, eFallback);
-            try { this.streamWrapper?.destroy(); } catch {}
+            try { (this.streamWrapper as StreamWrapper | null)?.destroy(); } catch {}
             this.streamWrapper = null;
           }
         }
 
-        // --- Tier 3: FFmpeg demuxer for bare-<BaseURL> single-file DASH that
-        // even the MSE engines refuse (e.g. muxed single-file). Falls through
-        // to the demuxer path below with the video file as the source (+ the
-        // separate audio file as a native-audio source for demuxed content). ---
         let fellBack = false;
         if (isDash) {
           try {
@@ -666,7 +737,7 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
               if (plan.audioUrl) {
                 this.config.audioSource = { type: "url", url: plan.audioUrl, headers: src?.headers };
               }
-              fellBack = true; // fall through to the demuxer path below
+              fellBack = true;
             }
           } catch (eDemux) {
             Logger.warn(TAG, "FFmpeg DASH fallback failed", eDemux);
@@ -674,7 +745,7 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
         }
         if (!fellBack) {
           this.stateManager.setState("error");
-          throw eShaka; // surface the original Shaka error
+          throw eShaka;
         }
       }
     }
@@ -728,12 +799,6 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
 
       if (audioUrl) {
         this.setupNativeAudio(audioUrl);
-      }
-
-      // Store external subtitle tracks
-      if (this.config.subtitleTracks && this.config.subtitleTracks.length > 0) {
-        this._subtitleTracks = [...this.config.subtitleTracks];
-        Logger.info(TAG, `External subtitles: ${this._subtitleTracks.length} tracks`);
       }
 
       // Set tracks
@@ -1084,6 +1149,18 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
    */
   async play(): Promise<void> {
     if (this.streamWrapper) {
+      const streamState = this.streamWrapper.getState();
+      if (streamState === "playing") {
+        return;
+      }
+      if (streamState === "buffering" || streamState === "seeking") {
+        this.wasPlayingBeforeRebuffer = true;
+        Logger.info(
+          TAG,
+          `Play requested during ${streamState} — will resume when ready`,
+        );
+        return;
+      }
       return this.streamWrapper.play();
     }
 
@@ -3720,10 +3797,16 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
       return result;
     }
 
-    // Adaptive streams: Shaka already applied the text-track selection (via the
-    // trackManager → streamWrapper wiring) and renders cues itself. There's no
-    // FFmpeg demuxer / subtitle decoder to configure, so stop here.
+    // Adaptive streams: Shaka/hls.js already applied the text-track selection
+    // (via the trackManager → streamWrapper wiring) and renders cues itself.
     if (this.streamWrapper) {
+      if (trackId !== null) {
+        this.stopExternalSubtitles();
+        this._activeExternalSubtitleId = "";
+        if (this.presentationMode === "native" && !this.videoRenderer) {
+          this.setNativeExternalTextTracks(null);
+        }
+      }
       return result;
     }
 
@@ -3998,22 +4081,57 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
   }
 
   /**
-   * Get HLS video element (DRM mode) for direct DOM insertion
+   * Get native stream/progressive video element for light-DOM presentation.
    */
   getHLSVideoElement(): HTMLVideoElement | null {
     return this.streamWrapper?.getVideoElement() ?? null;
   }
 
+  getNativeVideoElement(): HTMLVideoElement | null {
+    return this.getHLSVideoElement();
+  }
+
+  getPresentationMode(): PresentationMode {
+    return this.presentationMode;
+  }
+
+  canCast(): boolean {
+    return this.presentationMode === "native" && this.streamWrapper !== null;
+  }
+
+  setExternalQualities(qualities: ExternalQualityEntry[]): void {
+    this.externalQualities = [...qualities];
+    this.emit("tracksChange", this.trackManager.getTracks());
+  }
+
+  getExternalQualities(): ExternalQualityEntry[] {
+    return [...this.externalQualities];
+  }
+
+  setChapterMarkers(chapters: ChapterMarker[]): void {
+    this.externalChapterMarkers = [...chapters];
+  }
+
+  getChapterMarkers(): ChapterMarker[] {
+    return [...this.externalChapterMarkers];
+  }
 
   /**
    * Get chapters from the media (empty array if none)
    */
   getChapters(): Array<{ title: string; start: number; end: number }> {
+    if (this.externalChapterMarkers.length > 0) {
+      return this.externalChapterMarkers.map((ch, i, arr) => ({
+        title: ch.title,
+        start: ch.start,
+        end: ch.end ?? (i < arr.length - 1 ? arr[i + 1].start : this.getDuration()),
+      }));
+    }
     return this.mediaInfo?.chapters ?? [];
   }
 
   resizeCanvas(width: number, height: number): void {
-    if (this.streamWrapper) {
+    if (this.streamWrapper && "resizeCanvas" in this.streamWrapper) {
       this.streamWrapper.resizeCanvas(width, height);
     }
     if (this.videoRenderer) {
@@ -4553,28 +4671,102 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
   /**
    * Get available external subtitle tracks
    */
-  getSubtitleLangs(): { lang: string; label: string; active: boolean }[] {
-    return this._subtitleTracks.map((t) => ({
-      lang: t.lang,
-      label: t.label,
-      active: t.lang === this._activeSubtitleLang,
-    }));
+  getSubtitleLangs(): {
+    id: string;
+    lang: string;
+    label: string;
+    active: boolean;
+  }[] {
+    return this._subtitleTracks.map((t) => {
+      const id = getExternalSubtitleId(t);
+      return {
+        id,
+        lang: t.lang,
+        label: t.label,
+        active: id === this._activeExternalSubtitleId,
+      };
+    });
+  }
+
+  /**
+   * Select an external subtitle track by stable id.
+   * Fetches the VTT/SRT file, parses cues, and starts rendering.
+   * Pass null to disable.
+   */
+  async selectExternalSubtitle(id: string | null): Promise<boolean> {
+    this.stopExternalSubtitles();
+
+    if (!id) {
+      this._activeExternalSubtitleId = "";
+      if (this.presentationMode === "native" && !this.videoRenderer) {
+        this.setNativeExternalTextTracks(null);
+      } else if (this.videoRenderer) {
+        this.videoRenderer.clearSubtitles();
+      }
+      this.emit("subtitleTrackChange" as any, { lang: null, label: null });
+      return true;
+    }
+
+    const track = this._subtitleTracks.find(
+      (t) => getExternalSubtitleId(t) === id,
+    );
+    if (!track) {
+      Logger.warn(TAG, `Subtitle track not found for id: ${id}`);
+      return false;
+    }
+
+    if (this.presentationMode === "native" && !this.videoRenderer) {
+      const ok = this.setNativeExternalTextTracks(id);
+      if (!ok) return false;
+      this._activeExternalSubtitleId = id;
+      this.trackManager.selectSubtitleTrack(null);
+      this.emit("subtitleTrackChange" as any, {
+        lang: track.lang,
+        label: track.label,
+      });
+      Logger.info(TAG, `Native subtitle track enabled: ${track.label}`);
+      return true;
+    }
+
+    try {
+      const res = await fetch(track.url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+
+      const fmt = track.format || (track.url.includes(".srt") ? "srt" : "vtt");
+
+      this.videoRenderer?.setSubtitleFormat(fmt);
+
+      this._externalSubCues = fmt === "srt"
+        ? this.parseSRT(text)
+        : this.parseVTT(text);
+
+      this._activeExternalSubtitleId = id;
+
+      this.selectSubtitleTrack(null);
+
+      this.startExternalSubtitles();
+
+      Logger.info(TAG, `Subtitle loaded: ${track.label} (${this._externalSubCues.length} cues)`);
+      this.emit("subtitleTrackChange" as any, {
+        lang: track.lang,
+        label: track.label,
+      });
+      return true;
+    } catch (e) {
+      Logger.error(TAG, `Failed to load subtitle: ${track.url}`, e);
+      return false;
+    }
   }
 
   /**
    * Select an external subtitle track by language.
-   * Fetches the VTT/SRT file, parses cues, and starts rendering.
-   * Pass empty string or null to disable.
+   * When multiple tracks share a language, the first match is selected.
+   * Prefer selectExternalSubtitle when track ids are available.
    */
   async selectSubtitleLang(lang: string | null): Promise<boolean> {
-    // Disable current external subtitles
-    this.stopExternalSubtitles();
-
     if (!lang) {
-      this._activeSubtitleLang = "";
-      if (this.videoRenderer) this.videoRenderer.clearSubtitles();
-      this.emit("subtitleTrackChange" as any, { lang: null, label: null });
-      return true;
+      return this.selectExternalSubtitle(null);
     }
 
     const track = this._subtitleTracks.find((t) => t.lang === lang);
@@ -4583,39 +4775,7 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
       return false;
     }
 
-    try {
-      // Fetch subtitle file
-      const res = await fetch(track.url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-
-      // Detect format
-      const fmt = track.format || (track.url.includes(".srt") ? "srt" : "vtt");
-
-      // Tell the renderer which format we're using so it can toggle the
-      // VTT-only backdrop styling.
-      this.videoRenderer?.setSubtitleFormat(fmt);
-
-      // Parse into cues
-      this._externalSubCues = fmt === "srt"
-        ? this.parseSRT(text)
-        : this.parseVTT(text);
-
-      this._activeSubtitleLang = lang;
-
-      // Disable muxed subtitles if active
-      this.selectSubtitleTrack(null);
-
-      // Start cue timer
-      this.startExternalSubtitles();
-
-      Logger.info(TAG, `Subtitle loaded: ${track.label} (${this._externalSubCues.length} cues)`);
-      this.emit("subtitleTrackChange" as any, { lang, label: track.label });
-      return true;
-    } catch (e) {
-      Logger.error(TAG, `Failed to load subtitle: ${track.url}`, e);
-      return false;
-    }
+    return this.selectExternalSubtitle(getExternalSubtitleId(track));
   }
 
   /** Parse VTT text into SubtitleCue[] */
@@ -4668,12 +4828,68 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     }, 100); // 10Hz check — enough for subtitle timing
   }
 
+  setExternalSubtitleTracks(tracks: SubtitleSourceEntry[]): void {
+    this.stopExternalSubtitles();
+    this._activeExternalSubtitleId = "";
+    this._subtitleTracks = tracks.map((track, index) => ({
+      ...track,
+      id: track.id ?? track.url ?? `external-sub-${index}`,
+    }));
+  }
+
+  private clearStreamTrackHandlers(): void {
+    for (const unsub of this.streamTrackHandlerUnsubs) {
+      unsub();
+    }
+    this.streamTrackHandlerUnsubs = [];
+  }
+
   /** Stop external subtitle rendering */
+  private applyConfiguredSubtitleTracks(): void {
+    if (this.config.subtitleTracks && this.config.subtitleTracks.length > 0) {
+      this._subtitleTracks = this.config.subtitleTracks.map((track, index) => ({
+        ...track,
+        id: track.id ?? track.url ?? `external-sub-${index}`,
+      }));
+      Logger.info(TAG, `External subtitles: ${this._subtitleTracks.length} tracks`);
+      return;
+    }
+    this._subtitleTracks = [];
+  }
+
   private stopExternalSubtitles(): void {
     if (this._externalSubTimer !== null) {
       clearInterval(this._externalSubTimer);
       this._externalSubTimer = null;
     }
+  }
+
+  /** Toggle external subtitle TextTracks on the native stream video element. */
+  private setNativeExternalTextTracks(id: string | null): boolean {
+    const video = this.streamWrapper?.getVideoElement();
+    if (!video) return false;
+
+    const selected = id
+      ? this._subtitleTracks.find((track) => getExternalSubtitleId(track) === id)
+      : null;
+
+    const tracks = video.textTracks;
+    let matched = false;
+    for (let i = 0; i < tracks.length; i++) {
+      const tt = tracks[i];
+      if (!selected) {
+        tt.mode = "hidden";
+        continue;
+      }
+      const isMatch = tt.label === selected.label;
+      if (isMatch) {
+        tt.mode = "showing";
+        matched = true;
+      } else {
+        tt.mode = "hidden";
+      }
+    }
+    return id === null || matched;
   }
 
   /**
@@ -4694,6 +4910,7 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
    * frame-rate conversions.
    */
   setSubtitleDelay(seconds: number): void {
+    this._nativeSubtitleDelay = seconds;
     if (this.videoRenderer) {
       this.videoRenderer.setSubtitleDelay(seconds);
     }
@@ -4702,14 +4919,17 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     // (positive delay across a seek). Prefetch the full cue list once so
     // the renderer cache is authoritative regardless of demuxer position.
     // Zero delay falls back to the streaming path — no prefetch overhead.
-    if (seconds !== 0) {
+    if (seconds !== 0 && this.videoRenderer) {
       void this.prefetchActiveSubtitleStream();
     }
   }
 
   /** Get current subtitle delay in seconds. */
   getSubtitleDelay(): number {
-    return this.videoRenderer ? this.videoRenderer.getSubtitleDelay() : 0;
+    if (this.videoRenderer) {
+      return this.videoRenderer.getSubtitleDelay();
+    }
+    return this._nativeSubtitleDelay;
   }
 
   /**
@@ -4877,7 +5097,7 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
    * Set muted state
    */
   setMuted(muted: boolean): void {
-    if (this.muted === muted) return; // No change
+    if (this.muted === muted) return;
 
     this.muted = muted;
     if (this.streamWrapper) {
@@ -4888,18 +5108,12 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     if (muted) {
       this.audioRenderer.mute();
     } else {
-      // unmute() is async (initializes AudioContext on first unmute)
-      // but we don't await it to keep setMuted() synchronous
       this.audioRenderer.unmute().catch((err) => {
         Logger.error("MoviPlayer", "Failed to unmute", err);
       });
     }
     if (this.nativeAudioEl) {
       this.nativeAudioEl.muted = muted;
-      // Unmuting resolves a native-audio autoplay block. The <audio> couldn't
-      // start without a gesture, so the video has been rolling on the wall clock
-      // with the audio paused — THIS unmute is the gesture. Sync the audio to
-      // the current playhead and start it; it then re-assumes clock-master duty.
       if (!muted && this._nativeAudioAutoplayBlocked) {
         this._nativeAudioAutoplayBlocked = false;
         if (this.nativeAudioEl.paused && this.stateManager.getState() === "playing") {
@@ -6028,6 +6242,7 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     this.cache.clear();
 
     // Clear track manager
+    this.clearStreamTrackHandlers();
     this.trackManager.clear();
 
     // Release cover art bitmap. close() is a no-op on platforms that

@@ -10,33 +10,19 @@ import {
   useServerStore,
 } from "@/lib/stores/server-store";
 import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
-import { getPlaybackModePolicy } from "@/lib/flags/site-flags";
+import {
+  getPlaybackModePolicy,
+  shouldSeedDefaultProxyPlayback,
+} from "@/lib/flags/site-flags";
 import { useEffect, useRef } from "react";
-
-function hasSavedPlaybackServer(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  try {
-    return Boolean(
-      localStorage.getItem("playback-mode-storage") ||
-        localStorage.getItem("video-server-storage"),
-    );
-  } catch {
-    return false;
-  }
-}
 
 export function AppSettingsSync() {
   const flags = useFeatureFlags();
-  const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
   const playbackAudio = useAppSettingsStore((state) => state.playbackAudio);
   const setNoAdsMode = useAppSettingsStore((state) => state.setNoAdsMode);
   const setDisableHeroTrailers = useAppSettingsStore(
     (state) => state.setDisableHeroTrailers,
   );
-  const selectedServer = useServerStore((state) => state.selectedServer);
   const setSelectedServer = useServerStore((state) => state.setSelectedServer);
   const seededNoAdsFromFlagRef = useRef(false);
   const seededProxyFromFlagRef = useRef(false);
@@ -133,11 +119,18 @@ export function AppSettingsSync() {
       }
 
       const policy = getPlaybackModePolicy(flags);
+      const playbackState = usePlaybackModeStore.getState();
+      const persistApi = usePlaybackModeStore.persist;
       if (
-        policy === "choice" &&
-        flags.defaultProxyPlayback &&
-        !hasSavedPlaybackServer() &&
-        !seededProxyFromFlagRef.current
+        persistApi.hasHydrated() &&
+        !seededProxyFromFlagRef.current &&
+        shouldSeedDefaultProxyPlayback({
+          policy,
+          defaultProxyPlayback: flags.defaultProxyPlayback,
+          hasUserSelectedPlaybackServer:
+            playbackState.hasUserSelectedPlaybackServer,
+          selectedServerIsScrape: isScrapeServer(playbackState.selectedServer),
+        })
       ) {
         seededProxyFromFlagRef.current = true;
         setSelectedServer(scrapeServer);
@@ -175,14 +168,7 @@ export function AppSettingsSync() {
       unsubPlaybackHydration();
       unsubSettingsHydration();
     };
-  }, [
-    flags,
-    noAdsMode,
-    selectedServer.id,
-    setDisableHeroTrailers,
-    setNoAdsMode,
-    setSelectedServer,
-  ]);
+  }, [flags, setDisableHeroTrailers, setNoAdsMode, setSelectedServer]);
 
   return null;
 }

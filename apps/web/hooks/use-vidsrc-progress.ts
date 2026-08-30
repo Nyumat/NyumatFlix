@@ -1,32 +1,17 @@
 "use client";
 
-import { VIDSRC_PROGRESS_STORAGE_KEY } from "@/lib/playback/recently-watched";
+import {
+  isSingleVidsrcProgressEntry,
+  persistVidsrcProgressPayload,
+  type VidsrcProgressEntry,
+  type VidsrcProgressMap,
+  VIDSRC_PROGRESS_STORAGE_KEY,
+} from "@/lib/playback/vidsrc-progress-storage";
 import { logger } from "@/lib/utils";
 import { postWatchProgressIfSignedIn } from "@/lib/watchlist/post-watch-progress";
 import { useEffect, useRef } from "react";
 
 export { VIDSRC_PROGRESS_STORAGE_KEY };
-
-interface VidsrcProgress {
-  watched: number;
-  duration: number;
-}
-
-interface VidsrcProgressEntry {
-  id: string;
-  type: "movie" | "tv";
-  title?: string;
-  poster_path?: string;
-  backdrop_path?: string;
-  progress?: VidsrcProgress;
-  last_updated?: number;
-  number_of_episodes?: number;
-  number_of_seasons?: number;
-  last_season_watched?: string;
-  last_episode_watched?: string;
-}
-
-type VidsrcProgressMap = Record<string, VidsrcProgressEntry>;
 
 interface VidsrcMediaMessage {
   type: "MEDIA_DATA";
@@ -51,13 +36,6 @@ function isMediaMessage(data: unknown): data is VidsrcMediaMessage {
   );
 }
 
-function isSingleEntry(
-  data: VidsrcProgressEntry | VidsrcProgressMap,
-): data is VidsrcProgressEntry {
-  const candidate = data as VidsrcProgressEntry;
-  return typeof candidate.id === "string" && typeof candidate.type === "string";
-}
-
 /**
  * Picks the most recently updated entry so we can sync a single item to the
  * app's watchlist progress endpoint even when the player emits its full map.
@@ -65,7 +43,7 @@ function isSingleEntry(
 function pickLatestEntry(
   data: VidsrcProgressEntry | VidsrcProgressMap,
 ): VidsrcProgressEntry | null {
-  if (isSingleEntry(data)) {
+  if (isSingleVidsrcProgressEntry(data)) {
     return data;
   }
 
@@ -139,10 +117,7 @@ export function useVidsrcProgress(): void {
       const mediaData = event.data.data;
 
       try {
-        window.localStorage.setItem(
-          VIDSRC_PROGRESS_STORAGE_KEY,
-          JSON.stringify(mediaData),
-        );
+        persistVidsrcProgressPayload(mediaData);
       } catch (error) {
         logger.error("Failed to persist VidSrc progress", error);
       }

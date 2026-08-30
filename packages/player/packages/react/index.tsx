@@ -46,13 +46,29 @@ export const MoviPlayer = React.forwardRef<MoviElement, MoviPlayerProps>(
     const elRef = React.useRef<MoviElement | null>(null);
     React.useImperativeHandle(ref, () => elRef.current as MoviElement, []);
 
+    const onReadyRef = React.useRef(props.onReady);
+    const onQoeRef = React.useRef(props.onQoe);
+    const onTimeUpdateRef = React.useRef(props.onTimeUpdate);
+    const onPlayRef = React.useRef(props.onPlay);
+    const onPauseRef = React.useRef(props.onPause);
+    const onEndedRef = React.useRef(props.onEnded);
+    const onErrorRef = React.useRef(props.onError);
+    onReadyRef.current = props.onReady;
+    onQoeRef.current = props.onQoe;
+    onTimeUpdateRef.current = props.onTimeUpdate;
+    onPlayRef.current = props.onPlay;
+    onPauseRef.current = props.onPause;
+    onEndedRef.current = props.onEnded;
+    onErrorRef.current = props.onError;
+
     // Reflect declarative attributes onto the element every render. Booleans
     // become presence/absence; everything else becomes a string attribute.
     React.useEffect(() => {
       const el = elRef.current;
       if (!el) return;
       for (const [key, value] of Object.entries(props)) {
-        if (EVENT_PROPS.has(key) || value === undefined || value === null) continue;
+        if (EVENT_PROPS.has(key) || value === undefined || value === null)
+          continue;
         const attr = key.toLowerCase();
         if (typeof value === "boolean") {
           if (value) el.setAttribute(attr, "");
@@ -68,30 +84,23 @@ export const MoviPlayer = React.forwardRef<MoviElement, MoviPlayerProps>(
       const el = elRef.current;
       if (!el) return;
       const listeners: Array<[string, EventListener]> = [];
-      const add = (name: string, fn?: (detail: any) => void) => {
+      const add = (name: string, fn?: (detail: unknown) => void) => {
         if (!fn) return;
         const l: EventListener = (e) => fn((e as CustomEvent).detail);
         el.addEventListener(name, l);
         listeners.push([name, l]);
       };
-      add("movi-qoe", props.onQoe);
-      add("timeupdate", props.onTimeUpdate);
-      if (props.onPlay) add("play", () => props.onPlay!());
-      if (props.onPause) add("pause", () => props.onPause!());
-      if (props.onEnded) add("ended", () => props.onEnded!());
-      add("error", props.onError);
-      props.onReady?.(el);
+      add("movi-qoe", (detail) => onQoeRef.current?.(detail as QoEEvent));
+      add("timeupdate", (detail) =>
+        onTimeUpdateRef.current?.(detail as number),
+      );
+      add("play", () => onPlayRef.current?.());
+      add("pause", () => onPauseRef.current?.());
+      add("ended", () => onEndedRef.current?.());
+      add("error", (detail) => onErrorRef.current?.(detail));
+      onReadyRef.current?.(el);
       return () => listeners.forEach(([n, l]) => el.removeEventListener(n, l));
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-      props.onQoe,
-      props.onTimeUpdate,
-      props.onPlay,
-      props.onPause,
-      props.onEnded,
-      props.onError,
-      props.onReady,
-    ]);
+    }, []);
 
     // createElement avoids needing a JSX.IntrinsicElements augmentation for the
     // custom tag; React passes unknown props straight through as attributes.

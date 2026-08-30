@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
@@ -9,10 +9,13 @@ import type { Episode } from "@/lib/domain/typings";
 import { queryStaleTime } from "@/lib/cache-policy";
 import { queryKeys } from "@/lib/query-keys";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useLocalTvWatchCoords } from "@/hooks/use-local-tv-watch-coords";
 import {
   isSameTvWatchTarget,
+  isTvCoordsWatchTarget,
   resolveTvWatchTarget,
 } from "@/lib/tv-watch-target";
+import { resolveEpisodeAnimeSelection } from "@/lib/anime/episode-playback-source";
 
 type UseTvEpisodeHydrateOptions = {
   mediaId: number;
@@ -31,6 +34,8 @@ export function useTvEpisodeHydrate({
 }: UseTvEpisodeHydrateOptions) {
   const { selectedEpisode, tvShowId, seasonNumber, setSelectedEpisode } =
     useEpisodeStore();
+  const localCoords = useLocalTvWatchCoords(mediaId);
+  const hydrateGenerationRef = useRef(0);
 
   const target = useMemo(() => {
     if (mediaType !== "tv") {
@@ -43,10 +48,12 @@ export function useTvEpisodeHydrate({
       watchlistItem,
       initialEpisode,
       initialSeasonNumber,
+      localCoords,
     );
   }, [
     initialEpisode,
     initialSeasonNumber,
+    localCoords,
     mediaId,
     mediaType,
     seasonNumber,
@@ -58,38 +65,50 @@ export function useTvEpisodeHydrate({
   const contentIdStr = mediaId.toString();
   const shouldSkipHydrate =
     target != null &&
-    target.source !== "watchlist" &&
+    !isTvCoordsWatchTarget(target) &&
     isSameTvWatchTarget(
       target,
       { selectedEpisode, tvShowId, seasonNumber },
       mediaId,
     );
+  const coordsTarget = target && isTvCoordsWatchTarget(target) ? target : null;
 
   const seasonQuery = useQuery({
-    queryKey: queryKeys.tvSeason(
-      mediaId,
-      target?.source === "watchlist" ? target.seasonNumber : 0,
+    queryKey: queryKeys.tvSeasonRoute(
+      contentIdStr,
+      coordsTarget?.seasonNumber ?? 0,
     ),
     queryFn: () =>
-      fetchSeasonDetails(
-        contentIdStr,
-        (target as { seasonNumber: number }).seasonNumber,
-      ),
-    enabled:
-      mediaType === "tv" &&
-      target?.source === "watchlist" &&
-      !shouldSkipHydrate,
+      fetchSeasonDetails(contentIdStr, coordsTarget?.seasonNumber ?? 0),
+    enabled: mediaType === "tv" && coordsTarget != null && !shouldSkipHydrate,
     staleTime: queryStaleTime(10 * 60 * 1000),
   });
 
   useEffect(() => {
+    const generation = ++hydrateGenerationRef.current;
+
     if (mediaType !== "tv" || !target || shouldSkipHydrate) {
       return;
     }
 
-    if (target.source === "watchlist") {
+    const isStale = () => generation !== hydrateGenerationRef.current;
+
+    const matchesTarget = () => {
+      const state = useEpisodeStore.getState();
+      return isSameTvWatchTarget(
+        target,
+        {
+          selectedEpisode: state.selectedEpisode,
+          tvShowId: state.tvShowId,
+          seasonNumber: state.seasonNumber,
+        },
+        mediaId,
+      );
+    };
+
+    if (isTvCoordsWatchTarget(target)) {
       const seasonData = seasonQuery.data;
-      if (!seasonData) {
+      if (!seasonData || isStale()) {
         return;
       }
 
@@ -98,55 +117,42 @@ export function useTvEpisodeHydrate({
           (item) => item.episode_number === target.episodeNumber,
         ) ?? null;
 
-      if (!episode) {
+      if (!episode || isStale() || matchesTarget()) {
         return;
       }
 
-      if (
-        isSameTvWatchTarget(
-          target,
-          {
-            selectedEpisode: useEpisodeStore.getState().selectedEpisode,
-            tvShowId: useEpisodeStore.getState().tvShowId,
-            seasonNumber: useEpisodeStore.getState().seasonNumber,
-          },
-          mediaId,
-        )
-      ) {
-        return;
-      }
+      const embeddedSelection = resolveEpisodeAnimeSelection(episode, {
+        animeSeasonNumber: target.seasonNumber,
+      });
 
       setSelectedEpisode(
         episode,
         contentIdStr,
         target.seasonNumber,
-        undefined,
+        embeddedSelection?.animeInfo,
         true,
         seasonData.episodes,
+        embeddedSelection?.mapping,
       );
       return;
     }
 
-    if (
-      isSameTvWatchTarget(
-        target,
-        {
-          selectedEpisode: useEpisodeStore.getState().selectedEpisode,
-          tvShowId: useEpisodeStore.getState().tvShowId,
-          seasonNumber: useEpisodeStore.getState().seasonNumber,
-        },
-        mediaId,
-      )
-    ) {
+    if (isStale() || matchesTarget()) {
       return;
     }
+
+    const embeddedSelection = resolveEpisodeAnimeSelection(target.episode, {
+      animeSeasonNumber: target.seasonNumber,
+    });
 
     setSelectedEpisode(
       target.episode,
       contentIdStr,
       target.seasonNumber,
-      undefined,
+      embeddedSelection?.animeInfo,
       true,
+      undefined,
+      embeddedSelection?.mapping,
     );
   }, [
     contentIdStr,

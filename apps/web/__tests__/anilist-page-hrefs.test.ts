@@ -11,7 +11,7 @@ describe("withAnimePageHref", () => {
         sourceAnilistId: 154587,
         href: "https://anilist.co/anime/154587",
       } as unknown as MediaItem).href,
-    ).toBe("/anime/154587");
+    ).toBe("/anime/anilist-154587");
   });
 
   it("routes unmapped AniList fallback items to AniList-backed anime detail pages", () => {
@@ -24,7 +24,7 @@ describe("withAnimePageHref", () => {
         sourceAnilistId: 188,
         href: "https://anilist.co/anime/188",
       } as unknown as MediaItem).href,
-    ).toBe("/anime/188");
+    ).toBe("/anime/anilist-188");
   });
 
   it("prefers /anime routes over existing internal tv detail hrefs when anilistId is known", () => {
@@ -35,7 +35,7 @@ describe("withAnimePageHref", () => {
         sourceAnilistId: 7,
         href: "/tvshows/42",
       } as unknown as MediaItem).href,
-    ).toBe("/anime/7");
+    ).toBe("/anime/anilist-7");
   });
 
   it("routes mapped anime movies through TMDB movie detail pages", () => {

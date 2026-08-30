@@ -85,6 +85,77 @@ describe("anime playback mapping", () => {
       relativeEpisode: 1,
       segmentStart: 13,
     });
+    expect(resolveFribbPlaybackCoords(rows, 61374, 3, 12)).toEqual({
+      anilistId: 100240,
+      relativeEpisode: 12,
+      segmentStart: 1,
+    });
+  });
+
+  it("maps Attack on Titan S4E28 to Final Season Part 2, not the Part 3 special", () => {
+    const aotSeason4 = [
+      {
+        anilist_id: 110277,
+        themoviedb_id: { tv: 1429 },
+        season: { tmdb: 4 },
+      },
+      {
+        anilist_id: 131681,
+        themoviedb_id: { tv: 1429 },
+        season: { tmdb: 4 },
+        episode_offset: { tmdb: 16 },
+      },
+      {
+        anilist_id: 146984,
+        themoviedb_id: { tv: 1429 },
+        season: { tmdb: 4 },
+        episode_offset: { tmdb: 28 },
+      },
+    ];
+
+    expect(resolveFribbPlaybackCoords(aotSeason4, 1429, 4, 16)).toEqual({
+      anilistId: 110277,
+      relativeEpisode: 16,
+      segmentStart: 1,
+    });
+    expect(resolveFribbPlaybackCoords(aotSeason4, 1429, 4, 17)).toEqual({
+      anilistId: 131681,
+      relativeEpisode: 1,
+      segmentStart: 17,
+    });
+    expect(resolveFribbPlaybackCoords(aotSeason4, 1429, 4, 28)).toEqual({
+      anilistId: 131681,
+      relativeEpisode: 12,
+      segmentStart: 17,
+    });
+    expect(resolveFribbPlaybackCoords(aotSeason4, 1429, 4, 29)).toEqual({
+      anilistId: 146984,
+      relativeEpisode: 1,
+      segmentStart: 29,
+    });
+    expect(resolveFribbPlaybackCoords(aotSeason4, 1429, 4, 30)).toEqual({
+      anilistId: 146984,
+      relativeEpisode: 2,
+      segmentStart: 29,
+    });
+  });
+
+  it("maps AniBridge Attack on Titan S4E28 to Final Season Part 2 episode 12", () => {
+    const mappings = {
+      "tmdb_show:1429:s4": {
+        "anilist:110277": { "1-16": "1-16" },
+        "anilist:131681": { "17-28": "1-12" },
+      },
+    };
+
+    expect(resolveAniBridgePlaybackCoords(mappings, 1429, 4, 16)).toEqual({
+      anilistId: 110277,
+      relativeEpisode: 16,
+    });
+    expect(resolveAniBridgePlaybackCoords(mappings, 1429, 4, 28)).toEqual({
+      anilistId: 131681,
+      relativeEpisode: 12,
+    });
   });
 
   it("treats missing or zero Fribb season metadata as TMDB season 1", () => {

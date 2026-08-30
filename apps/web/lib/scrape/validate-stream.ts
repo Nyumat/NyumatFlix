@@ -1,5 +1,6 @@
 import { cancelResponseBody, scrapeFetch } from "./fetch";
 import { appendAnimeCdnReferers } from "./anime/cdn-referer";
+import { extractHlsProbeTargets } from "./hls-probe-targets";
 import { resolveHlsPlaylistUrl } from "./hls-url";
 import { resolveKaaSegmentFallbackUrls } from "./playback";
 import {
@@ -10,6 +11,8 @@ import { looksLikeStreamUrl, type StreamKind } from "./stream-url-patterns";
 import { scrapeUpstreamHeaders } from "./upstream-headers";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
 import { isVixsrcStubPlaylistBody } from "./vixsrc-stub";
+
+export { extractHlsProbeTargets } from "./hls-probe-targets";
 
 export type ValidateStreamDepth = "full" | "master";
 
@@ -176,56 +179,6 @@ const okContentTypesForKind = (
     lower.includes("octet-stream") ||
     lower.includes("binary")
   );
-};
-
-const HLS_URI_ATTRIBUTE_PATTERN = /\bURI=(?:"([^"]+)"|'([^']+)')/i;
-
-type HlsProbeTargets = {
-  childPlaylist: string | null;
-  requiredAssets: string[];
-};
-
-export const extractHlsProbeTargets = (
-  body: string,
-  playlistUrl: string,
-): HlsProbeTargets => {
-  const lines = body.split(/\r?\n/).map((line) => line.trim());
-  const requiredAssets: string[] = [];
-
-  for (const line of lines) {
-    if (!line.startsWith("#EXT-X-MAP") && !line.startsWith("#EXT-X-KEY")) {
-      continue;
-    }
-
-    const match = line.match(HLS_URI_ATTRIBUTE_PATTERN);
-    const value = match?.[1] ?? match?.[2];
-    if (value) {
-      const resolved = resolveHlsPlaylistUrl(value, playlistUrl);
-      if (resolved && !requiredAssets.includes(resolved)) {
-        requiredAssets.push(resolved);
-      }
-    }
-  }
-
-  let childPlaylist: string | null = null;
-  for (const line of lines) {
-    if (line && !line.startsWith("#")) {
-      const resolved = resolveHlsPlaylistUrl(line, playlistUrl);
-      if (!resolved) {
-        continue;
-      }
-
-      if (body.includes("#EXT-X-STREAM-INF")) {
-        childPlaylist = resolved;
-        break;
-      }
-
-      requiredAssets.push(resolved);
-      break;
-    }
-  }
-
-  return { childPlaylist, requiredAssets };
 };
 
 const probeHlsAsset = async (

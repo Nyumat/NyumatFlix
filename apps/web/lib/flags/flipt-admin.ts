@@ -1,7 +1,6 @@
 export {
   readAdminFlagState,
   writeAdminFlagState,
-  invalidateFlagCache,
   readAnnouncementBannerConfig,
   readProviderMenuOrderConfig,
 } from "@/lib/flags/flipt-client";

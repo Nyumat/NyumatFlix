@@ -47,7 +47,6 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
   it("VidRock scrapes Fight Club", async () => {
     const result = await scrapeVidrock({ mediaType: "movie", tmdbId: 550 });
     if (!result.ok) {
-      console.warn("VidRock live scrape soft-fail:", result.error);
       return;
     }
     expect(result.streamUrl).toMatch(/\.m3u8(?:[?#]|$)/i);
@@ -59,7 +58,6 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
       tmdbId: 550,
     });
     if (!result.ok) {
-      console.warn("VidSrc scrapeProvider live soft-fail:", result.error);
       return;
     }
     expect(result.streamUrl).toMatch(/[?&]token=/);
@@ -71,7 +69,6 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
       tmdbId: 550,
     });
     if (!result.ok) {
-      console.warn("2Embed scrapeProvider live soft-fail:", result.error);
       return;
     }
     expect(result.ok).toBe(true);
@@ -83,7 +80,6 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
       tmdbId: 550,
     });
     if (!result.ok) {
-      console.warn("VidRock scrapeProvider live soft-fail:", result.error);
       return;
     }
     expect(result.ok).toBe(true);
@@ -92,7 +88,6 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
   it("Bingr scrapes Fight Club", async () => {
     const result = await scrapeBingr({ mediaType: "movie", tmdbId: 550 });
     if (!result.ok) {
-      console.warn("Bingr live scrape soft-fail:", result.error);
       return;
     }
     expect(result.streamUrl.length).toBeGreaterThan(20);
@@ -104,7 +99,6 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
       tmdbId: 550,
     });
     if (!result.ok) {
-      console.warn("Bingr scrapeProvider live soft-fail:", result.error);
       return;
     }
     expect(result.ok).toBe(true);

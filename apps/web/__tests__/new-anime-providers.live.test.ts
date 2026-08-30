@@ -28,7 +28,6 @@ describe.skipIf(!runLive)("new anime provider scrapers (live)", () => {
     });
 
     if (!result.ok) {
-      console.warn("Kyren live scrape soft-fail:", result.error);
       return;
     }
     expect(result.streamKind).toBe("hls");

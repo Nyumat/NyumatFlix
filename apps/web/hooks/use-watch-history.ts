@@ -12,9 +12,12 @@ import {
   type RecentlyWatchedScope,
   type RecentlyWatchedStub,
 } from "@/lib/playback/recently-watched";
+import { usePlaybackProgressRevision } from "@/hooks/use-playback-progress-revision";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import { fetchTvShowDetailClient } from "@/lib/tv-show-detail-client";
 import { isAnime } from "@/utils/anilist-helpers";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 type MediaDetailResponse = {
   title?: string;
@@ -43,13 +46,40 @@ async function fetchWatchlistItems(): Promise<WatchlistItem[]> {
 async function fetchMediaDetail(
   stub: RecentlyWatchedStub,
 ): Promise<RecentlyWatchedItem | null> {
-  const path =
-    stub.mediaType === "movie"
-      ? `/api/movies/${stub.contentId}`
-      : `/api/tv/${stub.contentId}`;
+  if (stub.mediaType === "movie") {
+    const response = await fetch(`/api/movies/${stub.contentId}`);
+    if (!response.ok) {
+      if (stub.title) {
+        return toRecentlyWatchedItem(stub, {
+          title: stub.title,
+          backdropPath: stub.backdropPath,
+          posterPath: stub.posterPath,
+          isAnime: false,
+        });
+      }
+      return null;
+    }
 
-  const response = await fetch(path);
-  if (!response.ok) {
+    const detail = (await response.json()) as MediaDetailResponse;
+    const title = detail.title ?? stub.title;
+    if (!title) {
+      return null;
+    }
+
+    return toRecentlyWatchedItem(stub, {
+      title,
+      backdropPath: detail.backdrop_path ?? stub.backdropPath,
+      posterPath: detail.poster_path ?? stub.posterPath,
+      voteAverage: detail.vote_average,
+      year: detail.release_date?.substring(0, 4),
+      isAnime: false,
+    });
+  }
+
+  const fetched = await fetchTvShowDetailClient(stub.contentId, {
+    expectedTitle: stub.title,
+  });
+  if (!fetched) {
     if (stub.title) {
       return toRecentlyWatchedItem(stub, {
         title: stub.title,
@@ -61,26 +91,19 @@ async function fetchMediaDetail(
     return null;
   }
 
-  const detail = (await response.json()) as MediaDetailResponse;
-  const title =
-    stub.mediaType === "movie"
-      ? (detail.title ?? stub.title)
-      : (detail.name ?? stub.title);
-
+  const detail = fetched.detail;
+  const title = detail.name ?? stub.title;
   if (!title) {
     return null;
   }
-
-  const date =
-    stub.mediaType === "movie" ? detail.release_date : detail.first_air_date;
 
   return toRecentlyWatchedItem(stub, {
     title,
     backdropPath: detail.backdrop_path ?? stub.backdropPath,
     posterPath: detail.poster_path ?? stub.posterPath,
     voteAverage: detail.vote_average,
-    year: date?.substring(0, 4),
-    isAnime: isAnime(detail),
+    year: detail.first_air_date?.substring(0, 4),
+    isAnime: fetched.catalog === "anime" || isAnime(detail),
   });
 }
 
@@ -107,16 +130,13 @@ async function enrichStubs(
 }
 
 export function useWatchHistory(scope: RecentlyWatchedScope = "all") {
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useIsHydrated();
+  const progressRevision = usePlaybackProgressRevision();
   const mediaTypes = mediaTypesForScope(scope);
   const collectLimit =
     scope === "tv" || scope === "anime"
       ? WATCH_HISTORY_LIMIT * 2
       : WATCH_HISTORY_LIMIT;
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
 
   const watchlistQuery = useQuery({
     queryKey: queryKeys.watchlist(),
@@ -133,7 +153,13 @@ export function useWatchHistory(scope: RecentlyWatchedScope = "all") {
       limit: collectLimit,
       mediaTypes,
     });
-  }, [hydrated, watchlistQuery.data, collectLimit, mediaTypes]);
+  }, [
+    hydrated,
+    watchlistQuery.data,
+    collectLimit,
+    mediaTypes,
+    progressRevision,
+  ]);
 
   const stubsKey = useMemo(
     () =>

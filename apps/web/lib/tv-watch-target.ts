@@ -5,9 +5,13 @@ import {
   isAnilistTvRouteId,
 } from "@/lib/anilist-route-id";
 import {
+  getLatestTvPlaybackCoords,
   getPlaybackProgress,
+  getRememberedLastTvEpisode,
   resolveResumeTime,
+  type TvEpisodeCoords,
 } from "@/lib/playback/progress-storage";
+import { getVidsrcLastTvEpisode } from "@/lib/playback/recently-watched";
 
 export const normalizeTvContentKey = (id: string | number): number | null => {
   const asString = String(id);
@@ -21,7 +25,11 @@ export const normalizeTvContentKey = (id: string | number): number | null => {
 
 export type TvWatchTarget =
   | { source: "selection"; episode: Episode; seasonNumber: number }
-  | { source: "watchlist"; seasonNumber: number; episodeNumber: number }
+  | {
+      source: "watchlist" | "progress";
+      seasonNumber: number;
+      episodeNumber: number;
+    }
   | { source: "initial"; episode: Episode; seasonNumber: number };
 
 export type TvWatchTargetState = {
@@ -30,25 +38,92 @@ export type TvWatchTargetState = {
   seasonNumber: number | null;
 };
 
+export type LocalTvWatchCoords = {
+  seasonNumber: number;
+  episodeNumber: number;
+};
+
+const pickNewestTvCoords = (
+  candidates: Array<TvEpisodeCoords | null>,
+): LocalTvWatchCoords | null => {
+  const present = candidates.filter(
+    (candidate): candidate is TvEpisodeCoords => candidate != null,
+  );
+  if (present.length === 0) {
+    return null;
+  }
+
+  present.sort((left, right) => right.updatedAt - left.updatedAt);
+  const newest = present[0];
+  if (!newest) {
+    return null;
+  }
+
+  return {
+    seasonNumber: newest.seasonNumber,
+    episodeNumber: newest.episodeNumber,
+  };
+};
+
+export function resolveLocalTvWatchCoords(
+  contentId: number,
+): LocalTvWatchCoords | null {
+  const contentKey = normalizeTvContentKey(contentId);
+  if (contentKey === null) {
+    return null;
+  }
+
+  return pickNewestTvCoords([
+    getRememberedLastTvEpisode(contentKey),
+    getLatestTvPlaybackCoords(contentKey),
+    getVidsrcLastTvEpisode(contentKey),
+  ]);
+}
+
+export function isTvCoordsWatchTarget(
+  target: TvWatchTarget,
+): target is Extract<TvWatchTarget, { episodeNumber: number }> {
+  return target.source === "watchlist" || target.source === "progress";
+}
+
 export function resolveTvWatchTarget(
   contentId: number,
   state: TvWatchTargetState,
   watchlistItem?: WatchlistItem | null,
   initialEpisode?: Episode | null,
   initialSeasonNumber?: number | null,
+  localCoords?: LocalTvWatchCoords | null,
 ): TvWatchTarget | null {
   const contentKey = normalizeTvContentKey(contentId);
 
+  const stateKey = normalizeTvContentKey(state.tvShowId ?? "");
+  const storeMatchesContent = contentKey !== null && stateKey === contentKey;
+
   if (
     state.selectedEpisode &&
-    contentKey !== null &&
-    normalizeTvContentKey(state.tvShowId ?? "") === contentKey &&
+    storeMatchesContent &&
     state.seasonNumber != null
   ) {
     return {
       source: "selection",
       episode: state.selectedEpisode,
       seasonNumber: state.seasonNumber,
+    };
+  }
+
+  if (
+    storeMatchesContent &&
+    state.seasonNumber != null &&
+    state.selectedEpisode === null
+  ) {
+    return null;
+  }
+
+  if (localCoords?.seasonNumber && localCoords.episodeNumber) {
+    return {
+      source: "progress",
+      seasonNumber: localCoords.seasonNumber,
+      episodeNumber: localCoords.episodeNumber,
     };
   }
 
@@ -77,10 +152,9 @@ export function tvWatchTargetCoords(target: TvWatchTarget): {
 } {
   return {
     seasonNumber: target.seasonNumber,
-    episodeNumber:
-      target.source === "watchlist"
-        ? target.episodeNumber
-        : target.episode.episode_number,
+    episodeNumber: isTvCoordsWatchTarget(target)
+      ? target.episodeNumber
+      : target.episode.episode_number,
   };
 }
 
@@ -147,7 +221,7 @@ export function isSameTvWatchTarget(
     return false;
   }
 
-  if (target.source === "watchlist") {
+  if (isTvCoordsWatchTarget(target)) {
     return (
       state.seasonNumber === target.seasonNumber &&
       state.selectedEpisode.episode_number === target.episodeNumber

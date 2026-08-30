@@ -45,7 +45,11 @@ export const buildMovieStructuredData = (media: MediaItem, mediaId: string) => {
   };
 };
 
-export const buildTvStructuredData = (media: MediaItem, mediaId: string) => {
+export const buildTvStructuredData = (
+  media: MediaItem,
+  mediaId: string,
+  options?: { path?: string },
+) => {
   const title = getMediaTitle(media, "tv");
   const startDate = getMediaDate(media, "tv");
   const image = tmdbImageUrl(media.poster_path, "w500");
@@ -55,7 +59,7 @@ export const buildTvStructuredData = (media: MediaItem, mediaId: string) => {
     "@type": "TVSeries",
     name: title,
     description: media.overview,
-    url: buildCanonicalUrl(`/tvshows/${mediaId}`),
+    url: buildCanonicalUrl(options?.path ?? `/tvshows/${mediaId}`),
     ...(startDate && { datePublished: startDate }),
     ...(image && { image }),
     ...(media.vote_average > 0 && {

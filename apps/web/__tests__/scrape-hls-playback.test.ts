@@ -244,7 +244,7 @@ describe("scrape hls playback helpers", () => {
     ]);
   });
 
-  it("serves disguised AnimeStream pict segments as MPEG-TS", () => {
+  it("serves disguised pict segments as MPEG-TS", () => {
     expect(
       contentTypeForProxiedAsset(
         "https://cdn.example/show/img-00000.pict",
@@ -278,10 +278,17 @@ describe("scrape hls playback helpers", () => {
       playUrl: "/api/scrape/play/token/master.m3u8",
       qualities: [{ label: "1080p", url: "https://cdn/1080.m3u8" }],
       subtitles: [{ lang: "en", url: "https://cdn/en.vtt" }],
+      progressKey: {
+        mediaType: "tv",
+        contentId: 1399,
+        seasonNumber: 1,
+        episodeNumber: 3,
+      },
     });
 
     expect(key).toContain("/api/scrape/play/token/master.m3u8");
     expect(key).toContain("1080p");
+    expect(key).toContain("tv:1399:1:3");
     expect(key).not.toContain("en:https://cdn/en.vtt");
   });
 

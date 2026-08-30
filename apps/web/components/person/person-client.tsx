@@ -110,7 +110,7 @@ export const PersonCreditsTable: React.FC<PersonCreditsTableProps> = ({
     return value === "all" || credit.media_type === value;
   };
 
-  const sortedList = useMemo(() => credits.sort(sort), [credits]);
+  const sortedList = useMemo(() => [...credits].sort(sort), [credits]);
 
   const getCount = (type: "movie" | "tv") =>
     sortedList.filter((credit) => credit.media_type === type).length;

@@ -191,6 +191,7 @@ export function usePlaybackTrackPreferences(
   progressKey: PlaybackProgressKey,
   sourceKey: string,
   preferredAudioLang?: string | null,
+  options?: { preferEnglishSubtitles?: boolean },
 ) {
   const scopeKey = useMemo(
     () => trackPreferenceStorageKey(progressKey),
@@ -219,7 +220,10 @@ export function usePlaybackTrackPreferences(
         try {
           if (preferences) {
             applySubtitlePreference(player, preferences.subtitleLang);
-          } else if (isJapaneseAudioPreference(preferredAudioLang)) {
+          } else if (
+            options?.preferEnglishSubtitles ||
+            isJapaneseAudioPreference(preferredAudioLang)
+          ) {
             applySubtitlePreference(player, "english");
           }
 
@@ -303,12 +307,14 @@ export function usePlaybackTrackPreferences(
         }
       };
 
-      textTracks.addEventListener("add", applySaved);
-      textTracks.addEventListener("mode-change", persistSubtitlePreference);
-      audioTracks?.addEventListener("add", () => {
+      const handleAudioTracksAdd = () => {
         normalizeAudioTracks();
         applySaved();
-      });
+      };
+
+      textTracks.addEventListener("add", applySaved);
+      textTracks.addEventListener("mode-change", persistSubtitlePreference);
+      audioTracks?.addEventListener("add", handleAudioTracksAdd);
       audioTracks?.addEventListener("change", persistAudioPreference);
 
       normalizeAudioTracks();
@@ -320,7 +326,7 @@ export function usePlaybackTrackPreferences(
           "mode-change",
           persistSubtitlePreference,
         );
-        audioTracks?.removeEventListener("add", applySaved);
+        audioTracks?.removeEventListener("add", handleAudioTracksAdd);
         audioTracks?.removeEventListener("change", persistAudioPreference);
       };
     };
@@ -340,5 +346,11 @@ export function usePlaybackTrackPreferences(
       disposed = true;
       cleanup?.();
     };
-  }, [playerRef, preferredAudioLang, scopeKey, sourceKey]);
+  }, [
+    options?.preferEnglishSubtitles,
+    playerRef,
+    preferredAudioLang,
+    scopeKey,
+    sourceKey,
+  ]);
 }

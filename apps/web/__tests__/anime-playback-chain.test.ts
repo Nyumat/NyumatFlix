@@ -134,7 +134,6 @@ describe("anime-playback-chain", () => {
       "kickassanime",
       "anizone",
       "allmanga",
-      "animestream",
       "animegg",
       "kyren",
       "justanime",
@@ -242,7 +241,6 @@ describe("anime-playback-chain", () => {
       "anizone",
       "allmanga",
       "animeonsen",
-      "animestream",
       "kyren",
       "justanime",
     ]);

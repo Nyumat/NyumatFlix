@@ -169,3 +169,37 @@ export const resolveAnimeEpisodeCoords = (input: {
     confidence: "low",
   };
 };
+
+export type EpisodeListPresentation = {
+  splitCour: boolean;
+  showTmdbSeasonSelect: boolean;
+  showCourSelect: boolean;
+  courSelectReplacesSeasons: boolean;
+};
+
+export const episodeListPresentation = (input: {
+  tmdbSeasonCount: number;
+  segmentCount: number;
+}): EpisodeListPresentation => {
+  const splitCour = input.segmentCount > 1;
+  const courSelectReplacesSeasons = splitCour && input.tmdbSeasonCount <= 1;
+
+  return {
+    splitCour,
+    showTmdbSeasonSelect: !courSelectReplacesSeasons,
+    showCourSelect: splitCour,
+    courSelectReplacesSeasons,
+  };
+};
+
+export const formatCourSelectLabel = (
+  segment: MappingSegment,
+  index: number,
+  options: { besideTmdbSeasons: boolean },
+): string => {
+  const episodeCount = segment.endEpisode - segment.startEpisode + 1;
+  if (options.besideTmdbSeasons) {
+    return `Part ${index + 1} · ${episodeCount} ep${episodeCount === 1 ? "" : "s"}`;
+  }
+  return `Season ${index + 1}`;
+};

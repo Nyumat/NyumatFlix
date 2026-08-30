@@ -62,11 +62,6 @@ const CASES: Array<{
     input: { anilistId: 21, episodeNumber: 1168 },
   },
   {
-    label: "AnimeStream / One Piece ep1",
-    providerId: "animestream",
-    input: { anilistId: 21, episodeNumber: 1, query: "One Piece" },
-  },
-  {
     label: "AnimeGG / Naruto ep1",
     providerId: "animegg",
     input: { anilistId: 20, episodeNumber: 1, query: "Naruto" },

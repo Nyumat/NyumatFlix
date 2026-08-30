@@ -4,8 +4,13 @@ import { fetchSeasonDetails } from "@/components/tvshow/tvshow-api";
 import { MalListPopoverButton } from "@/components/media/mal-list-popover-button";
 import { WatchlistButton } from "@/components/watchlist/watchlist";
 import { pages } from "@/config/pages";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import { useLocalTvWatchCoords } from "@/hooks/use-local-tv-watch-coords";
+import { useMovieWatchButtonLabel } from "@/hooks/use-movie-watch-button-label";
 import { useMalSyncStatus } from "@/hooks/use-mal-sync-status";
 import { resolveEpisodeAnimeMapping } from "@/lib/anime/resolve-episode-mapping";
+import { resolveEpisodeAnimeSelection } from "@/lib/anime/episode-playback-source";
+import { resolveAnimeEpisodeMappingTmdbShowId } from "@/lib/anime/resolve-coords-tmdb-show-id";
 import {
   isAnimeAnilistRouteId,
   resolveTvDetailRouteId,
@@ -17,6 +22,7 @@ import { useMediaDetailTabStore } from "@/lib/stores/media-detail-tab-store";
 import {
   formatTvWatchLabel,
   isSameTvWatchTarget,
+  isTvCoordsWatchTarget,
   isTvWatchlistResume,
   isTvPlaybackResume,
   resolveTvWatchTarget,
@@ -32,9 +38,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Youtube } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { movieWatchButtonLabel } from "@/lib/playback/movie-watch-label";
-
+import { useRef } from "react";
 interface HeroButtonsProps {
   handleWatch(): void;
   handlePlayTrailer(): void;
@@ -74,6 +78,7 @@ export function HeroButtons({
   } = useEpisodeStore();
   const router = useRouter();
   const pathname = usePathname();
+  const watchClickGenerationRef = useRef(0);
   const catalog = useTvDetailCatalog();
   const malStatusQuery = useMalSyncStatus();
   const malConnected = malStatusQuery.data?.connected === true;
@@ -83,10 +88,9 @@ export function HeroButtons({
     malConnected &&
     mediaType === "tv" &&
     (hasAnilistId || isAnimeCatalog || Boolean(defaultAnilistId));
-  const [movieButtonLabel, setMovieButtonLabel] = useState<"Play" | "Resume">(
-    "Play",
-  );
-  const [tvPlaybackResume, setTvPlaybackResume] = useState(false);
+  const isHydrated = useIsHydrated();
+  const localCoords = useLocalTvWatchCoords(contentId);
+  const movieButtonLabel = useMovieWatchButtonLabel(contentId, mediaType);
 
   const watchTarget =
     mediaType === "tv"
@@ -96,33 +100,18 @@ export function HeroButtons({
           watchlistItem,
           initialEpisode,
           initialSeasonNumber,
+          localCoords,
         )
       : null;
+  const tvPlaybackResume =
+    isHydrated && mediaType === "tv" && watchTarget != null
+      ? isTvPlaybackResume(watchTarget, contentId)
+      : false;
   const tvResume =
     watchTarget != null &&
-    (isTvWatchlistResume(watchTarget, watchlistItem) || tvPlaybackResume);
-
-  useEffect(() => {
-    if (mediaType !== "movie") {
-      return;
-    }
-    setMovieButtonLabel(movieWatchButtonLabel(contentId));
-  }, [contentId, mediaType]);
-
-  useEffect(() => {
-    if (mediaType !== "tv" || !watchTarget) {
-      setTvPlaybackResume(false);
-      return;
-    }
-    setTvPlaybackResume(isTvPlaybackResume(watchTarget, contentId));
-  }, [
-    contentId,
-    mediaType,
-    watchTarget,
-    watchlistItem?.lastWatchedEpisode,
-    watchlistItem?.lastWatchedSeason,
-  ]);
-
+    (isTvWatchlistResume(watchTarget, watchlistItem) ||
+      tvPlaybackResume ||
+      watchTarget.source === "progress");
   const showEpisodeList = () => {
     const id = resolveTvDetailRouteId(pathname, contentId);
     const catalogRoot =
@@ -173,15 +162,22 @@ export function HeroButtons({
       return;
     }
 
+    const generation = ++watchClickGenerationRef.current;
+    const isStale = () => generation !== watchClickGenerationRef.current;
+
     let episode: Episode;
     let targetSeasonNumber: number;
     let seasonEpisodes: Episode[] | undefined;
 
-    if (watchTarget.source === "watchlist") {
+    if (isTvCoordsWatchTarget(watchTarget)) {
       const seasonData = await fetchSeasonDetails(
         String(contentId),
         watchTarget.seasonNumber,
       );
+      if (isStale()) {
+        return;
+      }
+
       const resolvedEpisode = seasonData?.episodes?.find(
         (item) => item.episode_number === watchTarget.episodeNumber,
       );
@@ -226,9 +222,18 @@ export function HeroButtons({
         }
       | undefined;
 
+    const embeddedSelection = resolveEpisodeAnimeSelection(episode, {
+      animeSeasonNumber: targetSeasonNumber,
+      isAdult: defaultIsAdultAnime,
+    });
+    if (embeddedSelection) {
+      animeInfo = embeddedSelection.animeInfo;
+      mapping = embeddedSelection.mapping;
+    }
+
     const tvRouteId = resolveTvDetailRouteId(pathname, contentId);
 
-    if (defaultAnilistId && isAnimeAnilistRouteId(tvRouteId)) {
+    if (!animeInfo && defaultAnilistId && isAnimeAnilistRouteId(tvRouteId)) {
       const playbackTmdbTvId = storeState.playbackTmdbTvId;
       if (playbackTmdbTvId) {
         const coords = await resolveEpisodeAnimeMapping({
@@ -237,6 +242,9 @@ export function HeroButtons({
           episodeNumber: episode.episode_number,
           isAdult: defaultIsAdultAnime,
         });
+        if (isStale()) {
+          return;
+        }
         if (coords) {
           animeInfo = coords.animeInfo;
           mapping = {
@@ -250,29 +258,64 @@ export function HeroButtons({
       }
 
       if (!animeInfo) {
-        mapping = {
-          confidence: "low",
-          isAdult: defaultIsAdultAnime,
+        const fallbackSelection = resolveEpisodeAnimeSelection(episode, {
           animeSeasonNumber: targetSeasonNumber,
-        };
+          isAdult: defaultIsAdultAnime,
+        });
+        if (fallbackSelection) {
+          animeInfo = fallbackSelection.animeInfo;
+          mapping = fallbackSelection.mapping;
+        } else {
+          mapping = {
+            confidence: "low",
+            isAdult: defaultIsAdultAnime,
+            animeSeasonNumber: targetSeasonNumber,
+          };
+        }
       }
-    } else if (defaultAnilistId) {
-      const coords = await resolveEpisodeAnimeMapping({
-        tmdbShowId: contentId,
-        seasonNumber: targetSeasonNumber,
-        episodeNumber: episode.episode_number,
-        isAdult: defaultIsAdultAnime,
-      });
-      if (coords) {
-        animeInfo = coords.animeInfo;
-        mapping = {
-          confidence: coords.confidence,
-          isAdult: coords.isAdult,
-          genres: coords.genres,
-          animeSeasonNumber: coords.animeSeasonNumber,
-          relativeEpisodeNumber: coords.relativeEpisodeNumber,
-        };
+    } else if (!animeInfo && defaultAnilistId) {
+      const mappingTmdbShowId = resolveAnimeEpisodeMappingTmdbShowId(
+        tvRouteId,
+        defaultAnilistId,
+        storeState.playbackTmdbTvId,
+      );
+
+      if (mappingTmdbShowId) {
+        const coords = await resolveEpisodeAnimeMapping({
+          tmdbShowId: mappingTmdbShowId,
+          seasonNumber: targetSeasonNumber,
+          episodeNumber: episode.episode_number,
+          isAdult: defaultIsAdultAnime,
+        });
+        if (isStale()) {
+          return;
+        }
+        if (coords) {
+          animeInfo = coords.animeInfo;
+          mapping = {
+            confidence: coords.confidence,
+            isAdult: coords.isAdult,
+            genres: coords.genres,
+            animeSeasonNumber: coords.animeSeasonNumber,
+            relativeEpisodeNumber: coords.relativeEpisodeNumber,
+          };
+        }
       }
+
+      if (!animeInfo) {
+        const fallbackSelection = resolveEpisodeAnimeSelection(episode, {
+          animeSeasonNumber: targetSeasonNumber,
+          isAdult: defaultIsAdultAnime,
+        });
+        if (fallbackSelection) {
+          animeInfo = fallbackSelection.animeInfo;
+          mapping = fallbackSelection.mapping;
+        }
+      }
+    }
+
+    if (isStale()) {
+      return;
     }
 
     setSelectedEpisode(

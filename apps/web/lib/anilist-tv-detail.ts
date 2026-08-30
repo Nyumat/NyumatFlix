@@ -33,6 +33,7 @@ import {
   buildMergedEpisodesForTmdbSeason,
   collapseSeasonSummariesForTmdb,
   groupFranchiseSeasonsByTmdb,
+  type SeasonEpisodeSource,
   type TmdbGroupedFranchiseSeason,
 } from "@/lib/anilist-franchise-display";
 import {
@@ -40,7 +41,13 @@ import {
   enrichAnilistTvDetailsWithTmdb,
   resolveAnilistTmdbTvIdForEnrichment,
 } from "@/lib/anilist-tv-tmdb-enrich";
-import { getFribbAnimeList, getFribbMapping } from "@/lib/fribb-mapping";
+import {
+  getFribbAnimeList,
+  getFribbMapping,
+  type FribbAnimeRow,
+} from "@/lib/fribb-mapping";
+import { hasFribbSplitCourForTmdbSeason } from "@/lib/anime/split-cour-appendix";
+import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
 import { cache } from "react";
 
 const ANILIST_TV_DETAIL_REVALIDATE_SECONDS = 3600;
@@ -367,7 +374,10 @@ const buildEpisodes = (media: AniListTvMedia): Episode[] => {
 
   return episodeNumbers.map((episodeNumber) => ({
     id: media.id * 10_000 + episodeNumber,
-    name: `Episode ${episodeNumber}`,
+    name:
+      episodeNumbers.length === 1 && media.format === "SPECIAL"
+        ? getAniListTitle(asAniListMedia(media))
+        : `Episode ${episodeNumber}`,
     overview: "",
     episode_number: episodeNumber,
     air_date: airingDates.get(episodeNumber) ?? defaultAirDate,
@@ -375,8 +385,13 @@ const buildEpisodes = (media: AniListTvMedia): Episode[] => {
     runtime,
     vote_average: 0,
     vote_count: 0,
+    sourceAnilistId: media.id,
+    sourceEpisodeNumber: episodeNumber,
   }));
 };
+
+const buildEpisodesForSeasonSource = (media: SeasonEpisodeSource): Episode[] =>
+  buildEpisodes(media as AniListTvMedia);
 
 const buildSeason = (media: AniListTvMedia, seasonNumber: number): Season => {
   const episodeCount = collectEpisodeNumbers(media).length;
@@ -410,6 +425,7 @@ const mapCharactersToCast = (media: AniListTvMedia): Actor[] => {
       character: edge.role ?? "Main",
       profile_path: node.image?.large ?? null,
       popularity: 0,
+      href: null,
     });
   }
 
@@ -576,6 +592,137 @@ const fetchAniListTvMediaUncached = async (
   }
 };
 
+const resolveSpecialSequelAppendixIds = async (
+  tailMedia: AniListTvMedia,
+): Promise<number[]> => {
+  const appendix: number[] = [];
+  let current: AniListTvMedia | null = tailMedia;
+
+  for (let depth = 0; depth < 3 && current; depth += 1) {
+    const sequelNode = current.relations?.edges?.find(
+      (edge) =>
+        edge.relationType === "SEQUEL" &&
+        edge.node?.type === "ANIME" &&
+        edge.node.format === "SPECIAL" &&
+        typeof edge.node.id === "number" &&
+        edge.node.id > 0,
+    )?.node;
+    if (!sequelNode?.id) break;
+
+    appendix.push(sequelNode.id);
+    current = await getCachedAnilistTvMedia(sequelNode.id);
+  }
+
+  return appendix;
+};
+
+const appendSpecialSequelIdsToGroupedSeasons = async (
+  groupedSeasons: readonly TmdbGroupedFranchiseSeason[],
+  seasonsByAnilistId: Map<number, AniListTvMedia>,
+): Promise<TmdbGroupedFranchiseSeason[]> => {
+  const expanded: TmdbGroupedFranchiseSeason[] = [];
+
+  for (const groupedSeason of groupedSeasons) {
+    const anilistIds = [...groupedSeason.anilistIds];
+    const tailId = anilistIds[anilistIds.length - 1];
+    const tailMedia = tailId ? seasonsByAnilistId.get(tailId) : undefined;
+    if (tailMedia) {
+      const sequelIds = await resolveSpecialSequelAppendixIds(tailMedia);
+      for (const sequelId of sequelIds) {
+        if (!anilistIds.includes(sequelId)) {
+          anilistIds.push(sequelId);
+        }
+      }
+    }
+    expanded.push({ ...groupedSeason, anilistIds });
+  }
+
+  return expanded;
+};
+
+const hydrateSplitCourAppendixMedia = async (
+  groupedSeasons: readonly TmdbGroupedFranchiseSeason[],
+  seasonsByAnilistId: Map<number, AniListTvMedia>,
+): Promise<void> => {
+  const missingIds = [
+    ...new Set(
+      groupedSeasons.flatMap((season) =>
+        season.anilistIds.filter(
+          (anilistId) => !seasonsByAnilistId.has(anilistId),
+        ),
+      ),
+    ),
+  ];
+
+  if (missingIds.length === 0) return;
+
+  const loaded = await Promise.all(
+    missingIds.map(async (anilistId) => {
+      const media = await getCachedAnilistTvMedia(anilistId);
+      return [anilistId, media] as const;
+    }),
+  );
+
+  for (const [anilistId, media] of loaded) {
+    if (media) {
+      seasonsByAnilistId.set(anilistId, media);
+    }
+  }
+};
+
+const shouldMergeEpisodesForGroupedSeason = (
+  groupedSeason: TmdbGroupedFranchiseSeason,
+  tmdbShowId: number | null,
+  fribbRows: readonly FribbAnimeRow[],
+): boolean => {
+  if (!tmdbShowId || groupedSeason.anilistIds.length === 0) {
+    return false;
+  }
+
+  return (
+    groupedSeason.anilistIds.length > 1 ||
+    hasFribbSplitCourForTmdbSeason(
+      fribbRows,
+      tmdbShowId,
+      groupedSeason.seasonNumber,
+    )
+  );
+};
+
+const buildSeasonForSeasonSource = (
+  media: SeasonEpisodeSource,
+  seasonNumber: number,
+): Season => buildSeason(media as AniListTvMedia, seasonNumber);
+
+const buildMergedEpisodeCountBySeason = (
+  groupedSeasons: readonly TmdbGroupedFranchiseSeason[],
+  resolved: ResolvedAniListTvShow,
+  tmdbShowId: number | null,
+  fribbRows: readonly FribbAnimeRow[],
+): Map<number, number> => {
+  const counts = new Map<number, number>();
+
+  for (const groupedSeason of groupedSeasons) {
+    if (
+      !shouldMergeEpisodesForGroupedSeason(groupedSeason, tmdbShowId, fribbRows)
+    ) {
+      continue;
+    }
+
+    const episodes = buildMergedEpisodesForTmdbSeason({
+      tmdbShowId: tmdbShowId!,
+      seasonNumber: groupedSeason.seasonNumber,
+      anilistIds: groupedSeason.anilistIds,
+      seasonsByAnilistId: resolved.seasonsByAnilistId,
+      fribbRows,
+      buildEpisodes: buildEpisodesForSeasonSource,
+    });
+    counts.set(groupedSeason.seasonNumber, episodes.length);
+  }
+
+  return counts;
+};
+
 const resolveAniListTvShowUncached = async (
   entryAnilistId: number,
 ): Promise<ResolvedAniListTvShow | null> => {
@@ -597,6 +744,29 @@ const resolveAniListTvShowUncached = async (
   const entry = seasonsByAnilistId.get(franchise.entryAnilistId);
   const root = seasonsByAnilistId.get(franchise.rootAnilistId);
   if (!entry || !root) return null;
+
+  const fribbMapping = await getFribbMapping();
+  const fribbRows = await getFribbAnimeList();
+  const entryFribb = fribbMapping[entryAnilistId];
+  const tmdbShowId = entryFribb?.tv ?? null;
+  if (tmdbShowId) {
+    const grouped =
+      groupFranchiseSeasonsByTmdb(
+        franchise.seasons,
+        fribbMapping,
+        tmdbShowId,
+        fribbRows,
+      ) ??
+      franchise.seasons.map((season) => ({
+        seasonNumber: season.seasonNumber,
+        anilistIds: [season.anilistId],
+      }));
+    const expandedGroups = await appendSpecialSequelIdsToGroupedSeasons(
+      grouped,
+      seasonsByAnilistId,
+    );
+    await hydrateSplitCourAppendixMedia(expandedGroups, seasonsByAnilistId);
+  }
 
   return {
     routeSlug: toAnilistTvRouteSlug(franchise.rootAnilistId),
@@ -652,13 +822,19 @@ const resolveDisplaySeasonGroups = async (
   if (!tmdbShowId) return fallback;
 
   const fribbMapping = await getFribbMapping();
+  const fribbRows = await getFribbAnimeList();
   const grouped = groupFranchiseSeasonsByTmdb(
     resolved.franchise.seasons,
     fribbMapping,
     tmdbShowId,
+    fribbRows,
   );
 
-  return grouped ?? fallback;
+  const baseGroups = grouped ?? fallback;
+  return appendSpecialSequelIdsToGroupedSeasons(
+    baseGroups,
+    resolved.seasonsByAnilistId,
+  );
 };
 
 const collapseSplitCourAnilistSeasons = async (
@@ -673,12 +849,21 @@ const collapseSplitCourAnilistSeasons = async (
     return details;
   }
 
+  const fribbRows = await getFribbAnimeList();
+  const mergedEpisodeCountBySeason = buildMergedEpisodeCountBySeason(
+    grouped,
+    resolved,
+    tmdbShowId,
+    fribbRows,
+  );
+
   const seasons = collapseSeasonSummariesForTmdb({
     franchiseSeasons: resolved.franchise.seasons,
     groupedSeasons: grouped,
     seasonsByAnilistId: resolved.seasonsByAnilistId,
-    buildSeason,
+    buildSeason: buildSeasonForSeasonSource,
     tmdbSeasons: details.seasons,
+    mergedEpisodeCountBySeason,
   });
 
   return {
@@ -718,6 +903,14 @@ export const getCachedAnilistTvShowDetail = async (
   return resolved ? await buildEnrichedAnilistTvShowDetails(resolved) : null;
 };
 
+const fetchMappedTmdbSeasonDetails = async (
+  tmdbShowId: number,
+  seasonNumber: number,
+): Promise<SeasonDetails | null> =>
+  fetchSeasonDetailsServer(String(tmdbShowId), seasonNumber, {
+    source: "tmdb",
+  });
+
 export const getCachedAnilistTvSeasonDetails = async (
   routeId: string,
   seasonNumber: number,
@@ -733,7 +926,10 @@ export const getCachedAnilistTvSeasonDetails = async (
   const groupedSeason = groupedSeasons.find(
     (season) => season.seasonNumber === seasonNumber,
   );
-  if (!groupedSeason) return null;
+  if (!groupedSeason) {
+    if (!tmdbShowId) return null;
+    return fetchMappedTmdbSeasonDetails(tmdbShowId, seasonNumber);
+  }
 
   const primaryAnilistId = groupedSeason.anilistIds[0];
   const media =
@@ -741,21 +937,21 @@ export const getCachedAnilistTvSeasonDetails = async (
       ? resolved.seasonsByAnilistId.get(primaryAnilistId)
       : undefined) ?? resolved.entry;
   const season = buildSeason(media, seasonNumber);
-  const fribbRows =
-    groupedSeason.anilistIds.length > 1 && tmdbShowId
-      ? await getFribbAnimeList()
-      : [];
-  const episodes =
-    groupedSeason.anilistIds.length > 1 && tmdbShowId
-      ? buildMergedEpisodesForTmdbSeason({
-          tmdbShowId,
-          seasonNumber,
-          anilistIds: groupedSeason.anilistIds,
-          seasonsByAnilistId: resolved.seasonsByAnilistId,
-          fribbRows,
-          buildEpisodes,
-        })
-      : buildEpisodes(media);
+  const fribbRows = tmdbShowId ? await getFribbAnimeList() : [];
+  const episodes = shouldMergeEpisodesForGroupedSeason(
+    groupedSeason,
+    tmdbShowId,
+    fribbRows,
+  )
+    ? buildMergedEpisodesForTmdbSeason({
+        tmdbShowId: tmdbShowId!,
+        seasonNumber,
+        anilistIds: groupedSeason.anilistIds,
+        seasonsByAnilistId: resolved.seasonsByAnilistId,
+        fribbRows,
+        buildEpisodes: buildEpisodesForSeasonSource,
+      })
+    : buildEpisodes(media);
 
   const enrichedSeason = await enrichAnilistSeasonDetailsWithTmdb(
     routeId,
@@ -767,60 +963,83 @@ export const getCachedAnilistTvSeasonDetails = async (
       episodes,
     },
     resolved,
+    {
+      preserveSplitCourAppendix: shouldMergeEpisodesForGroupedSeason(
+        groupedSeason,
+        tmdbShowId,
+        fribbRows,
+      ),
+    },
   );
 
   return enrichedSeason;
 };
 
-export const getCachedAnilistTvAllSeasons = async (
-  routeId: string,
-  options?: AnilistRouteResolveOptions,
-): Promise<Record<number, SeasonDetails>> => {
-  const resolved = await requireResolvedAniListTvShow(routeId, options);
-  if (!resolved) return {};
+export const getCachedAnilistTvAllSeasons = cache(
+  async (
+    routeId: string,
+    options?: AnilistRouteResolveOptions,
+  ): Promise<Record<number, SeasonDetails>> => {
+    const resolved = await requireResolvedAniListTvShow(routeId, options);
+    if (!resolved) return {};
 
-  const tmdbShowId = await resolveAnilistTmdbTvIdForEnrichment(
-    resolved.entry.id,
-  );
-  const groupedSeasons = await resolveDisplaySeasonGroups(resolved, tmdbShowId);
-  const fribbRows =
-    groupedSeasons.some((season) => season.anilistIds.length > 1) && tmdbShowId
-      ? await getFribbAnimeList()
-      : [];
+    const tmdbShowId = await resolveAnilistTmdbTvIdForEnrichment(
+      resolved.entry.id,
+    );
+    const groupedSeasons = await resolveDisplaySeasonGroups(
+      resolved,
+      tmdbShowId,
+    );
+    const fribbRows = tmdbShowId ? await getFribbAnimeList() : [];
 
-  const allSeasons: Record<number, SeasonDetails> = {};
+    const allSeasons: Record<number, SeasonDetails> = {};
 
-  for (const groupedSeason of groupedSeasons) {
-    const primaryAnilistId = groupedSeason.anilistIds[0];
-    const media =
-      (primaryAnilistId
-        ? resolved.seasonsByAnilistId.get(primaryAnilistId)
-        : undefined) ?? resolved.entry;
-    const season = buildSeason(media, groupedSeason.seasonNumber);
-    const episodes =
-      groupedSeason.anilistIds.length > 1 && tmdbShowId
+    for (const groupedSeason of groupedSeasons) {
+      const primaryAnilistId = groupedSeason.anilistIds[0];
+      const media =
+        (primaryAnilistId
+          ? resolved.seasonsByAnilistId.get(primaryAnilistId)
+          : undefined) ?? resolved.entry;
+      const season = buildSeason(media, groupedSeason.seasonNumber);
+      const episodes = shouldMergeEpisodesForGroupedSeason(
+        groupedSeason,
+        tmdbShowId,
+        fribbRows,
+      )
         ? buildMergedEpisodesForTmdbSeason({
-            tmdbShowId,
+            tmdbShowId: tmdbShowId!,
             seasonNumber: groupedSeason.seasonNumber,
             anilistIds: groupedSeason.anilistIds,
             seasonsByAnilistId: resolved.seasonsByAnilistId,
             fribbRows,
-            buildEpisodes,
+            buildEpisodes: buildEpisodesForSeasonSource,
           })
         : buildEpisodes(media);
-    const baseSeason: SeasonDetails = {
-      id: season.id,
-      name: season.name,
-      overview: season.overview,
-      season_number: season.season_number,
-      episodes,
-    };
-    allSeasons[groupedSeason.seasonNumber] =
-      await enrichAnilistSeasonDetailsWithTmdb(routeId, baseSeason, resolved);
-  }
+      const baseSeason: SeasonDetails = {
+        id: season.id,
+        name: season.name,
+        overview: season.overview,
+        season_number: season.season_number,
+        episodes,
+      };
+      allSeasons[groupedSeason.seasonNumber] =
+        await enrichAnilistSeasonDetailsWithTmdb(
+          routeId,
+          baseSeason,
+          resolved,
+          {
+            preserveSplitCourAppendix: shouldMergeEpisodesForGroupedSeason(
+              groupedSeason,
+              tmdbShowId,
+              fribbRows,
+            ),
+          },
+        );
+    }
 
-  return allSeasons;
-};
+    return allSeasons;
+  },
+);
 
 export const getCachedAnilistTvCredits = async (
   routeId: string,

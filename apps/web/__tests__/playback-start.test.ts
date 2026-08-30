@@ -4,12 +4,29 @@ import {
   decidePlaybackAutoStart,
   hlsStartPosition,
   PLAYBACK_START_TIMEOUT_MS,
+  VIDSTACK_START_TIMEOUT_MS,
   shouldEnforceVidstackStartAtZero,
+  vidstackScrapeStartTimeoutMs,
 } from "@/lib/playback/playbackStart";
 
 describe("PLAYBACK_START_TIMEOUT_MS", () => {
   it("is a positive fallback window for stalled players", () => {
     expect(PLAYBACK_START_TIMEOUT_MS).toBeGreaterThan(10_000);
+  });
+});
+
+describe("vidstackScrapeStartTimeoutMs", () => {
+  it("fails scrape HLS after 30s if metadata never arrives", () => {
+    expect(VIDSTACK_START_TIMEOUT_MS).toBe(30_000);
+    expect(
+      vidstackScrapeStartTimeoutMs("https://cdn.example/master.m3u8"),
+    ).toBe(30_000);
+  });
+
+  it("keeps a longer window for transcode playlists", () => {
+    expect(
+      vidstackScrapeStartTimeoutMs("/api/direct/transcode/playlist?u=x"),
+    ).toBe(PLAYBACK_START_TIMEOUT_MS);
   });
 });
 

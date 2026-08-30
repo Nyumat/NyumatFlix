@@ -49,6 +49,11 @@ export type MalEntryOptimisticPatch = {
   numEpisodesWatched?: number;
 };
 
+export const shouldApplyMalPatchResponse = (
+  patchGeneration: number,
+  latestGeneration: number,
+): boolean => patchGeneration === latestGeneration;
+
 export function applyMalEntryPatch(
   entry: MalEntryResponse,
   patch: MalEntryOptimisticPatch,

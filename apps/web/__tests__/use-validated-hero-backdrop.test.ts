@@ -27,7 +27,7 @@ describe("useValidatedHeroBackdrop", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows backdrop optimistically on first paint while validating", () => {
+  it("shows backdrop optimistically on first paint while validating", async () => {
     vi.stubGlobal("Image", MockImage);
 
     const { result } = renderHook(() =>
@@ -40,6 +40,10 @@ describe("useValidatedHeroBackdrop", () => {
 
     expect(result.current.usePosterHero).toBe(false);
     expect(result.current.showBackdropImage).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isValidating).toBe(false);
+    });
   });
 
   it("accepts widescreen backdrops for anime routes", async () => {

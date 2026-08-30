@@ -21,6 +21,33 @@ describe("raceFirstOk", () => {
     const winner = await raceFirstOk(["a", "b"], async () => null);
     expect(winner).toBeNull();
   });
+
+  it("aborts sibling probes after a winner is found", async () => {
+    let siblingAborted = false;
+    const winner = await raceFirstOk(["fast", "slow"], async (id, signal) => {
+      if (id === "fast") {
+        return "ok";
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const onAbort = () => {
+          siblingAborted = true;
+          reject(new DOMException("aborted", "AbortError"));
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
+        window.setTimeout(() => {
+          signal.removeEventListener("abort", onAbort);
+          resolve();
+        }, 200);
+      }).catch(() => null);
+
+      return null;
+    });
+
+    expect(winner).toEqual({ item: "fast", value: "ok" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(siblingAborted).toBe(true);
+  });
 });
 
 describe("firstOkInBatches", () => {

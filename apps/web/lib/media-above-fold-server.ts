@@ -5,6 +5,7 @@ import {
   getCachedTvShowDetail,
 } from "@/lib/media-detail-cache";
 import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import {
   type MediaAboveFoldDetail,
   type MediaAboveFoldType,
@@ -122,11 +123,12 @@ export const getCachedMediaAboveFoldDetail = cache(
     mediaType: MediaAboveFoldType,
     id: string,
   ): Promise<MediaAboveFoldDetail | null> => {
+    const tmdbId = unwrapTmdbLookupId(id);
     const append =
       mediaType === "movie"
         ? "images,videos,external_ids,release_dates"
         : "images,videos,external_ids,content_ratings";
-    const url = new URL(`${TMDB_BASE_URL}/${mediaType}/${id}`);
+    const url = new URL(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}`);
     url.searchParams.set("api_key", process.env.TMDB_API_KEY ?? "");
     url.searchParams.set("language", "en-US");
     url.searchParams.set("append_to_response", append);

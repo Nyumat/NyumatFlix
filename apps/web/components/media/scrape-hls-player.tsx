@@ -14,7 +14,7 @@ import {
   type MediaProviderAdapter,
   type MediaPlayerInstance,
 } from "@vidstack/react";
-import Hls from "hls.js";
+import Hls, { type ErrorData } from "hls.js";
 import {
   type CSSProperties,
   useCallback,
@@ -53,7 +53,11 @@ import {
   mergeTranscodeHlsAuthConfig,
 } from "@/lib/direct/transcode-hls-auth";
 import { mergeScrapeHlsClientAuthConfig } from "@/lib/api/scrape-hls-client-auth";
-import { configureScrapeHlsInstance } from "@/lib/scrape/hls-quality";
+import {
+  configureScrapeHlsInstance,
+  isScrapeHlsMidstream,
+  shouldFailoverScrapeHlsFatal,
+} from "@/lib/scrape/hls-quality";
 import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
 import { resolveActiveSubtitles } from "@/lib/scrape/linked-config";
 import {
@@ -79,7 +83,7 @@ import { VIDKING_PROACTIVE_REFRESH_AFTER_MS } from "@/lib/scrape/vidking-constan
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
 import {
   decidePlaybackAutoStart,
-  PLAYBACK_START_TIMEOUT_MS,
+  vidstackScrapeStartTimeoutMs,
 } from "@/lib/playback/playbackStart";
 import { cn } from "@/lib/utils";
 
@@ -115,10 +119,25 @@ type ScrapePlayerStyle = CSSProperties & {
   [name: `--${string}`]: string | number | null | undefined;
 };
 
+const readProviderVideo = (
+  player: MediaPlayerInstance | null,
+): HTMLVideoElement | null => {
+  const provider = player?.provider;
+  if (
+    provider &&
+    "video" in provider &&
+    provider.video instanceof HTMLVideoElement
+  ) {
+    return provider.video;
+  }
+
+  return null;
+};
+
 const readBufferedEnd = (player: MediaPlayerInstance): number => {
-  const provider = player.provider;
-  if (provider && "video" in provider && provider.video) {
-    return getTimeRangesEnd(provider.video.buffered) ?? 0;
+  const video = readProviderVideo(player);
+  if (video) {
+    return getTimeRangesEnd(video.buffered) ?? 0;
   }
 
   return 0;
@@ -159,8 +178,12 @@ export function ScrapeHlsPlayer({
   const readyRef = useRef(false);
   const startedRef = useRef(false);
   const fatalReportedRef = useRef(false);
+  const hlsHopLockRef = useRef(false);
+  const hopFromHlsFailureRef = useRef<() => void>(() => undefined);
   const onMediaReadyRef = useRef(onMediaReady);
+  const onFatalErrorRef = useRef(onFatalError);
   onMediaReadyRef.current = onMediaReady;
+  onFatalErrorRef.current = onFatalError;
 
   const markMediaReady = useCallback(() => {
     createMediaReadyHandler(() => onMediaReadyRef.current?.(), readyRef)();
@@ -357,6 +380,7 @@ export function ScrapeHlsPlayer({
     progressKey,
     activePlayUrl,
     preferredAudioLang,
+    { preferEnglishSubtitles: playbackEnglishSubtitles },
   );
 
   const subtitleOffset = useVidstackSubtitleOffset(
@@ -370,6 +394,31 @@ export function ScrapeHlsPlayer({
     onOffsetChange: subtitleOffset.setOffsetSeconds,
     visible: subtitleOffset.hasTracks,
   });
+
+  const hopFromHlsFailure = useCallback(() => {
+    if (hlsHopLockRef.current) {
+      return;
+    }
+    hlsHopLockRef.current = true;
+    queueMicrotask(() => {
+      hlsHopLockRef.current = false;
+    });
+
+    if (
+      qualityIndex < qualityOptions.length - 1 &&
+      !isAbrOnlyQualityFailover(qualityOptions)
+    ) {
+      setQualityIndex((index) => index + 1);
+      return;
+    }
+
+    if (fatalReportedRef.current) {
+      return;
+    }
+    fatalReportedRef.current = true;
+    onFatalErrorRef.current?.();
+  }, [qualityIndex, qualityOptions]);
+  hopFromHlsFailureRef.current = hopFromHlsFailure;
 
   const handleProviderChange = useCallback(
     (provider: MediaProviderAdapter | null) => {
@@ -403,7 +452,11 @@ export function ScrapeHlsPlayer({
             : SCRAPE_VOD_HLS_CONFIG,
         );
         provider.onInstance((hls) => {
-          configureScrapeHlsInstance(hls);
+          configureScrapeHlsInstance(hls, {
+            onRecoveryExhausted: () => {
+              hopFromHlsFailureRef.current();
+            },
+          });
         });
         return;
       }
@@ -601,33 +654,23 @@ export function ScrapeHlsPlayer({
         return;
       }
       fatalReportedRef.current = true;
-      onFatalError?.();
+      onFatalErrorRef.current?.();
     },
-    [onFatalError, qualityIndex, qualityOptions, streamKind],
+    [qualityIndex, qualityOptions, streamKind],
   );
 
   const handleHlsError = useCallback(
-    (detail: { fatal?: boolean }) => {
-      if (!detail.fatal) {
+    (detail: ErrorData) => {
+      const midstream =
+        startedRef.current ||
+        isScrapeHlsMidstream(readProviderVideo(playerRef.current));
+      if (!shouldFailoverScrapeHlsFatal(detail, midstream)) {
         return;
       }
 
-      // ABR height ladders remount the same stream 3× then still fail — skip them.
-      if (
-        qualityIndex < qualityOptions.length - 1 &&
-        !isAbrOnlyQualityFailover(qualityOptions)
-      ) {
-        setQualityIndex((index) => index + 1);
-        return;
-      }
-
-      if (fatalReportedRef.current) {
-        return;
-      }
-      fatalReportedRef.current = true;
-      onFatalError?.();
+      hopFromHlsFailure();
     },
-    [onFatalError, qualityIndex, qualityOptions],
+    [hopFromHlsFailure],
   );
 
   useEffect(() => {
@@ -641,6 +684,7 @@ export function ScrapeHlsPlayer({
     startedRef.current = false;
     readyRef.current = false;
     fatalReportedRef.current = false;
+    hlsHopLockRef.current = false;
     setDuration(0);
   }, [activePlayUrl]);
 
@@ -649,54 +693,40 @@ export function ScrapeHlsPlayer({
       return undefined;
     }
 
+    const pollMs = duration > 0 ? 2000 : 1500;
+    const pollForMs = duration > 0 ? 120_000 : 180_000;
+
     const tick = () => {
       attemptPlaybackStart();
     };
 
     tick();
-    const interval = window.setInterval(tick, 1500);
+    const interval = window.setInterval(tick, pollMs);
     const timeout = window.setTimeout(() => {
       window.clearInterval(interval);
-    }, 180_000);
+    }, pollForMs);
 
     return () => {
       window.clearInterval(interval);
       window.clearTimeout(timeout);
     };
-  }, [activePlayUrl, autoPlay, attemptPlaybackStart]);
+  }, [activePlayUrl, attemptPlaybackStart, autoPlay, duration]);
 
   useEffect(() => {
-    if (!autoPlay || !activePlayUrl.includes("/transcode/")) {
+    if (!autoPlay || duration > 0) {
       return undefined;
     }
 
     const failTimeout = window.setTimeout(() => {
-      if (fatalReportedRef.current || duration > 0) {
+      if (fatalReportedRef.current || startedRef.current || readyRef.current) {
         return;
       }
       fatalReportedRef.current = true;
-      onFatalError?.();
-    }, PLAYBACK_START_TIMEOUT_MS);
+      onFatalErrorRef.current?.();
+    }, vidstackScrapeStartTimeoutMs(activePlayUrl));
 
     return () => window.clearTimeout(failTimeout);
-  }, [activePlayUrl, autoPlay, duration, onFatalError]);
-
-  useEffect(() => {
-    if (!autoPlay || duration <= 0) {
-      return undefined;
-    }
-
-    attemptPlaybackStart();
-    const interval = window.setInterval(attemptPlaybackStart, 2000);
-    const timeout = window.setTimeout(() => {
-      window.clearInterval(interval);
-    }, 120_000);
-
-    return () => {
-      window.clearInterval(interval);
-      window.clearTimeout(timeout);
-    };
-  }, [attemptPlaybackStart, autoPlay, duration]);
+  }, [activePlayUrl, autoPlay, duration]);
 
   useEffect(() => {
     const refresh = extractScrapePlaybackRefreshFromPlayUrl(activePlayUrl);

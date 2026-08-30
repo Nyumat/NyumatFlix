@@ -17,6 +17,9 @@ export type HarvestableScrapePayload = {
   subtitles?: ScrapeSubtitle[];
   qualities?: ScrapeQuality[];
   audioVersions?: ScrapeAudioVersion[];
+  playUrl?: string;
+  startupProbeMs?: number;
+  startupProbeOk?: boolean;
 };
 
 const catalogHost = (() => {

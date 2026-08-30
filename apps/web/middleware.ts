@@ -1,3 +1,4 @@
+import { isFfsHostAllowedPath } from "@/lib/ffs/ffs-host-paths";
 import { isFfsHost } from "@/lib/ffs/require-ffs-host";
 import { apiRequestGuardResponse } from "@/lib/api/request-guard";
 import { DEFAULT_FLAG_VALUES } from "@/lib/flags/flag-catalog";
@@ -44,11 +45,7 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get("host");
   const ffsHost = isFfsHost(host);
 
-  if (
-    ffsHost &&
-    !pathname.startsWith("/ffs") &&
-    !pathname.startsWith("/api/ffs")
-  ) {
+  if (ffsHost && !isFfsHostAllowedPath(pathname)) {
     return NextResponse.redirect(new URL("/ffs", request.url));
   }
 

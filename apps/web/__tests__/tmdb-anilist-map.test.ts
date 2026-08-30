@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   animeSeasonNumberForEpisode,
   buildUnknownEpisodeCountSegment,
+  episodeListPresentation,
   findSegmentForEpisode,
+  formatCourSelectLabel,
   inferMappingConfidence,
   relativeEpisodeInSegment,
   resolveAnimeEpisodeCoords,
@@ -86,5 +88,36 @@ describe("tmdb-anilist-map", () => {
       endEpisode: 407,
       anilistMediaId: 21,
     });
+  });
+
+  it("keeps the TMDB season picker when a split-cour season sits among multiple seasons", () => {
+    expect(
+      episodeListPresentation({ tmdbSeasonCount: 4, segmentCount: 2 }),
+    ).toEqual({
+      splitCour: true,
+      showTmdbSeasonSelect: true,
+      showCourSelect: true,
+      courSelectReplacesSeasons: false,
+    });
+  });
+
+  it("replaces the season picker with cours when TMDB only has one season", () => {
+    expect(
+      episodeListPresentation({ tmdbSeasonCount: 1, segmentCount: 2 }),
+    ).toEqual({
+      splitCour: true,
+      showTmdbSeasonSelect: false,
+      showCourSelect: true,
+      courSelectReplacesSeasons: true,
+    });
+  });
+
+  it("labels cours as parts when they sit beside TMDB seasons", () => {
+    expect(
+      formatCourSelectLabel(segments[1], 1, { besideTmdbSeasons: true }),
+    ).toBe("Part 2 · 12 eps");
+    expect(
+      formatCourSelectLabel(segments[1], 1, { besideTmdbSeasons: false }),
+    ).toBe("Season 2");
   });
 });

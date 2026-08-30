@@ -31,7 +31,7 @@ export type AllanimeShowEdge = {
   name?: string;
   englishName?: string | null;
   nativeName?: string | null;
-  aniListId?: string | null;
+  aniListId?: string | number | null;
 };
 
 type AllanimeSearchResponse = {
@@ -54,7 +54,8 @@ export const selectAllmangaShow = (
   if (anilistId != null) {
     const anilistKey = String(anilistId);
     const byAniListId = shows.find(
-      (show) => Boolean(show._id) && show.aniListId === anilistKey,
+      (show) =>
+        Boolean(show._id) && String(show.aniListId ?? "") === anilistKey,
     );
     if (byAniListId) {
       return byAniListId;

@@ -257,6 +257,10 @@ describe("provider scrape loop pinned selection", () => {
       expect(result.current.result?.providerId).not.toBe("flixhq");
     });
 
+    expect(
+      result.current.items.find((item) => item.providerId === "flixhq")?.status,
+    ).toBe("skipped");
+
     expect(onAllProvidersFailed).not.toHaveBeenCalled();
   });
 
@@ -287,6 +291,10 @@ describe("provider scrape loop pinned selection", () => {
       expect(result.current.status).toBe("playing");
       expect(result.current.result?.providerId).toBe("vixsrc");
     });
+
+    expect(
+      result.current.items.find((item) => item.providerId === "vidsrc")?.status,
+    ).toBe("skipped");
 
     const fetchCountAfterResume = vi.mocked(globalThis.fetch).mock.calls.length;
     expect(fetchCountAfterResume).toBe(fetchCountBeforeResume);

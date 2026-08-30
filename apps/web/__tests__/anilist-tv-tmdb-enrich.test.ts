@@ -169,4 +169,44 @@ describe("mergeTmdbEpisodesIntoSeason", () => {
     expect(merged.episodes[0]?.still_path).toBe("/ep-1.jpg");
     expect(merged.episodes[5]?.name).toBe("Chapter 6");
   });
+
+  it("keeps AniList-only trailing episodes beyond the TMDB season count", () => {
+    const season: SeasonDetails = {
+      id: 4,
+      name: "The Final Season",
+      overview: "",
+      season_number: 4,
+      episodes: Array.from({ length: 30 }, (_, index) => ({
+        id: index + 1,
+        name: `Episode ${index + 1}`,
+        overview: "",
+        episode_number: index + 1,
+        air_date: "",
+        still_path: null,
+        runtime: 24,
+        vote_average: 0,
+        vote_count: 0,
+      })),
+    };
+
+    const tmdbEpisodes: Episode[] = Array.from({ length: 28 }, (_, index) => ({
+      id: 100 + index,
+      name: `TMDB Episode ${index + 1}`,
+      overview: "",
+      episode_number: index + 1,
+      air_date: "",
+      still_path: null,
+      runtime: 24,
+      vote_average: 0,
+      vote_count: 0,
+    }));
+
+    const merged = mergeTmdbEpisodesIntoSeason(season, tmdbEpisodes, {
+      preserveSplitCourAppendix: true,
+    });
+    expect(merged.episodes).toHaveLength(30);
+    expect(merged.episodes[28]?.episode_number).toBe(29);
+    expect(merged.episodes[29]?.episode_number).toBe(30);
+    expect(merged.episodes[28]?.name).toBe("Episode 29");
+  });
 });

@@ -3,6 +3,7 @@
 import { WatchlistItem } from "@/lib/domain/watchlist";
 import { DETAIL_CONTENT_CONTAINER_CLASS } from "@/components/layout/page-loading/detail-page-loading";
 import { MediaDetailLayout } from "@/components/media/media-server";
+import { TvDetailBootstrapProvider } from "@/components/tvshow/tv-detail-bootstrap-context";
 import { useWatchlistItem } from "@/hooks/useWatchlistItem";
 import { useTvDetailCatalog } from "@/hooks/use-tv-detail-catalog";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
@@ -74,9 +75,7 @@ export const TvShowDetailShell = ({
     )?.season_number;
 
     if (entrySeason) {
-      useEpisodeStore
-        .getState()
-        .setSeasonNumber(String(franchiseRootId), entrySeason);
+      useEpisodeStore.getState().setSeasonNumber(tvId, entrySeason);
     }
 
     const canonicalHref = buildAnilistTvDetailHref(franchiseRootId);
@@ -103,7 +102,15 @@ export const TvShowDetailShell = ({
         initialSeasonNumber={watchlistItem?.lastWatchedSeason || null}
         contentContainerClassName={DETAIL_CONTENT_CONTAINER_CLASS}
       >
-        <div className="mt-4">{children}</div>
+        <div className="mt-4">
+          <TvDetailBootstrapProvider
+            tvId={tvId}
+            catalog={catalog}
+            details={details as TvShowDetails}
+          >
+            {children}
+          </TvDetailBootstrapProvider>
+        </div>
       </MediaDetailLayout>
     </>
   );

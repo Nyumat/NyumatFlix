@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Loader2, Star } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -27,6 +27,7 @@ import {
   applyMalListIndexPatch,
   findMalListIndexItem,
   malEntryFromIndexItem,
+  shouldApplyMalPatchResponse,
   type MalEntryOptimisticPatch,
   type MalListIndex,
   type MalListIndexItem,
@@ -74,6 +75,7 @@ export function MalListControls({
   onUpdated,
 }: MalListControlsProps) {
   const queryClient = useQueryClient();
+  const patchGenerationRef = useRef(0);
   const malListIndexKey = ["mal-list-index"] as const;
   const malStatusQuery = useMalSyncStatus();
   const malConnected = malStatusQuery.data?.connected === true;
@@ -133,6 +135,7 @@ export function MalListControls({
 
   const patchEntry = useCallback(
     async (patch: MalEntryOptimisticPatch) => {
+      const patchGeneration = ++patchGenerationRef.current;
       const previousEntry =
         queryClient.getQueryData<MalEntryResponse>(queryKey);
       if (!previousEntry) {
@@ -169,10 +172,28 @@ export function MalListControls({
         }
 
         const data = (await response.json()) as { entry: MalEntryResponse };
+        if (
+          !shouldApplyMalPatchResponse(
+            patchGeneration,
+            patchGenerationRef.current,
+          )
+        ) {
+          return;
+        }
+
         queryClient.setQueryData(queryKey, data.entry);
         void queryClient.invalidateQueries({ queryKey: malListIndexKey });
         onUpdated?.();
       } catch (error) {
+        if (
+          !shouldApplyMalPatchResponse(
+            patchGeneration,
+            patchGenerationRef.current,
+          )
+        ) {
+          return;
+        }
+
         queryClient.setQueryData(queryKey, previousEntry);
         if (previousIndex) {
           queryClient.setQueryData(malListIndexKey, previousIndex);

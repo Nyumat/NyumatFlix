@@ -101,15 +101,22 @@ describe("parseBingrAbrQualities", () => {
 
 describe("raceWithTimeout", () => {
   it("returns the fallback and timedOut when work never settles", async () => {
-    const hung = new Promise<string>(() => undefined);
     const started = Date.now();
-    const result = await raceWithTimeout(hung, 40, "timeout");
+    const result = await raceWithTimeout(
+      () => new Promise<string>(() => undefined),
+      40,
+      "timeout",
+    );
     expect(result).toEqual({ value: "timeout", timedOut: true });
     expect(Date.now() - started).toBeLessThan(200);
   });
 
   it("returns the value when work finishes first", async () => {
-    const result = await raceWithTimeout(Promise.resolve("ok"), 200, "timeout");
+    const result = await raceWithTimeout(
+      () => Promise.resolve("ok"),
+      200,
+      "timeout",
+    );
     expect(result).toEqual({ value: "ok", timedOut: false });
   });
 

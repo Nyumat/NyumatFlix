@@ -4,10 +4,23 @@
 
 import type { MoviWasmModule } from './types';
 import { Logger } from '../utils/Logger';
-// Static import of the generated module (bundled into index.js)
-// @ts-ignore - movi.js is Emscripten-generated, no types available
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import createMoviModule from '../../dist/wasm/movi.js';
+// Static import replaced with dynamic import so the full bundle can lazy-load WASM.
+type CreateMoviModule = (opts: Record<string, unknown>) => Promise<import("./types").MoviWasmModule>;
+
+let createMoviModulePromise: Promise<CreateMoviModule> | null = null;
+
+async function loadCreateMoviModule(): Promise<CreateMoviModule> {
+  // @ts-expect-error emscripten output has no declaration file
+  const mod = await import("../../dist/wasm/movi.js");
+  return mod.default as CreateMoviModule;
+}
+
+async function getCreateMoviModule(): Promise<CreateMoviModule> {
+  if (!createMoviModulePromise) {
+    createMoviModulePromise = loadCreateMoviModule();
+  }
+  return createMoviModulePromise;
+}
 
 const TAG = 'FFmpegLoader';
 
@@ -41,8 +54,7 @@ export async function loadWasmModule(options: LoaderOptions = {}): Promise<MoviW
     const wasmBinary = options.wasmBinary || embeddedWasmBinary;
     
     try {
-      // Static import - movi.js is bundled into index.js
-      const createModule = createMoviModule;
+      const createModule = await getCreateMoviModule();
       
       // Create module - with SINGLE_FILE, WASM is embedded, so wasmBinary is optional
       const moduleOptions: any = {
@@ -95,7 +107,7 @@ export async function loadWasmModuleNew(options: LoaderOptions = {}): Promise<Mo
   const wasmBinary = options.wasmBinary || embeddedWasmBinary;
   
   try {
-    const createModule = createMoviModule;
+    const createModule = await getCreateMoviModule();
     
     const moduleOptions: any = {
       print: (text: string) => {

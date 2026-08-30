@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useMoviPlaybackTrackPreferences } from "@/hooks/use-movi-playback-track-preferences";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { loadMoviPlayer } from "@/lib/player/load-player";
 import {
   applyMoviSource,
@@ -55,10 +57,6 @@ const applyPreferredMoviTracks = (
   if (prefs.audioLang) {
     applied = player.selectAudioLang?.(prefs.audioLang) ?? false;
   }
-  if (prefs.subtitleLang) {
-    void player.selectSubtitleLang?.(prefs.subtitleLang);
-    applied = true;
-  }
   return applied;
 };
 
@@ -77,6 +75,7 @@ function MoviStreamPlayerInstance({
 }: MoviStreamPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<MoviPlayerElement | null>(null);
+  const [player, setPlayer] = useState<MoviPlayerElement | null>(null);
   const onErrorRef = useRef(onError);
   const onMediaReadyRef = useRef(onMediaReady);
   const onBufferingChangeRef = useRef(onBufferingChange);
@@ -88,6 +87,9 @@ function MoviStreamPlayerInstance({
   const lastProgressRef = useRef(Date.now());
   const { resumeTime, persist, persistImmediate } =
     usePlaybackProgress(progressKey);
+  const playbackEnglishSubtitles = useAppSettingsStore(
+    (state) => state.playbackEnglishSubtitles,
+  );
   const resumeTimeRef = useRef(resumeTime);
   const persistRef = useRef(persist);
   const persistImmediateRef = useRef(persistImmediate);
@@ -119,6 +121,11 @@ function MoviStreamPlayerInstance({
     },
     [preferredAudioLang],
   );
+
+  useMoviPlaybackTrackPreferences(player, progressKey, src, {
+    preferredAudioLang,
+    preferEnglishSubtitles: playbackEnglishSubtitles,
+  });
 
   useEffect(() => {
     errorReportedRef.current = false;
@@ -212,6 +219,7 @@ function MoviStreamPlayerInstance({
 
         const el = document.createElement("movi-player") as MoviPlayerElement;
         playerRef.current = el;
+        setPlayer(el);
 
         el.addEventListener("error", reportError);
         el.addEventListener("playing", () => {
@@ -284,6 +292,7 @@ function MoviStreamPlayerInstance({
         resetMoviProgressObservation(playerRef.current);
       }
       playerRef.current = null;
+      setPlayer(null);
     };
   }, [
     src,

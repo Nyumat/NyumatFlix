@@ -20,7 +20,9 @@ export default async function AnimeDetailPage(props: Props) {
   return (
     <>
       {tvShow ? (
-        <JsonLdScript data={buildTvStructuredData(tvShow, id)} />
+        <JsonLdScript
+          data={buildTvStructuredData(tvShow, id, { path: `/anime/${id}` })}
+        />
       ) : null}
       <TvShowDetailTabPanels tvId={id} />
     </>
@@ -36,6 +38,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     media: tvShow,
     mediaType: "tv",
     mediaId: id,
+    path: `/anime/${id}`,
   });
   if (!tvShow || !("name" in tvShow)) return base;
   const year = tvShow.first_air_date

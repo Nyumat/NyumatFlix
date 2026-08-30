@@ -275,7 +275,7 @@ export const resolveFribbPlaybackCoords = (
   for (const row of seasonRows) {
     const offset = row.episode_offset?.tmdb ?? 0;
     if (
-      episodeNumber >= offset &&
+      episodeNumber > offset &&
       offset >= (chosen.episode_offset?.tmdb ?? 0)
     ) {
       chosen = row;

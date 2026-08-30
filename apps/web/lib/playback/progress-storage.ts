@@ -1,4 +1,7 @@
+import { notifyPlaybackProgressChanged } from "@/lib/playback/progress-change-events";
+
 export const PLAYBACK_PROGRESS_STORAGE_KEY = "nyumatflix.playback.progress";
+export const LAST_TV_EPISODE_STORAGE_KEY = "nyumatflix.tv.last-episode";
 
 export type PlaybackMediaType = "movie" | "tv";
 
@@ -23,6 +26,12 @@ export type PlaybackProgressEntry = {
 };
 
 export type PlaybackProgressMap = Record<string, PlaybackProgressEntry>;
+
+export type TvEpisodeCoords = {
+  seasonNumber: number;
+  episodeNumber: number;
+  updatedAt: number;
+};
 
 /** Within this window of the end, treat saved progress as finished (resume from start). */
 export const PLAYBACK_FINISH_BUFFER_SECONDS = 120;
@@ -71,6 +80,57 @@ const writeMap = (map: PlaybackProgressMap): void => {
   } catch {
     void 0;
   }
+};
+
+const PROGRESS_STORAGE_LOCK = "nyumatflix:playback-progress";
+const LAST_TV_EPISODE_LOCK = "nyumatflix:tv-last-episode";
+
+const runWithOptionalLock = (lockName: string, task: () => void): void => {
+  if (typeof navigator !== "undefined" && navigator.locks?.request) {
+    void navigator.locks.request(lockName, task);
+    return;
+  }
+
+  task();
+};
+
+export const mergePlaybackProgressEntry = (
+  current: PlaybackProgressEntry | undefined,
+  incoming: Omit<PlaybackProgressEntry, "updatedAt">,
+  updatedAt: number,
+): PlaybackProgressEntry => {
+  if (!current) {
+    return { ...incoming, updatedAt };
+  }
+
+  if (updatedAt >= current.updatedAt) {
+    return { ...incoming, updatedAt };
+  }
+
+  if (incoming.watched > current.watched) {
+    return {
+      watched: incoming.watched,
+      duration: Math.max(current.duration, incoming.duration),
+      updatedAt: current.updatedAt,
+    };
+  }
+
+  return current;
+};
+
+const mergeLastTvEpisode = (
+  current: TvEpisodeCoords | undefined,
+  next: TvEpisodeCoords,
+): TvEpisodeCoords => {
+  if (!current) {
+    return next;
+  }
+
+  if (next.updatedAt >= current.updatedAt) {
+    return next;
+  }
+
+  return current;
 };
 
 export type ParsedProgressStorageKey = {
@@ -185,16 +245,157 @@ export const playbackProgressRatio = (entry: {
   return Math.max(0, Math.min(1, entry.watched / entry.duration));
 };
 
+type LastTvEpisodeMap = Record<string, TvEpisodeCoords>;
+
+const lastTvEpisodeKey = (contentId: number): string => String(contentId);
+
+const readLastTvEpisodeMap = (): LastTvEpisodeMap => {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LAST_TV_EPISODE_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw) as LastTvEpisodeMap;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeLastTvEpisodeMap = (map: LastTvEpisodeMap): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      LAST_TV_EPISODE_STORAGE_KEY,
+      JSON.stringify(map),
+    );
+  } catch {
+    void 0;
+  }
+};
+
+export const rememberLastTvEpisode = (
+  contentId: number,
+  seasonNumber: number,
+  episodeNumber: number,
+  updatedAt: number = Date.now(),
+): void => {
+  if (
+    !Number.isInteger(contentId) ||
+    contentId <= 0 ||
+    !Number.isInteger(seasonNumber) ||
+    seasonNumber <= 0 ||
+    !Number.isInteger(episodeNumber) ||
+    episodeNumber <= 0
+  ) {
+    return;
+  }
+
+  runWithOptionalLock(LAST_TV_EPISODE_LOCK, () => {
+    writeLastTvEpisodeCoords(contentId, seasonNumber, episodeNumber, updatedAt);
+  });
+};
+
+const writeLastTvEpisodeCoords = (
+  contentId: number,
+  seasonNumber: number,
+  episodeNumber: number,
+  updatedAt: number,
+): void => {
+  const map = readLastTvEpisodeMap();
+  const key = lastTvEpisodeKey(contentId);
+  const next: TvEpisodeCoords = {
+    seasonNumber,
+    episodeNumber,
+    updatedAt,
+  };
+  map[key] = mergeLastTvEpisode(map[key], next);
+  writeLastTvEpisodeMap(map);
+};
+
+export const getRememberedLastTvEpisode = (
+  contentId: number,
+): TvEpisodeCoords | null => {
+  const entry = readLastTvEpisodeMap()[lastTvEpisodeKey(contentId)];
+  if (
+    !entry ||
+    !Number.isInteger(entry.seasonNumber) ||
+    entry.seasonNumber <= 0 ||
+    !Number.isInteger(entry.episodeNumber) ||
+    entry.episodeNumber <= 0
+  ) {
+    return null;
+  }
+
+  return entry;
+};
+
+export const getLatestTvPlaybackCoords = (
+  contentId: number,
+): TvEpisodeCoords | null => {
+  const latest = listPlaybackProgress().find(
+    (entry) =>
+      entry.mediaType === "tv" &&
+      entry.contentId === contentId &&
+      entry.seasonNumber != null &&
+      entry.episodeNumber != null,
+  );
+
+  if (
+    latest?.seasonNumber == null ||
+    latest.episodeNumber == null ||
+    latest.seasonNumber <= 0 ||
+    latest.episodeNumber <= 0
+  ) {
+    return null;
+  }
+
+  return {
+    seasonNumber: latest.seasonNumber,
+    episodeNumber: latest.episodeNumber,
+    updatedAt: latest.updatedAt,
+  };
+};
+
 export const setPlaybackProgress = (
   key: PlaybackProgressKey,
   entry: Omit<PlaybackProgressEntry, "updatedAt">,
 ): void => {
-  const map = readMap();
-  map[progressStorageKey(key)] = {
-    ...entry,
-    updatedAt: Date.now(),
+  const apply = () => {
+    const storageKey = progressStorageKey(key);
+    const updatedAt = Date.now();
+    const map = readMap();
+    map[storageKey] = mergePlaybackProgressEntry(
+      map[storageKey],
+      entry,
+      updatedAt,
+    );
+    writeMap(map);
+    notifyPlaybackProgressChanged();
+
+    if (
+      key.mediaType === "tv" &&
+      key.seasonNumber != null &&
+      key.episodeNumber != null
+    ) {
+      writeLastTvEpisodeCoords(
+        key.contentId,
+        key.seasonNumber,
+        key.episodeNumber,
+        updatedAt,
+      );
+    }
   };
-  writeMap(map);
+
+  runWithOptionalLock(PROGRESS_STORAGE_LOCK, apply);
 };
 
 export const resolveResumeTime = (

@@ -427,7 +427,7 @@ export function ServerSelector({
         ? scrapeServer
         : videoServers.find((s) => s.id === serverId);
     if (!server) return;
-    setSelectedServer(server);
+    setSelectedServer(server, { userInitiated: true });
     onServerSelect?.();
   };
 

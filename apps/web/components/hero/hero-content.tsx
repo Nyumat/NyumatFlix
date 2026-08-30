@@ -16,12 +16,15 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { Star, Volume2, VolumeX, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import React, { useLayoutEffect, useMemo, useRef } from "react";
 import { useHeroAnimePrefs } from "@/hooks/use-hero-anime-prefs";
 import { useAnilistAdultHint } from "@/hooks/use-anilist-adult-hint";
-import { useAnimeEpisodeMapping } from "@/hooks/use-anime-episode-mapping";
+import { useAnimeEpisodeCoords } from "@/hooks/use-anime-episode-coords";
+import { useLocalTvWatchCoords } from "@/hooks/use-local-tv-watch-coords";
 import { useTvEpisodeHydrate } from "@/hooks/use-tv-episode-hydrate";
 import { useWatchlistItem } from "@/hooks/useWatchlistItem";
+import { resolveTvDetailRouteId } from "@/lib/anilist-route-id";
 import { tvCompleteMediaFromRecord } from "@/lib/playback/continue-watching-complete";
 import { readMappedTmdbTvIdFromMedia } from "@/lib/tv-playback-tmdb-id";
 import { HeroButtons } from "./hero-buttons";
@@ -86,12 +89,19 @@ export function HeroContent({
     setWatchCallback,
   } = useEpisodeStore();
   const scrapeChrome = useScrapeChrome();
+  const pathname = usePathname();
+  const mappedTmdbTvId = readMappedTmdbTvIdFromMedia(media);
+  const tvRouteId = useMemo(
+    () => resolveTvDetailRouteId(pathname, media.id),
+    [media.id, pathname],
+  );
   const title = media.title || media.name;
   const isAnime = typeof anilistId === "number";
   const resolvedMediaType = mediaType ?? "tv";
   const { watchlistItem: watchlistItemLive, refetch: refetchWatchlist } =
     useWatchlistItem(media.id, resolvedMediaType);
   const effectiveWatchlistItem = watchlistItem ?? watchlistItemLive;
+  const localCoords = useLocalTvWatchCoords(media.id);
   const completeMedia = useMemo(() => {
     if (resolvedMediaType !== "tv") {
       return null;
@@ -104,10 +114,14 @@ export function HeroContent({
     mediaType,
     media.adult === true,
     media.original_name ?? media.name,
-    readMappedTmdbTvIdFromMedia(media),
+    mappedTmdbTvId,
   );
   useAnilistAdultHint(anilistId, media.adult === true, mediaType);
-  useAnimeEpisodeMapping();
+  useAnimeEpisodeCoords({
+    tvRouteId,
+    mappedTmdbTvId,
+    enabled: resolvedMediaType === "tv",
+  });
   useTvEpisodeHydrate({
     mediaId: media.id,
     mediaType,
@@ -255,10 +269,13 @@ export function HeroContent({
   const isLastWatchedEpisode =
     displayEpisode != null &&
     displaySeasonNumber != null &&
-    watchlistItem?.lastWatchedSeason != null &&
-    watchlistItem?.lastWatchedEpisode != null &&
-    displaySeasonNumber === watchlistItem.lastWatchedSeason &&
-    displayEpisode.episode_number === watchlistItem.lastWatchedEpisode;
+    ((watchlistItem?.lastWatchedSeason != null &&
+      watchlistItem?.lastWatchedEpisode != null &&
+      displaySeasonNumber === watchlistItem.lastWatchedSeason &&
+      displayEpisode.episode_number === watchlistItem.lastWatchedEpisode) ||
+      (localCoords != null &&
+        displaySeasonNumber === localCoords.seasonNumber &&
+        displayEpisode.episode_number === localCoords.episodeNumber));
 
   return (
     <div>

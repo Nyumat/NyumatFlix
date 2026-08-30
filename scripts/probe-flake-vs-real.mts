@@ -95,7 +95,6 @@ const TMDB_PROVIDERS = TMDB_SCRAPE_PROVIDER_ORDER;
 const ANIME_PROVIDERS = [
   "kyren",
   "allmanga",
-  "animestream",
   "animepahe",
   "justanime",
 ] as const;

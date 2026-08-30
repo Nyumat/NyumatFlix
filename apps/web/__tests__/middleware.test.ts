@@ -13,7 +13,12 @@ vi.mock("@/lib/flags/flipt-client", () => ({
 }));
 
 const getRedirectLocation = async (url: string) => {
-  const response = await middleware(new NextRequest(url));
+  const parsed = new URL(url);
+  const response = await middleware(
+    new NextRequest(url, {
+      headers: { host: parsed.host },
+    }),
+  );
   return response.headers.get("location");
 };
 
@@ -86,5 +91,29 @@ describe("middleware", () => {
     ]);
 
     expect(raced).toEqual({ kind: "done", status: 200 });
+  });
+
+  test("redirects ffs host root to /ffs", async () => {
+    expect(await getRedirectLocation("http://ffs.localhost:3000/")).toBe(
+      "http://ffs.localhost:3000/ffs",
+    );
+  });
+
+  test("allows shared auth api routes on ffs host", async () => {
+    expect(
+      await getRedirectLocation("http://ffs.localhost:3000/api/auth/session"),
+    ).toBeNull();
+  });
+
+  test("allows shared site flag api routes on ffs host", async () => {
+    expect(
+      await getRedirectLocation("http://ffs.localhost:3000/api/site/flags"),
+    ).toBeNull();
+  });
+
+  test("redirects non-ffs app routes on ffs host", async () => {
+    expect(
+      await getRedirectLocation("http://ffs.localhost:3000/movies/123"),
+    ).toBe("http://ffs.localhost:3000/ffs");
   });
 });

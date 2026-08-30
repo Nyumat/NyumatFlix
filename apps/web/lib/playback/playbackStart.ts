@@ -23,8 +23,20 @@ export function hlsStartPosition(resumeTime: number): number {
 
 export const START_DRIFT_TOLERANCE_SEC = 2;
 
+/** Try a warmed sibling source if the winner has not decoded a frame yet. */
+export const PLAYBACK_STALL_FAILOVER_MS = 8_000;
+
 /** How long to wait for first frame before failing over to another source. */
 export const PLAYBACK_START_TIMEOUT_MS = 45_000;
+
+export const VIDSTACK_START_TIMEOUT_MS = 30_000;
+
+export function vidstackScrapeStartTimeoutMs(sourceUrl: string): number {
+  if (sourceUrl.includes("/transcode/")) {
+    return PLAYBACK_START_TIMEOUT_MS;
+  }
+  return VIDSTACK_START_TIMEOUT_MS;
+}
 
 export const HLS_START_AT_ZERO_CONFIG = {
   startPosition: 0,

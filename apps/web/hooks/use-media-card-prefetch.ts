@@ -1,30 +1,49 @@
 "use client";
 
+import { fetchSeasonDetailsForCatalog } from "@/components/tvshow/tvshow-api";
 import {
   getMediaAboveFoldApiHref,
   getMediaAboveFoldImageUrls,
   type MediaAboveFoldDetail,
   type MediaAboveFoldType,
 } from "@/lib/media-above-fold";
+import { queryStaleTime } from "@/lib/cache-policy";
 import { getHref } from "@/lib/cards/selectors";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  resolveAnimePrefetchRouteId,
+  resolveTvDetailCatalogFromHref,
+} from "@/lib/tv-detail-catalog";
 import type { CanonicalMediaCard, MediaItem } from "@/lib/domain/typings";
+import {
+  normalizeTvContentKey,
+  resolveLocalTvWatchCoords,
+} from "@/lib/tv-watch-target";
 import { QueryClientContext } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useContext, useEffect, useRef } from "react";
 
 const warmed = new Set<string>();
+const warmedSeasons = new Set<string>();
 const pending = new Map<string, Promise<MediaAboveFoldDetail | null>>();
 const MAX_WARMED_ITEMS = 250;
 
-function rememberWarmed(cacheKey: string) {
-  if (warmed.has(cacheKey)) return;
-  warmed.add(cacheKey);
+function rememberWarmed(cacheKey: string, bucket: Set<string>) {
+  if (bucket.has(cacheKey)) return;
+  bucket.add(cacheKey);
 
-  if (warmed.size <= MAX_WARMED_ITEMS) return;
-  const oldest = warmed.values().next().value;
-  if (oldest) warmed.delete(oldest);
+  if (bucket.size <= MAX_WARMED_ITEMS) return;
+  const oldest = bucket.values().next().value;
+  if (oldest) bucket.delete(oldest);
 }
+
+const resolveDefaultPrefetchSeason = (contentId: number | null): number => {
+  if (contentId === null) {
+    return 1;
+  }
+
+  return resolveLocalTvWatchCoords(contentId)?.seasonNumber ?? 1;
+};
 
 function getMediaType(
   item: CanonicalMediaCard | MediaItem,
@@ -79,6 +98,11 @@ function getPrefetchId(
   item: CanonicalMediaCard | MediaItem,
   link: string,
 ): number | string {
+  const animeRouteId = resolveAnimePrefetchRouteId(link);
+  if (animeRouteId) {
+    return animeRouteId;
+  }
+
   const animeItem = item as MediaItem & {
     isAniListFallback?: boolean;
     sourceAnilistId?: number;
@@ -118,19 +142,44 @@ export function useMediaCardPrefetch(
 
     if (!queryClient) return;
 
-    if (warmed.has(cacheKey)) return;
-    rememberWarmed(cacheKey);
+    if (!warmed.has(cacheKey)) {
+      void fetchAboveFold(mediaType, prefetchId).then((detail) => {
+        if (!detail) return;
+        rememberWarmed(cacheKey, warmed);
+        queryClient.setQueryData(
+          queryKeys.mediaAboveFold(mediaType, String(prefetchId)),
+          detail,
+        );
+        for (const url of getMediaAboveFoldImageUrls(detail)) {
+          preloadImage(url);
+        }
+      });
+    }
 
-    void fetchAboveFold(mediaType, prefetchId).then((detail) => {
-      if (!detail) return;
-      queryClient.setQueryData(
-        queryKeys.mediaAboveFold(mediaType, String(prefetchId)),
-        detail,
-      );
-      for (const url of getMediaAboveFoldImageUrls(detail)) {
-        preloadImage(url);
-      }
-    });
+    if (mediaType !== "tv") {
+      return;
+    }
+
+    const tvRouteId = String(prefetchId);
+    const contentId = normalizeTvContentKey(prefetchId);
+    const seasonNumber = resolveDefaultPrefetchSeason(contentId);
+    const seasonWarmKey = `${tvRouteId}:season:${seasonNumber}`;
+    if (warmedSeasons.has(seasonWarmKey)) {
+      return;
+    }
+
+    const catalog = resolveTvDetailCatalogFromHref(link);
+    void queryClient
+      .prefetchQuery({
+        queryKey: queryKeys.tvSeasonRoute(tvRouteId, seasonNumber),
+        queryFn: () =>
+          fetchSeasonDetailsForCatalog(tvRouteId, seasonNumber, catalog),
+        staleTime: queryStaleTime(60 * 60 * 1000),
+      })
+      .then(() => {
+        rememberWarmed(seasonWarmKey, warmedSeasons);
+      })
+      .catch(() => undefined);
   }, [href, item, queryClient, router]);
 
   const schedulePrefetch = useCallback(() => {

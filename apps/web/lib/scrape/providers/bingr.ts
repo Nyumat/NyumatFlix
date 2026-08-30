@@ -82,24 +82,51 @@ const encodeLooseUrl = (url: string): string => {
 /** @deprecated Use unwrapProxyUrl from source-resolve */
 export const unwrapBingrProxyUrl = unwrapProxyUrl;
 
+const mergeAbortSignals = (
+  primary: AbortSignal,
+  secondary: AbortSignal,
+): AbortSignal => {
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([primary, secondary]);
+  }
+
+  const merged = new AbortController();
+  const abort = () => merged.abort();
+  if (primary.aborted || secondary.aborted) {
+    merged.abort();
+    return merged.signal;
+  }
+  primary.addEventListener("abort", abort, { once: true });
+  secondary.addEventListener("abort", abort, { once: true });
+  return merged.signal;
+};
+
 export const raceWithTimeout = async <T>(
-  promise: Promise<T>,
+  work: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number,
   onTimeout: T,
+  options?: { signal?: AbortSignal },
 ): Promise<{ value: T; timedOut: boolean }> => {
   let winner: "work" | "timeout" | undefined;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const cancelController = new AbortController();
+  const cancelSignal = options?.signal
+    ? mergeAbortSignals(cancelController.signal, options.signal)
+    : cancelController.signal;
 
   const timeoutPromise = new Promise<T>((resolve) => {
     timeoutId = setTimeout(() => {
       winner ??= "timeout";
+      if (!cancelController.signal.aborted) {
+        cancelController.abort();
+      }
       resolve(onTimeout);
     }, timeoutMs);
   });
 
   try {
     const value = await Promise.race([
-      promise.then((result) => {
+      work(cancelSignal).then((result) => {
         winner ??= "work";
         return result;
       }),
@@ -311,6 +338,7 @@ const postStream = async (
   input: ScrapeMediaInput,
   server: BingrServer,
   details: BingrDetails | null,
+  signal?: AbortSignal,
 ): Promise<BingrStreamResponse | null> => {
   try {
     const response = await scrapeFetch(`${BINGR_API}/stream`, {
@@ -322,6 +350,7 @@ const postStream = async (
       body: JSON.stringify(buildBingrStreamBody(input, server, details)),
       timeoutMs: BINGR_SERVER_TIMEOUT_MS,
       retryAttempts: 1,
+      signal,
     });
 
     if (!response.ok) {
@@ -338,12 +367,14 @@ const postStream = async (
 const probeHlsMaster = async (
   streamUrl: string,
   referer: string,
+  signal?: AbortSignal,
 ): Promise<{ body: string; qualities: ScrapeQuality[] } | null> => {
   try {
     const response = await scrapeFetch(streamUrl, {
       headers: { Referer: referer },
       timeoutMs: BINGR_HLS_PROBE_TIMEOUT_MS,
       retryAttempts: 1,
+      signal,
     });
     if (!response.ok) {
       await cancelResponseBody(response);
@@ -367,6 +398,7 @@ const probeHlsMaster = async (
 const probeMp4 = async (
   streamUrl: string,
   referer: string,
+  signal?: AbortSignal,
 ): Promise<boolean> => {
   try {
     const response = await scrapeFetch(streamUrl, {
@@ -377,6 +409,7 @@ const probeMp4 = async (
       },
       timeoutMs: BINGR_HLS_PROBE_TIMEOUT_MS,
       retryAttempts: 1,
+      signal,
     });
     const ok = response.ok || response.status === 206;
     await cancelResponseBody(response);
@@ -396,7 +429,7 @@ export async function scrapeBingr(
 
     for (const server of BINGR_SERVERS) {
       const payloadResult = await raceWithTimeout(
-        postStream(input, server, details),
+        (signal) => postStream(input, server, details, signal),
         BINGR_SERVER_TIMEOUT_MS,
         null,
       );
@@ -424,7 +457,7 @@ export async function scrapeBingr(
 
         if (hls) {
           const master = await raceWithTimeout(
-            probeHlsMaster(streamUrl, referer),
+            (signal) => probeHlsMaster(streamUrl, referer, signal),
             BINGR_HLS_PROBE_TIMEOUT_MS + 500,
             null,
           );
@@ -437,7 +470,7 @@ export async function scrapeBingr(
           const rendition = master.value.qualities[0];
           if (rendition) {
             const child = await raceWithTimeout(
-              probeHlsMaster(rendition.url, referer),
+              (signal) => probeHlsMaster(rendition.url, referer, signal),
               BINGR_HLS_PROBE_TIMEOUT_MS + 500,
               null,
             );
@@ -463,7 +496,7 @@ export async function scrapeBingr(
         }
 
         const mp4 = await raceWithTimeout(
-          probeMp4(streamUrl, referer),
+          (signal) => probeMp4(streamUrl, referer, signal),
           BINGR_HLS_PROBE_TIMEOUT_MS + 500,
           false,
         );

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  extractHlsProbeTargets,
   isValidHlsAssetResponse,
   resolveStreamReferers,
   resolveValidateStreamDepths,
 } from "@/lib/scrape/validate-stream";
+import { extractHlsProbeTargets } from "@/lib/scrape/hls-probe-targets";
 import { countHlsMediaRenditions } from "@/lib/scrape/hls-media-renditions";
 import { isTokenizedHlsMaster } from "@/lib/scrape/stream-url-patterns";
 

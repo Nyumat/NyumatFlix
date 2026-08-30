@@ -35,5 +35,6 @@ describe("fetchCalluspirates", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const init = fetchMock.mock.calls[0]?.[1];
     expect(init?.signal?.aborted).toBe(true);
+    expect(init?.cache).toBe("no-store");
   });
 });

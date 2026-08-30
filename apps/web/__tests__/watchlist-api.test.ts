@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { suppressConsole } from "@/test/suppress-console";
 
 vi.mock("@/auth", () => {
   return {
@@ -119,9 +120,11 @@ describe("Watchlist API Routes", () => {
 
       mockDb.select = mockSelect;
 
+      const restoreConsole = suppressConsole("error");
       const request = new NextRequest("http://localhost/api/watchlist");
       const response = await GET(request);
       const data = await response.json();
+      restoreConsole();
 
       expect(response.status).toBe(500);
       expect(data.error).toBe("Internal server error");
@@ -340,8 +343,10 @@ describe("Watchlist API Routes", () => {
         }),
       });
 
+      const restoreConsole = suppressConsole("error");
       const response = await POST(request);
       const data = await response.json();
+      restoreConsole();
 
       expect(response.status).toBe(500);
       expect(data.error).toBe("Internal server error");

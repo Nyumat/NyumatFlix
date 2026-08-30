@@ -1,4 +1,5 @@
 import type { WatchlistItem } from "@/lib/domain/watchlist";
+import { buildAnilistTvDetailHref } from "@/lib/anilist-route-id";
 import {
   filterDismissedContinueWatching,
   readContinueWatchingDismissals,
@@ -10,11 +11,17 @@ import {
   playbackProgressRatio,
   type ListedPlaybackProgress,
   type PlaybackMediaType,
+  type TvEpisodeCoords,
 } from "@/lib/playback/progress-storage";
+import {
+  readVidsrcProgressEntries,
+  VIDSRC_PROGRESS_STORAGE_KEY,
+  type VidsrcProgressEntry,
+} from "@/lib/playback/vidsrc-progress-storage";
 
 export const RECENTLY_WATCHED_LIMIT = 12;
 export const WATCH_HISTORY_LIMIT = 100;
-export const VIDSRC_PROGRESS_STORAGE_KEY = "vidsrcwtf-Progress";
+export { VIDSRC_PROGRESS_STORAGE_KEY, readVidsrcProgressEntries };
 
 export type RecentlyWatchedStub = {
   mediaType: PlaybackMediaType;
@@ -52,18 +59,6 @@ export type RecentlyWatchedItem = {
 
 export type RecentlyWatchedScope = "all" | "movie" | "tv" | "anime";
 
-type VidsrcProgressEntry = {
-  id: string;
-  type: "movie" | "tv";
-  title?: string;
-  poster_path?: string;
-  backdrop_path?: string;
-  progress?: { watched: number; duration: number };
-  last_updated?: number;
-  last_season_watched?: string;
-  last_episode_watched?: string;
-};
-
 const titleKey = (mediaType: PlaybackMediaType, contentId: number) =>
   `${mediaType}:${contentId}`;
 
@@ -80,6 +75,34 @@ const parseOptionalInt = (value: string | undefined): number | undefined => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 };
 
+export const getVidsrcLastTvEpisode = (
+  contentId: number,
+): TvEpisodeCoords | null => {
+  const match = readVidsrcProgressEntries().find((entry) => {
+    if (entry.type !== "tv") {
+      return false;
+    }
+    const id = Number.parseInt(entry.id, 10);
+    return id === contentId;
+  });
+
+  if (!match) {
+    return null;
+  }
+
+  const seasonNumber = parseOptionalInt(match.last_season_watched);
+  const episodeNumber = parseOptionalInt(match.last_episode_watched);
+  if (!seasonNumber || !episodeNumber) {
+    return null;
+  }
+
+  return {
+    seasonNumber,
+    episodeNumber,
+    updatedAt: match.last_updated ?? 0,
+  };
+};
+
 export const buildRecentlyWatchedHref = (
   mediaType: PlaybackMediaType,
   contentId: number,
@@ -94,41 +117,6 @@ export const buildRecentlyWatchedHref = (
   }
 
   return `/tvshows/${contentId}`;
-};
-
-export const readVidsrcProgressEntries = (): VidsrcProgressEntry[] => {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(VIDSRC_PROGRESS_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-
-    const parsed = JSON.parse(raw) as
-      | VidsrcProgressEntry
-      | Record<string, VidsrcProgressEntry>;
-
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      "id" in parsed &&
-      typeof (parsed as VidsrcProgressEntry).id === "string"
-    ) {
-      return [parsed as VidsrcProgressEntry];
-    }
-
-    return Object.values(parsed ?? {}).filter(
-      (entry): entry is VidsrcProgressEntry =>
-        Boolean(entry) &&
-        typeof entry.id === "string" &&
-        (entry.type === "movie" || entry.type === "tv"),
-    );
-  } catch {
-    return [];
-  }
 };
 
 const stubsFromPlayback = (
@@ -487,11 +475,18 @@ export const toRecentlyWatchedItem = (
   mediaType: stub.mediaType,
   contentId: stub.contentId,
   title: media.title || stub.title || "Untitled",
-  href: buildRecentlyWatchedHref(
-    stub.mediaType,
-    stub.contentId,
-    stub.seasonNumber,
-  ),
+  href: media.isAnime
+    ? buildAnilistTvDetailHref(
+        stub.contentId,
+        stub.seasonNumber && stub.seasonNumber > 0
+          ? { season: stub.seasonNumber }
+          : undefined,
+      )
+    : buildRecentlyWatchedHref(
+        stub.mediaType,
+        stub.contentId,
+        stub.seasonNumber,
+      ),
   backdropPath: media.backdropPath ?? stub.backdropPath ?? null,
   posterPath: media.posterPath ?? stub.posterPath ?? null,
   progressRatio: stub.progressRatio,

@@ -1,4 +1,7 @@
-import { buildAnilistTvDetailHref } from "@/lib/anilist-route-id";
+import {
+  buildAnilistTvDetailHref,
+  normalizeAnilistAnimeDetailHref,
+} from "@/lib/anilist-route-id";
 import { buildTmdbAnimeDetailHref } from "@/lib/tmdb-anime-route-id";
 import type { MediaItem } from "@/lib/domain/typings";
 
@@ -75,7 +78,10 @@ export const withAnimePageHref = (item: MediaItem): MediaItem => {
   const existingHref =
     typeof animeItem.href === "string" ? animeItem.href : undefined;
   if (existingHref && !isExternalHref(existingHref)) {
-    return { ...item, href: existingHref } as MediaItem;
+    return {
+      ...item,
+      href: normalizeAnilistAnimeDetailHref(existingHref),
+    } as MediaItem;
   }
 
   const id = Math.abs(item.id);

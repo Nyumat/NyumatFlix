@@ -116,6 +116,7 @@ export function HeroBackground({
     handleDirectPlaybackExhausted,
     handleRetryAllScraping,
     handleScrapePlaybackEnded,
+    awaitingAnimeCoords,
   } = scrapePlayback;
 
   const [mediaReady, setMediaReady] = useState(false);
@@ -178,6 +179,21 @@ export function HeroBackground({
   const canSwitchTrailers = trailerVideos.length > 1;
 
   const selectedEpisode = useEpisodeStore((state) => state.selectedEpisode);
+  const embedPlaybackRevision = useEpisodeStore((state) => {
+    if (!state.selectedEpisode) {
+      return "";
+    }
+
+    return [
+      state.tvShowId,
+      state.seasonNumber,
+      state.selectedEpisode.id,
+      state.isAnimeEpisode,
+      state.anilistId,
+      state.relativeEpisodeNumber,
+      state.providerEpisodeNumber,
+    ].join("|");
+  });
 
   const preferPosterHero =
     typeof anilistId === "number" &&
@@ -305,6 +321,7 @@ export function HeroBackground({
     [
       animePreference,
       anilistId,
+      embedPlaybackRevision,
       getEmbedUrl,
       media.id,
       resolvedMediaType,
@@ -570,8 +587,10 @@ export function HeroBackground({
                       onSelectEmbedServer={handleSelectEmbedServer}
                       onRetryAllScraping={handleRetryAllScraping}
                       onFatalError={handleScrapedPlaybackError}
+                      onPlaybackStallFailover={handleScrapedPlaybackError}
                       onDirectPlaybackExhausted={handleDirectPlaybackExhausted}
                       onEnded={handleScrapePlaybackEnded}
+                      isResolvingEpisode={awaitingAnimeCoords}
                       isDirectMode={isDirectMode}
                       directPlayback={directPlayback}
                       onMediaReadyChange={setMediaReady}

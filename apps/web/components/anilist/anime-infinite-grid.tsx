@@ -5,6 +5,7 @@ import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { AniListSearchParams } from "@/lib/anilist";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
+import { useScrollFetchLock } from "@/hooks/use-scroll-fetch-lock";
 import type { MediaItem } from "@/lib/domain/typings";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -60,6 +61,7 @@ const AnimeInfiniteGridBody = ({
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [hasNextPage, setHasNextPage] = useState(initialHasNextPage);
   const [isLoading, setIsLoading] = useState(false);
+  const { beginFetch, endFetch, isCurrent } = useScrollFetchLock();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const items = useMemo(
@@ -71,11 +73,23 @@ const AnimeInfiniteGridBody = ({
   );
 
   const fetchNextPage = useCallback(async () => {
-    if (isLoading || !hasNextPage) return;
+    if (!hasNextPage) {
+      return;
+    }
+
+    const generation = beginFetch();
+    if (generation === null) {
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
-      setIsLoading(true);
       const data = await fetchAnimeNextPage(params, currentPage + 1);
+      if (!isCurrent(generation)) {
+        return;
+      }
+
       const raw = filterWithPosterPath(data.results ?? []);
 
       setStore((prev) => {
@@ -102,9 +116,12 @@ const AnimeInfiniteGridBody = ({
     } catch (error) {
       console.error("Anime infinite scroll error:", error);
     } finally {
-      setIsLoading(false);
+      endFetch(generation);
+      if (isCurrent(generation)) {
+        setIsLoading(false);
+      }
     }
-  }, [currentPage, hasNextPage, isLoading, params]);
+  }, [beginFetch, currentPage, endFetch, hasNextPage, isCurrent, params]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(

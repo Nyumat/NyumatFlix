@@ -6,7 +6,7 @@ import { fetchCombinedGenres, fetchSearchResults } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { CanonicalMediaCard } from "@/lib/domain/typings";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export interface UseSearchResultsState {
   items: CanonicalMediaCard[];
@@ -86,11 +86,9 @@ export const useSearchResults = (query: string): UseSearchResultsReturn => {
     searchQuery.refetch();
   }, [searchQuery]);
 
-  const [lastQuery, setLastQuery] = useState(debouncedQuery);
-  if (debouncedQuery !== lastQuery) {
-    setLastQuery(debouncedQuery);
+  useEffect(() => {
     setCurrentPage(1);
-  }
+  }, [debouncedQuery]);
 
   return {
     items,
