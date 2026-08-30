@@ -9,6 +9,7 @@ import type { EpisodeInfo } from "@/lib/domain/episodes";
 const cache = new Map<string, { data: EpisodeInfo; timestamp: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_CACHE_ENTRIES = 500;
+const inflightRequests = new Map<string, Promise<EpisodeInfo | null>>();
 
 type WatchlistRow = typeof watchlist.$inferSelect;
 
@@ -27,6 +28,40 @@ function setCached(key: string, data: EpisodeInfo) {
   if (cache.size <= MAX_CACHE_ENTRIES) return;
   const oldestKey = cache.keys().next().value;
   if (oldestKey) cache.delete(oldestKey);
+}
+
+async function resolveEpisodeInfo(
+  userId: string,
+  item: WatchlistRow,
+): Promise<EpisodeInfo | null> {
+  const cacheKey = makeCacheKey(userId, item);
+  const cached = getCached(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const pending = inflightRequests.get(cacheKey);
+  if (pending) {
+    return pending;
+  }
+
+  const promise = checkEpisodesForShow(
+    item.contentId,
+    item.lastWatchedSeason,
+    item.lastWatchedEpisode,
+  )
+    .then((episodeInfo) => {
+      if (episodeInfo) {
+        setCached(cacheKey, episodeInfo);
+      }
+      return episodeInfo;
+    })
+    .finally(() => {
+      inflightRequests.delete(cacheKey);
+    });
+
+  inflightRequests.set(cacheKey, promise);
+  return promise;
 }
 
 /**
@@ -71,21 +106,7 @@ export async function GET(request: NextRequest) {
     const episodeData: Record<number, EpisodeInfo> = {};
 
     const resolved = await runInChunks(scopedShows, async (item) => {
-      const cacheKey = makeCacheKey(userId, item);
-      let episodeInfo = getCached(cacheKey);
-
-      if (!episodeInfo) {
-        episodeInfo = await checkEpisodesForShow(
-          item.contentId,
-          item.lastWatchedSeason,
-          item.lastWatchedEpisode,
-        );
-
-        if (episodeInfo) {
-          setCached(cacheKey, episodeInfo);
-        }
-      }
-
+      const episodeInfo = await resolveEpisodeInfo(userId, item);
       return episodeInfo ? { contentId: item.contentId, episodeInfo } : null;
     });
 

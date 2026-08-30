@@ -50,7 +50,13 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type DragEvent, type ReactNode, useEffect, useState } from "react";
+import {
+  type DragEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 interface EpisodeProgressIndicatorProps {
@@ -174,6 +180,7 @@ export function WatchlistButton({
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
+  const isTogglingRef = useRef(false);
   const session = useSession();
   const pathname = usePathname();
   const isSignedIn = Boolean(session.data?.user?.id);
@@ -206,7 +213,7 @@ export function WatchlistButton({
   }, [contentId, mediaType]);
 
   const handleToggle = async () => {
-    if (isLoading || isToggling) return;
+    if (isLoading || isToggling || isTogglingRef.current) return;
     if (!isSignedIn) {
       toast.error("To add items to your watchlist, you must be logged in.", {
         action: {
@@ -219,6 +226,7 @@ export function WatchlistButton({
       return;
     }
 
+    isTogglingRef.current = true;
     setIsToggling(true);
     try {
       if (isInWatchlist) {
@@ -275,6 +283,7 @@ export function WatchlistButton({
           : "Failed to add to watchlist",
       );
     } finally {
+      isTogglingRef.current = false;
       setIsToggling(false);
     }
   };
@@ -695,7 +704,7 @@ function WatchlistBannerCard({
         ? buildAnilistTvDetailHref(malEntry.anilistId, {
             season: malEntry.season,
           })
-        : `/anime/${item.id}`;
+        : buildAnilistTvDetailHref(item.id);
   const showMalControls =
     malConnected && mediaType === "tv" && Boolean(malEntry) && !isUnavailable;
   const [isManageOpen, setIsManageOpen] = useState(false);
