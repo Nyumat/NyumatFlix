@@ -158,6 +158,23 @@ describe("collectRecentlyWatchedStubs", () => {
     expect(item.isAnime).toBe(false);
   });
 
+  it("links anime continue-watching items to /anime", () => {
+    const item = toRecentlyWatchedItem(
+      {
+        mediaType: "tv",
+        contentId: 11757,
+        seasonNumber: 2,
+        episodeNumber: 1,
+        progressRatio: 0.4,
+        updatedAt: 1,
+      },
+      { title: "Sword Art Online", isAnime: true },
+    );
+
+    expect(item.href).toBe("/anime/anilist-11757?season=2");
+    expect(item.isAnime).toBe(true);
+  });
+
   it("omits non-watching watchlist titles", () => {
     const watchlist: WatchlistItem[] = [
       {

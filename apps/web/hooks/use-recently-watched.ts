@@ -23,11 +23,14 @@ import {
   type RecentlyWatchedScope,
   type RecentlyWatchedStub,
 } from "@/lib/playback/recently-watched";
+import { usePlaybackProgressRevision } from "@/hooks/use-playback-progress-revision";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { applyContinueWatchingComplete } from "@/lib/watchlist/apply-continue-watching-complete";
+import { fetchTvShowDetailClient } from "@/lib/tv-show-detail-client";
 import { isAnime } from "@/utils/anilist-helpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type MediaDetailResponse = {
@@ -64,13 +67,42 @@ function detectAnime(detail: MediaDetailResponse): boolean {
 async function fetchMediaDetail(
   stub: RecentlyWatchedStub,
 ): Promise<RecentlyWatchedItem | null> {
-  const path =
-    stub.mediaType === "movie"
-      ? `/api/movies/${stub.contentId}`
-      : `/api/tv/${stub.contentId}`;
+  if (stub.mediaType === "movie") {
+    const response = await fetch(`/api/movies/${stub.contentId}`);
+    if (!response.ok) {
+      if (stub.title) {
+        return toRecentlyWatchedItem(stub, {
+          title: stub.title,
+          backdropPath: stub.backdropPath,
+          posterPath: stub.posterPath,
+          isAnime: false,
+        });
+      }
+      return null;
+    }
 
-  const response = await fetch(path);
-  if (!response.ok) {
+    const detail = (await response.json()) as MediaDetailResponse;
+    const title = detail.title ?? stub.title;
+    if (!title) {
+      return null;
+    }
+
+    return toRecentlyWatchedItem(stub, {
+      title,
+      backdropPath: detail.backdrop_path ?? stub.backdropPath,
+      posterPath: detail.poster_path ?? stub.posterPath,
+      voteAverage: detail.vote_average ?? stub.voteAverage,
+      year: detail.release_date
+        ? String(new Date(detail.release_date).getFullYear())
+        : stub.year,
+      isAnime: false,
+    });
+  }
+
+  const fetched = await fetchTvShowDetailClient(stub.contentId, {
+    expectedTitle: stub.title,
+  });
+  if (!fetched) {
     if (stub.title) {
       return toRecentlyWatchedItem(stub, {
         title: stub.title,
@@ -82,29 +114,21 @@ async function fetchMediaDetail(
     return null;
   }
 
-  const detail = (await response.json()) as MediaDetailResponse;
-  const title =
-    stub.mediaType === "movie"
-      ? (detail.title ?? stub.title)
-      : (detail.name ?? stub.title);
-
+  const detail = fetched.detail;
+  const title = detail.name ?? stub.title;
   if (!title) {
     return null;
   }
 
-  const date =
-    stub.mediaType === "movie" ? detail.release_date : detail.first_air_date;
-
-  const tvFields =
-    stub.mediaType === "tv" ? tvCompleteFieldsFromDetail(detail) : {};
+  const tvFields = tvCompleteFieldsFromDetail(detail);
 
   return toRecentlyWatchedItem(stub, {
     title,
     backdropPath: detail.backdrop_path ?? stub.backdropPath,
     posterPath: detail.poster_path ?? stub.posterPath,
     voteAverage: detail.vote_average,
-    year: date?.substring(0, 4),
-    isAnime: detectAnime(detail),
+    year: detail.first_air_date?.substring(0, 4) ?? stub.year,
+    isAnime: fetched.catalog === "anime" || detectAnime(detail),
     ...tvFields,
   });
 }
@@ -122,7 +146,8 @@ export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
   const queryClient = useQueryClient();
   const { data: session, status: sessionStatus } = useSession();
   const isSignedIn = Boolean(session?.user?.id);
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useIsHydrated();
+  const progressRevision = usePlaybackProgressRevision();
   const [dismissTick, setDismissTick] = useState(0);
   const [pendingCompleteKey, setPendingCompleteKey] = useState<string | null>(
     null,
@@ -132,10 +157,6 @@ export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
     scope === "tv" || scope === "anime"
       ? RECENTLY_WATCHED_LIMIT * 2
       : RECENTLY_WATCHED_LIMIT;
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
 
   const watchlistQuery = useQuery({
     queryKey: queryKeys.watchlist(),
@@ -153,7 +174,14 @@ export function useRecentlyWatched(scope: RecentlyWatchedScope = "all") {
       mediaTypes,
       dismissals: readContinueWatchingDismissals(),
     });
-  }, [hydrated, watchlistQuery.data, collectLimit, mediaTypes, dismissTick]);
+  }, [
+    hydrated,
+    watchlistQuery.data,
+    collectLimit,
+    mediaTypes,
+    dismissTick,
+    progressRevision,
+  ]);
 
   const stubsKey = useMemo(
     () =>
