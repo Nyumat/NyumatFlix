@@ -69,15 +69,15 @@ describe("resolveAnilistTvDetailRedirects", () => {
     );
   });
 
-  it("normalizes legacy anilist-* slugs to bare /anime/{id}", async () => {
-    await expect(
-      resolveAnilistTvDetailRedirects("anilist-154587"),
-    ).rejects.toThrow("REDIRECT:/anime/154587?");
+  it("redirects legacy bare /anime/{id} URLs to prefixed slugs", async () => {
+    await expect(resolveAnilistTvDetailRedirects("154587")).rejects.toThrow(
+      "REDIRECT:/anime/anilist-154587?",
+    );
   });
 
-  it("does not redirect bare anime ids when already canonical", async () => {
+  it("keeps prefixed anime ids when already canonical", async () => {
     await expect(
-      resolveAnilistTvDetailRedirects("154587"),
+      resolveAnilistTvDetailRedirects("anilist-154587"),
     ).resolves.toBeUndefined();
   });
 
@@ -88,7 +88,7 @@ describe("resolveAnilistTvDetailRedirects", () => {
     });
 
     await expect(resolveAnilistTvDetailRedirects("200")).rejects.toThrow(
-      "REDIRECT:/anime/100?",
+      "REDIRECT:/anime/anilist-100?",
     );
   });
 
@@ -97,7 +97,7 @@ describe("resolveAnilistTvDetailRedirects", () => {
     mockResolveTmdbToAnilistFromMappings.mockResolvedValue(153567);
 
     await expect(resolveAnilistTvDetailRedirects("207840")).rejects.toThrow(
-      "REDIRECT:/anime/153567?",
+      "REDIRECT:/anime/anilist-153567?",
     );
   });
 });

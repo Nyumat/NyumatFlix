@@ -41,6 +41,8 @@ export const EpisodeSchema = z.object({
   runtime: z.number().nullable(),
   vote_average: z.number().optional(),
   vote_count: z.number().optional(),
+  sourceAnilistId: z.number().int().positive().optional(),
+  sourceEpisodeNumber: z.number().int().positive().optional(),
 });
 
 export const SeasonSchema = z.object({

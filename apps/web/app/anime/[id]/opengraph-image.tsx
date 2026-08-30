@@ -1,3 +1,4 @@
+import { getCachedAnilistTvShowDetail } from "@/lib/anilist-tv-detail";
 import { fetchOgTvDetail } from "@/lib/seo/og-tmdb-fetch";
 import { resolveMediaOgImageProps } from "@/lib/seo/og-remote-image";
 import {
@@ -7,6 +8,7 @@ import {
   ogImageContentType,
 } from "@/lib/seo/og-image";
 import { renderCachedOgImage } from "@/lib/seo/og-render";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 
 export const alt = "Anime on NyumatFlix";
 export const size = OG_IMAGE_SIZE;
@@ -21,7 +23,11 @@ export default async function Image({ params }: Props) {
   const { id } = await params;
 
   return renderCachedOgImage(`anime:${id}`, async () => {
-    const tvShow = await fetchOgTvDetail(id);
+    const anilistShow = await getCachedAnilistTvShowDetail(id, {
+      acceptBareNumeric: true,
+    });
+    const tvShow =
+      anilistShow ?? (await fetchOgTvDetail(unwrapTmdbLookupId(id)));
 
     if (!tvShow) {
       return <MediaOgImage label="SERIES" title="Anime Not Found" />;

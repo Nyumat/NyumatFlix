@@ -65,3 +65,8 @@ export const buildTmdbAnimeDetailHref = (
   tmdbId: number,
   mediaType: "tv" | "movie" = "tv",
 ): string => `/anime/${toTmdbAnimeRouteSlug(tmdbId, mediaType)}`;
+
+export const unwrapTmdbLookupId = (routeId: string): string => {
+  const parsed = parseTmdbAnimeRouteId(routeId);
+  return parsed ? String(parsed.tmdbId) : routeId;
+};

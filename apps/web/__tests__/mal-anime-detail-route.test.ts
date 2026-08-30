@@ -48,7 +48,7 @@ describe("resolveMalAnimeDetailRedirects", () => {
     });
 
     await expect(resolveMalAnimeDetailRedirects("mal-16498")).rejects.toThrow(
-      "REDIRECT:/anime/16498?",
+      "REDIRECT:/anime/anilist-16498?",
     );
   });
 
@@ -69,7 +69,7 @@ describe("resolveMalAnimeDetailRedirects", () => {
     mockResolveMalToAnilist.mockResolvedValue(188);
 
     await expect(resolveMalAnimeDetailRedirects("mal-999")).rejects.toThrow(
-      "REDIRECT:/anime/188",
+      "REDIRECT:/anime/anilist-188",
     );
   });
 

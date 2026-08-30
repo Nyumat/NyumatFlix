@@ -22,7 +22,28 @@ const aotFribbMapping = {
   104578: { tv: 1429, season: 3 },
   110277: { tv: 1429, season: 4 },
   131681: { tv: 1429, season: 4 },
+  146984: { tv: 1429, season: 4 },
 };
+
+const aotFribbRows: FribbAnimeRow[] = [
+  {
+    anilist_id: 110277,
+    themoviedb_id: { tv: 1429 },
+    season: { tmdb: 4 },
+  },
+  {
+    anilist_id: 131681,
+    themoviedb_id: { tv: 1429 },
+    season: { tmdb: 4 },
+    episode_offset: { tmdb: 16 },
+  },
+  {
+    anilist_id: 146984,
+    themoviedb_id: { tv: 1429 },
+    season: { tmdb: 4 },
+    episode_offset: { tmdb: 28 },
+  },
+];
 
 const buildMedia = (id: number, episodes: number): AniListTvMedia => ({
   id,
@@ -47,12 +68,17 @@ const buildEpisodes = (media: AniListTvMedia) =>
 describe("groupFranchiseSeasonsByTmdb", () => {
   it("collapses split-cour Attack on Titan entries to four TMDB seasons", () => {
     expect(
-      groupFranchiseSeasonsByTmdb(aotFranchiseSeasons, aotFribbMapping, 1429),
+      groupFranchiseSeasonsByTmdb(
+        aotFranchiseSeasons,
+        aotFribbMapping,
+        1429,
+        aotFribbRows,
+      ),
     ).toEqual([
       { seasonNumber: 1, anilistIds: [16498] },
       { seasonNumber: 2, anilistIds: [20958] },
       { seasonNumber: 3, anilistIds: [99147, 104578] },
-      { seasonNumber: 4, anilistIds: [110277, 131681] },
+      { seasonNumber: 4, anilistIds: [110277, 131681, 146984] },
     ]);
   });
 
@@ -90,11 +116,62 @@ describe("buildMergedEpisodesForTmdbSeason", () => {
       anilistIds: [99147, 104578],
       seasonsByAnilistId,
       fribbRows: aotFribbRows,
-      buildEpisodes,
+      buildEpisodes: (media) => buildEpisodes(media as AniListTvMedia),
     });
 
     expect(episodes.map((episode) => episode.episode_number)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
     ]);
+  });
+
+  it("appends sequel-only split-cour segments after the last Fribb offset", () => {
+    const seasonsByAnilistId = new Map<number, AniListTvMedia>([
+      [110277, buildMedia(110277, 16)],
+      [131681, buildMedia(131681, 12)],
+      [146984, buildMedia(146984, 1)],
+      [162314, buildMedia(162314, 1)],
+    ]);
+
+    const episodes = buildMergedEpisodesForTmdbSeason({
+      tmdbShowId: 1429,
+      seasonNumber: 4,
+      anilistIds: [110277, 131681, 146984, 162314],
+      seasonsByAnilistId,
+      fribbRows: [
+        {
+          anilist_id: 110277,
+          themoviedb_id: { tv: 1429 },
+          season: { tmdb: 4 },
+        },
+        {
+          anilist_id: 131681,
+          themoviedb_id: { tv: 1429 },
+          season: { tmdb: 4 },
+          episode_offset: { tmdb: 16 },
+        },
+        {
+          anilist_id: 146984,
+          themoviedb_id: { tv: 1429 },
+          season: { tmdb: 4 },
+          episode_offset: { tmdb: 28 },
+        },
+      ],
+      buildEpisodes: (media) => buildEpisodes(media as AniListTvMedia),
+    });
+
+    expect(episodes.map((episode) => episode.episode_number)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30,
+    ]);
+    expect(episodes[28]).toMatchObject({
+      episode_number: 29,
+      sourceAnilistId: 146984,
+      sourceEpisodeNumber: 1,
+    });
+    expect(episodes[29]).toMatchObject({
+      episode_number: 30,
+      sourceAnilistId: 162314,
+      sourceEpisodeNumber: 1,
+    });
   });
 });
