@@ -12,6 +12,11 @@ import {
 import { CanvasRenderer } from "./CanvasRenderer";
 import { TrackManager } from "../core/TrackManager";
 import { Logger } from "../utils/Logger";
+import {
+  applyStreamVideoVisibility,
+  usesCanvasCopyLoop,
+} from "../core/presentation";
+import { VideoPlayGate } from "../utils/safeMediaPlay";
 
 const TAG = "ShakaPlayerWrapper";
 
@@ -44,6 +49,7 @@ export class ShakaPlayerWrapper extends EventEmitter<PlayerEventMap> {
   public trackManager: TrackManager;
   private frameCallbackId: number | null = null;
   private _framesRendered: number = 0;
+  private readonly videoPlayGate = new VideoPlayGate();
 
   // All Shaka variant tracks for the loaded manifest, plus the per-type
   // representative arrays whose array index === the Track.id we hand the
@@ -78,18 +84,14 @@ export class ShakaPlayerWrapper extends EventEmitter<PlayerEventMap> {
     this.videoElement = document.createElement("video");
     this.videoElement.crossOrigin = "anonymous";
     this.videoElement.playsInline = true;
-    this.videoElement.style.display = "none"; // Hidden; canvas renderer draws frames
+    applyStreamVideoVisibility(this.videoElement, config);
 
     // Preserve pitch when changing playback speed
     (this.videoElement as any).preservesPitch = true;
     (this.videoElement as any).mozPreservesPitch = true; // Firefox
     (this.videoElement as any).webkitPreservesPitch = true; // Safari/older Chrome
 
-    // DRM mode: use native video element directly (no canvas) — canvas can't
-    // access DRM-protected frames (browser blocks VideoFrame copy).
-    // LCEVC mode: Shaka composites the enhanced frames onto the canvas itself
-    // (via attachCanvas), so our rVFC→CanvasRenderer path stays out of the way.
-    if (!config.drm && !config.lcevc && config.renderer === "canvas" && config.canvas) {
+    if (usesCanvasCopyLoop(config) && config.canvas) {
       this.canvasRenderer = new CanvasRenderer(config.canvas);
     }
 
@@ -227,23 +229,27 @@ export class ShakaPlayerWrapper extends EventEmitter<PlayerEventMap> {
 
   private setupEventHandlers(): void {
     this.videoElement.addEventListener("play", () => this.setState("playing"));
-    this.videoElement.addEventListener("playing", () =>
-      this.setState("playing"),
-    );
+    this.videoElement.addEventListener("playing", () => {
+      this.setState("playing");
+      this.emit("playing", undefined);
+    });
     this.videoElement.addEventListener("pause", () => {
       if (this.state !== "ended") this.setState("paused");
     });
     this.videoElement.addEventListener("ended", () => this.setState("ended"));
-    this.videoElement.addEventListener("seeking", () =>
-      this.setState("seeking"),
-    );
+    this.videoElement.addEventListener("seeking", () => {
+      this.setState("seeking");
+      this.emit("seeking", this.videoElement.currentTime);
+    });
     this.videoElement.addEventListener("seeked", () => {
+      this.emit("seeked", this.videoElement.currentTime);
       if (this.videoElement.paused) this.setState("paused");
       else this.setState("playing");
     });
-    this.videoElement.addEventListener("waiting", () =>
-      this.setState("buffering"),
-    );
+    this.videoElement.addEventListener("waiting", () => {
+      this.setState("buffering");
+      this.emit("waiting", undefined);
+    });
     this.videoElement.addEventListener("timeupdate", () => {
       this.emit("timeUpdate", this.videoElement.currentTime);
     });
@@ -473,6 +479,10 @@ export class ShakaPlayerWrapper extends EventEmitter<PlayerEventMap> {
     // (post-load) errors arrive via this event without rejecting.
     this.player.addEventListener("error", (event: any) => {
       const detail = event?.detail;
+      // Code 7003 is OBJECT_DESTROYED — emitted naturally when player.destroy()
+      // runs (e.g. on unmount or engine fallback). Ignore it completely.
+      if (detail?.code === 7003) return;
+
       // Log the technical detail for developers; surface plain text to viewers.
       Logger.error(
         TAG,
@@ -713,7 +723,7 @@ export class ShakaPlayerWrapper extends EventEmitter<PlayerEventMap> {
 
     this.trackManager.setTracks(tracks);
     if (this.videoRenditions.length > 0) {
-      this.trackManager.selectVideoTrack(-1); // default Auto (video streams only)
+      this.trackManager.selectHighestVideoTrack();
     }
 
     this.sizeCanvasToTopRendition();
@@ -787,10 +797,14 @@ export class ShakaPlayerWrapper extends EventEmitter<PlayerEventMap> {
   }
 
   async play(): Promise<void> {
-    await this.videoElement.play();
+    if (!this.videoElement.paused && this.state === "playing") {
+      return;
+    }
+    await this.videoPlayGate.play(this.videoElement);
   }
 
   pause(): void {
+    this.videoPlayGate.reset();
     this.videoElement.pause();
   }
 
@@ -1092,10 +1106,12 @@ export class ShakaPlayerWrapper extends EventEmitter<PlayerEventMap> {
 
     if (this.player) {
       // shaka destroy is async; fire-and-forget (we drop the reference below).
-      this.player.destroy().catch(() => {
-        /* Shaka can throw if already torn down */
-      });
+      // Catch any rejected promise or internal 7003 OBJECT_DESTROYED errors.
+      const p = this.player;
       this.player = null;
+      p.destroy().catch(() => {
+        /* Shaka can throw/reject if already torn down or during destroy transition */
+      });
     }
 
     if (this.textContainer?.parentNode) {

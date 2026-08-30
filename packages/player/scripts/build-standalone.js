@@ -18,6 +18,7 @@ const entries = [
   { name: 'demuxer', path: 'src/demuxer.ts' },
   { name: 'player', path: 'src/player.ts' },
   { name: 'element', path: 'src/element.ts' },
+  { name: 'compat', path: 'src/compat.ts' },
   { name: 'index', path: 'src/index.ts' },
 ];
 
