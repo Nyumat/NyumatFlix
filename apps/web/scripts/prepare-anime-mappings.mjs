@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,4 +29,17 @@ for (const { url, file } of sources) {
   const body = await response.text();
   fs.writeFileSync(target, body);
   console.log(`[prepare-anime-mappings] wrote ${file} (${body.length} bytes)`);
+}
+
+const buildIndex = spawnSync(
+  "bun",
+  ["scripts/build-season-index.mts"],
+  {
+    cwd: root,
+    stdio: "inherit",
+  },
+);
+
+if (buildIndex.status !== 0) {
+  process.exit(buildIndex.status ?? 1);
 }

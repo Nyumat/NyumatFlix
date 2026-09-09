@@ -149,10 +149,10 @@ export async function scrapeAnimeProvider(
     };
   }
 
-  const mergedSubtitles = await mergeAnimeCatalogSubtitles(
-    input,
-    next.subtitles,
-  );
+  const mergedSubtitles =
+    next.streamKind === "dash"
+      ? next.subtitles
+      : await mergeAnimeCatalogSubtitles(input, next.subtitles);
   if (mergedSubtitles !== next.subtitles) {
     next = {
       ...next,

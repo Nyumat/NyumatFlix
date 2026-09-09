@@ -1,7 +1,8 @@
 import type { ResolvedAnimeEpisodeCoords } from "@/lib/anime/tmdb-anilist-map";
 
 export type EpisodeMappingRequest = {
-  tmdbShowId: number;
+  tmdbShowId?: number | null;
+  anilistId?: number | null;
   seasonNumber: number;
   episodeNumber: number;
   isAdult?: boolean;
@@ -14,7 +15,7 @@ type PlaybackCoordsResponse = {
     animeSeasonNumber: number | null;
     animeInfo: ResolvedAnimeEpisodeCoords["animeInfo"];
     confidence: "high" | "low";
-    source: "anibridge" | "fribb";
+    source: "anibridge" | "fribb" | "anilist";
     isAdult?: boolean;
     genres?: string[];
   } | null;
@@ -26,10 +27,27 @@ export const resolveEpisodeAnimeMapping = async (
   (ResolvedAnimeEpisodeCoords & { isAdult: boolean; genres: string[] }) | null
 > => {
   const params = new URLSearchParams({
-    tmdbShowId: String(request.tmdbShowId),
     seasonNumber: String(request.seasonNumber),
     episodeNumber: String(request.episodeNumber),
   });
+  if (
+    typeof request.tmdbShowId === "number" &&
+    Number.isInteger(request.tmdbShowId) &&
+    request.tmdbShowId > 0
+  ) {
+    params.set("tmdbShowId", String(request.tmdbShowId));
+  }
+  if (
+    typeof request.anilistId === "number" &&
+    Number.isInteger(request.anilistId) &&
+    request.anilistId > 0
+  ) {
+    params.set("anilistId", String(request.anilistId));
+  }
+
+  if (!params.has("tmdbShowId") && !params.has("anilistId")) {
+    return null;
+  }
 
   try {
     const response = await fetch(

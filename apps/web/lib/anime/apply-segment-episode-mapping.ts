@@ -1,8 +1,5 @@
-import {
-  findSegmentForEpisode,
-  toAnimeDisplayCoords,
-  type MappingSegment,
-} from "@/lib/anime/tmdb-anilist-map";
+import { resolveSegmentEpisodeCoords } from "@/lib/anime/resolve-segment-episode-coords";
+import type { MappingSegment } from "@/lib/anime/tmdb-anilist-map";
 import {
   useEpisodeStore,
   type AnimeEpisodeMappingContext,
@@ -13,9 +10,11 @@ export const applySegmentAnimeEpisodeMapping = (
   episodeNumber: number,
   input: AnimeEpisodeMappingContext & { isAdult: boolean },
 ): boolean => {
-  const segment = findSegmentForEpisode(segments, episodeNumber);
-  const animeDisplay = toAnimeDisplayCoords(segments, episodeNumber);
-  if (!segment || !animeDisplay) {
+  const segmentCoords = resolveSegmentEpisodeCoords({
+    segments,
+    tmdbEpisodeNumber: episodeNumber,
+  });
+  if (!segmentCoords) {
     return false;
   }
 
@@ -31,8 +30,8 @@ export const applySegmentAnimeEpisodeMapping = (
   if (
     state.animeCoordsStatus === "resolved" &&
     state.mappingConfidence === "high" &&
-    state.anilistId === segment.anilistMediaId &&
-    state.relativeEpisodeNumber === animeDisplay.episodeNumber
+    state.anilistId === segmentCoords.anilistId &&
+    state.relativeEpisodeNumber === segmentCoords.relativeEpisodeNumber
   ) {
     return false;
   }
@@ -40,14 +39,14 @@ export const applySegmentAnimeEpisodeMapping = (
   useEpisodeStore.getState().applyAnimeEpisodeMapping(
     {
       animeInfo: {
-        anilistId: segment.anilistMediaId,
-        startEpisode: segment.startEpisode,
-        endEpisode: segment.endEpisode,
+        anilistId: segmentCoords.anilistId,
+        startEpisode: segmentCoords.segment.startEpisode,
+        endEpisode: segmentCoords.segment.endEpisode,
       },
-      relativeEpisodeNumber: animeDisplay.episodeNumber,
+      relativeEpisodeNumber: segmentCoords.relativeEpisodeNumber,
       confidence: "high",
       isAdult: input.isAdult,
-      animeSeasonNumber: animeDisplay.seasonNumber,
+      animeSeasonNumber: segmentCoords.animeSeasonNumber,
     },
     input,
   );
