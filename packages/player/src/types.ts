@@ -134,6 +134,24 @@ export type RendererType = "canvas" | "video";
 export type PresentationMode = "native" | "canvas";
 export type DecoderType = "auto" | "software";
 
+export type HlsJsConfigPatch = {
+  enableWorker?: boolean;
+  lowLatencyMode?: boolean;
+  startPosition?: number;
+  maxBufferLength?: number;
+  maxMaxBufferLength?: number;
+  maxBufferHole?: number;
+  maxStarvationDelay?: number;
+  nudgeOffset?: number;
+  nudgeMaxRetry?: number;
+  highBufferWatchdogPeriod?: number;
+  fragLoadingTimeOut?: number;
+  fragLoadingMaxRetry?: number;
+  levelLoadingMaxRetry?: number;
+  manifestLoadingMaxRetry?: number;
+  backBufferLength?: number;
+};
+
 export type PlayerErrorCategory =
   | "network"
   | "decode"
@@ -192,6 +210,7 @@ export interface PlayerConfig {
   enablePreviews?: boolean; // Enable thumbnail preview pipeline (default: false)
   frameRate?: number; // Override frame rate (fps) - 0 = auto
   headers?: Record<string, string>; // Custom HTTP headers for media network requests — adaptive manifest + segments (HLS/DASH) and progressive downloads alike (e.g. auth tokens, signed cookies)
+  hls?: HlsJsConfigPatch;
   audioOnly?: boolean; // Audio-only mode: skip video decode (CPU) and, for adaptive streams, fetch only audio renditions (bandwidth). UI shows album art / strip.
   drm?: boolean; // Enable DRM mode for HLS (native video element, no canvas)
   licenseUrl?: string; // Widevine/FairPlay license server URL
@@ -349,4 +368,5 @@ export interface PlayerEventMap {
    * to cache whole. The UI hides the timeline and disables seeking/thumbnails.
    */
   linearmode: void;
+  subtitleTrackChange: { lang: string | null; label: string | null };
 }

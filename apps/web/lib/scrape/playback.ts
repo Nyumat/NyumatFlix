@@ -3,6 +3,7 @@ import { isVidKingPlaybackRefresh } from "./playback-refresh";
 import { resolveHlsPlaylistUrl } from "./hls-url";
 import { looksLikeHlsStreamUrl } from "./stream-url-patterns";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
+import { anyAbortSignal } from "./abort";
 
 const MAX_ENCODED_URL_LENGTH = 8192;
 
@@ -110,11 +111,75 @@ const suffixForUrl = (
     return "asset.txt";
   }
 
+  if (looksLikeHlsStreamUrl(url)) {
+    return "asset.m3u8";
+  }
+
   return "asset";
 };
 
 export const isDisguisedHlsSegment = (url: string) =>
   DISGUISED_HLS_SEGMENT.test(url);
+
+const PLAY_MEDIA_BYTES_ASSET = /^(?:segment\.ts|asset\.mp4)$/i;
+const PLAY_CAPTION_ASSET = /^captions\.(?:vtt|srt)$/i;
+
+export const CACHE_CONTROL_PLAY_MEDIA = "private, max-age=3600";
+export const CACHE_CONTROL_PLAY_MANIFEST = "no-store";
+
+export const isProxiedPlayMediaBytes = (
+  upstreamUrl: string,
+  asset?: string,
+): boolean => {
+  if (asset && PLAY_MEDIA_BYTES_ASSET.test(asset)) {
+    return true;
+  }
+  if (isDisguisedHlsSegment(upstreamUrl)) {
+    return true;
+  }
+  return /\.(?:ts|m4s|cmfv|mp4)(?:[?#].*)?$/i.test(upstreamUrl);
+};
+
+export const isProxiedPlayCaption = (
+  upstreamUrl: string,
+  asset?: string,
+): boolean => {
+  if (asset && PLAY_CAPTION_ASSET.test(asset)) {
+    return true;
+  }
+  return /\.(?:vtt|srt|ass)(?:[?#].*)?$/i.test(upstreamUrl);
+};
+
+export const shouldFollowPlayClientAbort = (
+  upstreamUrl: string,
+  asset?: string,
+): boolean => isProxiedPlayMediaBytes(upstreamUrl, asset);
+
+export const cacheControlForProxiedPlayAsset = (
+  upstreamUrl: string,
+  asset?: string,
+): string => {
+  if (
+    isProxiedPlayMediaBytes(upstreamUrl, asset) ||
+    isProxiedPlayCaption(upstreamUrl, asset)
+  ) {
+    return CACHE_CONTROL_PLAY_MEDIA;
+  }
+  return CACHE_CONTROL_PLAY_MANIFEST;
+};
+
+export const playUpstreamAbortSignal = (
+  upstreamUrl: string,
+  clientSignal: AbortSignal,
+  asset?: string,
+  timeoutMs = 55_000,
+): AbortSignal => {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  if (!shouldFollowPlayClientAbort(upstreamUrl, asset)) {
+    return timeoutSignal;
+  }
+  return anyAbortSignal(clientSignal, timeoutSignal);
+};
 
 export const contentTypeForProxiedAsset = (
   upstreamUrl: string,

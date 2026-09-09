@@ -12,7 +12,6 @@ import {
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useRootTrailerAudioStore } from "@/lib/stores/root-trailer-audio-store";
 import { isScrapeServer, useServerStore } from "@/lib/stores/server-store";
-import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
 import { useValidatedHeroBackdrop } from "@/hooks/use-validated-hero-backdrop";
 import {
   heroBackgroundImageUrl,
@@ -26,6 +25,7 @@ import {
   motion,
 } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { PLAYER_ENGINE_CHANGE_EVENT } from "@/hooks/use-movi-preview";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { tmdbImage } from "@/tmdb/utils";
 import { cn } from "@/lib/utils";
@@ -113,10 +113,12 @@ export function HeroBackground({
     sourceOverlayItems,
     handleSelectEmbedServer,
     handleScrapedPlaybackError,
+    handleScrapedPlaybackStallFailover,
     handleDirectPlaybackExhausted,
     handleRetryAllScraping,
     handleScrapePlaybackEnded,
     awaitingAnimeCoords,
+    scrapeChrome,
   } = scrapePlayback;
 
   const [mediaReady, setMediaReady] = useState(false);
@@ -131,17 +133,27 @@ export function HeroBackground({
     }
   }, [isPlayingVideo]);
 
-  const scrapeStreamKind = useMemo(() => {
-    const playUrl = activeScrape.result?.playUrl;
-    const explicit =
-      activeScrape.result && "streamKind" in activeScrape.result
-        ? activeScrape.result.streamKind
-        : undefined;
-    if (!playUrl) {
-      return explicit ?? "hls";
-    }
-    return inferScrapeStreamKind(playUrl, explicit);
-  }, [activeScrape.result]);
+  useEffect(() => {
+    const handlePlayerEngineChange = () => {
+      if (!isPlayingVideo) {
+        return;
+      }
+
+      setMediaReady(false);
+      onTrailerEnded();
+    };
+
+    window.addEventListener(PLAYER_ENGINE_CHANGE_EVENT, handlePlayerEngineChange, {
+      capture: true,
+    });
+    return () => {
+      window.removeEventListener(
+        PLAYER_ENGINE_CHANGE_EVENT,
+        handlePlayerEngineChange,
+        { capture: true },
+      );
+    };
+  }, [isPlayingVideo, onTrailerEnded]);
 
   useVidsrcProgress();
 
@@ -560,21 +572,27 @@ export function HeroBackground({
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
               className="w-full absolute z-30 px-4 sm:px-6 lg:px-8"
-              style={{ top: "5rem", height: "calc(100% - 11rem)" }}
+              style={{ top: "5rem", height: "calc(100% - 15rem)" }}
             >
-              <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full relative">
+              <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full relative overflow-hidden">
                 <HeroPlaybackShell
                   selectedServer={selectedServer}
                   scrapeStatus={activeScrape.status}
                   playbackBackdropUrl={playbackBackdropUrl}
                   mediaReady={mediaReady}
+                  hasPlaybackManifest={Boolean(
+                    activeScrape.manifest ?? activeScrape.result,
+                  )}
                   isPlaybackBuffering={isPlaybackBuffering}
+                  isDirectMode={isDirectMode}
+                  directStatus={directPlayback.status}
                 >
                   {isScrapeServer(selectedServer) ? (
                     <HeroScrapePlayerPanel
                       selectedServer={selectedServer}
                       scrapeStatus={activeScrape.status}
                       scrapeResult={activeScrape.result}
+                      playbackManifest={activeScrape.manifest ?? null}
                       scrapeError={activeScrape.error}
                       activeProviderId={activeScrape.activeProviderId}
                       sourceOverlayItems={sourceOverlayItems}
@@ -582,12 +600,14 @@ export function HeroBackground({
                       playbackPosterUrl={playbackPosterUrl}
                       progressKey={buildPlaybackProgressKey()}
                       imdbId={playbackImdbId}
-                      streamKind={scrapeStreamKind}
                       isTv={resolvedMediaType === "tv"}
                       onSelectEmbedServer={handleSelectEmbedServer}
+                      onSelectScrapeProvider={
+                        scrapeChrome.onSelectScrapeProvider ?? undefined
+                      }
                       onRetryAllScraping={handleRetryAllScraping}
                       onFatalError={handleScrapedPlaybackError}
-                      onPlaybackStallFailover={handleScrapedPlaybackError}
+                      onPlaybackStallFailover={handleScrapedPlaybackStallFailover}
                       onDirectPlaybackExhausted={handleDirectPlaybackExhausted}
                       onEnded={handleScrapePlaybackEnded}
                       isResolvingEpisode={awaitingAnimeCoords}

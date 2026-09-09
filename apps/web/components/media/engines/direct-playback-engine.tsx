@@ -13,21 +13,29 @@ import {
   DefaultVideoLayout,
 } from "@vidstack/react/player/layouts/default";
 import Hls from "hls.js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { MoviStreamPlayer } from "@/components/media/movi-stream-player";
+import { MoviScrapeEngine } from "@/components/media/engines/movi-scrape-engine";
+import { VidstackScrapeEngine } from "@/components/media/engines/vidstack-scrape-engine";
 import { useDirectPlaybackOrchestrator } from "@/hooks/use-direct-playback-orchestrator";
+import { useMoviPreview } from "@/hooks/use-movi-preview";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
 import type { EngineErrorKind } from "@/lib/direct/playbackFailure";
 import {
+  directEngineSourceUrl,
+  directEngineStreamKind,
   engineSourceUrl,
   isDirectProgressiveTranscodePath,
-  type DirectPlaybackEngine,
+  nextDirectPlaybackEngine,
+  selectDirectPlaybackEngine,
+  type DirectPlaybackEngine as DirectEngineKind,
+  type DirectStream,
+  type PlayableManifest,
 } from "@nyumatflix/playback";
-import { prefetchMoviMediaBytes } from "@/lib/player/prefetch-player-media";
 import { mergeTranscodeHlsAuthConfig } from "@/lib/direct/transcode-hls-auth";
 import { configureScrapeHlsInstance } from "@/lib/scrape/hls-quality";
-import type { DirectStream } from "@nyumatflix/playback";
+import { manifestSessionKey } from "@/lib/playback/to-playable-manifest";
 import { preferredAudioLangForTranslation } from "@/lib/scrape/anime/audio-preference";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useServerStore } from "@/lib/stores/server-store";
@@ -51,15 +59,28 @@ import { cn } from "@/lib/utils";
 import "@vidstack/react/player/styles/default/theme.css";
 import "@vidstack/react/player/styles/default/layouts/video.css";
 
-type CalluspiratesStreamPlayerProps = {
+type DirectPlaybackEngineProps = {
+  manifest: PlayableManifest;
+  title: string;
+  poster?: string | null;
+  progressKey: PlaybackProgressKey;
+  imdbId?: string | null;
+  isTv?: boolean;
+  className?: string;
+  onFatalError: () => void;
+  onMediaReady?: (ready: boolean) => void;
+  onEnded?: () => Promise<boolean>;
+};
+
+type DirectOrchestratorProps = {
   stream: DirectStream;
   candidates?: DirectStream[];
-  title?: string;
+  title: string;
   poster?: string | null;
-  className?: string;
   progressKey: PlaybackProgressKey;
+  className?: string;
   onStreamFailed: () => void;
-  onMediaReady?: () => void;
+  onMediaReady?: (ready: boolean) => void;
   onEnded?: () => Promise<boolean>;
 };
 
@@ -76,7 +97,7 @@ function isTranscodeHlsPath(sourceUrl: string): boolean {
 }
 
 function vidstackStartTimeoutMs(
-  engine: Extract<DirectPlaybackEngine, "vidstack-hls" | "vidstack-direct">,
+  engine: Extract<DirectEngineKind, "vidstack-hls" | "vidstack-direct">,
   sourceUrl: string,
 ): number {
   if (engine === "vidstack-hls" && isTranscodeHlsPath(sourceUrl)) {
@@ -102,12 +123,12 @@ function VidstackDirectPlayer({
   onEnded,
 }: {
   stream: DirectStream;
-  engine: Extract<DirectPlaybackEngine, "vidstack-hls" | "vidstack-direct">;
+  engine: Extract<DirectEngineKind, "vidstack-hls" | "vidstack-direct">;
   title?: string;
   poster?: string | null;
   progressKey: PlaybackProgressKey;
   onError: (detail: EngineErrorDetail) => void;
-  onMediaReady?: () => void;
+  onMediaReady?: (ready: boolean) => void;
   onEnded?: () => Promise<boolean>;
 }) {
   const [layoutReady, setLayoutReady] = useState(false);
@@ -152,7 +173,7 @@ function VidstackDirectPlayer({
   }, []);
 
   const markMediaReady = useCallback(() => {
-    createMediaReadyHandler(onMediaReady, readyRef)();
+    createMediaReadyHandler(() => onMediaReady?.(true), readyRef)();
   }, [onMediaReady]);
 
   const markPlaybackReady = useCallback(() => {
@@ -429,7 +450,7 @@ function VidstackDirectPlayer({
   );
 }
 
-function CalluspiratesStreamPlayerInstance({
+function DirectOrchestratorPlayback({
   stream,
   candidates,
   title,
@@ -439,7 +460,7 @@ function CalluspiratesStreamPlayerInstance({
   onStreamFailed,
   onMediaReady,
   onEnded,
-}: CalluspiratesStreamPlayerProps) {
+}: DirectOrchestratorProps) {
   const isAnimeEpisode = useEpisodeStore((state) => state.isAnimeEpisode);
   const animePreference = useServerStore((state) => state.animePreference);
   const preferredAudioLang = isAnimeEpisode
@@ -460,7 +481,7 @@ function CalluspiratesStreamPlayerInstance({
   } = useDirectPlaybackOrchestrator({
     stream,
     candidates,
-    onReady: () => onMediaReady?.(),
+    onReady: () => onMediaReady?.(true),
     onExhausted: () => onStreamFailedRef.current(),
   });
 
@@ -538,12 +559,164 @@ function CalluspiratesStreamPlayerInstance({
   );
 }
 
-export function CalluspiratesStreamPlayer(
-  props: CalluspiratesStreamPlayerProps,
-) {
+function DirectUrlPlayback({
+  manifest,
+  title,
+  poster,
+  progressKey,
+  imdbId,
+  isTv,
+  className,
+  onFatalError,
+  onMediaReady,
+  onEnded,
+}: DirectPlaybackEngineProps) {
+  const moviPreview = useMoviPreview();
+  const playback = manifest.directPlayback ?? "hls";
+  const mediaUrl = manifest.url;
+  const fallbackUrl = manifest.fallbackUrl;
+  const streamName = manifest.streamName;
+  const fileName = manifest.fileName;
+
+  const [engine, setEngine] = useState<DirectEngineKind | null>(() =>
+    selectDirectPlaybackEngine(
+      playback,
+      fallbackUrl,
+      mediaUrl,
+      fileName,
+      streamName ?? title,
+      undefined,
+      playback === "direct" ? true : undefined,
+    ),
+  );
+  const [failed, setFailed] = useState(() => {
+    const initial = selectDirectPlaybackEngine(
+      playback,
+      fallbackUrl,
+      mediaUrl,
+      fileName,
+      streamName ?? title,
+    );
+    return initial === null;
+  });
+
+  const handleEngineError = useCallback(() => {
+    if (!engine) {
+      setFailed(true);
+      onFatalError();
+      return;
+    }
+    const next = nextDirectPlaybackEngine(
+      playback,
+      engine,
+      fallbackUrl,
+      mediaUrl,
+      fileName,
+      streamName ?? title,
+    );
+    if (next) {
+      setFailed(false);
+      setEngine(next);
+      return;
+    }
+    setFailed(true);
+    onFatalError();
+  }, [
+    engine,
+    fallbackUrl,
+    fileName,
+    mediaUrl,
+    onFatalError,
+    playback,
+    streamName,
+    title,
+  ]);
+
+  if (failed || !engine) {
+    return (
+      <div
+        className={cn(
+          "flex h-full w-full items-center justify-center rounded-lg border border-border/20 bg-black text-sm text-muted-foreground",
+          className,
+        )}
+      >
+        Playback failed for this stream.
+      </div>
+    );
+  }
+
+  const sourceUrl = directEngineSourceUrl(mediaUrl, fallbackUrl, engine);
+  const streamKind = directEngineStreamKind(engine, sourceUrl);
+  const scrapeManifest: PlayableManifest = {
+    ...manifest,
+    url: sourceUrl,
+    kind: streamKind === "mp4" ? "progressive" : "hls",
+  };
+
+  if (engine === "movi") {
+    return (
+      <Suspense fallback={null}>
+        <MoviStreamPlayer
+          key={sourceUrl}
+          src={sourceUrl}
+          poster={poster}
+          title={title}
+          preferredAudioLang={manifest.preferredAudioLang}
+          progressKey={progressKey}
+          onError={handleEngineError}
+          onMediaReady={() => onMediaReady?.(true)}
+          onEnded={onEnded}
+          className={className}
+        />
+      </Suspense>
+    );
+  }
+
+  const ScrapeEngine = moviPreview ? MoviScrapeEngine : VidstackScrapeEngine;
+
   return (
-    <CalluspiratesStreamPlayerInstance
-      key={`${props.stream.hash}:${props.stream.url}`}
+    <Suspense fallback={null}>
+      <ScrapeEngine
+        key={manifestSessionKey(scrapeManifest, progressKey)}
+        manifest={scrapeManifest}
+        title={title}
+        poster={poster}
+        progressKey={progressKey}
+        imdbId={imdbId}
+        isTv={isTv}
+        className={className}
+        autoPlay
+        onFatalError={handleEngineError}
+        onMediaReady={onMediaReady}
+        onEnded={onEnded}
+      />
+    </Suspense>
+  );
+}
+
+export function DirectPlaybackEngine(props: DirectPlaybackEngineProps) {
+  const { manifest } = props;
+
+  if (manifest.directStream) {
+    return (
+      <DirectOrchestratorPlayback
+        key={`${manifest.directStream.hash}:${manifest.directStream.url}`}
+        stream={manifest.directStream}
+        candidates={manifest.directCandidates}
+        title={props.title}
+        poster={props.poster}
+        progressKey={props.progressKey}
+        className={props.className}
+        onStreamFailed={props.onFatalError}
+        onMediaReady={props.onMediaReady}
+        onEnded={props.onEnded}
+      />
+    );
+  }
+
+  return (
+    <DirectUrlPlayback
+      key={`${manifest.url}:${manifest.directPlayback ?? "hls"}:${manifest.fallbackUrl ?? ""}`}
       {...props}
     />
   );

@@ -13,6 +13,12 @@ import {
   rotateScrapeVpnEgress,
   scrapeRateLimitRotateHostname,
 } from "./vpn-rotate";
+import {
+  anyAbortSignal,
+  isScrapeAborted,
+  shouldRetryScrapeFetchAttempt,
+  throwIfScrapeAborted,
+} from "./abort";
 import { getCachedRawFlagsSync } from "@/lib/flags/flipt-client";
 import { scrapePreferProxyHostname as scrapeEmbedProxyHostname } from "./proxy-hosts";
 
@@ -188,16 +194,23 @@ export async function scrapeFetch(
   let lastError: unknown;
 
   for (let attempt = 0; attempt < retryAttempts; attempt++) {
+    throwIfScrapeAborted(fetchInit.signal);
     if (attempt > 0) {
       await new Promise((resolve) =>
         setTimeout(resolve, FETCH_RETRY_DELAY_MS * attempt),
       );
+      throwIfScrapeAborted(fetchInit.signal);
     }
 
     try {
       return await scrapeFetchOnce(url, fetchInit);
     } catch (error) {
       lastError = error;
+      if (!shouldRetryScrapeFetchAttempt(fetchInit.signal)) {
+        throw error instanceof Error
+          ? error
+          : new DOMException("Aborted", "AbortError");
+      }
     }
   }
 
@@ -240,7 +253,7 @@ async function scrapeFetchOnce(
   } = init;
   const timeoutSignal = AbortSignal.timeout(timeoutMs ?? FETCH_TIMEOUT_MS);
   const signal = fetchInit.signal
-    ? AbortSignal.any([fetchInit.signal, timeoutSignal])
+    ? anyAbortSignal(fetchInit.signal, timeoutSignal)
     : timeoutSignal;
   const referer = fetchInit.headers?.Referer;
   const upstreamHeaders = scrapeUpstreamHeaders(url, referer);
@@ -279,7 +292,7 @@ async function scrapeFetchOnce(
     egressProxyUrl: string | undefined,
     failed?: Response,
   ) => {
-    if (!curlFallback) {
+    if (!curlFallback || isScrapeAborted(fetchInit.signal)) {
       return failed ?? null;
     }
 
@@ -323,6 +336,9 @@ async function scrapeFetchOnce(
       }
       return response;
     } catch {
+      if (isScrapeAborted(fetchInit.signal)) {
+        return "error";
+      }
       const fallback = await tryCurlFallback(egressProxyUrl);
       if (fallback) {
         if (hostname && !scrapeBypassesProxyHostname(hostname, url)) {

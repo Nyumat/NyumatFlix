@@ -58,6 +58,10 @@ import {
   isScrapeHlsMidstream,
   shouldFailoverScrapeHlsFatal,
 } from "@/lib/scrape/hls-quality";
+import {
+  configureScrapeDashInstance,
+  SCRAPE_VOD_DASH_CONFIG,
+} from "@/lib/scrape/dash-vod-config";
 import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
 import { resolveActiveSubtitles } from "@/lib/scrape/linked-config";
 import {
@@ -87,31 +91,26 @@ import {
 } from "@/lib/playback/playbackStart";
 import { cn } from "@/lib/utils";
 
-import "./scrape-hls-player.css";
+import type { PlayableManifest } from "@nyumatflix/playback";
+
+import "../scrape-hls-player.css";
 
 const VIDKING_KEEPALIVE_INTERVAL_MS = VIDKING_PROACTIVE_REFRESH_AFTER_MS;
 
 const loadDashjsLibrary = () =>
   import("dashjs").then((module) => ({ default: module.MediaPlayer }));
 
-type ScrapeHlsPlayerProps = {
-  playUrl: string;
-  streamKind?: ScrapeStreamKind;
-  qualities?: ScrapeQuality[];
-  referer?: string;
-  subtitles?: ScrapeSubtitle[];
-  audioVersions?: ScrapeAudioVersion[];
-  defaultAudioLang?: string;
-  defaultHardSubLang?: string;
-  preferredAudioLang?: string;
+type VidstackScrapeEngineProps = {
+  manifest: PlayableManifest;
   title: string;
   poster?: string | null;
   progressKey: PlaybackProgressKey;
   imdbId?: string | null;
+  isTv?: boolean;
   className?: string;
   autoPlay?: boolean;
   onFatalError?: () => void;
-  onMediaReady?: () => void;
+  onMediaReady?: (ready: boolean) => void;
   onEnded?: () => Promise<boolean>;
 };
 
@@ -153,26 +152,50 @@ const isSpuriousEndPosition = (player: MediaPlayerInstance) => {
   return currentTime >= Math.max(0, duration - 1) && bufferedEnd < 1;
 };
 
-export function ScrapeHlsPlayer({
-  playUrl,
-  streamKind = "hls",
-  qualities,
-  referer,
-  subtitles,
-  audioVersions,
-  defaultAudioLang,
-  defaultHardSubLang,
-  preferredAudioLang,
+export function VidstackScrapeEngine({
+  manifest,
   title,
   poster,
   progressKey,
   imdbId = null,
+  isTv = false,
   className,
   autoPlay = true,
   onFatalError,
   onMediaReady,
   onEnded,
-}: ScrapeHlsPlayerProps) {
+}: VidstackScrapeEngineProps) {
+  const playUrl = manifest.url;
+  const streamKind: ScrapeStreamKind =
+    manifest.kind === "dash"
+      ? "dash"
+      : manifest.kind === "progressive"
+        ? "mp4"
+        : "hls";
+  const qualities = manifest.qualities?.map((quality) => ({
+    label: quality.label,
+    url: quality.url,
+    referer: quality.referer,
+    subtitles: quality.subtitles?.map((track) => ({
+      lang: track.lang,
+      url: track.url,
+      format: track.format,
+      referer: track.referer,
+      source: track.source,
+    })),
+  }));
+  const referer = manifest.referer;
+  const subtitles = manifest.subtitles.map((track) => ({
+    lang: track.lang,
+    url: track.url,
+    format: track.format,
+    referer: track.referer,
+    source: track.source,
+  }));
+  const audioVersions = manifest.audioVersions as ScrapeAudioVersion[] | undefined;
+  const defaultAudioLang = manifest.defaultAudioLang;
+  const defaultHardSubLang = manifest.defaultHardSubLang;
+  const preferredAudioLang = manifest.preferredAudioLang;
   const playerRef = useRef<MediaPlayerInstance>(null);
   const resumedRef = useRef(false);
   const readyRef = useRef(false);
@@ -186,7 +209,7 @@ export function ScrapeHlsPlayer({
   onFatalErrorRef.current = onFatalError;
 
   const markMediaReady = useCallback(() => {
-    createMediaReadyHandler(() => onMediaReadyRef.current?.(), readyRef)();
+    createMediaReadyHandler(() => onMediaReadyRef.current?.(true), readyRef)();
   }, []);
   const { resumeTime, persist, persistImmediate } =
     usePlaybackProgress(progressKey);
@@ -462,15 +485,12 @@ export function ScrapeHlsPlayer({
       }
 
       if (isDASHProvider(provider)) {
-        provider.config = {
-          debug: {
-            logLevel: 0,
-          },
-          streaming: {
-            cmcd: { enabled: false },
-          },
-        };
+        provider.config = SCRAPE_VOD_DASH_CONFIG;
         provider.library = loadDashjsLibrary;
+        provider.onInstance((dash) => {
+          configureScrapeDashInstance(dash);
+        });
+        return;
       }
     },
     [activePlaybackUrl, autoPlay, streamKind],
@@ -818,7 +838,7 @@ export function ScrapeHlsPlayer({
         />
         <VidstackIntroDbSegmentControl
           segments={introDbSegments}
-          isTv={progressKey.mediaType === "tv"}
+          isTv={isTv ?? progressKey.mediaType === "tv"}
           onAdvanceToNextEpisode={onEnded}
         />
       </MediaPlayer>

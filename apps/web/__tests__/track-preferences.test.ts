@@ -11,7 +11,6 @@ import {
   trackPreferenceStorageKey,
   TRACK_PREFERENCES_STORAGE_KEY,
   updateTrackPreferences,
-  type TrackPreferencesMap,
 } from "@/lib/playback/track-preferences-storage";
 
 describe("track-matching", () => {
@@ -98,9 +97,7 @@ describe("track-preferences-storage", () => {
     });
   });
 
-  it("stores entries in a shared localStorage map", () => {
-    const raw = window.localStorage.getItem(TRACK_PREFERENCES_STORAGE_KEY);
-    const map = raw ? (JSON.parse(raw) as TrackPreferencesMap) : {};
-    expect(map["tv:220542"]?.audioLang).toBe("Japanese");
+  it("stores entries in the in-memory session map", () => {
+    expect(getTrackPreferences("tv:220542")?.audioLang).toBe("Japanese");
   });
 });

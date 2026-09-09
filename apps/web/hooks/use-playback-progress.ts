@@ -34,15 +34,19 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
     [key, storageKey],
   );
 
-  const syncWatchlist = useCallback(async () => {
-    await postWatchProgressIfSignedIn({
-      contentId: key.contentId,
-      mediaType: key.mediaType,
-      seasonNumber: key.seasonNumber,
-      episodeNumber: key.episodeNumber,
-      anilistId: key.anilistId,
-    });
-  }, [
+  const syncWatchlist = useCallback(
+    async (watched?: number, duration?: number) => {
+      await postWatchProgressIfSignedIn({
+        contentId: key.contentId,
+        mediaType: key.mediaType,
+        seasonNumber: key.seasonNumber,
+        episodeNumber: key.episodeNumber,
+        anilistId: key.anilistId,
+        ...(watched != null && duration != null
+          ? { watchedSeconds: watched, durationSeconds: duration }
+          : {}),
+      });
+    }, [
     key.anilistId,
     key.contentId,
     key.episodeNumber,
@@ -83,7 +87,7 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
       lastWatchlistSyncRef.current = now;
       watchlistSyncedRef.current = true;
 
-      void syncWatchlist().catch((error) => {
+      void syncWatchlist(clamped.watched, clamped.duration).catch((error) => {
         logger.error("Failed to sync playback progress to watchlist", error);
       });
     },
@@ -96,9 +100,12 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
       persist(watched, duration);
 
       if (key.mediaType === "movie") {
-        void syncWatchlist().catch((error) => {
-          logger.error("Failed to sync movie progress to watchlist", error);
-        });
+        const clamped = clampPlaybackProgress(watched, duration);
+        if (clamped) {
+          void syncWatchlist(clamped.watched, clamped.duration).catch((error) => {
+            logger.error("Failed to sync movie progress to watchlist", error);
+          });
+        }
       }
     },
     [key.mediaType, persist, syncWatchlist],

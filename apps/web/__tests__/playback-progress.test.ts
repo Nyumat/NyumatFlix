@@ -9,9 +9,8 @@ import {
   resolveResumeTime,
   setPlaybackProgress,
   shouldPersistPlaybackProgress,
-  PLAYBACK_PROGRESS_STORAGE_KEY,
-  type PlaybackProgressMap,
 } from "@/lib/playback/progress-storage";
+import { resetGuestLedger } from "@/lib/playback/progress-ledger-facade";
 
 describe("progress-storage", () => {
   it("builds stable storage keys", () => {
@@ -84,10 +83,10 @@ describe("progress-storage", () => {
     });
   });
 
-  it("stores entries in a shared localStorage map", () => {
-    const raw = window.localStorage.getItem(PLAYBACK_PROGRESS_STORAGE_KEY);
-    const map = raw ? (JSON.parse(raw) as PlaybackProgressMap) : {};
-    expect(map["movie:27205::"]?.watched).toBe(1200);
+  it("stores entries in the in-memory ledger", () => {
+    expect(getPlaybackProgress({ mediaType: "movie", contentId: 27205 })?.watched).toBe(
+      1200,
+    );
   });
 });
 
@@ -115,7 +114,7 @@ describe("movieWatchButtonLabel", () => {
 
 describe("last tv episode memory", () => {
   it("remembers the latest tv episode when progress is saved", () => {
-    window.localStorage.removeItem(PLAYBACK_PROGRESS_STORAGE_KEY);
+    resetGuestLedger();
 
     setPlaybackProgress(
       {

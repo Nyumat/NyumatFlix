@@ -22,27 +22,30 @@ export type ScrapeSourceRowProps = {
   status: ScrapeItemStatus;
   error?: string;
   active: boolean;
+  onSelect?: (id: string) => void;
 };
 
 export function ScrapeSourceRow({
+  id,
   name,
   status,
   active,
+  onSelect,
 }: ScrapeSourceRowProps) {
   const showIcon = status !== "waiting" || active;
+  const className = cn(
+    "flex w-full items-center gap-3 py-1.5 text-left",
+    active ? "text-white/90" : "text-white/40",
+    (status === "skipped" ||
+      status === "unavailable" ||
+      status === "failure") &&
+      !active &&
+      "text-white/25",
+    onSelect && "rounded-md px-1 -mx-1 hover:bg-white/8 hover:text-white/80",
+  );
 
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-3 py-1.5",
-        active ? "text-white/90" : "text-white/40",
-        (status === "skipped" ||
-          status === "unavailable" ||
-          status === "failure") &&
-          !active &&
-          "text-white/25",
-      )}
-    >
+  const content = (
+    <>
       <div className="w-5 shrink-0">
         {showIcon ? (
           <ScrapeStatusCircle type={statusCircleMap[status]} />
@@ -50,7 +53,22 @@ export function ScrapeSourceRow({
           <span className="block size-2 rounded-full bg-white/15" />
         )}
       </div>
-      <p className="min-w-0 flex-1 truncate text-base">{name}</p>
-    </div>
+      <p className="text-base">{name}</p>
+    </>
+  );
+
+  if (!onSelect) {
+    return <div className={className}>{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={() => onSelect(id)}
+      aria-label={`Use ${name}`}
+    >
+      {content}
+    </button>
   );
 }

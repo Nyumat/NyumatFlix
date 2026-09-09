@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { PlayableManifest } from "@nyumatflix/playback";
+
 import { IntroDbSegmentControl } from "@/components/media/controls/introdb-segment-control";
 import { useSubtitleOffsetKeyboardShortcuts } from "@/components/media/controls/scrape-subtitle-offset-controls";
 import { useIntroDbSegments } from "@/hooks/use-introdb-segments";
@@ -18,18 +20,17 @@ import { buildScrapeSubtitleTracks } from "@/lib/scrape/player-sources";
 import type { ScrapeSubtitle } from "@/lib/scrape/types";
 import { cn } from "@/lib/utils";
 
-type ScrapeShakaDashPlayerProps = {
-  playUrl: string;
-  referer?: string;
-  subtitles?: ScrapeSubtitle[];
+type ShakaScrapeEngineProps = {
+  manifest: PlayableManifest;
   title: string;
   poster?: string | null;
   progressKey: PlaybackProgressKey;
   imdbId?: string | null;
+  isTv?: boolean;
   className?: string;
   autoPlay?: boolean;
   onFatalError?: () => void;
-  onMediaReady?: () => void;
+  onMediaReady?: (ready: boolean) => void;
   onEnded?: () => Promise<boolean>;
 };
 
@@ -47,24 +48,32 @@ const absolutizeUrl = (url: string): string => {
   }
 };
 
-export function ScrapeShakaDashPlayer(props: ScrapeShakaDashPlayerProps) {
-  return <ScrapeShakaDashPlayerInstance key={props.playUrl} {...props} />;
+export function ShakaScrapeEngine(props: ShakaScrapeEngineProps) {
+  return <ShakaScrapeEngineInstance key={props.manifest.url} {...props} />;
 }
 
-function ScrapeShakaDashPlayerInstance({
-  playUrl,
-  referer,
-  subtitles,
+function ShakaScrapeEngineInstance({
+  manifest,
   title,
   poster,
   progressKey,
   imdbId = null,
+  isTv = false,
   className,
   autoPlay = true,
   onFatalError,
   onMediaReady,
   onEnded,
-}: ScrapeShakaDashPlayerProps) {
+}: ShakaScrapeEngineProps) {
+  const playUrl = manifest.url;
+  const referer = manifest.referer;
+  const subtitles = manifest.subtitles.map((track) => ({
+    lang: track.lang,
+    url: track.url,
+    format: track.format,
+    referer: track.referer,
+    source: track.source,
+  }));
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<import("shaka-player").default.Player | null>(null);
   const loadGenerationRef = useRef(0);
@@ -75,7 +84,7 @@ function ScrapeShakaDashPlayerInstance({
   onMediaReadyRef.current = onMediaReady;
 
   const markMediaReady = useCallback(() => {
-    createMediaReadyHandler(() => onMediaReadyRef.current?.(), readyRef)();
+    createMediaReadyHandler(() => onMediaReadyRef.current?.(true), readyRef)();
   }, []);
 
   const reportFatal = useCallback(() => {
@@ -390,7 +399,7 @@ function ScrapeShakaDashPlayerInstance({
         segments={introDbSegments}
         currentTime={playbackState.currentTime}
         duration={playbackState.duration}
-        isTv={progressKey.mediaType === "tv"}
+        isTv={isTv ?? progressKey.mediaType === "tv"}
         onSeek={(time) => {
           const video = videoRef.current;
           if (video) {

@@ -20,6 +20,7 @@ import {
 } from "@/lib/anime/anime-playback-policy";
 import { scrapeSessionKeyFor } from "@/lib/anime/scrape-start-gate";
 import { prefetchMoviScrapePlayer } from "@/lib/scrape/prefetch-scrape-player";
+import { toPlayableManifestFromDirect } from "@/lib/playback/to-playable-manifest";
 import type { HeroScrapeChrome } from "@/components/hero/hero-scrape-types";
 import { flushPlaybackProgress } from "@/lib/playback/progress-flush";
 import { useAnimePlaybackScrape } from "@/hooks/use-anime-playback-scrape";
@@ -34,17 +35,18 @@ import {
   resolveTvPlaybackTmdbId,
 } from "@/lib/tv-playback-tmdb-id";
 import { formatPlaybackTitle } from "@/lib/playback/playback-title";
+import { shouldReScrapeSameProviderOnPlaybackError } from "@/lib/playback/playbackStart";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
 import {
   buildAnimePlaybackProviderOrder,
   buildGroupedAnimePlaybackProviderOptions,
-  shouldIncludeTmdbPlaybackProxies,
   withManualDirectMenuOption,
 } from "@/lib/providers/anime-playback-chain";
 import { type AnimePlaybackScrapeProviderId } from "@/lib/providers/registry";
 import type { ScrapeProviderId } from "@/lib/scrape/types";
 import { animeScrapeMediaKeyFor } from "@/lib/scrape/anime/types";
 import { buildSourceOverlayItems } from "@/lib/scrape/source-overlay";
+import { resolveNextProviderId } from "@/lib/scrape/next-provider";
 import {
   SCRAPE_PROVIDER_OPTIONS,
   scrapeMediaKeyFor,
@@ -98,7 +100,6 @@ export function useHeroScrapePlayback({
   const {
     selectedServer,
     setSelectedServer,
-    getFallbackEmbedServer,
     availableServerIds,
     unavailableServerIds,
   } = useServerStore();
@@ -145,8 +146,6 @@ export function useHeroScrapePlayback({
     noAdsMode,
     selectedServer,
     getCurrentMediaKey: () => null as string | null,
-    getFallbackEmbedServer,
-    setSelectedServer,
   });
   const scrapeFallbackHandledRef = useRef<string | null>(null);
   const animeDirectFallbackRef = useRef({
@@ -156,26 +155,6 @@ export function useHeroScrapePlayback({
     mappingConfidence: null as "high" | "low" | null,
   });
   const usesDirectPlaybackRef = useRef(false);
-
-  const onAllDirectStreamsFailed = useCallback(() => {
-    const ctx = scrapeFallbackContextRef.current;
-    if (
-      !ctx.isPlayingVideo ||
-      !isScrapeServer(ctx.selectedServer) ||
-      ctx.noAdsMode
-    ) {
-      return;
-    }
-
-    const mediaKey = ctx.getCurrentMediaKey();
-    if (!mediaKey || scrapeFallbackHandledRef.current === mediaKey) {
-      return;
-    }
-
-    scrapeFallbackHandledRef.current = mediaKey;
-    ctx.setSelectedServer(ctx.getFallbackEmbedServer());
-    toast.error("No sources found, switching select fallback.");
-  }, [noAdsMode]);
 
   const onAllProvidersFailed = useCallback(() => {
     const ctx = scrapeFallbackContextRef.current;
@@ -210,12 +189,7 @@ export function useHeroScrapePlayback({
           ? "Anime sources unavailable — trying Direct. Episode numbering may not match."
           : "Anime sources unavailable — trying Direct.",
       );
-      return;
     }
-
-    scrapeFallbackHandledRef.current = mediaKey;
-    ctx.setSelectedServer(ctx.getFallbackEmbedServer());
-    toast.error("No sources found, switching select fallback.");
   }, [noAdsMode]);
 
   const mediaScrape = useScrape({ onAllProvidersFailed });
@@ -449,7 +423,6 @@ export function useHeroScrapePlayback({
     episodeNumber:
       providerEpisodeNumber ?? selectedEpisode?.episode_number ?? undefined,
     enabled: isDirectMode && directTmdbId !== null,
-    onAllStreamsFailed: onAllDirectStreamsFailed,
   });
 
   const directPlaybackRef = useRef(directPlayback);
@@ -595,18 +568,6 @@ export function useHeroScrapePlayback({
     };
     const tmdbInput = buildScrapeInput();
 
-    if (!tmdbInput && !shouldIncludeTmdbPlaybackProxies(chain)) {
-      return {
-        anime: animeInput,
-        tmdb: null,
-        chain,
-      };
-    }
-
-    if (!tmdbInput) {
-      return null;
-    }
-
     return {
       anime: animeInput,
       tmdb: tmdbInput,
@@ -635,9 +596,6 @@ export function useHeroScrapePlayback({
     if (!isScrapeServer(selectedServer)) {
       return;
     }
-
-    prefetchDirectPlaybackPlayer();
-    prefetchMoviScrapePlayer();
 
     if (awaitingAnimeCoords) {
       return;
@@ -736,8 +694,12 @@ export function useHeroScrapePlayback({
 
   const onPlaybackStart = useCallback(() => {
     scrapeFallbackHandledRef.current = null;
+    if (isScrapeServer(selectedServer)) {
+      prefetchDirectPlaybackPlayer();
+      prefetchMoviScrapePlayer();
+    }
     startScrapingForCurrentMedia();
-  }, [startScrapingForCurrentMedia]);
+  }, [selectedServer, startScrapingForCurrentMedia]);
 
   const onPlaybackStop = useCallback(() => {
     scrapeFallbackHandledRef.current = null;
@@ -752,8 +714,6 @@ export function useHeroScrapePlayback({
     noAdsMode,
     selectedServer,
     getCurrentMediaKey,
-    getFallbackEmbedServer,
-    setSelectedServer,
   };
 
   useEffect(() => {
@@ -815,15 +775,6 @@ export function useHeroScrapePlayback({
     stopScrapingPlayback,
     usesDirectPlayback,
   ]);
-
-  useEffect(() => {
-    if (!isScrapeMode || !usesDirectPlayback) {
-      return;
-    }
-
-    prefetchDirectPlaybackPlayer();
-    prefetchMoviScrapePlayer();
-  }, [isScrapeMode, usesDirectPlayback]);
 
   // Warm stream discovery as soon as the hero mounts in direct mode so the
   // results are already cached when the user presses Play.
@@ -894,6 +845,41 @@ export function useHeroScrapePlayback({
 
   useServerAvailabilityQuery(serverAvailabilityInput);
 
+  const resolveActiveScrapeProviderOrder = useCallback((): readonly string[] => {
+    return filterProviderOrder(
+      isAnimeScrapeActive
+        ? buildAnimePlaybackProviderOrder(
+            animePlaybackChainContext,
+            animePlaybackProviderOrders,
+          )
+        : ([...tmdbScrapeProviderOrder] as ScrapeProviderId[]),
+    );
+  }, [
+    animePlaybackChainContext,
+    animePlaybackProviderOrders,
+    filterProviderOrder,
+    isAnimeScrapeActive,
+    tmdbScrapeProviderOrder,
+  ]);
+
+  const resolveNextScrapeProviderId = useCallback((): string | null => {
+    if (
+      !isScrapeMode ||
+      activeScrape.status !== "playing" ||
+      !activeScrape.result?.providerId
+    ) {
+      return null;
+    }
+
+    const providerOrder = resolveActiveScrapeProviderOrder();
+    return resolveNextProviderId(providerOrder, activeScrape.result.providerId);
+  }, [
+    activeScrape.result?.providerId,
+    activeScrape.status,
+    isScrapeMode,
+    resolveActiveScrapeProviderOrder,
+  ]);
+
   const handleScrapedPlaybackError = useCallback(() => {
     if (isDirectMode) {
       flushPlaybackProgress();
@@ -905,7 +891,79 @@ export function useHeroScrapePlayback({
       ? animePlaybackScrapeRef.current
       : mediaScrapeRef.current;
 
-    if (!scrape.result?.providerId) {
+    const failedProviderId = scrape.result?.providerId;
+    if (!failedProviderId) {
+      return;
+    }
+
+    const nextProviderId = resolveNextScrapeProviderId();
+    const playUrl = scrape.result?.playUrl ?? "";
+
+    if (isAnimeScrapeActive) {
+      const playbackInput = buildAnimePlaybackInput();
+      if (!playbackInput) {
+        return;
+      }
+
+      if (nextProviderId) {
+        animePlaybackScrapeRef.current.switchToProvider(
+          playbackInput,
+          nextProviderId as AnimePlaybackScrapeProviderId,
+        );
+        return;
+      }
+
+      if (shouldReScrapeSameProviderOnPlaybackError(playUrl)) {
+        animePlaybackScrapeRef.current.resumeScraping(
+          playbackInput,
+          failedProviderId as AnimePlaybackScrapeProviderId,
+        );
+        return;
+      }
+
+      animePlaybackScrapeRef.current.retryAllScraping(playbackInput);
+      return;
+    }
+
+    const input = buildScrapeInput();
+    if (!input) {
+      return;
+    }
+
+    if (nextProviderId) {
+      mediaScrapeRef.current.switchToProvider(
+        input,
+        nextProviderId as ScrapeProviderId,
+      );
+      return;
+    }
+
+    if (shouldReScrapeSameProviderOnPlaybackError(playUrl)) {
+      mediaScrapeRef.current.resumeScraping(
+        input,
+        failedProviderId as ScrapeProviderId,
+      );
+      return;
+    }
+
+    mediaScrapeRef.current.retryAllScraping(input);
+  }, [
+    buildAnimePlaybackInput,
+    buildScrapeInput,
+    isAnimeScrapeActive,
+    isDirectMode,
+    resolveNextScrapeProviderId,
+  ]);
+
+  const handleScrapedPlaybackStallFailover = useCallback(() => {
+    if (isDirectMode) {
+      flushPlaybackProgress();
+      directPlaybackRef.current.tryNextStream();
+      return;
+    }
+
+    const nextProviderId = resolveNextScrapeProviderId();
+    if (!nextProviderId) {
       return;
     }
 
@@ -915,9 +973,9 @@ export function useHeroScrapePlayback({
         return;
       }
 
-      animePlaybackScrapeRef.current.resumeScraping(
+      animePlaybackScrapeRef.current.switchToProvider(
         playbackInput,
-        scrape.result.providerId as AnimePlaybackScrapeProviderId,
+        nextProviderId as AnimePlaybackScrapeProviderId,
       );
       return;
     }
@@ -927,15 +985,16 @@ export function useHeroScrapePlayback({
       return;
     }
 
-    mediaScrapeRef.current.resumeScraping(
+    mediaScrapeRef.current.switchToProvider(
       input,
-      scrape.result.providerId as ScrapeProviderId,
+      nextProviderId as ScrapeProviderId,
     );
   }, [
     buildAnimePlaybackInput,
     buildScrapeInput,
     isAnimeScrapeActive,
     isDirectMode,
+    resolveNextScrapeProviderId,
   ]);
 
   const handleDirectPlaybackExhausted = useCallback(() => {
@@ -1144,30 +1203,8 @@ export function useHeroScrapePlayback({
   const canFindNextDirectStream =
     isDirectMode && directPlayback.status === "playing";
 
-  const canFindNextSource = (() => {
-    if (canFindNextDirectStream) {
-      return true;
-    }
-
-    if (
-      !isScrapeMode ||
-      activeScrape.status !== "playing" ||
-      !activeScrape.result?.providerId
-    ) {
-      return false;
-    }
-
-    const providerOrder = filterProviderOrder(
-      isAnimeScrapeActive
-        ? buildAnimePlaybackProviderOrder(
-            animePlaybackChainContext,
-            animePlaybackProviderOrders,
-          )
-        : ([...tmdbScrapeProviderOrder] as ScrapeProviderId[]),
-    );
-    const currentIndex = providerOrder.indexOf(activeScrape.result.providerId);
-    return currentIndex >= 0 && currentIndex < providerOrder.length - 1;
-  })();
+  const canFindNextSource =
+    canFindNextDirectStream || resolveNextScrapeProviderId() !== null;
 
   const scrapeChrome = useMemo((): HeroScrapeChrome => {
     if (isDirectMode) {
@@ -1181,7 +1218,7 @@ export function useHeroScrapePlayback({
         scrapeProviders: scrapeProviderOptions,
         onSelectScrapeProvider: handleSelectScrapeProvider,
         onFindNextSource: canFindNextDirectStream
-          ? handleScrapedPlaybackError
+          ? handleScrapedPlaybackStallFailover
           : null,
         canFindNextSource: canFindNextDirectStream,
         findNextSourceLabel: "Try different stream",
@@ -1190,18 +1227,18 @@ export function useHeroScrapePlayback({
 
     return {
       scrapeStatus: activeScrape.status,
-      activeProviderId:
-        isScrapeMode && activeScrape.status === "playing"
-          ? (activeScrape.result?.providerId ?? null)
-          : activeScrape.activeProviderId,
-      activeProviderName:
-        isScrapeMode && activeScrape.status === "playing"
-          ? (activeScrape.result?.providerName ?? null)
-          : null,
+      activeProviderId: isScrapeMode
+        ? (activeScrape.result?.providerId ?? activeScrape.activeProviderId)
+        : activeScrape.activeProviderId,
+      activeProviderName: isScrapeMode
+        ? (activeScrape.result?.providerName ?? null)
+        : null,
       scrapeItems: isScrapeMode ? activeScrape.items : [],
       scrapeProviders: scrapeProviderOptions,
       onSelectScrapeProvider: handleSelectScrapeProvider,
-      onFindNextSource: canFindNextSource ? handleScrapedPlaybackError : null,
+      onFindNextSource: canFindNextSource
+        ? handleScrapedPlaybackStallFailover
+        : null,
       canFindNextSource,
     };
   }, [
@@ -1215,7 +1252,7 @@ export function useHeroScrapePlayback({
     directPlaybackScrapeItems,
     directPlaybackScrapeStatus,
     canFindNextDirectStream,
-    handleScrapedPlaybackError,
+    handleScrapedPlaybackStallFailover,
     handleSelectScrapeProvider,
     isDirectMode,
     isScrapeMode,
@@ -1266,6 +1303,12 @@ export function useHeroScrapePlayback({
       activeProviderId:
         directPlayback.status === "idle" ? null : ("direct" as const),
       result: null,
+      manifest: directPlayback.activeStream
+        ? toPlayableManifestFromDirect(
+            directPlayback.activeStream,
+            directPlayback.rankedStreams,
+          )
+        : null,
       items: directPlaybackScrapeItems ?? [],
     };
   }, [
@@ -1351,6 +1394,7 @@ export function useHeroScrapePlayback({
     onPlaybackStop,
     handleSelectEmbedServer,
     handleScrapedPlaybackError,
+    handleScrapedPlaybackStallFailover,
     handleDirectPlaybackExhausted,
     handleRetryAllScraping,
     handleScrapePlaybackEnded,

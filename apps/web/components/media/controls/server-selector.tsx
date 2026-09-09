@@ -463,11 +463,7 @@ export function ServerSelector({
       return directStreamMenuItems[0]?.name ?? "Proxy";
     }
 
-    if (
-      isScrapeActive &&
-      scrapeStatus === "playing" &&
-      activeScrapeProviderName
-    ) {
+    if (isScrapeActive && activeScrapeProviderName) {
       return activeScrapeProviderName;
     }
 
@@ -550,7 +546,7 @@ export function ServerSelector({
       const isActive =
         isScrapeActive &&
         activeScrapeProviderId === provider.providerId &&
-        scrapeStatus === "playing";
+        (scrapeStatus === "playing" || scrapeStatus === "scraping");
       const dimProvider = shouldDimScrapeMenuProvider(provider.status);
 
       return (

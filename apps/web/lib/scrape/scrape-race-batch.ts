@@ -10,6 +10,48 @@ import {
 
 export type ScrapeCancelReason = "winner" | "timeout" | "run";
 
+export const STARTUP_PROBE_TOP_N = 2;
+
+/** Only probe the top-N race successes (by score when provided, else provider order). */
+export function shouldScheduleStartupProbe<T extends string, TPayload>(
+  order: readonly T[],
+  successes: ReadonlyArray<RaceAttemptEntry<T, TPayload>>,
+  providerId: T,
+  scorePayload?: (payload: TPayload) => number,
+): boolean {
+  const successfulEntries = successes.filter(
+    (
+      entry,
+    ): entry is RaceAttemptEntry<T, TPayload> & {
+      attempt: { outcome: "success"; payload: TPayload };
+    } =>
+      entry.attempt.outcome === "success" &&
+      entry.attempt.payload !== undefined,
+  );
+
+  if (successfulEntries.length === 0) {
+    return false;
+  }
+
+  if (scorePayload) {
+    const ranked = [...successfulEntries].sort(
+      (left, right) =>
+        scorePayload(right.attempt.payload) -
+        scorePayload(left.attempt.payload),
+    );
+    const topProviders = new Set(
+      ranked.slice(0, STARTUP_PROBE_TOP_N).map((entry) => entry.providerId),
+    );
+    return topProviders.has(providerId);
+  }
+
+  const orderedSuccesses = order.filter((id) =>
+    successfulEntries.some((entry) => entry.providerId === id),
+  );
+  const probeIndex = orderedSuccesses.indexOf(providerId);
+  return probeIndex >= 0 && probeIndex < STARTUP_PROBE_TOP_N;
+}
+
 /** First success that satisfies hard playback preferences wins — no batch wait. */
 export function shouldFinalizeFirstPreferenceMatch<T extends string, TPayload>(
   successes: ReadonlyArray<RaceAttemptEntry<T, TPayload>>,

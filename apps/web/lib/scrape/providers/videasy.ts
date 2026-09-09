@@ -4,10 +4,10 @@ import { decryptVidKingPayload } from "../vidking-cipher";
 import { wingsApiHeaders, wingsSourceUrl } from "../vidking-constants";
 import { fetchWingsSeed } from "../wings-api-discover";
 import { WINGS_SOURCE_FETCH_TIMEOUT_MS } from "../vidking-constants";
+import { resolveWingsTmdbLookup } from "../tmdb-lookup";
 import {
   finalizeWingsdatabaseScrape,
   mapVidKingSubtitles,
-  resolveWingsTmdbLookup,
 } from "./vidking";
 
 /** VidEasy embed mirrors (speedracelight / VideoPlayer 2026-08). */

@@ -18,59 +18,32 @@ export type ContinueWatchingTitleRef = {
   updatedAt: number;
 };
 
+const guestDismissals: ContinueWatchingDismissalMap = {};
+
 export const continueWatchingTitleKey = (
   mediaType: ContinueWatchingMediaType,
   contentId: number,
 ): string => `${mediaType}:${contentId}`;
 
 export const readContinueWatchingDismissals =
-  (): ContinueWatchingDismissalMap => {
-    if (typeof window === "undefined") {
-      return {};
-    }
-
-    try {
-      const raw = window.localStorage.getItem(
-        CONTINUE_WATCHING_DISMISSALS_STORAGE_KEY,
-      );
-      if (!raw) {
-        return {};
-      }
-
-      const parsed = JSON.parse(raw) as ContinueWatchingDismissalMap;
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  };
-
-const writeMap = (map: ContinueWatchingDismissalMap): void => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(
-      CONTINUE_WATCHING_DISMISSALS_STORAGE_KEY,
-      JSON.stringify(map),
-    );
-  } catch {
-    void 0;
-  }
-};
+  (): ContinueWatchingDismissalMap => ({ ...guestDismissals });
 
 export const dismissContinueWatchingTitle = (
   mediaType: ContinueWatchingMediaType,
   contentId: number,
   dismissedAt: number = Date.now(),
 ): void => {
-  if (typeof window === "undefined") {
-    return;
-  }
+  guestDismissals[continueWatchingTitleKey(mediaType, contentId)] = {
+    dismissedAt,
+  };
 
-  const map = readContinueWatchingDismissals();
-  map[continueWatchingTitleKey(mediaType, contentId)] = { dismissedAt };
-  writeMap(map);
+  void fetch("/api/watchlist/dismiss", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mediaType, contentId, dismissedAt }),
+  }).catch(() => {
+    void 0;
+  });
 };
 
 export const isContinueWatchingTitleDismissed = (
@@ -93,3 +66,22 @@ export const filterDismissedContinueWatching = <
   dismissals: ContinueWatchingDismissalMap = readContinueWatchingDismissals(),
 ): T[] =>
   items.filter((item) => !isContinueWatchingTitleDismissed(item, dismissals));
+
+export const dismissalsFromWatchlist = (
+  items: Array<{
+    mediaType: ContinueWatchingMediaType;
+    contentId: number;
+    dismissedAt: Date | null;
+  }>,
+): ContinueWatchingDismissalMap => {
+  const map: ContinueWatchingDismissalMap = {};
+  for (const item of items) {
+    if (!item.dismissedAt) {
+      continue;
+    }
+    map[continueWatchingTitleKey(item.mediaType, item.contentId)] = {
+      dismissedAt: new Date(item.dismissedAt).getTime(),
+    };
+  }
+  return map;
+};
