@@ -62,4 +62,10 @@ CREATE TABLE "watchlist" (
 ALTER TABLE "account" ADD CONSTRAINT "account_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "authenticator" ADD CONSTRAINT "authenticator_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "watchlist" ADD CONSTRAINT "watchlist_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "watchlist" ADD CONSTRAINT "watchlist_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+UPDATE "watchlist" SET "status" = 'plan_to_watch' WHERE "status" = 'waiting';--> statement-breakpoint
+UPDATE "watchlist" SET "status" = 'completed' WHERE "status" = 'finished';--> statement-breakpoint
+UPDATE "watchlist" SET "status" = 'watching' WHERE "status" NOT IN ('watching', 'plan_to_watch', 'on_hold', 'dropped', 'completed');--> statement-breakpoint
+ALTER TABLE "watchlist" ADD CONSTRAINT "watchlist_status_check" CHECK ("watchlist"."status" IN ('watching', 'plan_to_watch', 'on_hold', 'dropped', 'completed'));
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "watchlist_user_updated_idx" ON "watchlist" USING btree ("userId","updatedAt");

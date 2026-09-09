@@ -2,18 +2,16 @@
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
-import { normalizePlaybackQualityPreference } from "@/lib/playback/playback-preferences";
+import {
+  resolveEffectiveSettings,
+  type UserPlaybackChoices,
+} from "@/lib/flags/effective-settings";
 import {
   isScrapeServer,
-  scrapeServer,
   usePlaybackModeStore,
   useServerStore,
 } from "@/lib/stores/server-store";
 import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
-import {
-  getPlaybackModePolicy,
-  shouldSeedDefaultProxyPlayback,
-} from "@/lib/flags/site-flags";
 import { useEffect, useRef } from "react";
 
 export function AppSettingsSync() {
@@ -24,150 +22,66 @@ export function AppSettingsSync() {
     (state) => state.setDisableHeroTrailers,
   );
   const setSelectedServer = useServerStore((state) => state.setSelectedServer);
-  const seededNoAdsFromFlagRef = useRef(false);
-  const seededProxyFromFlagRef = useRef(false);
-  const seededHeroTrailersRef = useRef(false);
-  const seededPlaybackAudioRef = useRef(false);
-  const seededPlaybackQualityRef = useRef(false);
-
-  useEffect(() => {
-    const migratePlaybackQuality = () => {
-      if (seededPlaybackQualityRef.current) {
-        return;
-      }
-
-      seededPlaybackQualityRef.current = true;
-
-      try {
-        const raw = localStorage.getItem("app-settings-storage");
-        const parsed = raw
-          ? (JSON.parse(raw) as { state?: { playbackQuality?: string } })
-          : null;
-        const quality = parsed?.state?.playbackQuality;
-        if (quality === "best" || quality === "save-data") {
-          useAppSettingsStore.setState({
-            playbackQuality: normalizePlaybackQualityPreference(quality),
-          });
-        }
-      } catch {
-        void 0;
-      }
-    };
-
-    migratePlaybackQuality();
-    const unsub = useAppSettingsStore.persist.onFinishHydration(
-      migratePlaybackQuality,
-    );
-    return unsub;
-  }, []);
-
-  useEffect(() => {
-    const migratePlaybackAudio = () => {
-      if (seededPlaybackAudioRef.current) {
-        return;
-      }
-
-      seededPlaybackAudioRef.current = true;
-
-      try {
-        const raw = localStorage.getItem("app-settings-storage");
-        const parsed = raw
-          ? (JSON.parse(raw) as { state?: { playbackAudio?: string } })
-          : null;
-        if (parsed?.state?.playbackAudio !== undefined) {
-          return;
-        }
-      } catch {
-        void 0;
-      }
-
-      const embedPreference = useEmbedServerStore.getState().animePreference;
-      if (embedPreference) {
-        useAppSettingsStore.setState({ playbackAudio: embedPreference });
-      }
-    };
-
-    migratePlaybackAudio();
-    const unsub =
-      useAppSettingsStore.persist.onFinishHydration(migratePlaybackAudio);
-    return unsub;
-  }, []);
+  const lastPolicyGenerationRef = useRef<string | null>(null);
 
   useEffect(() => {
     useEmbedServerStore.getState().setAnimePreference(playbackAudio);
   }, [playbackAudio]);
 
   useEffect(() => {
-    const syncFromFlags = () => {
-      if (flags.noAdsModeDefault && !seededNoAdsFromFlagRef.current) {
-        seededNoAdsFromFlagRef.current = true;
-        setNoAdsMode(true);
-      }
-      if (!flags.noAdsModeDefault) {
-        if (seededNoAdsFromFlagRef.current) {
-          setNoAdsMode(false);
-        }
-        seededNoAdsFromFlagRef.current = false;
-      }
+    const playbackState = usePlaybackModeStore.getState();
+    const appState = useAppSettingsStore.getState();
 
-      if (flags.staticHeroBackdrops && !seededHeroTrailersRef.current) {
-        seededHeroTrailersRef.current = true;
-        setDisableHeroTrailers(true);
-      }
-      if (!flags.staticHeroBackdrops) {
-        seededHeroTrailersRef.current = false;
-      }
-
-      const policy = getPlaybackModePolicy(flags);
-      const playbackState = usePlaybackModeStore.getState();
-      const persistApi = usePlaybackModeStore.persist;
-      if (
-        persistApi.hasHydrated() &&
-        !seededProxyFromFlagRef.current &&
-        shouldSeedDefaultProxyPlayback({
-          policy,
-          defaultProxyPlayback: flags.defaultProxyPlayback,
-          hasUserSelectedPlaybackServer:
-            playbackState.hasUserSelectedPlaybackServer,
-          selectedServerIsScrape: isScrapeServer(playbackState.selectedServer),
-        })
-      ) {
-        seededProxyFromFlagRef.current = true;
-        setSelectedServer(scrapeServer);
-      }
-      if (!flags.defaultProxyPlayback) {
-        seededProxyFromFlagRef.current = false;
-      }
-
-      const activeNoAdsMode = useAppSettingsStore.getState().noAdsMode;
-      const activeServer = usePlaybackModeStore.getState().selectedServer;
-
-      if (policy === "proxy") {
-        setNoAdsMode(true);
-        setSelectedServer(scrapeServer);
-        return;
-      }
-
-      if (policy === "iframe" && isScrapeServer(activeServer)) {
-        setNoAdsMode(false);
-      }
-
-      if (activeNoAdsMode && !isScrapeServer(activeServer)) {
-        setSelectedServer(scrapeServer);
-      }
+    const userChoices: UserPlaybackChoices = {
+      noAdsMode: appState.noAdsMode,
+      disableHeroTrailers: appState.disableHeroTrailers,
+      selectedServerId: playbackState.selectedServer.id,
+      userSelectedPlaybackServer: playbackState.hasUserSelectedPlaybackServer,
+      policyGenerationAtChoice:
+        playbackState.policyGenerationAtChoice ?? undefined,
     };
 
-    syncFromFlags();
+    const effective = resolveEffectiveSettings(flags, userChoices);
+    const policyChanged =
+      lastPolicyGenerationRef.current !== null &&
+      lastPolicyGenerationRef.current !== flags.policyGeneration;
 
-    const unsubPlaybackHydration =
-      usePlaybackModeStore.persist.onFinishHydration(syncFromFlags);
-    const unsubSettingsHydration =
-      useAppSettingsStore.persist.onFinishHydration(syncFromFlags);
+    if (
+      effective.noAdsMode !== appState.noAdsMode ||
+      (policyChanged && flags.noAdsModeDefault)
+    ) {
+      setNoAdsMode(effective.noAdsMode);
+    }
 
-    return () => {
-      unsubPlaybackHydration();
-      unsubSettingsHydration();
-    };
+    if (
+      effective.disableHeroTrailers !== appState.disableHeroTrailers ||
+      (policyChanged && flags.staticHeroBackdrops)
+    ) {
+      setDisableHeroTrailers(effective.disableHeroTrailers);
+    }
+
+    const currentServerId = playbackState.selectedServer.id;
+    const effectiveServerId = effective.selectedServer.id;
+    const shouldForceServer =
+      policyChanged ||
+      currentServerId !== effectiveServerId ||
+      effective.hasUserSelectedPlaybackServer !==
+        playbackState.hasUserSelectedPlaybackServer;
+
+    if (shouldForceServer) {
+      setSelectedServer(effective.selectedServer, {
+        userInitiated: effective.hasUserSelectedPlaybackServer,
+        policyGenerationAtChoice: flags.policyGeneration,
+      });
+      if (!effective.hasUserSelectedPlaybackServer) {
+        usePlaybackModeStore.setState({
+          hasUserSelectedPlaybackServer: false,
+          policyGenerationAtChoice: flags.policyGeneration,
+        });
+      }
+    }
+
+    lastPolicyGenerationRef.current = flags.policyGeneration;
   }, [flags, setDisableHeroTrailers, setNoAdsMode, setSelectedServer]);
 
   return null;

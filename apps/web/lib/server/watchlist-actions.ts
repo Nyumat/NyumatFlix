@@ -1,7 +1,7 @@
 import "server-only";
 
 import { auth } from "@/auth";
-import { db, watchlist } from "@/db/schema";
+import { db, watchlist } from "@/db";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { and, eq } from "drizzle-orm";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { TvShowDetails } from "@/lib/domain/typings";
+import type { SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
 import type { TvDetailCatalog } from "@/lib/tv-detail-catalog";
 import { createContext, useContext, type ReactNode } from "react";
 
@@ -8,13 +8,18 @@ type TvDetailBootstrapValue = {
   tvId: string;
   catalog: TvDetailCatalog;
   details: TvShowDetails;
+  initialSeasonDetails: Record<number, SeasonDetails>;
 };
 
 const TvDetailBootstrapContext = createContext<TvDetailBootstrapValue | null>(
   null,
 );
 
-type TvDetailBootstrapProviderProps = TvDetailBootstrapValue & {
+type TvDetailBootstrapProviderProps = Omit<
+  TvDetailBootstrapValue,
+  "initialSeasonDetails"
+> & {
+  initialSeasonDetails?: Record<number, SeasonDetails>;
   children: ReactNode;
 };
 
@@ -22,9 +27,12 @@ export const TvDetailBootstrapProvider = ({
   tvId,
   catalog,
   details,
+  initialSeasonDetails = {},
   children,
 }: TvDetailBootstrapProviderProps) => (
-  <TvDetailBootstrapContext.Provider value={{ tvId, catalog, details }}>
+  <TvDetailBootstrapContext.Provider
+    value={{ tvId, catalog, details, initialSeasonDetails }}
+  >
     {children}
   </TvDetailBootstrapContext.Provider>
 );
