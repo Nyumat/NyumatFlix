@@ -204,13 +204,18 @@ acquire_deploy_lock() {
 sync_nginx_site_configs() {
   local limits_src="$ROOT/scripts/nginx-nyumatflix-limits.conf"
   local site_src="$ROOT/scripts/nginx-nyumatflix.conf"
+  local cache_src="$ROOT/scripts/nginx-cache.conf"
   local crowdsec_src="$ROOT/scripts/nginx-crowdsec-bouncer.conf"
   local limits_dest="/etc/nginx/conf.d/nyumatflix-limits.conf"
+  local cache_dest="/etc/nginx/conf.d/nyumatflix-cache.conf"
   local crowdsec_dest="/etc/nginx/conf.d/crowdsec-bouncer.conf"
   local site_dest="/etc/nginx/sites-available/nyumatflix"
 
   if [[ -f "$limits_src" ]]; then
     sudo cp "$limits_src" "$limits_dest"
+  fi
+  if [[ -f "$cache_src" ]]; then
+    sudo cp "$cache_src" "$cache_dest"
   fi
   if [[ -f "$crowdsec_src" ]]; then
     sudo cp "$crowdsec_src" "$crowdsec_dest"
@@ -253,6 +258,14 @@ serve() {
   DEPLOY_SOURCE="${DEPLOY_SOURCE:-local}"
 
   ensure_runtime_infra
+  if [[ "${SKIP_RUNTIME_VERIFY:-}" != "1" ]]; then
+    # shellcheck disable=SC1091
+    source "$ROOT/scripts/infra-health.sh"
+    if ! infra_verify_all_dependencies; then
+      echo "production dependency verification failed; deploy aborted" >&2
+      exit 1
+    fi
+  fi
   if [[ "${SKIP_DOCKER_PULL:-}" != "1" ]]; then
     sudo docker pull "$DOCKER_IMAGE"
   fi
@@ -325,6 +338,12 @@ serve() {
     sudo docker logs --tail 100 "$candidate" >&2
     sudo docker rm -f "$candidate" >/dev/null
     exit 1
+  fi
+
+  local warm_script="$ROOT/apps/web/scripts/warm-isr.mjs"
+  if [[ -f "$warm_script" ]]; then
+    echo "warming ISR routes on 127.0.0.1:${target_port}"
+    WARM_BASE_URL="http://127.0.0.1:${target_port}" node "$warm_script" || true
   fi
 
   if sudo docker network inspect calluspirates-net >/dev/null 2>&1; then

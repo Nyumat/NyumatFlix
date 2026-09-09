@@ -24,9 +24,13 @@
     "test:anime-scrape:api": "node scripts/verify-anime-scrape.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:push:force": "drizzle-kit push --force",
+    "db:repair-watchlist": "node scripts/repair-watchlist-status.mjs",
+    "db:ensure-baseline": "node scripts/ensure-migration-baseline.mjs",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "prepare-anime-mappings": "node scripts/prepare-anime-mappings.mjs",
+    "build-season-index": "bun scripts/build-season-index.mts",
     "prepare-movi-player": "node scripts/prepare-movi-player.mjs",
     "ensure-player": "node scripts/ensure-player.mjs"
   },
