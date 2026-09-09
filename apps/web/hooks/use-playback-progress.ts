@@ -46,13 +46,15 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
           ? { watchedSeconds: watched, durationSeconds: duration }
           : {}),
       });
-    }, [
-    key.anilistId,
-    key.contentId,
-    key.episodeNumber,
-    key.mediaType,
-    key.seasonNumber,
-  ]);
+    },
+    [
+      key.anilistId,
+      key.contentId,
+      key.episodeNumber,
+      key.mediaType,
+      key.seasonNumber,
+    ],
+  );
 
   const persist = useCallback(
     (watched: number, duration: number) => {
@@ -102,9 +104,11 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
       if (key.mediaType === "movie") {
         const clamped = clampPlaybackProgress(watched, duration);
         if (clamped) {
-          void syncWatchlist(clamped.watched, clamped.duration).catch((error) => {
-            logger.error("Failed to sync movie progress to watchlist", error);
-          });
+          void syncWatchlist(clamped.watched, clamped.duration).catch(
+            (error) => {
+              logger.error("Failed to sync movie progress to watchlist", error);
+            },
+          );
         }
       }
     },

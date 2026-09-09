@@ -5,9 +5,8 @@ export type TmdbZeroSeasonSpecialRef = {
   tmdbEpisode: number;
 };
 
-const KNOWN_SPECIAL_SEQUEL_IDS: ReadonlyMap<number, readonly number[]> = new Map([
-  [146984, [162314]],
-]);
+const KNOWN_SPECIAL_SEQUEL_IDS: ReadonlyMap<number, readonly number[]> =
+  new Map([[146984, [162314]]]);
 
 const KNOWN_TMDB_ZERO_SEASON_SPECIALS: ReadonlyMap<
   number,
@@ -17,8 +16,9 @@ const KNOWN_TMDB_ZERO_SEASON_SPECIALS: ReadonlyMap<
   [162314, { tmdbShowId: 1429, tmdbEpisode: 37 }],
 ]);
 
-export const getKnownSpecialSequelIds = (anilistId: number): readonly number[] =>
-  KNOWN_SPECIAL_SEQUEL_IDS.get(anilistId) ?? [];
+export const getKnownSpecialSequelIds = (
+  anilistId: number,
+): readonly number[] => KNOWN_SPECIAL_SEQUEL_IDS.get(anilistId) ?? [];
 
 export const isKnownTmdbZeroSeasonSpecial = (anilistId: number): boolean =>
   KNOWN_TMDB_ZERO_SEASON_SPECIALS.has(anilistId);

@@ -59,9 +59,9 @@ describe("hydrateTvShowDetailQueries", () => {
       "tvshows",
     );
     expect(mockedGetTvSeasonForQuery).toHaveBeenCalledTimes(1);
-    expect(queryClient.getQueryData(queryKeys.tvSeasonRoute("1429", 1))).toEqual(
-      expect.objectContaining({ season_number: 1 }),
-    );
+    expect(
+      queryClient.getQueryData(queryKeys.tvSeasonRoute("1429", 1)),
+    ).toEqual(expect.objectContaining({ season_number: 1 }));
     expect(initialSeasonDetails).toEqual({
       1: expect.objectContaining({ season_number: 1 }),
     });

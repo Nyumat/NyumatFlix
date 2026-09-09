@@ -33,9 +33,7 @@ describe("kickassanime server ranking", () => {
     ]);
 
     const winner = await trySourcesUntil(ranked, async (server) =>
-      server.name === "live"
-        ? { ok: true, value: server }
-        : { ok: false },
+      server.name === "live" ? { ok: true, value: server } : { ok: false },
     );
 
     expect(winner?.name).toBe("live");
@@ -45,10 +43,7 @@ describe("kickassanime server ranking", () => {
 describe("kickassanime episode lists", () => {
   it("matches episode numbers from strings and later pages", () => {
     expect(
-      matchKaaEpisodeSlug(
-        [{ slug: "aot-1", episode_number: "1" }],
-        1,
-      ),
+      matchKaaEpisodeSlug([{ slug: "aot-1", episode_number: "1" }], 1),
     ).toBe("ep-1-aot-1");
     expect(
       matchKaaEpisodeSlug(

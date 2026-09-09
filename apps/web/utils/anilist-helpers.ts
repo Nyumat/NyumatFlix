@@ -348,12 +348,7 @@ export async function getAnilistIdForMedia(
         releaseYear,
         false,
       )) ??
-      (await fetchExactAnilistId(
-        searchTitle,
-        searchTitles,
-        releaseYear,
-        true,
-      ));
+      (await fetchExactAnilistId(searchTitle, searchTitles, releaseYear, true));
     if (anilistId) return anilistId;
   }
 

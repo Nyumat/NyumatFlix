@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const targetDir = path.join(root, "data/anime-mappings");
 
-const readJson = <T>(filename: string): T => {
+const readJson = <T,>(filename: string): T => {
   const filePath = path.join(targetDir, filename);
   return JSON.parse(fs.readFileSync(filePath, "utf8")) as T;
 };

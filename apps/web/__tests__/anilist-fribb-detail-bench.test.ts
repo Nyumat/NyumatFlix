@@ -100,79 +100,75 @@ describe.skipIf(!process.env.BENCH_ANILIST_FRIBB)(
       vi.unstubAllGlobals();
     });
 
-    it(
-      "benchmarks anime hub titles fribb-first vs live anilist sample",
-      async () => {
-        const { ids: anilistIds, source } = await collectBenchAnilistIds();
+    it("benchmarks anime hub titles fribb-first vs live anilist sample", async () => {
+      const { ids: anilistIds, source } = await collectBenchAnilistIds();
 
-        const fribbResolvedMs: number[] = [];
-        const fribbAboveFoldMs: number[] = [];
-        const fribbMisses: number[] = [];
-        const beforeMs: number[] = [];
+      const fribbResolvedMs: number[] = [];
+      const fribbAboveFoldMs: number[] = [];
+      const fribbMisses: number[] = [];
+      const beforeMs: number[] = [];
 
-        for (const anilistId of anilistIds) {
-          const routeId = `anilist-${anilistId}`;
+      for (const anilistId of anilistIds) {
+        const routeId = `anilist-${anilistId}`;
 
-          const resolvedTiming = await timeMs(() =>
-            buildResolvedAniListTvShowFromFribb(anilistId),
-          );
-          if (resolvedTiming.ok) {
-            fribbResolvedMs.push(resolvedTiming.ms);
-          } else {
-            fribbMisses.push(anilistId);
-          }
-
-          const aboveFoldTiming = await timeMs(async () => {
-            try {
-              return await getCachedAnilistTvAboveFoldDetail(routeId);
-            } catch {
-              return null;
-            }
-          });
-          if (aboveFoldTiming.ok) {
-            fribbAboveFoldMs.push(aboveFoldTiming.ms);
-          }
+        const resolvedTiming = await timeMs(() =>
+          buildResolvedAniListTvShowFromFribb(anilistId),
+        );
+        if (resolvedTiming.ok) {
+          fribbResolvedMs.push(resolvedTiming.ms);
+        } else {
+          fribbMisses.push(anilistId);
         }
 
-        const compareIds = anilistIds
-          .filter((id) => !fribbMisses.includes(id))
-          .slice(0, Math.max(0, compareSample));
-
-        for (const anilistId of compareIds) {
-          const beforeTiming = await timeMs(async () => {
-            const franchise = await resolveAniListFranchise(anilistId);
-            return buildResolvedAniListTvShowFromTmdb(anilistId, franchise);
-          });
-          if (beforeTiming.ok) {
-            beforeMs.push(beforeTiming.ms);
+        const aboveFoldTiming = await timeMs(async () => {
+          try {
+            return await getCachedAnilistTvAboveFoldDetail(routeId);
+          } catch {
+            return null;
           }
+        });
+        if (aboveFoldTiming.ok) {
+          fribbAboveFoldMs.push(aboveFoldTiming.ms);
         }
+      }
 
-        const fribbP50 = percentile(fribbResolvedMs, 50);
-        const beforeP50 = percentile(beforeMs, 50);
-        const speedup =
-          beforeP50 > 0 ? (beforeP50 / Math.max(fribbP50, 1)).toFixed(1) : "n/a";
+      const compareIds = anilistIds
+        .filter((id) => !fribbMisses.includes(id))
+        .slice(0, Math.max(0, compareSample));
 
-        const report = [
-          `id source: ${source}`,
-          `titles: ${anilistIds.length}`,
-          summarize("fribb resolved", fribbResolvedMs),
-          summarize("fribb above-fold", fribbAboveFoldMs),
-          `fribb misses: ${fribbMisses.length}`,
-          summarize("live anilist sample", beforeMs),
-          `median speedup: ~${speedup}x`,
-        ].join("\n");
-
-        // eslint-disable-next-line no-console
-        console.log(report);
-
-        expect(anilistIds.length).toBeGreaterThan(20);
-        expect(fribbResolvedMs.length).toBeGreaterThan(anilistIds.length * 0.55);
-        if (beforeMs.length > 0) {
-          expect(fribbP50).toBeLessThan(beforeP50);
+      for (const anilistId of compareIds) {
+        const beforeTiming = await timeMs(async () => {
+          const franchise = await resolveAniListFranchise(anilistId);
+          return buildResolvedAniListTvShowFromTmdb(anilistId, franchise);
+        });
+        if (beforeTiming.ok) {
+          beforeMs.push(beforeTiming.ms);
         }
-      },
-      600_000,
-    );
+      }
+
+      const fribbP50 = percentile(fribbResolvedMs, 50);
+      const beforeP50 = percentile(beforeMs, 50);
+      const speedup =
+        beforeP50 > 0 ? (beforeP50 / Math.max(fribbP50, 1)).toFixed(1) : "n/a";
+
+      const report = [
+        `id source: ${source}`,
+        `titles: ${anilistIds.length}`,
+        summarize("fribb resolved", fribbResolvedMs),
+        summarize("fribb above-fold", fribbAboveFoldMs),
+        `fribb misses: ${fribbMisses.length}`,
+        summarize("live anilist sample", beforeMs),
+        `median speedup: ~${speedup}x`,
+      ].join("\n");
+
+      // eslint-disable-next-line no-console
+      console.log(report);
+
+      expect(anilistIds.length).toBeGreaterThan(20);
+      expect(fribbResolvedMs.length).toBeGreaterThan(anilistIds.length * 0.55);
+      if (beforeMs.length > 0) {
+        expect(fribbP50).toBeLessThan(beforeP50);
+      }
+    }, 600_000);
   },
 );

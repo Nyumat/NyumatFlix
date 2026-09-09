@@ -2,11 +2,16 @@ import "server-only";
 
 import { db, userSettings } from "@/db";
 import { eq } from "drizzle-orm";
-import type { UserSettingsPatch, UserSettingsWire } from "@/lib/user/user-settings-types";
+import type {
+  UserSettingsPatch,
+  UserSettingsWire,
+} from "@/lib/user/user-settings-types";
 import { DEFAULT_PLAYBACK_PREFERENCES } from "@/lib/playback/playback-preferences";
 import type { VidsrcApi } from "@/lib/providers/embed-urls";
 
-const rowToWire = (row: typeof userSettings.$inferSelect): UserSettingsWire => ({
+const rowToWire = (
+  row: typeof userSettings.$inferSelect,
+): UserSettingsWire => ({
   playbackAudio: row.playbackAudio,
   playbackQuality: row.playbackQuality,
   playbackEnglishSubtitles: row.playbackEnglishSubtitles,
@@ -17,13 +22,15 @@ const rowToWire = (row: typeof userSettings.$inferSelect): UserSettingsWire => (
   policyGenerationAtChoice: row.policyGenerationAtChoice,
   vidnestContentType: row.vidnestContentType,
   vidsrcApi: row.vidsrcApi as VidsrcApi,
-  subtitleAppearance: row.subtitleAppearance as UserSettingsWire["subtitleAppearance"],
+  subtitleAppearance:
+    row.subtitleAppearance as UserSettingsWire["subtitleAppearance"],
 });
 
 export const getDefaultUserSettingsWire = (): UserSettingsWire => ({
   playbackAudio: DEFAULT_PLAYBACK_PREFERENCES.playbackAudio,
   playbackQuality: DEFAULT_PLAYBACK_PREFERENCES.playbackQuality,
-  playbackEnglishSubtitles: DEFAULT_PLAYBACK_PREFERENCES.playbackEnglishSubtitles,
+  playbackEnglishSubtitles:
+    DEFAULT_PLAYBACK_PREFERENCES.playbackEnglishSubtitles,
   disableHoverSound: false,
   disableHeroTrailers: false,
   selectedServerId: null,
@@ -72,17 +79,21 @@ export const upsertUserSettings = async (
         playbackQuality: patch.playbackQuality ?? defaults.playbackQuality,
         playbackEnglishSubtitles:
           patch.playbackEnglishSubtitles ?? defaults.playbackEnglishSubtitles,
-        disableHoverSound: patch.disableHoverSound ?? defaults.disableHoverSound,
+        disableHoverSound:
+          patch.disableHoverSound ?? defaults.disableHoverSound,
         disableHeroTrailers:
           patch.disableHeroTrailers ?? defaults.disableHeroTrailers,
         selectedServerId: patch.selectedServerId ?? defaults.selectedServerId,
         userSelectedPlaybackServer:
-          patch.userSelectedPlaybackServer ?? defaults.userSelectedPlaybackServer,
+          patch.userSelectedPlaybackServer ??
+          defaults.userSelectedPlaybackServer,
         policyGenerationAtChoice:
           patch.policyGenerationAtChoice ?? defaults.policyGenerationAtChoice,
-        vidnestContentType: patch.vidnestContentType ?? defaults.vidnestContentType,
+        vidnestContentType:
+          patch.vidnestContentType ?? defaults.vidnestContentType,
         vidsrcApi: patch.vidsrcApi ?? defaults.vidsrcApi,
-        subtitleAppearance: patch.subtitleAppearance ?? defaults.subtitleAppearance,
+        subtitleAppearance:
+          patch.subtitleAppearance ?? defaults.subtitleAppearance,
         updatedAt: now,
       })
       .returning();

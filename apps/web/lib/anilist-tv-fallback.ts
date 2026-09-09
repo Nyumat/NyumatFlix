@@ -356,8 +356,8 @@ export const fetchAnilistSeasonDetailsFromTmdb = async (
   displaySeasonNumber: number,
 ): Promise<SeasonDetails | null> => {
   const mapped = await resolveAnilistToTmdbShow(anilistId);
-  const tmdbShowId = mapped?.tmdbShowId ?? null;
-  if (!tmdbShowId) return null;
+  if (!mapped?.tmdbShowId) return null;
+  const tmdbShowId = mapped.tmdbShowId;
 
   const fromFribb = await resolveTmdbSeasonNumberForDisplaySeason(
     anilistId,

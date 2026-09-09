@@ -26,7 +26,10 @@ import {
 } from "@/lib/anime/tmdb-anilist-map";
 import { readMappedTmdbTvIdFromMedia } from "@/lib/tv-playback-tmdb-id";
 import { normalizeTvContentKey } from "@/lib/tv-watch-target";
-import { resolveEpisodeThumbnailUrl, isPlaceholderEpisodeName } from "@/lib/anime/episode-thumbnail-url";
+import {
+  resolveEpisodeThumbnailUrl,
+  isPlaceholderEpisodeName,
+} from "@/lib/anime/episode-thumbnail-url";
 import { resolveEpisodeAnimeSelection } from "@/lib/anime/episode-playback-source";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
@@ -41,7 +44,12 @@ import { useLocalTvWatchCoords } from "@/hooks/use-local-tv-watch-coords";
 import { TvEpisodesPanelSkeleton } from "@/components/tvshow/tv-detail-bootstrap-context";
 import { queryStaleTime } from "@/lib/cache-policy";
 import { fetchTvAllSeasonsClient } from "@/lib/media-detail-tab-client";
-import { buildEpisodeIndex, maxLoadedEpisodeNumber, shouldPreferSeasonDetails, type IndexedEpisode } from "@/lib/tv-episode-index";
+import {
+  buildEpisodeIndex,
+  maxLoadedEpisodeNumber,
+  shouldPreferSeasonDetails,
+  type IndexedEpisode,
+} from "@/lib/tv-episode-index";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Episode, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
@@ -343,8 +351,7 @@ export function HeroTvEpisodePanel({
     [animeSegments],
   );
   const loadedMaxEpisode = useMemo(
-    () =>
-      maxLoadedEpisodeNumber(loadedSeasonDetails[selectedSeason]?.episodes),
+    () => maxLoadedEpisodeNumber(loadedSeasonDetails[selectedSeason]?.episodes),
     [loadedSeasonDetails, selectedSeason],
   );
   const seasonEpisodeListIncomplete =
@@ -587,7 +594,7 @@ export function HeroTvEpisodePanel({
               request.sourceAnilistId,
               request.tmdbSeasonCount,
             ],
-            queryFn: () => fetchKitsuEpisodeAssets(tvId, request),
+      queryFn: () => fetchKitsuEpisodeAssets(tvId, request),
       enabled: kitsuThumbnailsEnabled,
       staleTime: queryStaleTime(24 * 60 * 60 * 1000),
     })),
@@ -665,13 +672,7 @@ export function HeroTvEpisodePanel({
 
       return bySeason[seasonNumber]?.[episode.episode_number] ?? null;
     },
-    [
-      animeSegments,
-      isAnilistRoute,
-      routeAnilistId,
-      selectedSeason,
-      splitCour,
-    ],
+    [animeSegments, isAnilistRoute, routeAnilistId, selectedSeason, splitCour],
   );
 
   const resolveKitsuThumbnail = useCallback(

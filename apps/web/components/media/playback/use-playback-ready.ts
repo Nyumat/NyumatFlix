@@ -4,9 +4,7 @@ import { useCallback, useRef } from "react";
 
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
 
-export const usePlaybackReady = (
-  onMediaReady?: (ready: boolean) => void,
-) => {
+export const usePlaybackReady = (onMediaReady?: (ready: boolean) => void) => {
   const readyRef = useRef(false);
   const startedRef = useRef(false);
   const onMediaReadyRef = useRef(onMediaReady);

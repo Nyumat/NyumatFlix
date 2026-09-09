@@ -35,7 +35,11 @@ export const usePlaybackIntroDb = (
   duration: number,
   imdbId?: string | null,
 ) => {
-  const { segments } = useIntroDbSegments(progressKey, duration, imdbId ?? null);
+  const { segments } = useIntroDbSegments(
+    progressKey,
+    duration,
+    imdbId ?? null,
+  );
 
   const chaptersVtt = useMemo(
     () => buildIntroDbChaptersVtt(segments),

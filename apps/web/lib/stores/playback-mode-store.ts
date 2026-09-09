@@ -61,8 +61,7 @@ export const usePlaybackModeStore = create<PlaybackModeState>()((set) => ({
         hasUserSelectedPlaybackServer:
           state.hasUserSelectedPlaybackServer || userInitiated,
         policyGenerationAtChoice:
-          options?.policyGenerationAtChoice ??
-          state.policyGenerationAtChoice,
+          options?.policyGenerationAtChoice ?? state.policyGenerationAtChoice,
       };
 
       if (userInitiated) {

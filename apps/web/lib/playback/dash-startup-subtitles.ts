@@ -36,5 +36,8 @@ export const trimDashStartupSubtitles = (
     rest.push(track);
   }
 
-  return [...preferred, ...english, ...rest].slice(0, DASH_STARTUP_SUBTITLE_CAP);
+  return [...preferred, ...english, ...rest].slice(
+    0,
+    DASH_STARTUP_SUBTITLE_CAP,
+  );
 };

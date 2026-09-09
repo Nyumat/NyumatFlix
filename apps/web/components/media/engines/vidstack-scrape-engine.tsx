@@ -192,7 +192,9 @@ export function VidstackScrapeEngine({
     referer: track.referer,
     source: track.source,
   }));
-  const audioVersions = manifest.audioVersions as ScrapeAudioVersion[] | undefined;
+  const audioVersions = manifest.audioVersions as
+    | ScrapeAudioVersion[]
+    | undefined;
   const defaultAudioLang = manifest.defaultAudioLang;
   const defaultHardSubLang = manifest.defaultHardSubLang;
   const preferredAudioLang = manifest.preferredAudioLang;

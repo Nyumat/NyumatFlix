@@ -4,7 +4,9 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/anime/anibridge-season-segments", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/anime/anibridge-season-segments")>();
+    await importOriginal<
+      typeof import("@/lib/anime/anibridge-season-segments")
+    >();
   return {
     ...actual,
     buildAniBridgeSeasonSegments: vi.fn(),
@@ -68,9 +70,7 @@ describe("resolveSeasonSegments", () => {
   it("uses the precomputed season index when available", async () => {
     mockedGetSeasonIndexEntry.mockResolvedValue({
       source: "anibridge",
-      segments: [
-        { startEpisode: 1, endEpisode: 12, anilistMediaId: 21 },
-      ],
+      segments: [{ startEpisode: 1, endEpisode: 12, anilistMediaId: 21 }],
     });
 
     const resolved = await resolveSeasonSegments({

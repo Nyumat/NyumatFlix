@@ -46,8 +46,7 @@ export const shouldPreferSeasonDetails = (
   }
 
   return (
-    seasonEpisodeMetadataScore(incoming) >
-    seasonEpisodeMetadataScore(existing)
+    seasonEpisodeMetadataScore(incoming) > seasonEpisodeMetadataScore(existing)
   );
 };
 

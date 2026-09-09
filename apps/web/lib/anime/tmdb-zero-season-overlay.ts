@@ -11,7 +11,8 @@ const mergeSpecialEpisode = (
 ): Episode => ({
   ...anilistEpisode,
   name:
-    isPlaceholderEpisodeName(anilistEpisode.name) && hasUsableText(tmdbEpisode.name)
+    isPlaceholderEpisodeName(anilistEpisode.name) &&
+    hasUsableText(tmdbEpisode.name)
       ? tmdbEpisode.name
       : anilistEpisode.name,
   overview: hasUsableText(anilistEpisode.overview)

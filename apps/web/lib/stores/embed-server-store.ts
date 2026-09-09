@@ -174,208 +174,206 @@ interface EmbedServerState {
 }
 
 export const useEmbedServerStore = create<EmbedServerState>()((set, get) => ({
-      serverOverrides: defaultServerOverrides,
-      animePreference: "sub" as "sub" | "dub",
-      animeTitleSlug: "",
-      vidnestContentType: "tv" as "movie" | "tv" | "anime" | "animepahe",
-      vidsrcApi: "1" as VidsrcApi,
-      availabilityKey: null,
+  serverOverrides: defaultServerOverrides,
+  animePreference: "sub" as "sub" | "dub",
+  animeTitleSlug: "",
+  vidnestContentType: "tv" as "movie" | "tv" | "anime" | "animepahe",
+  vidsrcApi: "1" as VidsrcApi,
+  availabilityKey: null,
+  availabilityResolved: false,
+  availableServerIds: [],
+  unavailableServerIds: [],
+  setAnimePreference: (preference) => {
+    set({ animePreference: preference });
+  },
+  setAnimeTitleSlug: (slug) => {
+    set({ animeTitleSlug: slug.trim() });
+  },
+  setVidnestContentType: (type) => {
+    set({ vidnestContentType: type });
+    void patchUserSettings({ vidnestContentType: type });
+  },
+  setVidsrcApi: (api) => {
+    set({ vidsrcApi: api });
+    void patchUserSettings({ vidsrcApi: api });
+  },
+  prefetchServerAvailability: async (input) => {
+    if (useAppSettingsStore.getState().noAdsMode) {
+      set({
+        availabilityKey: null,
+        availabilityResolved: false,
+        availableServerIds: [],
+        unavailableServerIds: [],
+      });
+      return;
+    }
+
+    const availabilityKey = availabilityKeyFor(input, get().vidsrcApi);
+    if (get().availabilityKey === availabilityKey) return;
+
+    set({
+      availabilityKey,
       availabilityResolved: false,
       availableServerIds: [],
       unavailableServerIds: [],
-      setAnimePreference: (preference) => {
-        set({ animePreference: preference });
-      },
-      setAnimeTitleSlug: (slug) => {
-        set({ animeTitleSlug: slug.trim() });
-      },
-      setVidnestContentType: (type) => {
-        set({ vidnestContentType: type });
-        void patchUserSettings({ vidnestContentType: type });
-      },
-      setVidsrcApi: (api) => {
-        set({ vidsrcApi: api });
-        void patchUserSettings({ vidsrcApi: api });
-      },
-      prefetchServerAvailability: async (input) => {
-        if (useAppSettingsStore.getState().noAdsMode) {
-          set({
-            availabilityKey: null,
-            availabilityResolved: false,
-            availableServerIds: [],
-            unavailableServerIds: [],
-          });
-          return;
-        }
+    });
 
-        const availabilityKey = availabilityKeyFor(input, get().vidsrcApi);
-        if (get().availabilityKey === availabilityKey) return;
+    const checks = videoServers.map((server) => {
+      if (server.id === "vidnest" && input.isAdultAnime) {
+        return { server, url: null as string | null };
+      }
 
-        set({
-          availabilityKey,
-          availabilityResolved: false,
-          availableServerIds: [],
-          unavailableServerIds: [],
-        });
+      const url =
+        server.id === "vidnest" && input.anilistId && input.animeEpisodeNumber
+          ? `https://vidnest.fun/anime/${input.anilistId}/${input.animeEpisodeNumber}/${input.animePreference ?? "sub"}`
+          : input.mediaType === "tv" &&
+              input.seasonNumber &&
+              input.episodeNumber
+            ? server.getEpisodeUrl(
+                input.tmdbId,
+                input.seasonNumber,
+                input.episodeNumber,
+              )
+            : input.mediaType === "tv"
+              ? server.getTvUrl(input.tmdbId)
+              : server.getMovieUrl(input.tmdbId);
+      return { server, url };
+    });
 
-        const checks = videoServers.map((server) => {
-          if (server.id === "vidnest" && input.isAdultAnime) {
-            return { server, url: null as string | null };
-          }
+    let healthResults: ServerHealthResponse[] = [];
+    try {
+      healthResults = await fetchServerHealthResults(
+        checks
+          .map(({ url }) => url)
+          .filter((url): url is string => Boolean(url)),
+      );
+    } catch {
+      void 0;
+    }
 
-          const url =
-            server.id === "vidnest" &&
-            input.anilistId &&
-            input.animeEpisodeNumber
-              ? `https://vidnest.fun/anime/${input.anilistId}/${input.animeEpisodeNumber}/${input.animePreference ?? "sub"}`
-              : input.mediaType === "tv" &&
-                  input.seasonNumber &&
-                  input.episodeNumber
-                ? server.getEpisodeUrl(
-                    input.tmdbId,
-                    input.seasonNumber,
-                    input.episodeNumber,
-                  )
-                : input.mediaType === "tv"
-                  ? server.getTvUrl(input.tmdbId)
-                  : server.getMovieUrl(input.tmdbId);
-          return { server, url };
-        });
+    let healthIndex = 0;
+    const results = checks.map(({ server, url }) => {
+      if (server.id === "vidnest" && input.isAdultAnime) {
+        return {
+          server,
+          state: "unavailable" as const,
+          unavailable: true,
+        };
+      }
 
-        let healthResults: ServerHealthResponse[] = [];
-        try {
-          healthResults = await fetchServerHealthResults(
-            checks
-              .map(({ url }) => url)
-              .filter((url): url is string => Boolean(url)),
-          );
-        } catch {
-          void 0;
-        }
+      const health = healthResults[healthIndex];
+      healthIndex += 1;
+      const state = health?.state ?? ("unknown" as const);
+      return {
+        server,
+        state,
+        unavailable: state === "unavailable",
+      };
+    });
 
-        let healthIndex = 0;
-        const results = checks.map(({ server, url }) => {
-          if (server.id === "vidnest" && input.isAdultAnime) {
-            return {
-              server,
-              state: "unavailable" as const,
-              unavailable: true,
-            };
-          }
+    if (get().availabilityKey !== availabilityKey) return;
 
-          const health = healthResults[healthIndex];
-          healthIndex += 1;
-          const state = health?.state ?? ("unknown" as const);
-          return {
-            server,
-            state,
-            unavailable: state === "unavailable",
-          };
-        });
+    const unavailableServerIds = results
+      .filter(({ unavailable }) => unavailable)
+      .map(({ server }) => server.id);
+    const availableServerIds = results
+      .filter(({ state }) => state === "available")
+      .map(({ server }) => server.id);
 
-        if (get().availabilityKey !== availabilityKey) return;
+    const playbackState = usePlaybackModeStore.getState();
+    const selectedServer = playbackState.selectedServer;
+    const fallbackServer = results.find(
+      ({ server, state }) =>
+        state === "available" &&
+        !get().serverOverrides.some(
+          (override) =>
+            override.serverId === server.id && !override.isAvailable,
+        ),
+    )?.server;
 
-        const unavailableServerIds = results
-          .filter(({ unavailable }) => unavailable)
-          .map(({ server }) => server.id);
-        const availableServerIds = results
-          .filter(({ state }) => state === "available")
-          .map(({ server }) => server.id);
+    const nextServer =
+      useAppSettingsStore.getState().noAdsMode ||
+      isScrapeServer(selectedServer) ||
+      availableServerIds.includes(selectedServer.id)
+        ? selectedServer
+        : fallbackServer || selectedServer;
 
-        const playbackState = usePlaybackModeStore.getState();
-        const selectedServer = playbackState.selectedServer;
-        const fallbackServer = results.find(
-          ({ server, state }) =>
-            state === "available" &&
-            !get().serverOverrides.some(
-              (override) =>
-                override.serverId === server.id && !override.isAvailable,
-            ),
-        )?.server;
+    if (nextServer.id !== selectedServer.id) {
+      playbackState.setSelectedServer(nextServer);
+    }
 
-        const nextServer =
-          useAppSettingsStore.getState().noAdsMode ||
-          isScrapeServer(selectedServer) ||
-          availableServerIds.includes(selectedServer.id)
-            ? selectedServer
-            : fallbackServer || selectedServer;
-
-        if (nextServer.id !== selectedServer.id) {
-          playbackState.setSelectedServer(nextServer);
-        }
-
-        set({
-          availableServerIds,
-          unavailableServerIds,
-          availabilityResolved: true,
-        });
-      },
-      getServerById: (id) => videoServers.find((server) => server.id === id),
-      getFallbackEmbedServer: () => {
-        const { unavailableServerIds, serverOverrides } = get();
-        return pickFallbackEmbedServer({
-          unavailableServerIds,
-          serverOverrides,
-        });
-      },
-      setServerOverride: (serverId, isAvailable, reason) => {
-        set((state) => ({
-          serverOverrides: [
-            ...state.serverOverrides.filter((o) => o.serverId !== serverId),
-            { serverId, isAvailable, reason },
-          ],
-        }));
-      },
-      removeServerOverride: (serverId) => {
-        set((state) => ({
-          serverOverrides: state.serverOverrides.filter(
-            (o) => o.serverId !== serverId,
-          ),
-        }));
-      },
-      isServerOverridden: (serverId) => {
-        const { serverOverrides } = get();
-        return serverOverrides.some((o) => o.serverId === serverId);
-      },
-      getServerOverride: (serverId) => {
-        const { serverOverrides } = get();
-        return serverOverrides.find((o) => o.serverId === serverId);
-      },
-      resetServerOverrides: () => {
-        set({ serverOverrides: defaultServerOverrides });
-      },
-      getAnimeUrl: (serverId, anilistId, episode) => {
-        const server = videoServers.find((s) => s.id === serverId);
-        if (!server?.getAnimeUrl) return "";
-        if (serverId === "vidnest") {
-          const { animePreference } = get();
-          return buildVidnestAnimeUrl(anilistId, episode, {
-            vidsrcApi: get().vidsrcApi,
-            animePreference,
-          });
-        }
-        if (serverId === "hentaini") {
-          const { animePreference, animeTitleSlug } = get();
-          return buildHentainiAnimeUrl(anilistId, episode, {
-            vidsrcApi: get().vidsrcApi,
-            animePreference,
-            animeTitleSlug,
-          });
-        }
-        return server.getAnimeUrl(anilistId, episode);
-      },
-      getAnimePaheUrl: (serverId, anilistId, episode) => {
-        const server = videoServers.find((s) => s.id === serverId);
-        if (!server?.getAnimePaheUrl) return "";
-        if (serverId === "vidnest") {
-          const { animePreference } = get();
-          return buildVidnestAnimePaheUrl(anilistId, episode, {
-            vidsrcApi: get().vidsrcApi,
-            animePreference,
-          });
-        }
-        return server.getAnimePaheUrl(anilistId, episode);
-      },
+    set({
+      availableServerIds,
+      unavailableServerIds,
+      availabilityResolved: true,
+    });
+  },
+  getServerById: (id) => videoServers.find((server) => server.id === id),
+  getFallbackEmbedServer: () => {
+    const { unavailableServerIds, serverOverrides } = get();
+    return pickFallbackEmbedServer({
+      unavailableServerIds,
+      serverOverrides,
+    });
+  },
+  setServerOverride: (serverId, isAvailable, reason) => {
+    set((state) => ({
+      serverOverrides: [
+        ...state.serverOverrides.filter((o) => o.serverId !== serverId),
+        { serverId, isAvailable, reason },
+      ],
+    }));
+  },
+  removeServerOverride: (serverId) => {
+    set((state) => ({
+      serverOverrides: state.serverOverrides.filter(
+        (o) => o.serverId !== serverId,
+      ),
+    }));
+  },
+  isServerOverridden: (serverId) => {
+    const { serverOverrides } = get();
+    return serverOverrides.some((o) => o.serverId === serverId);
+  },
+  getServerOverride: (serverId) => {
+    const { serverOverrides } = get();
+    return serverOverrides.find((o) => o.serverId === serverId);
+  },
+  resetServerOverrides: () => {
+    set({ serverOverrides: defaultServerOverrides });
+  },
+  getAnimeUrl: (serverId, anilistId, episode) => {
+    const server = videoServers.find((s) => s.id === serverId);
+    if (!server?.getAnimeUrl) return "";
+    if (serverId === "vidnest") {
+      const { animePreference } = get();
+      return buildVidnestAnimeUrl(anilistId, episode, {
+        vidsrcApi: get().vidsrcApi,
+        animePreference,
+      });
+    }
+    if (serverId === "hentaini") {
+      const { animePreference, animeTitleSlug } = get();
+      return buildHentainiAnimeUrl(anilistId, episode, {
+        vidsrcApi: get().vidsrcApi,
+        animePreference,
+        animeTitleSlug,
+      });
+    }
+    return server.getAnimeUrl(anilistId, episode);
+  },
+  getAnimePaheUrl: (serverId, anilistId, episode) => {
+    const server = videoServers.find((s) => s.id === serverId);
+    if (!server?.getAnimePaheUrl) return "";
+    if (serverId === "vidnest") {
+      const { animePreference } = get();
+      return buildVidnestAnimePaheUrl(anilistId, episode, {
+        vidsrcApi: get().vidsrcApi,
+        animePreference,
+      });
+    }
+    return server.getAnimePaheUrl(anilistId, episode);
+  },
 }));
 
 setEmbedPrefsGetter(() => {

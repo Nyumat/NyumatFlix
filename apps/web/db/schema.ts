@@ -171,9 +171,10 @@ export const userSettings = pgTable("user_settings", {
   userId: text("userId")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  playbackAudio: text("playbackAudio").notNull().default("sub").$type<
-    "sub" | "dub"
-  >(),
+  playbackAudio: text("playbackAudio")
+    .notNull()
+    .default("sub")
+    .$type<"sub" | "dub">(),
   playbackQuality: text("playbackQuality")
     .notNull()
     .default("1080p")

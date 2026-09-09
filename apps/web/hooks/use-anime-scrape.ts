@@ -67,8 +67,9 @@ export function useAnimeScrape() {
       ...payload,
       providerId: payload.providerId as AnimeScrapeProviderId,
       providerName:
-        ANIME_SCRAPE_PROVIDER_LABELS[payload.providerId as AnimeScrapeProviderId] ??
-        payload.providerName,
+        ANIME_SCRAPE_PROVIDER_LABELS[
+          payload.providerId as AnimeScrapeProviderId
+        ] ?? payload.providerName,
       streamKind: payload.streamKind ?? "hls",
     }),
     [],

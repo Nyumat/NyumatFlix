@@ -26,10 +26,7 @@ import {
   wingsSourceUrl,
 } from "../vidking-constants";
 import { fetchWingsSeed } from "../wings-api-discover";
-import {
-  type WingsTmdbLookup,
-  resolveWingsTmdbLookup,
-} from "../tmdb-lookup";
+import { type WingsTmdbLookup, resolveWingsTmdbLookup } from "../tmdb-lookup";
 
 /**
  * VidKing embed server → API endpoint map (VideoPlayer bundle, 2026-08).

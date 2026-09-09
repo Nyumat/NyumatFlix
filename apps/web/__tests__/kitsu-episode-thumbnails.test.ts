@@ -34,8 +34,16 @@ describe("kitsu episode thumbnails", () => {
   it("builds episode-number keyed thumbnail maps", () => {
     expect(
       buildKitsuEpisodeThumbnailMap([
-        { number: 1, thumbnailUrl: "https://media.kitsu.app/ep1.jpg", title: "To You" },
-        { number: 2, thumbnailUrl: "https://media.kitsu.app/ep2.jpg", title: null },
+        {
+          number: 1,
+          thumbnailUrl: "https://media.kitsu.app/ep1.jpg",
+          title: "To You",
+        },
+        {
+          number: 2,
+          thumbnailUrl: "https://media.kitsu.app/ep2.jpg",
+          title: null,
+        },
       ]),
     ).toEqual({
       1: "https://media.kitsu.app/ep1.jpg",

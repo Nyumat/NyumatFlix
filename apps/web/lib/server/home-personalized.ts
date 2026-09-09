@@ -232,8 +232,7 @@ export const buildPersonalizedHomeResponse = async (
   const enrichmentFetchers =
     createServerRecentlyWatchedEnrichmentFetchers(fetchTv);
 
-  const playback =
-    userId != null ? await listUserPlaybackProgress(userId) : [];
+  const playback = userId != null ? await listUserPlaybackProgress(userId) : [];
 
   const stubs = collectRecentlyWatchedStubs({
     playback,

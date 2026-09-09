@@ -29,10 +29,7 @@ export const usePlaybackSession = (progressKey: PlaybackProgressKey) => {
         if (!snapshot) {
           return;
         }
-        persistImmediateRef.current(
-          snapshot.currentTime,
-          snapshot.duration,
-        );
+        persistImmediateRef.current(snapshot.currentTime, snapshot.duration);
       };
 
       window.addEventListener("pagehide", persistNow);

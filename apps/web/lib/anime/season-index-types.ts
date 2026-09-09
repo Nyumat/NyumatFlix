@@ -28,4 +28,3 @@ export const countIndexedTmdbSeasons = (
   return Object.keys(index.entries).filter((key) => key.startsWith(prefix))
     .length;
 };
-

@@ -4,7 +4,10 @@ import {
   applyMoviSubtitlePreference,
   resolvePreferredSubtitleLang,
 } from "@/lib/playback/movi-subtitle-preference";
-import { updateTrackPreferences, resetTrackPreferencesForTests } from "@/lib/playback/track-preferences-storage";
+import {
+  updateTrackPreferences,
+  resetTrackPreferencesForTests,
+} from "@/lib/playback/track-preferences-storage";
 import type { MoviPlayerElement } from "@/lib/player/player-element";
 
 const scopeKey = "movie:42";

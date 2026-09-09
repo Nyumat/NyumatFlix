@@ -8,9 +8,7 @@ import {
   filterTmdbScrapeProviderIds,
   getTmdbScrapeProviderMenuOrder,
 } from "@/lib/flags/site-flags";
-import {
-  TMDB_SCRAPE_PROVIDER_LABELS,
-} from "@/lib/providers/registry";
+import { TMDB_SCRAPE_PROVIDER_LABELS } from "@/lib/providers/registry";
 import {
   SCRAPE_PROVIDER_LABELS,
   scrapeMediaKeyFor,
@@ -52,10 +50,7 @@ export function useScrape(options?: UseScrapeOptions) {
 
   const providerOrder = useMemo(
     () =>
-      filterTmdbScrapeProviderIds(
-        flags,
-        getTmdbScrapeProviderMenuOrder(flags),
-      ),
+      filterTmdbScrapeProviderIds(flags, getTmdbScrapeProviderMenuOrder(flags)),
     [flags],
   );
 

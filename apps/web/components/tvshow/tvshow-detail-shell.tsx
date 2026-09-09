@@ -71,9 +71,12 @@ export const TvShowDetailShell = ({
     }
 
     const season = Number.parseInt(searchParams.get("season") ?? "", 10);
-    const canonicalHref = buildAnilistTvDetailHref(resolvedAnilistId as number, {
-      season: Number.isInteger(season) && season > 0 ? season : undefined,
-    });
+    const canonicalHref = buildAnilistTvDetailHref(
+      resolvedAnilistId as number,
+      {
+        season: Number.isInteger(season) && season > 0 ? season : undefined,
+      },
+    );
     const currentHref = stripSearchParam(pathname, searchParams, "season");
 
     if (currentHref !== canonicalHref) {

@@ -26,8 +26,7 @@ export function resolveHeroPlaybackOverlays(input: {
     const keepPlayer =
       input.hasManifest &&
       (directStatus === "playing" || directStatus === "loading");
-    const isDiscovering =
-      directStatus === "loading" || directStatus === "idle";
+    const isDiscovering = directStatus === "loading" || directStatus === "idle";
     const showErrorOverlay = directStatus === "error";
 
     return {

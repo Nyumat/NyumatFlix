@@ -5,9 +5,7 @@ import {
   collectFribbAnilistIdsForTmdbSeason,
   type SeasonEpisodeSource,
 } from "@/lib/anilist-franchise-display";
-import {
-  appendKnownSpecialSequelIds,
-} from "@/lib/anime/special-sequel-appendix";
+import { appendKnownSpecialSequelIds } from "@/lib/anime/special-sequel-appendix";
 import { overlayKnownTmdbZeroSeasonSpecials } from "@/lib/anime/tmdb-zero-season-overlay";
 import { mergeTmdbEpisodesIntoSeason } from "@/lib/anilist-tv-episode-merge";
 import { hasFribbSplitCourForTmdbSeason } from "@/lib/anime/split-cour-appendix";

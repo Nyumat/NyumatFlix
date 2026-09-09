@@ -84,9 +84,9 @@ describe("progress-storage", () => {
   });
 
   it("stores entries in the in-memory ledger", () => {
-    expect(getPlaybackProgress({ mediaType: "movie", contentId: 27205 })?.watched).toBe(
-      1200,
-    );
+    expect(
+      getPlaybackProgress({ mediaType: "movie", contentId: 27205 })?.watched,
+    ).toBe(1200);
   });
 });
 

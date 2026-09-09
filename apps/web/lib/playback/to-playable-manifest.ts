@@ -51,7 +51,9 @@ const mapQuality = (quality: ScrapeQuality): ManifestQuality => ({
   subtitles: quality.subtitles?.map(mapSubtitle),
 });
 
-const mapAudioVersion = (version: ScrapeAudioVersion): ManifestAudioVersion => ({
+const mapAudioVersion = (
+  version: ScrapeAudioVersion,
+): ManifestAudioVersion => ({
   lang: version.lang,
   label: version.label,
   url: version.url,

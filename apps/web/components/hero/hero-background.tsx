@@ -143,9 +143,13 @@ export function HeroBackground({
       onTrailerEnded();
     };
 
-    window.addEventListener(PLAYER_ENGINE_CHANGE_EVENT, handlePlayerEngineChange, {
-      capture: true,
-    });
+    window.addEventListener(
+      PLAYER_ENGINE_CHANGE_EVENT,
+      handlePlayerEngineChange,
+      {
+        capture: true,
+      },
+    );
     return () => {
       window.removeEventListener(
         PLAYER_ENGINE_CHANGE_EVENT,
@@ -607,7 +611,9 @@ export function HeroBackground({
                       }
                       onRetryAllScraping={handleRetryAllScraping}
                       onFatalError={handleScrapedPlaybackError}
-                      onPlaybackStallFailover={handleScrapedPlaybackStallFailover}
+                      onPlaybackStallFailover={
+                        handleScrapedPlaybackStallFailover
+                      }
                       onDirectPlaybackExhausted={handleDirectPlaybackExhausted}
                       onEnded={handleScrapePlaybackEnded}
                       isResolvingEpisode={awaitingAnimeCoords}

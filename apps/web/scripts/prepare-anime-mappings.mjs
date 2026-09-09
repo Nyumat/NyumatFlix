@@ -31,14 +31,10 @@ for (const { url, file } of sources) {
   console.log(`[prepare-anime-mappings] wrote ${file} (${body.length} bytes)`);
 }
 
-const buildIndex = spawnSync(
-  "bun",
-  ["scripts/build-season-index.mts"],
-  {
-    cwd: root,
-    stdio: "inherit",
-  },
-);
+const buildIndex = spawnSync("bun", ["scripts/build-season-index.mts"], {
+  cwd: root,
+  stdio: "inherit",
+});
 
 if (buildIndex.status !== 0) {
   process.exit(buildIndex.status ?? 1);

@@ -24,10 +24,7 @@ export function StorageHydrationProvider() {
       return;
     }
 
-    void Promise.all([
-      hydrateSignedInPlaybackLedger(),
-      hydrateUserSettings(),
-    ]);
+    void Promise.all([hydrateSignedInPlaybackLedger(), hydrateUserSettings()]);
   }, [session?.user?.id, status]);
 
   return null;

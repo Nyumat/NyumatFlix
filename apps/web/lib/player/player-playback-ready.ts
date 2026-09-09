@@ -169,7 +169,11 @@ const MOVI_VIDEO_READY_EVENTS = [
   "timeupdate",
   "resize",
 ] as const;
-const MOVI_HOST_READY_EVENTS = ["loadeddata", "timeupdate", "statechange"] as const;
+const MOVI_HOST_READY_EVENTS = [
+  "loadeddata",
+  "timeupdate",
+  "statechange",
+] as const;
 
 export function subscribeMoviPlaybackReady(
   player: MoviHostElement,

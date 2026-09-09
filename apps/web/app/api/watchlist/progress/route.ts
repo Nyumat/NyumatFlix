@@ -115,9 +115,7 @@ export async function POST(request: NextRequest) {
         mediaType: validatedData.mediaType,
         status: "watching",
         lastWatchedSeason:
-          validatedData.mediaType === "tv"
-            ? validatedData.seasonNumber!
-            : null,
+          validatedData.mediaType === "tv" ? validatedData.seasonNumber! : null,
         lastWatchedEpisode:
           validatedData.mediaType === "tv"
             ? validatedData.episodeNumber!

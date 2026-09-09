@@ -95,7 +95,9 @@ describe("getAnilistIdForMedia", () => {
             }
           : null;
 
-      return new Response(JSON.stringify(pagePayload(media, body.variables.isAdult)));
+      return new Response(
+        JSON.stringify(pagePayload(media, body.variables.isAdult)),
+      );
     });
 
     const media = {

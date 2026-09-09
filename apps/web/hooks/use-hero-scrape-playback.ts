@@ -845,22 +845,23 @@ export function useHeroScrapePlayback({
 
   useServerAvailabilityQuery(serverAvailabilityInput);
 
-  const resolveActiveScrapeProviderOrder = useCallback((): readonly string[] => {
-    return filterProviderOrder(
-      isAnimeScrapeActive
-        ? buildAnimePlaybackProviderOrder(
-            animePlaybackChainContext,
-            animePlaybackProviderOrders,
-          )
-        : ([...tmdbScrapeProviderOrder] as ScrapeProviderId[]),
-    );
-  }, [
-    animePlaybackChainContext,
-    animePlaybackProviderOrders,
-    filterProviderOrder,
-    isAnimeScrapeActive,
-    tmdbScrapeProviderOrder,
-  ]);
+  const resolveActiveScrapeProviderOrder =
+    useCallback((): readonly string[] => {
+      return filterProviderOrder(
+        isAnimeScrapeActive
+          ? buildAnimePlaybackProviderOrder(
+              animePlaybackChainContext,
+              animePlaybackProviderOrders,
+            )
+          : ([...tmdbScrapeProviderOrder] as ScrapeProviderId[]),
+      );
+    }, [
+      animePlaybackChainContext,
+      animePlaybackProviderOrders,
+      filterProviderOrder,
+      isAnimeScrapeActive,
+      tmdbScrapeProviderOrder,
+    ]);
 
   const resolveNextScrapeProviderId = useCallback((): string | null => {
     if (

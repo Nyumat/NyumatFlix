@@ -98,7 +98,10 @@ export const buildSeasonIndex = (input: {
   fribbRows: readonly FribbAnimeRow[];
   generatedAt?: string;
 }): SeasonIndex => {
-  const seasonKeys = new Map<string, { tmdbShowId: number; seasonNumber: number }>();
+  const seasonKeys = new Map<
+    string,
+    { tmdbShowId: number; seasonNumber: number }
+  >();
 
   for (const season of collectAniBridgeTmdbSeasons(input.mappings)) {
     seasonKeys.set(

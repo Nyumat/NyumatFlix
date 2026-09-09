@@ -178,7 +178,11 @@ describe("native picture invariant", () => {
 describe("subscribeMoviPlaybackReady", () => {
   it("fires immediately when a decoded frame is already playing", () => {
     const host = document.createElement("div");
-    attachVideo(host, { videoWidth: 1920, videoHeight: 1080 }, { paused: false });
+    attachVideo(
+      host,
+      { videoWidth: 1920, videoHeight: 1080 },
+      { paused: false },
+    );
     resetMoviProgressObservation(host);
 
     expect(isMoviHostPlaybackReady(host)).toBe(true);

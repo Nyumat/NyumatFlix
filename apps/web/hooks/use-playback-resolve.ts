@@ -39,19 +39,21 @@ type ScrapeApiResponse = {
   error?: string;
 };
 
-export type PlaybackResolveConfig<TInput, TResult extends ScrapePlaybackPayload> =
-  {
-    mediaKeyFor: (input: TInput) => string;
-    providerOrderFor: (input: TInput) => readonly string[];
-    providerLabels: Record<string, string>;
-    buildScrapeBody: (
-      input: TInput,
-      providerId: string,
-    ) => Record<string, unknown>;
-    allFailedError?: string;
-    onAllProvidersFailed?: () => void;
-    mapResult?: (payload: ScrapePlaybackPayload) => TResult;
-  };
+export type PlaybackResolveConfig<
+  TInput,
+  TResult extends ScrapePlaybackPayload,
+> = {
+  mediaKeyFor: (input: TInput) => string;
+  providerOrderFor: (input: TInput) => readonly string[];
+  providerLabels: Record<string, string>;
+  buildScrapeBody: (
+    input: TInput,
+    providerId: string,
+  ) => Record<string, unknown>;
+  allFailedError?: string;
+  onAllProvidersFailed?: () => void;
+  mapResult?: (payload: ScrapePlaybackPayload) => TResult;
+};
 
 const scrapeApiToPayload = (
   data: ScrapeApiResponse & { ok: true },

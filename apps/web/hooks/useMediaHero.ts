@@ -260,7 +260,9 @@ export const useMediaHero = ({
         seasonAbort = new AbortController();
         try {
           const progressSeason =
-            watchlistItem?.lastWatchedSeason ?? tvLocalCoords?.seasonNumber ?? null;
+            watchlistItem?.lastWatchedSeason ??
+            tvLocalCoords?.seasonNumber ??
+            null;
           const progressEpisode =
             watchlistItem?.lastWatchedEpisode ??
             tvLocalCoords?.episodeNumber ??
@@ -269,7 +271,10 @@ export const useMediaHero = ({
             `/api/tv/${currentItem.id}/next-episode`,
             pathname,
           );
-          const nextEpisodeUrl = new URL(nextEpisodePath, window.location.origin);
+          const nextEpisodeUrl = new URL(
+            nextEpisodePath,
+            window.location.origin,
+          );
           if (progressSeason != null) {
             nextEpisodeUrl.searchParams.set(
               "lastWatchedSeason",

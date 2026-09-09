@@ -34,8 +34,7 @@ export const PLAYBACK_START_TIMEOUT_MS = 45_000;
 /** Re-scrape the same provider only when the play URL carries a session refresh token. */
 export const shouldReScrapeSameProviderOnPlaybackError = (
   playUrl: string,
-): boolean =>
-  extractScrapePlaybackRefreshFromPlayUrl(playUrl) !== undefined;
+): boolean => extractScrapePlaybackRefreshFromPlayUrl(playUrl) !== undefined;
 
 export const VIDSTACK_START_TIMEOUT_MS = 30_000;
 

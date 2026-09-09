@@ -175,11 +175,7 @@ export const groupFranchiseSeasonsByTmdb = (
         ),
         fribbRows,
       ),
-      collectFribbAnilistIdsForTmdbSeason(
-        fribbRows,
-        tmdbShowId,
-        seasonNumber,
-      ),
+      collectFribbAnilistIdsForTmdbSeason(fribbRows, tmdbShowId, seasonNumber),
       fribbRows,
     ),
   }));

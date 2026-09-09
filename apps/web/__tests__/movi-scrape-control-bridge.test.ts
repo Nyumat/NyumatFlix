@@ -34,7 +34,9 @@ describe("movi-scrape-control-bridge", () => {
 
     revealMoviScrapeControls(player);
 
-    const container = player.shadowRoot?.querySelector(".movi-controls-container");
+    const container = player.shadowRoot?.querySelector(
+      ".movi-controls-container",
+    );
     const overlay = player.shadowRoot?.querySelector(".movi-controls-overlay");
 
     expect(player.style.cursor).toBe("");

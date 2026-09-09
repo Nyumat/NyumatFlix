@@ -19,7 +19,8 @@ export const buildDetailPlayHref = (
   },
 ): string => {
   const mediaType =
-    options?.mediaType ?? (options?.media && isTVShow(options.media) ? "tv" : "movie");
+    options?.mediaType ??
+    (options?.media && isTVShow(options.media) ? "tv" : "movie");
 
   if (mediaType === "tv") {
     return hasTvAutoplayEligibility(

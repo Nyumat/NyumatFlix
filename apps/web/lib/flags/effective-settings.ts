@@ -55,8 +55,8 @@ export const resolveEffectiveSettings = (
       user.selectedServerId &&
       user.userSelectedPlaybackServer &&
       user.policyGenerationAtChoice === policyGeneration
-        ? videoServers.find((s) => s.id === user.selectedServerId) ??
-          defaultEmbed
+        ? (videoServers.find((s) => s.id === user.selectedServerId) ??
+          defaultEmbed)
         : defaultEmbed;
 
     return {
@@ -74,8 +74,8 @@ export const resolveEffectiveSettings = (
     user.userSelectedPlaybackServer &&
     user.selectedServerId &&
     user.policyGenerationAtChoice === policyGeneration
-      ? videoServers.find((s) => s.id === user.selectedServerId) ??
-        resolveDefaultEmbedServer(flags)
+      ? (videoServers.find((s) => s.id === user.selectedServerId) ??
+        resolveDefaultEmbedServer(flags))
       : null;
 
   const defaultFromFlag =

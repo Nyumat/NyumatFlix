@@ -19,9 +19,7 @@ describe("precomputed AOT season index barometer", () => {
   it.skipIf(!existsSync(seasonIndexPath))(
     "matches bundled season-index.json when mappings are present locally",
     () => {
-      const index = JSON.parse(
-        readFileSync(seasonIndexPath, "utf8"),
-      ) as {
+      const index = JSON.parse(readFileSync(seasonIndexPath, "utf8")) as {
         entries: Record<
           string,
           { segments: Array<{ anilistMediaId: number }> }

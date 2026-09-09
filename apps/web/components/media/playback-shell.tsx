@@ -60,32 +60,12 @@ export function PlaybackShell({
 
   switch (shellEngine) {
     case "direct":
-      return (
-        <DirectPlaybackEngine
-          key={engineSessionKey}
-          {...sharedProps}
-        />
-      );
+      return <DirectPlaybackEngine key={engineSessionKey} {...sharedProps} />;
     case "shaka":
-      return (
-        <ShakaScrapeEngine
-          key={engineSessionKey}
-          {...sharedProps}
-        />
-      );
+      return <ShakaScrapeEngine key={engineSessionKey} {...sharedProps} />;
     case "movi":
-      return (
-        <MoviScrapeEngine
-          key={engineSessionKey}
-          {...sharedProps}
-        />
-      );
+      return <MoviScrapeEngine key={engineSessionKey} {...sharedProps} />;
     case "vidstack":
-      return (
-        <VidstackScrapeEngine
-          key={engineSessionKey}
-          {...sharedProps}
-        />
-      );
+      return <VidstackScrapeEngine key={engineSessionKey} {...sharedProps} />;
   }
 }

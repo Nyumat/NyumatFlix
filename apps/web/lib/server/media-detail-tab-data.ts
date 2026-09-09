@@ -55,9 +55,11 @@ export async function getTvAllSeasonsForQuery(
     return prefetchedDetails.allSeasonDetails;
   }
 
-  const details = prefetchedDetails ?? (await getCachedTvShowDetail(id, {
-    animeCatalog: catalog === "anime",
-  }));
+  const details =
+    prefetchedDetails ??
+    (await getCachedTvShowDetail(id, {
+      animeCatalog: catalog === "anime",
+    }));
   if (!details) {
     return {};
   }

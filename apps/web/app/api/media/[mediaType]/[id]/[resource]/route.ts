@@ -150,9 +150,13 @@ export async function GET(
         }
 
         return jsonCached(
-          await getCachedAllSeasonDetailsForShow(tmdbLookupId, details.seasons, {
-            catalog,
-          }),
+          await getCachedAllSeasonDetailsForShow(
+            tmdbLookupId,
+            details.seasons,
+            {
+              catalog,
+            },
+          ),
           "all-seasons",
         );
       }

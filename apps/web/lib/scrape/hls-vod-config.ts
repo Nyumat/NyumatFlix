@@ -22,7 +22,9 @@ export type ScrapeVodHlsConfig = {
     : (typeof SCRAPE_VOD_HLS_CONFIG)[K];
 };
 
-export const buildScrapeVodHlsConfig = (resumeTime: number): ScrapeVodHlsConfig => ({
+export const buildScrapeVodHlsConfig = (
+  resumeTime: number,
+): ScrapeVodHlsConfig => ({
   ...SCRAPE_VOD_HLS_CONFIG,
   startPosition: resumeTime > 0 ? resumeTime : 0,
 });

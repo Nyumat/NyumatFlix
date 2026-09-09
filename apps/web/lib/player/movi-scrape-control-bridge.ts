@@ -6,9 +6,7 @@ const pokeMoviControlHandlers = (player: MoviPlayerElement): void => {
   player.dispatchEvent(new MouseEvent("mousemove", { bubbles: false }));
 };
 
-const syncMoviScrapeControlsFallback = (
-  player: MoviPlayerElement,
-): void => {
+const syncMoviScrapeControlsFallback = (player: MoviPlayerElement): void => {
   const root = player.shadowRoot;
   if (!root) {
     return;

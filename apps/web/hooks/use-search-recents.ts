@@ -11,24 +11,27 @@ export function useSearchRecents(enabled: boolean) {
     enabled ? sessionRecentSearches : [],
   );
 
-  const saveRecentSearch = useCallback((trimmedQuery: string) => {
-    if (!enabled) {
-      return;
-    }
+  const saveRecentSearch = useCallback(
+    (trimmedQuery: string) => {
+      if (!enabled) {
+        return;
+      }
 
-    setRecentSearches((currentRecentSearches) => {
-      const nextRecentSearches = [
-        trimmedQuery,
-        ...currentRecentSearches.filter(
-          (recentSearch) =>
-            recentSearch.toLowerCase() !== trimmedQuery.toLowerCase(),
-        ),
-      ].slice(0, MAX_RECENT_SEARCHES);
+      setRecentSearches((currentRecentSearches) => {
+        const nextRecentSearches = [
+          trimmedQuery,
+          ...currentRecentSearches.filter(
+            (recentSearch) =>
+              recentSearch.toLowerCase() !== trimmedQuery.toLowerCase(),
+          ),
+        ].slice(0, MAX_RECENT_SEARCHES);
 
-      sessionRecentSearches = nextRecentSearches;
-      return nextRecentSearches;
-    });
-  }, [enabled]);
+        sessionRecentSearches = nextRecentSearches;
+        return nextRecentSearches;
+      });
+    },
+    [enabled],
+  );
 
   const clearRecentSearches = useCallback(() => {
     sessionRecentSearches = [];

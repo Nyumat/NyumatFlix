@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import { resolveHeroPlaybackOverlays } from "@/lib/playback/hero-playback-overlays";
 import { snapshotLivePlayback } from "@/lib/playback/retain-live-playback";
-import { resolveNextProviderId, buildPinnedProviderResolveOrder } from "@/lib/scrape/next-provider";
+import {
+  resolveNextProviderId,
+  buildPinnedProviderResolveOrder,
+} from "@/lib/scrape/next-provider";
 
 describe("snapshotLivePlayback", () => {
   const result = { providerId: "vidsrc" };

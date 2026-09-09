@@ -38,7 +38,9 @@ describe("tv episode index helpers", () => {
   });
 
   it("prefers season details that include split-cour appendix episodes", () => {
-    const partial = season(Array.from({ length: 28 }, (_, index) => episode(index + 1)));
+    const partial = season(
+      Array.from({ length: 28 }, (_, index) => episode(index + 1)),
+    );
     const merged = season([
       ...Array.from({ length: 28 }, (_, index) => episode(index + 1)),
       episode(29),

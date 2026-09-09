@@ -284,7 +284,11 @@ export function HeroScrapePlayerPanel({
       {hasActivePlayer && resolvedManifest && progressKey ? (
         <div ref={playerContainerRef} className="h-full w-full">
           <PlaybackErrorBoundary
-            onClose={isDirectMode ? onDirectPlaybackExhausted ?? onFatalError : onFatalError}
+            onClose={
+              isDirectMode
+                ? (onDirectPlaybackExhausted ?? onFatalError)
+                : onFatalError
+            }
           >
             <PlaybackShell
               manifest={resolvedManifest}
@@ -295,7 +299,9 @@ export function HeroScrapePlayerPanel({
               isTv={isTv}
               className="h-full w-full"
               onFatalError={
-                isDirectMode ? onDirectPlaybackExhausted ?? onFatalError : onFatalError
+                isDirectMode
+                  ? (onDirectPlaybackExhausted ?? onFatalError)
+                  : onFatalError
               }
               onMediaReady={handleMediaReady}
               onPlaybackStallFailover={onPlaybackStallFailover}
@@ -308,9 +314,7 @@ export function HeroScrapePlayerPanel({
       {showDiscoveryOverlay ? (
         <ScrapingOverlay
           items={sourceOverlayItems}
-          activeProviderId={
-            isDirectMode ? "direct" : activeProviderId
-          }
+          activeProviderId={isDirectMode ? "direct" : activeProviderId}
           error={overlayError}
           onSelectEmbedServer={onSelectEmbedServer}
           onSelectScrapeProvider={onSelectScrapeProvider}
@@ -333,9 +337,7 @@ export function HeroScrapePlayerPanel({
       {showErrorOverlay ? (
         <ScrapingOverlay
           items={sourceOverlayItems}
-          activeProviderId={
-            isDirectMode ? "direct" : activeProviderId
-          }
+          activeProviderId={isDirectMode ? "direct" : activeProviderId}
           error={overlayError}
           onSelectEmbedServer={onSelectEmbedServer}
           onSelectScrapeProvider={onSelectScrapeProvider}
@@ -404,12 +406,8 @@ export function HeroPlaybackShell({
   return (
     <ScrapePlayerShell
       backdropUrl={playbackBackdropUrl}
-      blurBackdrop={
-        isScrapeServer(selectedServer) && overlays.blurBackdrop
-      }
-      hideBackdrop={
-        isScrapeServer(selectedServer) && overlays.hideBackdrop
-      }
+      blurBackdrop={isScrapeServer(selectedServer) && overlays.blurBackdrop}
+      hideBackdrop={isScrapeServer(selectedServer) && overlays.hideBackdrop}
     >
       {children}
     </ScrapePlayerShell>

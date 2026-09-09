@@ -92,11 +92,11 @@ describe("hydrateSignedInPlaybackLedger", () => {
     );
 
     expect(
-      window.localStorage.getItem(
-        "nyumatflix:playback-ledger-migrated:user-1",
-      ),
+      window.localStorage.getItem("nyumatflix:playback-ledger-migrated:user-1"),
     ).toBe("true");
-    expect(window.localStorage.getItem(PLAYBACK_PROGRESS_STORAGE_KEY)).toBeNull();
+    expect(
+      window.localStorage.getItem(PLAYBACK_PROGRESS_STORAGE_KEY),
+    ).toBeNull();
     expect(readLedgerMap()["movie:550::"]?.watched).toBe(1200);
   });
 
@@ -128,10 +128,10 @@ describe("hydrateSignedInPlaybackLedger", () => {
     await hydrateSignedInPlaybackLedger();
 
     expect(
-      window.localStorage.getItem(
-        "nyumatflix:playback-ledger-migrated:user-2",
-      ),
+      window.localStorage.getItem("nyumatflix:playback-ledger-migrated:user-2"),
     ).toBeNull();
-    expect(window.localStorage.getItem(PLAYBACK_PROGRESS_STORAGE_KEY)).not.toBeNull();
+    expect(
+      window.localStorage.getItem(PLAYBACK_PROGRESS_STORAGE_KEY),
+    ).not.toBeNull();
   });
 });
