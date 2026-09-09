@@ -1,3 +1,13 @@
+export class TmdbHttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "TmdbHttpError";
+    this.status = status;
+  }
+}
+
 const readStatus = (error: unknown): number | null => {
   if (typeof error !== "object" || error === null) {
     return null;

@@ -10,6 +10,7 @@ import {
 } from "@/lib/playback/progress-storage";
 import {
   formatTvWatchLabel,
+  hasTvAutoplayEligibility,
   isTvPlaybackResume,
   isTvWatchlistResume,
   resolveLocalTvWatchCoords,
@@ -40,6 +41,7 @@ const watchlistItem = (
   lastWatchedSeason,
   lastWatchedEpisode,
   lastWatchedAt: new Date("2026-01-01"),
+  dismissedAt: null,
   createdAt: new Date("2026-01-01"),
   updatedAt: new Date("2026-01-01"),
 });
@@ -59,6 +61,22 @@ describe("formatTvWatchLabel", () => {
     expect(
       formatTvWatchLabel(selectionTarget, undefined, { resume: true }),
     ).toBe("Resume S1E1");
+  });
+});
+
+describe("tv autoplay eligibility", () => {
+  it("allows autoplay when local progress exists", () => {
+    expect(
+      hasTvAutoplayEligibility(null, { seasonNumber: 1, episodeNumber: 2 }),
+    ).toBe(true);
+  });
+
+  it("allows autoplay when the show is on the watchlist", () => {
+    expect(hasTvAutoplayEligibility(watchlistItem(1, 1), null)).toBe(true);
+  });
+
+  it("blocks autoplay for cold tv visits", () => {
+    expect(hasTvAutoplayEligibility(null, null)).toBe(false);
   });
 });
 

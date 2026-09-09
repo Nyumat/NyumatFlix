@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 import { fetchWithCapSession } from "@/lib/cap/client";
 import { VIDEO_SERVER_HEALTH_MAX_BATCH_SIZE } from "@/lib/video-server-health/constants";
@@ -10,6 +9,7 @@ import {
   type VidsrcApi,
   VIDSRC_MIRROR_APIS,
 } from "@/lib/providers/embed-urls";
+import { patchUserSettings } from "@/lib/user/patch-user-settings";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import {
   isScrapeServer,
@@ -173,13 +173,11 @@ interface EmbedServerState {
   ) => string;
 }
 
-export const useEmbedServerStore = create<EmbedServerState>()(
-  persist(
-    (set, get) => ({
+export const useEmbedServerStore = create<EmbedServerState>()((set, get) => ({
       serverOverrides: defaultServerOverrides,
       animePreference: "sub" as "sub" | "dub",
       animeTitleSlug: "",
-      vidnestContentType: "movie" as "movie" | "tv" | "anime" | "animepahe",
+      vidnestContentType: "tv" as "movie" | "tv" | "anime" | "animepahe",
       vidsrcApi: "1" as VidsrcApi,
       availabilityKey: null,
       availabilityResolved: false,
@@ -193,9 +191,11 @@ export const useEmbedServerStore = create<EmbedServerState>()(
       },
       setVidnestContentType: (type) => {
         set({ vidnestContentType: type });
+        void patchUserSettings({ vidnestContentType: type });
       },
       setVidsrcApi: (api) => {
         set({ vidsrcApi: api });
+        void patchUserSettings({ vidsrcApi: api });
       },
       prefetchServerAvailability: async (input) => {
         if (useAppSettingsStore.getState().noAdsMode) {
@@ -376,52 +376,7 @@ export const useEmbedServerStore = create<EmbedServerState>()(
         }
         return server.getAnimePaheUrl(anilistId, episode);
       },
-    }),
-    {
-      name: "embed-server-storage",
-      partialize: (state) => ({
-        serverOverrides: state.serverOverrides,
-        animePreference: state.animePreference,
-        vidnestContentType: state.vidnestContentType,
-        vidsrcApi: state.vidsrcApi,
-      }),
-      storage: {
-        getItem: (name) => {
-          const str = localStorage.getItem(name);
-          if (str) {
-            try {
-              return JSON.parse(str);
-            } catch {
-              return null;
-            }
-          }
-
-          const legacy = localStorage.getItem("video-server-storage");
-          if (!legacy) return null;
-          try {
-            const parsed = JSON.parse(legacy);
-            if (!parsed.state) return null;
-            return {
-              ...parsed,
-              state: {
-                serverOverrides: parsed.state.serverOverrides,
-                animePreference: parsed.state.animePreference,
-                vidnestContentType: parsed.state.vidnestContentType,
-                vidsrcApi: parsed.state.vidsrcApi,
-              },
-            };
-          } catch {
-            return null;
-          }
-        },
-        setItem: (name, value) => {
-          localStorage.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => localStorage.removeItem(name),
-      },
-    },
-  ),
-);
+}));
 
 setEmbedPrefsGetter(() => {
   const { vidsrcApi, animePreference, animeTitleSlug } =

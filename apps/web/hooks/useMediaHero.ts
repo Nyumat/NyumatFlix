@@ -11,8 +11,8 @@ import {
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
-import type { MediaItem } from "@/lib/domain/typings";
-import { getFirstRegularSeason, isTVShow } from "@/lib/domain/typings";
+import type { Episode, MediaItem } from "@/lib/domain/typings";
+import { isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
 import { stabilizeScrollTop } from "@/components/layout/route-scroll-reset";
 import { withPageTvApiPath } from "@/lib/tv-detail-catalog";
@@ -25,6 +25,12 @@ import {
   useRef,
   useState,
 } from "react";
+import type { WatchlistItem } from "@/lib/domain/watchlist";
+import { useLocalTvWatchCoords } from "@/hooks/use-local-tv-watch-coords";
+import {
+  hasTvAutoplayEligibility,
+  type LocalTvWatchCoords,
+} from "@/lib/tv-watch-target";
 
 const readImdbIdFromMediaItem = (
   item: MediaItem | undefined,
@@ -72,6 +78,8 @@ export interface UseMediaHeroOptions {
   isWatch?: boolean;
   passedMediaType?: "tv" | "movie";
   anilistId?: number | null | undefined;
+  watchlistItem?: WatchlistItem | null;
+  watchlistResolved?: boolean;
   onPlaybackStart?: () => void;
   onPlaybackStop?: () => void;
 }
@@ -93,12 +101,15 @@ export const useMediaHero = ({
   isWatch = false,
   passedMediaType,
   anilistId,
+  watchlistItem,
+  watchlistResolved = true,
   onPlaybackStart,
   onPlaybackStop,
 }: UseMediaHeroOptions): UseMediaHeroReturn => {
   const [currentItemIndex, setCurrentItemIndex] = useState<number>(0);
   const [isPlayingVideo, setIsPlayingVideo] = useState<boolean>(false);
   const [isPlayingTrailer, setIsPlayingTrailer] = useState<boolean>(false);
+  const [isActiveHeroSlide, setIsActiveHeroSlide] = useState<boolean>(true);
   const [youtubePlayer, setYoutubePlayer] = useState<YouTubePlayer>(null);
   const historyLength =
     typeof window !== "undefined" ? window.history.length : 2;
@@ -139,6 +150,21 @@ export const useMediaHero = ({
     () => media[currentItemIndex],
     [media, currentItemIndex],
   );
+  const localTvCoords = useLocalTvWatchCoords(currentItem?.id ?? 0);
+
+  useEffect(() => {
+    if (noSlide || isWatch) {
+      setIsActiveHeroSlide(true);
+      return;
+    }
+
+    setIsActiveHeroSlide(false);
+    const timer = window.setTimeout(() => {
+      setIsActiveHeroSlide(true);
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [currentItemIndex, isWatch, noSlide]);
 
   const imdbId = useMemo(
     () => readImdbIdFromMediaItem(currentItem),
@@ -163,6 +189,7 @@ export const useMediaHero = ({
     !featureFlags.staticHeroBackdrops &&
     (mediaType === "movie" || mediaType === "tv") &&
     !isPlayingVideo &&
+    isActiveHeroSlide &&
     Boolean(imdbId);
 
   const {
@@ -199,6 +226,7 @@ export const useMediaHero = ({
   useEffect(() => {
     const shouldAutoplay = searchParams.get("autoplay") === "true";
     if (!shouldAutoplay || !isWatch || autoplayHandledRef.current) return;
+    if (!watchlistResolved) return;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     let stabilize: { cancel: () => void } | null = null;
@@ -206,45 +234,126 @@ export const useMediaHero = ({
 
     let seasonAbort: AbortController | null = null;
 
+    const stripAutoplayParam = () => {
+      autoplayHandledRef.current = true;
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("autoplay");
+      const newSearch = params.toString();
+      const nextUrl = `${pathname}${newSearch ? `?${newSearch}` : ""}`;
+      window.history.replaceState(window.history.state, "", nextUrl);
+    };
+
     const maybeAutoplay = async () => {
-      if (passedMediaType === "tv" && currentItem) {
-        const firstSeason = getFirstRegularSeason(currentItem);
-        if (firstSeason) {
-          seasonAbort = new AbortController();
-          try {
-            const seasonPath = withPageTvApiPath(
-              `/api/tv/${currentItem.id}/season/${firstSeason.season_number}`,
-              pathname,
+      const isTvAutoplay = passedMediaType === "tv" && currentItem;
+      const tvLocalCoords: LocalTvWatchCoords | null =
+        currentItem && localTvCoords ? localTvCoords : null;
+
+      if (
+        isTvAutoplay &&
+        !hasTvAutoplayEligibility(watchlistItem, tvLocalCoords)
+      ) {
+        stripAutoplayParam();
+        return;
+      }
+
+      if (isTvAutoplay) {
+        seasonAbort = new AbortController();
+        try {
+          const progressSeason =
+            watchlistItem?.lastWatchedSeason ?? tvLocalCoords?.seasonNumber ?? null;
+          const progressEpisode =
+            watchlistItem?.lastWatchedEpisode ??
+            tvLocalCoords?.episodeNumber ??
+            null;
+          const nextEpisodePath = withPageTvApiPath(
+            `/api/tv/${currentItem.id}/next-episode`,
+            pathname,
+          );
+          const nextEpisodeUrl = new URL(nextEpisodePath, window.location.origin);
+          if (progressSeason != null) {
+            nextEpisodeUrl.searchParams.set(
+              "lastWatchedSeason",
+              String(progressSeason),
             );
-            const res = await fetch(seasonPath, {
-              signal: seasonAbort.signal,
-            });
-            if (!res.ok) {
-              return;
-            }
-            const seasonData = await res.json();
-            if (cancelled) {
-              return;
-            }
-            if (
-              Array.isArray(seasonData.episodes) &&
-              seasonData.episodes.length > 0
-            ) {
-              const firstEpisode = seasonData.episodes[0];
-              useEpisodeStore
-                .getState()
-                .setSelectedEpisode(
-                  firstEpisode,
-                  currentItem.id.toString(),
-                  firstSeason.season_number,
-                  undefined,
-                  false,
-                  seasonData.episodes,
-                );
-            }
-          } catch {
-            void 0;
           }
+          if (progressEpisode != null) {
+            nextEpisodeUrl.searchParams.set(
+              "lastWatchedEpisode",
+              String(progressEpisode),
+            );
+          }
+          const nextEpisodeRes = await fetch(nextEpisodeUrl.toString(), {
+            signal: seasonAbort.signal,
+          });
+          if (!nextEpisodeRes.ok) {
+            return;
+          }
+
+          const nextEpisodeData = (await nextEpisodeRes.json()) as {
+            episodeInfo?: {
+              nextUnwatchedEpisode?: {
+                seasonNumber: number;
+                episodeNumber: number;
+              } | null;
+            } | null;
+          };
+
+          if (cancelled) {
+            return;
+          }
+
+          const nextCoords =
+            nextEpisodeData.episodeInfo?.nextUnwatchedEpisode ?? null;
+          if (!nextCoords) {
+            return;
+          }
+
+          const seasonPath = withPageTvApiPath(
+            `/api/tv/${currentItem.id}/season/${nextCoords.seasonNumber}`,
+            pathname,
+          );
+          const seasonRes = await fetch(seasonPath, {
+            signal: seasonAbort.signal,
+          });
+          if (!seasonRes.ok) {
+            return;
+          }
+
+          const seasonData = (await seasonRes.json()) as {
+            episodes?: Episode[];
+          };
+          if (cancelled) {
+            return;
+          }
+
+          if (
+            !Array.isArray(seasonData.episodes) ||
+            seasonData.episodes.length === 0
+          ) {
+            return;
+          }
+
+          const selectedEpisode =
+            seasonData.episodes.find(
+              (episode) => episode.episode_number === nextCoords.episodeNumber,
+            ) ?? seasonData.episodes[0];
+
+          if (!selectedEpisode) {
+            return;
+          }
+
+          useEpisodeStore
+            .getState()
+            .setSelectedEpisode(
+              selectedEpisode,
+              currentItem.id.toString(),
+              nextCoords.seasonNumber,
+              undefined,
+              false,
+              seasonData.episodes,
+            );
+        } catch {
+          void 0;
         }
       }
 
@@ -254,11 +363,7 @@ export const useMediaHero = ({
         if (cancelled) return;
         autoplayHandledRef.current = true;
         handleWatch({ skipAdblockCheck: true });
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("autoplay");
-        const newSearch = params.toString();
-        const nextUrl = `${pathname}${newSearch ? `?${newSearch}` : ""}`;
-        window.history.replaceState(window.history.state, "", nextUrl);
+        stripAutoplayParam();
         stabilize = stabilizeScrollTop();
       }, 500);
     };
@@ -278,6 +383,9 @@ export const useMediaHero = ({
     currentItem,
     anilistId,
     handleWatch,
+    watchlistItem,
+    watchlistResolved,
+    localTvCoords,
   ]);
 
   const handlePlayTrailer = useCallback(() => {

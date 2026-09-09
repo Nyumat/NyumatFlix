@@ -1,6 +1,6 @@
 import { LogoSchema, type Logo } from "@/lib/domain/typings";
 
-export const CAROUSEL_LOGO_ENRICH_COUNT = 20;
+export const CAROUSEL_LOGO_ENRICH_COUNT = 0;
 
 export const pickEnglishLogo = (logos: unknown): Logo | undefined => {
   if (!Array.isArray(logos) || logos.length === 0) {

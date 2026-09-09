@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 import { Grid2X2, List } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
-const CONTENT_GRID_VIEW_MODE_KEY = "content-grid-view-mode";
-
 const GridSkeleton = ({ count = 8 }: { count?: number }) => (
   <div className="flex flex-wrap gap-4">
     {Array.from({ length: count }).map((_, i) => (
@@ -112,17 +110,7 @@ export function BaseContentGrid({
 
   useEffect(() => {
     if (isFirstMount.current) {
-      const savedViewMode = localStorage.getItem(
-        CONTENT_GRID_VIEW_MODE_KEY,
-      ) as ViewMode;
-      if (
-        savedViewMode &&
-        (savedViewMode === "grid" || savedViewMode === "list")
-      ) {
-        setViewMode(savedViewMode);
-      } else {
-        setViewMode(defaultViewMode);
-      }
+      setViewMode(defaultViewMode);
       isFirstMount.current = false;
     } else {
       setViewMode(defaultViewMode);
@@ -146,7 +134,6 @@ export function BaseContentGrid({
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
-    localStorage.setItem(CONTENT_GRID_VIEW_MODE_KEY, mode);
     onViewModeChange?.(mode);
   };
 

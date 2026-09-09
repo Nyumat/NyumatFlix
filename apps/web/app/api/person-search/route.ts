@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
+import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextRequest, NextResponse } from "next/server";
 
 interface KnownForItem {
@@ -129,12 +130,15 @@ export async function GET(request: NextRequest) {
           (b.popularity || 0) - (a.popularity || 0),
       );
 
-    return NextResponse.json({
-      results,
-      page: data.page || 1,
-      total_pages: data.total_pages || 0,
-      total_results: data.total_results || 0,
-    });
+    return NextResponse.json(
+      {
+        results,
+        page: data.page || 1,
+        total_pages: data.total_pages || 0,
+        total_results: data.total_results || 0,
+      },
+      { headers: catalogCacheHeaders() },
+    );
   } catch (error) {
     console.error("Error searching for people:", error);
     return NextResponse.json(

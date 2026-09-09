@@ -4,6 +4,7 @@ import type { EpisodeCoordinates, EpisodeInfo } from "@/lib/domain/episodes";
 import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
 import { formatCountdown } from "@/lib/utils/countdown";
 import { tmdb } from "@/tmdb/api";
+import type { LastEpisodeToAir, NextEpisodeToAir } from "@/tmdb/models";
 
 const isEpisodeAfterLastWatched = (
   seasonNumber: number,
@@ -40,6 +41,138 @@ const compareEpisodeCoordinates = (
   return left.episodeNumber - right.episodeNumber;
 };
 
+const isCaughtUpOnAiredEpisodes = (
+  lastWatchedSeason: number | null,
+  lastWatchedEpisode: number | null,
+  lastEpisodeToAir: LastEpisodeToAir | null | undefined,
+): boolean => {
+  if (!lastEpisodeToAir?.air_date) {
+    return false;
+  }
+
+  if (lastWatchedSeason === null || lastWatchedEpisode === null) {
+    return false;
+  }
+
+  if (lastWatchedSeason > lastEpisodeToAir.season_number) {
+    return true;
+  }
+
+  return (
+    lastWatchedSeason === lastEpisodeToAir.season_number &&
+    lastWatchedEpisode >= lastEpisodeToAir.episode_number
+  );
+};
+
+const readNextEpisodeSchedule = (
+  nextEpisodeToAir: NextEpisodeToAir | null | undefined,
+  now: Date,
+): { nextEpisodeDate: Date | null; countdown: string | null } => {
+  if (!nextEpisodeToAir?.air_date) {
+    return { nextEpisodeDate: null, countdown: null };
+  }
+
+  const nextEpisodeDate = new Date(nextEpisodeToAir.air_date);
+  if (Number.isNaN(nextEpisodeDate.getTime()) || nextEpisodeDate <= now) {
+    return { nextEpisodeDate: null, countdown: null };
+  }
+
+  return {
+    nextEpisodeDate,
+    countdown: formatCountdown(nextEpisodeDate),
+  };
+};
+
+const buildCaughtUpEpisodeInfo = (
+  lastEpisodeToAir: LastEpisodeToAir | null | undefined,
+  nextEpisodeToAir: NextEpisodeToAir | null | undefined,
+  now: Date,
+): EpisodeInfo => {
+  const { nextEpisodeDate, countdown } = readNextEpisodeSchedule(
+    nextEpisodeToAir,
+    now,
+  );
+
+  return {
+    hasNewEpisodes: false,
+    newEpisodeCount: 0,
+    hasUnwatchedEpisodes: false,
+    unwatchedEpisodeCount: 0,
+    nextUnwatchedEpisode: null,
+    nextEpisodeDate,
+    countdown,
+    latestEpisodeAirDate: lastEpisodeToAir?.air_date
+      ? new Date(lastEpisodeToAir.air_date)
+      : null,
+  };
+};
+
+const processSeasonEpisodes = (
+  seasonNumber: number,
+  episodes: Array<{
+    air_date?: string;
+    episode_number: number;
+  }>,
+  now: Date,
+  sevenDaysAgo: Date,
+  lastWatchedSeason: number | null,
+  lastWatchedEpisode: number | null,
+) => {
+  let newEpisodeCount = 0;
+  let unwatchedEpisodeCount = 0;
+  let nextUnwatchedEpisode: EpisodeCoordinates | null = null;
+  let latestEpisodeAirDate: Date | null = null;
+
+  for (const episode of episodes) {
+    if (!episode.air_date) {
+      continue;
+    }
+
+    const episodeDate = new Date(episode.air_date);
+    if (Number.isNaN(episodeDate.getTime()) || episodeDate > now) {
+      continue;
+    }
+
+    const isAfterLastWatched = isEpisodeAfterLastWatched(
+      seasonNumber,
+      episode.episode_number,
+      lastWatchedSeason,
+      lastWatchedEpisode,
+    );
+
+    if (!isAfterLastWatched) {
+      continue;
+    }
+
+    unwatchedEpisodeCount += 1;
+    const candidate: EpisodeCoordinates = {
+      seasonNumber,
+      episodeNumber: episode.episode_number,
+    };
+
+    if (
+      !nextUnwatchedEpisode ||
+      compareEpisodeCoordinates(candidate, nextUnwatchedEpisode) < 0
+    ) {
+      nextUnwatchedEpisode = candidate;
+    }
+
+    if (episodeDate >= sevenDaysAgo) {
+      newEpisodeCount += 1;
+      if (!latestEpisodeAirDate || episodeDate > latestEpisodeAirDate) {
+        latestEpisodeAirDate = episodeDate;
+      }
+    }
+  }
+
+  return {
+    newEpisodeCount,
+    unwatchedEpisodeCount,
+    nextUnwatchedEpisode,
+    latestEpisodeAirDate,
+  };
+};
+
 export async function checkEpisodesForShow(
   contentId: number,
   lastWatchedSeason: number | null,
@@ -54,106 +187,110 @@ export async function checkEpisodesForShow(
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const { nextEpisodeDate, countdown } = readNextEpisodeSchedule(
+      tvShowDetails.next_episode_to_air,
+      now,
+    );
+
+    if (
+      isCaughtUpOnAiredEpisodes(
+        lastWatchedSeason,
+        lastWatchedEpisode,
+        tvShowDetails.last_episode_to_air,
+      )
+    ) {
+      return buildCaughtUpEpisodeInfo(
+        tvShowDetails.last_episode_to_air,
+        tvShowDetails.next_episode_to_air,
+        now,
+      );
+    }
+
+    const lastEpisodeToAirSeason =
+      tvShowDetails.last_episode_to_air?.season_number;
 
     const seasons = (tvShowDetails.seasons ?? [])
-      .filter((s) => s.season_number > 0)
-      .sort((a, b) => b.season_number - a.season_number);
+      .filter((season) => season.season_number > 0)
+      .filter((season) =>
+        lastWatchedSeason === null
+          ? true
+          : season.season_number >= lastWatchedSeason,
+      )
+      .filter((season) =>
+        lastEpisodeToAirSeason === undefined
+          ? true
+          : season.season_number <= lastEpisodeToAirSeason,
+      )
+      .sort((left, right) => left.season_number - right.season_number);
 
     if (seasons.length === 0) {
-      return null;
+      return {
+        hasNewEpisodes: false,
+        newEpisodeCount: 0,
+        hasUnwatchedEpisodes: false,
+        unwatchedEpisodeCount: 0,
+        nextUnwatchedEpisode: null,
+        nextEpisodeDate,
+        countdown,
+        latestEpisodeAirDate: tvShowDetails.last_episode_to_air?.air_date
+          ? new Date(tvShowDetails.last_episode_to_air.air_date)
+          : null,
+      };
     }
 
     let newEpisodeCount = 0;
     let unwatchedEpisodeCount = 0;
     let nextUnwatchedEpisode: EpisodeCoordinates | null = null;
     let latestEpisodeAirDate: Date | null = null;
-    let nextEpisodeDate: Date | null = null;
 
     for (const season of seasons) {
-      const seasonDetails = await fetchSeasonDetailsServer(
+      const details = await fetchSeasonDetailsServer(
         String(contentId),
         season.season_number,
       );
+      const episodes = details?.episodes ?? [];
 
-      if (!seasonDetails?.episodes) {
-        continue;
+      const processed = processSeasonEpisodes(
+        season.season_number,
+        episodes,
+        now,
+        sevenDaysAgo,
+        lastWatchedSeason,
+        lastWatchedEpisode,
+      );
+
+      newEpisodeCount += processed.newEpisodeCount;
+      unwatchedEpisodeCount += processed.unwatchedEpisodeCount;
+
+      if (
+        processed.nextUnwatchedEpisode &&
+        (!nextUnwatchedEpisode ||
+          compareEpisodeCoordinates(
+            processed.nextUnwatchedEpisode,
+            nextUnwatchedEpisode,
+          ) < 0)
+      ) {
+        nextUnwatchedEpisode = processed.nextUnwatchedEpisode;
       }
 
-      const airedEpisodes = seasonDetails.episodes
-        .filter(
-          (ep) =>
-            ep.air_date &&
-            new Date(ep.air_date) <= now &&
-            new Date(ep.air_date).getTime() > 0,
-        )
-        .sort((a, b) => {
-          if (!a.air_date || !b.air_date) return 0;
-          return (
-            new Date(b.air_date).getTime() - new Date(a.air_date).getTime()
-          );
-        });
-
-      const upcomingEpisodes = seasonDetails.episodes
-        .filter(
-          (ep) =>
-            ep.air_date &&
-            new Date(ep.air_date) > now &&
-            new Date(ep.air_date).getTime() > 0,
-        )
-        .sort((a, b) => {
-          if (!a.air_date || !b.air_date) return 0;
-          return (
-            new Date(a.air_date).getTime() - new Date(b.air_date).getTime()
-          );
-        });
-
-      for (const episode of airedEpisodes) {
-        if (!episode.air_date) continue;
-
-        const episodeDate = new Date(episode.air_date);
-        const isAfterLastWatched = isEpisodeAfterLastWatched(
-          season.season_number,
-          episode.episode_number,
-          lastWatchedSeason,
-          lastWatchedEpisode,
-        );
-
-        if (isAfterLastWatched) {
-          unwatchedEpisodeCount++;
-          const candidate: EpisodeCoordinates = {
-            seasonNumber: season.season_number,
-            episodeNumber: episode.episode_number,
-          };
-
-          if (
-            !nextUnwatchedEpisode ||
-            compareEpisodeCoordinates(candidate, nextUnwatchedEpisode) < 0
-          ) {
-            nextUnwatchedEpisode = candidate;
-          }
-        }
-
-        const isNewEpisode = episodeDate >= sevenDaysAgo && isAfterLastWatched;
-
-        if (isNewEpisode) {
-          newEpisodeCount++;
-          if (!latestEpisodeAirDate || episodeDate > latestEpisodeAirDate) {
-            latestEpisodeAirDate = episodeDate;
-          }
-        }
+      if (
+        processed.latestEpisodeAirDate &&
+        (!latestEpisodeAirDate ||
+          processed.latestEpisodeAirDate > latestEpisodeAirDate)
+      ) {
+        latestEpisodeAirDate = processed.latestEpisodeAirDate;
       }
 
-      if (!nextEpisodeDate && upcomingEpisodes.length > 0) {
-        const nextEpisode = upcomingEpisodes[0];
-        if (nextEpisode.air_date) {
-          nextEpisodeDate = new Date(nextEpisode.air_date);
+      if (nextUnwatchedEpisode) {
+        const atLastAiredSeason =
+          lastEpisodeToAirSeason !== undefined &&
+          season.season_number >= lastEpisodeToAirSeason;
+        const seasonHasSevenDayUnwatched = processed.newEpisodeCount > 0;
+
+        if (atLastAiredSeason || !seasonHasSevenDayUnwatched) {
+          break;
         }
       }
-    }
-
-    let countdown: string | null = null;
-    if (nextEpisodeDate) {
-      countdown = formatCountdown(nextEpisodeDate);
     }
 
     return {

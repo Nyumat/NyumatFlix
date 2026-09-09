@@ -1,16 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { usePlaybackResolve } from "@/hooks/use-playback-resolve";
 import {
   filterAnimeScrapeProviderIds,
   getAnimeScrapeProviderMenuOrder,
 } from "@/lib/flags/site-flags";
-import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
 import {
   ANIME_SCRAPE_PROVIDER_LABELS,
-  ANIME_SCRAPE_PROVIDER_ORDER,
   animeScrapeMediaKeyFor,
   type AnimeScrapeInput,
   type AnimeScrapeProviderId,
@@ -20,6 +19,7 @@ import type {
   ScrapeQuality,
   ScrapeSubtitle,
 } from "@/lib/scrape/types";
+import type { ScrapePlaybackPayload } from "@/lib/playback/to-playable-manifest";
 
 export type AnimeScrapeSuccessPayload = {
   providerId: AnimeScrapeProviderId;
@@ -37,53 +37,50 @@ export type AnimeScrapeSuccessPayload = {
   preferredAudioLang?: string;
 };
 
-const animeScrapeLoopConfig = {
-  providerOrder: ANIME_SCRAPE_PROVIDER_ORDER,
-  providerLabels: ANIME_SCRAPE_PROVIDER_LABELS,
-  mediaKeyFor: animeScrapeMediaKeyFor,
-  allFailedError: "No playable source found.",
-  apiPath: "/api/scrape",
-  buildRequestBody: (
-    providerId: AnimeScrapeProviderId,
-    input: AnimeScrapeInput,
-  ) => ({
-    mediaKind: "anime",
-    providerId,
-    anilistId: input.anilistId,
-    episodeNumber: input.episodeNumber,
-    translationType: input.translationType,
-    query: input.query,
-    ...(input.tmdb ? { tmdb: input.tmdb } : {}),
-  }),
-  harvestSubtitleProviders: (
-    winnerId: AnimeScrapeProviderId,
-    order: readonly AnimeScrapeProviderId[],
-    failed: ReadonlySet<AnimeScrapeProviderId>,
-  ) =>
-    order.filter(
-      (providerId) => providerId !== winnerId && !failed.has(providerId),
-    ),
-} as const;
-
 export function useAnimeScrape() {
   const flags = useFeatureFlags();
-  const config = useMemo(
-    () => ({
-      ...animeScrapeLoopConfig,
-      providerOrder: filterAnimeScrapeProviderIds(
+
+  const providerOrder = useMemo(
+    () =>
+      filterAnimeScrapeProviderIds(
         flags,
         getAnimeScrapeProviderMenuOrder(flags),
-      ) as typeof ANIME_SCRAPE_PROVIDER_ORDER,
-      raceFirstWin: true,
-    }),
+      ),
     [flags],
   );
 
-  return useProviderScrapeLoop<
-    AnimeScrapeProviderId,
-    AnimeScrapeInput,
-    AnimeScrapeSuccessPayload
-  >(config);
+  const buildScrapeBody = useCallback(
+    (input: AnimeScrapeInput, providerId: string) => ({
+      mediaKind: "anime" as const,
+      providerId,
+      anilistId: input.anilistId,
+      episodeNumber: input.episodeNumber,
+      translationType: input.translationType,
+      query: input.query,
+      ...(input.tmdb ? { tmdb: input.tmdb } : {}),
+    }),
+    [],
+  );
+
+  const mapResult = useCallback(
+    (payload: ScrapePlaybackPayload): AnimeScrapeSuccessPayload => ({
+      ...payload,
+      providerId: payload.providerId as AnimeScrapeProviderId,
+      providerName:
+        ANIME_SCRAPE_PROVIDER_LABELS[payload.providerId as AnimeScrapeProviderId] ??
+        payload.providerName,
+      streamKind: payload.streamKind ?? "hls",
+    }),
+    [],
+  );
+
+  return usePlaybackResolve<AnimeScrapeInput, AnimeScrapeSuccessPayload>({
+    mediaKeyFor: animeScrapeMediaKeyFor,
+    providerOrderFor: () => providerOrder,
+    providerLabels: ANIME_SCRAPE_PROVIDER_LABELS,
+    buildScrapeBody,
+    mapResult,
+  });
 }
 
 export type UseAnimeScrapeReturn = ReturnType<typeof useAnimeScrape>;

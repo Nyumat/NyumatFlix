@@ -4,27 +4,21 @@ import {
   applyMoviSubtitlePreference,
   resolvePreferredSubtitleLang,
 } from "@/lib/playback/movi-subtitle-preference";
-import { TRACK_PREFERENCES_STORAGE_KEY } from "@/lib/playback/track-preferences-storage";
+import { updateTrackPreferences, resetTrackPreferencesForTests } from "@/lib/playback/track-preferences-storage";
 import type { MoviPlayerElement } from "@/lib/player/player-element";
 
 const scopeKey = "movie:42";
 
 describe("resolvePreferredSubtitleLang", () => {
   beforeEach(() => {
-    window.localStorage.clear();
+    resetTrackPreferencesForTests();
   });
 
   it("uses saved subtitle preference when present", () => {
-    window.localStorage.setItem(
-      TRACK_PREFERENCES_STORAGE_KEY,
-      JSON.stringify({
-        [scopeKey]: {
-          subtitleLang: "spanish",
-          audioLang: null,
-          updatedAt: 1,
-        },
-      }),
-    );
+    updateTrackPreferences(scopeKey, {
+      subtitleLang: "spanish",
+      audioLang: null,
+    });
 
     expect(
       resolvePreferredSubtitleLang(scopeKey, {
