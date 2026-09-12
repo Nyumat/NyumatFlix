@@ -66,3 +66,6 @@ UI_GOAL.md
 # act local secrets
 .act.secrets
 .deploy-desk/
+
+# local playwright captures
+output/
