@@ -38,6 +38,10 @@ GREEN_PORT="${GREEN_PORT:-8082}"
 HEALTH_WAIT_SECONDS="${HEALTH_WAIT_SECONDS:-60}"
 DRAIN_SECONDS="${DRAIN_SECONDS:-95}"
 DEPLOY_LOCK_FILE="${DEPLOY_LOCK_FILE:-$ROOT/.deploy.lock}"
+PREVIEW_IMAGE="nyumatflix-preview:local"
+PREVIEW_CONTAINER="nyumatflix-preview-local"
+PREVIEW_PORT="${PREVIEW_PORT:-9080}"
+PREVIEW_ENV_FILE="${PREVIEW_ENV_FILE:-$ROOT/.env.prod}"
 
 CONTAINER_MEMORY="${CONTAINER_MEMORY:-4200m}"
 CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:-4200m}"
@@ -48,7 +52,7 @@ CONTAINER_HEALTH_START_PERIOD="${CONTAINER_HEALTH_START_PERIOD:-45s}"
 
 cmd="${1:-}"
 if [[ -z "$cmd" ]]; then
-  echo "usage: $0 bp | serve | stop | history | current" >&2
+  echo "usage: $0 bp | serve | stop | history | current | preview-build | preview-serve | preview-stop" >&2
   exit 1
 fi
 
@@ -135,6 +139,21 @@ resolve_build_context() {
   printf '%s' "$ROOT"
 }
 
+build_image() {
+  local build_context="$1"
+  shift
+  local skip_player_build=0
+  if [[ "${SKIP_PLAYER_BUILD:-}" == "1" ]] || player_artifacts_ready; then
+    skip_player_build=1
+  fi
+  DOCKER_BUILDKIT=1 docker build --platform linux/amd64 \
+    --build-arg TMDB_API_KEY="${TMDB_API_KEY:-}" \
+    --build-arg CAP_API_ENDPOINT="${CAP_API_ENDPOINT:-}" \
+    --build-arg SKIP_PLAYER_BUILD="$skip_player_build" \
+    --cache-from "$DOCKER_REPO:latest" \
+    "$@" "$build_context"
+}
+
 build_push() {
   resolve_deploy_git_meta || true
   if [[ -n "${DEPLOY_SHA:-}" ]]; then
@@ -170,12 +189,7 @@ build_push() {
     cleanup_context=1
   fi
 
-  if ! DOCKER_BUILDKIT=1 docker build --platform linux/amd64 \
-    --build-arg TMDB_API_KEY="${TMDB_API_KEY:-}" \
-    --build-arg CAP_API_ENDPOINT="${CAP_API_ENDPOINT:-}" \
-    --build-arg SKIP_PLAYER_BUILD="$skip_player_build" \
-    --cache-from "$DOCKER_REPO:latest" \
-    "${tags[@]}" "$build_context"; then
+  if ! build_image "$build_context" "${tags[@]}"; then
     if [[ "$cleanup_context" == "1" ]]; then
       rm -rf "$build_context"
     fi
@@ -191,6 +205,77 @@ build_push() {
     docker push "$DOCKER_REPO:latest"
   fi
   echo "pushed $DOCKER_IMAGE"
+}
+
+preview_build() {
+  cd "$ROOT"
+  BUILD_ENV_FILE="$PREVIEW_ENV_FILE"
+  load_build_env
+  maybe_build_player_artifacts
+  build_image "$ROOT" -t "$PREVIEW_IMAGE" \
+    --label nyumatflix.preview=local \
+    --label "nyumatflix.preview.fingerprint=${DEPLOY_DESK_FINGERPRINT:-}"
+  echo "built $PREVIEW_IMAGE locally (no push)"
+}
+
+preview_stop() {
+  docker info >/dev/null
+  if docker container inspect "$PREVIEW_CONTAINER" >/dev/null 2>&1; then
+    local owner
+    owner="$(docker container inspect "$PREVIEW_CONTAINER" --format '{{index .Config.Labels "nyumatflix.preview"}}')"
+    if [[ "$owner" != "local" ]]; then
+      echo "refusing to remove container without the local preview label: $PREVIEW_CONTAINER" >&2
+      return 1
+    fi
+    docker rm -f "$PREVIEW_CONTAINER" >/dev/null
+  fi
+  echo "stopped local preview"
+}
+
+preview_serve() {
+  if [[ ! "$PREVIEW_PORT" =~ ^[0-9]+$ ]] || ((10#$PREVIEW_PORT < 1 || 10#$PREVIEW_PORT > 65535)); then
+    echo "invalid PREVIEW_PORT" >&2
+    return 1
+  fi
+  [[ -f "$PREVIEW_ENV_FILE" ]] || { echo "preview env file missing: $PREVIEW_ENV_FILE" >&2; return 1; }
+  docker image inspect "$PREVIEW_IMAGE" >/dev/null
+  preview_stop
+  # Check occupancy without starting a listener. Docker's bind is the final race-safe check.
+  if command -v lsof >/dev/null 2>&1; then
+    if lsof -nP -iTCP:"$PREVIEW_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+      echo "preview port $PREVIEW_PORT is already in use" >&2; return 1
+    fi
+  elif command -v ss >/dev/null 2>&1; then
+    if ss -ltnH | awk '{print $4}' | grep -Eq "(^|:)${PREVIEW_PORT}$"; then
+      echo "preview port $PREVIEW_PORT is already in use" >&2; return 1
+    fi
+  else
+    echo "lsof or ss is required to check the preview port" >&2; return 1
+  fi
+  docker run -d --name "$PREVIEW_CONTAINER" --restart no --init \
+    --label nyumatflix.preview=local \
+    --memory "$CONTAINER_MEMORY" --pids-limit 256 \
+    --security-opt no-new-privileges --cap-drop ALL \
+    --health-cmd 'curl -fsS --max-time 5 http://127.0.0.1:8080/api/healthz || exit 1' \
+    --health-interval 5s --health-timeout 5s --health-retries 12 --health-start-period 10s \
+    --log-opt max-size=10m --log-opt max-file=2 \
+    --add-host host.docker.internal:host-gateway \
+    -p "127.0.0.1:${PREVIEW_PORT}:8080" --env-file "$PREVIEW_ENV_FILE" \
+    -e NODE_ENV=production -e HOSTNAME=0.0.0.0 -e PORT=8080 "$PREVIEW_IMAGE"
+  local deadline health
+  deadline=$((SECONDS + HEALTH_WAIT_SECONDS))
+  while ((SECONDS < deadline)); do
+    health="$(docker container inspect "$PREVIEW_CONTAINER" --format '{{.State.Health.Status}}')"
+    if [[ "$health" == "healthy" ]]; then
+      echo "preview ready at http://127.0.0.1:$PREVIEW_PORT"; return 0
+    fi
+    [[ "$health" == "unhealthy" ]] && break
+    sleep 2
+  done
+  docker logs --tail 60 "$PREVIEW_CONTAINER" >&2
+  preview_stop
+  echo "preview failed its health check" >&2
+  return 1
 }
 
 acquire_deploy_lock() {
@@ -428,8 +513,11 @@ case "$cmd" in
   stop) stop_container ;;
   history) print_deploy_history "${2:-20}" ;;
   current) show_current ;;
+  preview-build) preview_build ;;
+  preview-serve) preview_serve ;;
+  preview-stop) preview_stop ;;
   *)
-    echo "unknown command: $cmd (use bp, serve, stop, history, or current)" >&2
+    echo "unknown command: $cmd (use bp, serve, stop, history, current, or preview-build/serve/stop)" >&2
     exit 1
     ;;
 esac

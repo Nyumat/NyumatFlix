@@ -1,0 +1,32 @@
+{
+  "name": "@nyumatflix/deploy-desk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun src/dev.ts",
+    "server:dev": "bun --watch src/server.ts",
+    "build": "vite build && bun build src/server.ts --target=bun --outdir=dist-server",
+    "start": "bun dist-server/server.js",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "lint": "biome check src vite.config.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "hono": "^4.12.0",
+    "lucide-react": "^0.544.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.2.4",
+    "@tailwindcss/vite": "^4.2.4",
+    "vite": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.5",
+    "@biomejs/biome": "2.2.4",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.3"
+  }
+}
