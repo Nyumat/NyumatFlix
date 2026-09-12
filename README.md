@@ -28,14 +28,24 @@
 ## 🏃🏾‍♂️ Run NyumatFlix Locally
 
 > [!IMPORTANT]
-> Prerequisites:
+> **Required**
 >
-> - [Bun](https://bun.sh/) installed on your machine.
-> - A [PostgreSQL](https://www.postgresql.org/) database.
-> - A [TMDb](https://www.themoviedb.org/) API key.
-> - A [Resend](https://resend.com/) API key.
+> - [Bun](https://bun.sh/) `1.3+` (see `packageManager` in root `package.json`)
+> - [Docker](https://www.docker.com/) — scrape stack on `bun run dev`, and first-time Movi player WASM build
+> - [PostgreSQL](https://www.postgresql.org/) (or [Neon](https://neon.tech/))
+> - [TMDb](https://www.themoviedb.org/) API key
+> - [Resend](https://resend.com/) API key (`AUTH_RESEND_KEY`)
+> - `AUTH_SECRET` — e.g. `openssl rand -base64 32`
+>
+> **Optional (feature-specific)**
+>
+> - `ID_MOE_API_KEY` — anime ↔ TMDB mapping
+> - `MAL_CLIENT_ID` / `MAL_CLIENT_SECRET` — MyAnimeList sync on login
+> - `scripts/gluetun/.env` — Surfshark (or other) WireGuard creds for scrape VPN egress
+> - `CALLUSPIRATES_*` — Direct playback provider (nyumatflix.com only in prod)
+> - `bun run cap:up` — self-hosted Cap instead of dev bypass on `/login`
 
-To run the project on your machine, follow the steps below:
+Monorepo layout: app in `apps/web`, shared packages in `packages/*`. Env lives at **repo root** (`.env.local`); `apps/web` symlinks to it on build/dev.
 
 1. Clone or fork the repository
 
@@ -44,59 +54,65 @@ git clone git@github.com:Nyumat/NyumatFlix.git
 cd NyumatFlix
 ```
 
-2. Next, create a `.env.local` file in the root directory of the project and add the following environment variables:
+2. Environment
 
 ```bash
-TMDB_API_KEY=
-ID_MOE_API_KEY=
-AUTH_SECRET=
-AUTH_RESEND_KEY=
-APP_URL=
-AUTH_URL=
-NEXTAUTH_URL=
-RESEND_FROM_EMAIL=
-DATABASE_URL=
+cp .env.example .env.local
 ```
 
-You can get your own instance of the API keys by creating an account on [TMDb](https://www.themoviedb.org/) and [Resend](https://resend.com/).
+Fill in at minimum: `TMDB_API_KEY`, `DATABASE_URL`, `AUTH_SECRET`, `AUTH_RESEND_KEY`. Local URLs are prefilled (`APP_URL` / `AUTH_URL` / `NEXTAUTH_URL` → `http://localhost:3000`). See `.env.example` for scrape (`FLARESOLVERR_URL`, `SCRAPE_PROXY_URL`), feature flags (`FLIPT_*`), and Cap.
 
 > [!TIP]
-> For a database, you can use any PostgreSQL-compatible database you want. I recommend using [Neon](https://neon.tech/) for production and [Local Postgres](https://www.postgresql.org/) for development.
-
-For local development, set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to `http://localhost:3000`.
+> Any Postgres-compatible host works. Neon is fine for dev and prod.
 
 3. Install dependencies
-
-Bun is the package manager of choice here, so you'll need to install it first. You can do so by following the instructions [here](https://bun.sh/docs/installation).
 
 ```bash
 bun install
 ```
 
-4. Configure magic strings
+4. Configure magic strings (optional)
 
-There's a few places in the codebase where I'm hardcoding some strings that you might want to change. You can find some of them in `lib/constants.ts`. Additionally, you might want to modify the email templates in `emails/` and `metadata` objects in `app/` and `layout/`.
+Hardcoded branding/metadata: `apps/web/lib/constants.ts`, `apps/web/emails/`, and `metadata` in `apps/web/app/`.
 
 > [!NOTE]
-> If you end up not changing the magic strings, that's fine too, but I'd appreciate credit if you re-deploy the project without modifications!
+> If you ship without changing these, credit is appreciated.
 
-5. Set up the database
+5. Database
 
 ```bash
-bun run db:generate
-bun run db:push
-bun run db:studio # tbh this is optional
+cd apps/web && bun run db:migrate
+# optional: bun run db:studio
 ```
 
-These will generate the necessary migration files and push the schema to your local (or remote) PostgreSQL database instance.
+Fresh schema only (no migration history): `bun run db:push`. After pulling schema changes: `bun run db:migrate`. Existing DBs from older deploys: `bun run db:ensure-baseline` then `db:migrate`.
 
-6. Run the development server
+6. Local scrape stack (optional but recommended for playback)
+
+`bun run dev` runs `scripts/bootstrap-scrape-vpn.sh ensure-local` first — starts **FlareSolverr** (`:8191`), **Flipt** (`:8090`), and **Gluetun** (`:8888` proxy, `:8000` control) when Docker is available. Writes scrape-related vars into `.env.local`.
+
+```bash
+# full bootstrap + prod env sync (needs SSH host `leetbot` unless you skip)
+bun run dev:stack
+
+# scrape stack only, no Next.js
+./scripts/bootstrap-scrape-vpn.sh ensure-local
+
+# skip scrape containers (metadata/browse still works; many scrapes will fail)
+SKIP_SCRAPE_STACK=1 bun run dev
+```
+
+Gluetun needs VPN creds in `scripts/gluetun/.env` (copy from `scripts/gluetun/.env.example`). Without VPN, FlareSolverr still helps; vixsrc/vidsrc/vidrock often need the proxy.
+
+7. Run the development server
 
 ```bash
 bun run dev
 ```
 
-7. Finally, open [http://localhost:3000](http://localhost:3000) in your browser to see the project in action!
+First run may build `@nyumatflix/player` via Docker if `public/vendor/player/` is missing.
+
+8. Open [http://localhost:3000](http://localhost:3000)
 
 <!-- ## Production infrastructure
 
@@ -161,86 +177,58 @@ Set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to your public origin in productio
 
 ### How do I add a new stream provider?
 
-Stream providers (the HTTP APIs) are the services that actually serve the video content. To add a new stream provider, you need to add it to the `videoServers` array in `lib/stores/server-store.ts`.
-
-Each stream provider must implement the `VideoServer` interface, which includes:
-
-- `id`: A unique identifier for the provider (e.g., `"vidsrc"`)
-- `name`: Display name for the provider (e.g., `"VidSrc"`)
-- `baseUrl`: Base URL of the provider's service
-- `getMovieUrl(tmdbId)`: Function that returns the embed URL for a movie
-- `getTvUrl(tmdbId)`: Function that returns the embed URL for a TV show
-- `getEpisodeUrl(tmdbId, season, episode)`: Function that returns the embed URL for a specific episode
-- Optional: `getAnimeUrl`, `getAnimePaheUrl`, `getVidnestUrl` for anime support
-- Optional: `checkAvailability` and `checkIndividualAvailability` for availability checking
-
-Here's an example of adding a new provider:
-
-```typescript
-{
-  id: "myprovider",
-  name: "My Provider",
-  baseUrl: "https://myprovider.com",
-  getMovieUrl: (tmdbId) => `https://myprovider.com/embed/movie/${tmdbId}`,
-  getTvUrl: (tmdbId) => `https://myprovider.com/embed/tv/${tmdbId}`,
-  getEpisodeUrl: (tmdbId, season, episode) =>
-    `https://myprovider.com/embed/tv/${tmdbId}?s=${season}&e=${episode}`,
-}
-```
-
-Add this object to the `videoServers` array in `lib/stores/server-store.ts`. The provider will automatically be available in the application's server selection UI.
+Embed providers live in `apps/web/lib/stores/server-store.ts` (`videoServers`). Scrape providers are under `apps/web/lib/scrape/providers/`. Each embed provider implements `VideoServer` (`id`, `name`, `baseUrl`, `getMovieUrl`, `getTvUrl`, `getEpisodeUrl`, optional anime helpers).
 
 ### How do I sign-in locally?
 
-When running the application in development mode (`NODE_ENV=development`), authentication works differently than in production:
+1. `bun run dev`
+2. Go to `http://localhost:3000/login`
+3. Submit your email
+4. **Dev:** magic link prints in the terminal (and there's an in-UI redirect). Cap is bypassed when `NODE_ENV=development`.
+5. **Prod:** link emailed via Resend (`AUTH_RESEND_KEY`, verified `RESEND_FROM_EMAIL` domain).
 
-1. **Start the development server**:
-   ```bash
-   bun run dev
-   ```
+## Local services
 
-2. **Navigate to the login page** at `http://localhost:3000/login`
+| Service | Port | Start | Purpose |
+| --- | --- | --- | --- |
+| Next.js | `3000` | `bun run dev` | App |
+| FlareSolverr | `8191` | auto / `bun run flaresolverr:up` | Cloudflare / Turnstile bypass for scrapes |
+| Gluetun | `8888`, `8000` | auto via bootstrap | VPN egress for blocked providers |
+| Flipt | `8090` | auto / `bun run flipt:up` | Feature flags / provider order |
+| Cap | `3030` | `bun run cap:up` | Login challenge (dev uses bypass without this) |
 
-3. **Enter your email address** and submit the form
-
-4. **Check your terminal/console** - Instead of sending an email, the magic link will be logged directly to your terminal with a formatted output like this:
-
-   ```
-   ============================================================
-   🔐 MAGIC LINK FOR DEVELOPMENT
-   ============================================================
-   📧 Email: your-email@example.com
-   🔗 Magic Link: http://localhost:3000/api/auth/callback/resend?...
-   ============================================================
-   ⚠️  Development mode: Email not sent. Use the link above to sign in.
-   ============================================================
-   ```
-
-> [!TIP]
-> In development mode, there's a btn that will redirect you to the callback URL and sign you in. The link is also logged to the terminal in case you need to manually access it or if the redirect doesn't work.
->
->In production, magic links are still sent via email using Resend. The development mode bypasses email sending for convenience during local development.
+Compose project: `./scripts/local-compose.sh <cmd>`. Stack status: `bun run stack:status`.
 
 ## 📝 Scripts
 
-| Script         | Description                                                          |
-| -------------- | -------------------------------------------------------------------- |
-| `dev`          | Run Next.js development server.                                      |
-| `build`        | Build the Next.js application.                                       |
-| `start`        | Start the Next.js production server.                                 |
-| `format`       | Format code using Biome.                                             |
-| `check-format` | Check formatting using Biome.                                        |
-| `type-check`   | Run TypeScript type-checking using the `tsc` compiler.               |
-| `lint`         | Run Biome checks.                                                    |
-| `lint:fix`     | Fix Biome issues where possible.                                     |
-| `test-ci`      | Run the Vitest suite once.                                           |
-| `test`         | Run Vitest in watch mode.                                            |
-| `precommit`    | Run formatting, linting, and type-checking.                          |
-| `prepare`      | Install Husky Git hooks.                                             |
-| `db:generate`  | Generate a new migration file based on schema changes.               |
-| `db:push`      | Push the current schema to the database without a migration file.    |
-| `db:studio`    | Open Drizzle's database studio for managing the database.            |
-| `db:migrate`   | Apply pending migrations to the database.                            |
+Root (`package.json`):
+
+| Script | Description |
+| --- | --- |
+| `dev` | Turbo → Next dev + scrape bootstrap |
+| `dev:stack` | Full scrape/VPN bootstrap (`bootstrap-scrape-vpn.sh local`) |
+| `dev:sync` | Sync scrape env from prod VPS into `.env.local` |
+| `build` / `test` / `lint` / `typecheck` | Turbo across workspaces |
+| `flaresolverr:up` / `flipt:up` / `cap:up` | Start individual compose services |
+| `stack:status` | `docker compose ps` for local stack |
+
+`apps/web`:
+
+| Script | Description |
+| --- | --- |
+| `dev` | Next.js (Turbopack) |
+| `build` / `start` | Production build / server |
+| `format` / `check-format` / `lint` / `lint:fix` | Biome |
+| `type-check` | `tsc` |
+| `test` / `test:watch` / `test-ci` | Vitest |
+| `precommit` | format + lint + type-check |
+| `db:generate` | New Drizzle migration from schema |
+| `db:migrate` | Apply pending migrations |
+| `db:push` | Push schema without migration files |
+| `db:ensure-baseline` | Stamp baseline on existing DBs |
+| `db:repair-watchlist` | Fix legacy watchlist status values |
+| `db:studio` | Drizzle Studio |
+| `ensure-player` | Build/copy Movi player vendor assets |
 
 ## 🤝🏿 Contributing
 

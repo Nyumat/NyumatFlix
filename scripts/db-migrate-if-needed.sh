@@ -1,39 +1,67 @@
 #!/usr/bin/env bash
-# Apply Drizzle migrations to production only when the journal has pending entries.
-# Usage: ./scripts/db-migrate-if-needed.sh
+# Sync production schema: repair legacy rows, stamp baseline if needed, run migrations.
+#
+# Usage (from repo root):
+#   ENV_FILE=/absolute/path/.env.prod ./scripts/db-migrate-if-needed.sh
+#
+# CI usage (secrets only):
+#   PROD_DATABASE_URL=... ./scripts/db-migrate-if-needed.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="${ENV_FILE:-$ROOT/.env.prod}"
-JOURNAL_FILE="${JOURNAL_FILE:-$ROOT/db/migrations/meta/_journal.json}"
+WEB_DIR="$ROOT/apps/web"
 
 die() {
   echo "db-migrate-if-needed: $*" >&2
   exit 1
 }
 
-[[ -f "$ENV_FILE" ]] || die "env file missing: $ENV_FILE"
-[[ -f "$JOURNAL_FILE" ]] || die "migration journal missing: $JOURNAL_FILE"
+[[ -d "$WEB_DIR" ]] || die "web app missing: $WEB_DIR"
 
-journal_count="$(jq '.entries | length' "$JOURNAL_FILE")"
-applied_count="$(
-  bunx dotenv -e "$ENV_FILE" -- bun -e "
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
-const rows = await sql\`SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations\`;
-console.log(rows[0]?.count ?? 0);
-"
-)"
-
-if [[ "$applied_count" -ge "$journal_count" ]]; then
-  echo "database migrations up to date (${applied_count}/${journal_count})"
-  exit 0
+if [[ -f "$ENV_FILE" ]]; then
+  ENV_FILE="$(cd "$(dirname "$ENV_FILE")" && pwd)/$(basename "$ENV_FILE")"
+  echo "using env file: $ENV_FILE"
+  DOTENV_PREFIX=(bunx dotenv -e "$ENV_FILE" --)
+else
+  echo "no env file — using process environment"
+  DOTENV_PREFIX=()
 fi
 
-pending_count=$((journal_count - applied_count))
-echo "applying ${pending_count} pending migration(s) (${applied_count}/${journal_count} applied)"
-bunx dotenv -e "$ENV_FILE" -- bun run db:migrate
-echo "database migrations complete"
+run_web() {
+  local cmd="$1"
+  if [[ ${#DOTENV_PREFIX[@]} -gt 0 ]]; then
+    (
+      cd "$WEB_DIR"
+      "${DOTENV_PREFIX[@]}" bash -c "
+        set -euo pipefail
+        export DATABASE_URL=\"\${PROD_DATABASE_URL:-\${DATABASE_URL:-}}\"
+        [[ -n \"\$DATABASE_URL\" ]] || { echo 'DATABASE_URL missing' >&2; exit 1; }
+        $cmd
+      "
+    )
+  else
+    (
+      cd "$WEB_DIR"
+      bash -c "
+        set -euo pipefail
+        export DATABASE_URL=\"\${PROD_DATABASE_URL:-\${DATABASE_URL:-}}\"
+        [[ -n \"\$DATABASE_URL\" ]] || { echo 'DATABASE_URL missing' >&2; exit 1; }
+        $cmd
+      "
+    )
+  fi
+}
+
+echo "repairing legacy watchlist statuses (if any)..."
+run_web "bun run db:repair-watchlist"
+
+echo "ensuring migration baseline is stamped for existing databases..."
+run_web "bun run db:ensure-baseline"
+
+echo "applying pending drizzle migrations..."
+run_web "bun run db:migrate"
+
+echo "production database schema sync complete"

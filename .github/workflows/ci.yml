@@ -172,6 +172,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --ignore-scripts
+
+      - name: Sync production database
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: ./scripts/db-migrate-if-needed.sh
+
       - name: Set up SSH key
         run: |
           install -m 700 -d ~/.ssh
@@ -181,12 +194,12 @@ jobs:
 
       - name: Sync deploy files
         run: |
-          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/scripts'"
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/infra' '$DEPLOY_PATH/scripts'"
           rsync -avz -e "ssh -p $DEPLOY_PORT" \
-            docker-compose.scrape.yml docker-compose.ffs.yml docker-compose.imgproxy.yml \
-            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+            infra/docker-compose.scrape.yml infra/docker-compose.ffs.yml infra/docker-compose.imgproxy.yml \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/infra/"
           rsync -avz -e "ssh -p $DEPLOY_PORT" \
-            scripts/deploy.sh scripts/deploy-lib.sh scripts/reconcile-prod-infra.sh \
+            scripts/deploy.sh scripts/deploy-lib.sh scripts/reconcile-prod-infra.sh scripts/db-migrate-if-needed.sh \
             "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/scripts/"
           if [[ -d flipt ]]; then
             rsync -avz -e "ssh -p $DEPLOY_PORT" \

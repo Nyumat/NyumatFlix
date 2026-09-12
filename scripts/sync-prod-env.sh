@@ -22,21 +22,29 @@ push_env() {
 
   echo "syncing managed env keys to ${SSH_HOST}:~/${REMOTE_DIR}/.env"
 
-  ssh "$SSH_HOST" "mkdir -p \"\$HOME/${REMOTE_DIR}/scripts\""
+  ssh "$SSH_HOST" "mkdir -p \"\$HOME/${REMOTE_DIR}/infra\" \"\$HOME/${REMOTE_DIR}/scripts\""
   rsync -avz "$SEED_ENV_FILE" "${SSH_HOST}:~/${REMOTE_DIR}/.env.prod"
   rsync -avz \
-    "$ROOT/docker-compose.scrape.yml" \
-    "$ROOT/docker-compose.ffs.yml" \
-    "$ROOT/docker-compose.imgproxy.yml" \
-    "$ROOT/docker-compose.cap.yml" \
-    "$ROOT/docker-compose.crowdsec.yml" \
-    "${SSH_HOST}:~/${REMOTE_DIR}/"
+    "$ROOT/infra/docker-compose.scrape.yml" \
+    "$ROOT/infra/docker-compose.ffs.yml" \
+    "$ROOT/infra/docker-compose.imgproxy.yml" \
+    "$ROOT/infra/docker-compose.cap.yml" \
+    "$ROOT/infra/docker-compose.crowdsec.yml" \
+    "${SSH_HOST}:~/${REMOTE_DIR}/infra/"
   rsync -avz \
     "$ROOT/scripts/crowdsec/" \
     "${SSH_HOST}:~/${REMOTE_DIR}/scripts/crowdsec/"
   rsync -avz \
     "$MANAGED_KEYS_FILE" \
     "$ROOT/scripts/reconcile-prod-infra.sh" \
+    "$ROOT/scripts/infra-health.sh" \
+    "$ROOT/scripts/nyumatflix-infra-watchdog.sh" \
+    "$ROOT/scripts/nyumatflix-infra-watchdog.service" \
+    "$ROOT/scripts/nyumatflix-infra-watchdog.timer" \
+    "$ROOT/scripts/nyumatflix-watchdog.sh" \
+    "$ROOT/scripts/nyumatflix-watchdog.service" \
+    "$ROOT/scripts/nyumatflix-watchdog.timer" \
+    "$ROOT/scripts/install-prod-watchdogs.sh" \
     "$ROOT/scripts/reconcile-cap.sh" \
     "$ROOT/scripts/reconcile-crowdsec.sh" \
     "$ROOT/scripts/lock-cap-cors.sh" \
@@ -51,9 +59,10 @@ push_env() {
     rsync -avz "$ROOT/flipt/" "${SSH_HOST}:~/${REMOTE_DIR}/flipt/"
   fi
 
-  ssh "$SSH_HOST" "chmod +x \"\$HOME/${REMOTE_DIR}/scripts/deploy.sh\" \"\$HOME/${REMOTE_DIR}/scripts/deploy-lib.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-prod-infra.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-cap.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-crowdsec.sh\" \"\$HOME/${REMOTE_DIR}/scripts/lock-cap-cors.sh\" \"\$HOME/${REMOTE_DIR}/scripts/update-cap-key-cors.sh\""
+  ssh "$SSH_HOST" "chmod +x \"\$HOME/${REMOTE_DIR}/scripts/deploy.sh\" \"\$HOME/${REMOTE_DIR}/scripts/deploy-lib.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-prod-infra.sh\" \"\$HOME/${REMOTE_DIR}/scripts/infra-health.sh\" \"\$HOME/${REMOTE_DIR}/scripts/nyumatflix-infra-watchdog.sh\" \"\$HOME/${REMOTE_DIR}/scripts/install-prod-watchdogs.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-cap.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-crowdsec.sh\" \"\$HOME/${REMOTE_DIR}/scripts/lock-cap-cors.sh\" \"\$HOME/${REMOTE_DIR}/scripts/update-cap-key-cors.sh\""
   ssh "$SSH_HOST" "NYUMATFLIX_ROOT=\"\$HOME/${REMOTE_DIR}\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-prod-infra.sh\" ensure"
   ssh "$SSH_HOST" "CAP_ENV_FILE=\"\$HOME/${REMOTE_DIR}/.env\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-cap.sh\" ensure"
+  ssh "$SSH_HOST" "sudo NYUMATFLIX_ROOT=\"\$HOME/${REMOTE_DIR}\" \"\$HOME/${REMOTE_DIR}/scripts/install-prod-watchdogs.sh\" || true"
   echo "production env synced"
 }
 

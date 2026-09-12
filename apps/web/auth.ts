@@ -1,4 +1,4 @@
-import { accounts, db, sessions, users, verificationTokens } from "@/db/schema";
+import { accounts, db, sessions, users, verificationTokens } from "@/db";
 import { html, text } from "@/emails/email-helpers";
 import {
   MAGIC_LINK_RESEND_FROM,
