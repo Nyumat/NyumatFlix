@@ -75,6 +75,8 @@ export const scrapeBypassesProxyHostname = (
 
   return (
     hostname === "graphql.anilist.co" ||
+    hostname === "cdn.allanime.day" ||
+    hostname === "mkissa.to" ||
     hostname === "api.kyren.moe" ||
     hostname === "kyren.moe" ||
     /(?:^|\.)(?:vivibebe\.site|megaplay\.buzz)$/.test(hostname) ||

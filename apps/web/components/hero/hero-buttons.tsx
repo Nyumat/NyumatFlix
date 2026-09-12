@@ -372,7 +372,7 @@ export function HeroButtons({
   );
 
   return (
-    <div className="flex items-center justify-center gap-2 sm:gap-3">
+    <div className="flex max-w-full flex-wrap items-center justify-start gap-2 sm:gap-3">
       {isWatchDisabled ? (
         <Tooltip>
           <TooltipTrigger

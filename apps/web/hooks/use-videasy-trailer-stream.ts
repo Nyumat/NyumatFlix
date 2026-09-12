@@ -12,6 +12,18 @@ export interface UseVideasyTrailerStreamResult {
 }
 
 const MAX_STREAM_RETRIES = 2;
+const STREAM_CACHE_TTL_MS = 60_000;
+const INITIAL_STREAM_DELAY_MS = 2500;
+const STREAM_IDLE_TIMEOUT_MS = 2000;
+
+type TrailerStreams = { mp4: string | null; hls: string | null };
+
+type TrailerStreamCacheEntry = {
+  expiresAt: number;
+  promise: Promise<TrailerStreams>;
+};
+
+const streamCache = new Map<string, TrailerStreamCacheEntry>();
 
 const parseBody = (
   body: unknown,
@@ -26,13 +38,10 @@ const parseBody = (
   return { mp4, hls };
 };
 
-const fetchTrailerStreams = async (
-  imdbId: string,
-  signal: AbortSignal,
-): Promise<{ mp4: string | null; hls: string | null }> => {
+const fetchTrailerStreams = async (imdbId: string): Promise<TrailerStreams> => {
   const res = await fetch(
     `/api/trailers/videasy?imdbId=${encodeURIComponent(imdbId)}`,
-    { signal, cache: "no-store" },
+    { cache: "no-store" },
   );
   const body: unknown = await res.json().catch(() => null);
 
@@ -46,6 +55,28 @@ const fetchTrailerStreams = async (
   }
 
   return streams;
+};
+
+const getTrailerStreams = (imdbId: string): Promise<TrailerStreams> => {
+  const cached = streamCache.get(imdbId);
+  const now = Date.now();
+
+  if (cached && cached.expiresAt > now) {
+    return cached.promise;
+  }
+
+  const promise = fetchTrailerStreams(imdbId);
+  streamCache.set(imdbId, {
+    expiresAt: now + STREAM_CACHE_TTL_MS,
+    promise,
+  });
+  promise.catch(() => {
+    if (streamCache.get(imdbId)?.promise === promise) {
+      streamCache.delete(imdbId);
+    }
+  });
+
+  return promise;
 };
 
 export const useVideasyTrailerStream = (
@@ -83,7 +114,7 @@ export const useVideasyTrailerStream = (
       loadingRef.current = true;
 
       try {
-        const streams = await fetchTrailerStreams(imdbId, controller.signal);
+        const streams = await getTrailerStreams(imdbId);
 
         if (controller.signal.aborted || requestId !== requestIdRef.current) {
           return;
@@ -134,12 +165,31 @@ export const useVideasyTrailerStream = (
       return;
     }
 
-    void loadStreams();
+    let startDelayId: number | null = null;
+    let idleId: number | null = null;
+
+    startDelayId = window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === "function") {
+        idleId = window.requestIdleCallback(
+          () => {
+            void loadStreams();
+          },
+          { timeout: STREAM_IDLE_TIMEOUT_MS },
+        );
+        return;
+      }
+
+      void loadStreams();
+    }, INITIAL_STREAM_DELAY_MS);
 
     return () => {
       abortRef.current?.abort();
       abortRef.current = null;
       requestIdRef.current += 1;
+      if (startDelayId !== null) window.clearTimeout(startDelayId);
+      if (idleId !== null && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
     };
   }, [imdbId, enabled, loadStreams]);
 

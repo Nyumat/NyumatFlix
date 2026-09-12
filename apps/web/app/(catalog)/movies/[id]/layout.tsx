@@ -1,0 +1,80 @@
+import {
+  DETAIL_CONTENT_CONTAINER_CLASS,
+  DetailPageLoading,
+} from "@/components/layout/page-loading/detail-page-loading";
+import { MediaDetailLayout } from "@/components/media/media-server";
+import { hydrateMovieDetailQueries } from "@/lib/prefetch-media-detail-queries";
+import { getCachedMovieDetail } from "@/lib/media-detail-cache";
+import { getDetailRouteSearchParams } from "@/lib/detail-search-params";
+import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
+import { getAnilistIdForMedia, isAnime } from "@/utils/anilist-helpers";
+import { isUpcomingMovie } from "@/utils/movie-helpers";
+import { dehydrate, QueryClient } from "@tanstack/react-query";
+import { HydrationBoundary } from "@tanstack/react-query";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+
+export const revalidate = 3600;
+
+type Props = {
+  children: React.ReactNode;
+  params: Promise<{ id: string }>;
+};
+
+const parsePositiveInt = (value: string | null) => {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+async function MovieDetailLayoutContent({ children, params }: Props) {
+  const { id } = await params;
+  const movie = await getCachedMovieDetail(id);
+
+  if (!movie || !("title" in movie)) {
+    notFound();
+  }
+  if ("adult" in movie && movie.adult) {
+    notFound();
+  }
+
+  const requestSearchParams = await getDetailRouteSearchParams();
+  const queryAnilistId = parsePositiveInt(requestSearchParams.get("anilistId"));
+  const numericMovieId = Number.parseInt(id, 10);
+  const shouldAutoResolveAnime = queryAnilistId === null && isAnime(movie);
+  const mappedAnilistId =
+    shouldAutoResolveAnime && Number.isInteger(numericMovieId)
+      ? await getAnilistIdFromFribb(numericMovieId, "movie")
+      : null;
+  const anilistId =
+    queryAnilistId ??
+    mappedAnilistId ??
+    (shouldAutoResolveAnime ? await getAnilistIdForMedia(movie) : null);
+  const isUpcoming = isUpcomingMovie(movie);
+
+  const queryClient = new QueryClient();
+  await hydrateMovieDetailQueries(queryClient, id, movie);
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <MediaDetailLayout
+        media={[movie]}
+        mediaType="movie"
+        isUpcoming={isUpcoming}
+        anilistId={anilistId}
+        contentContainerClassName={DETAIL_CONTENT_CONTAINER_CLASS}
+      >
+        <div className="mt-4">{children}</div>
+      </MediaDetailLayout>
+    </HydrationBoundary>
+  );
+}
+
+export default function MovieDetailLayout({ children, params }: Props) {
+  return (
+    <Suspense fallback={<DetailPageLoading mediaType="movie" />}>
+      <MovieDetailLayoutContent params={params}>
+        {children}
+      </MovieDetailLayoutContent>
+    </Suspense>
+  );
+}

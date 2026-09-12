@@ -9,8 +9,8 @@ import {
 } from "@/lib/person-popular";
 import { enrichPeopleWithDeathday } from "@/lib/server/person-enrichment";
 
-import { StaticHero } from "@/components/hero/hero-static";
-import { ContentContainer } from "@/components/layout/content-container";
+import { IndexHeader } from "@/components/catalog/index-header";
+import { IndexPage } from "@/components/catalog/index-page";
 import { ListPagination } from "@/components/shared/list-pagination";
 import { PersonCard } from "./person-card";
 
@@ -51,31 +51,18 @@ export const PersonList: React.FC<PersonListProps> = async ({
   const peopleWithDeathday = await enrichPeopleWithDeathday(people);
 
   return (
-    <div className="flex w-full flex-col">
-      <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
+    <IndexPage
+      header={
+        <IndexHeader title={title ?? "People"} description={description} />
+      }
+    >
+      <div className="grid-list">
+        {peopleWithDeathday.map((person) => (
+          <PersonCard key={person.id} {...person} />
+        ))}
+      </div>
 
-      <ContentContainer className="relative z-10 flex w-full flex-col items-center">
-        <div className="container max-w-7xl space-y-8 px-2 pb-12 pt-14 sm:px-4 md:pt-16">
-          <div className="flex flex-col gap-4">
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-              {title}
-            </h1>
-            {description ? (
-              <p className="mx-auto mt-2 max-w-3xl text-muted-foreground">
-                {description}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="grid-list">
-            {peopleWithDeathday.map((person) => (
-              <PersonCard key={person.id} {...person} />
-            ))}
-          </div>
-
-          <ListPagination currentPage={currentPage} totalPages={totalPages} />
-        </div>
-      </ContentContainer>
-    </div>
+      <ListPagination currentPage={currentPage} totalPages={totalPages} />
+    </IndexPage>
   );
 };

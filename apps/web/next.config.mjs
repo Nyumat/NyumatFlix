@@ -58,6 +58,10 @@ const nextConfig = {
       key: "Cache-Control",
       value: "public, max-age=31536000, immutable",
     };
+    const longLivedPublicAsset = {
+      key: "Cache-Control",
+      value: "public, max-age=86400, stale-while-revalidate=604800",
+    };
 
     return [
       {
@@ -71,6 +75,10 @@ const nextConfig = {
       {
         source: "/movie-banner.webp",
         headers: [immutablePublicAsset],
+      },
+      {
+        source: "/ascii-art-21st.webm",
+        headers: [longLivedPublicAsset],
       },
       {
         source: "/favicon.ico",

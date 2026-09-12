@@ -1,4 +1,9 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+
+type RowFallbackProps = {
+  bleed?: boolean;
+};
 
 export const CatalogGridFallback = () => (
   <div className="space-y-6" aria-hidden>
@@ -9,12 +14,9 @@ export const CatalogGridFallback = () => (
         <Skeleton className="h-8 w-10 rounded-md" />
       </div>
     </div>
-    <div className="flex flex-wrap gap-4">
+    <div className="grid-list">
       {Array.from({ length: 10 }).map((_, index) => (
-        <div
-          key={index}
-          className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]"
-        >
+        <div key={index} className="min-w-0">
           <Skeleton className="aspect-poster w-full rounded-[28px]" />
         </div>
       ))}
@@ -22,45 +24,68 @@ export const CatalogGridFallback = () => (
   </div>
 );
 
-export const CatalogRowFallback = () => (
-  <div className="space-y-4" aria-hidden>
-    <div className="flex items-center justify-between">
-      <Skeleton className="h-6 w-40 rounded-lg" />
-      <div className="hidden gap-2 md:flex">
-        <Skeleton className="h-8 w-16 rounded-lg" />
-        <Skeleton className="h-8 w-8 rounded-lg" />
-        <Skeleton className="h-8 w-8 rounded-lg" />
-      </div>
+export const CatalogRowFallback = ({
+  bleed = false,
+}: RowFallbackProps = {}) => (
+  <div className={cn("space-y-4", bleed && "index-bleed")} aria-hidden>
+    <div
+      className={cn(
+        "flex items-baseline justify-between gap-3",
+        bleed ? "index-rail-padding" : "px-1",
+      )}
+    >
+      <Skeleton className={cn("rounded-lg", bleed ? "h-8 w-64" : "h-6 w-40")} />
+      <Skeleton className="h-4 w-14 shrink-0 rounded-md" />
     </div>
-    <div className="flex gap-4 overflow-hidden">
+    <div
+      className={cn(
+        "flex overflow-hidden",
+        bleed ? "index-rail-padding gap-3 lg:gap-4" : "gap-4",
+      )}
+    >
       {Array.from({ length: 6 }).map((_, index) => (
         <Skeleton
           key={index}
-          className="aspect-poster w-[calc(50%-0.5rem)] shrink-0 rounded-[28px] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]"
+          className={cn(
+            "aspect-poster w-[46%] shrink-0 rounded-[28px] sm:w-[31%] md:w-[24%] lg:w-44 xl:w-48 2xl:w-52",
+          )}
         />
       ))}
     </div>
   </div>
 );
 
-export const RecentlyWatchedRowFallback = () => (
-  <section aria-label="Continue watching" aria-hidden>
-    <div className="mb-4 flex items-center justify-between gap-3 rounded-md p-2 pr-3 md:justify-start md:gap-4 md:pr-4">
-      <div className="min-w-0 flex-1 md:mr-32">
-        <Skeleton className="h-6 w-44 rounded-lg md:h-5" />
+export const RecentlyWatchedRowFallback = ({
+  bleed = false,
+}: RowFallbackProps = {}) => (
+  <section
+    aria-label="Continue watching"
+    className={cn(bleed && "index-bleed")}
+    aria-hidden
+  >
+    <div
+      className={cn(
+        "mb-4 flex items-baseline justify-between gap-3",
+        bleed ? "index-rail-padding" : "px-1",
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <Skeleton
+          className={cn("rounded-lg", bleed ? "h-8 w-64" : "h-6 w-44")}
+        />
       </div>
-      <Skeleton className="ml-auto h-8 w-20 shrink-0 rounded-lg" />
-      <div className="ml-4 hidden shrink-0 items-center gap-2 md:flex">
-        <Skeleton className="mr-4 h-4 w-10 rounded-md" />
-        <Skeleton className="h-8 w-8 rounded-lg" />
-        <Skeleton className="h-8 w-8 rounded-lg" />
-      </div>
+      <Skeleton className="ml-auto h-4 w-16 shrink-0 rounded-md" />
     </div>
-    <div className="-ml-3 flex overflow-hidden">
+    <div
+      className={cn(
+        "-ml-3 flex overflow-hidden lg:-ml-4",
+        bleed && "index-rail-padding",
+      )}
+    >
       {Array.from({ length: 4 }).map((_, index) => (
         <div
           key={index}
-          className="basis-[85%] shrink-0 pl-3 sm:basis-[70%] md:basis-[42%] lg:basis-[32%] xl:basis-[28%]"
+          className="basis-[82%] shrink-0 pl-3 sm:basis-[58%] md:basis-[42%] lg:basis-[26rem] lg:pl-4 xl:basis-[28rem] 2xl:basis-[30rem]"
         >
           <div className="relative overflow-hidden rounded-xs">
             <Skeleton className="aspect-video w-full rounded-xs" />
@@ -84,7 +109,7 @@ export const CatalogHeroPairFallback = () => (
         key={key}
         className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-card/30 shadow-xl backdrop-blur-md"
       >
-        <Skeleton className="h-72 w-full rounded-none md:h-80" />
+        <Skeleton className="h-index-feature w-full rounded-none" />
         <div className="absolute inset-x-0 bottom-0 space-y-2 bg-linear-to-t from-black/80 to-transparent p-4">
           <Skeleton className="h-5 w-24 rounded-full" />
           <Skeleton className="h-7 w-2/3 max-w-xs rounded-lg" />
@@ -100,7 +125,7 @@ export const CatalogSpotlightFallback = () => (
     aria-hidden
   >
     <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/90 via-background/40 to-background/20" />
-    <div className="relative flex h-hero flex-col items-center justify-end gap-4 px-4 pb-8 pt-16 text-center md:gap-5 md:px-8 md:pb-10">
+    <div className="relative flex h-index-spotlight flex-col items-center justify-end gap-4 px-4 pb-8 pt-16 text-center md:gap-5 md:px-8 md:pb-10">
       <Skeleton className="h-6 w-28 rounded-full" />
       <Skeleton className="h-10 w-[min(70%,20rem)] rounded-lg md:h-12" />
       <div className="flex flex-wrap justify-center gap-2">
@@ -127,7 +152,7 @@ export const CatalogCollectionsFallback = () => (
       <Skeleton className="h-4 w-full max-w-md rounded-md" />
     </div>
 
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:gap-6">
       {[0, 1, 2, 3].map((key) => (
         <div
           key={key}

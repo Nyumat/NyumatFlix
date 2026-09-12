@@ -3,6 +3,7 @@
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { getHref } from "@/lib/cards/selectors";
 import { hasPosterPath } from "@/lib/media-poster-path";
+import { cn } from "@/lib/utils";
 import { type MediaItem } from "@/lib/domain/typings";
 import { useEffect, useState } from "react";
 import { ContentCard } from "./content-card";
@@ -14,6 +15,7 @@ export interface VirtualizedContentRowProps {
   href: string;
   onLoadMore?: () => Promise<MediaItem[]>;
   hasMoreItems?: boolean;
+  bleed?: boolean;
 }
 
 export function VirtualizedContentRow({
@@ -22,6 +24,7 @@ export function VirtualizedContentRow({
   href,
   onLoadMore,
   hasMoreItems = false,
+  bleed = false,
 }: VirtualizedContentRowProps) {
   const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -39,19 +42,20 @@ export function VirtualizedContentRow({
   }, [initialItems, items]);
 
   return (
-    <div className="mx-4 md:mx-8">
-      <ContentRowHeader title={title} href={href} />
+    <section className={cn(bleed && "index-bleed")}>
+      <ContentRowHeader bleed={bleed} title={title} href={href} />
 
       <div className="relative">
-        <div className="grid grid-cols-4 gap-4">
+        <div className={cn("grid-list", bleed && "index-rail-padding")}>
           {items.filter(hasPosterPath).map((item, index) => (
-            <ContentCard
-              key={`${item.id}-${index}`}
-              item={item}
-              isMobile={false}
-              rating={item.content_rating || undefined}
-              href={getHref(item)}
-            />
+            <div key={`${item.id}-${index}`} className="min-w-0">
+              <ContentCard
+                item={item}
+                isMobile={false}
+                rating={item.content_rating || undefined}
+                href={getHref(item)}
+              />
+            </div>
           ))}
         </div>
 
@@ -84,7 +88,7 @@ export function VirtualizedContentRow({
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 

@@ -216,9 +216,13 @@ export function HeroBackground({
     Number.isFinite(anilistId) &&
     anilistId > 0;
 
+  const playbackEpisodeStillPath = isPlayingVideo
+    ? selectedEpisode?.still_path
+    : undefined;
+
   const heroImage = resolveHeroBackgroundImage(media, {
     preferPosterWhenNoBackdrop: preferPosterHero,
-    episodeStillPath: selectedEpisode?.still_path,
+    episodeStillPath: playbackEpisodeStillPath,
   });
   const heroImageSrc = heroImage
     ? heroBackgroundImageUrl(heroImage, "original")
@@ -228,8 +232,8 @@ export function HeroBackground({
     heroImageSrc,
     preferPosterWhenNoBackdrop: preferPosterHero,
   });
-  const playbackBackdropUrl = selectedEpisode?.still_path
-    ? tmdbImage.backdrop(selectedEpisode.still_path, "w1280")
+  const playbackBackdropUrl = playbackEpisodeStillPath
+    ? tmdbImage.backdrop(playbackEpisodeStillPath, "w1280")
     : heroImage
       ? heroBackgroundImageUrl(
           heroImage,

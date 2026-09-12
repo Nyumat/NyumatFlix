@@ -7,6 +7,7 @@ import {
   resolveTvDetailRouteId,
   toAnilistTvRouteSlug,
 } from "@/lib/anilist-route-id";
+import { isKitsuAnimeRouteId } from "@/lib/kitsu/route-id";
 import { isMalAnimeRouteId } from "@/lib/mal/route-id";
 import {
   isTmdbAnimeRouteId,
@@ -52,7 +53,7 @@ export const isAnilistBackedTvRouteId = (
   routeId: string,
   catalog: TvDetailCatalog | null,
 ): boolean => {
-  if (isMalAnimeRouteId(routeId)) {
+  if (isMalAnimeRouteId(routeId) || isKitsuAnimeRouteId(routeId)) {
     return false;
   }
 
@@ -68,7 +69,11 @@ export const toTvApiRouteId = (
   routeId: string,
   catalog: TvDetailCatalog | null,
 ): string => {
-  if (isMalAnimeRouteId(routeId) || isTmdbAnimeRouteId(routeId)) {
+  if (
+    isMalAnimeRouteId(routeId) ||
+    isKitsuAnimeRouteId(routeId) ||
+    isTmdbAnimeRouteId(routeId)
+  ) {
     return routeId;
   }
 

@@ -76,6 +76,7 @@ export const NavbarClient = () => {
       /^\/anime$/,
       ...(liveTvEnabled ? [/^\/live$/] : []),
       /^\/trending(?:\/(?:movie|people|tv))?$/,
+      /^\/providers\/[^/]+$/,
       /^\/browse\/(?:country|genre)\/[^/]+$/,
       /^\/people\/popular$/,
     ];

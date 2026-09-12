@@ -331,14 +331,18 @@ export const fetchKitsuAnimePageEffect = (
 ): Effect.Effect<KitsuAnimePageResult | null, CatalogProviderError> =>
   Effect.gen(function* () {
     const page = query.page ?? 1;
-    // Kitsu caps page[limit] at 20; larger pages are sliced by the caller.
-    const perPage = query.perPage ?? 24;
-    const limit = Math.min(perPage, 20);
+    // Kitsu caps page[limit] at 20; pagination math must use the actual limit.
+    const requestedPerPage = query.perPage ?? 24;
+    const limit = Math.min(requestedPerPage, 20);
     const path = buildKitsuAnimePath({ ...query, page, perPage: limit });
-    const result = yield* readKitsuAnimePageEffect(path, { page, perPage });
+    const result = yield* readKitsuAnimePageEffect(path, {
+      page,
+      perPage: limit,
+    });
     if (!result) return null;
-    if (result.items.length === 0) return emptyKitsuPage(page, perPage);
-    return { ...result, perPage };
+    if (result.items.length === 0)
+      return emptyKitsuPage(page, requestedPerPage);
+    return { ...result, perPage: requestedPerPage };
   });
 
 export const fetchKitsuMappingsByExternalId = async ({

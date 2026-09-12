@@ -1,26 +1,22 @@
-import { slimMediaItemsForRsc, toHeroMovieRefs } from "@/lib/cards/catalog-dto";
+import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
-import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
 import {
-  CatalogGridFallback,
-  CatalogHeroPairFallback,
   CatalogRowFallback,
-  CatalogSpotlightFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import { DiscoverToolbarSkeleton } from "@/components/catalog/catalog-chrome-skeletons";
+import {
+  IndexFeatureHero,
+  type IndexFeatureHeroItem,
+} from "@/components/catalog/index-feature-hero";
 import { ContentRow } from "@/components/content/content-row";
 import { DiscoverHubToolbarDynamic } from "@/components/discover/discover-hub-toolbar-dynamic";
+import type { PageBackdrop } from "@/components/hero/ambient-page-backdrop";
 import { RecentlyWatchedRow } from "@/components/home/recently-watched-row";
-import { MovieHero } from "@/components/movie/movie-server";
-import { CatalogSpotlight } from "@/components/trend/catalog-spotlight";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { pages } from "@/config/pages";
-import {
-  filterUnseenById,
-  takeUniqueByIdInOrder,
-} from "@/lib/catalog-page-dedupe";
+import { takeUniqueByIdInOrder } from "@/lib/catalog-page-dedupe";
 import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import { parseMovieView, parseTrendingTime } from "@/lib/catalog-query";
 import { buildCatalogDiscoverUrlMerge } from "@/lib/discover-merge";
@@ -31,10 +27,10 @@ import {
 } from "@/lib/released-media";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterDiscoverParams } from "@/lib/utils";
-import type { SortByTypeMovie } from "@/tmdb/api";
-import { tmdb } from "@/tmdb/api";
+import { tmdb, type SortByTypeMovie, type WithImages } from "@/tmdb/api";
+import { tmdbImage } from "@/tmdb/utils";
 import type { MediaItem } from "@/lib/domain/typings";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 
 type SearchParams = Record<string, string>;
 
@@ -61,6 +57,61 @@ export async function MoviesDiscoverToolbarSection({
 
 export function MoviesDiscoverToolbarFallback() {
   return <DiscoverToolbarSkeleton />;
+}
+
+const getCachedTrendingMoviesDay = cache(async () => {
+  const { results } = await tmdb.trending.movie({ time: "day", page: "1" });
+  return filterReleasedMovies(results ?? []);
+});
+
+type MoviesHubFeature = {
+  item: IndexFeatureHeroItem;
+  backdrop: PageBackdrop | null;
+};
+
+const toMoviesHubBackdrop = (
+  item: IndexFeatureHeroItem,
+): PageBackdrop | null => {
+  if (!item.backdrop_path) return null;
+
+  return {
+    imageUrl: tmdbImage.backdrop(item.backdrop_path, "w1280"),
+    alt: item.title ?? "Featured movie",
+    priority: true,
+  };
+};
+
+const getCachedMoviesHubFeature = cache(
+  async (): Promise<MoviesHubFeature | null> => {
+    const movies = await getCachedTrendingMoviesDay();
+    const featured = movies.find((movie) => Boolean(movie.backdrop_path));
+
+    if (!featured) return null;
+
+    let item: IndexFeatureHeroItem = featured;
+
+    try {
+      item = await tmdb.movie.detail<WithImages>({
+        id: featured.id,
+        append: "images",
+      });
+    } catch {
+      item = featured;
+    }
+
+    return {
+      item,
+      backdrop: toMoviesHubBackdrop(item) ?? toMoviesHubBackdrop(featured),
+    };
+  },
+);
+
+export async function getMoviesHubFeature(): Promise<MoviesHubFeature | null> {
+  return getCachedMoviesHubFeature();
+}
+
+export async function getMoviesHubAmbientBackdrop(): Promise<PageBackdrop | null> {
+  return (await getCachedMoviesHubFeature())?.backdrop ?? null;
 }
 
 export async function MoviesDiscoverResultsSection({
@@ -138,12 +189,14 @@ export async function MoviesDiscoverContent({
   description,
   catalogQueryParams,
   indexHref,
+  feature,
 }: {
   searchParams: SearchParams;
   title: string;
   description: string;
   catalogQueryParams: Record<string, string>;
   indexHref?: string;
+  feature?: IndexFeatureHeroItem | null;
 }) {
   const layoutState = getCatalogLayoutState(sp, parseMovieView(sp.view));
   const today = getTodayIsoDateUtc();
@@ -177,23 +230,15 @@ export async function MoviesDiscoverContent({
     );
   }
 
-  return (
-    <MoviesDiscoverHubSection
-      searchParams={sp}
-      catalogQueryParams={catalogQueryParams}
-      catalogResponse={catalogResponse}
-    />
-  );
+  return <MoviesDiscoverHubSection feature={feature} searchParams={sp} />;
 }
 
 async function MoviesDiscoverHubSection({
+  feature,
   searchParams: sp,
-  catalogQueryParams,
-  catalogResponse,
 }: {
+  feature?: IndexFeatureHeroItem | null;
   searchParams: SearchParams;
-  catalogQueryParams: Record<string, string>;
-  catalogResponse: Awaited<ReturnType<typeof tmdb.discover.movie>>;
 }) {
   const today = getTodayIsoDateUtc();
   const discoverParams = filterDiscoverParams(sp);
@@ -201,11 +246,11 @@ async function MoviesDiscoverHubSection({
   const mergedDiscover = { ...discoverParams, ...catalogUrlMerge };
 
   const [
-    { results: trendingRaw },
+    trendingMovies,
     popularByVoteResponse,
     { results: topRatedMoviesForHubRaw },
   ] = await Promise.all([
-    tmdb.trending.movie({ time: "day", page: "1" }),
+    getCachedTrendingMoviesDay(),
     tmdb.discover.movie({
       watch_region: TMDB_WATCH_REGION,
       page: "1",
@@ -223,28 +268,14 @@ async function MoviesDiscoverHubSection({
     }),
   ]);
 
-  const trendingMovies = filterReleasedMovies(trendingRaw);
   const popularMovies = filterReleasedMovies(
     popularByVoteResponse.results ?? [],
   );
   const topRatedMoviesForHub = filterReleasedMovies(topRatedMoviesForHubRaw);
 
-  const movies = filterReleasedMovies(catalogResponse.results ?? []);
-  const { page: currentPage, total_pages: totalPages } = catalogResponse;
-
-  const heroPool =
-    trendingMovies.length > 0 ? trendingMovies : movies.slice(0, 1);
-  const heroFeaturedId = heroPool[0]?.id ?? null;
-
-  const moviesForRanked =
-    heroFeaturedId != null
-      ? topRatedMoviesForHub.filter((m) => m.id !== heroFeaturedId)
-      : topRatedMoviesForHub;
-
-  const hubTopPicksRow = moviesForRanked.slice(0, 12);
+  const hubTopPicksRow = topRatedMoviesForHub.slice(0, 12);
 
   const hubSeen = new Set<number>();
-  if (heroFeaturedId != null) hubSeen.add(heroFeaturedId);
   for (const m of hubTopPicksRow) hubSeen.add(m.id);
 
   const hubTrendingCarousel = takeUniqueByIdInOrder(
@@ -252,9 +283,7 @@ async function MoviesDiscoverHubSection({
     hubSeen,
     40,
   );
-  const hubTrendingHeroPair = takeUniqueByIdInOrder(trendingMovies, hubSeen, 2);
   const hubPopularCarousel = takeUniqueByIdInOrder(popularMovies, hubSeen, 40);
-  const hubPopularHeroPair = takeUniqueByIdInOrder(popularMovies, hubSeen, 2);
 
   const hubTrendingCarouselItems = slimMediaItemsForRsc(
     hubTrendingCarousel.map((m) => ({
@@ -269,58 +298,34 @@ async function MoviesDiscoverHubSection({
     })),
   );
 
-  const hubGridItems: MediaItem[] = slimMediaItemsForRsc(
-    filterUnseenById(movies, hubSeen).map((m) => ({
-      ...m,
-      media_type: "movie" as const,
-    })),
-  );
-
   return (
     <>
-      {heroFeaturedId != null ? (
-        <Suspense fallback={<CatalogSpotlightFallback />}>
-          <CatalogSpotlight
-            mediaType="movie"
-            id={heroFeaturedId}
-            priority
-            hubLink={pages.movie.catalog.resultsLink}
-            hubButtonLabel="Browse all movies"
-            badgeLabel="Trending today"
-          />
-        </Suspense>
+      {feature ? (
+        <IndexFeatureHero item={feature} mediaType="movie" priority />
       ) : null}
 
-      <Suspense fallback={<RecentlyWatchedRowFallback />}>
-        <RecentlyWatchedRow scope="movie" />
+      <Suspense fallback={<MoviesDiscoverToolbarFallback />}>
+        <MoviesDiscoverToolbarSection searchParams={sp} />
+      </Suspense>
+
+      <Suspense fallback={<RecentlyWatchedRowFallback bleed />}>
+        <RecentlyWatchedRow bleed scope="movie" />
       </Suspense>
 
       {hubTrendingCarousel.length > 0 ? (
-        <Suspense fallback={<CatalogRowFallback />}>
+        <Suspense fallback={<CatalogRowFallback bleed />}>
           <TrendCarousel
             type="movie"
             title="Trending"
             link={pages.trending.movie.link}
             items={hubTrendingCarouselItems}
+            bleed
           />
         </Suspense>
       ) : null}
 
-      {hubTrendingHeroPair.length > 0 ? (
-        <Suspense fallback={<CatalogHeroPairFallback />}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <MovieHero
-              movies={toHeroMovieRefs(hubTrendingHeroPair)}
-              label="Trending now"
-              count={2}
-              pick="first"
-            />
-          </div>
-        </Suspense>
-      ) : null}
-
       {hubTopPicksRow.length > 0 ? (
-        <Suspense fallback={<CatalogRowFallback />}>
+        <Suspense fallback={<CatalogRowFallback bleed />}>
           <ContentRow
             variant="ranked"
             title="Top Rated"
@@ -331,31 +336,20 @@ async function MoviesDiscoverHubSection({
               })),
             )}
             href={pages.movie.topRated.link}
+            bleed
           />
         </Suspense>
       ) : null}
 
       {hubPopularCarousel.length > 0 ? (
-        <Suspense fallback={<CatalogRowFallback />}>
+        <Suspense fallback={<CatalogRowFallback bleed />}>
           <TrendCarousel
             type="movie"
             title="Popular"
             link={pages.movie.popular.discoverHubLink}
             items={hubPopularCarouselItems}
+            bleed
           />
-        </Suspense>
-      ) : null}
-
-      {hubPopularHeroPair.length > 0 ? (
-        <Suspense fallback={<CatalogHeroPairFallback />}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <MovieHero
-              movies={toHeroMovieRefs(hubPopularHeroPair)}
-              label="Popular now"
-              count={2}
-              pick="first"
-            />
-          </div>
         </Suspense>
       ) : null}
 
@@ -363,16 +357,6 @@ async function MoviesDiscoverHubSection({
         excludeIds={Array.from(hubSeen)}
         pageKey="movies"
       />
-
-      <Suspense fallback={<CatalogGridFallback />}>
-        <CatalogInfiniteGrid
-          mediaType="movie"
-          initialItems={hubGridItems}
-          initialPage={currentPage}
-          totalPages={totalPages}
-          queryParams={catalogQueryParams}
-        />
-      </Suspense>
     </>
   );
 }

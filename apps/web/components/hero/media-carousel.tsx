@@ -93,7 +93,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
           plugins={[Fade()]}
           opts={{ loop: true, duration: 50, containScroll: "trimSnaps" }}
         >
-          <CarouselContent className="ml-0! h-full">
+          <CarouselContent viewportClassName="h-full" className="ml-0! h-full">
             {items.map((item, index) => (
               <CarouselItem key={item.id} className="pl-0 h-full">
                 <div className="relative w-full h-full z-50">

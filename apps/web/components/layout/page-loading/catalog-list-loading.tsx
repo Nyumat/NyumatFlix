@@ -11,7 +11,7 @@ export function CatalogListLoading({
 }: CatalogListLoadingProps = {}) {
   return (
     <PageLoadingShell withPageContainer={false}>
-      <div className="container max-w-7xl space-y-8 px-2 pb-12 pt-14 sm:px-4 md:pt-16">
+      <div className="index-container space-y-8 pb-12 pt-8 md:pt-12">
         <CatalogListHeaderSkeleton centered={centered} />
         <div className="grid-list" aria-hidden>
           {Array.from({ length: 12 }).map((_, index) => (

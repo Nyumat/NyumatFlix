@@ -16,10 +16,11 @@ export interface ContentRowProps {
   contentRating?: Record<number, string | null>;
   onLoadMore?: () => Promise<MediaItem[]>;
   hasMoreItems?: boolean;
+  bleed?: boolean;
 }
 
 const LoadingRow = () => (
-  <div className="mx-4 md:mx-8 mb-8">
+  <div className="mb-8">
     <div className="h-[320px] w-full animate-pulse rounded-md bg-muted/20" />
   </div>
 );

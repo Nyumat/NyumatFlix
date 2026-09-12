@@ -95,6 +95,25 @@ describe("kitsu client", () => {
     expect(path).not.toContain("filter%5Bseason%5D");
   });
 
+  it("uses the 20-item Kitsu cap for hasNextPage when callers request more", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              data: [kitsuItem("46474")],
+              included: [],
+              meta: { count: 22 },
+            }),
+          ),
+      ),
+    );
+    const result = await fetchKitsuAnimePage({ page: 1, perPage: 24 });
+    expect(result?.hasNextPage).toBe(true);
+    expect(result?.totalPages).toBe(2);
+  });
+
   it("parses anilist + mal mappings from included", async () => {
     vi.stubGlobal(
       "fetch",
