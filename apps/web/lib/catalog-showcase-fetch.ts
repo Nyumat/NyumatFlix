@@ -3,6 +3,7 @@ import { runInChunks } from "@/lib/server/chunked-parallel";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
+  getTodayIsoDateUtc,
 } from "@/lib/released-media";
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
@@ -10,7 +11,8 @@ import { tmdb } from "@/tmdb/api";
 import type { MediaItem } from "@/lib/domain/typings";
 
 const MIN_PER_ROW = 20;
-const MAX_FETCH_PAGES = 2;
+const CANDIDATE_POOL_SIZE = MIN_PER_ROW * 3;
+const MAX_FETCH_PAGES = 4;
 
 type ShowcaseDef = {
   id: string;
@@ -19,6 +21,7 @@ type ShowcaseDef = {
   fetchPage: (
     region: string,
     page: string,
+    latestReleaseDate: string,
   ) => Promise<{ results: Array<Record<string, unknown>> }>;
   mapItem: (raw: Record<string, unknown>) => MediaItem;
 };
@@ -32,13 +35,14 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "28" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.movie({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "28",
         "vote_count.gte": "50",
+        "primary_release_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
   },
@@ -50,13 +54,14 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "35" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.movie({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "35",
         "vote_count.gte": "50",
+        "primary_release_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
   },
@@ -68,13 +73,14 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "878" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.movie({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "878",
         "vote_count.gte": "40",
+        "primary_release_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
   },
@@ -86,13 +92,14 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "18" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.movie({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "18",
         "vote_count.gte": "80",
+        "primary_release_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
   },
@@ -104,13 +111,14 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "53" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.movie({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "53",
         "vote_count.gte": "40",
+        "primary_release_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
   },
@@ -122,13 +130,14 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "27" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.movie({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "27",
         "vote_count.gte": "40",
+        "primary_release_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
   },
@@ -140,13 +149,14 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "80" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.movie({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "80",
         "vote_count.gte": "40",
+        "primary_release_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
   },
@@ -158,13 +168,14 @@ const movieShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "16" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.movie({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "16",
         "vote_count.gte": "40",
+        "primary_release_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
   },
@@ -179,13 +190,14 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "18" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.tv({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "18",
         "vote_count.gte": "25",
+        "first_air_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
@@ -197,13 +209,14 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "35" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.tv({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "35",
         "vote_count.gte": "25",
+        "first_air_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
@@ -215,13 +228,14 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "10765" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.tv({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "10765",
         "vote_count.gte": "20",
+        "first_air_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
@@ -233,13 +247,14 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "10759" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.tv({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "10759",
         "vote_count.gte": "20",
+        "first_air_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
@@ -251,13 +266,14 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "80" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.tv({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "80",
         "vote_count.gte": "20",
+        "first_air_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
@@ -269,13 +285,14 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "9648" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.tv({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "9648",
         "vote_count.gte": "15",
+        "first_air_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
@@ -287,13 +304,14 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "16" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.tv({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "16",
         "vote_count.gte": "15",
+        "first_air_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
@@ -305,13 +323,14 @@ const tvShowcase: ShowcaseDef[] = [
       mode: "results",
       extra: { with_genres: "99" },
     }),
-    fetchPage: (region, page) =>
+    fetchPage: (region, page, latestReleaseDate) =>
       tmdb.discover.tv({
         watch_region: region,
         page,
         sort_by: "popularity.desc",
         with_genres: "99",
         "vote_count.gte": "10",
+        "first_air_date.lte": latestReleaseDate,
       }),
     mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
   },
@@ -326,6 +345,7 @@ export const fetchCatalogShowcaseRows = async (
 > => {
   const mediaType = pageKey === "movies" ? "movie" : "tv";
   const defs = pageKey === "movies" ? movieShowcase : tvShowcase;
+  const latestReleaseDate = getTodayIsoDateUtc();
   const globalSeen = new Set<string>(
     excludeIds.map((id) => makeEntityKey(id, mediaType)),
   );
@@ -337,10 +357,14 @@ export const fetchCatalogShowcaseRows = async (
 
       for (
         let pageNum = 1;
-        picked.length < MIN_PER_ROW && pageNum <= MAX_FETCH_PAGES;
+        picked.length < CANDIDATE_POOL_SIZE && pageNum <= MAX_FETCH_PAGES;
         pageNum++
       ) {
-        const raw = await def.fetchPage(region, String(pageNum));
+        const raw = await def.fetchPage(
+          region,
+          String(pageNum),
+          latestReleaseDate,
+        );
         const base = raw.results.map((r) => def.mapItem(r));
         const released =
           mediaType === "movie"
@@ -350,7 +374,7 @@ export const fetchCatalogShowcaseRows = async (
 
         for (const item of withPoster) {
           picked.push(item);
-          if (picked.length >= MIN_PER_ROW) break;
+          if (picked.length >= CANDIDATE_POOL_SIZE) break;
         }
       }
 

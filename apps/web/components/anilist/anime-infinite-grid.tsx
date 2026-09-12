@@ -3,7 +3,7 @@
 import { fetchAnimeNextPage } from "@/app/actions/fetch-anime-next-page";
 import { MediaContentGrid } from "@/components/content/media-content-grid";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import type { AniListSearchParams } from "@/lib/anilist";
+import type { AniListSearchParams } from "@/lib/anilist-shared";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { useScrollFetchLock } from "@/hooks/use-scroll-fetch-lock";
 import type { MediaItem } from "@/lib/domain/typings";

@@ -1,10 +1,20 @@
+import "server-only";
+
 import {
   getAniListTitle,
   getAniListYear,
   mapAniListMediaToMediaItem,
   requiresAdultAniListContent,
   type AniListMedia,
-} from "@/lib/anilist";
+} from "@/lib/anilist-shared";
+import {
+  isJikanFallbackId,
+  jikanFallbackIdToMalId,
+} from "@/lib/anime-jikan-fallback";
+import {
+  isKitsuFallbackId,
+  kitsuFallbackIdToKitsuId,
+} from "@/lib/anime-kitsu-fallback";
 import { fetchIdsMoeMappingByAniListId } from "@/lib/ids-moe";
 import {
   getFribbMapping,
@@ -221,12 +231,32 @@ const fetchTmdbSearchMappedItem = async (
 
 const ENRICH_CHUNK_SIZE = 6;
 
-const toAniListFallbackMediaItem = (item: AniListMedia): MediaItem =>
-  ({
-    ...mapAniListMediaToMediaItem(item),
-    sourceAnilistId: item.id,
+const toAniListFallbackMediaItem = (item: AniListMedia): MediaItem => {
+  // Negative sentinel ids (TMDB / Kitsu / Jikan fallbacks) are not AniList
+  // ids — keep them out of sourceAnilistId so href resolution falls through
+  // to the provider namespaces in anilist-page-hrefs.
+  const fallback = mapAniListMediaToMediaItem(item);
+  if (item.id > 0) {
+    return {
+      ...fallback,
+      sourceAnilistId: item.id,
+      isAniListFallback: true,
+    } as MediaItem;
+  }
+  return {
+    ...fallback,
     isAniListFallback: true,
-  }) as MediaItem;
+  } as MediaItem;
+};
+
+const getProviderFallbackId = (item: AniListMedia): number | null => {
+  if (!Number.isInteger(item.id) || item.id > 0) return null;
+  if (isKitsuFallbackId(item.id) || isJikanFallbackId(item.id)) {
+    return item.id;
+  }
+  // Legacy TMDB fallback sentinels (-id / -1000000-id) stay internal-only.
+  return null;
+};
 
 const getAniListTitleFromMediaItem = (item: MediaItem) => {
   const title =
@@ -293,6 +323,12 @@ const applyLightweightMappings = (
     );
   }
 
+  // Kitsu/Jikan fallbacks whose mappings resolved to a canonical AniList id
+  // are already real AniList ids; negative sentinels need no mapping lookup.
+  if (item.id <= 0) {
+    return fallback;
+  }
+
   const fribbMapping = resolveFribbTmdbMapping(
     fribbMap?.[item.id],
     item.format,
@@ -324,7 +360,9 @@ const enrichBatchLightweight = async (
 
     const mapped = applyLightweightMappings(item, fribbMap);
     results.push(mapped);
-    if (mapped.isAniListFallback) {
+    // Negative sentinel ids (Kitsu/Jikan/TMDB fallbacks) have no AniList
+    // mapping row — skip the ids.moe lookup for them.
+    if (mapped.isAniListFallback && item.id > 0) {
       needsIdsMoe.push({ index, anilistId: item.id });
     }
   }
@@ -372,6 +410,11 @@ const enrichOneHeroUncached = async (
     );
   }
 
+  // Negative sentinel ids have no mapping row — return the provider fallback.
+  if (item.id <= 0) {
+    return fallback;
+  }
+
   try {
     const fribbMapping = await getTmdbIdFromFribb(item.id, item.format);
     if (fribbMapping) {
@@ -396,6 +439,13 @@ const enrichOneHeroUncached = async (
 };
 
 const enrichOneUncached = async (item: AniListMedia): Promise<MediaItem> => {
+  // Kitsu/Jikan sentinel: keep the provider-backed fallback item as-is.
+  // Canonical AniList/MAL/TMDB routes are resolved by withAnimePageHref
+  // (real AniList ids from provider mappings, else mal-/tmdb- slugs).
+  if (getProviderFallbackId(item) !== null) {
+    return toAniListFallbackMediaItem(item);
+  }
+
   const fallback = toAniListFallbackMediaItem(item);
 
   if (item.tmdbFallback) {

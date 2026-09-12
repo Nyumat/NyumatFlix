@@ -14,7 +14,7 @@ import {
   getFribbAnimeList,
   resolveFribbPlaybackCoords,
 } from "@/lib/fribb-mapping";
-import { requiresAdultAniListContent } from "@/lib/anilist";
+import { requiresAdultAniListContent } from "@/lib/anilist-shared";
 import {
   fetchAnilistIdByMal,
   fetchAnilistMediaMeta,

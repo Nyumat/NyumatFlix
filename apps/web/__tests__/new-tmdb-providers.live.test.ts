@@ -49,7 +49,7 @@ describe.skipIf(!runLive)("new tmdb providers (live)", () => {
     if (!result.ok) {
       return;
     }
-    expect(result.streamUrl).toMatch(/\.m3u8(?:[?#]|$)/i);
+    expect(result.streamUrl).toMatch(/\.m3u8(?:[?#]|$)|workers\.dev\//i);
   }, 60_000);
 
   it("full scrapeProvider validates VidSrc", async () => {

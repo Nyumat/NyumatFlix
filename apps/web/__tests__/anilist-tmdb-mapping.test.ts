@@ -1,5 +1,5 @@
 import { getDisplayTitle } from "@/lib/cards/selectors";
-import { mapAniListMediaToMediaItem } from "@/lib/anilist";
+import { mapAniListMediaToMediaItem } from "@/lib/anilist-shared";
 import { findAnilistIdByTmdbId } from "@/lib/fribb-mapping";
 import { describe, expect, it } from "vitest";
 
