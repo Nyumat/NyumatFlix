@@ -1,14 +1,10 @@
 import {
   homeCollectionPartToMediaItem,
   slimMediaItemsForRsc,
-  toHeroMovieRefs,
-  toHeroTvRefs,
 } from "@/lib/cards/catalog-dto";
 import { CollectionShowcase } from "@/components/collections/collection-showcase";
 import { ContentReveal } from "@/components/layout/page-loading/content-reveal";
-import { MovieHero } from "@/components/movie/movie-server";
 import { TrendCarousel } from "@/components/trend/trend-client";
-import { TvHero } from "@/components/tv/tv-server";
 import { pages } from "@/config/pages";
 import { getHomeCollections } from "@/lib/server/home-collections-data";
 import {
@@ -17,23 +13,6 @@ import {
   getHomeTrendingMovies,
   getHomeTrendingTv,
 } from "@/lib/server/home-hub-data";
-
-export async function HomeFeaturedMovie() {
-  const movies = await getHomeTrendingMovies();
-
-  return (
-    <ContentReveal>
-      <MovieHero
-        movies={toHeroMovieRefs(movies.slice(0, 1))}
-        label="Trending now"
-        priority
-        pick="first"
-        hideGenre
-        backdropImageClassName="object-[center_20%]"
-      />
-    </ContentReveal>
-  );
-}
 
 export async function HomeTrendingMoviesCarousel() {
   const movies = await getHomeTrendingMovies();
@@ -44,26 +23,10 @@ export async function HomeTrendingMoviesCarousel() {
         type="movie"
         title="Trending Movies"
         link={pages.trending.movie.link}
-        items={toSlimCarouselItems(movies.slice(3))}
+        compact
+        bleed
+        items={toSlimCarouselItems(movies)}
       />
-    </ContentReveal>
-  );
-}
-
-export async function HomeTrendingMovieHeroes() {
-  const movies = await getHomeTrendingMovies();
-
-  return (
-    <ContentReveal>
-      <div className="grid gap-4 md:grid-cols-2">
-        <MovieHero
-          movies={toHeroMovieRefs(movies.slice(1, 3))}
-          label="Trending now"
-          count={2}
-          pick="first"
-          hideGenre
-        />
-      </div>
     </ContentReveal>
   );
 }
@@ -87,7 +50,7 @@ export async function HomeCollectionsSection() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:gap-6">
           {collections.map((collection, index) => (
             <CollectionShowcase
               key={collection.id}
@@ -111,26 +74,10 @@ export async function HomePopularMoviesCarousel() {
         type="movie"
         title="Popular Movies"
         link={pages.movie.popular.link}
-        items={toSlimCarouselItems(popularMovies.slice(2, 22))}
+        compact
+        bleed
+        items={toSlimCarouselItems(popularMovies.slice(0, 22))}
       />
-    </ContentReveal>
-  );
-}
-
-export async function HomeTrendingTvHeroes() {
-  const tvShows = await getHomeTrendingTv();
-
-  return (
-    <ContentReveal>
-      <div className="grid gap-4 md:grid-cols-2">
-        <TvHero
-          tvShows={toHeroTvRefs(tvShows.slice(0, 2))}
-          label="Trending now"
-          count={2}
-          pick="first"
-          hideGenre
-        />
-      </div>
     </ContentReveal>
   );
 }
@@ -144,26 +91,10 @@ export async function HomeTrendingTvCarousel() {
         type="tv"
         title="Trending TV"
         link={pages.trending.tv.link}
-        items={toSlimCarouselItems(tvShows.slice(2))}
+        compact
+        bleed
+        items={toSlimCarouselItems(tvShows)}
       />
-    </ContentReveal>
-  );
-}
-
-export async function HomePopularMovieHeroes() {
-  const popularMovies = await getHomePopularMovies();
-
-  return (
-    <ContentReveal>
-      <div className="grid gap-4 md:grid-cols-2">
-        <MovieHero
-          movies={toHeroMovieRefs(popularMovies.slice(0, 2))}
-          label="Popular now"
-          count={2}
-          pick="first"
-          hideGenre
-        />
-      </div>
     </ContentReveal>
   );
 }
@@ -177,26 +108,10 @@ export async function HomePopularTvCarousel() {
         type="tv"
         title="Popular TV"
         link={pages.tv.popular.link}
-        items={toSlimCarouselItems(popularTv.slice(2, 22))}
+        compact
+        bleed
+        items={toSlimCarouselItems(popularTv.slice(0, 22))}
       />
-    </ContentReveal>
-  );
-}
-
-export async function HomePopularTvHeroes() {
-  const popularTv = await getHomePopularTv();
-
-  return (
-    <ContentReveal>
-      <div className="grid gap-4 md:grid-cols-2">
-        <TvHero
-          tvShows={toHeroTvRefs(popularTv.slice(0, 2))}
-          label="Popular now"
-          count={2}
-          pick="first"
-          hideGenre
-        />
-      </div>
     </ContentReveal>
   );
 }

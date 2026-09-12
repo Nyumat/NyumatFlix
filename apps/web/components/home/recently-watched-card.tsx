@@ -52,7 +52,7 @@ export function RecentlyWatchedCard({
 
   return (
     <div
-      className="group relative aspect-video cursor-grab select-none overflow-hidden rounded-t-lg bg-black/40 shadow-lg shadow-black/10 ring-1 ring-white/8 transition-shadow duration-300 active:cursor-grabbing hover:shadow-xl rounded-xs"
+      className="group relative aspect-video select-none overflow-hidden rounded-t-lg bg-black/40 shadow-lg shadow-black/10 ring-1 ring-white/8 transition-shadow duration-300 hover:shadow-xl rounded-xs"
       aria-label={item.title}
       onPointerEnter={() => playHoverSound?.()}
     >

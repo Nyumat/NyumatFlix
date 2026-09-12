@@ -1,19 +1,18 @@
 "use client";
 
-import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Carousel,
-  CarouselApi,
   CarouselContent,
   CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
 } from "@/components/ui/carousel";
-import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 export const homeWideCarouselItemClassName =
-  "basis-[85%] pl-3 sm:basis-[70%] md:basis-[42%] lg:basis-[32%] xl:basis-[28%]";
+  "pl-3 basis-[82%] sm:basis-[58%] md:basis-[42%] lg:pl-4 lg:basis-[26rem] xl:basis-[28rem] 2xl:basis-[30rem]";
 
 type HomeWideCarouselRowProps<T> = {
   ariaLabel: string;
@@ -32,118 +31,51 @@ export function HomeWideCarouselRow<T>({
   title,
   description,
   actionHref,
-  actionLabel = "More",
+  actionLabel = "View all",
   action,
   items,
   getItemKey,
   renderItem,
 }: HomeWideCarouselRowProps<T>) {
-  const [api, setApi] = useState<CarouselApi>();
-  const [pageCount, setPageCount] = useState(0);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
-
-  useEffect(() => {
-    if (!api) return;
-
-    const sync = () => {
-      const snaps = api.scrollSnapList();
-      setPageCount(snaps.length);
-      setPageIndex(api.selectedScrollSnap());
-      setCanScrollPrev(api.canScrollPrev());
-      setCanScrollNext(api.canScrollNext());
-    };
-
-    sync();
-    api.on("select", sync);
-    api.on("reInit", sync);
-
-    return () => {
-      api.off("select", sync);
-      api.off("reInit", sync);
-    };
-  }, [api, items.length]);
-
   return (
     <section
       aria-label={ariaLabel}
-      className="animate-in fade-in slide-in-from-bottom-1 duration-500 fill-mode-both"
+      className="index-bleed animate-in fade-in slide-in-from-bottom-1 duration-500 fill-mode-both"
     >
       <Carousel
+        className="group/row"
         opts={{
           align: "start",
           slidesToScroll: "auto",
           dragFree: true,
+          containScroll: "trimSnaps",
         }}
-        setApi={setApi}
       >
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-md p-2 pr-3 md:justify-start md:gap-4 md:pr-4">
-          <div className="min-w-0 flex-1 md:mr-32">
-            <h2 className="truncate text-lg font-medium md:text-base">
+        <div className="index-rail-padding mb-4 flex items-baseline justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-xl font-semibold tracking-tight md:text-2xl">
               {title}
             </h2>
-            {description ? (
-              <p className="hidden truncate text-sm text-muted-foreground xl:block">
-                {description}
-              </p>
-            ) : null}
+            {description ? <p className="sr-only">{description}</p> : null}
           </div>
 
           {action ??
             (actionHref ? (
               <Link
                 href={actionHref}
-                className={cn(
-                  buttonVariants({ size: "sm", variant: "outline" }),
-                  "ml-auto shrink-0",
-                )}
+                className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 prefetch={false}
               >
-                {actionLabel}
+                <span>{actionLabel}</span>
+                <ChevronRight className="size-4" aria-hidden />
               </Link>
             ) : null)}
-
-          <div className="ml-4 hidden shrink-0 items-center gap-2 md:flex">
-            {pageCount > 0 ? (
-              <p
-                className="mr-4 text-xs text-muted-foreground"
-                aria-live="polite"
-              >
-                <span className="font-bold text-foreground">
-                  {pageIndex + 1}
-                </span>
-                <span> / </span>
-                <span>{pageCount}</span>
-              </p>
-            ) : null}
-
-            <Button
-              type="button"
-              disabled={!canScrollPrev}
-              onClick={() => api?.scrollPrev()}
-              size="sm"
-              variant="outline"
-              aria-label={`Previous page of ${title.toLowerCase()}`}
-            >
-              <ArrowLeft className="size-3" />
-              <span className="sr-only">Previous page</span>
-            </Button>
-            <Button
-              type="button"
-              disabled={!canScrollNext}
-              onClick={() => api?.scrollNext()}
-              size="sm"
-              variant="outline"
-              aria-label={`Next page of ${title.toLowerCase()}`}
-            >
-              <ArrowRight className="size-3" />
-              <span className="sr-only">Next page</span>
-            </Button>
-          </div>
         </div>
 
-        <CarouselContent className="-ml-3">
+        <CarouselContent
+          className="-ml-3 lg:-ml-4"
+          viewportClassName="index-rail-padding"
+        >
           {items.map((item, index) => (
             <CarouselItem
               key={getItemKey(item, index)}
@@ -153,6 +85,17 @@ export function HomeWideCarouselRow<T>({
             </CarouselItem>
           ))}
         </CarouselContent>
+
+        <CarouselPrevious
+          variant="ghost"
+          className="hidden left-2 top-1/2 z-20 h-11 w-11 -translate-y-1/2 text-white opacity-0 drop-shadow-lg transition-all duration-300 hover:scale-110 hover:bg-transparent hover:text-white group-hover/row:opacity-100 group-focus-within/row:opacity-100 disabled:pointer-events-none disabled:opacity-0 lg:inline-flex"
+          aria-label="Scroll left"
+        />
+        <CarouselNext
+          variant="ghost"
+          className="hidden right-2 top-1/2 z-20 h-11 w-11 -translate-y-1/2 text-white opacity-0 drop-shadow-lg transition-all duration-300 hover:scale-110 hover:bg-transparent hover:text-white group-hover/row:opacity-100 group-focus-within/row:opacity-100 disabled:pointer-events-none disabled:opacity-0 lg:inline-flex"
+          aria-label="Scroll right"
+        />
       </Carousel>
     </section>
   );
