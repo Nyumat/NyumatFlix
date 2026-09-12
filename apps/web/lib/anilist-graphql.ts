@@ -161,6 +161,13 @@ const providerErrorMessage = (error: CatalogProviderError): string => {
   return cause instanceof Error ? cause.message : error.message;
 };
 
+/** HTTP 200 with no GraphQL payload usually means a truncated or non-JSON body. */
+const isAniListDecodeFailure = (
+  response: Response,
+  payload: AniListGraphqlPayload<unknown>,
+) =>
+  response.ok && payload.data === null && (payload.errors?.length ?? 0) === 0;
+
 export const fetchAniListGraphqlEffect = <TData>(
   body: AniListGraphqlBody,
   options?: AniListGraphqlFetchOptions,
@@ -233,6 +240,18 @@ export const fetchAniListGraphqlEffect = <TData>(
             new AnilistUnavailableError(
               `AniList request failed: ${payload.status}`,
             ),
+          );
+        }
+        yield* Effect.promise(() =>
+          wait(Math.min(400 * 2 ** (attempt - 1), maxRetryWaitMs)),
+        );
+        continue;
+      }
+
+      if (isAniListDecodeFailure(response, payload)) {
+        if (attempt >= maxAttempts) {
+          return yield* Effect.fail(
+            new AnilistUnavailableError("AniList returned invalid JSON"),
           );
         }
         yield* Effect.promise(() =>

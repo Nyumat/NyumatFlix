@@ -237,16 +237,34 @@ describe("fetchAniListGraphql", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("returns the existing empty payload shape for malformed json", async () => {
+  it("retries malformed json and fails unavailable after the attempt limit", async () => {
     fetchMock.mockResolvedValue(new Response("not json", { status: 200 }));
 
     await expect(
       fetchAniListGraphql(
         { query: "query { Media { id } }" },
-        { sleep: async () => undefined },
+        {
+          sleep: async () => undefined,
+          maxAttempts: 2,
+          maxRetryWaitMs: 0,
+        },
       ),
-    ).resolves.toEqual({ status: 200, data: null });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    ).rejects.toBeInstanceOf(AnilistUnavailableError);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers when malformed json is transient", async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response("not json", { status: 200 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { Media: { id: 21 } } }));
+
+    const payload = await fetchAniListGraphql<{ Media: { id: number } | null }>(
+      { query: "query { Media { id } }", variables: { id: 21 } },
+      { sleep: async () => undefined, maxRetryWaitMs: 0 },
+    );
+
+    expect(payload.data?.Media?.id).toBe(21);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("coalesces in-flight requests for the same query", async () => {
