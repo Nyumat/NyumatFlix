@@ -1,8 +1,9 @@
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
+import { getCachedMovieDetail } from "@/lib/media-detail-cache";
+import { parseDetailApiView } from "@/lib/performance/detail-view";
 import { isTmdbNotFoundError } from "@/lib/tmdb-errors";
 import { NextResponse } from "next/server";
-import { movieDb } from "@/lib/constants";
 
 export async function GET(
   request: Request,
@@ -21,8 +22,10 @@ export async function GET(
     );
   }
 
+  const view = parseDetailApiView(new URL(request.url).searchParams);
+
   try {
-    const movieDetails = await movieDb.movieInfo({ id });
+    const movieDetails = await getCachedMovieDetail(id, { append: view });
 
     if (!movieDetails) {
       return NextResponse.json({ error: "Movie not found" }, { status: 404 });

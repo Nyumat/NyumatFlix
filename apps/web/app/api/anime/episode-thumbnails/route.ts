@@ -1,8 +1,8 @@
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import {
-  getKitsuEpisodeThumbnails,
-  resolveKitsuThumbnailsForTmdbSeason,
+  getKitsuEpisodeAssets,
+  resolveKitsuAssetsForTmdbSeason,
 } from "@/lib/anime/kitsu-episode-thumbnails";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -48,9 +48,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const thumbnails = hasAnilistId
-      ? await getKitsuEpisodeThumbnails(anilistId)
-      : await resolveKitsuThumbnailsForTmdbSeason({
+    const assets = hasAnilistId
+      ? await getKitsuEpisodeAssets(anilistId)
+      : await resolveKitsuAssetsForTmdbSeason({
           tmdbShowId,
           seasonNumber,
           sourceAnilistId: hasSourceAnilistId ? sourceAnilistId : null,
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         });
 
     return NextResponse.json(
-      { thumbnails },
+      { thumbnails: assets.thumbnails, titles: assets.titles },
       { headers: catalogCacheHeaders() },
     );
   } catch (error) {

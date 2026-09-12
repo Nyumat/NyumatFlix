@@ -21,7 +21,6 @@ import type {
   TvShowWithMediaType,
 } from "@/tmdb/models";
 import type { MediaItem } from "@/lib/domain/typings";
-import { filterAnimeBlocked } from "@/lib/anime-blocklist";
 import { withAnimePageHrefs } from "@/lib/anilist-page-hrefs";
 import { runInChunks } from "@/lib/server/chunked-parallel";
 
@@ -456,7 +455,7 @@ export const enrichAniListMediaItemsWithTmdb = async (
   const head = items.slice(0, maxLookups);
   const tail = items.slice(maxLookups).map(toAniListFallbackMediaItem);
   const enrichedHead = await runInChunks(head, enrichOneUncached, chunkSize);
-  return filterAnimeBlocked(withAnimePageHrefs([...enrichedHead, ...tail]));
+  return withAnimePageHrefs([...enrichedHead, ...tail]);
 };
 
 export const enrichAniListMediaItemsLightweight = async (
@@ -466,7 +465,7 @@ export const enrichAniListMediaItemsLightweight = async (
   const head = items.slice(0, maxLookups);
   const tail = items.slice(maxLookups).map(toAniListFallbackMediaItem);
   const enrichedHead = await enrichBatchLightweight(head);
-  return filterAnimeBlocked(withAnimePageHrefs([...enrichedHead, ...tail]));
+  return withAnimePageHrefs([...enrichedHead, ...tail]);
 };
 
 const isAdultAniListSearchItem = (item: AniListMedia): boolean =>
@@ -489,9 +488,11 @@ export const enrichAniListSearchCatalogItems = async (
   const enrichedHead = await enrichBatchLightweight(head);
   const adultFallback = adultItems.map(toAniListFallbackMediaItem);
 
-  return filterAnimeBlocked(
-    withAnimePageHrefs([...enrichedHead, ...tailMainstream, ...adultFallback]),
-  );
+  return withAnimePageHrefs([
+    ...enrichedHead,
+    ...tailMainstream,
+    ...adultFallback,
+  ]);
 };
 
 export const enrichAniListHubRow = async (
@@ -519,7 +520,5 @@ export const enrichAniListHubRow = async (
     enrichBatchLightweight(lightSlice),
   ]);
 
-  return filterAnimeBlocked(
-    withAnimePageHrefs([...fullResults, ...lightResults, ...tail]),
-  );
+  return withAnimePageHrefs([...fullResults, ...lightResults, ...tail]);
 };

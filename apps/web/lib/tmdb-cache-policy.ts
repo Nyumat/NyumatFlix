@@ -1,12 +1,11 @@
 const LARGE_APPEND_ITEMS = new Set([
   "aggregate_credits",
   "combined_credits",
-  "credits",
   "images",
 ]);
 
 const LARGE_ENDPOINT_PATTERNS = [
-  /\/(?:aggregate_credits|combined_credits|credits|images)(?:\/|$)/,
+  /\/(?:aggregate_credits|combined_credits|images)(?:\/|$)/,
 ];
 
 type TmdbParams =

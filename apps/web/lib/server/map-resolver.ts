@@ -1,0 +1,656 @@
+import "server-only";
+
+import {
+  fetchAnilistId,
+  getSearchTitle,
+  isAnime,
+} from "@/utils/anilist-helpers";
+import { resolveSeasonSegments } from "@/lib/anime/resolve-season-segments";
+import {
+  buildUnknownEpisodeCountSegment,
+  inferMappingConfidence,
+  type MappingConfidence,
+} from "@/lib/anime/tmdb-anilist-map";
+import { getCoalescingMemoryCache } from "@/lib/cache/coalescing-memory-cache";
+import { MediaItem } from "@/lib/domain/typings";
+import { resolveAniListFranchise } from "@/lib/anilist-franchise";
+
+const mapRequestCache = getCoalescingMemoryCache("map-requests", {
+  ttlMs: process.env.NODE_ENV === "development" ? 0 : 60 * 60 * 1000,
+  maxEntries: 250,
+});
+
+interface TmdbEpisode {
+  episode_number: number;
+  air_date: string;
+  name: string;
+}
+
+interface TmdbSeason {
+  season_number: number;
+  episode_count: number;
+  episodes: TmdbEpisode[];
+  air_date: string;
+}
+
+interface TmdbShow {
+  id: number;
+  name: string;
+  original_name: string;
+  first_air_date: string;
+  last_air_date?: string;
+  number_of_seasons: number;
+  number_of_episodes: number;
+  genre_ids?: number[];
+  genres?: { id: number }[];
+}
+
+interface AnilistMediaExtended {
+  id: number;
+  format?: string | null;
+  isAdult?: boolean | null;
+  title: {
+    english: string | null;
+    romaji: string | null;
+    native: string | null;
+  };
+  startDate: {
+    year: number;
+    month: number;
+    day: number;
+  };
+  endDate: {
+    year: number;
+    month: number;
+    day: number;
+  };
+  episodes: number | null;
+  status: string;
+}
+
+interface AnilistResponseExtended {
+  data: {
+    Media: AnilistMediaExtended | null;
+  };
+}
+
+interface MappingSegment {
+  startEpisode: number;
+  endEpisode: number;
+  anilistMediaId: number;
+}
+
+interface DebugInfo {
+  tmdbShow: {
+    id: number;
+    name: string;
+    seasonCount: number;
+    episodeCount: number;
+  };
+  tmdbSeason: {
+    seasonNumber: number;
+    episodeCount: number;
+    airDate: string;
+    episodes?: Array<{
+      number: number;
+      airDate: string;
+      name: string;
+    }>;
+  };
+  anilistCandidates: Array<{
+    id: number;
+    title: string;
+    episodes: number | null;
+    status: string;
+  }>;
+}
+
+export interface MapResponse {
+  tmdbShowId: number;
+  tmdbSeason?: number;
+  segments: MappingSegment[];
+  confidence: MappingConfidence;
+  isAdult: boolean;
+  source: string;
+  debug?: DebugInfo;
+}
+
+function toSlimTmdbSeason(data: unknown): TmdbSeason | null {
+  if (typeof data !== "object" || data === null) {
+    return null;
+  }
+
+  const raw = data as {
+    air_date?: unknown;
+    episode_count?: unknown;
+    episodes?: unknown;
+    season_number?: unknown;
+  };
+  const seasonNumber =
+    typeof raw.season_number === "number" ? raw.season_number : null;
+  if (seasonNumber === null) {
+    return null;
+  }
+
+  const episodes = Array.isArray(raw.episodes)
+    ? raw.episodes
+        .filter((episode): episode is Record<string, unknown> => {
+          return typeof episode === "object" && episode !== null;
+        })
+        .map((episode, index) => ({
+          episode_number:
+            typeof episode.episode_number === "number"
+              ? episode.episode_number
+              : index + 1,
+          air_date:
+            typeof episode.air_date === "string" ? episode.air_date : "",
+          name: typeof episode.name === "string" ? episode.name : "",
+        }))
+    : [];
+
+  return {
+    season_number: seasonNumber,
+    episode_count:
+      typeof raw.episode_count === "number"
+        ? raw.episode_count
+        : episodes.length,
+    episodes,
+    air_date: typeof raw.air_date === "string" ? raw.air_date : "",
+  };
+}
+
+async function fetchTmdbShow(showId: number): Promise<TmdbShow | null> {
+  return mapRequestCache.load(`tmdb_show_${showId}`, async () => {
+    try {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/tv/${showId}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`TMDB API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data as TmdbShow;
+    } catch (error) {
+      console.error(`Error fetching TMDB show ${showId}:`, error);
+      return null;
+    }
+  });
+}
+
+async function fetchTmdbSeason(
+  showId: number,
+  seasonNumber: number,
+): Promise<TmdbSeason | null> {
+  return mapRequestCache.load(
+    `tmdb_season_${showId}_${seasonNumber}`,
+    async () => {
+      try {
+        const response = await fetch(
+          `https://api.themoviedb.org/3/tv/${showId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+          { cache: "no-store" },
+        );
+
+        if (!response.ok) {
+          throw new Error(`TMDB API error: ${response.status}`);
+        }
+
+        const data = toSlimTmdbSeason(await response.json());
+        if (!data) {
+          throw new Error("Invalid TMDB season response");
+        }
+        return data;
+      } catch (error) {
+        console.error(
+          `Error fetching TMDB season ${showId}/${seasonNumber}:`,
+          error,
+        );
+        return null;
+      }
+    },
+  );
+}
+
+async function fetchAniListMediaById(
+  anilistId: number,
+): Promise<AnilistMediaExtended | null> {
+  const detailQuery = `
+    query ($id: Int) {
+      Media(id: $id, type: ANIME) {
+        id
+        format
+        isAdult
+        title {
+          english
+          romaji
+          native
+        }
+        startDate {
+          year
+          month
+          day
+        }
+        endDate {
+          year
+          month
+          day
+        }
+        episodes
+        status
+      }
+    }
+  `;
+
+  const response = await fetch("https://graphql.anilist.co", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: detailQuery,
+      variables: { id: anilistId },
+    }),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data: AnilistResponseExtended = await response.json();
+  return data.data.Media;
+}
+
+async function fetchAniListCandidates(
+  title: string,
+  seasonNumber?: number,
+  genreIds?: number[],
+  genres?: { id: number }[],
+  sourceAnilistId?: number,
+  tmdbShow?: TmdbShow,
+): Promise<AnilistMediaExtended[]> {
+  if (sourceAnilistId && Number.isInteger(sourceAnilistId)) {
+    const franchise = await resolveAniListFranchise(sourceAnilistId);
+    const candidates = await Promise.all(
+      franchise.seasons.map(({ anilistId }) =>
+        fetchAniListMediaById(anilistId),
+      ),
+    );
+    return candidates.filter(
+      (candidate): candidate is AnilistMediaExtended =>
+        Boolean(candidate) && candidate?.format !== "MOVIE",
+    );
+  }
+
+  const cacheKey = `anilist_candidates_v2_${title}`;
+  const cached = mapRequestCache.get<AnilistMediaExtended[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  if (tmdbShow && !isAnime(tmdbShow as unknown as Record<string, unknown>)) {
+    return [];
+  }
+
+  const genreData = genreIds || genres;
+  if (!genreData || !isAnime(genreData)) {
+    return [];
+  }
+
+  return mapRequestCache.load(cacheKey, async () => {
+    try {
+      const candidates: AnilistMediaExtended[] = [];
+      const primaryId = await fetchAnilistId(title);
+
+      if (primaryId) {
+        const detailQuery = `
+        query ($id: Int) {
+          Media(id: $id, type: ANIME) {
+            id
+            isAdult
+            title {
+              english
+              romaji
+              native
+            }
+            startDate {
+              year
+              month
+              day
+            }
+            endDate {
+              year
+              month
+              day
+            }
+            episodes
+            status
+          }
+        }
+      `;
+
+        const response = await fetch("https://graphql.anilist.co", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query: detailQuery,
+            variables: { id: primaryId },
+          }),
+        });
+
+        if (response.ok) {
+          const data: AnilistResponseExtended = await response.json();
+          if (data.data.Media) {
+            candidates.push(data.data.Media);
+          }
+        }
+
+        const franchise = await resolveAniListFranchise(primaryId);
+        const related = await Promise.all(
+          franchise.seasons
+            .filter(({ anilistId }) => anilistId !== primaryId)
+            .map(({ anilistId }) => fetchAniListMediaById(anilistId)),
+        );
+        for (const candidate of related) {
+          if (candidate && candidate.format !== "MOVIE") {
+            candidates.push(candidate);
+          }
+        }
+
+        if (seasonNumber) {
+          const seasonVariations = [
+            `${title} Season ${seasonNumber}`,
+            `${title} Final Season`,
+            `${title} The Final Season`,
+          ];
+
+          for (const variation of seasonVariations) {
+            const variationId = await fetchAnilistId(variation);
+            if (
+              variationId &&
+              variationId !== primaryId &&
+              !candidates.find((c) => c.id === variationId)
+            ) {
+              const variationResponse = await fetch(
+                "https://graphql.anilist.co",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    query: detailQuery,
+                    variables: { id: variationId },
+                  }),
+                },
+              );
+
+              if (variationResponse.ok) {
+                const variationData: AnilistResponseExtended =
+                  await variationResponse.json();
+                if (variationData.data.Media) {
+                  candidates.push(variationData.data.Media);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return candidates;
+    } catch (error) {
+      console.error(`Error fetching AniList candidates for "${title}":`, error);
+      return [];
+    }
+  });
+}
+
+function resolveMappings(
+  tmdbShow: TmdbShow,
+  tmdbSeason: TmdbSeason,
+  anilistCandidates: AnilistMediaExtended[],
+  debug: boolean = false,
+): { segments: MappingSegment[]; debug?: DebugInfo } {
+  const debugInfo = debug
+    ? {
+        tmdbShow: {
+          id: tmdbShow.id,
+          name: tmdbShow.name,
+          seasonCount: tmdbShow.number_of_seasons,
+          episodeCount: tmdbShow.number_of_episodes,
+        },
+        tmdbSeason: {
+          seasonNumber: tmdbSeason.season_number,
+          episodeCount: tmdbSeason.episode_count,
+          airDate: tmdbSeason.air_date,
+          episodes: tmdbSeason.episodes?.slice(0, 3).map((ep) => ({
+            number: ep.episode_number,
+            airDate: ep.air_date,
+            name: ep.name,
+          })),
+        },
+        anilistCandidates: anilistCandidates.map((c) => ({
+          id: c.id,
+          title:
+            c.title.english ||
+            c.title.romaji ||
+            c.title.native ||
+            "Unknown Title",
+          episodes: c.episodes,
+          status: c.status,
+        })),
+      }
+    : undefined;
+
+  const validCandidates = anilistCandidates
+    .filter((c) => c.episodes && c.episodes > 0)
+    .sort((a, b) => {
+      const aStart = new Date(
+        a.startDate.year,
+        a.startDate.month - 1,
+        a.startDate.day,
+      );
+      const bStart = new Date(
+        b.startDate.year,
+        b.startDate.month - 1,
+        b.startDate.day,
+      );
+      return aStart.getTime() - bStart.getTime();
+    });
+
+  if (validCandidates.length > 0) {
+    const segments: MappingSegment[] = [];
+    let currentEpisodeStart = 1;
+
+    for (const candidate of validCandidates) {
+      const episodeCount = candidate.episodes!;
+      const endEpisode = Math.min(
+        currentEpisodeStart + episodeCount - 1,
+        tmdbSeason.episode_count,
+      );
+
+      segments.push({
+        startEpisode: currentEpisodeStart,
+        endEpisode: endEpisode,
+        anilistMediaId: candidate.id,
+      });
+
+      currentEpisodeStart = endEpisode + 1;
+      if (currentEpisodeStart > tmdbSeason.episode_count) break;
+    }
+
+    if (
+      currentEpisodeStart <= tmdbSeason.episode_count &&
+      segments.length > 0
+    ) {
+      segments[segments.length - 1].endEpisode = tmdbSeason.episode_count;
+    }
+
+    return { segments, debug: debugInfo };
+  }
+
+  const segments: MappingSegment[] = [];
+  if (anilistCandidates.length > 0) {
+    segments.push(
+      buildUnknownEpisodeCountSegment({
+        anilistMediaId: anilistCandidates[0].id,
+        tmdbEpisodeCount: tmdbSeason.episode_count,
+        tmdbEpisodeNumbers: tmdbSeason.episodes.map(
+          (episode) => episode.episode_number,
+        ),
+      }),
+    );
+  }
+
+  return { segments, debug: debugInfo };
+}
+
+type MapRequestInput = {
+  showId: number;
+  seasonNumber?: number;
+  sourceAnilistId?: number;
+  debug: boolean;
+};
+
+export const resolveMapResponse = async ({
+  showId,
+  seasonNumber,
+  sourceAnilistId,
+  debug,
+}: MapRequestInput): Promise<MapResponse> => {
+  const [tmdbShow, tmdbSeasonData] = await Promise.all([
+    fetchTmdbShow(showId),
+    seasonNumber ? fetchTmdbSeason(showId, seasonNumber) : null,
+  ]);
+
+  if (!tmdbShow) {
+    throw new Error("Failed to fetch TMDB show data");
+  }
+
+  const resolvedSeasonNumber =
+    seasonNumber ?? tmdbSeasonData?.season_number ?? 1;
+  const bundledSegments = await resolveSeasonSegments({
+    tmdbShowId: showId,
+    seasonNumber: resolvedSeasonNumber,
+  });
+
+  if (bundledSegments.segments.length > 0) {
+    return {
+      tmdbShowId: showId,
+      tmdbSeason: seasonNumber,
+      segments: bundledSegments.segments,
+      confidence: "high",
+      isAdult: false,
+      source: bundledSegments.source,
+    };
+  }
+
+  const mediaItemAdapter: MediaItem = {
+    id: tmdbShow.id,
+    name: tmdbShow.name,
+    original_name: tmdbShow.original_name,
+    first_air_date: tmdbShow.first_air_date,
+    genre_ids: tmdbShow.genre_ids || [],
+    original_language: "",
+    overview: "",
+    popularity: 0,
+    vote_average: 0,
+    vote_count: 0,
+    poster_path: null,
+    media_type: "tv",
+  };
+
+  const searchTitle = getSearchTitle(mediaItemAdapter);
+  if (!searchTitle) {
+    throw new Error("Failed to extract search title from TMDB show");
+  }
+
+  const anilistCandidates = await fetchAniListCandidates(
+    searchTitle,
+    seasonNumber,
+    tmdbShow.genre_ids,
+    tmdbShow.genres,
+    sourceAnilistId,
+    tmdbShow,
+  );
+
+  const orderedCandidates =
+    sourceAnilistId && Number.isInteger(sourceAnilistId)
+      ? [
+          ...anilistCandidates.filter(
+            (candidate) => candidate.id === sourceAnilistId,
+          ),
+          ...anilistCandidates.filter(
+            (candidate) => candidate.id !== sourceAnilistId,
+          ),
+        ]
+      : anilistCandidates;
+
+  if (orderedCandidates.length === 0) {
+    throw new Error("No AniList matches found");
+  }
+
+  let segments: MappingSegment[] = [];
+  let debugInfo: DebugInfo | undefined = undefined;
+  const source = "date+title heuristic";
+
+  if (tmdbSeasonData) {
+    const result = resolveMappings(
+      tmdbShow,
+      tmdbSeasonData,
+      orderedCandidates,
+      debug,
+    );
+    segments = result.segments;
+    debugInfo = result.debug;
+  } else {
+    const firstSeasonData = await fetchTmdbSeason(showId, 1);
+    if (firstSeasonData) {
+      const result = resolveMappings(
+        tmdbShow,
+        firstSeasonData,
+        orderedCandidates,
+        debug,
+      );
+      segments = result.segments;
+      debugInfo = result.debug;
+    }
+  }
+
+  const confidence = inferMappingConfidence(
+    segments,
+    orderedCandidates.length,
+    sourceAnilistId,
+  );
+  const isAdult = orderedCandidates.some(
+    (candidate) => candidate.isAdult === true,
+  );
+
+  const extendedSegments =
+    tmdbSeasonData && segments.length > 0
+      ? (
+          await resolveSeasonSegments({
+            tmdbShowId: showId,
+            seasonNumber: resolvedSeasonNumber,
+            baseSegments: segments,
+          })
+        ).segments
+      : segments;
+
+  const response: MapResponse = {
+    tmdbShowId: showId,
+    tmdbSeason: seasonNumber,
+    segments: extendedSegments,
+    confidence,
+    isAdult,
+    source,
+  };
+
+  if (debug && debugInfo) {
+    response.debug = debugInfo;
+  }
+
+  return response;
+};

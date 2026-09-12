@@ -1,5 +1,4 @@
 import {
-  catalogCardToMediaItem,
   homeCollectionPartToMediaItem,
   slimMediaItemsForRsc,
   toHeroMovieRefs,
@@ -11,8 +10,6 @@ import { MovieHero } from "@/components/movie/movie-server";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { TvHero } from "@/components/tv/tv-server";
 import { pages } from "@/config/pages";
-import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
-import { CAROUSEL_LOGO_ENRICH_COUNT } from "@/lib/tmdb-logo";
 import { getHomeCollections } from "@/lib/server/home-collections-data";
 import {
   getHomePopularMovies,
@@ -20,8 +17,6 @@ import {
   getHomeTrendingMovies,
   getHomeTrendingTv,
 } from "@/lib/server/home-hub-data";
-
-const ABOVE_FOLD_LOGO_COUNT = CAROUSEL_LOGO_ENRICH_COUNT;
 
 export async function HomeFeaturedMovie() {
   const movies = await getHomeTrendingMovies();
@@ -42,11 +37,6 @@ export async function HomeFeaturedMovie() {
 
 export async function HomeTrendingMoviesCarousel() {
   const movies = await getHomeTrendingMovies();
-  const items = await enrichAboveFoldMediaItemsWithLogos(
-    movies.slice(3),
-    "movie",
-    ABOVE_FOLD_LOGO_COUNT,
-  );
 
   return (
     <ContentReveal>
@@ -54,7 +44,7 @@ export async function HomeTrendingMoviesCarousel() {
         type="movie"
         title="Trending Movies"
         link={pages.trending.movie.link}
-        items={toSlimCarouselItems(items)}
+        items={toSlimCarouselItems(movies.slice(3))}
       />
     </ContentReveal>
   );
@@ -114,11 +104,6 @@ export async function HomeCollectionsSection() {
 
 export async function HomePopularMoviesCarousel() {
   const popularMovies = await getHomePopularMovies();
-  const items = await enrichAboveFoldMediaItemsWithLogos(
-    popularMovies.slice(2, 22),
-    "movie",
-    ABOVE_FOLD_LOGO_COUNT,
-  );
 
   return (
     <ContentReveal>
@@ -126,7 +111,7 @@ export async function HomePopularMoviesCarousel() {
         type="movie"
         title="Popular Movies"
         link={pages.movie.popular.link}
-        items={toSlimCarouselItems(items)}
+        items={toSlimCarouselItems(popularMovies.slice(2, 22))}
       />
     </ContentReveal>
   );
@@ -152,11 +137,6 @@ export async function HomeTrendingTvHeroes() {
 
 export async function HomeTrendingTvCarousel() {
   const tvShows = await getHomeTrendingTv();
-  const items = await enrichAboveFoldMediaItemsWithLogos(
-    tvShows.slice(2),
-    "tv",
-    ABOVE_FOLD_LOGO_COUNT,
-  );
 
   return (
     <ContentReveal>
@@ -164,7 +144,7 @@ export async function HomeTrendingTvCarousel() {
         type="tv"
         title="Trending TV"
         link={pages.trending.tv.link}
-        items={toSlimCarouselItems(items)}
+        items={toSlimCarouselItems(tvShows.slice(2))}
       />
     </ContentReveal>
   );
@@ -190,11 +170,6 @@ export async function HomePopularMovieHeroes() {
 
 export async function HomePopularTvCarousel() {
   const popularTv = await getHomePopularTv();
-  const items = await enrichAboveFoldMediaItemsWithLogos(
-    popularTv.slice(2, 22),
-    "tv",
-    ABOVE_FOLD_LOGO_COUNT,
-  );
 
   return (
     <ContentReveal>
@@ -202,7 +177,7 @@ export async function HomePopularTvCarousel() {
         type="tv"
         title="Popular TV"
         link={pages.tv.popular.link}
-        items={toSlimCarouselItems(items)}
+        items={toSlimCarouselItems(popularTv.slice(2, 22))}
       />
     </ContentReveal>
   );

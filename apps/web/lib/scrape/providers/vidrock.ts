@@ -9,6 +9,7 @@ import { firstOkInBatches } from "../race-first";
 import { fetchVdrkCatalogSubtitles } from "../subtitles";
 import type { ScrapeMediaInput, ScrapeResult } from "../types";
 import { looksLikeHlsStreamUrl } from "../stream-url-patterns";
+import { scoreVidrockSource } from "./vidrock-source-score";
 
 const VIDROCK_ORIGIN = "https://vidrock.net";
 export const VIDROCK_SUBTITLE_ORIGIN = "https://sub.vdrk.site";
@@ -75,19 +76,8 @@ const classifyType = (
   return "unknown";
 };
 
-const sourcePriority = (source: DecryptedSource): number => {
-  if (source.type === "hls") {
-    if (/orion/i.test(source.name)) return 100;
-    if (/luna/i.test(source.name)) return 90;
-    return 80;
-  }
-  if (source.type === "mp4") {
-    if (/astra/i.test(source.name)) return 50;
-    if (/atlas/i.test(source.name)) return 40;
-    return 30;
-  }
-  return 0;
-};
+const sourcePriority = (source: DecryptedSource): number =>
+  scoreVidrockSource(source);
 
 const decryptPayload = (payload: VidrockPayload): DecryptedSource[] => {
   const sources: DecryptedSource[] = [];

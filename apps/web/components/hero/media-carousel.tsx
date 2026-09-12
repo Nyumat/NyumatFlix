@@ -10,6 +10,8 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { Icons } from "@/lib/icons";
+import { buildDetailPlayHref } from "@/lib/playback/detail-autoplay-href";
+import { tmdbImage } from "@/tmdb/utils";
 import Fade from "embla-carousel-fade";
 import { Info, Star } from "lucide-react";
 import Image from "next/image";
@@ -97,7 +99,11 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                 <div className="relative w-full h-full z-50">
                   <Image
                     key={`backdrop-${item.id}-${index}`}
-                    src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
+                    src={
+                      item.backdrop_path
+                        ? tmdbImage.backdrop(item.backdrop_path, "w1280")
+                        : "/movie-banner.webp"
+                    }
                     alt={match(item)
                       .with({ title: P.string }, (movie) => movie.title)
                       .with({ name: P.string }, (tvShow) => tvShow.name)
@@ -165,6 +171,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                         .with({ name: P.string }, (tvShow) => tvShow.name)
                         .otherwise(() => "Media Item")}
                       size="small"
+                      direct
                       className="rounded-md bg-muted"
                     />
                   </div>
@@ -263,7 +270,7 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
                   (tvShow) => `/tvshows/${tvShow.id}`,
                 )
                 .otherwise(() => "#");
-              router.push(`${href}?autoplay=true`);
+              router.push(buildDetailPlayHref(href, { media: current }));
             }}
             size="lg"
             variant="outline"

@@ -2,7 +2,7 @@ import { resolveMoviMediaUrl } from "@/lib/player/load-player";
 import type { MoviHostElement } from "@/lib/player/player-playback-ready";
 
 export interface MoviPlayerElement extends MoviHostElement {
-  src?: string;
+  src?: string | null;
   poster?: string;
   controls?: boolean;
   autoplay?: boolean;
@@ -18,6 +18,23 @@ export interface MoviPlayerElement extends MoviHostElement {
   playing?: boolean;
   play?: () => Promise<void>;
   headers?: Record<string, string> | null;
+  hlsConfig?: {
+    enableWorker?: boolean;
+    lowLatencyMode?: boolean;
+    startPosition?: number;
+    maxBufferLength?: number;
+    maxMaxBufferLength?: number;
+    maxBufferHole?: number;
+    maxStarvationDelay?: number;
+    nudgeOffset?: number;
+    nudgeMaxRetry?: number;
+    highBufferWatchdogPeriod?: number;
+    fragLoadingTimeOut?: number;
+    fragLoadingMaxRetry?: number;
+    levelLoadingMaxRetry?: number;
+    manifestLoadingMaxRetry?: number;
+    backBufferLength?: number;
+  } | null;
   source?:
     | ((
         value?:
@@ -144,6 +161,89 @@ export const clearMoviResumeKeys = (
   clearMoviResumeForTitle(streamLabel);
 };
 
+const MOVI_HOST_OVERLAY_SELECTORS = [
+  ".movi-empty-state",
+  ".movi-broken-indicator",
+  ".movi-resume-dialog",
+  ".movi-error-indicator",
+] as const;
+
+export const suppressMoviHostOverlays = (el: MoviPlayerElement): void => {
+  const shadow = el.shadowRoot;
+  if (!shadow) {
+    return;
+  }
+
+  for (const selector of MOVI_HOST_OVERLAY_SELECTORS) {
+    const node = shadow.querySelector(selector);
+    if (!(node instanceof HTMLElement)) {
+      continue;
+    }
+    if (node.style.display !== "none") {
+      node.style.display = "none";
+    }
+    if (node.getAttribute("aria-hidden") !== "true") {
+      node.setAttribute("aria-hidden", "true");
+    }
+  }
+};
+
+export const attachMoviHostOverlaySuppressor = (
+  el: MoviPlayerElement,
+): (() => void) => {
+  const shadow = el.shadowRoot;
+  if (!shadow) {
+    suppressMoviHostOverlays(el);
+    return () => undefined;
+  }
+
+  let rafId = 0;
+  const scheduleSuppress = () => {
+    if (rafId !== 0) {
+      return;
+    }
+    rafId = window.requestAnimationFrame(() => {
+      rafId = 0;
+      suppressMoviHostOverlays(el);
+    });
+  };
+
+  suppressMoviHostOverlays(el);
+
+  const observer = new MutationObserver(scheduleSuppress);
+  observer.observe(shadow, {
+    childList: true,
+    subtree: true,
+  });
+
+  return () => {
+    observer.disconnect();
+    if (rafId !== 0) {
+      window.cancelAnimationFrame(rafId);
+    }
+  };
+};
+
+export const configureMoviScrapePlayback = (
+  el: MoviPlayerElement,
+  options: {
+    title?: string;
+    startAt: number;
+    streamLabel?: string;
+  },
+): void => {
+  clearMoviResumeKeys(options.title, options.streamLabel);
+  el.removeAttribute("resume");
+  el.setAttribute("startat", String(options.startAt));
+  el.setAttribute("noerrorscreen", "");
+  if (options.title) {
+    el.setAttribute("title", options.title);
+  } else {
+    el.removeAttribute("title");
+  }
+  suppressMoviHostOverlays(el);
+};
+
 export function applyMoviSource(
   el: MoviPlayerElement,
   src: string,
@@ -151,11 +251,7 @@ export function applyMoviSource(
   title?: string,
   streamLabel?: string,
 ): void {
-  clearMoviResumeKeys(title, streamLabel);
-
-  el.setAttribute("startat", "0");
-  el.setAttribute("noerrorscreen", "");
-  el.removeAttribute("resume");
+  configureMoviScrapePlayback(el, { title, startAt: 0, streamLabel });
 
   el.src = resolveMoviMediaUrl(src);
   const posterUrl = resolveMoviPosterUrl(poster);
@@ -182,6 +278,23 @@ export function disposeMoviPlayer(el: MoviPlayerElement | null): void {
     return;
   }
 
+  suppressMoviHostOverlays(el);
+
+  try {
+    el.removeAttribute("resume");
+  } catch {
+    // movi-player may already be torn down.
+  }
+
+  try {
+    const pause = (el as MoviPlayerElement & { pause?: () => void }).pause;
+    if (typeof pause === "function") {
+      pause.call(el);
+    }
+  } catch {
+    // movi-player may already be torn down.
+  }
+
   try {
     el.dispose?.();
   } catch {
@@ -189,9 +302,16 @@ export function disposeMoviPlayer(el: MoviPlayerElement | null): void {
   }
 
   try {
-    el.removeAttribute("src");
+    el.src = null;
   } catch {
     // WASM demuxer may already be torn down.
+  }
+
+  try {
+    el.hlsConfig = null;
+    el.headers = null;
+  } catch {
+    // movi-player may already be torn down.
   }
 
   try {

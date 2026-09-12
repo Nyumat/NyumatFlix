@@ -2,6 +2,10 @@ import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { seasonCacheHeaders } from "@/lib/http-cache";
 import { getCachedAnilistTvSeasonDetails } from "@/lib/anilist-tv-detail";
 import { isAnimeAnilistRouteId } from "@/lib/anilist-route-id";
+import {
+  anilistMediaCacheTag,
+  getCachedTmdbResponse,
+} from "@/lib/server/tmdb-response-cache";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -26,8 +30,15 @@ export async function GET(
   }
 
   try {
-    const data = await getCachedAnilistTvSeasonDetails(id, parsedSeasonNumber, {
-      acceptBareNumeric: true,
+    const data = await getCachedTmdbResponse({
+      cacheKey: `anime-season:${id}:${parsedSeasonNumber}`,
+      tags: [anilistMediaCacheTag(id)],
+      revalidateSeconds: 3600,
+      memoryFallback: true,
+      load: () =>
+        getCachedAnilistTvSeasonDetails(id, parsedSeasonNumber, {
+          acceptBareNumeric: true,
+        }),
     });
     if (!data) {
       return NextResponse.json({ error: "Season not found" }, { status: 404 });

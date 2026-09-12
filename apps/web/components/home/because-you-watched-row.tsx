@@ -2,10 +2,10 @@
 
 import { CatalogRowFallback } from "@/components/catalog/catalog-suspense-fallbacks";
 import { TrendCarousel } from "@/components/trend/trend-client";
-import { useBecauseYouWatched } from "@/hooks/use-because-you-watched";
+import { usePersonalizedHome } from "@/hooks/use-personalized-home";
 
 export function BecauseYouWatchedRow() {
-  const { row, isLoading } = useBecauseYouWatched();
+  const { becauseYouWatched: row, isLoading } = usePersonalizedHome();
 
   if (isLoading) {
     return <CatalogRowFallback />;

@@ -1,4 +1,5 @@
 import { buildCatalogCtaUrl } from "@/lib/catalog-query";
+import { runInChunks } from "@/lib/server/chunked-parallel";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
@@ -9,7 +10,7 @@ import { tmdb } from "@/tmdb/api";
 import type { MediaItem } from "@/lib/domain/typings";
 
 const MIN_PER_ROW = 20;
-const MAX_FETCH_PAGES = 5;
+const MAX_FETCH_PAGES = 2;
 
 type ShowcaseDef = {
   id: string;
@@ -325,8 +326,37 @@ export const fetchCatalogShowcaseRows = async (
 > => {
   const mediaType = pageKey === "movies" ? "movie" : "tv";
   const defs = pageKey === "movies" ? movieShowcase : tvShowcase;
-  const seen = new Set<string>(
+  const globalSeen = new Set<string>(
     excludeIds.map((id) => makeEntityKey(id, mediaType)),
+  );
+
+  const rowsWithItems = await runInChunks(
+    defs,
+    async (def) => {
+      const picked: MediaItem[] = [];
+
+      for (
+        let pageNum = 1;
+        picked.length < MIN_PER_ROW && pageNum <= MAX_FETCH_PAGES;
+        pageNum++
+      ) {
+        const raw = await def.fetchPage(region, String(pageNum));
+        const base = raw.results.map((r) => def.mapItem(r));
+        const released =
+          mediaType === "movie"
+            ? filterReleasedMovies(base)
+            : filterReleasedTvShows(base);
+        const withPoster = filterWithPosterPath(released);
+
+        for (const item of withPoster) {
+          picked.push(item);
+          if (picked.length >= MIN_PER_ROW) break;
+        }
+      }
+
+      return { def, picked };
+    },
+    4,
   );
 
   const out: Array<{
@@ -336,37 +366,23 @@ export const fetchCatalogShowcaseRows = async (
     items: MediaItem[];
   }> = [];
 
-  for (const def of defs) {
-    const picked: MediaItem[] = [];
+  for (const { def, picked } of rowsWithItems) {
+    const deduped: MediaItem[] = [];
 
-    for (
-      let pageNum = 1;
-      picked.length < MIN_PER_ROW && pageNum <= MAX_FETCH_PAGES;
-      pageNum++
-    ) {
-      const raw = await def.fetchPage(region, String(pageNum));
-      const base = raw.results.map((r) => def.mapItem(r));
-      const released =
-        mediaType === "movie"
-          ? filterReleasedMovies(base)
-          : filterReleasedTvShows(base);
-      const withPoster = filterWithPosterPath(released);
-
-      for (const item of withPoster) {
-        const key = makeEntityKey(item.id, mediaType);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        picked.push(item);
-        if (picked.length >= MIN_PER_ROW) break;
-      }
+    for (const item of picked) {
+      const key = makeEntityKey(item.id, mediaType);
+      if (globalSeen.has(key)) continue;
+      globalSeen.add(key);
+      deduped.push(item);
+      if (deduped.length >= MIN_PER_ROW) break;
     }
 
-    if (picked.length > 0) {
+    if (deduped.length > 0) {
       out.push({
         rowId: def.id,
         title: def.title,
         href: def.href,
-        items: picked,
+        items: deduped,
       });
     }
   }

@@ -4,7 +4,7 @@ import { getWatchlistItem } from "@/app/watchlist/actions";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 import type { WatchlistItem, WatchlistStatus } from "@/lib/domain/watchlist";
 import { MalListControls } from "@/components/media/mal-list-controls";
-import { buildAnilistTvDetailHref } from "@/lib/anilist-route-id";
+import { resolveWatchlistDetailHref } from "@/lib/watchlist/watchlist-detail-href";
 import type { MalListIndexItem } from "@/lib/mal/list-index-shared";
 import { malListIndexKey } from "@/lib/mal/list-index-shared";
 import { resolveInitialWatchlistStatus } from "@/lib/watchlist/resolve-initial-watchlist-status";
@@ -696,15 +696,7 @@ function WatchlistBannerCard({
     : item.poster_path
       ? tmdbImage.poster(item.poster_path, "w342")
       : null;
-  const href = isUnavailable
-    ? "#"
-    : mediaType === "movie"
-      ? `/movies/${item.id}`
-      : malEntry?.anilistId
-        ? buildAnilistTvDetailHref(malEntry.anilistId, {
-            season: malEntry.season,
-          })
-        : buildAnilistTvDetailHref(item.id);
+  const href = isUnavailable ? "#" : resolveWatchlistDetailHref(item, malEntry);
   const showMalControls =
     malConnected && mediaType === "tv" && Boolean(malEntry) && !isUnavailable;
   const [isManageOpen, setIsManageOpen] = useState(false);

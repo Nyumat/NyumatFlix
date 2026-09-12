@@ -1,4 +1,4 @@
-import { pickEnglishLogo } from "@/lib/tmdb-logo";
+import { CAROUSEL_LOGO_ENRICH_COUNT, pickEnglishLogo } from "@/lib/tmdb-logo";
 import { describe, expect, it } from "vitest";
 
 const baseLogo = {
@@ -11,6 +11,10 @@ const baseLogo = {
 };
 
 describe("pickEnglishLogo", () => {
+  it("disables carousel logo enrichment", () => {
+    expect(CAROUSEL_LOGO_ENRICH_COUNT).toBe(0);
+  });
+
   it("prefers english logos", () => {
     const logo = pickEnglishLogo([
       { ...baseLogo, iso_639_1: "ja" },

@@ -11,8 +11,8 @@ const STALL_RECOVERY_COOLDOWN_MS = 2_000;
 const STALL_RECOVERY_STARTUP_GRACE_MS = 5_000;
 const UNRECOVERABLE_HLS_HTTP_STATUS = new Set([403, 404, 410, 451]);
 
-export const PLAYING_FRAG_LOADING_TIMEOUT_MS = 15_000;
-export const PLAYING_FRAG_LOADING_MAX_RETRY = 3;
+export const PLAYING_FRAG_LOADING_TIMEOUT_MS = 45_000;
+export const PLAYING_FRAG_LOADING_MAX_RETRY = 2;
 
 /** HLS renditions without a parsed height show up as "0p" in Vidstack's quality menu. */
 export const isRenderableVideoQualityHeight = (height: number): boolean =>

@@ -25,10 +25,15 @@ import type {
   SeasonDetails,
   TvShowDetails,
 } from "@/lib/domain/typings";
+import { overlayKnownTmdbZeroSeasonSpecials } from "@/lib/anime/tmdb-zero-season-overlay";
+import { getKnownTmdbZeroSeasonSpecialRef } from "@/lib/anime/special-sequel-appendix";
 import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
+import { mergeTmdbEpisodesIntoSeason } from "@/lib/anilist-tv-episode-merge";
+
+export { mergeTmdbEpisodesIntoSeason };
 
 const ENRICH_REVALIDATE_SECONDS = 60 * 60 * 24;
 
@@ -103,83 +108,6 @@ export const resolveAnilistTmdbTvIdForEnrichment = getCachedAnilistTmdbTvId;
 
 const hasUsableText = (value: string | null | undefined) =>
   Boolean(value?.trim());
-
-const mergeEpisode = (
-  anilistEpisode: Episode,
-  tmdbEpisode: Episode,
-): Episode => ({
-  ...anilistEpisode,
-  name:
-    anilistEpisode.name.startsWith("Episode ") &&
-    hasUsableText(tmdbEpisode.name)
-      ? tmdbEpisode.name
-      : anilistEpisode.name,
-  overview: hasUsableText(anilistEpisode.overview)
-    ? anilistEpisode.overview
-    : tmdbEpisode.overview,
-  still_path: tmdbEpisode.still_path ?? anilistEpisode.still_path,
-  runtime: anilistEpisode.runtime ?? tmdbEpisode.runtime,
-  air_date: hasUsableText(anilistEpisode.air_date)
-    ? anilistEpisode.air_date
-    : tmdbEpisode.air_date,
-  vote_average:
-    (tmdbEpisode.vote_average ?? 0) > 0
-      ? tmdbEpisode.vote_average
-      : anilistEpisode.vote_average,
-  vote_count:
-    (tmdbEpisode.vote_count ?? 0) > 0
-      ? tmdbEpisode.vote_count
-      : anilistEpisode.vote_count,
-});
-
-export const mergeTmdbEpisodesIntoSeason = (
-  season: SeasonDetails,
-  tmdbEpisodes: Episode[] | undefined,
-  options?: { preserveSplitCourAppendix?: boolean },
-): SeasonDetails => {
-  if (!tmdbEpisodes?.length) return season;
-
-  const anilistByNumber = new Map(
-    season.episodes.map((episode) => [episode.episode_number, episode]),
-  );
-
-  const episodes = [...tmdbEpisodes]
-    .sort((left, right) => left.episode_number - right.episode_number)
-    .map((tmdbEpisode) => {
-      const anilistEpisode = anilistByNumber.get(tmdbEpisode.episode_number);
-      return anilistEpisode
-        ? mergeEpisode(anilistEpisode, tmdbEpisode)
-        : tmdbEpisode;
-    });
-
-  if (!options?.preserveSplitCourAppendix) {
-    return {
-      ...season,
-      overview: hasUsableText(season.overview)
-        ? season.overview
-        : (tmdbEpisodes.find((episode) => hasUsableText(episode.overview))
-            ?.overview ?? season.overview),
-      episodes,
-    };
-  }
-
-  const maxTmdbEpisodeNumber = episodes.reduce(
-    (max, episode) => Math.max(max, episode.episode_number),
-    0,
-  );
-  const trailingAnilistEpisodes = season.episodes
-    .filter((episode) => episode.episode_number > maxTmdbEpisodeNumber)
-    .sort((left, right) => left.episode_number - right.episode_number);
-
-  return {
-    ...season,
-    overview: hasUsableText(season.overview)
-      ? season.overview
-      : (tmdbEpisodes.find((episode) => hasUsableText(episode.overview))
-          ?.overview ?? season.overview),
-    episodes: [...episodes, ...trailingAnilistEpisodes],
-  };
-};
 
 export const mergeTmdbIntoAnilistTvDetails = (
   anilistDetails: TvShowDetails,
@@ -367,7 +295,43 @@ export const enrichAnilistSeasonDetailsWithTmdb = async (
     }
   }
 
-  return mergeTmdbEpisodesIntoSeason(season, tmdbEpisodes, {
+  const merged = mergeTmdbEpisodesIntoSeason(season, tmdbEpisodes, {
     preserveSplitCourAppendix: options?.preserveSplitCourAppendix,
   });
+
+  const needsSpecialOverlay = merged.episodes.some((episode) => {
+    const sourceAnilistId = episode.sourceAnilistId;
+    return (
+      typeof sourceAnilistId === "number" &&
+      getKnownTmdbZeroSeasonSpecialRef(sourceAnilistId) !== null
+    );
+  });
+  if (!needsSpecialOverlay) {
+    return merged;
+  }
+
+  let tmdbZeroSeasonEpisodes = options?.tmdbContext?.tmdbSeasons[0]?.episodes;
+  if (!tmdbZeroSeasonEpisodes) {
+    const tmdbId = await resolveAnilistTmdbTvIdForEnrichment(resolved.entry.id);
+    if (tmdbId) {
+      try {
+        const tmdbZeroSeason = await fetchSeasonDetailsServer(
+          String(tmdbId),
+          0,
+          { source: "tmdb" },
+        );
+        tmdbZeroSeasonEpisodes = tmdbZeroSeason?.episodes;
+      } catch {
+        return merged;
+      }
+    }
+  }
+
+  return {
+    ...merged,
+    episodes: overlayKnownTmdbZeroSeasonSpecials(
+      merged.episodes,
+      tmdbZeroSeasonEpisodes,
+    ),
+  };
 };

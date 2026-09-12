@@ -1,7 +1,44 @@
+import type { Episode } from "@/lib/domain/typings";
+
 export type MappingSegment = {
   startEpisode: number;
   endEpisode: number;
   anilistMediaId: number;
+};
+
+export const buildEpisodesFromMappingSegments = (
+  segments: readonly MappingSegment[],
+  options?: {
+    posterPath?: string | null;
+    runtime?: number | null;
+  },
+): Episode[] => {
+  const episodes: Episode[] = [];
+
+  for (const segment of segments) {
+    for (
+      let tmdbEpisode = segment.startEpisode;
+      tmdbEpisode <= segment.endEpisode;
+      tmdbEpisode += 1
+    ) {
+      const relativeEpisode = tmdbEpisode - segment.startEpisode + 1;
+      episodes.push({
+        id: segment.anilistMediaId * 10_000 + tmdbEpisode,
+        name: `Episode ${relativeEpisode}`,
+        overview: "",
+        episode_number: tmdbEpisode,
+        air_date: "",
+        still_path: options?.posterPath ?? null,
+        runtime: options?.runtime ?? null,
+        vote_average: 0,
+        vote_count: 0,
+        sourceAnilistId: segment.anilistMediaId,
+        sourceEpisodeNumber: relativeEpisode,
+      });
+    }
+  }
+
+  return episodes;
 };
 
 export const buildUnknownEpisodeCountSegment = (input: {

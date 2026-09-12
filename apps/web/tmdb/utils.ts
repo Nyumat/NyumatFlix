@@ -46,23 +46,38 @@ const imageSizes = {
 
 import { optimizeRemoteImageUrl } from "@/lib/images/cdn-image";
 
+const directUrl = (path: string, type: ImageSize = "original") => {
+  if (!path) {
+    console.error("Invalid image path provided.");
+    return "/placeholder.png";
+  }
+  if (/^https?:\/\//.test(path)) return path;
+  return `https://image.tmdb.org/t/p/${type}/${path.replace(/^\/+/, "")}`;
+};
+
 const url = (path: string, type: ImageSize = "original") => {
   if (!path) {
     console.error("Invalid image path provided.");
     return "/placeholder.png";
   }
   if (/^https?:\/\//.test(path)) return optimizeRemoteImageUrl(path);
-  return optimizeRemoteImageUrl(
-    `https://image.tmdb.org/t/p/${type}/${path.replace(/^\/+/, "")}`,
-  );
+  return optimizeRemoteImageUrl(directUrl(path, type));
 };
 
-const poster = (path: string, size: PosterSize = "original") => {
+const poster = (path: string, size: PosterSize = "w342") => {
   return url(path, imageSizes.poster[size]);
 };
 
-const backdrop = (path: string, size: BackdropSize = "original") => {
+const posterDirect = (path: string, size: PosterSize = "w342") => {
+  return directUrl(path, imageSizes.poster[size]);
+};
+
+const backdrop = (path: string, size: BackdropSize = "w1280") => {
   return url(path, imageSizes.backdrop[size]);
+};
+
+const backdropDirect = (path: string, size: BackdropSize = "w1280") => {
+  return directUrl(path, imageSizes.backdrop[size]);
 };
 
 const profile = (path: string, size: ProfileSize = "original") => {
@@ -76,7 +91,9 @@ const logo = (path: string, size: LogoSize = "original") => {
 export const tmdbImage = {
   url,
   poster,
+  posterDirect,
   backdrop,
+  backdropDirect,
   profile,
   logo,
 };

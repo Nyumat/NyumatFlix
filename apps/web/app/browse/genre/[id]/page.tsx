@@ -2,8 +2,10 @@ import { getCategories } from "@/lib/server/actions";
 import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
+import { catalogCardsToMediaItems } from "@/lib/cards/catalog-dto";
+import { fetchGenreBrowsePage } from "@/lib/server/browse-catalog";
+import { tmdbImage } from "@/tmdb/utils";
 import BrowseGenreClient from "./browse-client";
-import { getAppOrigin } from "@/lib/server/app-url";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -19,25 +21,18 @@ export default async function BrowseGenrePage(props: PageProps) {
     : searchParams?.type;
   const mediaType = typeParam === "tv" ? "tv" : "movie";
 
-  const categories = await getCategories(mediaType);
+  const [categories, data] = await Promise.all([
+    getCategories(mediaType),
+    fetchGenreBrowsePage(genreId, mediaType, 1),
+  ]);
+
   const matchedGenre = categories.find((g) => g.id.toString() === genreId);
   const genreName = matchedGenre ? matchedGenre.name : "Unknown Genre";
-
-  const appOrigin = await getAppOrigin();
-  const response = await fetch(
-    `${appOrigin}/api/genre/${genreId}?type=${mediaType}&page=1`,
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch genre content: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const initialItems = data.results || [];
+  const initialItems = catalogCardsToMediaItems(data.results);
 
   const backdropImage =
     initialItems.length > 0 && initialItems[0].backdrop_path
-      ? `https://image.tmdb.org/t/p/original${initialItems[0].backdrop_path}`
+      ? tmdbImage.backdrop(initialItems[0].backdrop_path, "w1280")
       : "/movie-banner.webp";
 
   return (
@@ -66,7 +61,7 @@ export default async function BrowseGenrePage(props: PageProps) {
             genreName={genreName}
             initialItems={initialItems}
             totalPages={data.total_pages || 1}
-            mediaType={mediaType as "movie" | "tv"}
+            mediaType={mediaType}
           />
         </div>
       </ContentContainer>

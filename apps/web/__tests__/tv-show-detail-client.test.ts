@@ -4,6 +4,9 @@ import {
   tvDetailTitleMatches,
 } from "@/lib/tv-show-detail-client";
 
+const tmdbProxyUrl = (contentId: number) =>
+  `/api/tmdb/proxy?requestID=tvData&id=${contentId}&language=en-US`;
+
 describe("tvDetailTitleMatches", () => {
   it("treats a missing expected title as a match", () => {
     expect(tvDetailTitleMatches("The Shop", undefined)).toBe(true);
@@ -32,11 +35,14 @@ describe("fetchTvShowDetailClient", () => {
   it("returns the TMDB show when no expected title is provided", async () => {
     fetchMock.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url === "/api/tv/11757") {
+      if (url === tmdbProxyUrl(11757)) {
         return {
           ok: true,
           json: async () => ({ id: 11757, name: "The Shop" }),
         };
+      }
+      if (url === "/api/anime/11757") {
+        return { ok: false, json: async () => ({}) };
       }
       return { ok: false, json: async () => ({}) };
     });
@@ -44,12 +50,15 @@ describe("fetchTvShowDetailClient", () => {
     const result = await fetchTvShowDetailClient(11757);
     expect(result?.detail.name).toBe("The Shop");
     expect(result?.catalog).toBeNull();
+    expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual([
+      tmdbProxyUrl(11757),
+    ]);
   });
 
   it("returns the AniList show when the TMDB title does not match", async () => {
     fetchMock.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url === "/api/tv/11757") {
+      if (url === tmdbProxyUrl(11757)) {
         return {
           ok: true,
           json: async () => ({ id: 11757, name: "The Shop" }),
@@ -69,12 +78,16 @@ describe("fetchTvShowDetailClient", () => {
     });
     expect(result?.detail.name).toBe("Sword Art Online");
     expect(result?.catalog).toBe("anime");
+    expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual([
+      tmdbProxyUrl(11757),
+      "/api/anime/11757",
+    ]);
   });
 
   it("skips TMDB when catalog is anime", async () => {
     fetchMock.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url === "/api/tv/11757") {
+      if (url === tmdbProxyUrl(11757)) {
         return {
           ok: true,
           json: async () => ({ id: 11757, name: "The Shop" }),
@@ -100,7 +113,7 @@ describe("fetchTvShowDetailClient", () => {
   it("falls back to AniList when TMDB 404s", async () => {
     fetchMock.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url === "/api/tv/154587") {
+      if (url === tmdbProxyUrl(154587)) {
         return { ok: false, json: async () => ({}) };
       }
       if (url === "/api/anime/154587") {
@@ -115,5 +128,30 @@ describe("fetchTvShowDetailClient", () => {
     const result = await fetchTvShowDetailClient(154587);
     expect(result?.detail.name).toBe("Frieren");
     expect(result?.catalog).toBe("anime");
+  });
+
+  it("does not probe AniList when TMDB title matches the stub", async () => {
+    fetchMock.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === tmdbProxyUrl(31718)) {
+        return {
+          ok: true,
+          json: async () => ({ id: 31718, name: "Darker than Black" }),
+        };
+      }
+      if (url.startsWith("/api/anime/")) {
+        throw new Error(`unexpected anime probe: ${url}`);
+      }
+      return { ok: false, json: async () => ({}) };
+    });
+
+    const result = await fetchTvShowDetailClient(31718, {
+      expectedTitle: "Darker than Black",
+    });
+    expect(result?.detail.name).toBe("Darker than Black");
+    expect(result?.catalog).toBeNull();
+    expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual([
+      tmdbProxyUrl(31718),
+    ]);
   });
 });

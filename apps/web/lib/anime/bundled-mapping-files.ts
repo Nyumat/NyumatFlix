@@ -7,6 +7,7 @@ const MAPPINGS_DIR = path.join(process.cwd(), "data/anime-mappings");
 
 export const FRIBB_BUNDLED_FILE = "anime-list-mini.json";
 export const ANIBRIDGE_BUNDLED_FILE = "mappings.min.json";
+export const SEASON_INDEX_FILE = "season-index.json";
 
 export const readBundledJson = async <T>(
   filename: string,

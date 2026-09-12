@@ -1,4 +1,4 @@
-import { accounts, db, users } from "@/db/schema";
+import { accounts, db, users } from "@/db";
 import { and, eq } from "drizzle-orm";
 import crypto from "node:crypto";
 import { cookies } from "next/headers";

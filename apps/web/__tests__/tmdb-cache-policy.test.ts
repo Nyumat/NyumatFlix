@@ -29,6 +29,20 @@ describe("TMDB cache policy", () => {
     ).toBe(true);
   });
 
+  it("keeps shell append payloads cacheable", () => {
+    expect(
+      shouldBypassTmdbDataCache("/movie/1", {
+        append_to_response: "external_ids,credits,release_dates",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldBypassTmdbDataCache("/tv/1", {
+        append_to_response: "external_ids,credits,content_ratings",
+      }),
+    ).toBe(false);
+  });
+
   it("keeps ordinary catalog calls cacheable", () => {
     const init = tmdbFetchInit({
       endpoint: "/tv/popular",

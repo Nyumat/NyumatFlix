@@ -8,7 +8,8 @@ export function prefetchDirectPlayerModules(): void {
 
   if (!playerModulesPromise) {
     playerModulesPromise = Promise.all([
-      import("@/components/media/calluspirates-stream-player"),
+      import("@/components/media/playback-shell"),
+      import("@/components/media/engines/direct-playback-engine"),
       import("@/components/media/movi-stream-player"),
     ]);
   }

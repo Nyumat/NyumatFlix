@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import {
+  cacheControlForProxiedPlayAsset,
   convertAssToVtt,
   contentTypeForProxiedAsset,
   decodeScrapePlaybackToken,
@@ -8,6 +9,7 @@ import {
   isDashManifestResponse,
   isDisguisedHlsSegment,
   isPlaylistResponse,
+  playUpstreamAbortSignal,
   resolveKaaSegmentFallbackUrls,
   resolveDashTemplateUrl,
   rewriteDashManifest,
@@ -57,12 +59,13 @@ const fetchUpstream = (
     rangeHeader,
     cookies,
     signal,
+    retryAttempts: 1,
     // Must match validation — curlFallback true for hosts that block undici.
     curlFallback: true,
   });
 
 export async function GET(request: Request, context: RouteContext) {
-  const { token } = await context.params;
+  const { token, asset } = await context.params;
   const playback = decodeScrapePlaybackToken(token);
 
   if (!playback) {
@@ -73,17 +76,19 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const rangeHeader = request.headers.get("range");
-  const upstreamSignal = AbortSignal.timeout(55_000);
 
   try {
     const playbackUrl = resolveDashTemplateUrl(playback.url, request.url);
+    const upstreamSignal = playUpstreamAbortSignal(
+      playbackUrl,
+      request.signal,
+      asset,
+    );
     let upstreamUrl = await resolveScrapePlaybackUpstreamUrl(
       playbackUrl,
       playback.refresh,
     );
 
-    // Do not tie upstream fetches to the client request signal — Next can abort
-    // it before the CDN round-trip finishes, which breaks manifest proxying.
     let upstream = await fetchUpstream(
       upstreamUrl,
       playback.referer,
@@ -212,7 +217,7 @@ export async function GET(request: Request, context: RouteContext) {
         status: upstream.status,
         headers: {
           "Content-Type": "application/dash+xml",
-          "Cache-Control": "no-store",
+          "Cache-Control": cacheControlForProxiedPlayAsset(upstreamUrl, asset),
         },
       });
     }
@@ -241,7 +246,10 @@ export async function GET(request: Request, context: RouteContext) {
           status: upstream.status,
           headers: {
             "Content-Type": "application/vnd.apple.mpegurl",
-            "Cache-Control": "no-store",
+            "Cache-Control": cacheControlForProxiedPlayAsset(
+              upstreamUrl,
+              asset,
+            ),
           },
         });
       }
@@ -258,7 +266,10 @@ export async function GET(request: Request, context: RouteContext) {
           status: upstream.status,
           headers: {
             "Content-Type": "application/dash+xml",
-            "Cache-Control": "no-store",
+            "Cache-Control": cacheControlForProxiedPlayAsset(
+              upstreamUrl,
+              asset,
+            ),
           },
         });
       }
@@ -270,7 +281,7 @@ export async function GET(request: Request, context: RouteContext) {
           ...(upstreamContentType
             ? { "Content-Type": upstreamContentType }
             : {}),
-          "Cache-Control": "no-store",
+          "Cache-Control": cacheControlForProxiedPlayAsset(upstreamUrl, asset),
         },
       });
     }
@@ -297,7 +308,10 @@ export async function GET(request: Request, context: RouteContext) {
       headers.set("Content-Type", contentType);
     }
 
-    headers.set("Cache-Control", "no-store");
+    headers.set(
+      "Cache-Control",
+      cacheControlForProxiedPlayAsset(upstreamUrl, asset),
+    );
 
     const rawText =
       playback.subtitleFormat === "ass" ||

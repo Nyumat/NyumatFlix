@@ -4,18 +4,27 @@ import {
   getCachedAnilistTvAllSeasons,
   getCachedAnilistTvSeasonDetails,
 } from "@/lib/anilist-tv-detail";
-import { movieDb } from "@/lib/constants";
 import {
   isAnilistBackedTvRouteId,
   type TvDetailCatalog,
 } from "@/lib/tv-detail-catalog";
-import { isTmdbNotFoundError } from "@/lib/tmdb-errors";
+import { isTmdbNotFoundError, TmdbHttpError } from "@/lib/tmdb-errors";
+import { fetchTmdbSplitCourMergedSeasonDetails } from "@/lib/anime/tmdb-split-cour-season";
+import {
+  getCachedTmdbResponse,
+  tmdbTvCacheTag,
+} from "@/lib/server/tmdb-response-cache";
 import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import {
   CACHE_REVALIDATE_SECONDS,
   CACHE_SEASON_REVALIDATE_SECONDS,
 } from "@/lib/http-cache";
+import {
+  type DetailAppendMode,
+  tvDetailAppend,
+} from "@/lib/performance/tmdb-append-sets";
 import { tmdbFetchInit } from "@/lib/tmdb-cache-policy";
+import { withDevelopmentDataCache } from "@/lib/server/development-data-cache";
 import { pickEnglishLogo } from "@/lib/tmdb-logo";
 import type {
   Episode,
@@ -44,7 +53,7 @@ type RawSeasonDetails = {
   season_number?: unknown;
 };
 
-const SEASON_DETAIL_BATCH_SIZE = 6;
+const SEASON_FETCH_CONCURRENCY = 5;
 
 const readString = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
@@ -115,40 +124,72 @@ const toSlimSeasonDetails = (raw: RawSeasonDetails): SeasonDetails | null => {
   };
 };
 
-export async function fetchTVShowDetails(id: string): Promise<TvShowDetails> {
+export type FetchTVShowDetailsOptions = {
+  fetchEpisodes?: boolean;
+  append?: DetailAppendMode;
+};
+
+export async function fetchTVShowDetails(
+  id: string,
+  options?: FetchTVShowDetailsOptions,
+): Promise<TvShowDetails> {
   const tmdbId = unwrapTmdbLookupId(id);
-  const TV_DETAIL_APPEND =
-    "content_ratings,keywords,external_ids,videos,images,recommendations,similar,reviews,credits";
+  const appendMode = options?.append ?? "shell";
+  const append = tvDetailAppend(appendMode);
 
   try {
-    const url = new URL(`https://api.themoviedb.org/3/tv/${tmdbId}`);
-    url.searchParams.set("api_key", process.env.TMDB_API_KEY ?? "");
-    url.searchParams.set("language", "en-US");
-    url.searchParams.set("append_to_response", TV_DETAIL_APPEND);
+    const details = await withDevelopmentDataCache({
+      key: `tv-detail:${tmdbId}:${appendMode}`,
+      load: async () => {
+        const url = new URL(`https://api.themoviedb.org/3/tv/${tmdbId}`);
+        url.searchParams.set("api_key", process.env.TMDB_API_KEY ?? "");
+        url.searchParams.set("language", "en-US");
+        url.searchParams.set("append_to_response", append);
 
-    const response = await fetch(
-      url,
-      tmdbFetchInit({
-        endpoint: `/tv/${tmdbId}`,
-        params: { append_to_response: TV_DETAIL_APPEND },
-        revalidate: CACHE_REVALIDATE_SECONDS,
-      }),
-    );
+        const response = await fetch(
+          url,
+          tmdbFetchInit({
+            endpoint: `/tv/${tmdbId}`,
+            params: { append_to_response: append },
+            revalidate: CACHE_REVALIDATE_SECONDS,
+          }),
+        );
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch TV show details: ${response.status}`);
+        if (!response.ok) {
+          throw new TmdbHttpError(
+            response.status,
+            `Failed to fetch TV show details: ${response.status}`,
+          );
+        }
+
+        const data = await response.json();
+
+        return {
+          ...data,
+          content_rating: pickTvCertification(data.content_ratings),
+          logo:
+            appendMode === "full" ? pickEnglishLogo(data.images?.logos) : null,
+        } as TvShowDetails;
+      },
+    });
+
+    if (options?.fetchEpisodes) {
+      return {
+        ...details,
+        allSeasonDetails: await fetchAllSeasonDetails(id, details.seasons),
+      };
     }
 
-    const data = await response.json();
-
-    return {
-      ...data,
-      content_rating: pickTvCertification(data.content_ratings),
-      logo: pickEnglishLogo(data.images?.logos),
-    };
+    return details;
   } catch (error) {
+    if (isTmdbNotFoundError(error)) {
+      throw error;
+    }
+
     console.error(error);
-    throw new Error("Failed to fetch TV show details");
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to fetch TV show details");
   }
 }
 
@@ -173,13 +214,48 @@ export async function resolveTvShowDetailForApiRoute(
   const tmdbId = unwrapTmdbLookupId(id);
 
   try {
-    const tmdbDetail = await movieDb.tvInfo({ id: tmdbId });
-    return (tmdbDetail ?? null) as TvShowDetails | null;
+    return await fetchTVShowDetails(tmdbId, { append: "shell" });
   } catch (error) {
     if (isTmdbNotFoundError(error)) {
       return null;
     }
     throw error;
+  }
+}
+
+export async function resolveTmdbSeasonDetails(
+  tvId: string,
+  seasonNumber: number,
+): Promise<SeasonDetails | null> {
+  const numericTmdbId = Number.parseInt(unwrapTmdbLookupId(tvId), 10);
+  if (!Number.isInteger(numericTmdbId) || numericTmdbId <= 0) {
+    return null;
+  }
+
+  const merged = await fetchTmdbSplitCourMergedSeasonDetails(
+    numericTmdbId,
+    seasonNumber,
+  );
+
+  if (merged) {
+    return merged;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.themoviedb.org/3/tv/${numericTmdbId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
+      tvSeasonFetchInit(String(numericTmdbId), seasonNumber),
+    );
+    if (!response.ok) {
+      if (response.status !== 404) {
+        console.error(`Failed to fetch season details: ${response.status}`);
+      }
+      return null;
+    }
+    return toSlimSeasonDetails(await response.json());
+  } catch (error) {
+    console.error(error);
+    return null;
   }
 }
 
@@ -196,22 +272,36 @@ export async function fetchSeasonDetailsServer(
     );
   }
 
-  const tmdbId = unwrapTmdbLookupId(tvId);
-
-  try {
-    const response = await fetch(
-      `https://api.themoviedb.org/3/tv/${tmdbId}/season/${seasonNumber}?api_key=${process.env.TMDB_API_KEY}&language=en-US`,
-      tvSeasonFetchInit(tmdbId, seasonNumber),
-    );
-    if (!response.ok) {
-      throw new Error(`Failed to fetch season details: ${response.status}`);
-    }
-    return toSlimSeasonDetails(await response.json());
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
+  return resolveTmdbSeasonDetails(tvId, seasonNumber);
 }
+
+const fetchSeasonsConcurrent = async (
+  tvId: string,
+  seasons: Season[],
+  options?: TvSeasonFetchOptions,
+): Promise<Record<number, SeasonDetails>> => {
+  const allSeasonDetails: Record<number, SeasonDetails> = {};
+  const queue = [...seasons];
+  const workers = Array.from(
+    { length: Math.min(SEASON_FETCH_CONCURRENCY, queue.length) },
+    async () => {
+      while (queue.length > 0) {
+        const season = queue.shift();
+        if (!season) break;
+        const seasonDetail = await fetchSeasonDetailsServer(
+          tvId,
+          season.season_number,
+          options,
+        ).catch(() => null);
+        if (seasonDetail) {
+          allSeasonDetails[seasonDetail.season_number] = seasonDetail;
+        }
+      }
+    },
+  );
+  await Promise.all(workers);
+  return allSeasonDetails;
+};
 
 export async function fetchAllSeasonDetails(
   tvId: string,
@@ -230,24 +320,18 @@ export async function fetchAllSeasonDetails(
       (season: Season) => season.season_number > 0 && season.episode_count > 0,
     ) || [];
 
-  const allSeasonDetails: Record<number, SeasonDetails> = {};
-
-  for (let i = 0; i < regularSeasons.length; i += SEASON_DETAIL_BATCH_SIZE) {
-    const batch = regularSeasons.slice(i, i + SEASON_DETAIL_BATCH_SIZE);
-    const batchResults = await Promise.all(
-      batch.map((season: Season) =>
-        fetchSeasonDetailsServer(tvId, season.season_number, options).catch(
-          () => null,
-        ),
-      ),
-    );
-
-    batchResults.forEach((seasonDetail) => {
-      if (seasonDetail) {
-        allSeasonDetails[seasonDetail.season_number] = seasonDetail;
-      }
-    });
-  }
-
-  return allSeasonDetails;
+  return fetchSeasonsConcurrent(tvId, regularSeasons, options);
 }
+
+export const getCachedAllSeasonDetailsForShow = async (
+  tvId: string,
+  seasons: Season[] | undefined,
+  options?: TvSeasonFetchOptions,
+): Promise<Record<number, SeasonDetails>> =>
+  getCachedTmdbResponse({
+    cacheKey: `tv-all-seasons:${unwrapTmdbLookupId(tvId)}:${options?.catalog ?? "tvshows"}`,
+    tags: [tmdbTvCacheTag(unwrapTmdbLookupId(tvId))],
+    revalidateSeconds: 3600,
+    memoryFallback: true,
+    load: () => fetchAllSeasonDetails(tvId, seasons, options),
+  });

@@ -77,9 +77,8 @@ export const queryKeys = {
 
   watchlist: () => [...queryKeys.all, "watchlist"] as const,
   watchlistSummary: () => [...queryKeys.watchlist(), "summary"] as const,
-  upNextInbox: () => [...queryKeys.watchlist(), "up-next-inbox"] as const,
-  becauseYouWatched: (stubsKey: string) =>
-    [...queryKeys.watchlist(), "because-you-watched", stubsKey] as const,
+  personalizedHome: () =>
+    [...queryKeys.watchlist(), "personalized-home"] as const,
   watchHistory: (scope: string, stubsKey: string) =>
     [...queryKeys.watchlist(), "watch-history", scope, stubsKey] as const,
 

@@ -2,6 +2,7 @@
 
 import { WatchlistItem } from "@/lib/domain/watchlist";
 import { Episode, MediaItem } from "@/lib/domain/typings";
+import { usePlayIntentDirectPlaybackWarmup } from "@/components/media/direct-playback-warmup";
 import { useHeroScrapePlayback } from "@/hooks/use-hero-scrape-playback";
 import { useMediaHero } from "@/hooks/useMediaHero";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
@@ -29,6 +30,7 @@ interface MediaDetailHeroProps {
   isUpcoming?: boolean;
   anilistId?: number | null | undefined;
   watchlistItem?: WatchlistItem | null;
+  watchlistResolved?: boolean;
   initialEpisode?: Episode | null;
   initialSeasonNumber?: number | null;
   tvHeroEpisodeData?: TvHeroEpisodeData | null;
@@ -42,6 +44,7 @@ export function MediaDetailHero({
   isUpcoming = false,
   anilistId,
   watchlistItem,
+  watchlistResolved = true,
   initialEpisode,
   initialSeasonNumber,
 }: MediaDetailHeroProps) {
@@ -60,10 +63,12 @@ export function MediaDetailHero({
   const scrapePlaybackRef = useRef<ReturnType<
     typeof useHeroScrapePlayback
   > | null>(null);
+  const { warmPlayback, preloadLink } = usePlayIntentDirectPlaybackWarmup();
 
   const notifyPlaybackStart = useCallback(() => {
+    warmPlayback();
     scrapePlaybackRef.current?.onPlaybackStart();
-  }, []);
+  }, [warmPlayback]);
 
   const notifyPlaybackStop = useCallback(() => {
     scrapePlaybackRef.current?.onPlaybackStop();
@@ -102,6 +107,8 @@ export function MediaDetailHero({
     isWatch,
     passedMediaType,
     anilistId,
+    watchlistItem,
+    watchlistResolved,
     onPlaybackStart: notifyPlaybackStart,
     onPlaybackStop: notifyPlaybackStop,
   });
@@ -189,6 +196,7 @@ export function MediaDetailHero({
 
   return (
     <ScrapeChromeProvider chrome={scrapePlayback.scrapeChrome}>
+      {preloadLink}
       <div className="relative h-[100svh] min-h-[34rem] overflow-hidden bg-black">
         <Script
           src="https://www.youtube.com/iframe_api"

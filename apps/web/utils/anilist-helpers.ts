@@ -277,10 +277,25 @@ const isExactAniListMediaMatch = (
   );
 };
 
+const pickExactAnilistMatch = (
+  candidates: readonly AniListSearchMedia[],
+  expectedTitles: readonly string[],
+  expectedYear: number | null,
+): number | null => {
+  for (const candidate of candidates) {
+    if (isExactAniListMediaMatch(candidate, expectedTitles, expectedYear)) {
+      return candidate.id;
+    }
+  }
+
+  return null;
+};
+
 const fetchExactAnilistId = async (
   searchTitle: string,
   expectedTitles: readonly string[],
   expectedYear: number | null,
+  isAdult: boolean,
 ): Promise<number | null> => {
   try {
     const response = await fetch("https://graphql.anilist.co", {
@@ -288,28 +303,28 @@ const fetchExactAnilistId = async (
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         query: `
-          query ($search: String) {
-            Media(search: $search, type: ANIME) {
-              id
-              title { english romaji native }
-              startDate { year }
+          query ($search: String, $isAdult: Boolean) {
+            Page(page: 1, perPage: 10) {
+              media(search: $search, type: ANIME, isAdult: $isAdult) {
+                id
+                title { english romaji native }
+                startDate { year }
+              }
             }
           }
         `,
-        variables: { search: searchTitle },
+        variables: { search: searchTitle, isAdult },
       }),
     });
 
     if (!response.ok) return null;
 
     const payload = (await response.json()) as {
-      data?: { Media?: AniListSearchMedia | null };
+      data?: { Page?: { media?: AniListSearchMedia[] | null } | null };
     };
-    const candidate = payload.data?.Media;
-    return candidate &&
-      isExactAniListMediaMatch(candidate, expectedTitles, expectedYear)
-      ? candidate.id
-      : null;
+    const candidates = payload.data?.Page?.media ?? [];
+
+    return pickExactAnilistMatch(candidates, expectedTitles, expectedYear);
   } catch {
     return null;
   }
@@ -326,11 +341,14 @@ export async function getAnilistIdForMedia(
 
   const releaseYear = getMediaReleaseYear(media);
   for (const searchTitle of searchTitles) {
-    const anilistId = await fetchExactAnilistId(
-      searchTitle,
-      searchTitles,
-      releaseYear,
-    );
+    const anilistId =
+      (await fetchExactAnilistId(
+        searchTitle,
+        searchTitles,
+        releaseYear,
+        false,
+      )) ??
+      (await fetchExactAnilistId(searchTitle, searchTitles, releaseYear, true));
     if (anilistId) return anilistId;
   }
 

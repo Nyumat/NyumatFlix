@@ -1,6 +1,8 @@
 import Hls from "hls.js";
 import { isDirectProgressiveTranscodePath } from "@nyumatflix/playback";
 
+import { extractScrapePlaybackRefreshFromPlayUrl } from "@/lib/scrape/playback";
+
 export type VidstackStartGuardEngine = "vidstack-hls" | "vidstack-direct";
 
 export function shouldEnforceVidstackStartAtZero(
@@ -28,6 +30,11 @@ export const PLAYBACK_STALL_FAILOVER_MS = 8_000;
 
 /** How long to wait for first frame before failing over to another source. */
 export const PLAYBACK_START_TIMEOUT_MS = 45_000;
+
+/** Re-scrape the same provider only when the play URL carries a session refresh token. */
+export const shouldReScrapeSameProviderOnPlaybackError = (
+  playUrl: string,
+): boolean => extractScrapePlaybackRefreshFromPlayUrl(playUrl) !== undefined;
 
 export const VIDSTACK_START_TIMEOUT_MS = 30_000;
 
