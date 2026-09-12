@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Info, Play } from "lucide-react";
 
+import { getGenreName } from "@/components/content/genre-helpers";
 import { MediaLogo, MediaPoster } from "@/components/media/media-display";
 import { mediaMetaBadgeClass } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
@@ -14,24 +15,80 @@ import { tmdbImage } from "@/tmdb/utils";
 type CatalogSpotlightProps = {
   mediaType: "movie" | "tv";
   id: number;
+  item?: CatalogSpotlightSeed;
   priority?: boolean;
   hubLink: string;
   hubButtonLabel: string;
   badgeLabel?: string;
 };
 
+type CatalogSpotlightSeed = {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  overview?: string | null;
+  genre_ids?: number[] | null;
+  genres?: Array<{ id: number; name: string }>;
+  images?: {
+    logos?: CatalogSpotlightLogoSeed[];
+  };
+};
+
+type CatalogSpotlightLogoSeed = {
+  file_path?: string;
+  iso_639_1?: string | null;
+  width?: number;
+  height?: number;
+  aspect_ratio?: number;
+};
+
+type CatalogSpotlightLogo = CatalogSpotlightLogoSeed & {
+  file_path: string;
+};
+
+const getSpotlightTitle = (
+  item: CatalogSpotlightSeed,
+  mediaType: "movie" | "tv",
+) => (mediaType === "movie" ? item.title : item.name) ?? item.title ?? "";
+
+const getSpotlightLogo = (item: CatalogSpotlightSeed) =>
+  item.images?.logos?.find(
+    (logo): logo is CatalogSpotlightLogo =>
+      Boolean(logo.file_path) && logo.iso_639_1 === "en",
+  );
+
+const getSpotlightGenres = (
+  item: CatalogSpotlightSeed,
+  mediaType: "movie" | "tv",
+) => {
+  if (item.genres?.length) return item.genres;
+
+  return (item.genre_ids ?? [])
+    .map((genreId) => ({
+      id: genreId,
+      name: getGenreName(genreId, mediaType),
+    }))
+    .filter((genre) => genre.name !== "Unknown" && genre.name !== "N/A");
+};
+
 export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
   mediaType,
   id,
+  item: seedItem,
   priority,
   badgeLabel = "Featured",
 }) => {
   if (mediaType === "movie") {
-    const item = await tmdb.movie.detail<WithImages>({
-      id,
-      append: "images",
-    });
-    const logo = item.images?.logos.find((l) => l.iso_639_1 === "en");
+    const item = (seedItem ??
+      (await tmdb.movie.detail<WithImages>({
+        id,
+        append: "images",
+      }))) as CatalogSpotlightSeed;
+    const logo = getSpotlightLogo(item);
+    const title = getSpotlightTitle(item, "movie");
+    const genres = getSpotlightGenres(item, "movie");
 
     const backdropUrl = item.backdrop_path
       ? tmdbImage.backdrop(item.backdrop_path, "w1280")
@@ -61,7 +118,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
         <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-background/95 via-background/55 to-background/25" />
         <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/80 via-transparent to-background/30" />
 
-        <div className="relative flex h-full min-h-[min(22rem,70vw)] flex-col gap-8 p-4 sm:p-6 md:min-h-80 md:flex-row md:items-stretch md:gap-8 md:p-8 lg:gap-12 lg:p-10">
+        <div className="relative flex h-index-spotlight flex-col gap-8 p-4 sm:p-6 md:flex-row md:items-stretch md:gap-8 md:p-8 lg:gap-12 lg:p-10">
           <Link
             href={`${pages.movie.root.link}/${item.id}`}
             className="mx-auto shrink-0 md:mx-0"
@@ -70,7 +127,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
             <div className="relative w-[min(72vw,14rem)] overflow-hidden rounded-xl bg-muted shadow-2xl transition-all duration-500 sm:w-56 md:w-64 lg:w-72">
               <MediaPoster
                 image={item.poster_path}
-                alt={item.title}
+                alt={title}
                 priority={priority}
                 size="w780"
                 className="aspect-poster! w-full"
@@ -88,10 +145,10 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
 
             {logo ? (
               <>
-                <h2 className="sr-only">{item.title}</h2>
+                <h2 className="sr-only">{title}</h2>
                 <MediaLogo
                   logo={logo}
-                  title={item.title}
+                  title={title}
                   size="large"
                   maxHeight="112px"
                   maxWidth="448px"
@@ -100,12 +157,12 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
               </>
             ) : (
               <h2 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-                {item.title}
+                {title}
               </h2>
             )}
 
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-              {item.genres.slice(0, 4).map((genre) => (
+              {genres.slice(0, 4).map((genre) => (
                 <Link
                   href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                   key={genre.id}
@@ -124,7 +181,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
             </div>
 
             <p className="line-clamp-4 text-pretty text-sm text-muted-foreground sm:text-base max-w-xl">
-              {item.overview}
+              {item.overview ?? ""}
             </p>
 
             <div className="flex flex-col items-center gap-3 pt-2 sm:flex-row md:justify-start">
@@ -149,11 +206,14 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
     );
   }
 
-  const item = await tmdb.tv.detail<WithImages>({
-    id,
-    append: "images",
-  });
-  const logo = item.images?.logos.find((l) => l.iso_639_1 === "en");
+  const item = (seedItem ??
+    (await tmdb.tv.detail<WithImages>({
+      id,
+      append: "images",
+    }))) as CatalogSpotlightSeed;
+  const logo = getSpotlightLogo(item);
+  const title = getSpotlightTitle(item, "tv");
+  const genres = getSpotlightGenres(item, "tv");
 
   const backdropUrl = item.backdrop_path
     ? tmdbImage.backdrop(item.backdrop_path, "w1280")
@@ -183,7 +243,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
       <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-background/95 via-background/55 to-background/25" />
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/80 via-transparent to-background/30" />
 
-      <div className="relative flex h-full min-h-[min(22rem,70vw)] flex-col gap-8 p-4 sm:p-6 md:min-h-80 md:flex-row md:items-stretch md:gap-8 md:p-8 lg:gap-12 lg:p-10">
+      <div className="relative flex h-index-spotlight flex-col gap-8 p-4 sm:p-6 md:flex-row md:items-stretch md:gap-8 md:p-8 lg:gap-12 lg:p-10">
         <Link
           href={`${pages.tv.root.link}/${item.id}`}
           className="mx-auto shrink-0 md:mx-0"
@@ -192,7 +252,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
           <div className="relative w-[min(72vw,14rem)] overflow-hidden rounded-xl bg-muted shadow-2xl transition-all duration-500 sm:w-56 md:w-64 lg:w-72">
             <MediaPoster
               image={item.poster_path}
-              alt={item.name}
+              alt={title}
               priority={priority}
               size="w780"
               className="aspect-poster! w-full"
@@ -210,10 +270,10 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
 
           {logo ? (
             <>
-              <h2 className="sr-only">{item.name}</h2>
+              <h2 className="sr-only">{title}</h2>
               <MediaLogo
                 logo={logo}
-                title={item.name}
+                title={title}
                 size="large"
                 maxHeight="112px"
                 maxWidth="448px"
@@ -222,12 +282,12 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
             </>
           ) : (
             <h2 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-              {item.name}
+              {title}
             </h2>
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-            {item.genres.slice(0, 4).map((genre) => (
+            {genres.slice(0, 4).map((genre) => (
               <Link
                 href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                 key={genre.id}
@@ -243,7 +303,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
           </div>
 
           <p className="line-clamp-4 text-pretty text-sm text-muted-foreground sm:text-base">
-            {item.overview}
+            {item.overview ?? ""}
           </p>
 
           <div className="flex flex-col items-center gap-3 pt-2 sm:flex-row md:justify-start">

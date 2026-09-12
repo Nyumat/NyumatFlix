@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { TabsProps } from "@radix-ui/react-tabs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getGenreName } from "@/components/content/genre-helpers";
 import { MediaImages } from "@/components/media/media-client";
 import {
   MediaBackdrop,
@@ -44,57 +45,87 @@ import { TvCard } from "./tv-card";
 
 interface TvHeroItemProps {
   id: string;
+  item?: TvHeroSeed;
   label?: string;
   priority?: boolean;
   hideGenre?: boolean;
+  className?: string;
 }
+
+type TvHeroSeed = Pick<TvShow, "id"> &
+  Partial<TvShow> & {
+    genres?: Array<{ id: number; name: string }>;
+    images?: WithImages["images"];
+  };
+
+const getTvHeroLogo = (item: TvHeroSeed) =>
+  item.images?.logos?.find((logo) => logo.file_path && logo.iso_639_1 === "en");
+
+const getTvHeroGenres = (item: TvHeroSeed) => {
+  if (item.genres?.length) return item.genres;
+
+  return (item.genre_ids ?? [])
+    .map((genreId) => ({
+      id: genreId,
+      name: getGenreName(genreId, "tv"),
+    }))
+    .filter((genre) => genre.name !== "Unknown" && genre.name !== "N/A");
+};
 
 export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
   id,
+  item: seedItem,
   label,
   priority,
   hideGenre,
+  className,
 }) => {
-  const item = await tmdb.tv.detail<WithImages>({ id, append: "images" });
-  const logo = item.images?.logos.find((logo) => logo.iso_639_1 === "en");
+  const item =
+    seedItem ?? (await tmdb.tv.detail<WithImages>({ id, append: "images" }));
+  const logo = getTvHeroLogo(item);
+  const genres = getTvHeroGenres(item);
+  const title = item.name ?? "";
 
   return (
     <div
-      className="h-hero relative isolate overflow-hidden rounded-2xl"
+      className={cn(
+        className ?? "h-hero",
+        "relative isolate overflow-hidden rounded-2xl",
+      )}
       key={item.id}
     >
       <div className="absolute inset-0">
         <MediaBackdrop
           image={item.backdrop_path}
-          alt={item.name}
+          alt={title}
           priority={priority}
           className="h-full min-h-0"
           size="w1280"
         />
       </div>
 
-      <div className="overlay">
-        <div className="mx-auto max-w-3xl space-y-3 p-4 pb-6 text-center md:space-y-4 md:p-8 md:pb-8 lg:p-10">
+      <div className="overlay bg-linear-to-r from-background/95 via-background/65 to-background/25">
+        <div className="mx-0 max-w-2xl space-y-3 p-4 pb-6 text-center md:space-y-4 md:p-8 md:pb-8 md:text-left lg:p-10">
           <Badge className="select-none">{label}</Badge>
 
           {logo ? (
             <Image
               src={tmdbImage.logo(logo.file_path, "w500")}
-              className="mx-auto my-2 w-[min(58%,15rem)] md:my-2 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
-              alt={item.name}
+              className="mx-auto my-2 w-[min(58%,15rem)] md:mx-0 md:my-2 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
+              alt={title}
               height={logo.height}
               width={logo.width}
               priority={priority}
             />
           ) : (
             <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-3xl lg:text-4xl">
-              {item.name}
+              {title}
             </h1>
           )}
 
           {!hideGenre && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {item.genres.map((genre) => (
+            <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+              {genres.map((genre) => (
                 <Link
                   href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                   key={genre.id}
@@ -114,10 +145,10 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
           )}
 
           <p className="line-clamp-3 text-sm text-muted-foreground md:text-lg">
-            {item.overview}
+            {item.overview ?? ""}
           </p>
 
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-3 md:justify-start">
             <Link
               href={`${pages.tv.root.link}/${item.id}`}
               className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/60 bg-white px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
@@ -141,12 +172,13 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
 };
 
 interface TvHeroProps {
-  tvShows: Array<Pick<TvShow, "id">>;
+  tvShows: TvHeroSeed[];
   label: string;
   count?: number;
   priority?: boolean;
   pick?: "random" | "first";
   hideGenre?: boolean;
+  itemClassName?: string;
 }
 
 export const TvHero: React.FC<TvHeroProps> = ({
@@ -156,6 +188,7 @@ export const TvHero: React.FC<TvHeroProps> = ({
   priority,
   pick = "random",
   hideGenre,
+  itemClassName,
 }) => {
   const items =
     pick === "first"
@@ -166,9 +199,11 @@ export const TvHero: React.FC<TvHeroProps> = ({
     <TvHeroItem
       key={item.id}
       id={item.id.toString()}
+      item={item}
       label={label}
       priority={priority}
       hideGenre={hideGenre}
+      className={itemClassName}
     />
   ));
 };

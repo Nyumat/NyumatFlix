@@ -325,7 +325,7 @@ export function CastCarousel({ cast }: CastCarouselProps) {
               return (
                 <CarouselItem
                   key={person.id}
-                  className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8"
+                  className="pl-3 basis-[32%] sm:basis-[23%] md:basis-[18%] lg:basis-[15%] xl:basis-[12.5%]"
                 >
                   <div
                     className={cn(
@@ -419,7 +419,10 @@ export function VideoCarousel({ videos }: VideoCarouselProps) {
         >
           <CarouselContent>
             {youtubeVideos.slice(0, 10).map((video: Video) => (
-              <CarouselItem key={video.id} className="basis-1/2 sm:basis-1/3">
+              <CarouselItem
+                key={video.id}
+                className="pl-3 basis-[82%] sm:basis-[58%] md:basis-[40%] lg:basis-[32%] xl:basis-[28%]"
+              >
                 <div className="w-full shrink-0">
                   <div className="rounded-lg overflow-hidden mb-3 aspect-video bg-muted">
                     <iframe
@@ -491,7 +494,7 @@ export function RecommendationsCarousel({
             {recommendations.slice(0, 20).map((item: Movie | TvShow) => (
               <CarouselItem
                 key={item.id}
-                className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 xl:basis-1/8 w-full shrink-0 hover:opacity-80 transition block"
+                className="pl-3 basis-[46%] sm:basis-[31%] md:basis-[24%] lg:basis-[18%] xl:basis-[17%] transition hover:opacity-80"
                 onMouseEnter={() => handleItemMouseEnter(item)}
               >
                 <MediaShowcaseCard

@@ -15,6 +15,7 @@ import { cn, formatValue, getRandomItems } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { MediaPoster } from "@/components/media/media-display";
+import { getGenreName } from "@/components/content/genre-helpers";
 import {
   MediaBackdrop,
   mediaMetaBadgeClass,
@@ -136,41 +137,61 @@ export const MovieCollection: React.FC<MovieCollectionProps> = async ({
 
 interface MovieHeroItemProps {
   id: string;
+  item?: MovieHeroSeed;
   label?: string;
   priority?: boolean;
   hideGenre?: boolean;
   backdropImageClassName?: string;
+  className?: string;
 }
+
+type MovieHeroSeed = Pick<Movie, "id"> &
+  Partial<Movie> & {
+    genres?: Array<{ id: number; name: string }>;
+    images?: WithImages["images"];
+  };
+
+const getMovieHeroLogo = (item: MovieHeroSeed) =>
+  item.images?.logos?.find((logo) => logo.file_path && logo.iso_639_1 === "en");
+
+const getMovieHeroGenres = (item: MovieHeroSeed) => {
+  if (item.genres?.length) return item.genres;
+
+  return (item.genre_ids ?? [])
+    .map((genreId) => ({
+      id: genreId,
+      name: getGenreName(genreId, "movie"),
+    }))
+    .filter((genre) => genre.name !== "Unknown" && genre.name !== "N/A");
+};
 
 export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
   id,
+  item: seedItem,
   label,
   priority,
   hideGenre,
   backdropImageClassName,
+  className,
 }) => {
-  const item = await tmdb.movie.detail<WithImages>({ id, append: "images" });
-  const logo = item.images?.logos.find((logo) => logo.iso_639_1 === "en");
+  const item =
+    seedItem ?? (await tmdb.movie.detail<WithImages>({ id, append: "images" }));
+  const logo = getMovieHeroLogo(item);
+  const genres = getMovieHeroGenres(item);
+  const title = item.title ?? "";
 
   return (
     <div
-      className="h-hero relative isolate overflow-hidden rounded-2xl"
+      className={cn(
+        className ?? "h-hero",
+        "relative isolate overflow-hidden rounded-2xl",
+      )}
       key={item.id}
     >
-      <div className="absolute inset-0 md:hidden">
+      <div className="absolute inset-0">
         <MediaBackdrop
           image={item.backdrop_path}
-          alt={item.title}
-          priority={priority}
-          className="h-full min-h-0"
-          imageClassName={backdropImageClassName}
-          size="w1280"
-        />
-      </div>
-      <div className="absolute inset-0 hidden md:block">
-        <MediaBackdrop
-          image={item.backdrop_path}
-          alt={item.title}
+          alt={title}
           priority={priority}
           className="h-full min-h-0"
           imageClassName={backdropImageClassName}
@@ -178,28 +199,28 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
         />
       </div>
 
-      <div className="overlay">
-        <div className="mx-auto max-w-3xl space-y-3 p-4 pb-6 text-center md:space-y-4 md:p-8 md:pb-8 lg:p-10">
+      <div className="overlay bg-linear-to-r from-background/95 via-background/65 to-background/25">
+        <div className="mx-0 max-w-2xl space-y-3 p-4 pb-6 text-center md:space-y-4 md:p-8 md:pb-8 md:text-left lg:p-10">
           <Badge className="select-none">{label}</Badge>
 
           {logo ? (
             <Image
               src={tmdbImage.logo(logo.file_path, "w500")}
-              className="mx-auto my-2 w-[min(58%,15rem)] md:my-2 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
-              alt={item.title}
+              className="mx-auto my-2 w-[min(58%,15rem)] md:mx-0 md:my-2 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
+              alt={title}
               height={logo.height}
               width={logo.width}
               priority={priority}
             />
           ) : (
             <h1 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-3xl lg:text-4xl">
-              {item.title}
+              {title}
             </h1>
           )}
 
           {!hideGenre && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {item.genres.map((genre) => (
+            <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+              {genres.map((genre) => (
                 <Link
                   href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
                   key={genre.id}
@@ -219,10 +240,10 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
           )}
 
           <p className="line-clamp-3 text-sm text-muted-foreground md:text-lg max-w-xl">
-            {item.overview}
+            {item.overview ?? ""}
           </p>
 
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-3 md:justify-start">
             <Link
               href={`${pages.movie.root.link}/${item.id}?autoplay=true`}
               className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/60 bg-white px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
@@ -246,13 +267,14 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
 };
 
 interface MovieHeroProps {
-  movies: Array<Pick<Movie, "id">>;
+  movies: MovieHeroSeed[];
   label: string;
   count?: number;
   priority?: boolean;
   pick?: "random" | "first";
   hideGenre?: boolean;
   backdropImageClassName?: string;
+  itemClassName?: string;
 }
 
 export const MovieHero: React.FC<MovieHeroProps> = ({
@@ -263,6 +285,7 @@ export const MovieHero: React.FC<MovieHeroProps> = ({
   pick = "random",
   hideGenre,
   backdropImageClassName,
+  itemClassName,
 }) => {
   const items =
     pick === "first"
@@ -273,10 +296,12 @@ export const MovieHero: React.FC<MovieHeroProps> = ({
     <MovieHeroItem
       key={item.id}
       id={item.id.toString()}
+      item={item}
       label={label}
       priority={priority}
       hideGenre={hideGenre}
       backdropImageClassName={backdropImageClassName}
+      className={itemClassName}
     />
   ));
 };
