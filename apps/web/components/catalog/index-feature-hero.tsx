@@ -1,9 +1,9 @@
 import { getGenreName } from "@/components/content/genre-helpers";
 import { FeatureHeroBackdrop } from "@/components/hero/feature-hero-backdrop";
-import { WatchlistButton } from "@/components/watchlist/watchlist";
+import { FeatureHeroWatchlistInfoPill } from "@/components/hero/feature-hero-watchlist-info-pill";
 import { pages } from "@/config/pages";
 import { tmdbImage } from "@/tmdb/utils";
-import { Calendar, Clapperboard, Info, Play, Star } from "lucide-react";
+import { Calendar, Clapperboard, Play, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -199,23 +199,12 @@ export function IndexFeatureHero({
               Play
             </Link>
 
-            <div className="inline-flex h-[52px] overflow-hidden rounded-full border border-white/10 bg-white/10 text-white shadow-lg shadow-black/20 backdrop-blur-[20px] backdrop-saturate-150">
-              <WatchlistButton
-                contentId={item.id}
-                mediaType={mediaType}
-                variant="ghost"
-                size="icon"
-                className="h-[50px] w-16 rounded-none border-0 bg-transparent p-0 text-white transition hover:bg-white/15"
-              />
-              <span className="my-3 w-px bg-white/20" aria-hidden="true" />
-              <Link
-                href={detailHref}
-                aria-label={`More info about ${title}`}
-                className="inline-flex h-[50px] w-16 items-center justify-center transition hover:bg-white/15"
-              >
-                <Info className="size-5" />
-              </Link>
-            </div>
+            <FeatureHeroWatchlistInfoPill
+              contentId={item.id}
+              mediaType={mediaType}
+              detailHref={detailHref}
+              title={title}
+            />
           </div>
         </div>
       </div>
