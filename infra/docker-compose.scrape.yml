@@ -12,6 +12,16 @@ services:
     environment:
       HTTPPROXY: "on"
       HTTPPROXY_LOG: "off"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- --timeout=5 --header=\"X-API-Key: $$GLUETUN_CONTROL_API_KEY\" http://127.0.0.1:8000/v1/vpn/status | grep -q '\"status\":\"running\"' && wget -qO- --timeout=5 --header=\"X-API-Key: $$GLUETUN_CONTROL_API_KEY\" http://127.0.0.1:8000/v1/publicip/ip | grep -qE '\"public_ip\":\"[^\"]+'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - betterome
 
@@ -32,7 +42,8 @@ services:
     networks:
       - betterome
     depends_on:
-      - gluetun
+      gluetun:
+        condition: service_healthy
 
 networks:
   betterome:

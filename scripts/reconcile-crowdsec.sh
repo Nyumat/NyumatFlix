@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_FILE="${CROWDSEC_COMPOSE_FILE:-$ROOT/docker-compose.crowdsec.yml}"
+COMPOSE_FILE="${CROWDSEC_COMPOSE_FILE:-$ROOT/infra/docker-compose.crowdsec.yml}"
 PROJECT="${CROWDSEC_COMPOSE_PROJECT:-nyumatflix-crowdsec}"
 ENV_FILE="${CROWDSEC_ENV_FILE:-$HOME/apps/nyumatflix/.env}"
 ACQUIS_DIR="${CROWDSEC_ACQUIS_DIR:-$ROOT/scripts/crowdsec/acquis.d}"
@@ -41,7 +41,7 @@ upsert_env_var() {
 compose() {
   local env_args=(--env-file "$ENV_FILE")
   CROWDSEC_ACQUIS_DIR="$ACQUIS_DIR" \
-    docker compose "${env_args[@]}" -p "$PROJECT" -f "$COMPOSE_FILE" "$@"
+    docker compose --project-directory "$ROOT" "${env_args[@]}" -p "$PROJECT" -f "$COMPOSE_FILE" "$@"
 }
 
 compose_with_bouncer() {

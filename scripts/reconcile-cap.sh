@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_FILE="${CAP_COMPOSE_FILE:-$ROOT/docker-compose.cap.yml}"
+COMPOSE_FILE="${CAP_COMPOSE_FILE:-$ROOT/infra/docker-compose.cap.yml}"
 PROJECT="${CAP_COMPOSE_PROJECT:-nyumatflix-cap}"
 
 compose() {
@@ -14,7 +14,7 @@ compose() {
   if [[ -n "${CAP_ENV_FILE:-}" ]]; then
     env_args=(--env-file "$CAP_ENV_FILE")
   fi
-  docker compose "${env_args[@]}" -p "$PROJECT" -f "$COMPOSE_FILE" "$@"
+  docker compose --project-directory "$ROOT" "${env_args[@]}" -p "$PROJECT" -f "$COMPOSE_FILE" "$@"
 }
 
 case "${1:-}" in
