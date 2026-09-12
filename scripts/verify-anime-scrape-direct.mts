@@ -9,12 +9,17 @@
 
 import { config as loadEnv } from "dotenv";
 import { resolve } from "node:path";
-import type { AnimeScrapeProviderId } from "../lib/scrape/anime/types.ts";
+import type { AnimeScrapeProviderId } from "../apps/web/lib/scrape/anime/types.ts";
 
-loadEnv({ path: resolve(process.cwd(), ".env") });
-loadEnv({ path: resolve(process.cwd(), ".env.local"), override: true });
+const repoRoot = resolve(import.meta.dirname, "..");
+loadEnv({ path: resolve(repoRoot, ".env") });
+loadEnv({ path: resolve(repoRoot, ".env.local"), override: true });
+loadEnv({ path: resolve(repoRoot, "apps/web/.env"), override: true });
+loadEnv({ path: resolve(repoRoot, "apps/web/.env.local"), override: true });
 
-const { scrapeAnimeProvider } = await import("../lib/scrape/anime/index.ts");
+const { scrapeAnimeProvider } = await import(
+  "../apps/web/lib/scrape/anime/index.ts"
+);
 
 const CASES: Array<{
   label: string;

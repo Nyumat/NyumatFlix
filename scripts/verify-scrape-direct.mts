@@ -1,5 +1,5 @@
-import { scrapeProvider } from "../lib/scrape/index.js";
-import { SCRAPE_PROVIDER_ORDER } from "../lib/scrape/types.js";
+import { scrapeProvider } from "../apps/web/lib/scrape/index.js";
+import { SCRAPE_PROVIDER_ORDER } from "../apps/web/lib/scrape/types.js";
 
 const TMDB_IDS = [550, 27205, 603];
 
