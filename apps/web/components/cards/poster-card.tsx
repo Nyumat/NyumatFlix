@@ -82,7 +82,7 @@ export function PosterCard({
   const cardLink = isExternalHref(link) ? (
     <a
       href={link}
-      className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+      className="absolute inset-0 z-40 cursor-pointer"
       aria-label={`View ${title}`}
       target="_blank"
       rel="noopener noreferrer"
@@ -90,7 +90,7 @@ export function PosterCard({
   ) : (
     <button
       type="button"
-      className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+      className="absolute inset-0 z-40 cursor-pointer"
       aria-label={`View ${title}`}
       onClick={handlePeekActivate}
       onKeyDown={handlePeekKeyDown}
@@ -134,7 +134,7 @@ export function PosterCard({
     return (
       <Card
         className={cn(
-          "group relative aspect-2/3 cursor-grab select-none overflow-hidden border-0 bg-card/40 shadow-xl backdrop-blur-md transition-all duration-300 active:cursor-grabbing",
+          "group relative aspect-2/3 cursor-pointer select-none overflow-hidden border-0 bg-card/40 shadow-xl backdrop-blur-md transition-all duration-300",
         )}
         onPointerEnter={handleIntent}
         onPointerLeave={cancelPrefetch}
@@ -172,7 +172,7 @@ export function PosterCard({
   return (
     <div
       className={cn(
-        "group relative cursor-grab select-none overflow-hidden rounded-[28px] border border-white/12 bg-card/40 shadow-xl backdrop-blur-md active:cursor-grabbing",
+        "group relative cursor-pointer select-none overflow-hidden rounded-[28px] border border-white/12 bg-card/40 shadow-xl backdrop-blur-md",
         isInteractive && "transition-all duration-300 hover:border-primary/50",
       )}
       style={{ aspectRatio: "2 / 3" }}

@@ -48,6 +48,13 @@ import SearchResults from "./search-results";
 
 interface SearchComponentProps {
   onSearch?: (query: string) => void;
+  /** Wrapper width/layout override. Defaults to `mx-auto w-full max-w-lg`. */
+  className?: string;
+  /** Scale of the input and controls. */
+  size?: "default" | "large";
+  /** Override the input's own classes (merged over the base styling). */
+  inputClassName?: string;
+  placeholder?: string;
 }
 
 interface SearchExperienceProps {
@@ -74,7 +81,13 @@ const SEARCH_DIALOG_SPRING = {
   mass: 0.9,
 };
 
-export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
+export function SearchComponent({
+  onSearch,
+  className,
+  size = "default",
+  inputClassName,
+  placeholder = "Search movies, TV shows, and anime...",
+}: SearchComponentProps = {}) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -113,15 +126,29 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
     onEscape: () => setIsFocused(false),
   });
 
+  const isLarge = size === "large";
+
   return (
-    <div className="relative w-full max-w-lg mx-auto" suppressHydrationWarning>
+    <div
+      className={cn(
+        "relative w-full max-w-lg mx-auto",
+        isLarge ? "max-w-3xl" : undefined,
+        className,
+      )}
+      suppressHydrationWarning
+    >
       <form onSubmit={handleSubmit}>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+          <Search
+            className={cn(
+              "absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground z-10",
+              isLarge ? "h-5 w-5 left-4" : "h-4 w-4",
+            )}
+          />
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Search movies, TV shows, and anime..."
+            placeholder={placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
@@ -129,7 +156,13 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
               setIsFocused(false);
             }}
             onKeyDown={handleKeyDown}
-            className="pl-10 pr-20 py-2.5 w-full rounded-xl border border-border/30 bg-background/60 shadow-sm backdrop-blur-md transition-all hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:border-border/30 dark:border-white/15 dark:bg-black/40 dark:hover:bg-white/15 dark:focus-visible:bg-white/15 placeholder:text-muted-foreground/60"
+            className={cn(
+              "w-full rounded-xl border border-border/30 bg-background/60 shadow-sm backdrop-blur-md transition-all hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:border-border/30 dark:border-white/15 dark:bg-black/40 dark:hover:bg-white/15 dark:focus-visible:bg-white/15 placeholder:text-muted-foreground/60",
+              isLarge
+                ? "h-14 py-3.5 pl-12 pr-24 text-base"
+                : "py-2.5 pl-10 pr-20",
+              inputClassName,
+            )}
           />
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {isMounted && !query && !isFocused && (
@@ -140,10 +173,13 @@ export function SearchComponent({ onSearch }: SearchComponentProps = {}) {
             <Button
               type="submit"
               size="sm"
-              className="h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+              className={cn(
+                "bg-primary text-primary-foreground hover:bg-primary/90",
+                isLarge ? "h-9 px-4" : "h-8 px-3",
+              )}
               disabled={!query.trim()}
             >
-              <Search className="h-3 w-3" />
+              <Search className={isLarge ? "h-4 w-4" : "h-3 w-3"} />
               <span className="ml-1 hidden sm:inline">Search</span>
             </Button>
           </div>

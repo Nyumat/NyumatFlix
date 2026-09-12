@@ -10,6 +10,7 @@ import {
 import useMedia from "@/hooks/useMedia";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { MediaItem } from "@/lib/domain/typings";
+import { cn } from "@/lib/utils";
 import { ContentRowHeader } from "./content-row-header";
 import { RankedBackdropCard } from "./ranked-backdrop-card";
 
@@ -18,6 +19,7 @@ export interface RankedContentRowProps {
   items: MediaItem[];
   href: string;
   showHeader?: boolean;
+  bleed?: boolean;
 }
 
 export function RankedContentRow({
@@ -25,16 +27,17 @@ export function RankedContentRow({
   items: initialItems,
   href,
   showHeader = true,
+  bleed = false,
 }: RankedContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
   const items = filterWithPosterPath(initialItems).slice(0, 3);
   const header = showHeader ? (
-    <ContentRowHeader title={title} href={href} />
+    <ContentRowHeader bleed={bleed} title={title} href={href} />
   ) : null;
 
   if (isMobile) {
     return (
-      <div>
+      <section className={cn(bleed && "index-bleed")}>
         {header}
         <div className="relative">
           <Carousel
@@ -43,14 +46,18 @@ export function RankedContentRow({
               loop: false,
               dragFree: true,
               skipSnaps: true,
+              containScroll: "trimSnaps",
             }}
             className="w-full"
           >
-            <CarouselContent className="-ml-3">
+            <CarouselContent
+              className="-ml-3"
+              viewportClassName={bleed ? "index-rail-padding" : undefined}
+            >
               {items.map((item, index) => (
                 <CarouselItem
                   key={`${item.id}-${index}`}
-                  className="pl-3 md:pl-4 basis-[85%] sm:basis-[70%]"
+                  className="pl-3 basis-[82%] sm:basis-[58%] md:basis-[40%]"
                 >
                   <RankedBackdropCard item={item} rank={index + 1} />
                 </CarouselItem>
@@ -60,15 +67,20 @@ export function RankedContentRow({
             <CarouselNext className="absolute -right-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 shadow-lg shadow-black/20 transition-all duration-200" />
           </Carousel>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div>
+    <section className={cn(bleed && "index-bleed")}>
       {header}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6",
+          bleed && "index-rail-padding",
+        )}
+      >
         {items.map((item, index) => (
           <RankedBackdropCard
             key={`${item.id}-${index}`}
@@ -77,6 +89,6 @@ export function RankedContentRow({
           />
         ))}
       </div>
-    </div>
+    </section>
   );
 }

@@ -74,6 +74,7 @@ interface EpisodeState {
       animeSeasonNumber?: number | null;
       relativeEpisodeNumber?: number;
     },
+    rememberSelection?: boolean,
   ) => void;
   applyAnimeEpisodeMapping: (
     mapping: {
@@ -162,6 +163,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
     skipWatchCallback = false,
     seasonEpisodes,
     mapping,
+    rememberSelection = true,
   ) => {
     const effectiveAnimeInfo = animeInfo;
     const isAnimeEpisode = !!effectiveAnimeInfo;
@@ -186,7 +188,7 @@ export const useEpisodeStore = create<EpisodeState>((set, get) => ({
             : "idle";
 
     const contentKey = normalizeTvContentKey(tvShowId);
-    if (contentKey !== null) {
+    if (rememberSelection && contentKey !== null) {
       rememberLastTvEpisode(contentKey, seasonNumber, episode.episode_number);
     }
 

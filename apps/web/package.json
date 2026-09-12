@@ -20,7 +20,7 @@
     "test-ci": "vitest run",
     "test": "vitest run",
     "test:watch": "vitest --watch",
-    "test:anime-scrape": "npx tsx scripts/verify-anime-scrape-direct.mts",
+    "test:anime-scrape": "npx tsx ../../scripts/verify-anime-scrape-direct.mts",
     "test:anime-scrape:api": "node scripts/verify-anime-scrape.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",

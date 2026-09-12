@@ -94,7 +94,8 @@ export const revealCarouselItem = (
 
   // Last resort: only nudge if the card is fully off-screen in the viewport.
   const bounds = item.getBoundingClientRect();
-  const viewport = carousel.querySelector(".overflow-hidden") ?? carousel;
+  const viewport =
+    carousel.querySelector<HTMLElement>("[data-carousel-viewport]") ?? carousel;
   const viewBounds = viewport.getBoundingClientRect();
   const fullyHidden =
     bounds.right < viewBounds.left || bounds.left > viewBounds.right;
@@ -121,6 +122,11 @@ type CarouselContextProps = {
 } & CarouselProps;
 
 const CarouselContext = React.createContext<CarouselContextProps | null>(null);
+
+type CarouselContentProps = React.HTMLAttributes<HTMLDivElement> & {
+  /** Classes for the fixed viewport around the moving track. */
+  viewportClassName?: string;
+};
 
 function useCarousel() {
   const context = React.useContext(CarouselContext);
@@ -261,26 +267,95 @@ const Carousel = React.forwardRef<
 );
 Carousel.displayName = "Carousel";
 
-const CarouselContent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => {
-  const { carouselRef, orientation } = useCarousel();
+const CarouselContent = React.forwardRef<HTMLDivElement, CarouselContentProps>(
+  ({ className, viewportClassName, ...props }, ref) => {
+    const { api, carouselRef, orientation } = useCarousel();
+    const apiRef = React.useRef(api);
+    const orientationRef = React.useRef(orientation);
+    const viewportRef = React.useRef<HTMLDivElement | null>(null);
+    const setViewportRef = React.useCallback(
+      (node: HTMLDivElement | null) => {
+        viewportRef.current = node;
+        carouselRef(node);
+      },
+      [carouselRef],
+    );
 
-  return (
-    <div ref={carouselRef} className={cn(className, "overflow-hidden")}>
+    React.useEffect(() => {
+      apiRef.current = api;
+      orientationRef.current = orientation;
+    }, [api, orientation]);
+
+    React.useEffect(() => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+
+      const handleWheel = (event: WheelEvent) => {
+        const currentApi = apiRef.current;
+        if (
+          orientationRef.current !== "horizontal" ||
+          !currentApi ||
+          event.ctrlKey
+        ) {
+          return;
+        }
+
+        const isHorizontalIntent =
+          Math.abs(event.deltaX) > Math.abs(event.deltaY);
+        if (!isHorizontalIntent && !event.shiftKey) return;
+
+        const rawDelta = isHorizontalIntent ? event.deltaX : event.deltaY;
+        if (Math.abs(rawDelta) < 1) return;
+
+        const canScroll =
+          rawDelta > 0
+            ? currentApi.canScrollNext()
+            : currentApi.canScrollPrev();
+        if (!canScroll) return;
+
+        event.preventDefault();
+
+        const deltaMultiplier =
+          event.deltaMode === 1
+            ? 16
+            : event.deltaMode === 2
+              ? viewport.clientWidth
+              : 1;
+        const engine = currentApi.internalEngine();
+
+        engine.scrollBody.useDuration(0).useFriction(0);
+        engine.scrollTo.distance(-(rawDelta * deltaMultiplier), false);
+      };
+
+      viewport.addEventListener("wheel", handleWheel, { passive: false });
+      return () => {
+        viewport.removeEventListener("wheel", handleWheel);
+      };
+    }, []);
+
+    return (
       <div
-        ref={ref}
+        ref={setViewportRef}
+        data-carousel-viewport=""
         className={cn(
-          "flex",
-          orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col",
-          className,
+          "scrollbar-hide w-full min-w-0 overflow-hidden overscroll-x-contain",
+          viewportClassName,
         )}
-        {...props}
-      />
-    </div>
-  );
-});
+      >
+        <div
+          ref={ref}
+          data-carousel-content=""
+          className={cn(
+            "flex min-w-0",
+            orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col",
+            className,
+          )}
+          {...props}
+        />
+      </div>
+    );
+  },
+);
 CarouselContent.displayName = "CarouselContent";
 
 const CarouselItem = React.forwardRef<

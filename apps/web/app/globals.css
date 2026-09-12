@@ -260,18 +260,6 @@ html {
   color-scheme: dark;
 }
 
-/*
- * Keep wide-screen browsing intentionally dense. This recreates the clearer,
- * zoomed-out composition without scaling the rendered page or affecting
- * tablet/mobile layouts. Rem-based type and spacing follow this proportion,
- * while browser zoom and user accessibility settings continue to work.
- */
-@media (width >= 80rem) {
-  html {
-    font-size: 82.5%;
-  }
-}
-
 /* *=========== Default theme =========== */
 @layer base {
   /* :root {
@@ -533,6 +521,69 @@ html {
   }
 }
 
+@utility index-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1760px;
+  padding-inline: 1rem;
+
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+
+  @media (width >= 80rem) {
+    padding-inline: 3rem;
+  }
+
+  @media (width >= 96rem) {
+    padding-inline: 4rem;
+  }
+}
+
+@utility index-bleed {
+  margin-inline: -1rem;
+
+  @media (width >= 40rem) {
+    margin-inline: -1.5rem;
+  }
+
+  @media (width >= 64rem) {
+    margin-inline: -2rem;
+  }
+
+  @media (width >= 80rem) {
+    margin-inline: -3rem;
+  }
+
+  @media (width >= 96rem) {
+    margin-inline: -4rem;
+  }
+}
+
+@utility index-rail-padding {
+  padding-inline: 1rem;
+
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+
+  @media (width >= 80rem) {
+    padding-inline: 3rem;
+  }
+
+  @media (width >= 96rem) {
+    padding-inline: 4rem;
+  }
+}
+
 @utility site-container {
   margin-inline: auto;
   width: 100%;
@@ -550,16 +601,28 @@ html {
 
 @utility grid-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
   gap: 1rem;
 
   @media (width >= 48rem) {
-    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
   }
 
   @media (width >= 64rem) {
-    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
   }
+
+  @media (width >= 96rem) {
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  }
+}
+
+@utility h-index-spotlight {
+  height: clamp(28rem, 38vw, 42rem);
+}
+
+@utility h-index-feature {
+  height: clamp(20rem, 26vw, 32rem);
 }
 
 @utility h-hero {

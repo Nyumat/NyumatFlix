@@ -381,7 +381,9 @@ export function HeroContent({
                   <motion.div
                     className={cn(
                       "min-w-0 w-full flex-1 flex flex-col pointer-events-auto rounded-xl",
-                      isWatch ? "max-w-3xl" : "max-w-2xl",
+                      isWatch
+                        ? "max-w-3xl pr-28 sm:pr-32 lg:pr-0"
+                        : "max-w-2xl",
                     )}
                     onMouseEnter={onDetailsMouseEnter}
                     onMouseLeave={onDetailsMouseLeave}
@@ -400,7 +402,7 @@ export function HeroContent({
                           )}
                         />
                       ) : (
-                        <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3 drop-shadow-xl tracking-tight">
+                        <h1 className="mb-3 max-w-full text-balance break-words text-4xl font-extrabold leading-tight tracking-normal text-white drop-shadow-xl md:text-5xl">
                           {title as string}
                         </h1>
                       )}

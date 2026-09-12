@@ -1,6 +1,6 @@
 "use client";
 
-import { DiscoverFilters, DiscoverSort } from "@/components/discover/discover";
+import { DiscoverFilterSort } from "@/components/discover/discover";
 import type { Genre, WatchProvider } from "@/tmdb/models";
 
 export function DiscoverHubToolbarInner({
@@ -16,13 +16,12 @@ export function DiscoverHubToolbarInner({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <DiscoverFilters
+      <DiscoverFilterSort
         type={type}
         genres={genres}
         providers={providers}
         serverDiscoverFilters={serverDiscoverFilters}
       />
-      <DiscoverSort type={type} />
     </div>
   );
 }

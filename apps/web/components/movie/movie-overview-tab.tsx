@@ -1,6 +1,5 @@
 "use client";
 
-import { MovieCollectionClient } from "@/components/movie/movie-collection-client";
 import { StatusBadge } from "@/components/media/controls/status-badge";
 import { buildProductionCompanyCatalogUrl } from "@/lib/catalog-query";
 import { formatValue } from "@/lib/utils";
@@ -63,7 +62,6 @@ export const MovieOverviewTab = ({
     budget,
     revenue,
     production_companies,
-    belongs_to_collection,
     original_language,
     overview,
     vote_average,
@@ -184,10 +182,6 @@ export const MovieOverviewTab = ({
         <p className="text-sm text-muted-foreground">
           More details will be available closer to release.
         </p>
-      ) : null}
-
-      {belongs_to_collection ? (
-        <MovieCollectionClient collectionId={belongs_to_collection.id} />
       ) : null}
     </section>
   );

@@ -14,7 +14,7 @@ export function UpNextInboxRow() {
   }
 
   if (isLoading) {
-    return <RecentlyWatchedRowFallback />;
+    return <RecentlyWatchedRowFallback bleed />;
   }
 
   if (items.length === 0) {

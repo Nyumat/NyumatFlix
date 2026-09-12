@@ -152,13 +152,15 @@ export const DiscoverFilterDate: React.FC<DiscoverFilterDateProps> = ({
 
   return (
     <div className="flex flex-col gap-2">
-      <Label className="flex text-muted-foreground">{label}</Label>
+      <Label className="flex text-xs font-semibold uppercase text-muted-foreground">
+        {label}
+      </Label>
       <Popover>
         <PopoverTrigger asChild>
           <Button
             variant={"outline"}
             className={cn(
-              "w-full justify-start text-left font-normal",
+              "h-11 w-full justify-start rounded-lg border-border/70 bg-background/45 px-3 text-left font-normal shadow-none",
               !value && "text-muted-foreground",
             )}
           >
@@ -274,11 +276,19 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label className="text-muted-foreground">Genres</Label>
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-semibold text-foreground">
+            Genres
+          </Label>
+          {selection.length > 0 && (
+            <Badge variant="secondary" className="px-2 py-0 text-[11px]">
+              {selection.length}
+            </Badge>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>Match</span>
           <InfoTooltip className="max-w-64">
             Any includes titles matching at least one selected genre. All only
             includes titles matching every selected genre.
@@ -287,7 +297,8 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
             type="single"
             value={matchMode}
             onValueChange={handleMatchModeChange}
-            className="h-8 rounded-md border border-border/70 bg-background/50 p-0.5"
+            aria-label="Genre matching"
+            className="h-8 rounded-md border border-border/70 bg-background/45 p-0.5"
           >
             <ToggleGroupItem value="or" className="h-7 px-2 text-xs">
               Any
@@ -299,7 +310,7 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {genres.map((genre) => {
           const id = Number(genre.id);
           const isSelected = selection.includes(id);
@@ -313,8 +324,9 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
                 badgeVariants({
                   variant: isSelected ? "default" : "secondary",
                 }),
+                "min-h-8 px-3 py-1 text-sm shadow-none",
                 isSelected &&
-                  "ring-2 ring-primary/60 ring-offset-2 ring-offset-background",
+                  "border-primary/50 bg-primary/20 ring-1 ring-primary/45 ring-offset-0",
               )}
             >
               {genre.name}
@@ -322,7 +334,7 @@ export const DiscoverFilterGenre: React.FC<DiscoverFilterGenreProps> = ({
           );
         })}
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -342,8 +354,10 @@ export const DiscoverFilterLang: React.FC<DiscoverFilterLangProps> = ({
   )?.english_name;
 
   return (
-    <div className="space-y-2">
-      <Label className="flex text-muted-foreground">Language</Label>
+    <section className="space-y-3">
+      <Label className="flex text-sm font-semibold text-foreground">
+        Language
+      </Label>
 
       <Popover>
         <PopoverTrigger
@@ -351,7 +365,7 @@ export const DiscoverFilterLang: React.FC<DiscoverFilterLangProps> = ({
           asChild
         >
           <Button
-            className="w-full justify-between text-left"
+            className="h-11 w-full justify-between rounded-lg border-border/70 bg-background/45 px-3 text-left shadow-none"
             variant="outline"
           >
             {selected || "Select language..."}
@@ -363,7 +377,7 @@ export const DiscoverFilterLang: React.FC<DiscoverFilterLangProps> = ({
           <LanguageList value={value} onSelect={onChange} />
         </PopoverContent>
       </Popover>
-    </div>
+    </section>
   );
 };
 
@@ -446,8 +460,15 @@ export const DiscoverFilterVoteAverage: React.FC<
   };
 
   return (
-    <div className="space-y-4">
-      <Label className="text-muted-foreground">Vote Average</Label>
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <Label className="text-sm font-semibold text-foreground">
+          Minimum rating
+        </Label>
+        <span className="rounded-full border border-border/60 bg-background/45 px-2 py-0.5 text-xs text-muted-foreground">
+          {local > 0 ? `${local}/10` : "Any"}
+        </span>
+      </div>
 
       <Slider
         min={0}
@@ -473,7 +494,7 @@ export const DiscoverFilterVoteAverage: React.FC<
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -499,8 +520,15 @@ export const DiscoverFilterVoteCount: React.FC<
   };
 
   return (
-    <div className="space-y-4">
-      <Label className="text-muted-foreground">Minimum Votes</Label>
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <Label className="text-sm font-semibold text-foreground">
+          Minimum votes
+        </Label>
+        <span className="rounded-full border border-border/60 bg-background/45 px-2 py-0.5 text-xs text-muted-foreground">
+          {local > 0 ? local : "Any"}
+        </span>
+      </div>
 
       <Slider
         min={0}
@@ -526,7 +554,7 @@ export const DiscoverFilterVoteCount: React.FC<
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -560,8 +588,8 @@ export const DiscoverFilterProvider: React.FC<DiscoverFilterProviderProps> = ({
     : "Select providers...";
 
   return (
-    <div className="space-y-2">
-      <Label className="flex items-center gap-2 text-muted-foreground">
+    <section className="space-y-3">
+      <Label className="flex items-center gap-2 text-sm font-semibold text-foreground">
         Where to watch
         <InfoTooltip className="w-60">
           Provider filters use the US catalog from TMDb (fixed region, not based
@@ -576,7 +604,7 @@ export const DiscoverFilterProvider: React.FC<DiscoverFilterProviderProps> = ({
         >
           <Button
             variant="outline"
-            className="w-full justify-between text-left"
+            className="h-11 w-full justify-between rounded-lg border-border/70 bg-background/45 px-3 text-left shadow-none"
           >
             <span className="line-clamp-1">{comboboxValue}</span>
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
@@ -592,7 +620,7 @@ export const DiscoverFilterProvider: React.FC<DiscoverFilterProviderProps> = ({
           />
         </PopoverContent>
       </Popover>
-    </div>
+    </section>
   );
 };
 
@@ -689,6 +717,131 @@ interface DiscoverFiltersProps {
   triggerClassName?: string;
 }
 
+type DiscoverFilterState = {
+  count: number;
+  getFilter: (key: string) => string;
+  setFilter: (partial: Record<string, string>) => void;
+  saveFilters: (options?: { sortBy?: string }) => void;
+  clearFilters: () => void;
+  resetDraftFromUrl: () => void;
+};
+
+type DiscoverSortOption = ReturnType<typeof useSort>["options"][number];
+
+const getActiveSortOption = (
+  options: DiscoverSortOption[],
+  activeSort: string,
+) => options.find((option) => option.value === activeSort) ?? options[0];
+
+const DiscoverFilterSections = ({
+  type,
+  genres,
+  providers,
+  getFilter,
+  setFilter,
+}: {
+  type: "movie" | "tv";
+  genres: Genre[];
+  providers: WatchProvider[];
+  getFilter: DiscoverFilterState["getFilter"];
+  setFilter: DiscoverFilterState["setFilter"];
+}) => {
+  const dateGte =
+    type === "movie" ? "primary_release_date.gte" : "first_air_date.gte";
+  const dateLte =
+    type === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
+  const dateLabel = type === "movie" ? "Release date" : "First air date";
+
+  return (
+    <div className="space-y-6">
+      <DiscoverFilterGenre
+        genres={genres}
+        value={getFilter("with_genres")}
+        onChange={(value) => setFilter({ with_genres: value })}
+      />
+
+      <section className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">
+          {dateLabel}
+        </Label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <DiscoverFilterDate
+            label="From"
+            align="start"
+            value={getFilter(dateGte)}
+            disableAfter={getFilter(dateLte)}
+            onChange={(value) => setFilter({ [dateGte]: value })}
+          />
+
+          <DiscoverFilterDate
+            label="To"
+            align="end"
+            value={getFilter(dateLte)}
+            disableBefore={getFilter(dateGte)}
+            onChange={(value) => setFilter({ [dateLte]: value })}
+          />
+        </div>
+      </section>
+
+      <DiscoverFilterLang
+        value={getFilter("with_original_language")}
+        onChange={(value) => setFilter({ with_original_language: value })}
+      />
+
+      <DiscoverFilterProvider
+        providers={providers}
+        value={getFilter("with_watch_providers")}
+        onChange={(value) => setFilter({ with_watch_providers: value })}
+      />
+
+      <DiscoverFilterVoteAverage
+        value={getFilter("vote_average.gte")}
+        onChange={(value) => setFilter({ "vote_average.gte": value })}
+      />
+
+      <DiscoverFilterVoteCount
+        value={getFilter("vote_count.gte")}
+        onChange={(value) => setFilter({ "vote_count.gte": value })}
+      />
+    </div>
+  );
+};
+
+const DiscoverSortOptions = ({
+  options,
+  activeSort,
+  onSelect,
+  className,
+}: {
+  options: DiscoverSortOption[];
+  activeSort: string;
+  onSelect: (value: string) => void;
+  className?: string;
+}) => (
+  <div className={cn("flex flex-col gap-1", className)}>
+    {options.map((option) => (
+      <Button
+        key={option.value}
+        type="button"
+        variant={activeSort === option.value ? "default" : "ghost"}
+        onClick={() => onSelect(option.value)}
+        className="justify-between text-left font-normal"
+      >
+        <span className="flex min-w-0 items-center">
+          <option.icon className="mr-2 size-4 shrink-0" />
+          <span className="truncate">{option.label}</span>
+        </span>
+
+        {option.value.includes("asc") ? (
+          <ChevronUp className="ml-3 size-4 shrink-0" />
+        ) : (
+          <ChevronDown className="ml-3 size-4 shrink-0" />
+        )}
+      </Button>
+    ))}
+  </div>
+);
+
 export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   type,
   genres,
@@ -704,11 +857,6 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
     clearFilters,
     resetDraftFromUrl,
   } = useFilters(type, serverDiscoverFilters);
-
-  const dateGte =
-    type === "movie" ? "primary_release_date.gte" : "first_air_date.gte";
-  const dateLte =
-    type === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
 
   return (
     <Sheet
@@ -727,70 +875,170 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
         )}
       </SheetTrigger>
 
-      <SheetContent className="flex flex-col px-0">
-        <SheetHeader>
-          <div className="px-4 md:px-6">
-            <SheetTitle>Filters</SheetTitle>
+      <SheetContent className="flex w-full flex-col overflow-hidden bg-background p-0 sm:max-w-lg">
+        <SheetHeader className="border-b border-border/60 px-4 pb-4 pt-5 text-left md:px-6">
+          <div className="pr-10">
+            <SheetTitle className="text-xl">Filters</SheetTitle>
             <SheetDescription>
               Narrow down your search results with the following filters.
             </SheetDescription>
           </div>
         </SheetHeader>
 
-        <ScrollArea>
-          <div className="space-y-8 px-4 md:px-6">
-            <DiscoverFilterGenre
+        <ScrollArea className="flex-1">
+          <div className="px-4 py-5 md:px-6">
+            <DiscoverFilterSections
+              type={type}
               genres={genres}
-              value={getFilter("with_genres")}
-              onChange={(value) => setFilter({ with_genres: value })}
-            />
-
-            <div className="grid gap-2 md:grid-cols-2">
-              <DiscoverFilterDate
-                label="From"
-                align="start"
-                value={getFilter(dateGte)}
-                disableAfter={getFilter(dateLte)}
-                onChange={(value) => setFilter({ [dateGte]: value })}
-              />
-
-              <DiscoverFilterDate
-                label="To"
-                align="end"
-                value={getFilter(dateLte)}
-                disableBefore={getFilter(dateGte)}
-                onChange={(value) => setFilter({ [dateLte]: value })}
-              />
-            </div>
-
-            <DiscoverFilterLang
-              value={getFilter("with_original_language")}
-              onChange={(value) => setFilter({ with_original_language: value })}
-            />
-
-            <DiscoverFilterProvider
               providers={providers}
-              value={getFilter("with_watch_providers")}
-              onChange={(value) => setFilter({ with_watch_providers: value })}
-            />
-
-            <DiscoverFilterVoteAverage
-              value={getFilter("vote_average.gte")}
-              onChange={(value) => setFilter({ "vote_average.gte": value })}
-            />
-
-            <DiscoverFilterVoteCount
-              value={getFilter("vote_count.gte")}
-              onChange={(value) => setFilter({ "vote_count.gte": value })}
+              getFilter={getFilter}
+              setFilter={setFilter}
             />
           </div>
         </ScrollArea>
 
-        <SheetFooter className="gap-2 px-4 md:gap-0 md:px-6">
-          <Button size="lg" variant="outline" onClick={clearFilters}>
+        <SheetFooter className="flex-row gap-2 border-t border-border/60 bg-background px-4 py-4 shadow-[0_-12px_28px_rgba(0,0,0,0.22)] sm:space-x-0 md:px-6">
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={clearFilters}
+            className="flex-1 shadow-none"
+          >
             Clear
           </Button>
-          <SheetClose className={buttonVariants()} onClick={saveFilters}>
+          <SheetClose
+            className={cn(buttonVariants({ size: "lg" }), "flex-1")}
+            onClick={() => saveFilters()}
+          >
+            Save Changes
+          </SheetClose>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+export const DiscoverFilterSort: React.FC<DiscoverFiltersProps> = ({
+  type,
+  genres,
+  providers,
+  serverDiscoverFilters,
+  triggerClassName,
+}) => {
+  const {
+    count,
+    getFilter,
+    setFilter,
+    saveFilters,
+    clearFilters,
+    resetDraftFromUrl,
+  } = useFilters(type, serverDiscoverFilters);
+  const { options, getSort } = useSort(type);
+  const activeSort = getSort();
+  const activeOption = getActiveSortOption(options, activeSort);
+  const currentSortValue = activeOption?.value ?? options[0]?.value ?? "";
+  const [draftSort, setDraftSort] = React.useState(currentSortValue);
+  const draftOption = getActiveSortOption(options, draftSort);
+
+  React.useEffect(() => {
+    setDraftSort(currentSortValue);
+  }, [currentSortValue]);
+
+  const saveFilterSort = () => {
+    saveFilters({ sortBy: draftSort });
+  };
+
+  return (
+    <Sheet
+      onOpenChange={(open) => {
+        if (open) {
+          resetDraftFromUrl();
+          setDraftSort(currentSortValue);
+        }
+      }}
+    >
+      <SheetTrigger
+        className={cn(
+          buttonVariants({ variant: "outline" }),
+          "h-11 w-full justify-between gap-3 px-3 md:h-9 md:w-auto md:px-4",
+          triggerClassName,
+        )}
+        aria-label={`Open filters and sort. Current sort: ${
+          activeOption?.label ?? "Highest Popularity"
+        }`}
+      >
+        <span className="flex min-w-0 items-center">
+          <SlidersHorizontal className="mr-2 size-4 shrink-0" />
+          <span>Filter &amp; Sort</span>
+          {count > 0 && (
+            <Badge className="ml-2 px-2 text-xs leading-none">{count}</Badge>
+          )}
+        </span>
+        <span className="hidden min-w-0 items-center gap-1.5 border-l border-border/70 pl-3 text-xs font-medium text-foreground/70 md:flex">
+          <ArrowDownWideNarrow className="size-3.5 shrink-0" />
+          <span className="max-w-36 truncate">
+            {activeOption?.label ?? "Highest Popularity"}
+          </span>
+        </span>
+      </SheetTrigger>
+
+      <SheetContent className="flex w-full flex-col overflow-hidden bg-background p-0 sm:max-w-lg">
+        <SheetHeader className="border-b border-border/60 px-4 pb-4 pt-5 text-left md:px-6">
+          <div className="pr-10">
+            <SheetTitle className="text-xl">Filter &amp; Sort</SheetTitle>
+            <SheetDescription>
+              Choose an order, then narrow the catalog.
+            </SheetDescription>
+          </div>
+        </SheetHeader>
+
+        <ScrollArea className="flex-1">
+          <div className="space-y-6 px-4 py-5 md:px-6">
+            <section className="grid gap-2 sm:grid-cols-[5rem_1fr] sm:items-center">
+              <Label className="text-sm font-semibold text-foreground">
+                Sort
+              </Label>
+              <Select value={draftSort} onValueChange={setDraftSort}>
+                <SelectTrigger className="h-10 rounded-md border-border/60 bg-muted/20 px-3 text-sm shadow-none focus:ring-1 focus:ring-border focus:ring-offset-0">
+                  <span>{draftOption?.label ?? "Choose sort order"}</span>
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  <SelectGroup>
+                    {options.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </section>
+
+            <div className="h-px bg-border/60" />
+
+            <DiscoverFilterSections
+              type={type}
+              genres={genres}
+              providers={providers}
+              getFilter={getFilter}
+              setFilter={setFilter}
+            />
+          </div>
+        </ScrollArea>
+
+        <SheetFooter className="flex-row gap-2 border-t border-border/60 bg-background px-4 py-4 shadow-[0_-12px_28px_rgba(0,0,0,0.22)] sm:space-x-0 md:px-6">
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={clearFilters}
+            className="flex-1 shadow-none"
+          >
+            Clear filters
+          </Button>
+          <SheetClose
+            className={cn(buttonVariants({ size: "lg" }), "flex-1")}
+            onClick={saveFilterSort}
+          >
             Save Changes
           </SheetClose>
         </SheetFooter>
@@ -813,8 +1061,7 @@ export const DiscoverSort: React.FC<DiscoverSortProps> = ({
 }) => {
   const { options, getSort, setSort } = useSort(type);
   const activeSort = getSort();
-  const activeOption =
-    options.find((option) => option.value === activeSort) ?? options[0];
+  const activeOption = getActiveSortOption(options, activeSort);
 
   return (
     <Popover>
@@ -835,25 +1082,12 @@ export const DiscoverSort: React.FC<DiscoverSortProps> = ({
         )}
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="flex flex-col gap-1 p-1">
-        {options.map((option) => (
-          <Button
-            key={option.value}
-            variant={getSort() === option.value ? "default" : "ghost"}
-            onClick={() => setSort(option.value)}
-            className="justify-between text-left font-normal"
-          >
-            <span className="flex items-center">
-              <option.icon className="mr-2 size-4" /> {option.label}
-            </span>
-
-            {option.value.includes("asc") ? (
-              <ChevronUp className="size-4" />
-            ) : (
-              <ChevronDown className="size-4" />
-            )}
-          </Button>
-        ))}
+      <PopoverContent align="end" className="w-64 p-1">
+        <DiscoverSortOptions
+          options={options}
+          activeSort={activeOption?.value ?? activeSort}
+          onSelect={setSort}
+        />
       </PopoverContent>
     </Popover>
   );

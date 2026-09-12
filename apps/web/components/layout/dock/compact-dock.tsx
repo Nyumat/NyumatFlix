@@ -82,7 +82,7 @@ export function CompactDock({
   return (
     <div
       className={cn(
-        "fixed z-50 flex items-center gap-2 p-2 bg-background/80 backdrop-blur-md border border-border/50 rounded-full shadow-lg",
+        "fixed z-40 flex items-center gap-2 p-2 bg-background/80 backdrop-blur-md border border-border/50 rounded-full shadow-lg",
         positionClasses[position],
         className,
       )}

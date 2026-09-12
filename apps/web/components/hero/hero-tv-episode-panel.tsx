@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -54,7 +53,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Episode, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownAZ, ArrowUpZA, Search, Tv } from "lucide-react";
+import { ArrowDownAZ, ArrowUpZA, Play, Search, Tv } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -735,7 +734,7 @@ export function HeroTvEpisodePanel({
   ]);
 
   const handleEpisodeClick = useCallback(
-    (episode: Episode, episodeSeason: number) => {
+    (episode: Episode, episodeSeason: number, options?: { play?: boolean }) => {
       const seasonEpisodes =
         loadedSeasonDetails[episodeSeason]?.episodes ??
         allSeasonDetails?.[episodeSeason]?.episodes;
@@ -768,12 +767,13 @@ export function HeroTvEpisodePanel({
           (anilistRouteId ? episodeSeason : null));
 
       const mapIsAdult = animeSeasonMapQuery.data?.isAdult === true;
+      const shouldPlay = options?.play === true;
       setSelectedEpisode(
         episode,
         tvId,
         episodeSeason,
         animeInfo,
-        false,
+        !shouldPlay,
         seasonEpisodes,
         segment
           ? {
@@ -794,6 +794,7 @@ export function HeroTvEpisodePanel({
                     animeSeasonNumber,
                   }
                 : undefined)),
+        shouldPlay,
       );
     },
     [
@@ -818,6 +819,11 @@ export function HeroTvEpisodePanel({
     [selectedEpisode?.id, storeSeason, tvId, tvShowId],
   );
 
+  const selectedEpisodeForShow =
+    tvShowId === tvId && storeSeason ? selectedEpisode : null;
+  const selectedSeasonForShow =
+    selectedEpisodeForShow && storeSeason ? storeSeason : null;
+
   if (seasonNumbers.length === 0) {
     return null;
   }
@@ -838,7 +844,7 @@ export function HeroTvEpisodePanel({
       selectedSeasonQuery.isFetching);
 
   return (
-    <div className={cn("flex h-[min(680px,72vh)] w-full flex-col gap-5")}>
+    <div data-episode-browser className={cn("flex w-full flex-col gap-5")}>
       <div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {showTmdbSeasonSelect ? (
@@ -957,62 +963,96 @@ export function HeroTvEpisodePanel({
         </p>
       ) : null}
 
-      <ScrollArea className="min-h-0 flex-1 pr-1">
-        <div className="space-y-3 pb-1 pt-0.5">
-          {showSeasonEpisodeSkeleton ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-28 rounded-xl border border-border/70 bg-card/25"
-              />
-            ))
-          ) : displayedList.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              {!searchActive && seasonEpisodes.length === 0
-                ? selectedSeasonQuery.isError
-                  ? "Couldn't load episodes for this season. Try again."
-                  : "No episodes for this season."
-                : "No episodes match your search."}
+      {selectedEpisodeForShow && selectedSeasonForShow ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-primary/35 bg-primary/10 p-3 ring-1 ring-primary/10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-primary">
+              Selected episode
             </p>
-          ) : (
-            displayedList.map(({ episode, seasonNumber: epSeason }) => {
-              const active = isRowSelected(episode, epSeason);
-              const animeDisplay =
-                splitCour && epSeason === selectedSeason
-                  ? toAnimeDisplayCoords(animeSegments, episode.episode_number)
-                  : null;
-              const badgeEpisodeNumber =
-                animeDisplay?.episodeNumber ?? episode.episode_number;
-              const labelSeasonNumber = animeDisplay?.seasonNumber ?? epSeason;
-              const seasonHeading = animeDisplay
-                ? showTmdbSeasonSelect
-                  ? `Part ${labelSeasonNumber}`
-                  : `Season ${labelSeasonNumber}`
-                : `Season ${labelSeasonNumber}`;
-              const thumbnailUrl = resolveEpisodeThumbnailUrl({
-                stillPath: episode.still_path,
-                kitsuUrl: resolveKitsuThumbnail(episode, epSeason),
-                fallbackPosterPath: details.poster_path,
-                fallbackBackdropPath: details.backdrop_path,
-                tmdbImageUrl: tmdbImage.url,
-              });
-              const kitsuTitle = resolveKitsuTitle(episode, epSeason);
-              const displayName =
-                isPlaceholderEpisodeName(episode.name) && kitsuTitle
-                  ? kitsuTitle
-                  : episode.name;
-              return (
+            <p className="truncate text-sm font-semibold text-foreground sm:text-base">
+              S{selectedSeasonForShow}E{selectedEpisodeForShow.episode_number} ·{" "}
+              {selectedEpisodeForShow.name || "Untitled episode"}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() =>
+              handleEpisodeClick(
+                selectedEpisodeForShow,
+                selectedSeasonForShow,
+                {
+                  play: true,
+                },
+              )
+            }
+            className="h-10 shrink-0 rounded-full px-4"
+          >
+            <Play className="mr-2 size-4 fill-current" aria-hidden />
+            Play selected
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="space-y-3 pb-1 pt-0.5">
+        {showSeasonEpisodeSkeleton ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-28 rounded-xl border border-border/70 bg-card/25"
+            />
+          ))
+        ) : displayedList.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {!searchActive && seasonEpisodes.length === 0
+              ? selectedSeasonQuery.isError
+                ? "Couldn't load episodes for this season. Try again."
+                : "No episodes for this season."
+              : "No episodes match your search."}
+          </p>
+        ) : (
+          displayedList.map(({ episode, seasonNumber: epSeason }) => {
+            const active = isRowSelected(episode, epSeason);
+            const animeDisplay =
+              splitCour && epSeason === selectedSeason
+                ? toAnimeDisplayCoords(animeSegments, episode.episode_number)
+                : null;
+            const badgeEpisodeNumber =
+              animeDisplay?.episodeNumber ?? episode.episode_number;
+            const labelSeasonNumber = animeDisplay?.seasonNumber ?? epSeason;
+            const seasonHeading = animeDisplay
+              ? showTmdbSeasonSelect
+                ? `Part ${labelSeasonNumber}`
+                : `Season ${labelSeasonNumber}`
+              : `Season ${labelSeasonNumber}`;
+            const thumbnailUrl = resolveEpisodeThumbnailUrl({
+              stillPath: episode.still_path,
+              kitsuUrl: resolveKitsuThumbnail(episode, epSeason),
+              fallbackPosterPath: details.poster_path,
+              fallbackBackdropPath: details.backdrop_path,
+              tmdbImageUrl: tmdbImage.url,
+            });
+            const kitsuTitle = resolveKitsuTitle(episode, epSeason);
+            const displayName =
+              isPlaceholderEpisodeName(episode.name) && kitsuTitle
+                ? kitsuTitle
+                : episode.name;
+            return (
+              <div
+                key={`${epSeason}-${episode.id}`}
+                className={cn(
+                  "group flex w-full flex-col gap-3 rounded-xl border p-3 transition-colors sm:flex-row sm:items-center sm:gap-5 sm:p-4",
+                  "border-border/80 bg-card/35 hover:border-primary/35 hover:bg-card/70",
+                  active &&
+                    "border-primary/70 bg-primary/10 ring-1 ring-primary/25",
+                )}
+              >
                 <button
-                  key={`${epSeason}-${episode.id}`}
                   type="button"
                   onClick={() => handleEpisodeClick(episode, epSeason)}
                   aria-current={active ? "true" : undefined}
-                  className={cn(
-                    "group flex w-full gap-4 rounded-xl border p-3 text-left transition-colors sm:gap-5 sm:p-4",
-                    "border-border/80 bg-card/35 hover:border-primary/35 hover:bg-card/70",
-                    active &&
-                      "border-primary/70 bg-primary/10 ring-1 ring-primary/25",
-                  )}
+                  aria-label={`Select ${displayName}`}
+                  className="flex min-w-0 flex-1 gap-4 text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-5"
                 >
                   <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border sm:h-24 sm:w-44">
                     {thumbnailUrl ? (
@@ -1036,14 +1076,21 @@ export function HeroTvEpisodePanel({
                     </span>
                   </div>
                   <div className="min-w-0 flex-1 self-center">
-                    {searchActive ||
-                    (splitCour
-                      ? labelSeasonNumber !== selectedAnimeSegment + 1
-                      : epSeason !== selectedSeason) ? (
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-primary">
-                        {seasonHeading}
-                      </p>
-                    ) : null}
+                    <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2">
+                      {searchActive ||
+                      (splitCour
+                        ? labelSeasonNumber !== selectedAnimeSegment + 1
+                        : epSeason !== selectedSeason) ? (
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-primary">
+                          {seasonHeading}
+                        </p>
+                      ) : null}
+                      {active ? (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                          Selected
+                        </span>
+                      ) : null}
+                    </div>
                     <p
                       className={cn(
                         "line-clamp-2 text-base font-semibold leading-snug text-foreground sm:text-lg",
@@ -1077,11 +1124,28 @@ export function HeroTvEpisodePanel({
                     ) : null}
                   </div>
                 </button>
-              );
-            })
-          )}
-        </div>
-      </ScrollArea>
+                <Button
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  size="sm"
+                  onClick={() =>
+                    handleEpisodeClick(episode, epSeason, { play: true })
+                  }
+                  aria-label={`Play ${displayName}`}
+                  className={cn(
+                    "h-10 shrink-0 rounded-full px-4",
+                    !active &&
+                      "border-white/15 bg-white/5 text-foreground hover:bg-white/10",
+                  )}
+                >
+                  <Play className="mr-2 size-4 fill-current" aria-hidden />
+                  Play
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

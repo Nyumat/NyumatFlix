@@ -31,10 +31,16 @@ export async function TrendingMoviesSection() {
         title={pages.trending.movie.title}
         link={pages.trending.movie.link}
         items={movies}
+        bleed
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <MovieHero movies={movies} label="Trending now" count={2} />
+      <div className="grid gap-4 md:grid-cols-2 xl:gap-6">
+        <MovieHero
+          movies={movies}
+          label="Trending now"
+          count={2}
+          itemClassName="h-index-feature"
+        />
       </div>
     </ContentReveal>
   );
@@ -62,10 +68,16 @@ export async function TrendingTvSection() {
         title={pages.trending.tv.title}
         link={pages.trending.tv.link}
         items={tvShows}
+        bleed
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <TvHero tvShows={tvShows} label="Trending now" count={2} />
+      <div className="grid gap-4 md:grid-cols-2 xl:gap-6">
+        <TvHero
+          tvShows={tvShows}
+          label="Trending now"
+          count={2}
+          itemClassName="h-index-feature"
+        />
       </div>
     </ContentReveal>
   );
@@ -84,6 +96,7 @@ export async function TrendingPeopleSection() {
         title={pages.trending.people.title}
         link={pages.trending.people.link}
         items={people ?? []}
+        bleed
       />
     </ContentReveal>
   );

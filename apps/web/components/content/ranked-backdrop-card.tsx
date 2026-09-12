@@ -49,7 +49,7 @@ export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
 
   return (
     <div
-      className="group relative aspect-video cursor-grab select-none overflow-hidden rounded-lg bg-black/40 shadow-lg shadow-black/10 ring-1 ring-white/8 backdrop-blur-md transition-all duration-300 hover:shadow-xl active:cursor-grabbing"
+      className="group relative aspect-video cursor-pointer select-none overflow-hidden rounded-lg bg-black/40 shadow-lg shadow-black/10 ring-1 ring-white/8 backdrop-blur-md transition-all duration-300 hover:shadow-xl"
       aria-label={`View details for ${displayTitle}`}
       role="button"
       tabIndex={0}
@@ -114,7 +114,7 @@ export const RankedBackdropCard = ({ item, rank }: RankedBackdropCardProps) => {
       </div>
       <button
         type="button"
-        className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+        className="absolute inset-0 z-40 cursor-pointer"
         aria-label={`View details for ${displayTitle}`}
         onClick={handlePeekActivate}
         onKeyDown={handlePeekKeyDown}

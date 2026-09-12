@@ -29,10 +29,26 @@ const ALLANIME_API_HOSTS = [
 export const ALLANIME_EPISODE_LANE = "k7";
 const FALLBACK_BUILD_ID = "140";
 export const ALLANIME_BOOT_PREFIX = "4X2PsZc2r:";
-const ALLANIME_SALT_MUL = 250;
-const ALLANIME_SALT_ADD = 54;
-const ALLANIME_FRAG_MUL = 16;
-const ALLANIME_FRAG_ADD = 217;
+const LEGACY_MASK_PARAMS = {
+  saltMul: 250,
+  saltAdd: 54,
+  fragMul: 16,
+  fragAdd: 217,
+} as const;
+
+export type AllanimeMaskParams = {
+  saltMul: number;
+  saltAdd: number;
+  fragMul: number;
+  fragAdd: number;
+};
+
+export type AllanimeBootTokenOptions = {
+  bootPrefix?: string;
+  keyGroup?: string;
+  host?: string;
+  messageJoin?: ":" | ".";
+};
 export const ALLANIME_FALLBACK_MASK_PARTS = [
   "VfAQPinN3/Q=",
   "R7d6L9MUgM8=",
@@ -62,6 +78,17 @@ type CachedCrypto = {
   queryHash: string;
   query: string;
   lane: string;
+  bootPrefix: string;
+  bootMessageJoin: ":" | ".";
+  maskParams: AllanimeMaskParams;
+};
+
+type AllanimeChunkCrypto = {
+  buildId: string;
+  maskParts: readonly string[];
+  bootPrefix: string;
+  bootMessageJoin: ":" | ".";
+  maskParams: AllanimeMaskParams;
 };
 
 let cache: CachedCrypto | null = null;
@@ -83,14 +110,16 @@ export const deriveAllanimeAaReqKey = (
   return key;
 };
 
-export const deriveAllanimeBuildSeed = (buildId: string): Buffer => {
+export const deriveAllanimeBuildSeed = (
+  buildId: string,
+  params: AllanimeMaskParams = LEGACY_MASK_PARAMS,
+): Buffer => {
   const normalized = String(buildId);
   const seed = Buffer.alloc(32);
   for (let index = 0; index < 32; index += 1) {
     const code =
       normalized.charCodeAt(index % Math.max(normalized.length, 1)) || 0;
-    seed[index] =
-      code ^ ((index * ALLANIME_SALT_MUL + ALLANIME_SALT_ADD) & 255);
+    seed[index] = code ^ ((index * params.saltMul + params.saltAdd) & 255);
   }
   return seed;
 };
@@ -98,8 +127,9 @@ export const deriveAllanimeBuildSeed = (buildId: string): Buffer => {
 export const deriveAllanimeMaskKey = (
   maskParts: readonly string[],
   buildId: string,
+  params: AllanimeMaskParams = LEGACY_MASK_PARAMS,
 ): Buffer => {
-  const seed = deriveAllanimeBuildSeed(buildId);
+  const seed = deriveAllanimeBuildSeed(buildId, params);
   const key = Buffer.alloc(32);
   for (let part = 0; part < 4; part += 1) {
     const bytes = Buffer.from(maskParts[part] ?? "", "base64");
@@ -108,7 +138,7 @@ export const deriveAllanimeMaskKey = (
       key[index] =
         (bytes[offset] ?? 0) ^
         (seed[index] ?? 0) ^
-        ((part * ALLANIME_FRAG_MUL + offset * ALLANIME_FRAG_ADD) & 255);
+        ((part * params.fragMul + offset * params.fragAdd) & 255);
     }
   }
   return key;
@@ -118,8 +148,9 @@ export const deriveAllanimeLaneKey = (
   maskParts: readonly string[],
   buildId: string,
   partBBase64: string,
+  params: AllanimeMaskParams = LEGACY_MASK_PARAMS,
 ): Buffer => {
-  const maskKey = deriveAllanimeMaskKey(maskParts, buildId);
+  const maskKey = deriveAllanimeMaskKey(maskParts, buildId, params);
   const partB = Buffer.from(partBBase64, "base64");
   const key = Buffer.alloc(32);
   for (let index = 0; index < 32; index += 1) {
@@ -133,15 +164,20 @@ export const buildAllanimeBootToken = (
   buildId: string,
   epoch: number,
   lane: string,
-  keyGroup = MKISSA_KEY_GROUP,
-  host = MKISSA_HOST,
+  options: AllanimeBootTokenOptions = {},
 ): string => {
+  const bootPrefix = options.bootPrefix ?? ALLANIME_BOOT_PREFIX;
+  const keyGroup = options.keyGroup ?? MKISSA_KEY_GROUP;
+  const host = options.host ?? MKISSA_HOST;
+  const join = options.messageJoin ?? ".";
   const inner = createHmac("sha256", maskKey)
-    .update(`${ALLANIME_BOOT_PREFIX}${buildId}`)
+    .update(`${bootPrefix}${buildId}`)
     .digest();
-  return createHmac("sha256", inner)
-    .update([keyGroup, host, lane, buildId, String(epoch)].join("."))
-    .digest("hex");
+  const message =
+    join === ":"
+      ? [lane, buildId, keyGroup, host, String(epoch)].join(":")
+      : [keyGroup, host, lane, buildId, String(epoch)].join(".");
+  return createHmac("sha256", inner).update(message).digest("hex");
 };
 
 const identifierBoundary = (name: string): string => {
@@ -286,6 +322,183 @@ const evaluateAllanimeLiteralExpression = (
 const ALLANIME_WF_ENTRY_PATTERN =
   /(?:Tr|nr)\([^)]+\)(?:\+(?:Tr|nr)\([^)]+\))*/g;
 
+const evaluateNumericExpression = (expression: string): number | null => {
+  const trimmed = expression.trim();
+  if (!/^[\d+\-*/().\s]+$/.test(trimmed)) {
+    return null;
+  }
+  try {
+    return Function(`return (${trimmed});`)() as number;
+  } catch {
+    return null;
+  }
+};
+
+const extractNamedStringTable = (
+  chunkJs: string,
+  name: string,
+): string[] | null => {
+  const match = chunkJs.match(
+    new RegExp(
+      `function ${name}\\(\\)\\{const e=\\[([\\s\\S]*?)\\];return ${name}=function\\(\\)\\{return e\\},${name}\\(\\)\\}`,
+    ),
+  );
+  if (!match?.[1]) {
+    return null;
+  }
+
+  try {
+    const table = eval(`[${match[1]}]`) as unknown;
+    return Array.isArray(table) ? table.map(String) : null;
+  } catch {
+    return null;
+  }
+};
+
+const rotateYcStringTableFromChunk = (
+  chunkJs: string,
+  table: string[],
+): string[] | null => {
+  const atIndex = chunkJs.indexOf("function At(e,t)");
+  if (atIndex < 0) {
+    return null;
+  }
+
+  const invokeStart = chunkJs.indexOf("(function(e,t)", atIndex);
+  const ycCall = chunkJs.indexOf(")(Yc,", invokeStart);
+  const targetEnd = chunkJs.indexOf(");function $r", ycCall);
+  if (invokeStart < 0 || ycCall < 0 || targetEnd < 0) {
+    return null;
+  }
+
+  const iifeFn = chunkJs.slice(invokeStart, ycCall + 1);
+  const targetExpr = chunkJs.slice(ycCall + ")(Yc,".length, targetEnd);
+  const target = evaluateNumericExpression(targetExpr);
+  if (target == null) {
+    return null;
+  }
+
+  const rotated = [...table];
+  try {
+    const runner = new Function(
+      "table",
+      "target",
+      `
+        function Yc() { return table; }
+        function $r(e) { e = e - 340; return table[e]; }
+        ${iifeFn}(function(){ return table; }, target);
+      `,
+    ) as (table: string[], target: number) => void;
+    runner(rotated, target);
+    return rotated;
+  } catch {
+    return null;
+  }
+};
+
+const createYcStringDecoders = (table: string[]) => {
+  const lookup = (index: number): string => table[index - 340] ?? "";
+  return {
+    At: (index: number) => lookup(index - 564),
+    fr: (index: number) => lookup(index - 377),
+  };
+};
+
+const evaluateAtFrExpression = (
+  expression: string,
+  decoders: ReturnType<typeof createYcStringDecoders>,
+): string =>
+  expression
+    .split("+")
+    .map((part) => {
+      const trimmed = part.trim();
+      const atMatch = trimmed.match(/^At\((\d+)\)$/);
+      if (atMatch) {
+        return decoders.At(Number(atMatch[1]));
+      }
+      const frMatch = trimmed.match(/^fr\((\d+)\)$/);
+      if (frMatch) {
+        return decoders.fr(Number(frMatch[1]));
+      }
+      const quoted = trimmed.match(/^["']([^"']*)["']$/);
+      if (quoted) {
+        return quoted[1] ?? "";
+      }
+      return trimmed;
+    })
+    .join("");
+
+const discoverModernAllanimeChunkLiterals = (
+  chunkJs: string,
+): AllanimeChunkCrypto | null => {
+  if (!chunkJs.includes("dm=[") || !chunkJs.includes("function Yc()")) {
+    return null;
+  }
+
+  const rawTable = extractNamedStringTable(chunkJs, "Yc");
+  if (!rawTable) {
+    return null;
+  }
+
+  const table = rotateYcStringTableFromChunk(chunkJs, rawTable);
+  if (!table) {
+    return null;
+  }
+
+  const decoders = createYcStringDecoders(table);
+  const buildMatch = chunkJs.match(/const sd=fr\((\d+)\)/);
+  const buildId = buildMatch ? decoders.fr(Number(buildMatch[1])).trim() : "";
+  if (!buildId) {
+    return null;
+  }
+
+  const dmMatch = chunkJs.match(/dm=\[([\s\S]*?)\]/);
+  if (!dmMatch?.[1]) {
+    return null;
+  }
+
+  const maskParts = dmMatch[1]
+    .split(",")
+    .map((entry) => evaluateAtFrExpression(entry.trim(), decoders))
+    .filter((part) => Buffer.from(part, "base64").length === 8);
+
+  if (maskParts.length !== 4) {
+    return null;
+  }
+
+  const mfMatch = chunkJs.match(
+    /Mf=\{v:1,saltMul:(\d+),saltAdd:(\d+),fragMul:(\d+),fragAdd:(\d+)/,
+  );
+  if (!mfMatch) {
+    return null;
+  }
+
+  const metaMatch = chunkJs.match(/bootPrefix:([^,]+),join:"([^"]+)"/);
+  if (!metaMatch?.[1] || !metaMatch[2]) {
+    return null;
+  }
+
+  const bootPrefix = evaluateAtFrExpression(metaMatch[1], decoders);
+  const bootMessageJoin = metaMatch[2] === ":" ? ":" : ".";
+
+  return {
+    buildId,
+    maskParts,
+    bootPrefix,
+    bootMessageJoin,
+    maskParams: {
+      saltMul: Number(mfMatch[1]),
+      saltAdd: Number(mfMatch[2]),
+      fragMul: Number(mfMatch[3]),
+      fragAdd: Number(mfMatch[4]),
+    },
+  };
+};
+
+export const isAllanimeCryptoChunk = (chunkJs: string): boolean =>
+  chunkJs.includes("x-aa-boot") ||
+  chunkJs.includes("client-crypto/v1/bootstrap");
+
 const extractAllanimeWfEntries = (chunkJs: string): string[] => {
   const match = chunkJs.match(/wf=\[([\s\S]*?)\]/);
   if (!match?.[1]) {
@@ -300,6 +513,11 @@ const extractAllanimeWfEntries = (chunkJs: string): string[] => {
 const discoverAllanimeChunkLiterals = (
   chunkJs: string,
 ): { buildId: string; maskParts: string[] } | null => {
+  const modern = discoverModernAllanimeChunkLiterals(chunkJs);
+  if (modern) {
+    return { buildId: modern.buildId, maskParts: [...modern.maskParts] };
+  }
+
   const table = extractAllanimeVcStringTable(chunkJs);
   if (!table) {
     return null;
@@ -372,12 +590,19 @@ const fetchBootstrap = async (
   buildId: string,
   maskKey: Buffer,
   lane: string,
+  boot: Pick<AllanimeChunkCrypto, "bootPrefix" | "bootMessageJoin"> = {
+    bootPrefix: ALLANIME_BOOT_PREFIX,
+    bootMessageJoin: ".",
+  },
 ): Promise<BootstrapPayload | null> => {
   const currentEpoch = Math.floor(Date.now() / WEEK_MS);
   const epochs = [currentEpoch, currentEpoch - 1];
 
   for (const epoch of epochs) {
-    const token = buildAllanimeBootToken(maskKey, buildId, epoch, lane);
+    const token = buildAllanimeBootToken(maskKey, buildId, epoch, lane, {
+      bootPrefix: boot.bootPrefix,
+      messageJoin: boot.bootMessageJoin,
+    });
     try {
       const response = await scrapeFetch(
         `${BOOTSTRAP_ORIGIN}/client-crypto/v1/bootstrap?buildId=${encodeURIComponent(buildId)}&k=${encodeURIComponent(lane)}`,
@@ -420,10 +645,7 @@ const fetchBootstrap = async (
   return null;
 };
 
-const discoverChunkCrypto = async (): Promise<{
-  buildId: string;
-  maskParts: readonly string[];
-} | null> => {
+const discoverChunkCrypto = async (): Promise<AllanimeChunkCrypto | null> => {
   try {
     const home = await scrapeFetchText(MKISSA_URL, {
       Referer: MKISSA_URL,
@@ -443,7 +665,7 @@ const discoverChunkCrypto = async (): Promise<{
 
     const seen = new Set<string>();
     const queue = [appMatch[1]];
-    while (queue.length > 0 && seen.size < 80) {
+    while (queue.length > 0 && seen.size < 120) {
       const relative = queue.shift();
       if (!relative || seen.has(relative)) {
         continue;
@@ -466,6 +688,14 @@ const discoverChunkCrypto = async (): Promise<{
         }
       }
       for (const match of js.text.matchAll(
+        /import\(["']\.\/chunks\/([^"']+\.js)["']\)/g,
+      )) {
+        const next = `chunks/${match[1]}`;
+        if (!seen.has(next)) {
+          queue.push(next);
+        }
+      }
+      for (const match of js.text.matchAll(
         /_app\/immutable\/chunks\/([A-Za-z0-9_-]+\.js)/g,
       )) {
         const next = `chunks/${match[1]}`;
@@ -474,16 +704,26 @@ const discoverChunkCrypto = async (): Promise<{
         }
       }
 
-      const looksLikeCrypto = js.text.includes("client-crypto/v1/bootstrap");
-      if (!looksLikeCrypto) {
+      if (!isAllanimeCryptoChunk(js.text)) {
         continue;
+      }
+
+      const modern = discoverModernAllanimeChunkLiterals(js.text);
+      if (modern) {
+        return modern;
       }
 
       const buildId = extractAllanimeBuildId(js.text) ?? FALLBACK_BUILD_ID;
       const maskParts =
         extractAllanimeMaskParts(js.text) ?? ALLANIME_FALLBACK_MASK_PARTS;
 
-      return { buildId, maskParts };
+      return {
+        buildId,
+        maskParts,
+        bootPrefix: ALLANIME_BOOT_PREFIX,
+        bootMessageJoin: ".",
+        maskParams: LEGACY_MASK_PARAMS,
+      };
     }
 
     return null;
@@ -496,11 +736,17 @@ const fetchLiveCrypto = async (): Promise<CachedCrypto | null> => {
   const discovered = await discoverChunkCrypto();
   const buildId = discovered?.buildId ?? FALLBACK_BUILD_ID;
   const maskParts = discovered?.maskParts ?? ALLANIME_FALLBACK_MASK_PARTS;
+  const maskParams = discovered?.maskParams ?? LEGACY_MASK_PARAMS;
+  const bootPrefix = discovered?.bootPrefix ?? ALLANIME_BOOT_PREFIX;
+  const bootMessageJoin = discovered?.bootMessageJoin ?? ".";
   const query = ALLANIME_EPISODE_QUERY_FALLBACK;
   const lane = ALLANIME_EPISODE_LANE;
-  const maskKey = deriveAllanimeMaskKey(maskParts, buildId);
+  const maskKey = deriveAllanimeMaskKey(maskParts, buildId, maskParams);
 
-  const bootstrap = await fetchBootstrap(buildId, maskKey, lane);
+  const bootstrap = await fetchBootstrap(buildId, maskKey, lane, {
+    bootPrefix,
+    bootMessageJoin,
+  });
   if (!bootstrap) {
     return null;
   }
@@ -514,10 +760,13 @@ const fetchLiveCrypto = async (): Promise<CachedCrypto | null> => {
     expiresMs,
     epoch: bootstrap.epoch,
     buildId,
-    key: deriveAllanimeLaneKey(maskParts, buildId, bootstrap.partB),
+    key: deriveAllanimeLaneKey(maskParts, buildId, bootstrap.partB, maskParams),
     queryHash: hashAllanimeQuery(query),
     query,
     lane,
+    bootPrefix,
+    bootMessageJoin,
+    maskParams,
   };
 };
 

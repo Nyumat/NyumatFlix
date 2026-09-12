@@ -694,7 +694,7 @@ const MediaPeekBody = ({
                 style={riseStyle(120)}
               >
                 <MediaPeekSectionHeading title="Cast" />
-                <div className="flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto pb-1 active:cursor-grabbing [scrollbar-width:none] sm:gap-4">
+                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none] sm:gap-4">
                   {cast.map((person) => (
                     <MediaPeekCastChip
                       key={`${person.credit_id || person.id}-${person.order}`}

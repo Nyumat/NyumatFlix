@@ -11,8 +11,8 @@ export function CatalogResultsLoading({
 }: CatalogResultsLoadingProps = {}) {
   return (
     <PageLoadingShell withPageContainer={withPageContainer}>
-      <section className="min-h-screen w-full bg-background/95 pb-16 pt-12 md:bg-transparent md:pt-16">
-        <div className="container space-y-6 md:space-y-10">
+      <section className="min-h-screen w-full pb-16 pt-8 md:pt-12">
+        <div className="index-container space-y-6 md:space-y-10">
           <CatalogHubChromeSkeleton />
           <CatalogGridFallback />
         </div>

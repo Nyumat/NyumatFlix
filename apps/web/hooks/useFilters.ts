@@ -43,13 +43,16 @@ export const useFilters = (
   const catalogBase =
     type === "movie" ? pages.movie.catalog.link : pages.tv.catalog.link;
 
-  const pushDiscoverFiltersToUrl = (mergedDiscover: Record<string, string>) => {
+  const pushDiscoverFiltersToUrl = (
+    mergedDiscover: Record<string, string>,
+    options?: { sortBy?: string },
+  ) => {
     const raw =
       typeof window !== "undefined"
         ? new URLSearchParams(window.location.search)
         : new URLSearchParams(searchKey);
     const record = searchParamsToRecord(raw);
-    const sortBy = record.sort_by;
+    const sortBy = options?.sortBy ?? record.sort_by;
     const currentView = record.view?.trim();
     const catalogFrom =
       record.catalog_from?.trim() ||
@@ -93,7 +96,7 @@ export const useFilters = (
     setDraftFilters(filterDiscoverParams(record));
   };
 
-  const applyEmptyDiscoverFiltersToUrl = () => {
+  const applyEmptyDiscoverFiltersToUrl = (options?: { sortBy?: string }) => {
     const record = searchParamsToRecord(
       new URLSearchParams(window.location.search),
     );
@@ -119,7 +122,7 @@ export const useFilters = (
     const applied = filterDiscoverParams(record);
     const cleared = new URLSearchParams();
     cleared.set("view", "discover");
-    const sortBy = record.sort_by;
+    const sortBy = options?.sortBy ?? record.sort_by;
     const hasUrlFilters = countCatalogFilterBadge(record, applied) > 0;
 
     if (sortBy) {
@@ -133,12 +136,12 @@ export const useFilters = (
     router.replace(`${catalogBase}?${cleared.toString()}`);
   };
 
-  const saveFilters = () => {
+  const saveFilters = (options?: { sortBy?: string }) => {
     if (countDiscoverFilterSelections(draftFilters) === 0) {
-      applyEmptyDiscoverFiltersToUrl();
+      applyEmptyDiscoverFiltersToUrl(options);
       return;
     }
-    pushDiscoverFiltersToUrl(draftFilters);
+    pushDiscoverFiltersToUrl(draftFilters, options);
   };
 
   const clearFilters = () => {

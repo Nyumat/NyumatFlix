@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import {
   commitNavigationEntry,
   consumePendingRouteSnapshot,
@@ -9,7 +9,6 @@ import {
   getRelativeUrl,
   readRouteSnapshot,
   recordNavigationOrigin,
-  subscribePendingRouteRestore,
   type RouteSnapshot,
 } from "@/lib/navigation/route-restoration";
 import {
@@ -83,16 +82,7 @@ export const RouteScrollReset = () => {
   const routerRef = useRef(router);
   routerRef.current = router;
 
-  const [isFreshNavigating, setIsFreshNavigating] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const pendingDetailNavRef = useRef(false);
   const popNavigationRef = useRef(false);
-
-  useEffect(() => {
-    return subscribePendingRouteRestore((active) => {
-      if (active) setIsRestoring(true);
-    });
-  }, []);
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
@@ -140,15 +130,10 @@ export const RouteScrollReset = () => {
 
       if (isMediaDetailPath(nextUrl.pathname)) {
         event.preventDefault();
-        pendingDetailNavRef.current = true;
-        setIsFreshNavigating(true);
         // Keep the list page's scroll position intact for soft-back restore.
         // Detail pages scroll themselves to top on mount.
-
         const href = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
-        window.setTimeout(() => {
-          routerRef.current.push(href, { scroll: false });
-        }, 50);
+        routerRef.current.push(href, { scroll: false });
         return;
       }
 
@@ -173,58 +158,21 @@ export const RouteScrollReset = () => {
       (popNavigationRef.current ? readRouteSnapshot(currentUrl) : null);
     popNavigationRef.current = false;
 
-    const shouldClearFreshNav = pendingDetailNavRef.current;
-    let cancelled = false;
-    const finishFreshNav = () => {
-      if (cancelled) return;
-      pendingDetailNavRef.current = false;
-      setIsFreshNavigating(false);
-    };
-
     if (snapshot) {
-      if (shouldClearFreshNav) finishFreshNav();
-      setIsRestoring(true);
-      return restoreRouteSnapshot(snapshot, {
-        onLanded: () => {
-          if (!cancelled) setIsRestoring(false);
-        },
-      });
+      return restoreRouteSnapshot(snapshot);
     }
 
-    setIsRestoring(false);
     scrollToTop();
-
-    // Soft-nav overlay must clear on detail arrival. Previously this returned
-    // early for media detail paths and left the spinner stuck forever.
-    if (shouldClearFreshNav) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(finishFreshNav);
-      });
-    }
 
     if (isMediaDetailPath(pathname)) {
       const stabilize = stabilizeScrollTop([0, 50, 150, 400]);
       return () => {
-        cancelled = true;
         stabilize.cancel();
       };
     }
-
-    return () => {
-      cancelled = true;
-    };
   }, [pathname]);
 
-  if (!isFreshNavigating && !isRestoring) return null;
-
-  return (
-    <div className="fixed inset-0 z-[2147483647] grid place-items-center bg-neutral-950 text-foreground">
-      <div
-        className="size-10 animate-spin rounded-full border-3 border-white/10 border-t-primary/80"
-        aria-label="Loading"
-      />
-    </div>
-  );
+  return null;
 };
 
 const RESTORE_ATTEMPT_MS = [
@@ -353,7 +301,7 @@ const restoreRouteSnapshot = (
 
     if (!settled) return;
 
-    // Hold the overlay through one paint at the final position, then reveal.
+    // Let the browser paint once at the final restored position before cleanup.
     settleRafId = window.requestAnimationFrame(() => {
       settleRafId = window.requestAnimationFrame(() => {
         finishLanded();

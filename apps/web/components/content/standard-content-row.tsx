@@ -14,6 +14,7 @@ import { getHref } from "@/lib/cards/selectors";
 import { MediaItem } from "@/lib/domain/typings";
 import { useEffect, useRef, useState } from "react";
 import { hasPosterPath } from "@/lib/media-poster-path";
+import { cn } from "@/lib/utils";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
 
@@ -28,6 +29,7 @@ export interface StandardContentRowProps {
   contentRating?: Record<number, string | null>;
   onLoadMore?: () => Promise<MediaItem[]>;
   hasMoreItems?: boolean;
+  bleed?: boolean;
 }
 
 export function StandardContentRow({
@@ -37,6 +39,7 @@ export function StandardContentRow({
   contentRating = {},
   onLoadMore,
   hasMoreItems = false,
+  bleed = false,
 }: StandardContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
   const [items, setItems] = useState<MediaItem[]>(initialItems);
@@ -103,10 +106,10 @@ export function StandardContentRow({
   );
 
   return (
-    <div className="mx-4 md:mx-8 mb-8">
-      <ContentRowHeader title={title} href={href} />
+    <section className={cn(bleed && "index-bleed")}>
+      <ContentRowHeader bleed={bleed} title={title} href={href} />
 
-      <div className="relative -mx-10 p-2">
+      <div className="relative">
         <Carousel
           opts={{
             align: "start",
@@ -117,11 +120,14 @@ export function StandardContentRow({
           setApi={setApi}
           className="w-full"
         >
-          <CarouselContent className="md:mx-0 px-4 md:px-0 w-full">
+          <CarouselContent
+            viewportClassName={bleed ? "index-rail-padding" : "md:mx-0"}
+            className="-ml-3 lg:-ml-4"
+          >
             {items.filter(hasPosterPath).map((item, index) => (
               <CarouselItem
                 key={`${item.id}-${index}`}
-                className="pl-2 md:pl-3 basis-[45%] sm:basis-[32%] md:basis-[24%] lg:basis-[19%] xl:basis-[14%] p-2"
+                className="pl-3 basis-[46%] sm:basis-[31%] md:basis-[24%] lg:pl-4 lg:basis-[11rem] xl:basis-[12rem] 2xl:basis-[13rem]"
               >
                 <ContentCard
                   item={item}
@@ -133,16 +139,26 @@ export function StandardContentRow({
             ))}
 
             {hasMoreItems && loading && (
-              <CarouselItem className="pl-3 basis-[48%] sm:basis-[35%] flex items-center justify-center">
+              <CarouselItem className="flex items-center justify-center pl-3 basis-[46%] sm:basis-[31%] md:basis-[24%] lg:pl-4 lg:basis-[11rem] xl:basis-[12rem] 2xl:basis-[13rem]">
                 <LoadingComponent />
               </CarouselItem>
             )}
           </CarouselContent>
 
-          <CarouselPrevious className="hidden md:inline-flex absolute md:left-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 shadow-lg shadow-black/20 transition-all duration-200" />
-          <CarouselNext className="hidden md:inline-flex absolute md:right-4 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-md hover:bg-primary/20 border-0 shadow-lg shadow-black/20 transition-all duration-200" />
+          <CarouselPrevious
+            className={cn(
+              "absolute top-1/2 hidden -translate-y-1/2 border-0 bg-card/90 shadow-lg shadow-black/20 backdrop-blur-md transition-all duration-200 hover:bg-primary/20 md:inline-flex",
+              bleed ? "md:left-2" : "md:left-0",
+            )}
+          />
+          <CarouselNext
+            className={cn(
+              "absolute top-1/2 hidden -translate-y-1/2 border-0 bg-card/90 shadow-lg shadow-black/20 backdrop-blur-md transition-all duration-200 hover:bg-primary/20 md:inline-flex",
+              bleed ? "md:right-2" : "md:right-0",
+            )}
+          />
         </Carousel>
       </div>
-    </div>
+    </section>
   );
 }

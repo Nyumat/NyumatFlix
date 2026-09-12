@@ -11,7 +11,7 @@ vi.mock("next-auth/react", () => ({
   useSession: vi.fn(),
 }));
 
-vi.mock("@/app/watchlist/actions", () => ({
+vi.mock("@/app/(library)/watchlist/actions", () => ({
   getWatchlistItem: vi.fn(),
 }));
 
@@ -23,7 +23,7 @@ vi.mock("sonner", () => ({
 }));
 
 const { WatchlistButton } = await import("@/components/watchlist/watchlist");
-const watchlistActions = await import("@/app/watchlist/actions");
+const watchlistActions = await import("@/app/(library)/watchlist/actions");
 
 const mockUseSession = vi.mocked(useSession);
 const mockGetWatchlistItem = vi.mocked(watchlistActions.getWatchlistItem);

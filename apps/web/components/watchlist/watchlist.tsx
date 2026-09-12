@@ -1,6 +1,6 @@
 "use client";
 
-import { getWatchlistItem } from "@/app/watchlist/actions";
+import { getWatchlistItem } from "@/app/(library)/watchlist/actions";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 import type { WatchlistItem, WatchlistStatus } from "@/lib/domain/watchlist";
 import { MalListControls } from "@/components/media/mal-list-controls";

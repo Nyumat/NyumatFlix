@@ -1,6 +1,6 @@
 "use client";
 
-import { DiscoverFilters, DiscoverSort } from "@/components/discover/discover";
+import { DiscoverFilterSort } from "@/components/discover/discover";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { languages } from "@/lib/languages";
@@ -286,7 +286,7 @@ export const CatalogDiscoverToolbar = ({
     <div className="space-y-3 md:space-y-4">
       <div className="flex items-center gap-2 md:flex-wrap md:justify-between">
         <div className="min-w-0 flex-1 md:flex md:flex-wrap md:items-center md:gap-2">
-          <DiscoverFilters
+          <DiscoverFilterSort
             type={mediaType}
             genres={genres}
             providers={providers}
@@ -297,11 +297,6 @@ export const CatalogDiscoverToolbar = ({
             {formatResultsCount(resultCount, mediaType)}
           </p>
         </div>
-        <DiscoverSort
-          type={mediaType}
-          compactOnMobile
-          triggerClassName="h-11 shrink-0 px-3 md:h-9 md:px-4"
-        />
         <MobileViewModeToggle />
       </div>
 

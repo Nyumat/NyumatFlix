@@ -1,34 +1,26 @@
 import {
-  CatalogHeroPairFallback,
   CatalogRowFallback,
-  CatalogSpotlightFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import { CatalogHubChromeSkeleton } from "@/components/catalog/catalog-chrome-skeletons";
 import { PageLoadingShell } from "./page-loading-shell";
 
-const catalogHubSectionClassName = "min-h-screen w-full pb-16 pt-14 md:pt-16";
+const catalogHubSectionClassName = "min-h-screen w-full pb-16 pt-8 md:pt-12";
 
 const CatalogHubSections = () => (
   <>
-    <CatalogSpotlightFallback />
-    <CatalogRowFallback />
-    <CatalogHeroPairFallback />
-    <CatalogRowFallback />
-    <CatalogHeroPairFallback />
-    <CatalogRowFallback />
+    <CatalogRowFallback bleed />
+    <CatalogRowFallback bleed />
+    <CatalogRowFallback bleed />
   </>
 );
 
 const CatalogDiscoverHubSections = () => (
   <>
-    <CatalogSpotlightFallback />
-    <RecentlyWatchedRowFallback />
-    <CatalogRowFallback />
-    <CatalogHeroPairFallback />
-    <CatalogRowFallback />
-    <CatalogHeroPairFallback />
-    <CatalogRowFallback />
+    <RecentlyWatchedRowFallback bleed />
+    <CatalogRowFallback bleed />
+    <CatalogRowFallback bleed />
+    <CatalogRowFallback bleed />
   </>
 );
 
@@ -42,7 +34,7 @@ export function CatalogHubLoading({
   return (
     <PageLoadingShell withPageContainer={withPageContainer}>
       <section className={catalogHubSectionClassName}>
-        <div className="container space-y-10">
+        <div className="index-container space-y-8 md:space-y-10 lg:space-y-12">
           <CatalogHubSections />
         </div>
       </section>
@@ -56,7 +48,7 @@ export function CatalogDiscoverHubLoading({
   return (
     <PageLoadingShell withPageContainer={withPageContainer}>
       <section className={catalogHubSectionClassName}>
-        <div className="container space-y-10">
+        <div className="index-container space-y-8 md:space-y-10 lg:space-y-12">
           <CatalogHubChromeSkeleton />
           <CatalogDiscoverHubSections />
         </div>
