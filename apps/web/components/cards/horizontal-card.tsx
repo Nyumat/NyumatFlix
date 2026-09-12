@@ -80,9 +80,7 @@ export function HorizontalCard({
     <Card
       className={cn(
         "group relative h-full overflow-hidden border transition-all duration-300",
-        isRowInteraction
-          ? "cursor-pointer"
-          : "cursor-grab select-none active:cursor-grabbing",
+        isRowInteraction ? "cursor-pointer" : "cursor-pointer select-none",
         isCompact
           ? "border-white/10 bg-card/40 shadow-none backdrop-blur-xl hover:border-primary/40"
           : "border-white/10 bg-card/40 shadow-2xl backdrop-blur-xl hover:border-primary/50",
@@ -227,7 +225,7 @@ export function HorizontalCard({
       ) : (
         <button
           type="button"
-          className="absolute inset-0 z-40 cursor-grab active:cursor-grabbing"
+          className="absolute inset-0 z-40 cursor-pointer"
           aria-label={`View ${title}`}
           onClick={handlePeekActivate}
           onKeyDown={handlePeekKeyDown}

@@ -7,12 +7,9 @@ import { Grid2X2, List } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const GridSkeleton = ({ count = 8 }: { count?: number }) => (
-  <div className="flex flex-wrap gap-4">
+  <div className="grid-list">
     {Array.from({ length: count }).map((_, i) => (
-      <div
-        key={i}
-        className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]"
-      >
+      <div key={i} className="min-w-0">
         <div className="bg-card/40 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-xl animate-pulse">
           <Skeleton className="aspect-2/3 w-full rounded-none" />
           <div className="p-4 space-y-3">
@@ -144,36 +141,26 @@ export function BaseContentGrid({
       return "grid gap-4 transition-all duration-200 [grid-template-columns:repeat(auto-fill,minmax(var(--grid-min-item-width),1fr))]";
     }
 
-    const baseClasses = "flex flex-wrap gap-4 transition-all duration-200";
-
     if (gridColumns === "auto") {
-      return baseClasses;
+      return "grid-list transition-all duration-200";
     }
 
-    return baseClasses;
+    const gridClasses = {
+      1: "grid grid-cols-1 gap-4 transition-all duration-200",
+      2: "grid grid-cols-2 gap-4 transition-all duration-200",
+      3: "grid grid-cols-2 gap-4 transition-all duration-200 md:grid-cols-3",
+      4: "grid grid-cols-2 gap-4 transition-all duration-200 md:grid-cols-3 lg:grid-cols-4",
+      5: "grid grid-cols-2 gap-4 transition-all duration-200 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+      6: "grid grid-cols-2 gap-4 transition-all duration-200 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
+    } as const;
+
+    return gridClasses[gridColumns];
   };
 
   const getItemClasses = () => {
     if (viewMode !== "grid") return "";
 
-    if (gridMinItemWidth) {
-      return "min-w-0";
-    }
-
-    if (gridColumns === "auto") {
-      return "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]";
-    }
-
-    const itemClasses = {
-      1: "w-[calc(50%-0.5rem)] md:w-full",
-      2: "w-[calc(50%-0.5rem)]",
-      3: "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)]",
-      4: "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)]",
-      5: "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]",
-      6: "w-[calc(50%-0.5rem)] md:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)] 2xl:w-[calc(16.666%-0.833rem)]",
-    };
-
-    return itemClasses[gridColumns];
+    return "min-w-0";
   };
 
   const getListClasses = () => {

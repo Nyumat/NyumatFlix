@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Calendar, Clock, DollarSign, Star } from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { SilkShaderBackground } from "./silk-shader-background";
 import type { BackgroundImageProps, HeroProps } from "./types";
 
 interface HeroDetailsProps {
@@ -175,6 +176,7 @@ export function BackgroundImage({
   const backgroundImage = imageUrl.startsWith("/")
     ? cdnUrl(imageUrl)
     : imageUrl;
+  const useShaderBanner = imageUrl === "/movie-banner.webp";
 
   return (
     <div
@@ -184,14 +186,22 @@ export function BackgroundImage({
           : "absolute w-full h-[40vh] inset-x-0"
       } z-0 overflow-hidden`}
     >
-      <Image
-        src={backgroundImage}
-        alt={title}
-        width={1920}
-        height={1080}
-        className={`${isFullPage ? "" : "rounded-lg"} object-cover w-full h-full`}
-        priority
-      />
+      {useShaderBanner ? (
+        <SilkShaderBackground
+          className={`${isFullPage ? "" : "rounded-lg"} h-full w-full`}
+        />
+      ) : (
+        <Image
+          src={backgroundImage}
+          alt={title}
+          width={1920}
+          height={1080}
+          className={`${isFullPage ? "" : "rounded-lg"} object-cover w-full h-full`}
+          loading={isFullPage ? undefined : "lazy"}
+          priority={isFullPage}
+          sizes="100vw"
+        />
+      )}
       <div
         className={cn(
           "pointer-events-none absolute inset-0 bg-black/70",

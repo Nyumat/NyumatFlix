@@ -1,26 +1,32 @@
+import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 
 interface ContentRowHeaderProps {
   title: string;
   href: string;
+  bleed?: boolean;
 }
 
-export function ContentRowHeader({ title, href }: ContentRowHeaderProps) {
+export function ContentRowHeader({
+  title,
+  href,
+  bleed,
+}: ContentRowHeaderProps) {
   return (
-    <div className="content-row-header mb-5 flex items-end justify-between px-1">
-      <div className="space-y-1">
-        <h2 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
-          {title}
-        </h2>
-        <div className="h-1 w-12 bg-primary/60 rounded-full" />
-      </div>
+    <div
+      className={cn(
+        "content-row-header mb-4 flex items-baseline justify-between gap-3",
+        bleed ? "index-rail-padding" : "px-1 md:px-0",
+      )}
+    >
+      <h2 className="truncate text-lg font-semibold tracking-tight md:text-xl">
+        {title}
+      </h2>
       <Link
         href={href}
-        className="group flex items-center gap-1 text-xs md:text-sm font-bold text-muted-foreground hover:text-primary transition-all duration-300 bg-white/5 hover:bg-primary/10 px-3 py-1.5 rounded-full border border-white/10 hover:border-primary/30"
+        className="ml-auto shrink-0 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        <span>View all</span>
-        <ChevronRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+        View all
       </Link>
     </div>
   );
