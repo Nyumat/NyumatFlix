@@ -3,7 +3,7 @@ import {
   getAniListPoster,
   getAniListTitle,
   type AniListMedia,
-} from "@/lib/anilist";
+} from "@/lib/anilist-shared";
 import {
   fetchAniListGraphql,
   isAnilistUnavailableError,

@@ -1,3 +1,13 @@
+import "server-only";
+
+import {
+  fetchResponseEffect,
+  readJsonEffect,
+  runCatalogEffect,
+  type CatalogProviderError,
+} from "@/lib/server/catalog-effect";
+import { Effect } from "effect";
+
 export const ANILIST_GRAPHQL_ENDPOINT = "https://graphql.anilist.co";
 
 const DEFAULT_TIMEOUT_MS = 12_000;
@@ -129,92 +139,119 @@ const noteRateLimit = (
   gateUntilMs = Math.max(gateUntilMs, now() + delay);
 };
 
-const parsePayload = async <TData>(
+const parsePayloadEffect = <TData>(
   response: Response,
-): Promise<AniListGraphqlPayload<TData>> => {
-  try {
-    const payload = (await response.json()) as {
-      data?: TData | null;
-      errors?: AniListGraphqlError[];
-    };
-    return {
+): Effect.Effect<AniListGraphqlPayload<TData>> =>
+  readJsonEffect<{
+    data?: TData | null;
+    errors?: AniListGraphqlError[];
+  }>("anilist", response).pipe(
+    Effect.map((payload) => ({
       status: response.status,
       data: payload.data ?? null,
       errors: payload.errors,
-    };
-  } catch {
-    return { status: response.status, data: null };
-  }
+    })),
+    Effect.catchAll(() =>
+      Effect.succeed({ status: response.status, data: null }),
+    ),
+  );
+
+const providerErrorMessage = (error: CatalogProviderError): string => {
+  const cause = error.cause;
+  return cause instanceof Error ? cause.message : error.message;
 };
 
-const fetchAniListGraphqlUncached = async <TData>(
+export const fetchAniListGraphqlEffect = <TData>(
   body: AniListGraphqlBody,
   options?: AniListGraphqlFetchOptions,
-): Promise<AniListGraphqlPayload<TData>> => {
-  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const maxAttempts = options?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
-  const maxRetryWaitMs = options?.maxRetryWaitMs ?? DEFAULT_MAX_RETRY_WAIT_MS;
-  const now = options?.now ?? Date.now;
-  const wait = options?.sleep ?? sleep;
+): Effect.Effect<AniListGraphqlPayload<TData>, AnilistUnavailableError> =>
+  Effect.gen(function* () {
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const maxAttempts = options?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
+    const maxRetryWaitMs = options?.maxRetryWaitMs ?? DEFAULT_MAX_RETRY_WAIT_MS;
+    const now = options?.now ?? Date.now;
+    const wait = options?.sleep ?? sleep;
 
-  let lastPayload: AniListGraphqlPayload<TData> | null = null;
+    let lastPayload: AniListGraphqlPayload<TData> | null = null;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    await waitForGate(now, wait, maxRetryWaitMs);
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      yield* Effect.promise(() => waitForGate(now, wait, maxRetryWaitMs));
 
-    let response: Response;
-    try {
-      response = await fetch(ANILIST_GRAPHQL_ENDPOINT, {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
-        cache: "no-store",
-      });
-    } catch (error) {
-      if (attempt >= maxAttempts) {
-        throw new AnilistUnavailableError(
-          error instanceof Error ? error.message : "AniList request failed",
-        );
-      }
-      await wait(Math.min(400 * 2 ** (attempt - 1), maxRetryWaitMs));
-      continue;
-    }
-
-    noteRateLimit(response, now, maxRetryWaitMs);
-    const payload = await parsePayload<TData>(response);
-    lastPayload = payload;
-
-    if (isAniListRateLimited(payload.status, payload.errors)) {
-      if (attempt >= maxAttempts) {
-        throw new AnilistUnavailableError();
-      }
-      await wait(
-        getAniListRetryDelayMs(response, attempt, { now, maxRetryWaitMs }),
+      const responseResult = yield* Effect.either(
+        fetchResponseEffect({
+          provider: "anilist",
+          input: ANILIST_GRAPHQL_ENDPOINT,
+          timeoutMs,
+          init: {
+            method: "POST",
+            headers: {
+              accept: "application/json",
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(body),
+            cache: "no-store",
+          },
+        }),
       );
-      continue;
-    }
-
-    if (payload.status === 403 || payload.status >= 500) {
-      if (attempt >= maxAttempts) {
-        throw new AnilistUnavailableError(
-          `AniList request failed: ${payload.status}`,
+      if (responseResult._tag === "Left") {
+        if (attempt >= maxAttempts) {
+          return yield* Effect.fail(
+            new AnilistUnavailableError(
+              providerErrorMessage(responseResult.left),
+            ),
+          );
+        }
+        yield* Effect.promise(() =>
+          wait(Math.min(400 * 2 ** (attempt - 1), maxRetryWaitMs)),
         );
+        continue;
       }
-      await wait(Math.min(400 * 2 ** (attempt - 1), maxRetryWaitMs));
-      continue;
+      const response = responseResult.right;
+
+      noteRateLimit(response, now, maxRetryWaitMs);
+      const payload = yield* parsePayloadEffect<TData>(response);
+      lastPayload = payload;
+
+      if (isAniListRateLimited(payload.status, payload.errors)) {
+        if (attempt >= maxAttempts) {
+          return yield* Effect.fail(new AnilistUnavailableError());
+        }
+        yield* Effect.promise(() =>
+          wait(
+            getAniListRetryDelayMs(response, attempt, {
+              now,
+              maxRetryWaitMs,
+            }),
+          ),
+        );
+        continue;
+      }
+
+      if (payload.status === 403 || payload.status >= 500) {
+        if (attempt >= maxAttempts) {
+          return yield* Effect.fail(
+            new AnilistUnavailableError(
+              `AniList request failed: ${payload.status}`,
+            ),
+          );
+        }
+        yield* Effect.promise(() =>
+          wait(Math.min(400 * 2 ** (attempt - 1), maxRetryWaitMs)),
+        );
+        continue;
+      }
+
+      return payload;
     }
 
-    return payload;
-  }
-
-  throw new AnilistUnavailableError(
-    lastPayload ? `AniList request failed: ${lastPayload.status}` : undefined,
-  );
-};
+    return yield* Effect.fail(
+      new AnilistUnavailableError(
+        lastPayload
+          ? `AniList request failed: ${lastPayload.status}`
+          : undefined,
+      ),
+    );
+  });
 
 export const fetchAniListGraphql = async <TData>(
   body: AniListGraphqlBody,
@@ -226,11 +263,11 @@ export const fetchAniListGraphql = async <TData>(
     return existing as Promise<AniListGraphqlPayload<TData>>;
   }
 
-  const promise = fetchAniListGraphqlUncached<TData>(body, options).finally(
-    () => {
-      inflight.delete(key);
-    },
-  );
+  const promise = runCatalogEffect(
+    fetchAniListGraphqlEffect<TData>(body, options),
+  ).finally(() => {
+    inflight.delete(key);
+  });
   inflight.set(key, promise as Promise<AniListGraphqlPayload<unknown>>);
   return promise;
 };
