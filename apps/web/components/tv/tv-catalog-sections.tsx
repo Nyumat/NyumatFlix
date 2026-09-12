@@ -1,21 +1,20 @@
-import { slimMediaItemsForRsc, toHeroTvRefs } from "@/lib/cards/catalog-dto";
+import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
-import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
 import {
-  CatalogGridFallback,
-  CatalogHeroPairFallback,
   CatalogRowFallback,
-  CatalogSpotlightFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
 import { DiscoverToolbarSkeleton } from "@/components/catalog/catalog-chrome-skeletons";
+import {
+  IndexFeatureHero,
+  type IndexFeatureHeroItem,
+} from "@/components/catalog/index-feature-hero";
 import { ContentRow } from "@/components/content/content-row";
 import { DiscoverHubToolbarDynamic } from "@/components/discover/discover-hub-toolbar-dynamic";
+import type { PageBackdrop } from "@/components/hero/ambient-page-backdrop";
 import { RecentlyWatchedRow } from "@/components/home/recently-watched-row";
-import { CatalogSpotlight } from "@/components/trend/catalog-spotlight";
 import { TrendCarousel } from "@/components/trend/trend-client";
-import { TvHero } from "@/components/tv/tv-server";
 import { pages } from "@/config/pages";
 import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import { parseTrendingTime, parseTvView } from "@/lib/catalog-query";
@@ -27,8 +26,8 @@ import {
 } from "@/lib/released-media";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterDiscoverParams, getUserTimezone } from "@/lib/utils";
-import type { SortByTypeTv } from "@/tmdb/api";
-import { tmdb } from "@/tmdb/api";
+import { tmdb, type SortByTypeTv, type WithImages } from "@/tmdb/api";
+import { tmdbImage } from "@/tmdb/utils";
 import type { MediaItem } from "@/lib/domain/typings";
 import { cache } from "react";
 import { Suspense } from "react";
@@ -45,6 +44,48 @@ const getCachedTrendingTvDay = cache(async () => {
   const { results } = await tmdb.trending.tv({ time: "day", page: "1" });
   return filterReleasedTvShows(results ?? []);
 });
+
+type TvHubFeature = {
+  item: IndexFeatureHeroItem;
+  backdrop: PageBackdrop | null;
+};
+
+const toTvHubBackdrop = (item: IndexFeatureHeroItem): PageBackdrop | null => {
+  if (!item.backdrop_path) return null;
+
+  return {
+    imageUrl: tmdbImage.backdrop(item.backdrop_path, "w1280"),
+    alt: item.name ?? "Featured TV series",
+    priority: true,
+  };
+};
+
+const getCachedTvHubFeature = cache(async (): Promise<TvHubFeature | null> => {
+  const shows = await getCachedTrendingTvDay();
+  const featured = shows.find((show) => Boolean(show.backdrop_path));
+
+  if (!featured) return null;
+
+  let item: IndexFeatureHeroItem = featured;
+
+  try {
+    item = await tmdb.tv.detail<WithImages>({
+      id: featured.id,
+      append: "images",
+    });
+  } catch {
+    item = featured;
+  }
+
+  return {
+    item,
+    backdrop: toTvHubBackdrop(item) ?? toTvHubBackdrop(featured),
+  };
+});
+
+export async function getTvHubFeature(): Promise<TvHubFeature | null> {
+  return getCachedTvHubFeature();
+}
 
 const getCachedPopularTvByVote = cache(async (sp: SearchParams) => {
   const today = getTodayIsoDateUtc();
@@ -112,6 +153,10 @@ export function TvDiscoverToolbarFallback() {
   return <DiscoverToolbarSkeleton />;
 }
 
+export async function getTvHubAmbientBackdrop(): Promise<PageBackdrop | null> {
+  return (await getCachedTvHubFeature())?.backdrop ?? null;
+}
+
 export async function TvDiscoverResultsSection({
   searchParams: sp,
   title,
@@ -160,35 +205,6 @@ export async function TvDiscoverResultsSection({
   );
 }
 
-async function TvDiscoverSpotlightSection({
-  searchParams: sp,
-}: {
-  searchParams: SearchParams;
-}) {
-  const [trendingShows, catalogResponse] = await Promise.all([
-    getCachedTrendingTvDay(),
-    getCachedDiscoverCatalog(sp),
-  ]);
-  const shows = filterReleasedTvShows(catalogResponse.results ?? []);
-  const heroPool = trendingShows.length > 0 ? trendingShows : shows.slice(0, 1);
-  const heroFeaturedId = heroPool[0]?.id ?? null;
-
-  if (heroFeaturedId == null) {
-    return null;
-  }
-
-  return (
-    <CatalogSpotlight
-      mediaType="tv"
-      id={heroFeaturedId}
-      priority
-      hubLink={pages.tv.catalog.resultsLink}
-      hubButtonLabel="Browse all TV shows"
-      badgeLabel="Trending today"
-    />
-  );
-}
-
 async function TvDiscoverTrendingCarouselSection() {
   const trendingShows = await getCachedTrendingTvDay();
   const items = slimMediaItemsForRsc(
@@ -208,41 +224,14 @@ async function TvDiscoverTrendingCarouselSection() {
       title="Trending"
       link={pages.trending.tv.link}
       items={items}
+      bleed
     />
   );
 }
 
-async function TvDiscoverTrendingHeroSection() {
-  const trendingShows = await getCachedTrendingTvDay();
-  const heroPair = trendingShows.slice(0, 2);
-
-  if (heroPair.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <TvHero
-        tvShows={toHeroTvRefs(heroPair)}
-        label="Trending now"
-        count={2}
-        pick="first"
-      />
-    </div>
-  );
-}
-
 async function TvDiscoverTopRatedSection() {
-  const [topRatedTvForHub, trendingShows] = await Promise.all([
-    getCachedTopRatedTvHub(),
-    getCachedTrendingTvDay(),
-  ]);
-  const heroFeaturedId = trendingShows[0]?.id ?? null;
-  const showsForRanked =
-    heroFeaturedId != null
-      ? topRatedTvForHub.filter((show) => show.id !== heroFeaturedId)
-      : topRatedTvForHub;
-  const hubTopPicksRow = showsForRanked.slice(0, 12);
+  const topRatedTvForHub = await getCachedTopRatedTvHub();
+  const hubTopPicksRow = topRatedTvForHub.slice(0, 12);
 
   if (hubTopPicksRow.length === 0) {
     return null;
@@ -259,6 +248,7 @@ async function TvDiscoverTopRatedSection() {
         })),
       )}
       href={pages.tv.topRated.link}
+      bleed
     />
   );
 }
@@ -286,57 +276,7 @@ async function TvDiscoverPopularCarouselSection({
       title="Popular"
       link={pages.tv.popular.discoverHubLink}
       items={items}
-    />
-  );
-}
-
-async function TvDiscoverPopularHeroSection({
-  searchParams: sp,
-}: {
-  searchParams: SearchParams;
-}) {
-  const popularTv = await getCachedPopularTvByVote(sp);
-  const heroPair = popularTv.slice(0, 2);
-
-  if (heroPair.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <TvHero
-        tvShows={toHeroTvRefs(heroPair)}
-        label="Popular now"
-        count={2}
-        pick="first"
-      />
-    </div>
-  );
-}
-
-async function TvDiscoverGridSection({
-  searchParams: sp,
-  catalogQueryParams,
-}: {
-  searchParams: SearchParams;
-  catalogQueryParams: Record<string, string>;
-}) {
-  const catalogResponse = await getCachedDiscoverCatalog(sp);
-  const shows = filterReleasedTvShows(catalogResponse.results ?? []);
-  const hubGridItems: MediaItem[] = slimMediaItemsForRsc(
-    shows.map((show) => ({
-      ...show,
-      media_type: "tv" as const,
-    })),
-  );
-
-  return (
-    <CatalogInfiniteGrid
-      mediaType="tv"
-      initialItems={hubGridItems}
-      initialPage={catalogResponse.page}
-      totalPages={catalogResponse.total_pages}
-      queryParams={catalogQueryParams}
+      bleed
     />
   );
 }
@@ -350,18 +290,9 @@ async function TvDiscoverCategoryShowcase({
     getCachedTrendingTvDay(),
     getCachedTopRatedTvHub(),
   ]);
-  const heroFeaturedId = trendingShows[0]?.id ?? null;
-  const hubTopPicksRow =
-    heroFeaturedId != null
-      ? topRatedTvForHub
-          .filter((show) => show.id !== heroFeaturedId)
-          .slice(0, 12)
-      : topRatedTvForHub.slice(0, 12);
+  const hubTopPicksRow = topRatedTvForHub.slice(0, 12);
 
   const excludeIds = new Set<number>();
-  if (heroFeaturedId != null) {
-    excludeIds.add(heroFeaturedId);
-  }
   for (const show of hubTopPicksRow) {
     excludeIds.add(show.id);
   }
@@ -375,51 +306,40 @@ async function TvDiscoverCategoryShowcase({
 }
 
 export async function TvDiscoverHubSections({
+  feature,
   searchParams: sp,
-  catalogQueryParams,
 }: {
+  feature?: IndexFeatureHeroItem | null;
   searchParams: SearchParams;
-  catalogQueryParams: Record<string, string>;
 }) {
   return (
     <>
-      <Suspense fallback={<CatalogSpotlightFallback />}>
-        <TvDiscoverSpotlightSection searchParams={sp} />
+      {feature ? (
+        <IndexFeatureHero item={feature} mediaType="tv" priority />
+      ) : null}
+
+      <Suspense fallback={<TvDiscoverToolbarFallback />}>
+        <TvDiscoverToolbarSection searchParams={sp} />
       </Suspense>
 
-      <Suspense fallback={<RecentlyWatchedRowFallback />}>
-        <RecentlyWatchedRow scope="tv" />
+      <Suspense fallback={<RecentlyWatchedRowFallback bleed />}>
+        <RecentlyWatchedRow bleed scope="tv" />
       </Suspense>
 
-      <Suspense fallback={<CatalogRowFallback />}>
+      <Suspense fallback={<CatalogRowFallback bleed />}>
         <TvDiscoverTrendingCarouselSection />
       </Suspense>
 
-      <Suspense fallback={<CatalogHeroPairFallback />}>
-        <TvDiscoverTrendingHeroSection />
-      </Suspense>
-
-      <Suspense fallback={<CatalogRowFallback />}>
+      <Suspense fallback={<CatalogRowFallback bleed />}>
         <TvDiscoverTopRatedSection />
       </Suspense>
 
-      <Suspense fallback={<CatalogRowFallback />}>
+      <Suspense fallback={<CatalogRowFallback bleed />}>
         <TvDiscoverPopularCarouselSection searchParams={sp} />
       </Suspense>
 
-      <Suspense fallback={<CatalogHeroPairFallback />}>
-        <TvDiscoverPopularHeroSection searchParams={sp} />
-      </Suspense>
-
-      <Suspense fallback={<CatalogRowFallback />}>
+      <Suspense fallback={<CatalogRowFallback bleed />}>
         <TvDiscoverCategoryShowcase searchParams={sp} />
-      </Suspense>
-
-      <Suspense fallback={<CatalogGridFallback />}>
-        <TvDiscoverGridSection
-          searchParams={sp}
-          catalogQueryParams={catalogQueryParams}
-        />
       </Suspense>
     </>
   );
@@ -431,12 +351,14 @@ export async function TvDiscoverContent({
   description,
   catalogQueryParams,
   indexHref,
+  feature,
 }: {
   searchParams: SearchParams;
   title: string;
   description: string;
   catalogQueryParams: Record<string, string>;
   indexHref?: string;
+  feature?: IndexFeatureHeroItem | null;
 }) {
   const layoutState = getCatalogLayoutState(sp, parseTvView(sp.view));
   const catalogResponse = await getCachedDiscoverCatalog(sp);
@@ -455,12 +377,7 @@ export async function TvDiscoverContent({
     );
   }
 
-  return (
-    <TvDiscoverHubSections
-      searchParams={sp}
-      catalogQueryParams={catalogQueryParams}
-    />
-  );
+  return <TvDiscoverHubSections feature={feature} searchParams={sp} />;
 }
 
 export async function TvListCatalogSection({

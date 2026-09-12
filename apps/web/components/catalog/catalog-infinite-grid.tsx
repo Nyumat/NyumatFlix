@@ -15,6 +15,7 @@ type CatalogInfiniteGridProps = {
   initialPage: number;
   totalPages: number;
   queryParams: Record<string, string>;
+  showViewModeControls?: boolean;
 };
 
 type CatalogEntityStore = {
@@ -40,7 +41,10 @@ const buildCatalogEntityStore = (
 };
 
 export const CatalogInfiniteGrid = (props: CatalogInfiniteGridProps) => {
-  const queryKey = JSON.stringify(props.queryParams);
+  const queryKey = JSON.stringify({
+    mediaType: props.mediaType,
+    queryParams: props.queryParams,
+  });
   return <CatalogInfiniteGridBody key={queryKey} {...props} />;
 };
 
@@ -50,6 +54,7 @@ const CatalogInfiniteGridBody = ({
   initialPage,
   totalPages,
   queryParams,
+  showViewModeControls = true,
 }: CatalogInfiniteGridProps) => {
   const [store, setStore] = useState<CatalogEntityStore>(() =>
     buildCatalogEntityStore(filterWithPosterPath(initialItems), mediaType),
@@ -153,7 +158,7 @@ const CatalogInfiniteGridBody = ({
       <MediaContentGrid
         items={items}
         type={mediaType}
-        showViewModeControls
+        showViewModeControls={showViewModeControls}
         hideViewModeControlsOnMobile
         gridColumns="auto"
         showDock={false}

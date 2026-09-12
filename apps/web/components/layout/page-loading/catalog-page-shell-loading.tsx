@@ -5,8 +5,8 @@ import { PageLoadingShell } from "./page-loading-shell";
 export function CatalogPageShellLoading() {
   return (
     <PageLoadingShell withPageContainer={false}>
-      <section className="min-h-screen w-full pb-16 pt-14 md:pt-16">
-        <div className="container space-y-10">
+      <section className="min-h-screen w-full pb-16 pt-8 md:pt-12">
+        <div className="index-container space-y-8 md:space-y-10 lg:space-y-12">
           <CatalogPageShellChromeSkeleton showAction toolbar="anilist" />
           <AnimeHubSectionsFallback />
         </div>
