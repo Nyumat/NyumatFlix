@@ -1,5 +1,5 @@
 import { AnimeInfiniteGrid } from "@/components/anilist/anime-infinite-grid";
-import type { AniListSearchParams } from "@/lib/anilist";
+import type { AniListSearchParams } from "@/lib/anilist-shared";
 import { enrichAniListSearchCatalogItems } from "@/lib/anilist-tmdb";
 import { fetchStableAniListPage } from "@/lib/server/anilist-page";
 

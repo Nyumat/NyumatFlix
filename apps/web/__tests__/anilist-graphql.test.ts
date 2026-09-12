@@ -61,6 +61,25 @@ describe("AniList graphql helpers", () => {
         maxRetryWaitMs: 10_000,
       }),
     ).toBe(5000);
+
+    const both = new Response(null, {
+      headers: {
+        "retry-after": "8",
+        "x-ratelimit-reset": "1001",
+      },
+    });
+    expect(
+      getAniListRetryDelayMs(both, 4, {
+        now: () => 1_000_000,
+        maxRetryWaitMs: 4000,
+      }),
+    ).toBe(4000);
+
+    expect(
+      getAniListRetryDelayMs(new Response(null), 5, {
+        maxRetryWaitMs: 4000,
+      }),
+    ).toBe(4000);
   });
 });
 
@@ -130,6 +149,104 @@ describe("fetchAniListGraphql", () => {
         { sleep: async () => undefined, maxAttempts: 2, maxRetryWaitMs: 0 },
       ),
     ).rejects.toBeInstanceOf(AnilistUnavailableError);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries 403 responses", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({}, { status: 403 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { Media: { id: 21 } } }));
+
+    const payload = await fetchAniListGraphql<{
+      Media: { id: number } | null;
+    }>(
+      { query: "query { Media { id } }", variables: { id: 21 } },
+      { sleep: async () => undefined, maxAttempts: 2 },
+    );
+
+    expect(payload.data?.Media?.id).toBe(21);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries timeouts and aborts each underlying request", async () => {
+    let abortCount = 0;
+    fetchMock.mockImplementation(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            abortCount += 1;
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        }),
+    );
+
+    await expect(
+      fetchAniListGraphql(
+        { query: "query { Media { id } }", variables: { id: 21 } },
+        {
+          sleep: async () => undefined,
+          timeoutMs: 1,
+          maxAttempts: 2,
+        },
+      ),
+    ).rejects.toBeInstanceOf(AnilistUnavailableError);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(abortCount).toBe(2);
+  });
+
+  it("retries transport failures and server errors up to the exact limit", async () => {
+    fetchMock
+      .mockRejectedValueOnce(new Error("socket closed"))
+      .mockResolvedValueOnce(jsonResponse({}, { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { Media: { id: 21 } } }));
+
+    const payload = await fetchAniListGraphql<{
+      Media: { id: number } | null;
+    }>(
+      { query: "query { Media { id } }", variables: { id: 21 } },
+      { sleep: async () => undefined, maxAttempts: 3, maxRetryWaitMs: 0 },
+    );
+
+    expect(payload.data?.Media?.id).toBe(21);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry 404 or ordinary graphql errors", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        { errors: [{ message: "Not Found.", status: 404 }] },
+        { status: 404 },
+      ),
+    );
+    const notFound = await fetchAniListGraphql(
+      { query: "query { Media { id } }", variables: { id: 404 } },
+      { sleep: async () => undefined },
+    );
+    expect(notFound.status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ errors: [{ message: "Validation failed" }] }),
+    );
+    const graphqlError = await fetchAniListGraphql(
+      { query: "invalid query" },
+      { sleep: async () => undefined },
+    );
+    expect(graphqlError.errors?.[0]?.message).toBe("Validation failed");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns the existing empty payload shape for malformed json", async () => {
+    fetchMock.mockResolvedValue(new Response("not json", { status: 200 }));
+
+    await expect(
+      fetchAniListGraphql(
+        { query: "query { Media { id } }" },
+        { sleep: async () => undefined },
+      ),
+    ).resolves.toEqual({ status: 200, data: null });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("coalesces in-flight requests for the same query", async () => {

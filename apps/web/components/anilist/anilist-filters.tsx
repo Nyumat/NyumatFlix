@@ -9,7 +9,7 @@ import {
   buildAniListUrl,
   parseAniListSearchParams,
   type AniListSearchParams,
-} from "@/lib/anilist";
+} from "@/lib/anilist-shared";
 import { cn } from "@/lib/utils";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
