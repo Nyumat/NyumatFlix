@@ -6,16 +6,19 @@ import {
 
 export const AnimeHeroFallback = () => (
   <div
-    className="relative isolate h-[min(58vh,31rem)] min-h-[27rem] overflow-hidden rounded-3xl md:h-hero md:min-h-0"
+    className="index-bleed relative isolate mb-4 h-[85dvh] overflow-hidden lg:mb-12"
     aria-hidden
   >
-    <Skeleton className="absolute inset-0 rounded-3xl" />
-    <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 p-4 pb-5 md:gap-4 md:p-8 md:pb-8 lg:p-10">
-      <Skeleton className="h-6 w-24 rounded-full" />
-      <Skeleton className="h-10 w-48 max-w-[70%] rounded-lg md:h-12" />
-      <div className="flex items-center justify-center gap-3">
-        <Skeleton className="h-10 w-24 rounded-full" />
-        <Skeleton className="h-10 w-28 rounded-full" />
+    <Skeleton className="absolute inset-0 rounded-none" />
+    <div className="absolute inset-0 flex items-end px-6 pb-20 lg:px-16 lg:pb-24">
+      <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4 lg:mx-0 lg:items-start lg:gap-6">
+        <Skeleton className="h-24 w-80 max-w-[70vw] rounded-lg md:h-32" />
+        <Skeleton className="h-5 w-72 max-w-[70vw] rounded-full" />
+        <Skeleton className="h-20 w-[38rem] max-w-full rounded-lg" />
+        <div className="flex gap-3">
+          <Skeleton className="h-12 w-32 rounded-full" />
+          <Skeleton className="size-12 rounded-full" />
+        </div>
       </div>
     </div>
   </div>
@@ -24,10 +27,10 @@ export const AnimeHeroFallback = () => (
 export const AnimeHubSectionsFallback = () => (
   <>
     <AnimeHeroFallback />
-    <RecentlyWatchedRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
-    <CatalogRowFallback />
+    <RecentlyWatchedRowFallback bleed />
+    <CatalogRowFallback bleed />
+    <CatalogRowFallback bleed />
+    <CatalogRowFallback bleed />
+    <CatalogRowFallback bleed />
   </>
 );

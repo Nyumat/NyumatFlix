@@ -1,9 +1,10 @@
-import { MediaBackdrop } from "@/components/media/media-shared";
-import { Badge } from "@/components/ui/badge";
+import { getGenreName } from "@/components/content/genre-helpers";
+import { FeatureHeroBackdrop } from "@/components/hero/feature-hero-backdrop";
+import { WatchlistButton } from "@/components/watchlist/watchlist";
 import { pages } from "@/config/pages";
-import { tmdbImage } from "@/tmdb/utils";
 import type { MediaItem } from "@/lib/domain/typings";
-import { Info, Play } from "lucide-react";
+import { tmdbImage } from "@/tmdb/utils";
+import { Calendar, Clapperboard, Info, Play, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -21,9 +22,20 @@ type AnimeHeroItem = MediaItem & {
 
 const getString = (value: unknown) => (typeof value === "string" ? value : "");
 
+const getNumber = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
 const getTitle = (item: AnimeHeroItem) =>
   getString("title" in item ? item.title : undefined) ||
   getString("name" in item ? item.name : undefined);
+
+const getYear = (item: AnimeHeroItem) => {
+  const date =
+    getString("first_air_date" in item ? item.first_air_date : undefined) ||
+    getString("release_date" in item ? item.release_date : undefined);
+
+  return date.length >= 4 ? date.slice(0, 4) : null;
+};
 
 const getHref = (item: AnimeHeroItem) => {
   if ("href" in item && typeof item.href === "string") return item.href;
@@ -59,68 +71,123 @@ export const AnimeHero = ({
     const hasDetailHref = isInternalDetailHref(detailHref);
     const playHref = getPlayHref(heroItem);
     const logo = heroItem.logo;
+    const rating = getNumber(
+      "vote_average" in heroItem ? heroItem.vote_average : undefined,
+    );
+    const year = getYear(heroItem);
+    const mediaType = heroItem.media_type === "movie" ? "movie" : "tv";
+    const primaryGenreId = heroItem.genre_ids?.[0];
+    const primaryGenre = primaryGenreId
+      ? getGenreName(primaryGenreId, mediaType)
+      : null;
+    const backdropPath =
+      getString(item.backdrop_path) || getString(item.poster_path);
+    const backdropUrl = backdropPath
+      ? tmdbImage.backdrop(backdropPath, "w1280")
+      : null;
+    const logoWidth = logo?.width && logo.width > 0 ? logo.width : 500;
+    const logoHeight =
+      logo?.height && logo.height > 0
+        ? logo.height
+        : logo?.aspect_ratio && logo.aspect_ratio > 0
+          ? Math.round(logoWidth / logo.aspect_ratio)
+          : 281;
+    const overview = getString(item.overview).trim();
 
     return (
       <div
-        className="relative isolate h-[min(58vh,31rem)] min-h-[27rem] overflow-hidden rounded-3xl md:h-hero md:min-h-0"
+        className="index-bleed relative isolate mb-4 h-[85dvh] overflow-visible lg:mb-12"
         key={item.id}
       >
-        <div className="absolute inset-0">
-          <MediaBackdrop
-            image={
-              getString(item.backdrop_path) ||
-              getString(item.poster_path) ||
-              undefined
-            }
-            alt={title}
-            priority={priority}
-            className="h-full min-h-0"
-            size="w1280"
-          />
-        </div>
+        {backdropUrl ? (
+          <FeatureHeroBackdrop imageUrl={backdropUrl} priority={priority} />
+        ) : null}
 
-        <div className="overlay">
-          <div className="mx-auto max-w-3xl space-y-2 p-4 pb-5 text-center md:space-y-4 md:p-8 md:pb-8 lg:p-10">
-            <Badge className="select-none">{label}</Badge>
+        <div className="absolute inset-0 z-20 flex items-end px-6 pb-20 lg:px-16 lg:pb-24">
+          <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4 text-center text-white lg:mx-0 lg:items-start lg:gap-6 lg:text-left">
+            <span className="sr-only">{label}</span>
 
             {logo ? (
               <Image
                 src={tmdbImage.logo(logo.file_path, "w500")}
-                className="mx-auto my-1 w-[min(54%,11rem)] md:my-2 md:w-[min(48%,14rem)] lg:w-[min(42%,15rem)]"
                 alt={title}
-                height={logo.height}
-                width={logo.width}
+                height={logoHeight}
+                width={logoWidth}
+                className="h-auto max-h-28 w-auto max-w-full origin-center object-contain drop-shadow-2xl lg:max-h-48 lg:origin-left"
                 priority={priority}
               />
             ) : (
-              <h2 className="line-clamp-2 text-xl font-medium leading-tight tracking-tighter md:text-3xl lg:text-4xl">
+              <h2 className="max-w-2xl text-balance text-4xl font-semibold leading-none text-white drop-shadow-2xl sm:text-5xl lg:text-6xl">
                 {title}
               </h2>
             )}
 
-            <p className="mx-auto line-clamp-2 max-w-xl text-xs text-muted-foreground md:line-clamp-3 md:text-lg">
-              {getString(item.overview)}
-            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-semibold text-white drop-shadow-lg lg:justify-start lg:text-base">
+              {rating && rating > 0 ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Star className="size-4 fill-white text-white" aria-hidden />
+                  {rating.toFixed(1)}/10
+                </span>
+              ) : null}
 
-            <div className="flex items-center justify-center gap-2 md:gap-3">
+              {year ? (
+                <>
+                  {rating && rating > 0 ? (
+                    <span aria-hidden="true">•</span>
+                  ) : null}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Calendar className="size-4" aria-hidden />
+                    {year}
+                  </span>
+                </>
+              ) : null}
+
+              {primaryGenre && primaryGenre !== "Unknown" ? (
+                <>
+                  {rating || year ? <span aria-hidden="true">•</span> : null}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clapperboard className="size-4" aria-hidden />
+                    {primaryGenre}
+                  </span>
+                </>
+              ) : null}
+            </div>
+
+            {overview ? (
+              <p className="line-clamp-2 max-w-xl text-pretty text-base font-medium leading-5 text-white drop-shadow-lg md:line-clamp-3 lg:text-lg lg:leading-7">
+                {overview}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               {playHref ? (
                 <Link
                   href={playHref}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/60 bg-white px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
+                  className="inline-flex h-[52px] min-w-[130px] items-center justify-center rounded-full border border-white/80 bg-white/95 px-6 text-lg font-bold text-black shadow-lg shadow-black/25 transition hover:bg-white"
                 >
-                  <Play className="mr-2 size-4 fill-black text-black" />
+                  <Play className="mr-2 size-5 fill-black text-black" />
                   Play
                 </Link>
               ) : null}
 
               {hasDetailHref ? (
-                <Link
-                  href={detailHref}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-md transition hover:border-white/40 hover:bg-white/20 hover:shadow-xl"
-                >
-                  <Info className="mr-2 size-4" />
-                  See More
-                </Link>
+                <div className="inline-flex h-[52px] overflow-hidden rounded-full border border-white/10 bg-white/10 text-white shadow-lg shadow-black/20 backdrop-blur-[20px] backdrop-saturate-150">
+                  <WatchlistButton
+                    contentId={heroItem.id}
+                    mediaType={mediaType}
+                    variant="ghost"
+                    size="icon"
+                    className="h-[50px] w-16 rounded-none border-0 bg-transparent p-0 text-white transition hover:bg-white/15"
+                  />
+                  <span className="my-3 w-px bg-white/20" aria-hidden="true" />
+                  <Link
+                    href={detailHref}
+                    aria-label={`More info about ${title}`}
+                    className="inline-flex h-[50px] w-16 items-center justify-center transition hover:bg-white/15"
+                  >
+                    <Info className="size-5" />
+                  </Link>
+                </div>
               ) : null}
             </div>
           </div>

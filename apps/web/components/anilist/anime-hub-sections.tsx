@@ -1,5 +1,6 @@
 import { AnimeHero } from "@/components/anilist/anime-hero";
 import { ContentRow } from "@/components/content/content-row";
+import type { PageBackdrop } from "@/components/hero/ambient-page-backdrop";
 import { ContentReveal } from "@/components/layout/page-loading/content-reveal";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import type { MediaItem } from "@/lib/domain/typings";
@@ -29,9 +30,33 @@ import {
   pickHubCarouselItems,
 } from "@/lib/server/anime-hub-layout";
 import type { TvShowWithMediaType } from "@/tmdb/models";
+import { tmdbImage } from "@/tmdb/utils";
+import { cache } from "react";
 
 const asTvItems = (items: MediaItem[]) =>
   items as unknown as TvShowWithMediaType[];
+
+const getString = (value: unknown) => (typeof value === "string" ? value : "");
+
+const getAnimeHubFeature = cache(async () => {
+  const raw = await fetchAnimeHubTrendingRaw();
+  const items = await enrichAnimeHubTrendingRow(raw);
+  return items.find((item) => Boolean(item.backdrop_path)) ?? items[0] ?? null;
+});
+
+export async function getAnimeHubAmbientBackdrop(): Promise<PageBackdrop | null> {
+  const featured = await getAnimeHubFeature();
+  const backdropPath = featured?.backdrop_path ?? featured?.poster_path;
+
+  if (!backdropPath || !featured) return null;
+
+  return {
+    imageUrl: tmdbImage.backdrop(backdropPath, "w1280"),
+    alt:
+      getString(featured.title) || getString(featured.name) || "Featured anime",
+    priority: true,
+  };
+}
 
 type HubTrendCarouselProps = {
   title: string;
@@ -58,6 +83,7 @@ const HubTrendCarousel = ({
         title={title}
         link={href}
         items={asTvItems(picked)}
+        bleed
       />
     </ContentReveal>
   );
@@ -94,20 +120,14 @@ const AnimeHubGenreSlice = async (startIndex: number) => {
 };
 
 export async function AnimeHubHero() {
-  const raw = await fetchAnimeHubTrendingRaw();
-  const items = await enrichAnimeHubTrendingRow(raw);
-  if (items.length === 0) {
+  const item = await getAnimeHubFeature();
+  if (!item) {
     return null;
   }
 
   return (
     <ContentReveal>
-      <AnimeHero
-        items={items.slice(0, 1)}
-        label="Trending"
-        priority
-        count={1}
-      />
+      <AnimeHero items={[item]} label="Trending" priority count={1} />
     </ContentReveal>
   );
 }
@@ -129,6 +149,7 @@ export async function AnimeHubRankedRow() {
         title="Highest Rated"
         href={links.topRated}
         items={picked}
+        bleed
       />
     </ContentReveal>
   );
