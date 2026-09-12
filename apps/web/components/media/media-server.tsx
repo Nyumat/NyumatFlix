@@ -264,6 +264,7 @@ type MediaDetailLayoutProps = {
   contentContainerClassName?: string;
   sectionNav?: React.ReactNode;
   watchlistItem?: WatchlistItem | null;
+  watchlistResolved?: boolean;
   initialEpisode?: Episode | null;
   initialSeasonNumber?: number | null;
   tvHeroEpisodeData?: TvHeroEpisodeData | null;
@@ -278,6 +279,7 @@ export function MediaDetailLayout({
   contentContainerClassName,
   sectionNav,
   watchlistItem,
+  watchlistResolved = true,
   initialEpisode,
   initialSeasonNumber,
   tvHeroEpisodeData,
@@ -300,6 +302,7 @@ export function MediaDetailLayout({
         isUpcoming={isUpcoming}
         anilistId={anilistId}
         watchlistItem={watchlistItem}
+        watchlistResolved={watchlistResolved}
         initialEpisode={initialEpisode}
         initialSeasonNumber={initialSeasonNumber}
         tvHeroEpisodeData={tvHeroEpisodeData}

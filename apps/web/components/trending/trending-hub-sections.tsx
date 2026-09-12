@@ -1,10 +1,8 @@
 import { ContentReveal } from "@/components/layout/page-loading/content-reveal";
-import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
 import {
   filterReleasedMovies,
   filterReleasedTvShows,
 } from "@/lib/released-media";
-import { CAROUSEL_LOGO_ENRICH_COUNT } from "@/lib/tmdb-logo";
 import { MovieHero } from "@/components/movie/movie-server";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { TrendingSpotlight } from "@/components/trend/trending-spotlight";
@@ -24,12 +22,6 @@ export async function TrendingMoviesSection() {
     return null;
   }
 
-  const moviesForTrendCarousel = await enrichAboveFoldMediaItemsWithLogos(
-    movies,
-    "movie",
-    CAROUSEL_LOGO_ENRICH_COUNT,
-  );
-
   return (
     <ContentReveal className="space-y-10">
       <TrendingSpotlight mediaType="movie" id={featured.id} priority />
@@ -38,7 +30,7 @@ export async function TrendingMoviesSection() {
         type="movie"
         title={pages.trending.movie.title}
         link={pages.trending.movie.link}
-        items={moviesForTrendCarousel}
+        items={movies}
       />
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -61,12 +53,6 @@ export async function TrendingTvSection() {
     return null;
   }
 
-  const tvShowsForTrendCarousel = await enrichAboveFoldMediaItemsWithLogos(
-    tvShows,
-    "tv",
-    CAROUSEL_LOGO_ENRICH_COUNT,
-  );
-
   return (
     <ContentReveal className="space-y-10">
       <TrendingSpotlight mediaType="tv" id={featured.id} priority />
@@ -75,7 +61,7 @@ export async function TrendingTvSection() {
         type="tv"
         title={pages.trending.tv.title}
         link={pages.trending.tv.link}
-        items={tvShowsForTrendCarousel}
+        items={tvShows}
       />
 
       <div className="grid gap-4 md:grid-cols-2">

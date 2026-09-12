@@ -4,7 +4,6 @@ import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { SiteNav } from "@/components/layout/site-nav";
 import { SiteNavDesktop } from "@/components/layout/site-nav-desktop";
 import { AnniversaryBanner } from "@/components/layout/anniversary-banner";
-import { NavbarSearchClient, SearchDialog } from "@/components/search/search";
 import { Button } from "@/components/ui/button";
 import { useDetailRouteParentOverride } from "@/lib/stores/detail-route-store";
 import { loginHref } from "@/lib/auth/callback-url";
@@ -12,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { prepareNavigationBack } from "@/lib/navigation/route-restoration";
 import { ChevronLeft, Search, UserRound } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,6 +25,20 @@ import {
 import { NavbarAuthSlot } from "./navbar-auth-slot";
 import { NavbarMobileNavigation } from "./navbar-mobile-navigation";
 import { UserAvatar } from "./user-avatar";
+
+const SearchDialog = dynamic(
+  () =>
+    import("@/components/search/search").then((module) => module.SearchDialog),
+  { ssr: false },
+);
+
+const NavbarSearchClient = dynamic(
+  () =>
+    import("@/components/search/search").then(
+      (module) => module.NavbarSearchClient,
+    ),
+  { ssr: false },
+);
 
 const DETAIL_PARENT_ROUTES: Array<{
   pattern: RegExp;

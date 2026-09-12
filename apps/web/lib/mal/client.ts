@@ -1,6 +1,6 @@
 import "server-only";
 
-import { accounts, db } from "@/db/schema";
+import { accounts, db } from "@/db";
 import { and, eq } from "drizzle-orm";
 import type {
   MalMyListStatus,

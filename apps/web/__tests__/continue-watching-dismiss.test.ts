@@ -1,7 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
-  CONTINUE_WATCHING_DISMISSALS_STORAGE_KEY,
   continueWatchingTitleKey,
   dismissContinueWatchingTitle,
   filterDismissedContinueWatching,
@@ -17,9 +16,11 @@ describe("continueWatchingTitleKey", () => {
 });
 
 describe("continue-watching dismissals", () => {
-  it("hides a dismissed title from the continue watching list", () => {
-    window.localStorage.removeItem(CONTINUE_WATCHING_DISMISSALS_STORAGE_KEY);
+  beforeEach(() => {
+    globalThis.fetch = async () => ({ ok: true }) as Response;
+  });
 
+  it("hides a dismissed title from the continue watching list", () => {
     const dismissedAt = 1_000;
     dismissContinueWatchingTitle("movie", 550, dismissedAt);
 
@@ -47,8 +48,6 @@ describe("continue-watching dismissals", () => {
   });
 
   it("brings the title back when updatedAt is newer than dismissedAt", () => {
-    window.localStorage.removeItem(CONTINUE_WATCHING_DISMISSALS_STORAGE_KEY);
-
     dismissContinueWatchingTitle("tv", 1399, 1_000);
 
     expect(
@@ -73,8 +72,6 @@ describe("continue-watching dismissals", () => {
   });
 
   it("leaves other titles visible", () => {
-    window.localStorage.removeItem(CONTINUE_WATCHING_DISMISSALS_STORAGE_KEY);
-
     dismissContinueWatchingTitle("movie", 550, 1_000);
 
     const visible = filterDismissedContinueWatching([
@@ -101,30 +98,5 @@ describe("continue-watching dismissals", () => {
     expect(
       visible.map((item) => `${item.mediaType}:${item.contentId}`),
     ).toEqual(["movie:551", "tv:550"]);
-  });
-
-  it("treats invalid JSON in localStorage as an empty map", () => {
-    window.localStorage.setItem(
-      CONTINUE_WATCHING_DISMISSALS_STORAGE_KEY,
-      "{not-json",
-    );
-
-    expect(readContinueWatchingDismissals()).toEqual({});
-    expect(
-      isContinueWatchingTitleDismissed({
-        mediaType: "movie",
-        contentId: 550,
-        updatedAt: 1,
-      }),
-    ).toBe(false);
-    expect(
-      filterDismissedContinueWatching([
-        {
-          mediaType: "movie" as const,
-          contentId: 550,
-          updatedAt: 1,
-        },
-      ]),
-    ).toHaveLength(1);
   });
 });

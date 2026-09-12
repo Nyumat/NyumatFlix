@@ -26,7 +26,24 @@ import { useCallback, useContext, useEffect, useRef } from "react";
 const warmed = new Set<string>();
 const warmedSeasons = new Set<string>();
 const pending = new Map<string, Promise<MediaAboveFoldDetail | null>>();
-const MAX_WARMED_ITEMS = 250;
+const MAX_WARMED_ITEMS = 50;
+
+type NetworkInformation = {
+  saveData?: boolean;
+  effectiveType?: string;
+};
+
+const shouldSkipPrefetch = (): boolean => {
+  if (typeof navigator === "undefined") return false;
+  const connection = (
+    navigator as Navigator & { connection?: NetworkInformation }
+  ).connection;
+  if (!connection) return false;
+  if (connection.saveData) return true;
+  return (
+    connection.effectiveType === "slow-2g" || connection.effectiveType === "2g"
+  );
+};
 
 function rememberWarmed(cacheKey: string, bucket: Set<string>) {
   if (bucket.has(cacheKey)) return;
@@ -122,6 +139,11 @@ function getPrefetchId(
   return item.id;
 }
 
+export const shouldWarmAnimeDetailApis = (
+  _link: string,
+  _prefetchId: number | string,
+): boolean => true;
+
 export function useMediaCardPrefetch(
   item: CanonicalMediaCard | MediaItem,
   href?: string,
@@ -131,6 +153,8 @@ export function useMediaCardPrefetch(
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const prefetch = useCallback(() => {
+    if (shouldSkipPrefetch()) return;
+
     const mediaType = getMediaType(item);
     if (!mediaType) return;
 
@@ -139,6 +163,10 @@ export function useMediaCardPrefetch(
     const prefetchId = getPrefetchId(item, link);
     const cacheKey = `${mediaType}:${prefetchId}`;
     router.prefetch(link);
+
+    if (!shouldWarmAnimeDetailApis(link, prefetchId)) {
+      return;
+    }
 
     if (!queryClient) return;
 
@@ -187,7 +215,7 @@ export function useMediaCardPrefetch(
     timeoutRef.current = setTimeout(() => {
       timeoutRef.current = null;
       prefetch();
-    }, 120);
+    }, 200);
   }, [prefetch]);
 
   const cancelPrefetch = useCallback(() => {

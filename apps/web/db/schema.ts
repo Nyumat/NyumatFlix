@@ -1,34 +1,18 @@
-import "server-only";
-
 import type { AdapterAccountType } from "@auth/core/adapters";
 import {
   boolean,
   check,
+  index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  console.warn(
-    "⚠️  DATABASE_URL is not set. Using dummy connection string for build.",
-  );
-}
-
-const pool = postgres(
-  connectionString || "postgres://postgres:postgres@localhost:5432/nyumatflix",
-  { max: 1 },
-);
-
-export const db = drizzle(pool);
 
 export const users = pgTable("user", {
   id: text("id")
@@ -133,14 +117,83 @@ export const watchlist = pgTable(
     lastWatchedSeason: integer("lastWatchedSeason"),
     lastWatchedEpisode: integer("lastWatchedEpisode"),
     lastWatchedAt: timestamp("lastWatchedAt", { mode: "date" }),
+    dismissedAt: timestamp("dismissedAt", { mode: "date" }),
     createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
     unique().on(table.userId, table.contentId, table.mediaType),
+    index("watchlist_user_updated_idx").on(table.userId, table.updatedAt),
     check(
       "watchlist_status_check",
       sql`${table.status} IN ('watching', 'plan_to_watch', 'on_hold', 'dropped', 'completed')`,
     ),
   ],
 );
+
+export const playbackProgress = pgTable(
+  "playback_progress",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    contentId: integer("contentId").notNull(),
+    mediaType: text("mediaType").notNull().$type<"movie" | "tv">(),
+    seasonNumber: integer("seasonNumber").notNull().default(0),
+    episodeNumber: integer("episodeNumber").notNull().default(0),
+    watchedSeconds: real("watchedSeconds").notNull().default(0),
+    durationSeconds: real("durationSeconds").notNull().default(0),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique().on(
+      table.userId,
+      table.mediaType,
+      table.contentId,
+      table.seasonNumber,
+      table.episodeNumber,
+    ),
+    index("playback_progress_user_updated_idx").on(
+      table.userId,
+      table.updatedAt,
+    ),
+    check(
+      "playback_progress_media_type_check",
+      sql`${table.mediaType} IN ('movie', 'tv')`,
+    ),
+  ],
+);
+
+export const userSettings = pgTable("user_settings", {
+  userId: text("userId")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  playbackAudio: text("playbackAudio")
+    .notNull()
+    .default("sub")
+    .$type<"sub" | "dub">(),
+  playbackQuality: text("playbackQuality")
+    .notNull()
+    .default("1080p")
+    .$type<"1080p" | "720p" | "480p">(),
+  playbackEnglishSubtitles: boolean("playbackEnglishSubtitles")
+    .notNull()
+    .default(true),
+  disableHoverSound: boolean("disableHoverSound").notNull().default(false),
+  disableHeroTrailers: boolean("disableHeroTrailers").notNull().default(false),
+  selectedServerId: text("selectedServerId"),
+  userSelectedPlaybackServer: boolean("userSelectedPlaybackServer")
+    .notNull()
+    .default(false),
+  policyGenerationAtChoice: text("policyGenerationAtChoice"),
+  vidnestContentType: text("vidnestContentType")
+    .notNull()
+    .default("tv")
+    .$type<"movie" | "tv" | "anime" | "animepahe">(),
+  vidsrcApi: text("vidsrcApi").notNull().default("1"),
+  subtitleAppearance: jsonb("subtitleAppearance"),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});

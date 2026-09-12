@@ -57,28 +57,23 @@ export const getHomeTrendingMovies = cache(
 export const getHomePopularMovies = cache(
   async (): Promise<HomeMovieItem[]> => {
     const { movie: baseMovieDiscover } = getDiscoverBases();
-    const [trendingMovies, popularMoviePages] = await Promise.all([
+    const [trendingMovies, popularMoviePage] = await Promise.all([
       getHomeTrendingMovies(),
-      Promise.all(
-        ["1", "2", "3", "4"].map((page) =>
-          tmdb.discover.movie({
-            ...baseMovieDiscover,
-            page,
-            sort_by: "vote_count.desc",
-          }),
-        ),
-      ),
+      tmdb.discover.movie({
+        ...baseMovieDiscover,
+        page: "1",
+        sort_by: "vote_count.desc",
+      }),
     ]);
 
-    const popularMoviesRaw = popularMoviePages.flatMap(
-      (response) => response.results ?? [],
-    );
+    const popularMoviesRaw = popularMoviePage.results ?? [];
     const popularMoviesDeduped = dedupeById(
       filterReleasedMovies(popularMoviesRaw),
     );
+    const trendingMovieIds = new Set(trendingMovies.map((m) => m.id));
 
     return popularMoviesDeduped
-      .filter((pm) => !trendingMovies.some((m) => m.id === pm.id))
+      .filter((pm) => !trendingMovieIds.has(pm.id))
       .map((movie) => ({
         ...movie,
         media_type: "movie" as const,
@@ -102,26 +97,21 @@ export const getHomeTrendingTv = cache(async (): Promise<HomeTvItem[]> => {
 
 export const getHomePopularTv = cache(async (): Promise<HomeTvItem[]> => {
   const { tv: baseTvDiscover } = getDiscoverBases();
-  const [trendingTv, popularTvPages] = await Promise.all([
+  const [trendingTv, popularTvPage] = await Promise.all([
     getHomeTrendingTv(),
-    Promise.all(
-      ["1", "2", "3", "4"].map((page) =>
-        tmdb.discover.tv({
-          ...baseTvDiscover,
-          page,
-          sort_by: "vote_count.desc",
-        }),
-      ),
-    ),
+    tmdb.discover.tv({
+      ...baseTvDiscover,
+      page: "1",
+      sort_by: "vote_count.desc",
+    }),
   ]);
 
-  const popularTvRaw = popularTvPages.flatMap(
-    (response) => response.results ?? [],
-  );
+  const popularTvRaw = popularTvPage.results ?? [];
   const popularTvDeduped = dedupeById(filterReleasedTvShows(popularTvRaw));
+  const trendingTvIds = new Set(trendingTv.map((t) => t.id));
 
   return popularTvDeduped
-    .filter((pt) => !trendingTv.some((t) => t.id === pt.id))
+    .filter((pt) => !trendingTvIds.has(pt.id))
     .map((show) => ({
       ...show,
       media_type: "tv" as const,

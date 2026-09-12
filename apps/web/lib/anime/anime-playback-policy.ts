@@ -44,3 +44,6 @@ export const shouldAllowTmdbOnlyScrape = (
 };
 
 export const ANIME_PLAYBACK_RESOLVING_MESSAGE = "Resolving episode…";
+
+/** Fall back to bare AniList coords when TMDB mapping never hydrates on `/anime/anilist-*`. */
+export const ANIME_COORDS_PENDING_TIMEOUT_MS = 12_000;

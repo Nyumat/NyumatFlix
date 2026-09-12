@@ -24,7 +24,7 @@ export default async function AnimeDetailPage(props: Props) {
           data={buildTvStructuredData(tvShow, id, { path: `/anime/${id}` })}
         />
       ) : null}
-      <TvShowDetailTabPanels tvId={id} />
+      <TvShowDetailTabPanels />
     </>
   );
 }

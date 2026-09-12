@@ -12,7 +12,7 @@ import {
 } from "@/lib/tv-detail-catalog";
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders, seasonCacheHeaders } from "@/lib/http-cache";
-import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
+import { getCachedAllSeasonDetailsForShow } from "@/lib/server/tvshow-api";
 import {
   getCachedMovieDetail,
   getCachedTvShowDetail,
@@ -150,9 +150,13 @@ export async function GET(
         }
 
         return jsonCached(
-          await fetchAllSeasonDetails(tmdbLookupId, details.seasons, {
-            catalog,
-          }),
+          await getCachedAllSeasonDetailsForShow(
+            tmdbLookupId,
+            details.seasons,
+            {
+              catalog,
+            },
+          ),
           "all-seasons",
         );
       }

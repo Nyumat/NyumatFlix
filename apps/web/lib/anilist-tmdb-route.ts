@@ -4,7 +4,8 @@ import {
   getCachedAnilistTvMedia,
   type AniListTvMedia,
 } from "@/lib/anilist-tv-detail";
-import { getTmdbIdFromFribb, type FribbTmdbMapping } from "@/lib/fribb-mapping";
+import { type FribbTmdbMapping } from "@/lib/fribb-mapping";
+import { resolveAnilistToTmdbShowId } from "@/lib/anime/cross-id-resolver";
 import { fetchIdsMoeMappingByAniListId } from "@/lib/ids-moe";
 import {
   dedupeTmdbTvCandidates,
@@ -124,8 +125,10 @@ const getCachedExactTmdbTvRoute = unstable_cache(
 export const resolveAnilistTvTmdbRoute = async (
   anilistId: number,
 ): Promise<FribbTmdbMapping | null> => {
-  const fribbMapping = await getTmdbIdFromFribb(anilistId);
-  if (fribbMapping) return fribbMapping;
+  const anibridgeTmdbShowId = await resolveAnilistToTmdbShowId(anilistId);
+  if (anibridgeTmdbShowId) {
+    return { id: anibridgeTmdbShowId, type: "tv" };
+  }
 
   const idsMoeMapping = await fetchIdsMoeMappingByAniListId(anilistId);
   if (idsMoeMapping?.themoviedb && idsMoeMapping.themoviedb_type === "tv") {

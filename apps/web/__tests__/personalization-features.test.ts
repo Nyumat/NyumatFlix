@@ -7,6 +7,9 @@ import {
   buildUpNextHref,
   collectUpNextCandidates,
   isUpNextInboxCandidate,
+  selectWatchingShowsForEpisodeCheck,
+  UP_NEXT_EPISODE_CHECK_LIMIT,
+  UP_NEXT_LIMIT,
 } from "@/lib/personalization/up-next";
 import {
   collectWatchHistoryStubs,
@@ -39,6 +42,7 @@ const watchingTvItem = (
   lastWatchedSeason: 1,
   lastWatchedEpisode: 5,
   lastWatchedAt: new Date("2026-07-01T00:00:00.000Z"),
+  dismissedAt: null,
   createdAt: new Date("2026-06-01T00:00:00.000Z"),
   updatedAt: new Date("2026-07-01T00:00:00.000Z"),
   ...overrides,
@@ -84,6 +88,46 @@ describe("up next inbox helpers", () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0]?.contentId).toBe(1);
   });
+
+  it("caps episode checks to the most recently active watching shows", () => {
+    const watchlist = Array.from(
+      { length: UP_NEXT_EPISODE_CHECK_LIMIT + 3 },
+      (_, index) =>
+        watchingTvItem(index + 1, {
+          lastWatchedAt: new Date(
+            `2026-07-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+          ),
+          updatedAt: new Date(
+            `2026-07-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+          ),
+        }),
+    );
+
+    const selected = selectWatchingShowsForEpisodeCheck(watchlist);
+    expect(selected).toHaveLength(UP_NEXT_EPISODE_CHECK_LIMIT);
+    expect(selected[0]?.contentId).toBe(watchlist.length);
+    expect(selected.at(-1)?.contentId).toBe(4);
+  });
+
+  it("caps up next candidates", () => {
+    const watchlist = Array.from({ length: UP_NEXT_LIMIT + 5 }, (_, index) =>
+      watchingTvItem(index + 1),
+    );
+    const episodeData: Record<number, EpisodeInfo> = Object.fromEntries(
+      watchlist.map((item, index) => [
+        item.contentId,
+        baseEpisodeInfo({
+          latestEpisodeAirDate: new Date(
+            `2026-08-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+          ),
+        }),
+      ]),
+    );
+
+    expect(collectUpNextCandidates(watchlist, episodeData)).toHaveLength(
+      UP_NEXT_LIMIT,
+    );
+  });
 });
 
 describe("collectWatchHistoryStubs", () => {
@@ -98,6 +142,7 @@ describe("collectWatchHistoryStubs", () => {
         lastWatchedSeason: null,
         lastWatchedEpisode: null,
         lastWatchedAt: new Date("2026-07-03T12:00:00.000Z"),
+        dismissedAt: null,
         createdAt: new Date("2026-06-01T12:00:00.000Z"),
         updatedAt: new Date("2026-07-03T12:00:00.000Z"),
       },

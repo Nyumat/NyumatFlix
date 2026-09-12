@@ -1,14 +1,11 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import { resolveInitialWatchlistStatus } from "@/lib/watchlist/resolve-initial-watchlist-status";
-import { PLAYBACK_PROGRESS_STORAGE_KEY } from "@/lib/playback/progress-storage";
+import { setPlaybackProgress } from "@/lib/playback/progress-storage";
+import { resetGuestLedger } from "@/lib/playback/progress-ledger-facade";
 
 describe("resolveInitialWatchlistStatus", () => {
   beforeEach(() => {
-    window.localStorage.clear();
-  });
-
-  afterEach(() => {
-    window.localStorage.clear();
+    resetGuestLedger();
   });
 
   it("returns 'plan_to_watch' for untouched movie", () => {
@@ -22,15 +19,9 @@ describe("resolveInitialWatchlistStatus", () => {
   });
 
   it("returns 'watching' for movie in active playback", () => {
-    window.localStorage.setItem(
-      PLAYBACK_PROGRESS_STORAGE_KEY,
-      JSON.stringify({
-        "movie:100::": {
-          watched: 1200,
-          duration: 7200,
-          updatedAt: Date.now(),
-        },
-      }),
+    setPlaybackProgress(
+      { mediaType: "movie", contentId: 100 },
+      { watched: 1200, duration: 7200 },
     );
 
     const res = resolveInitialWatchlistStatus({
@@ -43,15 +34,9 @@ describe("resolveInitialWatchlistStatus", () => {
   });
 
   it("returns 'completed' for completed movie", () => {
-    window.localStorage.setItem(
-      PLAYBACK_PROGRESS_STORAGE_KEY,
-      JSON.stringify({
-        "movie:100::": {
-          watched: 7150,
-          duration: 7200,
-          updatedAt: Date.now(),
-        },
-      }),
+    setPlaybackProgress(
+      { mediaType: "movie", contentId: 100 },
+      { watched: 7150, duration: 7200 },
     );
 
     const res = resolveInitialWatchlistStatus({
@@ -74,15 +59,14 @@ describe("resolveInitialWatchlistStatus", () => {
   });
 
   it("returns 'watching' with episode detail for tv show with progress", () => {
-    window.localStorage.setItem(
-      PLAYBACK_PROGRESS_STORAGE_KEY,
-      JSON.stringify({
-        "tv:200:2:4": {
-          watched: 800,
-          duration: 1500,
-          updatedAt: Date.now(),
-        },
-      }),
+    setPlaybackProgress(
+      {
+        mediaType: "tv",
+        contentId: 200,
+        seasonNumber: 2,
+        episodeNumber: 4,
+      },
+      { watched: 800, duration: 1500 },
     );
 
     const res = resolveInitialWatchlistStatus({

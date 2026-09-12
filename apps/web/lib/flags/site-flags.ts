@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import {
   ANIME_SCRAPE_PROVIDER_ORDER,
   EMBED_PROVIDER_REGISTRY,
@@ -27,10 +28,12 @@ import {
   DEFAULT_PROVIDER_MENU_ORDER,
   type ProviderMenuOrderConfig,
 } from "@/lib/flags/provider-menu-order";
+import { computePolicyGeneration } from "@/lib/flags/policy-generation";
 import type { VideoServer } from "@/lib/stores/video-servers";
 import { videoServers } from "@/lib/stores/video-servers";
 
 export type SiteFlags = {
+  policyGeneration: string;
   proxyModeOnly: boolean;
   iframeModeOnly: boolean;
   staticHeroBackdrops: boolean;
@@ -81,7 +84,7 @@ export function resolveSiteFlags(
     (p) => p.capabilities.embed,
   ).map((p) => p.id);
 
-  return {
+  const flagsWithoutGeneration = {
     proxyModeOnly,
     iframeModeOnly: proxyModeOnly ? false : iframeModeOnly,
     staticHeroBackdrops,
@@ -119,16 +122,36 @@ export function resolveSiteFlags(
       heroTrailers: staticHeroBackdrops || lockUserSettings,
       browseSettings: lockUserSettings,
     },
+  } satisfies Omit<SiteFlags, "policyGeneration">;
+
+  return {
+    ...flagsWithoutGeneration,
+    policyGeneration: computePolicyGeneration(flagsWithoutGeneration),
   };
 }
 
-export async function getSiteFlags(): Promise<SiteFlags> {
+export const SITE_FLAGS_CACHE_TAG = "nyumatflix:site-flags";
+
+const loadSiteFlags = async (): Promise<SiteFlags> => {
   const [raw, announcementConfig, menuOrder] = await Promise.all([
     readAdminFlagState(),
     readAnnouncementBannerConfig(),
     readProviderMenuOrderConfig(),
   ]);
   return resolveSiteFlags(raw, announcementConfig, menuOrder);
+};
+
+export const getCachedSiteFlags = unstable_cache(
+  loadSiteFlags,
+  ["site-flags"],
+  {
+    revalidate: 30,
+    tags: [SITE_FLAGS_CACHE_TAG],
+  },
+);
+
+export async function getSiteFlags(): Promise<SiteFlags> {
+  return getCachedSiteFlags();
 }
 
 export function getDefaultSiteFlags(): SiteFlags {

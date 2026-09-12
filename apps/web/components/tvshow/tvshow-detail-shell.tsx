@@ -17,7 +17,7 @@ import { isAnilistBackedTvRouteId } from "@/lib/tv-detail-catalog";
 import { stripSearchParam } from "@/lib/navigation/search-params";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-video";
-import { TvShowDetails } from "@/lib/domain/typings";
+import { SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
@@ -27,6 +27,7 @@ type TvShowDetailShellProps = {
   anilistId: number | null | undefined;
   children: React.ReactNode;
   routeCatalog?: "anime" | "tvshows";
+  initialSeasonDetails?: Record<number, SeasonDetails>;
 };
 
 export const TvShowDetailShell = ({
@@ -35,6 +36,7 @@ export const TvShowDetailShell = ({
   anilistId,
   children,
   routeCatalog,
+  initialSeasonDetails = {},
 }: TvShowDetailShellProps) => {
   const detectedCatalog = useTvDetailCatalog();
   const catalog = routeCatalog ?? detectedCatalog;
@@ -56,6 +58,31 @@ export const TvShowDetailShell = ({
   const passedWatchlistItem: WatchlistItem | null = isLoading
     ? null
     : watchlistItem;
+
+  useEffect(() => {
+    if (catalog !== "tvshows") return;
+    if (searchParams.has("anilistId")) return;
+    if (!/^\d+$/.test(tvId)) return;
+    if (
+      !Number.isInteger(resolvedAnilistId) ||
+      (resolvedAnilistId as number) <= 0
+    ) {
+      return;
+    }
+
+    const season = Number.parseInt(searchParams.get("season") ?? "", 10);
+    const canonicalHref = buildAnilistTvDetailHref(
+      resolvedAnilistId as number,
+      {
+        season: Number.isInteger(season) && season > 0 ? season : undefined,
+      },
+    );
+    const currentHref = stripSearchParam(pathname, searchParams, "season");
+
+    if (currentHref !== canonicalHref) {
+      router.replace(canonicalHref);
+    }
+  }, [catalog, pathname, resolvedAnilistId, router, searchParams, tvId]);
 
   useEffect(() => {
     if (!isAnilistBackedTvRouteId(tvId, catalog)) return;
@@ -99,6 +126,7 @@ export const TvShowDetailShell = ({
         mediaType="tv"
         anilistId={resolvedAnilistId}
         watchlistItem={passedWatchlistItem}
+        watchlistResolved={!isLoading}
         initialSeasonNumber={watchlistItem?.lastWatchedSeason || null}
         contentContainerClassName={DETAIL_CONTENT_CONTAINER_CLASS}
       >
@@ -107,6 +135,7 @@ export const TvShowDetailShell = ({
             tvId={tvId}
             catalog={catalog}
             details={details as TvShowDetails}
+            initialSeasonDetails={initialSeasonDetails}
           >
             {children}
           </TvDetailBootstrapProvider>

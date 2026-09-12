@@ -1,7 +1,11 @@
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
-import { getCachedAnilistTvShowDetail } from "@/lib/anilist-tv-detail";
+import {
+  getCachedAnilistTvAboveFoldDetail,
+  getCachedAnilistTvShowDetail,
+} from "@/lib/anilist-tv-detail";
 import { isAnimeAnilistRouteId } from "@/lib/anilist-route-id";
+import { parseDetailApiView } from "@/lib/performance/detail-view";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -24,10 +28,17 @@ export async function GET(
     return NextResponse.json({ error: "Anime not found" }, { status: 404 });
   }
 
+  const view = parseDetailApiView(new URL(request.url).searchParams);
+
   try {
-    const details = await getCachedAnilistTvShowDetail(id, {
-      acceptBareNumeric: true,
-    });
+    const details =
+      view === "shell"
+        ? await getCachedAnilistTvAboveFoldDetail(id, {
+            acceptBareNumeric: true,
+          })
+        : await getCachedAnilistTvShowDetail(id, {
+            acceptBareNumeric: true,
+          });
 
     if (!details) {
       return NextResponse.json({ error: "Anime not found" }, { status: 404 });

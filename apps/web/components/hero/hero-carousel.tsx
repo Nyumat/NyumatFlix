@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { WatchlistButton } from "@/components/watchlist/watchlist";
 import { isMovie, type MediaItem } from "@/lib/domain/typings";
 import { Icons } from "@/lib/icons";
+import { buildDetailPlayHref } from "@/lib/playback/detail-autoplay-href";
 import { cn } from "@/lib/utils";
 import { Calendar, Clock, Globe, Info, Star } from "lucide-react";
 import Link from "next/link";
@@ -97,7 +98,7 @@ export function MediaInfoDialog({
   const handleWatchNow = () => {
     onClose();
     gateAction(() => {
-      router.push(`${href}?autoplay=true`);
+      router.push(buildDetailPlayHref(href, { media }));
     });
   };
 
@@ -325,9 +326,9 @@ export const CarouselDetails = React.memo(function CarouselDetails({
 
   const handlePlay = useMemo(
     () => () => {
-      router.push(`${href}?autoplay=true`);
+      router.push(buildDetailPlayHref(href, { media: current }));
     },
-    [router, href],
+    [router, href, current],
   );
 
   useEffect(() => {
@@ -481,6 +482,7 @@ export const CarouselDetails = React.memo(function CarouselDetails({
                             posterPath={item.poster_path ?? undefined}
                             title={itemTitle}
                             size="small"
+                            direct
                             className="transition-transform duration-300 group-hover:scale-105"
                           />
                         </div>

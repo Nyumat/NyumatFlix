@@ -74,6 +74,7 @@ interface MediaPosterProps extends ComponentProps<"div"> {
   monochrome?: boolean;
   imageClassName?: string;
   missingImagePlaceholder?: "person";
+  direct?: boolean;
 }
 
 type LegacyPosterSize = "small" | "medium" | "large";
@@ -91,6 +92,7 @@ type PosterCompatProps = {
   className?: string;
   imageClassName?: string;
   priority?: boolean;
+  direct?: boolean;
 };
 
 export function Poster({
@@ -100,6 +102,7 @@ export function Poster({
   className,
   imageClassName,
   priority,
+  direct,
 }: PosterCompatProps) {
   const resolved: PosterSize =
     size === "small" || size === "medium" || size === "large"
@@ -114,6 +117,7 @@ export function Poster({
       className={className}
       imageClassName={imageClassName}
       priority={priority}
+      direct={direct}
     />
   );
 }
@@ -127,9 +131,14 @@ export const MediaPoster: React.FC<MediaPosterProps> = ({
   monochrome,
   imageClassName,
   missingImagePlaceholder,
+  direct,
   ...props
 }) => {
-  const src = image ? tmdbImage.poster(image, size) : null;
+  const src = image
+    ? direct
+      ? tmdbImage.posterDirect(image, size)
+      : tmdbImage.poster(image, size)
+    : null;
 
   if (!src) {
     if (missingImagePlaceholder !== "person") {
@@ -327,7 +336,7 @@ export function MediaLogo({
       return (
         <div className={containerClasses} style={style}>
           <Image
-            src={`https://image.tmdb.org/t/p/w500${logo.file_path}`}
+            src={tmdbImage.logo(logo.file_path, "w500")}
             alt={title || "Logo"}
             width={intrinsicWidth}
             height={intrinsicHeight}
@@ -342,7 +351,7 @@ export function MediaLogo({
       <div className={containerClasses} style={style}>
         <div className="relative h-full w-full">
           <Image
-            src={`https://image.tmdb.org/t/p/w500${logo.file_path}`}
+            src={tmdbImage.logo(logo.file_path, "w500")}
             alt={title || "Logo"}
             fill
             className={cn(

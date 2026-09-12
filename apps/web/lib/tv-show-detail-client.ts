@@ -17,6 +17,12 @@ export type FetchedTvShowDetail = {
   catalog: "anime" | null;
 };
 
+export type FetchTvShowDetailOptions = {
+  expectedTitle?: string;
+  catalog?: "anime" | null;
+  anilistId?: number;
+};
+
 const normalizeTitleKey = (value: string) =>
   value
     .toLowerCase()
@@ -42,23 +48,33 @@ const readTvDetail = async (
   return (await response.json()) as TvShowDetailClientPayload;
 };
 
-export const fetchTvShowDetailClient = async (
+const readAnilistTvDetail = async (
+  anilistId: number,
+): Promise<TvShowDetailClientPayload | null> =>
+  readTvDetail(`/api/anime/${anilistId}`);
+
+const readTmdbTvDetail = async (
   contentId: number,
-  options?: { expectedTitle?: string; catalog?: "anime" | null },
-): Promise<FetchedTvShowDetail | null> => {
-  const expected = options?.expectedTitle;
+): Promise<TvShowDetailClientPayload | null> => {
+  const params = new URLSearchParams({
+    requestID: "tvData",
+    id: String(contentId),
+    language: "en-US",
+  });
+  const response = await fetch(`/api/tmdb/proxy?${params.toString()}`);
+  if (!response.ok) return null;
+  return (await response.json()) as TvShowDetailClientPayload;
+};
 
-  if (options?.catalog === "anime") {
-    const anilist = await readTvDetail(`/api/anime/${contentId}`);
-    return anilist ? { detail: anilist, catalog: "anime" } : null;
-  }
-
-  const tmdb = await readTvDetail(`/api/tv/${contentId}`);
+const pickParallelTvDetail = (
+  tmdb: TvShowDetailClientPayload | null,
+  anilist: TvShowDetailClientPayload | null,
+  expected?: string,
+): FetchedTvShowDetail | null => {
   if (tmdb && tvDetailTitleMatches(tmdb.name, expected)) {
     return { detail: tmdb, catalog: null };
   }
 
-  const anilist = await readTvDetail(`/api/anime/${contentId}`);
   if (anilist && tvDetailTitleMatches(anilist.name, expected)) {
     return { detail: anilist, catalog: "anime" };
   }
@@ -68,4 +84,51 @@ export const fetchTvShowDetailClient = async (
   }
 
   return anilist ? { detail: anilist, catalog: "anime" } : null;
+};
+
+const shouldProbeAnilistAfterTmdb = (
+  tmdb: TvShowDetailClientPayload | null,
+  expected: string | undefined,
+  explicitAnilistId: number | undefined,
+): boolean => {
+  if (explicitAnilistId != null) {
+    return true;
+  }
+
+  if (!tmdb) {
+    return true;
+  }
+
+  return !tvDetailTitleMatches(tmdb.name, expected);
+};
+
+export const fetchTvShowDetailClient = async (
+  contentId: number,
+  options?: FetchTvShowDetailOptions,
+): Promise<FetchedTvShowDetail | null> => {
+  const expected = options?.expectedTitle;
+  const explicitAnilistId = options?.anilistId;
+
+  if (options?.catalog === "anime") {
+    const anilist = await readAnilistTvDetail(explicitAnilistId ?? contentId);
+    return anilist ? { detail: anilist, catalog: "anime" } : null;
+  }
+
+  if (options?.catalog === null) {
+    const tmdb = await readTmdbTvDetail(contentId);
+    return tmdb ? { detail: tmdb, catalog: null } : null;
+  }
+
+  const tmdb = await readTmdbTvDetail(contentId);
+
+  if (tmdb && !shouldProbeAnilistAfterTmdb(tmdb, expected, explicitAnilistId)) {
+    return { detail: tmdb, catalog: null };
+  }
+
+  if (!shouldProbeAnilistAfterTmdb(tmdb, expected, explicitAnilistId)) {
+    return null;
+  }
+
+  const anilist = await readAnilistTvDetail(explicitAnilistId ?? contentId);
+  return pickParallelTvDetail(tmdb, anilist, expected);
 };

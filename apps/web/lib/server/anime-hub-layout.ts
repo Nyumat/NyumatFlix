@@ -1,7 +1,6 @@
 import "server-only";
 
 import type { AnimeSeasonContext } from "@/lib/anime-season";
-import { isAnimeBlocked } from "@/lib/anime-blocklist";
 import type { MediaItem } from "@/lib/domain/typings";
 
 export const ANIME_HUB_MIN_VISIBLE_ROW = 8;
@@ -56,7 +55,6 @@ export const pickHubCarouselItems = (
 
   for (const item of pool) {
     if (!hasPoster(item)) continue;
-    if (isAnimeBlocked(item)) continue;
 
     const key = getItemKey(item);
     const titleKey = normalizeAnimeTitle(getItemTitle(item));
@@ -81,7 +79,6 @@ class HubItemAllocator {
 
     for (const item of pool) {
       if (!hasPoster(item)) continue;
-      if (isAnimeBlocked(item)) continue;
 
       const key = getItemKey(item);
       const titleKey = normalizeAnimeTitle(getItemTitle(item));

@@ -1,6 +1,4 @@
 import { slimMediaItemsForRsc, toHeroMovieRefs } from "@/lib/cards/catalog-dto";
-import { enrichAboveFoldMediaItemsWithLogos } from "@/lib/server/actions";
-import { CAROUSEL_LOGO_ENRICH_COUNT } from "@/lib/tmdb-logo";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogInfiniteGrid } from "@/components/catalog/catalog-infinite-grid";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
@@ -35,11 +33,8 @@ import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterDiscoverParams } from "@/lib/utils";
 import type { SortByTypeMovie } from "@/tmdb/api";
 import { tmdb } from "@/tmdb/api";
-import type { MovieWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/lib/domain/typings";
 import { Suspense } from "react";
-
-const ABOVE_FOLD_LOGO_COUNT = CAROUSEL_LOGO_ENRICH_COUNT;
 
 type SearchParams = Record<string, string>;
 
@@ -261,25 +256,18 @@ async function MoviesDiscoverHubSection({
   const hubPopularCarousel = takeUniqueByIdInOrder(popularMovies, hubSeen, 40);
   const hubPopularHeroPair = takeUniqueByIdInOrder(popularMovies, hubSeen, 2);
 
-  const [hubTrendingCarouselEnriched, hubPopularCarouselEnriched] =
-    await Promise.all([
-      enrichAboveFoldMediaItemsWithLogos(
-        hubTrendingCarousel.map((m) => ({
-          ...m,
-          media_type: "movie" as const,
-        })),
-        "movie",
-        ABOVE_FOLD_LOGO_COUNT,
-      ),
-      enrichAboveFoldMediaItemsWithLogos(
-        hubPopularCarousel.map((m) => ({
-          ...m,
-          media_type: "movie" as const,
-        })),
-        "movie",
-        ABOVE_FOLD_LOGO_COUNT,
-      ),
-    ]);
+  const hubTrendingCarouselItems = slimMediaItemsForRsc(
+    hubTrendingCarousel.map((m) => ({
+      ...m,
+      media_type: "movie" as const,
+    })),
+  );
+  const hubPopularCarouselItems = slimMediaItemsForRsc(
+    hubPopularCarousel.map((m) => ({
+      ...m,
+      media_type: "movie" as const,
+    })),
+  );
 
   const hubGridItems: MediaItem[] = slimMediaItemsForRsc(
     filterUnseenById(movies, hubSeen).map((m) => ({
@@ -313,9 +301,7 @@ async function MoviesDiscoverHubSection({
             type="movie"
             title="Trending"
             link={pages.trending.movie.link}
-            items={slimMediaItemsForRsc(
-              hubTrendingCarouselEnriched as MovieWithMediaType[],
-            )}
+            items={hubTrendingCarouselItems}
           />
         </Suspense>
       ) : null}
@@ -355,9 +341,7 @@ async function MoviesDiscoverHubSection({
             type="movie"
             title="Popular"
             link={pages.movie.popular.discoverHubLink}
-            items={slimMediaItemsForRsc(
-              hubPopularCarouselEnriched as MovieWithMediaType[],
-            )}
+            items={hubPopularCarouselItems}
           />
         </Suspense>
       ) : null}

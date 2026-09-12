@@ -10,12 +10,18 @@ import {
   pickAnilistIdFromSeasonChain,
   resolveAnilistSeasonChainForTmdbShow,
 } from "@/lib/anilist-franchise";
+import { isPlaceholderEpisodeName } from "@/lib/anime/episode-thumbnail-url";
 
 const KITSU_API = "https://kitsu.io/api/edge";
 const KITSU_FETCH_TIMEOUT_MS = 12_000;
 const ANILIST_GRAPHQL = "https://graphql.anilist.co";
 
 export type KitsuEpisodeThumbnailMap = Record<number, string>;
+export type KitsuEpisodeTitleMap = Record<number, string>;
+export type KitsuEpisodeAssets = {
+  thumbnails: KitsuEpisodeThumbnailMap;
+  titles: KitsuEpisodeTitleMap;
+};
 
 type KitsuAnimeSearchResult = {
   id: number;
@@ -24,7 +30,8 @@ type KitsuAnimeSearchResult = {
 
 type KitsuEpisodeRecord = {
   number: number;
-  thumbnailUrl: string;
+  thumbnailUrl: string | null;
+  title: string | null;
 };
 
 const kitsuFetch = async (path: string): Promise<Response> =>
@@ -139,6 +146,8 @@ const fetchKitsuEpisodes = async (
       data?: Array<{
         attributes?: {
           number?: number | null;
+          canonicalTitle?: string | null;
+          titles?: { en?: string | null } | null;
           thumbnail?: { original?: string | null } | null;
         };
       }>;
@@ -149,13 +158,17 @@ const fetchKitsuEpisodes = async (
       const number = entry.attributes?.number;
       const thumbnailUrl =
         entry.attributes?.thumbnail?.original?.trim() ?? null;
+      const title =
+        entry.attributes?.canonicalTitle?.trim() ||
+        entry.attributes?.titles?.en?.trim() ||
+        null;
       if (
         typeof number === "number" &&
         Number.isInteger(number) &&
         number > 0 &&
-        thumbnailUrl
+        (thumbnailUrl || title)
       ) {
-        episodes.push({ number, thumbnailUrl });
+        episodes.push({ number, thumbnailUrl, title });
       }
     }
 
@@ -171,10 +184,31 @@ export const buildKitsuEpisodeThumbnailMap = (
 ): KitsuEpisodeThumbnailMap => {
   const map: KitsuEpisodeThumbnailMap = {};
   for (const episode of episodes) {
-    map[episode.number] = episode.thumbnailUrl;
+    if (episode.thumbnailUrl) {
+      map[episode.number] = episode.thumbnailUrl;
+    }
   }
   return map;
 };
+
+export const buildKitsuEpisodeTitleMap = (
+  episodes: readonly KitsuEpisodeRecord[],
+): KitsuEpisodeTitleMap => {
+  const map: KitsuEpisodeTitleMap = {};
+  for (const episode of episodes) {
+    const title = episode.title?.trim();
+    if (!title || isPlaceholderEpisodeName(title)) continue;
+    map[episode.number] = title;
+  }
+  return map;
+};
+
+const buildKitsuEpisodeAssets = (
+  episodes: readonly KitsuEpisodeRecord[],
+): KitsuEpisodeAssets => ({
+  thumbnails: buildKitsuEpisodeThumbnailMap(episodes),
+  titles: buildKitsuEpisodeTitleMap(episodes),
+});
 
 const resolveKitsuAnimeId = async (
   anilistId: number,
@@ -188,14 +222,14 @@ const resolveKitsuAnimeId = async (
   return match?.id ?? null;
 };
 
-const loadKitsuEpisodeThumbnails = async (
+const loadKitsuEpisodeAssets = async (
   anilistId: number,
-): Promise<KitsuEpisodeThumbnailMap> => {
+): Promise<KitsuEpisodeAssets> => {
   const kitsuAnimeId = await resolveKitsuAnimeId(anilistId);
-  if (!kitsuAnimeId) return {};
+  if (!kitsuAnimeId) return { thumbnails: {}, titles: {} };
 
   const episodes = await fetchKitsuEpisodes(kitsuAnimeId);
-  return buildKitsuEpisodeThumbnailMap(episodes);
+  return buildKitsuEpisodeAssets(episodes);
 };
 
 const fetchKitsuAnimeAttributes = async (
@@ -255,10 +289,11 @@ const loadKitsuFirstEpisodeThumbnail = async (
   if (!kitsuAnimeId) return null;
 
   const episodes = await fetchKitsuEpisodes(kitsuAnimeId);
-  const firstEpisode =
-    episodes.find((episode) => episode.number === 1) ?? episodes[0];
+  const firstWithThumb =
+    episodes.find((episode) => episode.number === 1 && episode.thumbnailUrl) ??
+    episodes.find((episode) => episode.thumbnailUrl);
 
-  return firstEpisode?.thumbnailUrl ?? null;
+  return firstWithThumb?.thumbnailUrl ?? null;
 };
 
 export const getKitsuCoverImageForAnilist = unstable_cache(
@@ -273,11 +308,16 @@ export const getKitsuFirstEpisodeThumbnailForAnilist = unstable_cache(
   { revalidate: 60 * 60 * 24 },
 );
 
-export const getKitsuEpisodeThumbnails = unstable_cache(
-  loadKitsuEpisodeThumbnails,
-  ["kitsu-episode-thumbnails-v1"],
+export const getKitsuEpisodeAssets = unstable_cache(
+  loadKitsuEpisodeAssets,
+  ["kitsu-episode-assets-v1"],
   { revalidate: 60 * 60 * 24 },
 );
+
+export const getKitsuEpisodeThumbnails = async (
+  anilistId: number,
+): Promise<KitsuEpisodeThumbnailMap> =>
+  (await getKitsuEpisodeAssets(anilistId)).thumbnails;
 
 export const resolveAnilistIdForTmdbSeason = async (
   tmdbShowId: number,
@@ -316,19 +356,28 @@ export const resolveAnilistIdForTmdbSeason = async (
   return pickAnilistIdFromSeasonChain(chain, seasonNumber);
 };
 
-export const resolveKitsuThumbnailsForTmdbSeason = async (input: {
+export const resolveKitsuAssetsForTmdbSeason = async (input: {
   tmdbShowId: number;
   seasonNumber: number;
   anilistId?: number | null;
   sourceAnilistId?: number | null;
   tmdbSeasonCount?: number | null;
-}): Promise<KitsuEpisodeThumbnailMap> => {
+}): Promise<KitsuEpisodeAssets> => {
   const anilistId =
     input.anilistId ??
     (await resolveAnilistIdForTmdbSeason(input.tmdbShowId, input.seasonNumber, {
       sourceAnilistId: input.sourceAnilistId,
       tmdbSeasonCount: input.tmdbSeasonCount,
     }));
-  if (!anilistId) return {};
-  return getKitsuEpisodeThumbnails(anilistId);
+  if (!anilistId) return { thumbnails: {}, titles: {} };
+  return getKitsuEpisodeAssets(anilistId);
 };
+
+export const resolveKitsuThumbnailsForTmdbSeason = async (input: {
+  tmdbShowId: number;
+  seasonNumber: number;
+  anilistId?: number | null;
+  sourceAnilistId?: number | null;
+  tmdbSeasonCount?: number | null;
+}): Promise<KitsuEpisodeThumbnailMap> =>
+  (await resolveKitsuAssetsForTmdbSeason(input)).thumbnails;

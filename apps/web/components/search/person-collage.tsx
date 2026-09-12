@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { tmdbImage } from "@/tmdb/utils";
 import { User } from "lucide-react";
 import Image from "next/image";
 
@@ -78,7 +79,7 @@ export function PersonSearchAvatar({
     return (
       <div className={cn("relative h-full w-full", className)}>
         <Image
-          src={`https://image.tmdb.org/t/p/w185${profilePath}`}
+          src={tmdbImage.profile(profilePath, "w185")}
           fill
           sizes="80px"
           alt={name}
@@ -116,7 +117,7 @@ export function PersonCollage({
     return (
       <div className={cn("relative h-full w-full", className)}>
         <Image
-          src={`https://image.tmdb.org/t/p/w185${profilePath}`}
+          src={tmdbImage.profile(profilePath, "w185")}
           fill
           sizes="44px"
           alt="Profile"
@@ -164,7 +165,7 @@ export function PersonCollage({
             >
               {item.poster_path ? (
                 <Image
-                  src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
+                  src={tmdbImage.posterDirect(item.poster_path, "w154")}
                   fill
                   sizes="44px"
                   alt={item.title || item.name || "Media"}
@@ -196,7 +197,7 @@ export function PersonCollage({
         <div key={`${item.id}-${index}`} className="relative h-full w-full">
           {item.poster_path ? (
             <Image
-              src={`https://image.tmdb.org/t/p/w154${item.poster_path}`}
+              src={tmdbImage.posterDirect(item.poster_path, "w154")}
               fill
               sizes="44px"
               alt={item.title || item.name || "Media"}

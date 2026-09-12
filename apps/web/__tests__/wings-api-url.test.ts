@@ -47,7 +47,7 @@ describe("wings API URL builders", () => {
 
     expect(parsed.origin).toBe("https://api.speedracelight.com");
     expect(parsed.pathname).toBe("/cdn/sources-with-title");
-    expect(parsed.searchParams.get("title")).toBe("Fight Club");
+    expect(parsed.searchParams.get("title")).toBe("Fight Club (1999)");
     expect(parsed.searchParams.get("enc")).toBe("2");
     expect(parsed.searchParams.get("tmdbId")).toBe("550");
     expect(parsed.searchParams.get("seed")).toBe("59564445.abc");
@@ -66,6 +66,7 @@ describe("wings API URL builders", () => {
     });
     const parsed = new URL(url);
 
+    expect(parsed.searchParams.get("title")).toBe("Breaking Bad (2008)");
     expect(parsed.searchParams.get("mediaType")).toBe("tv");
     expect(parsed.searchParams.get("seasonId")).toBe("1");
     expect(parsed.searchParams.get("episodeId")).toBe("1");

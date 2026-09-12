@@ -1,17 +1,16 @@
-import { DirectPlaybackWarmup } from "@/components/media/direct-playback-warmup";
 import { TvShowDetailShell } from "@/components/tvshow/tvshow-detail-shell";
 import { getDetailRouteSearchParams } from "@/lib/detail-search-params";
-import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
 import {
+  buildAnilistTvDetailHref,
   isAnilistTvRouteId,
   isAnimeAnilistRouteId,
   parseAnimeAnilistRouteId,
 } from "@/lib/anilist-route-id";
-import { hydrateTvShowDetailQueries } from "@/lib/prefetch-media-detail-queries";
+import { resolveTmdbShowToAnilistId } from "@/lib/anime/cross-id-resolver";
+import { hydrateTvShowDetailQueries } from "@/lib/server/hydrate-tv-show-detail-queries";
 import type { TvDetailCatalog } from "@/lib/tv-detail-catalog";
 import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
-import { buildAnilistTvDetailHref } from "@/lib/anilist-route-id";
 import type { TvShowDetails } from "@/lib/domain/typings";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
@@ -55,10 +54,11 @@ export async function TvShowDetailLayoutContent({
 
   const requestSearchParams = await getDetailRouteSearchParams();
   const queryAnilistId = parsePositiveInt(requestSearchParams.get("anilistId"));
+  const requestedSeason = parsePositiveInt(requestSearchParams.get("season"));
 
   const mappedAnilistId = isAnilistBackedRoute
     ? (parseAnimeAnilistRouteId(id) ?? details.id)
-    : await getAnilistIdFromFribb(details.id, "tv");
+    : await resolveTmdbShowToAnilistId(details.id, requestedSeason);
   const autoResolvedAnilistId = isAnilistBackedRoute
     ? null
     : (mappedAnilistId ?? (await getAnilistIdForMedia(details)) ?? null);
@@ -76,7 +76,6 @@ export async function TvShowDetailLayoutContent({
     Number.isInteger(autoResolvedAnilistId) &&
     (autoResolvedAnilistId as number) > 0
   ) {
-    const requestedSeason = parsePositiveInt(requestSearchParams.get("season"));
     const canonicalHref = buildAnilistTvDetailHref(
       autoResolvedAnilistId as number,
       { season: requestedSeason ?? undefined },
@@ -94,17 +93,29 @@ export async function TvShowDetailLayoutContent({
 
   const catalog: TvDetailCatalog =
     routeNamespace === "anime" ? "anime" : "tvshows";
+  const initialSeasonNumber =
+    requestedSeason ??
+    details.seasons?.find((season) => season.season_number > 0)
+      ?.season_number ??
+    1;
+
   const queryClient = new QueryClient();
-  await hydrateTvShowDetailQueries(queryClient, id, details, catalog);
+  const initialSeasonDetails = await hydrateTvShowDetailQueries(
+    queryClient,
+    id,
+    details,
+    catalog,
+    { initialSeasonNumber },
+  );
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <DirectPlaybackWarmup />
       <TvShowDetailShell
         details={details}
         tvId={id}
         anilistId={anilistId}
         routeCatalog={catalog}
+        initialSeasonDetails={initialSeasonDetails}
       >
         {children}
       </TvShowDetailShell>

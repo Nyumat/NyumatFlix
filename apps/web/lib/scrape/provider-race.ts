@@ -1,22 +1,10 @@
-export const SCRAPE_RACE_CONCURRENCY = 9;
-/** When true, first successful provider in a batch wins (fastest UX). */
-export const SCRAPE_RACE_FIRST_WIN = true;
+export const SCRAPE_RACE_CONCURRENCY = 3;
 /** Covers typical 2Embed wins (~15s p50) without waiting out slow VidNest hangs. */
 export const SCRAPE_ATTEMPT_TIMEOUT_MS = 18_000;
-/** Solo or racing Direct — sibling abort still cancels; 300s is the hang cap. */
-export const SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS = 300_000;
-
-/** Run alone before parallel races (legacy default). */
-export const SOLO_FIRST_SCRAPE_PROVIDERS = new Set<string>(["direct"]);
-
-/** TMDB overlay solos Direct first so it is the default source when healthy. */
-export const TMDB_SCRAPE_SOLO_FIRST_PROVIDERS = new Set<string>(["direct"]);
-
-/** Anime playback races Direct with leading anime scrapers instead of soloing it. */
-export const ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS = new Set<string>();
-
-/** Never push to the tail on session failure — always retry direct on the next watch. */
-export const NEVER_DEPRIORITIZE_SCRAPE_PROVIDERS = new Set<string>(["direct"]);
+/** Direct SSE discovery cap when racing other scrapers in parallel. */
+export const SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS = 45_000;
+/** Longer budget when the user explicitly pinned Direct. */
+const SCRAPE_DIRECT_PINNED_TIMEOUT_MS = 300_000;
 
 /** Client-side attempt caps — shorter than upstream when failures are predictable. */
 const PROVIDER_ATTEMPT_TIMEOUT_MS: Partial<Record<string, number>> = {
@@ -29,20 +17,18 @@ const PROVIDER_ATTEMPT_TIMEOUT_MS: Partial<Record<string, number>> = {
   vidking: 30_000,
   animegg: 18_000,
   anizone: 20_000,
-  kickassanime: 20_000,
+  kickassanime: 35_000,
   animeonsen: 15_000,
   anipm: 20_000,
 };
 
-const SCRAPE_DIRECT_RACE_ATTEMPT_TIMEOUT_MS = 45_000;
-
 export function getScrapeAttemptTimeoutMs(
   providerId: string,
-  racingSiblings = false,
+  pinned = false,
 ): number {
   if (providerId === "direct") {
-    return racingSiblings
-      ? SCRAPE_DIRECT_RACE_ATTEMPT_TIMEOUT_MS
+    return pinned
+      ? SCRAPE_DIRECT_PINNED_TIMEOUT_MS
       : SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS;
   }
 
@@ -148,10 +134,7 @@ export function deprioritizeProviders<T extends string>(
   const head: T[] = [];
 
   for (const providerId of order) {
-    if (
-      failed.has(providerId) &&
-      !NEVER_DEPRIORITIZE_SCRAPE_PROVIDERS.has(providerId)
-    ) {
+    if (failed.has(providerId)) {
       tail.push(providerId);
     } else {
       head.push(providerId);
@@ -166,25 +149,9 @@ export function nextRaceBatch<T extends string>(
   startIndex: number,
   failed: ReadonlySet<T>,
   concurrency = SCRAPE_RACE_CONCURRENCY,
-  soloFirstProviders: ReadonlySet<string> = SOLO_FIRST_SCRAPE_PROVIDERS,
 ): RaceBatchResult<T> {
   const batch: T[] = [];
   let index = Math.max(0, startIndex);
-
-  while (index < order.length && batch.length === 0) {
-    const providerId = order[index];
-    index += 1;
-
-    if (providerId === undefined || failed.has(providerId)) {
-      continue;
-    }
-
-    batch.push(providerId);
-
-    if (soloFirstProviders.has(providerId)) {
-      return { batch, nextIndex: index };
-    }
-  }
 
   while (index < order.length && batch.length < concurrency) {
     const providerId = order[index];
@@ -192,11 +159,6 @@ export function nextRaceBatch<T extends string>(
 
     if (providerId === undefined || failed.has(providerId)) {
       continue;
-    }
-
-    if (soloFirstProviders.has(providerId)) {
-      index -= 1;
-      break;
     }
 
     batch.push(providerId);

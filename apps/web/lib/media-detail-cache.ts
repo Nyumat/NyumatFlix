@@ -4,17 +4,19 @@ import {
   parseAnimeAnilistRouteId,
 } from "@/lib/anilist-route-id";
 import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
-import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
+import {
+  type DetailAppendMode,
+  movieDetailAppend,
+} from "@/lib/performance/tmdb-append-sets";
 import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import { type MediaItem } from "@/lib/domain/typings";
 import { pickEnglishLogo } from "@/lib/tmdb-logo";
 import { tmdbFetchInit } from "@/lib/tmdb-cache-policy";
+import { withDevelopmentDataCache } from "@/lib/server/development-data-cache";
 import { cache } from "react";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-
-const MOVIE_DETAIL_APPEND =
-  "keywords,external_ids,release_dates,videos,images,recommendations,similar,reviews,credits";
 
 type ReleaseDatesAppend = {
   release_dates?: {
@@ -24,6 +26,9 @@ type ReleaseDatesAppend = {
         certification?: string;
       }>;
     }>;
+  };
+  images?: {
+    logos?: Array<{ iso_639_1?: string | null; file_path?: string }>;
   };
 };
 
@@ -37,35 +42,55 @@ const pickMovieCertification = (raw: ReleaseDatesAppend): string | null => {
   );
 };
 
-const movieDetailFetchInit = (id: string) =>
+const movieDetailFetchInit = (id: string, append: string) =>
   tmdbFetchInit({
     endpoint: `/movie/${id}`,
-    params: { append_to_response: MOVIE_DETAIL_APPEND },
+    params: { append_to_response: append },
     revalidate: CACHE_REVALIDATE_SECONDS,
   });
 
+export type MovieDetailCacheOptions = {
+  append?: DetailAppendMode;
+};
+
+const loadMovieDetail = async (
+  tmdbId: string,
+  appendMode: DetailAppendMode,
+): Promise<MediaItem | null> => {
+  const append = movieDetailAppend(appendMode);
+  const url = new URL(`${TMDB_BASE_URL}/movie/${tmdbId}`);
+  url.searchParams.set("api_key", process.env.TMDB_API_KEY ?? "");
+  url.searchParams.set("language", "en-US");
+  url.searchParams.set("append_to_response", append);
+
+  const response = await fetch(url, movieDetailFetchInit(tmdbId, append));
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = (await response.json()) as ReleaseDatesAppend & MediaItem;
+
+  return {
+    ...data,
+    content_rating: pickMovieCertification(data),
+    logo: appendMode === "full" ? pickEnglishLogo(data.images?.logos) : null,
+  };
+};
+
 export const getCachedMovieDetail = cache(
-  async (id: string): Promise<MediaItem | null> => {
+  async (
+    id: string,
+    options?: MovieDetailCacheOptions,
+  ): Promise<MediaItem | null> => {
+    const appendMode = options?.append ?? "shell";
     const tmdbId = unwrapTmdbLookupId(id);
     try {
-      const url = new URL(`${TMDB_BASE_URL}/movie/${tmdbId}`);
-      url.searchParams.set("api_key", process.env.TMDB_API_KEY ?? "");
-      url.searchParams.set("language", "en-US");
-      url.searchParams.set("append_to_response", MOVIE_DETAIL_APPEND);
-
-      const response = await fetch(url, movieDetailFetchInit(tmdbId));
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-
-      return {
-        ...data,
-        content_rating: pickMovieCertification(data),
-        logo: pickEnglishLogo(data.images?.logos),
-      };
+      return await withDevelopmentDataCache({
+        key: `movie-detail:${tmdbId}:${appendMode}`,
+        load: () => loadMovieDetail(tmdbId, appendMode),
+        cacheResult: (value) => value !== null,
+      });
     } catch {
       return null;
     }
@@ -74,23 +99,45 @@ export const getCachedMovieDetail = cache(
 
 export type TvShowDetailCacheOptions = {
   animeCatalog?: boolean;
+  fetchEpisodes?: boolean;
+  append?: DetailAppendMode;
 };
 
 const getCachedTvShowDetailCached = cache(
-  (id: string, animeCatalog: boolean) => {
+  async (
+    id: string,
+    animeCatalog: boolean,
+    fetchEpisodes: boolean,
+    append: DetailAppendMode,
+  ) => {
     const useAnilist = animeCatalog
       ? parseAnimeAnilistRouteId(id) !== null
       : isAnilistTvRouteId(id);
 
-    return useAnilist
-      ? getCachedAnilistTvShowDetail(id, {
-          acceptBareNumeric: animeCatalog,
-        })
-      : fetchTVShowDetails(unwrapTmdbLookupId(id));
+    if (useAnilist) {
+      return getCachedAnilistTvShowDetail(id, {
+        acceptBareNumeric: animeCatalog,
+      });
+    }
+
+    try {
+      return await fetchTVShowDetails(unwrapTmdbLookupId(id), {
+        fetchEpisodes,
+        append,
+      });
+    } catch {
+      return null;
+    }
   },
 );
 
 export const getCachedTvShowDetail = (
   id: string,
   options?: TvShowDetailCacheOptions,
-) => getCachedTvShowDetailCached(id, options?.animeCatalog === true);
+) =>
+  getCachedTvShowDetailCached(
+    id,
+    options?.animeCatalog === true,
+    options?.fetchEpisodes === true,
+    options?.append ?? "shell",
+  );

@@ -7,6 +7,8 @@ export type PostWatchProgressInput = {
   episodeNumber?: number;
   anilistId?: number | null;
   episodeCompleted?: boolean;
+  watchedSeconds?: number;
+  durationSeconds?: number;
 };
 
 export async function postWatchProgressIfSignedIn(
@@ -33,6 +35,12 @@ export async function postWatchProgressIfSignedIn(
         : {}),
       ...(input.anilistId ? { anilistId: input.anilistId } : {}),
       ...(input.episodeCompleted ? { episodeCompleted: true } : {}),
+      ...(input.watchedSeconds != null
+        ? { watchedSeconds: input.watchedSeconds }
+        : {}),
+      ...(input.durationSeconds != null
+        ? { durationSeconds: input.durationSeconds }
+        : {}),
     }),
   });
 }

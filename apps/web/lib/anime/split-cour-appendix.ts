@@ -1,6 +1,6 @@
 import type { MappingSegment } from "@/lib/anime/tmdb-anilist-map";
-import type { FribbAnimeRow } from "@/lib/fribb-mapping";
-import { normalizeFribbTmdbShowId } from "@/lib/fribb-mapping";
+import type { FribbAnimeRow } from "@/lib/fribb-core";
+import { normalizeFribbTmdbShowId } from "@/lib/fribb-core";
 
 export const fribbTmdbSeasonNumberForRow = (row: FribbAnimeRow): number => {
   const season = row.season?.tmdb;

@@ -232,6 +232,7 @@ export const TvShowDetailsSchema = TvShowSchema.extend({
   recommendations: z.object({
     results: z.array(TvShowSchema),
   }),
+  allSeasonDetails: z.record(z.string(), SeasonDetailsSchema).optional(),
 });
 
 export const LayoutPropsSchema = z.object({

@@ -6,14 +6,14 @@
       "idx": 0,
       "version": "7",
       "when": 1766484713945,
-      "tag": "0000_daily_zeigeist",
+      "tag": "0000_baseline",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1787639696969,
-      "tag": "0001_extend_watchlist_status_mal_parity",
+      "when": 1766500000000,
+      "tag": "0001_storage_model",
       "breakpoints": true
     }
   ]

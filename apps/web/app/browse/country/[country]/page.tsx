@@ -1,7 +1,9 @@
 import { StaticHero } from "@/components/hero/hero-static";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
-import { getAppOrigin } from "@/lib/server/app-url";
+import { catalogCardsToMediaItems } from "@/lib/cards/catalog-dto";
+import { fetchCountryBrowsePage } from "@/lib/server/browse-catalog";
+import { tmdbImage } from "@/tmdb/utils";
 import { getFriendlyCountryName } from "@/utils/country-helpers";
 import { countries } from "country-data-list";
 import BrowseCountryClient from "./browse-client";
@@ -24,21 +26,17 @@ export default async function BrowseCountryPage(props: PageProps) {
   const countryName = getFriendlyCountryName(countryCode, countryData?.name);
   const countryEmoji = countryData?.emoji || "🌎";
 
-  const appOrigin = await getAppOrigin();
-  const response = await fetch(
-    `${appOrigin}/api/country/${countryCode}?type=${mediaType}&page=1&sortBy=vote_average.desc`,
+  const data = await fetchCountryBrowsePage(
+    countryCode,
+    mediaType,
+    1,
+    "vote_average.desc",
   );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch country content: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const initialItems = data.results || [];
+  const initialItems = catalogCardsToMediaItems(data.results);
 
   const backdropImage =
     initialItems.length > 0 && initialItems[0].backdrop_path
-      ? `https://image.tmdb.org/t/p/original${initialItems[0].backdrop_path}`
+      ? tmdbImage.backdrop(initialItems[0].backdrop_path, "w1280")
       : "/movie-banner.webp";
 
   return (
@@ -72,7 +70,7 @@ export default async function BrowseCountryPage(props: PageProps) {
             countryName={countryName}
             initialItems={initialItems}
             totalPages={data.total_pages || 1}
-            mediaType={mediaType as "movie" | "tv"}
+            mediaType={mediaType}
           />
         </div>
       </ContentContainer>

@@ -16,14 +16,9 @@ import { isAnilistBackedTvRouteId } from "@/lib/tv-detail-catalog";
 import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import type { TvShowDetails } from "@/lib/domain/typings";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode } from "react";
 import { useInView } from "react-intersection-observer";
-
-type TvShowDetailTabPanelsProps = {
-  tvId: string;
-};
 
 type DetailSectionProps = {
   title: string;
@@ -69,8 +64,51 @@ const SeriesGraphFallback = () => (
   </DetailSection>
 );
 
+type LazyTabSectionProps = {
+  title: string;
+  id?: string;
+  fallback: ReactNode;
+  children: ReactNode;
+  headingClassName?: string;
+};
+
+const LazyTabSection = ({
+  title,
+  id,
+  fallback,
+  children,
+  headingClassName,
+}: LazyTabSectionProps) => {
+  const isHydrated = useIsHydrated();
+  const { ref, inView } = useInView({
+    rootMargin: "600px 0px",
+    triggerOnce: true,
+  });
+
+  return (
+    <div ref={ref}>
+      {!isHydrated || !inView ? (
+        fallback
+      ) : (
+        <DetailSection
+          title={title}
+          id={id}
+          headingClassName={headingClassName}
+        >
+          {children}
+        </DetailSection>
+      )}
+    </div>
+  );
+};
+
 const EpisodesSection = () => {
-  const { tvId, catalog, details: bootstrapDetails } = useTvDetailBootstrap();
+  const {
+    tvId,
+    catalog,
+    details: bootstrapDetails,
+    initialSeasonDetails,
+  } = useTvDetailBootstrap();
   const isAnilistRoute = isAnilistBackedTvRouteId(tvId, catalog);
 
   const { data: details = bootstrapDetails } = useQuery({
@@ -84,115 +122,129 @@ const EpisodesSection = () => {
     },
     initialData: bootstrapDetails,
     staleTime: queryStaleTime(60 * 60 * 1000),
+    refetchOnMount: false,
   });
 
   return (
-    <DetailSection id="seasons-episodes-panel" title="Seasons & Episodes">
-      <HeroTvEpisodePanel tvId={tvId} details={details as TvShowDetails} />
-    </DetailSection>
+    <HeroTvEpisodePanel
+      tvId={tvId}
+      details={details}
+      allSeasonDetails={initialSeasonDetails}
+    />
   );
 };
 
 const SeriesGraphSection = () => {
   const { tvId, catalog } = useTvDetailBootstrap();
-  const isAnilistRoute = isAnilistBackedTvRouteId(tvId, catalog);
   const { data: allSeasonDetails } = useQuery({
     queryKey: queryKeys.tvAllSeasons(tvId),
     queryFn: () => fetchTvAllSeasonsClient(tvId, catalog),
     staleTime: queryStaleTime(60 * 60 * 1000),
-    enabled: !isAnilistRoute,
+    refetchOnMount: false,
   });
 
-  if (isAnilistRoute) {
-    return null;
-  }
-
-  if (!allSeasonDetails) {
-    return <SeriesGraphFallback />;
+  if (!allSeasonDetails || Object.keys(allSeasonDetails).length === 0) {
+    return <GridSectionSkeleton />;
   }
 
   return <TvShowSeasonsPage allSeasonDetails={allSeasonDetails} />;
 };
 
-const LazySeriesGraphSection = () => {
-  const isHydrated = useIsHydrated();
-  const { ref, inView } = useInView({
-    rootMargin: "600px 0px",
-    triggerOnce: true,
-  });
-
-  return (
-    <div ref={ref}>
-      {!isHydrated || !inView ? (
-        <SeriesGraphFallback />
-      ) : (
-        <SeriesGraphSection />
-      )}
-    </div>
-  );
-};
+const LazySeriesGraphSection = () => (
+  <LazyTabSection
+    title="Series Graph"
+    headingClassName="mb-3"
+    fallback={<SeriesGraphFallback />}
+  >
+    <SeriesGraphSection />
+  </LazyTabSection>
+);
 
 const CastSection = () => {
-  const { tvId, catalog, details: bootstrapDetails } = useTvDetailBootstrap();
-  const { data: credits } = useQuery({
+  const { tvId, catalog } = useTvDetailBootstrap();
+  const { data: credits, isPending } = useQuery({
     queryKey: queryKeys.tvTabCredits(tvId),
     queryFn: () => fetchTvCreditsClient(tvId, catalog),
-    initialData: bootstrapDetails.credits,
     staleTime: queryStaleTime(60 * 60 * 1000),
+    refetchOnMount: false,
   });
 
-  return (
-    <DetailSection title="Cast">
-      {credits?.cast?.length ? (
-        <ExpandableCastGrid cast={credits.cast} />
-      ) : credits ? (
-        <div className="empty-box">No cast information available</div>
-      ) : (
-        <GridSectionSkeleton />
-      )}
-    </DetailSection>
-  );
+  if (isPending) {
+    return <GridSectionSkeleton />;
+  }
+
+  if (credits?.cast?.length) {
+    return <ExpandableCastGrid cast={credits.cast} />;
+  }
+
+  return <div className="empty-box">No cast information available</div>;
 };
+
+const LazyCastSection = () => (
+  <LazyTabSection
+    title="Cast"
+    fallback={
+      <DetailSection title="Cast">
+        <GridSectionSkeleton />
+      </DetailSection>
+    }
+  >
+    <CastSection />
+  </LazyTabSection>
+);
 
 const RecommendationsSection = () => {
-  const { tvId, catalog, details: bootstrapDetails } = useTvDetailBootstrap();
-  const { data: recommendationsData } = useQuery({
+  const { tvId, catalog } = useTvDetailBootstrap();
+  const { data: recommendationsData, isPending } = useQuery({
     queryKey: queryKeys.tvTabRecommendations(tvId, "1"),
     queryFn: () => fetchTvRecommendationsPageClient(tvId, "1", catalog),
-    initialData: bootstrapDetails.recommendations,
     staleTime: queryStaleTime(60 * 60 * 1000),
+    refetchOnMount: false,
   });
 
-  return (
-    <DetailSection title="You Might Like">
-      {recommendationsData?.results?.length ? (
-        <div className="grid-list">
-          {recommendationsData.results.map((show) => (
-            <TvCard
-              key={show.id}
-              {...show}
-              variant="linkOnly"
-              catalog={catalog}
-            />
-          ))}
-        </div>
-      ) : recommendationsData ? (
-        <div className="empty-box">No recommendations available</div>
-      ) : (
-        <GridSectionSkeleton />
-      )}
-    </DetailSection>
-  );
+  if (isPending) {
+    return <GridSectionSkeleton />;
+  }
+
+  if (recommendationsData?.results?.length) {
+    return (
+      <div className="grid-list">
+        {recommendationsData.results.map((show) => (
+          <TvCard
+            key={show.id}
+            {...show}
+            variant="linkOnly"
+            catalog={catalog}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return <div className="empty-box">No recommendations available</div>;
 };
 
-export const TvShowDetailTabPanels = ({
-  tvId: _tvId,
-}: TvShowDetailTabPanelsProps) => {
+const LazyRecommendationsSection = () => (
+  <LazyTabSection
+    title="You Might Like"
+    fallback={
+      <DetailSection title="You Might Like">
+        <GridSectionSkeleton />
+      </DetailSection>
+    }
+  >
+    <RecommendationsSection />
+  </LazyTabSection>
+);
+
+export const TvShowDetailTabPanels = () => {
   return (
     <div className="space-y-8">
-      <EpisodesSection />
-      <CastSection />
-      <RecommendationsSection />
+      <DetailSection id="seasons-episodes-panel" title="Seasons & Episodes">
+        <EpisodesSection />
+      </DetailSection>
+      <LazyCastSection />
+      <LazyRecommendationsSection />
       <LazySeriesGraphSection />
     </div>
   );

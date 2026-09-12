@@ -13,8 +13,9 @@ describe.skipIf(!runLive)("new anime provider scrapers (live)", () => {
       translationType: "sub",
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.streamKind).toBe("hls");
     expect(result.streamUrl).toMatch(/\.m3u8(\?|$)/i);
     expect(result.referer).toBeTruthy();

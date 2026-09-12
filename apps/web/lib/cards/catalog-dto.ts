@@ -165,6 +165,58 @@ export const catalogCardToMediaItem = (
     ? catalogTvToMediaItem(card)
     : catalogMovieToMediaItem(card);
 
+export type BrowseMediaType = "movie" | "tv";
+
+type MappableBrowseItem = {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path: string;
+  backdrop_path?: string | null;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average?: number;
+  vote_count?: number;
+};
+
+export const mapReleasedItemsToCatalogCards = (
+  items: MappableBrowseItem[],
+  mediaType: BrowseMediaType,
+): CatalogMediaCard[] =>
+  items.map((item) => {
+    if (mediaType === "movie") {
+      const title = item.title ?? item.name ?? "";
+      return {
+        id: item.id,
+        media_type: "movie",
+        title,
+        poster_path: item.poster_path,
+        backdrop_path: item.backdrop_path ?? undefined,
+        release_date: item.release_date ?? "",
+        vote_average: item.vote_average ?? 0,
+        vote_count: item.vote_count,
+      } satisfies CatalogMovieCard;
+    }
+
+    const name = item.name ?? item.title ?? "";
+    return {
+      id: item.id,
+      media_type: "tv",
+      name,
+      title: name,
+      poster_path: item.poster_path,
+      backdrop_path: item.backdrop_path ?? undefined,
+      first_air_date: item.first_air_date ?? "",
+      vote_average: item.vote_average ?? 0,
+      vote_count: item.vote_count,
+    } satisfies CatalogTvCard;
+  });
+
+export const catalogCardsToMediaItems = (
+  cards: CatalogMediaCard[],
+): Array<(Movie | TvShow) & { media_type: "movie" | "tv" }> =>
+  cards.map(catalogCardToMediaItem);
+
 export const homeCollectionPartToMediaItem = (
   part: HomeCollectionPartCard,
 ): Movie & { media_type: "movie" } => ({

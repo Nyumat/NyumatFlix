@@ -20,7 +20,7 @@ export default async function TvShowDetailPage(props: Props) {
       {tvShow ? (
         <JsonLdScript data={buildTvStructuredData(tvShow, id)} />
       ) : null}
-      <TvShowDetailTabPanels tvId={id} />
+      <TvShowDetailTabPanels />
     </>
   );
 }

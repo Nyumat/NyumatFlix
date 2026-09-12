@@ -1,5 +1,3 @@
-import { notifyPlaybackProgressChanged } from "@/lib/playback/progress-change-events";
-
 export const VIDSRC_PROGRESS_STORAGE_KEY = "vidsrcwtf-Progress";
 
 export type VidsrcProgressEntry = {
@@ -89,63 +87,10 @@ export const readVidsrcProgressMap = (): VidsrcProgressMap => {
 export const readVidsrcProgressEntries = (): VidsrcProgressEntry[] =>
   Object.values(readVidsrcProgressMap()).filter(isValidEntry);
 
-const shouldReplaceEntry = (
-  current: VidsrcProgressEntry | undefined,
-  next: VidsrcProgressEntry,
-): boolean => {
-  if (!current) {
-    return true;
-  }
-  return (next.last_updated ?? 0) >= (current.last_updated ?? 0);
-};
-
-const mergeSingleEntry = (
-  existing: VidsrcProgressMap,
-  entry: VidsrcProgressEntry,
-): VidsrcProgressMap => {
-  const key = entryStorageKey(entry);
-  const current = existing[key];
-  if (!shouldReplaceEntry(current, entry)) {
-    return existing;
-  }
-  return { ...existing, [key]: entry };
-};
-
-const normalizeIncomingMap = (data: VidsrcProgressMap): VidsrcProgressMap => {
-  const map: VidsrcProgressMap = {};
-  for (const entry of Object.values(data)) {
-    if (!isValidEntry(entry)) {
-      continue;
-    }
-    const key = entryStorageKey(entry);
-    const current = map[key];
-    if (shouldReplaceEntry(current, entry)) {
-      map[key] = entry;
-    }
-  }
-  return map;
-};
-
 export const persistVidsrcProgressPayload = (
-  data: VidsrcProgressEntry | VidsrcProgressMap,
+  _data: VidsrcProgressEntry | VidsrcProgressMap,
 ): void => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (isSingleVidsrcProgressEntry(data)) {
-    const merged = mergeSingleEntry(readVidsrcProgressMap(), data);
-    window.localStorage.setItem(
-      VIDSRC_PROGRESS_STORAGE_KEY,
-      JSON.stringify(merged),
-    );
-    notifyPlaybackProgressChanged();
-    return;
-  }
-
-  window.localStorage.setItem(
-    VIDSRC_PROGRESS_STORAGE_KEY,
-    JSON.stringify(normalizeIncomingMap(data)),
-  );
-  notifyPlaybackProgressChanged();
+  // vidsrc embed progress is no longer written to localStorage; resume is
+  // owned by the unified playback ledger (in-memory for guests, server for
+  // signed-in users). legacy reads remain for one-time migration only.
 };

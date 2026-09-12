@@ -20,12 +20,8 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
-vi.mock("@/lib/fribb-mapping", () => ({
-  getAnilistIdFromFribb: vi.fn(),
-}));
-
-vi.mock("@/lib/mal/id-resolver", () => ({
-  resolveTmdbToAnilistFromMappings: vi.fn(),
+vi.mock("@/lib/anime/cross-id-resolver", () => ({
+  resolveTmdbMediaToAnilistId: vi.fn(),
 }));
 
 vi.mock("@/utils/anilist-helpers", () => ({
@@ -40,21 +36,16 @@ vi.mock("@/lib/media-detail-cache", () => ({
   getCachedMovieDetail: vi.fn(),
 }));
 
-import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
-import { resolveTmdbToAnilistFromMappings } from "@/lib/mal/id-resolver";
+import { resolveTmdbMediaToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { resolveTmdbAnimeDetailRedirects } from "@/lib/server/tmdb-anime-detail-route";
 
-const mockGetAnilistIdFromFribb = getAnilistIdFromFribb as ReturnType<
-  typeof vi.fn
->;
-const mockResolveTmdbToAnilistFromMappings =
-  resolveTmdbToAnilistFromMappings as ReturnType<typeof vi.fn>;
+const mockResolveTmdbMediaToAnilistId =
+  resolveTmdbMediaToAnilistId as ReturnType<typeof vi.fn>;
 
 describe("resolveTmdbAnimeDetailRedirects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetAnilistIdFromFribb.mockResolvedValue(null);
-    mockResolveTmdbToAnilistFromMappings.mockResolvedValue(null);
+    mockResolveTmdbMediaToAnilistId.mockResolvedValue(null);
   });
 
   it("ignores non-tmdb anime route IDs", async () => {
@@ -64,7 +55,7 @@ describe("resolveTmdbAnimeDetailRedirects", () => {
   });
 
   it("redirects tmdb-207840 to canonical AniList anime URL when mapped", async () => {
-    mockResolveTmdbToAnilistFromMappings.mockResolvedValue(153567);
+    mockResolveTmdbMediaToAnilistId.mockResolvedValue(153567);
 
     await expect(
       resolveTmdbAnimeDetailRedirects("tmdb-207840"),
@@ -72,7 +63,7 @@ describe("resolveTmdbAnimeDetailRedirects", () => {
   });
 
   it("redirects tmdb-movie-1234 to canonical AniList anime URL when mapped", async () => {
-    mockGetAnilistIdFromFribb.mockResolvedValue(4321);
+    mockResolveTmdbMediaToAnilistId.mockResolvedValue(4321);
 
     await expect(
       resolveTmdbAnimeDetailRedirects("tmdb-movie-1234"),

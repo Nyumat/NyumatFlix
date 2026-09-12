@@ -4,22 +4,34 @@ import {
   ANIBRIDGE_BUNDLED_FILE,
   readBundledJson,
 } from "@/lib/anime/bundled-mapping-files";
-import type { MappingSegment } from "@/lib/anime/tmdb-anilist-map";
 import {
-  episodeInMappingRange,
-  mapEpisodeAcrossRanges,
-  parseMappingRange,
-} from "@/lib/anime/mapping-ranges";
+  anibridgeTmdbSeasonKey,
+  buildAniBridgeSeasonSegments,
+  collectAniBridgeAnilistIdsForTmdbShow,
+  episodeMatchesAniBridgeSeason,
+  resolveAniBridgeAnilistIdForTmdbShow,
+  resolveAniBridgeMalPlaybackTarget,
+  resolveAniBridgePlaybackCoords,
+  resolveAniBridgeTmdbShowIdForAnilist,
+  type AniBridgeSeasonMappings,
+} from "@/lib/anime/anibridge-season-segments";
+
+export type { AniBridgeSeasonMappings };
+export {
+  anibridgeTmdbSeasonKey,
+  buildAniBridgeSeasonSegments,
+  collectAniBridgeAnilistIdsForTmdbShow,
+  episodeMatchesAniBridgeSeason,
+  resolveAniBridgeAnilistIdForTmdbShow,
+  resolveAniBridgeMalPlaybackTarget,
+  resolveAniBridgePlaybackCoords,
+  resolveAniBridgeTmdbShowIdForAnilist,
+};
 
 const ANIBRIDGE_URL =
   "https://github.com/anibridge/anibridge-mappings/releases/download/v3/mappings.min.json";
 const FETCH_TIMEOUT_MS = 30_000;
 const MEMORY_TTL_MS = 60 * 60 * 24 * 1000;
-
-export type AniBridgeSeasonMappings = Record<
-  string,
-  Record<string, Record<string, string>>
->;
 
 type CachedMappings = {
   value: AniBridgeSeasonMappings;
@@ -69,110 +81,3 @@ export const getAniBridgeMappings =
 
     return inflightMappings;
   };
-
-export const anibridgeTmdbSeasonKey = (
-  tmdbShowId: number,
-  seasonNumber: number,
-): string => `tmdb_show:${tmdbShowId}:s${seasonNumber}`;
-
-export const resolveAniBridgePlaybackCoords = (
-  mappings: AniBridgeSeasonMappings,
-  tmdbShowId: number,
-  seasonNumber: number,
-  episodeNumber: number,
-): { anilistId: number; relativeEpisode: number } | null => {
-  const entry = mappings[anibridgeTmdbSeasonKey(tmdbShowId, seasonNumber)];
-  if (!entry) return null;
-
-  for (const [target, rangeMap] of Object.entries(entry)) {
-    if (!target.startsWith("anilist:")) continue;
-
-    const anilistId = Number(target.split(":")[1]);
-    if (!Number.isInteger(anilistId) || anilistId <= 0) continue;
-
-    const relativeEpisode = mapEpisodeAcrossRanges(episodeNumber, rangeMap);
-    if (relativeEpisode != null) {
-      return { anilistId, relativeEpisode };
-    }
-  }
-
-  return null;
-};
-
-/** When AniBridge maps TMDB→MAL but omits anilist:, resolve episode via mal: ranges. */
-export const resolveAniBridgeMalPlaybackTarget = (
-  mappings: AniBridgeSeasonMappings,
-  tmdbShowId: number,
-  seasonNumber: number,
-  episodeNumber: number,
-): { malId: number; relativeEpisode: number } | null => {
-  const entry = mappings[anibridgeTmdbSeasonKey(tmdbShowId, seasonNumber)];
-  if (!entry) return null;
-
-  for (const [target, rangeMap] of Object.entries(entry)) {
-    if (!target.startsWith("mal:")) continue;
-
-    const malId = Number(target.split(":")[1]);
-    if (!Number.isInteger(malId) || malId <= 0) continue;
-
-    const relativeEpisode = mapEpisodeAcrossRanges(episodeNumber, rangeMap);
-    if (relativeEpisode != null) {
-      return { malId, relativeEpisode };
-    }
-  }
-
-  return null;
-};
-
-export const buildAniBridgeSeasonSegments = (
-  mappings: AniBridgeSeasonMappings,
-  tmdbShowId: number,
-  seasonNumber: number,
-): MappingSegment[] => {
-  const entry = mappings[anibridgeTmdbSeasonKey(tmdbShowId, seasonNumber)];
-  if (!entry) return [];
-
-  const segments: MappingSegment[] = [];
-
-  for (const [target, rangeMap] of Object.entries(entry)) {
-    if (!target.startsWith("anilist:")) continue;
-
-    const anilistId = Number(target.split(":")[1]);
-    if (!Number.isInteger(anilistId) || anilistId <= 0) continue;
-
-    for (const sourceRange of Object.keys(rangeMap)) {
-      const parsed = parseMappingRange(sourceRange.replace(/-$/, ""));
-      if (!parsed) continue;
-
-      const openEnded =
-        sourceRange.trim().endsWith("-") &&
-        !/\d+-\d+-$/.test(sourceRange.trim());
-
-      segments.push({
-        startEpisode: parsed.start,
-        endEpisode: openEnded
-          ? Number.MAX_SAFE_INTEGER
-          : (parsed.end ?? parsed.start),
-        anilistMediaId: anilistId,
-      });
-    }
-  }
-
-  return segments.sort((a, b) => a.startEpisode - b.startEpisode);
-};
-
-export const episodeMatchesAniBridgeSeason = (
-  mappings: AniBridgeSeasonMappings,
-  tmdbShowId: number,
-  seasonNumber: number,
-  episodeNumber: number,
-): boolean => {
-  const entry = mappings[anibridgeTmdbSeasonKey(tmdbShowId, seasonNumber)];
-  if (!entry) return false;
-
-  return Object.values(entry).some((rangeMap) =>
-    Object.keys(rangeMap).some((sourceRange) =>
-      episodeInMappingRange(episodeNumber, sourceRange),
-    ),
-  );
-};

@@ -30,7 +30,7 @@ describe("buildBingrStreamBody", () => {
       srv: "s3",
       t: "movie",
       id: "550",
-      query: { title: "Fight Club", year: "1999" },
+      query: { title: "Fight Club (1999)", year: "1999" },
     });
     expect(body.query.season).toBeUndefined();
     expect(body.query.episode).toBeUndefined();
@@ -51,10 +51,34 @@ describe("buildBingrStreamBody", () => {
     expect(body.id).toBe("1396");
     expect(body.srv).toBe("s2");
     expect(body.query).toEqual({
-      title: "Breaking Bad",
+      title: "Breaking Bad (2008)",
       year: "2008",
       season: 1,
       episode: 1,
+    });
+  });
+
+  it("disambiguates remake titles so scrapers do not pick the original series", () => {
+    const body = buildBingrStreamBody(
+      {
+        mediaType: "tv",
+        tmdbId: 83135,
+        seasonNumber: 1,
+        episodeNumber: 2,
+      },
+      "s3",
+      {
+        title: "The Twilight Zone",
+        year: "2019",
+        imdb_id: "tt2583620",
+      },
+    );
+    expect(body.query).toEqual({
+      title: "The Twilight Zone (2019)",
+      year: "2019",
+      imdb_id: "tt2583620",
+      season: 1,
+      episode: 2,
     });
   });
 

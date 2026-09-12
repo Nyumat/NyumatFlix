@@ -15,7 +15,7 @@ import { useMalSyncStatus } from "@/hooks/use-mal-sync-status";
 export function MalReauthProvider() {
   const session = useSession();
   const isSignedIn = Boolean(session.data?.user?.id);
-  const statusQuery = useMalSyncStatus();
+  const statusQuery = useMalSyncStatus({ deferUntilIdleOrMenu: true });
   const reauthRequired = statusQuery.data?.reauthRequired === true;
 
   const [dismissed, setDismissed] = useState(false);

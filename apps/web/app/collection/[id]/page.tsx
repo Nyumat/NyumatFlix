@@ -7,13 +7,14 @@ import { MediaDetailScrollReset } from "@/components/media/media-detail-scroll-r
 import { MovieCard } from "@/components/movie/movie-card";
 import { BackButton } from "@/components/ui/back-button";
 import { tmdb } from "@/tmdb/api";
+import { tmdbImage } from "@/tmdb/utils";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 type Props = { params: Promise<{ id: string }> };
 
 const tmdbBackdrop = (path: string | null | undefined) =>
-  path ? `https://image.tmdb.org/t/p/original${path}` : null;
+  path ? tmdbImage.backdrop(path, "w1280") : null;
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { id } = await props.params;

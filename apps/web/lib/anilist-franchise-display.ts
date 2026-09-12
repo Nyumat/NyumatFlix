@@ -1,7 +1,33 @@
 import type { AniListFranchiseSeason } from "@/lib/anilist-franchise";
 import type { FribbAnimeRow, FribbTmdbEntry } from "@/lib/fribb-mapping";
-import { normalizeFribbTmdbShowId } from "@/lib/fribb-mapping";
 import type { Episode, Season } from "@/lib/domain/typings";
+
+const firstPositiveTmdbId = (
+  value: number | number[] | undefined,
+): number | null => {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === "number" && Number.isInteger(entry) && entry > 0) {
+        return entry;
+      }
+    }
+  }
+
+  return null;
+};
+
+const normalizeFribbTmdbShowId = (
+  value: FribbAnimeRow["themoviedb_id"],
+): number | null => {
+  if (typeof value === "number") {
+    return value > 0 ? value : null;
+  }
+  return firstPositiveTmdbId(value?.tv);
+};
 
 export type SeasonEpisodeSource = {
   id: number;
@@ -53,6 +79,21 @@ export const collectFribbAnilistIdsForTmdbSeason = (
     })
     .map((row) => row.anilist_id);
 
+const collectFribbMappingAnilistIdsForTmdbSeason = (
+  fribbByAnilistId: Record<number, FribbTmdbEntry>,
+  tmdbShowId: number,
+  seasonNumber: number,
+): number[] =>
+  Object.entries(fribbByAnilistId)
+    .filter(
+      ([, entry]) =>
+        entry?.tv === tmdbShowId &&
+        fribbTmdbSeasonNumber(entry) === seasonNumber,
+    )
+    .map(([anilistId]) => Number(anilistId))
+    .filter((id) => Number.isInteger(id) && id > 0)
+    .sort((left, right) => left - right);
+
 export const mergeAnilistIdsByFribbOffset = (
   franchiseIds: readonly number[],
   fribbIds: readonly number[],
@@ -88,7 +129,29 @@ export const groupFranchiseSeasonsByTmdb = (
     groups.set(tmdbSeason, bucket);
   }
 
-  if (mappedCount === 0 || groups.size >= franchiseSeasons.length) {
+  if (fribbRows?.length) {
+    for (const row of fribbRows) {
+      if (normalizeFribbTmdbShowId(row.themoviedb_id) !== tmdbShowId) {
+        continue;
+      }
+      const tmdbSeason = fribbTmdbSeasonNumberForRow(row);
+      if (tmdbSeason <= 0) continue;
+      if (!groups.has(tmdbSeason)) {
+        groups.set(tmdbSeason, []);
+      }
+    }
+  }
+
+  for (const entry of Object.values(fribbByAnilistId)) {
+    if (!entry?.tv || entry.tv !== tmdbShowId) continue;
+    const tmdbSeason = fribbTmdbSeasonNumber(entry);
+    if (tmdbSeason <= 0) continue;
+    if (!groups.has(tmdbSeason)) {
+      groups.set(tmdbSeason, []);
+    }
+  }
+
+  if (mappedCount === 0 && groups.size === 0) {
     return null;
   }
 
@@ -103,7 +166,15 @@ export const groupFranchiseSeasonsByTmdb = (
   return grouped.map(({ seasonNumber, anilistIds }) => ({
     seasonNumber,
     anilistIds: mergeAnilistIdsByFribbOffset(
-      anilistIds,
+      mergeAnilistIdsByFribbOffset(
+        anilistIds,
+        collectFribbMappingAnilistIdsForTmdbSeason(
+          fribbByAnilistId,
+          tmdbShowId,
+          seasonNumber,
+        ),
+        fribbRows,
+      ),
       collectFribbAnilistIdsForTmdbSeason(fribbRows, tmdbShowId, seasonNumber),
       fribbRows,
     ),

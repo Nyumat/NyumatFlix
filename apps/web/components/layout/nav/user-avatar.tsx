@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { resolveAuthSession } from "@/lib/auth/session-state";
+import { enableMalSyncStatus } from "@/hooks/use-mal-sync-status";
 import { cn } from "@/lib/utils";
 import { navbarActionButtonClassName } from "./navbar-action-button";
 
@@ -43,7 +44,13 @@ export const UserAvatar = ({ session, triggerClassName }: UserAvatarProps) => {
   const userImage = activeSession.user?.image;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (open) {
+          enableMalSyncStatus();
+        }
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <Button
           id="user-avatar-menu-trigger"

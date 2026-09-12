@@ -350,7 +350,7 @@ export function CastCarousel({ cast }: CastCarouselProps) {
                     <div className="rounded-lg overflow-hidden mb-3 aspect-2/3 bg-muted">
                       {person.profile_path ? (
                         <Image
-                          src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
+                          src={tmdbImage.profile(person.profile_path, "w185")}
                           alt={person.name}
                           width={185}
                           height={278}

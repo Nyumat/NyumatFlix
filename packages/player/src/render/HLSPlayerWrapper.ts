@@ -18,6 +18,7 @@ import {
   usesCanvasCopyLoop,
 } from "../core/presentation";
 import { VideoPlayGate } from "../utils/safeMediaPlay";
+import { applyNativeManifestTextTrackSelection } from "./native-manifest-subtitles";
 
 const TAG = "HLSPlayerWrapper";
 
@@ -349,9 +350,19 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
       lowLatencyMode: false,
       backBufferLength: 90,
       maxBufferLength: 30,
-      maxMaxBufferLength: 600,
+      maxMaxBufferLength: 90,
+      maxBufferHole: 0.5,
+      maxStarvationDelay: 12,
+      nudgeOffset: 0.1,
+      nudgeMaxRetry: 6,
+      highBufferWatchdogPeriod: 2,
+      fragLoadingTimeOut: 60_000,
+      fragLoadingMaxRetry: 6,
+      levelLoadingMaxRetry: 4,
+      manifestLoadingMaxRetry: 4,
       enableWebVTT: true,
       enableCEA708Captions: true,
+      ...this.config.hls,
       ...(mediaHeaders && {
         xhrSetup: (xhr: XMLHttpRequest) => {
           for (const [k, v] of Object.entries(mediaHeaders)) {
@@ -896,21 +907,7 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
   }
 
   private applyNativeTextTrackSelection(track: SubtitleTrack | null): void {
-    let subtitleIndex = 0;
-    for (let i = 0; i < this.videoElement.textTracks.length; i++) {
-      const textTrack = this.videoElement.textTracks[i];
-      if (textTrack.kind !== "subtitles" && textTrack.kind !== "captions") {
-        continue;
-      }
-      if (!track) {
-        textTrack.mode = "hidden";
-      } else if (subtitleIndex === track.id) {
-        textTrack.mode = "showing";
-      } else {
-        textTrack.mode = "hidden";
-      }
-      subtitleIndex++;
-    }
+    applyNativeManifestTextTrackSelection(this.videoElement.textTracks, track);
   }
 
   setFitMode(mode: any) {

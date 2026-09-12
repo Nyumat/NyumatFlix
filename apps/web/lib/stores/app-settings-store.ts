@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 import {
   DEFAULT_PLAYBACK_PREFERENCES,
@@ -7,6 +6,7 @@ import {
   type PlaybackQualityPreference,
   type PlaybackPreferences,
 } from "@/lib/playback/playback-preferences";
+import { patchUserSettings } from "@/lib/user/patch-user-settings";
 
 interface AppSettingsState extends PlaybackPreferences {
   noAdsMode: boolean;
@@ -35,24 +35,30 @@ export type {
   PlaybackPreferences,
 } from "@/lib/playback/playback-preferences";
 
-export const useAppSettingsStore = create<AppSettingsState>()(
-  persist(
-    (set) => ({
-      ...DEFAULT_PLAYBACK_PREFERENCES,
-      noAdsMode: false,
-      disableHeroTrailers: false,
-      disableHoverSound: false,
-      setNoAdsMode: (enabled) => set({ noAdsMode: enabled }),
-      setDisableHeroTrailers: (enabled) =>
-        set({ disableHeroTrailers: enabled }),
-      setDisableHoverSound: (enabled) => set({ disableHoverSound: enabled }),
-      setPlaybackAudio: (playbackAudio) => set({ playbackAudio }),
-      setPlaybackQuality: (playbackQuality) => set({ playbackQuality }),
-      setPlaybackEnglishSubtitles: (playbackEnglishSubtitles) =>
-        set({ playbackEnglishSubtitles }),
-    }),
-    {
-      name: "app-settings-storage",
-    },
-  ),
-);
+export const useAppSettingsStore = create<AppSettingsState>()((set) => ({
+  ...DEFAULT_PLAYBACK_PREFERENCES,
+  noAdsMode: false,
+  disableHeroTrailers: false,
+  disableHoverSound: false,
+  setNoAdsMode: (enabled) => set({ noAdsMode: enabled }),
+  setDisableHeroTrailers: (enabled) => {
+    set({ disableHeroTrailers: enabled });
+    void patchUserSettings({ disableHeroTrailers: enabled });
+  },
+  setDisableHoverSound: (enabled) => {
+    set({ disableHoverSound: enabled });
+    void patchUserSettings({ disableHoverSound: enabled });
+  },
+  setPlaybackAudio: (playbackAudio) => {
+    set({ playbackAudio });
+    void patchUserSettings({ playbackAudio });
+  },
+  setPlaybackQuality: (playbackQuality) => {
+    set({ playbackQuality });
+    void patchUserSettings({ playbackQuality });
+  },
+  setPlaybackEnglishSubtitles: (playbackEnglishSubtitles) => {
+    set({ playbackEnglishSubtitles });
+    void patchUserSettings({ playbackEnglishSubtitles });
+  },
+}));

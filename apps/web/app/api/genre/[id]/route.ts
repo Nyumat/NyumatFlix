@@ -1,17 +1,6 @@
-import {
-  buildItemsWithCategories,
-  fetchAndEnrichMediaItems,
-  fetchTMDBData,
-} from "@/lib/server/actions";
-import { mapMediaListToCanonicalCardsValue } from "@/lib/cards/mappers";
-import {
-  filterReleasedMovies,
-  filterReleasedTvShows,
-  getTodayIsoDateUtc,
-} from "@/lib/released-media";
+import { fetchGenreBrowsePage } from "@/lib/server/browse-catalog";
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
-import { MediaItem } from "@/lib/domain/typings";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -30,46 +19,13 @@ export async function GET(
   const page = parseInt(pageParam, 10);
 
   try {
-    const today = getTodayIsoDateUtc();
-    const data = await fetchTMDBData<MediaItem>(
-      `/discover/${mediaType}`,
-      {
-        with_genres: genreId,
-        sort_by: "popularity.desc",
-        language: "en-US",
-        include_adult: "false",
-        "vote_count.gte": "10", // Minimum vote count for quality
-        ...(mediaType === "movie"
-          ? { "primary_release_date.lte": today }
-          : { "first_air_date.lte": today }),
-      },
-      page,
-    );
-
-    const resultsWithPoster = (data.results || []).filter((item: MediaItem) =>
-      Boolean(item.poster_path),
-    );
-
-    const processedResults = await buildItemsWithCategories<MediaItem>(
-      resultsWithPoster as MediaItem[],
-      mediaType as "movie" | "tv",
-    );
-
-    const enrichedResults = await fetchAndEnrichMediaItems(
-      processedResults,
-      mediaType as "movie" | "tv",
-    );
-
-    const releasedOnly =
-      mediaType === "movie"
-        ? filterReleasedMovies(enrichedResults)
-        : filterReleasedTvShows(enrichedResults);
+    const data = await fetchGenreBrowsePage(genreId, mediaType, page);
 
     return NextResponse.json(
       {
         page: data.page,
         total_pages: data.total_pages,
-        results: mapMediaListToCanonicalCardsValue(releasedOnly, mediaType),
+        results: data.results,
         type: mediaType,
         genreId,
       },

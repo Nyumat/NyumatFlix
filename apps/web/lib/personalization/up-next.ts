@@ -2,11 +2,34 @@ import { buildAnilistTvDetailHref } from "@/lib/anilist-route-id";
 import type { EpisodeCoordinates, EpisodeInfo } from "@/lib/domain/episodes";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 
+export const UP_NEXT_LIMIT = 12;
+export const UP_NEXT_EPISODE_CHECK_LIMIT = 12;
+
 export type UpNextCandidate = {
   contentId: number;
   watchlistItem: WatchlistItem;
   episodeInfo: EpisodeInfo;
 };
+
+const watchlistActivityTime = (item: WatchlistItem): number => {
+  const lastWatched = item.lastWatchedAt
+    ? new Date(item.lastWatchedAt).getTime()
+    : 0;
+  const updated = new Date(item.updatedAt).getTime();
+  return Math.max(lastWatched, updated);
+};
+
+export const selectWatchingShowsForEpisodeCheck = (
+  watchlistItems: WatchlistItem[],
+  limit = UP_NEXT_EPISODE_CHECK_LIMIT,
+): WatchlistItem[] =>
+  watchlistItems
+    .filter((item) => item.mediaType === "tv" && item.status === "watching")
+    .sort(
+      (left, right) =>
+        watchlistActivityTime(right) - watchlistActivityTime(left),
+    )
+    .slice(0, limit);
 
 const upNextEpisodeQuery = (
   nextUnwatchedEpisode: EpisodeCoordinates | null,
@@ -69,6 +92,7 @@ export const isUpNextInboxCandidate = (
 export const collectUpNextCandidates = (
   watchlistItems: WatchlistItem[],
   episodeData: Record<number, EpisodeInfo>,
+  limit = UP_NEXT_LIMIT,
 ): UpNextCandidate[] =>
   watchlistItems
     .filter((item) => isUpNextInboxCandidate(item, episodeData[item.contentId]))
@@ -88,7 +112,8 @@ export const collectUpNextCandidates = (
         right.episodeInfo.unwatchedEpisodeCount -
         left.episodeInfo.unwatchedEpisodeCount
       );
-    });
+    })
+    .slice(0, limit);
 
 export const parseEpisodeDataResponse = (
   raw: Record<string, unknown>,

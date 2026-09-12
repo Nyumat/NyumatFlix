@@ -1,7 +1,12 @@
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
-import { resolveTvShowDetailForApiRoute } from "@/lib/server/tvshow-api";
+import { parseDetailApiView } from "@/lib/performance/detail-view";
+import {
+  fetchTVShowDetails,
+  resolveTvShowDetailForApiRoute,
+} from "@/lib/server/tvshow-api";
 import { isTmdbNotFoundError } from "@/lib/tmdb-errors";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -21,8 +26,13 @@ export async function GET(
     );
   }
 
+  const view = parseDetailApiView(new URL(request.url).searchParams);
+
   try {
-    const tvDetails = await resolveTvShowDetailForApiRoute(id);
+    const tvDetails =
+      view === "shell"
+        ? await resolveTvShowDetailForApiRoute(id)
+        : await fetchTVShowDetails(unwrapTmdbLookupId(id), { append: view });
 
     if (!tvDetails) {
       return NextResponse.json({ error: "TV show not found" }, { status: 404 });

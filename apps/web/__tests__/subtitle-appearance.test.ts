@@ -16,6 +16,7 @@ import {
 import {
   getSubtitleAppearance,
   resetSubtitleAppearance,
+  resetSubtitleAppearanceSnapshotForTests,
   setSubtitleAppearance,
 } from "@/lib/playback/subtitle-appearance-storage";
 
@@ -112,7 +113,18 @@ describe("subtitle appearance", () => {
 });
 
 describe("subtitle appearance storage", () => {
+  test("returns a stable snapshot reference for useSyncExternalStore", () => {
+    resetSubtitleAppearanceSnapshotForTests();
+    window.localStorage.clear();
+
+    const first = getSubtitleAppearance();
+    const second = getSubtitleAppearance();
+
+    expect(first).toBe(second);
+  });
+
   test("persists and resets appearance", () => {
+    resetSubtitleAppearanceSnapshotForTests();
     window.localStorage.clear();
 
     const saved = setSubtitleAppearance({

@@ -3,8 +3,7 @@ import {
   isTmdbAnimeRouteId,
   parseTmdbAnimeRouteId,
 } from "@/lib/tmdb-anime-route-id";
-import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
-import { resolveTmdbToAnilistFromMappings } from "@/lib/mal/id-resolver";
+import { resolveTmdbMediaToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
 import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
 import { getCachedMovieDetail } from "@/lib/media-detail-cache";
@@ -36,19 +35,12 @@ export async function resolveTmdbAnimeDetailRedirects(
   const requestedSeason = parsePositiveInt(requestSearchParams.get("season"));
   const autoplay = requestSearchParams.get("autoplay") === "true";
 
-  // 1. Try resolving to an AniList ID via direct Fribb TMDB lookup
-  let anilistId = await getAnilistIdFromFribb(tmdbId, mediaType);
+  let anilistId = await resolveTmdbMediaToAnilistId(
+    tmdbId,
+    mediaType,
+    requestedSeason,
+  );
 
-  // 2. If not found in Fribb direct list, check MAL cross-index
-  if (!anilistId) {
-    anilistId = await resolveTmdbToAnilistFromMappings(
-      tmdbId,
-      mediaType,
-      requestedSeason ?? undefined,
-    );
-  }
-
-  // 3. If still not found, fetch TMDB detail & search AniList via title/metadata match
   if (!anilistId) {
     try {
       const details =

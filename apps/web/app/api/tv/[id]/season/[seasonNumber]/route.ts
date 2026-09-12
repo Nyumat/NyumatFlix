@@ -1,6 +1,11 @@
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { seasonCacheHeaders } from "@/lib/http-cache";
 import { fetchSeasonDetailsServer } from "@/lib/server/tvshow-api";
+import {
+  getCachedTmdbResponse,
+  tmdbTvCacheTag,
+} from "@/lib/server/tmdb-response-cache";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -22,9 +27,15 @@ export async function GET(
       );
     }
 
-    const data = await fetchSeasonDetailsServer(id, parsedSeasonNumber, {
-      source: "tmdb",
+    const routeId = unwrapTmdbLookupId(id);
+    const data = await getCachedTmdbResponse({
+      cacheKey: `tv-season:${routeId}:${parsedSeasonNumber}`,
+      tags: [tmdbTvCacheTag(routeId)],
+      revalidateSeconds: 3600,
+      memoryFallback: true,
+      load: () => fetchSeasonDetailsServer(id, parsedSeasonNumber),
     });
+
     if (!data) {
       return NextResponse.json({ error: "Season not found" }, { status: 404 });
     }

@@ -14,6 +14,7 @@ export interface WatchlistItem {
   lastWatchedSeason: number | null;
   lastWatchedEpisode: number | null;
   lastWatchedAt: Date | null;
+  dismissedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

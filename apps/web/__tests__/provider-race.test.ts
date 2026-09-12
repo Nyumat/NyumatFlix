@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS,
-  TMDB_SCRAPE_SOLO_FIRST_PROVIDERS,
   deprioritizeProviders,
   getScrapeAttemptTimeoutMs,
   nextRaceBatch,
@@ -40,44 +38,16 @@ describe("nextRaceBatch", () => {
       "vixsrc",
       "vidnest",
     ] as const;
-    const { batch, nextIndex } = nextRaceBatch(
-      order,
-      0,
-      new Set(),
-      9,
-      new Set(),
-    );
+    const { batch, nextIndex } = nextRaceBatch(order, 0, new Set(), 9);
     expect(batch).toEqual([...order]);
     expect(nextIndex).toBe(order.length);
   });
 
-  it("solos Direct on the TMDB scrape overlay", () => {
-    expect([...TMDB_SCRAPE_SOLO_FIRST_PROVIDERS]).toEqual(["direct"]);
-  });
-
-  it("runs direct solo when solo-first is enabled", () => {
+  it("races direct with siblings in the same batch", () => {
     const order = ["direct", "bingr", "videasy", "vidking"] as const;
-    const first = nextRaceBatch(order, 0, new Set());
-    expect(first.batch).toEqual(["direct"]);
-    expect(first.nextIndex).toBe(1);
-
-    const second = nextRaceBatch(order, first.nextIndex, new Set());
-    expect(second.batch).toEqual(["bingr", "videasy", "vidking"]);
-    expect(second.nextIndex).toBe(4);
-  });
-
-  it("races Direct with leading anime scrapers when solo-first is disabled", () => {
-    const order = ["justanime", "kyren", "direct", "allmanga"] as const;
-    const { batch, nextIndex } = nextRaceBatch(
-      order,
-      0,
-      new Set(),
-      3,
-      ANIME_PLAYBACK_SOLO_FIRST_PROVIDERS,
-    );
-
-    expect(batch).toEqual(["justanime", "kyren", "direct"]);
-    expect(nextIndex).toBe(3);
+    const { batch, nextIndex } = nextRaceBatch(order, 0, new Set(), 9);
+    expect(batch).toEqual(["direct", "bingr", "videasy", "vidking"]);
+    expect(nextIndex).toBe(4);
   });
 
   it("skips failed providers and advances past them", () => {
@@ -180,12 +150,12 @@ describe("deprioritizeProviders", () => {
     ]);
   });
 
-  it("never deprioritizes direct even after failure", () => {
+  it("deprioritizes direct after failure like any other provider", () => {
     const withDirect = ["direct", "bingr", "vidsrc"] as const;
     const failed = new Set<string>(["direct", "vidsrc"]);
     expect(deprioritizeProviders(withDirect, failed)).toEqual([
-      "direct",
       "bingr",
+      "direct",
       "vidsrc",
     ]);
   });
@@ -196,32 +166,27 @@ describe("deprioritizeProviders", () => {
 });
 
 describe("getScrapeAttemptTimeoutMs", () => {
-  it("gives Direct the full JSON budget when it runs alone", () => {
+  it("caps direct at 45s during parallel races", () => {
     expect(getScrapeAttemptTimeoutMs("direct")).toBe(
       SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS,
     );
+    expect(SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS).toBe(45_000);
   });
 
-  it("caps Direct at 45s when racing siblings", () => {
-    expect(getScrapeAttemptTimeoutMs("direct", true)).toBe(45_000);
-  });
-
-  it("keeps the full Direct budget when solo", () => {
-    expect(getScrapeAttemptTimeoutMs("direct", false)).toBe(
-      SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS,
-    );
+  it("gives direct the full sse budget when pinned", () => {
+    expect(getScrapeAttemptTimeoutMs("direct", true)).toBe(300_000);
   });
 
   it("short-caps slow-fail scrapers", () => {
-    expect(getScrapeAttemptTimeoutMs("vidrock", true)).toBe(8_000);
-    expect(getScrapeAttemptTimeoutMs("2embed", true)).toBe(25_000);
-    expect(getScrapeAttemptTimeoutMs("videasy", true)).toBe(60_000);
-    expect(getScrapeAttemptTimeoutMs("vidking", true)).toBe(30_000);
-    expect(getScrapeAttemptTimeoutMs("bingr", true)).toBe(30_000);
+    expect(getScrapeAttemptTimeoutMs("vidrock")).toBe(8_000);
+    expect(getScrapeAttemptTimeoutMs("2embed")).toBe(25_000);
+    expect(getScrapeAttemptTimeoutMs("videasy")).toBe(60_000);
+    expect(getScrapeAttemptTimeoutMs("vidking")).toBe(30_000);
+    expect(getScrapeAttemptTimeoutMs("bingr")).toBe(30_000);
   });
 
   it("keeps the normal scrape budget for anime providers", () => {
-    expect(getScrapeAttemptTimeoutMs("justanime", true)).toBe(
+    expect(getScrapeAttemptTimeoutMs("justanime")).toBe(
       SCRAPE_ATTEMPT_TIMEOUT_MS,
     );
   });

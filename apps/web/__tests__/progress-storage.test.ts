@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   mergePlaybackProgressEntry,
-  PLAYBACK_PROGRESS_STORAGE_KEY,
   setPlaybackProgress,
   getPlaybackProgress,
 } from "@/lib/playback/progress-storage";
+import { resetGuestLedger } from "@/lib/playback/progress-ledger-facade";
 
 describe("mergePlaybackProgressEntry", () => {
   it("accepts a newer write outright", () => {
@@ -53,7 +53,7 @@ describe("mergePlaybackProgressEntry", () => {
 
 describe("setPlaybackProgress", () => {
   it("merges per-key without dropping unrelated titles", () => {
-    window.localStorage.removeItem(PLAYBACK_PROGRESS_STORAGE_KEY);
+    resetGuestLedger();
 
     setPlaybackProgress(
       { mediaType: "movie", contentId: 550 },

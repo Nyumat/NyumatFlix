@@ -133,9 +133,10 @@ export default function PrivacyPage() {
                 Cookies
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                We use cookies or browser storage to keep you signed in and to
-                support limited analytics. Blocking essential cookies can break
-                account features.
+                Signed-in playback progress, settings, and watch history are
+                stored on our servers. We use cookies for sign-in sessions and
+                limited analytics. Blocking essential cookies can break account
+                features.
               </p>
             </section>
 

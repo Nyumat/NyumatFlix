@@ -47,7 +47,7 @@ describe("pickDirectStreamForScrape", () => {
 });
 
 describe("direct scrape timeout", () => {
-  it("matches the 300s json/sse budget when Direct runs alone", () => {
-    expect(SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS).toBe(300_000);
+  it("caps direct at 45s during parallel races", () => {
+    expect(SCRAPE_DIRECT_ATTEMPT_TIMEOUT_MS).toBe(45_000);
   });
 });

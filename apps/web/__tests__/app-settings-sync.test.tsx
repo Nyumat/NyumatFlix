@@ -24,14 +24,15 @@ function renderSync(flags = getDefaultSiteFlags()) {
 }
 
 describe("AppSettingsSync", () => {
-  beforeEach(async () => {
-    localStorage.clear();
-    await useAppSettingsStore.persist.rehydrate();
-    await usePlaybackModeStore.persist.rehydrate();
-    useAppSettingsStore.setState({ noAdsMode: false });
+  beforeEach(() => {
+    useAppSettingsStore.setState({
+      noAdsMode: false,
+      disableHeroTrailers: false,
+    });
     usePlaybackModeStore.setState({
       selectedServer: embedServer,
       hasUserSelectedPlaybackServer: false,
+      policyGenerationAtChoice: null,
     });
   });
 
@@ -47,6 +48,7 @@ describe("AppSettingsSync", () => {
     const updatedFlags = {
       ...initialFlags,
       noAdsModeDefault: true,
+      policyGeneration: `${initialFlags.policyGeneration}|noAds:1`,
     };
 
     rerender(
@@ -64,34 +66,10 @@ describe("AppSettingsSync", () => {
   });
 
   it("seeds scrape for default proxy playback when nothing is persisted", async () => {
-    localStorage.clear();
-    await usePlaybackModeStore.persist.rehydrate();
-
     renderSync({
       ...getDefaultSiteFlags(),
       defaultProxyPlayback: true,
-    });
-
-    await waitFor(() => {
-      expect(usePlaybackModeStore.getState().selectedServer.id).toBe(
-        scrapeServer.id,
-      );
-    });
-  });
-
-  it("seeds scrape when persisted embed is only the store default", async () => {
-    localStorage.setItem(
-      "playback-mode-storage",
-      JSON.stringify({
-        state: { selectedServerId: embedServer.id },
-        version: 0,
-      }),
-    );
-    await usePlaybackModeStore.persist.rehydrate();
-
-    renderSync({
-      ...getDefaultSiteFlags(),
-      defaultProxyPlayback: true,
+      policyGeneration: `${getDefaultSiteFlags().policyGeneration}|proxyDefault:1`,
     });
 
     await waitFor(() => {
@@ -102,17 +80,11 @@ describe("AppSettingsSync", () => {
   });
 
   it("does not override a user-chosen embed server for default proxy playback", async () => {
-    localStorage.setItem(
-      "playback-mode-storage",
-      JSON.stringify({
-        state: {
-          selectedServerId: embedServer.id,
-          hasUserSelectedPlaybackServer: true,
-        },
-        version: 0,
-      }),
-    );
-    await usePlaybackModeStore.persist.rehydrate();
+    usePlaybackModeStore.setState({
+      selectedServer: embedServer,
+      hasUserSelectedPlaybackServer: true,
+      policyGenerationAtChoice: getDefaultSiteFlags().policyGeneration,
+    });
 
     renderSync({
       ...getDefaultSiteFlags(),
@@ -126,24 +98,17 @@ describe("AppSettingsSync", () => {
     });
   });
 
-  it("clears seeded no-ads mode when the default flag is turned off", async () => {
-    const flagsWithNoAdsDefault = {
+  it("forces embed server when iframe mode is locked", async () => {
+    renderSync({
       ...getDefaultSiteFlags(),
-      noAdsModeDefault: true,
-    };
-    const { rerender } = renderSync(flagsWithNoAdsDefault);
-
-    await waitFor(() => {
-      expect(useAppSettingsStore.getState().noAdsMode).toBe(true);
+      iframeModeOnly: true,
+      policyGeneration: `${getDefaultSiteFlags().policyGeneration}|iframe:1`,
     });
 
-    rerender(
-      <FeatureFlagsProvider flags={getDefaultSiteFlags()}>
-        <AppSettingsSync />
-      </FeatureFlagsProvider>,
-    );
-
     await waitFor(() => {
+      expect(usePlaybackModeStore.getState().selectedServer.id).toBe(
+        embedServer.id,
+      );
       expect(useAppSettingsStore.getState().noAdsMode).toBe(false);
     });
   });

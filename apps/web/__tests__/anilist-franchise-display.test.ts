@@ -87,6 +87,45 @@ describe("groupFranchiseSeasonsByTmdb", () => {
       groupFranchiseSeasonsByTmdb(aotFranchiseSeasons, {}, 1429),
     ).toBeNull();
   });
+
+  it("still merges Fribb appendix rows when franchise seasons already match TMDB season count", () => {
+    const compactFranchise = [
+      { anilistId: 16498, seasonNumber: 1 },
+      { anilistId: 20958, seasonNumber: 2 },
+      { anilistId: 99147, seasonNumber: 3 },
+      { anilistId: 110277, seasonNumber: 4 },
+    ] as const;
+
+    expect(
+      groupFranchiseSeasonsByTmdb(
+        compactFranchise,
+        aotFribbMapping,
+        1429,
+        aotFribbRows,
+      ),
+    ).toEqual([
+      { seasonNumber: 1, anilistIds: [16498] },
+      { seasonNumber: 2, anilistIds: [20958] },
+      { seasonNumber: 3, anilistIds: [99147, 104578] },
+      { seasonNumber: 4, anilistIds: [110277, 131681, 146984] },
+    ]);
+  });
+
+  it("materializes every TMDB season from Fribb when the franchise walk is truncated", () => {
+    expect(
+      groupFranchiseSeasonsByTmdb(
+        [{ anilistId: 16498, seasonNumber: 1 }],
+        aotFribbMapping,
+        1429,
+        aotFribbRows,
+      ),
+    ).toEqual([
+      { seasonNumber: 1, anilistIds: [16498] },
+      { seasonNumber: 2, anilistIds: [20958] },
+      { seasonNumber: 3, anilistIds: [99147, 104578] },
+      { seasonNumber: 4, anilistIds: [110277, 131681, 146984] },
+    ]);
+  });
 });
 
 describe("buildMergedEpisodesForTmdbSeason", () => {

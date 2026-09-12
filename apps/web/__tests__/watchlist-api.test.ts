@@ -8,7 +8,7 @@ vi.mock("@/auth", () => {
   };
 });
 
-vi.mock("@/db/schema", () => ({
+vi.mock("@/db", () => ({
   db: {
     select: vi.fn(),
     insert: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock("@/db/schema", () => ({
 
 const { GET, POST } = await import("@/app/api/watchlist/route");
 const { auth } = await import("@/auth");
-const { db } = await import("@/db/schema");
+const { db } = await import("@/db");
 
 const mockAuth = vi.mocked(auth);
 const mockDb = db as unknown as {

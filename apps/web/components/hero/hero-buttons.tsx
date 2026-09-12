@@ -80,14 +80,16 @@ export function HeroButtons({
   const pathname = usePathname();
   const watchClickGenerationRef = useRef(0);
   const catalog = useTvDetailCatalog();
-  const malStatusQuery = useMalSyncStatus();
-  const malConnected = malStatusQuery.data?.connected === true;
   const hasAnilistId = typeof anilistId === "number" && anilistId > 0;
   const isAnimeCatalog = catalog === "anime";
-  const showMalListButton =
-    malConnected &&
+  const malListEligible =
     mediaType === "tv" &&
     (hasAnilistId || isAnimeCatalog || Boolean(defaultAnilistId));
+  const malStatusQuery = useMalSyncStatus({
+    deferUntilIdleOrMenu: !malListEligible,
+  });
+  const malConnected = malStatusQuery.data?.connected === true;
+  const showMalListButton = malConnected && malListEligible;
   const isHydrated = useIsHydrated();
   const localCoords = useLocalTvWatchCoords(contentId);
   const movieButtonLabel = useMovieWatchButtonLabel(contentId, mediaType);

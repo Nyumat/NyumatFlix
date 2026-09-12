@@ -9,7 +9,6 @@ import {
   withMovieDiscoverIncludeVideo,
 } from "@/lib/tmdb-discover-defaults";
 import { logger } from "@/lib/utils";
-import { pickEnglishLogo } from "@/lib/tmdb-logo";
 import {
   mapItemsToCanonicalCardsValue,
   mapMediaListToCanonicalCardsValue,
@@ -30,14 +29,12 @@ import {
   MediaItem,
   MediaItemSchema,
   MovieCategory,
-  MovieSchema,
   ReleaseDatesResponseSchema,
   TmdbMovieListResponse,
   TmdbResponse,
   TmdbResponseSchema,
   TmdbTvListResponse,
   TVShowCategory,
-  TvShowSchema,
 } from "@/lib/domain/typings";
 import type { PersonDetails } from "@/tmdb/models";
 import type { Person as TmdbPerson } from "moviedb-promise/dist/request-types";
@@ -116,11 +113,12 @@ export async function buildItemsWithCategories<
   }
 
   const genres = await getCategories(type);
+  const genreById = new Map(genres.map((g) => [g.id, g]));
 
   const processedItems = items.map((item) => {
-    const itemGenres = genres.filter((genre) =>
-      item.genre_ids?.includes(genre.id),
-    );
+    const itemGenres = (item.genre_ids ?? [])
+      .map((id) => genreById.get(id))
+      .filter((genre): genre is Genre => genre !== undefined);
     const categories = itemGenres.map((genre) => genre.name);
     const enrichedItem = { ...item, categories };
     const result = MediaItemSchema.safeParse(enrichedItem);
@@ -214,200 +212,6 @@ export const getCategories = cache(async function getCategories(
   const genresResponse = genres as unknown as TmdbGenreResponse;
   return GenreSchema.array().parse(genresResponse.genres || []);
 });
-
-export const fetchAllData = async () => {
-  const [
-    popularMovies,
-    topRatedMovies,
-    popularTVShows,
-    topRatedTVShows,
-    actionMovies,
-    comedyMovies,
-    dramaMovies,
-    thrillerMovies,
-    scifiFantasyMovies,
-    romComMovies,
-    hiddenGems,
-    criticallyAcclaimed,
-    eightiesMovies,
-    ninetiesMovies,
-    earlyTwosMovies,
-    recentReleases,
-    limitedSeries,
-    fanFavoriteClassicsForHero,
-  ] = await Promise.all([
-    fetchTMDBData("/movie/popular", {
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/movie/top_rated", {
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/tv/popular", {
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/tv/top_rated", {
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-
-    fetchTMDBData("/discover/movie", {
-      with_genres: "28",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      with_genres: "35",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      with_genres: "18",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      with_genres: "53",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      with_genres: "878,14",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      with_genres: "10749,35",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-    }),
-
-    fetchTMDBData("/discover/movie", {
-      "vote_average.gte": "7.5",
-      "vote_count.gte": "500",
-      "vote_count.lte": "5000",
-      sort_by: "vote_average.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      "vote_average.gte": "8.0",
-      "vote_count.gte": "2000",
-      sort_by: "vote_average.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-
-    fetchTMDBData("/discover/movie", {
-      "primary_release_date.gte": "1980-01-01",
-      "primary_release_date.lte": "1989-12-31",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      "primary_release_date.gte": "1990-01-01",
-      "primary_release_date.lte": "1999-12-31",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      "primary_release_date.gte": "2000-01-01",
-      "primary_release_date.lte": "2009-12-31",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-    fetchTMDBData("/discover/movie", {
-      "primary_release_date.gte": "2023-01-01",
-      sort_by: "popularity.desc",
-      region: "US",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }),
-
-    fetchTMDBData("/discover/tv", {
-      with_type: "5",
-      "vote_average.gte": "7.5",
-      sort_by: "popularity.desc",
-      language: "en-US",
-      include_adult: "false",
-      without_genres: "10749",
-    }), // Limited Series
-    fetchTMDBData("/discover/movie", {
-      with_genres: "16|10751|12|878|35|28|10765", // Animation, Family, Adventure, Sci-Fi, Comedy, Action, Sci-Fi & Fantasy
-      sort_by: "popularity.desc",
-      "vote_average.gte": "7.0",
-      "vote_count.gte": "1500",
-      include_adult: "false",
-      language: "en-US",
-      region: "US",
-      without_genres: "10749",
-    }),
-  ]);
-
-  return {
-    popularMovies: popularMovies.results,
-    topRatedMovies: topRatedMovies.results,
-    popularTVShows: popularTVShows.results,
-    topRatedTVShows: topRatedTVShows.results,
-
-    actionMovies: actionMovies.results,
-    comedyMovies: comedyMovies.results,
-    dramaMovies: dramaMovies.results,
-    thrillerMovies: thrillerMovies.results,
-    scifiFantasyMovies: scifiFantasyMovies.results,
-    romComMovies: romComMovies.results,
-
-    hiddenGems: hiddenGems.results,
-    criticallyAcclaimed: criticallyAcclaimed.results,
-
-    eightiesMovies: eightiesMovies.results,
-    ninetiesMovies: ninetiesMovies.results,
-    earlyTwosMovies: earlyTwosMovies.results,
-    recentReleases: recentReleases.results,
-
-    limitedSeries: limitedSeries.results,
-    fanFavoriteClassicsForHero: fanFavoriteClassicsForHero.results,
-  };
-};
 
 export async function fetchTMDBData<T = MediaItem>(
   endpoint: string,
@@ -956,131 +760,6 @@ export async function fetchTVShowCertification(
     logger.error("Error fetching TV show certification:", error);
     return null;
   }
-}
-
-const LOGO_ENRICH_CHUNK = 8;
-
-export async function enrichMediaItemsWithLogos<
-  T extends { id: number } & Partial<MediaItem>,
->(items: T[], mediaType: "movie" | "tv"): Promise<T[]> {
-  if (!items.length) {
-    return items;
-  }
-
-  const out: T[] = [];
-
-  for (let i = 0; i < items.length; i += LOGO_ENRICH_CHUNK) {
-    const slice = items.slice(i, i + LOGO_ENRICH_CHUNK);
-    const batch = await Promise.all(
-      slice.map(async (item) => {
-        try {
-          const detailedData = await fetchTMDBData<{ logos?: unknown[] }>(
-            `/${mediaType}/${item.id}/images`,
-          );
-          const logo = pickEnglishLogo(detailedData.logos);
-          return { ...item, logo } as T;
-        } catch (error) {
-          if (isNetworkFetchError(error)) {
-            return item;
-          }
-          logger.error(
-            `enrichMediaItemsWithLogos failed for ${mediaType} ${item.id}:`,
-            error,
-          );
-          return item;
-        }
-      }),
-    );
-    out.push(...batch);
-  }
-
-  return out;
-}
-
-export async function enrichAboveFoldMediaItemsWithLogos<
-  T extends { id: number } & Partial<MediaItem>,
->(items: T[], mediaType: "movie" | "tv", aboveFoldCount: number): Promise<T[]> {
-  if (!items.length || aboveFoldCount <= 0) {
-    return items;
-  }
-
-  if (items.length <= aboveFoldCount) {
-    return enrichMediaItemsWithLogos(items, mediaType);
-  }
-
-  const aboveFoldItems = items.slice(0, aboveFoldCount);
-  const belowFoldItems = items.slice(aboveFoldCount);
-  const enrichedAboveFold = await enrichMediaItemsWithLogos(
-    aboveFoldItems,
-    mediaType,
-  );
-  return [...enrichedAboveFold, ...belowFoldItems];
-}
-
-export async function fetchAndEnrichMediaItems<
-  T extends { id: number } & Partial<MediaItem>,
->(items: T[], mediaType?: "movie" | "tv"): Promise<T[]> {
-  if (!items || items.length === 0) {
-    return [];
-  }
-
-  const enrichedItems = await Promise.all(
-    items.map(async (item) => {
-      const type = mediaType || (await determineMediaType(item.id));
-
-      if (type === "unknown") {
-        return item; // Return original item if type can't be determined
-      }
-
-      try {
-        const detailedData = await fetchTMDBData(`/${type}/${item.id}`);
-        const detailedWithImages = detailedData as TmdbTvShowDetails;
-        const englishLogo = pickEnglishLogo(detailedWithImages.images?.logos);
-
-        let contentRating: string | null = null;
-        try {
-          if (type === "movie") {
-            contentRating = await fetchMovieCertification(item.id);
-          } else if (type === "tv") {
-            contentRating = await fetchTVShowCertification(item.id);
-          }
-        } catch (error) {
-          logger.error(
-            `Error fetching content rating for ${type} ID ${item.id}:`,
-            error,
-          );
-        }
-
-        const enrichedItem = {
-          ...item,
-          ...detailedData,
-          logo: englishLogo,
-          content_rating: contentRating,
-        };
-
-        if (type === "movie") {
-          const result = MovieSchema.safeParse(enrichedItem);
-          if (result.success) {
-            return result.data as unknown as T;
-          }
-        } else if (type === "tv") {
-          const result = TvShowSchema.safeParse(enrichedItem);
-          if (result.success) {
-            return result.data as unknown as T;
-          }
-        }
-
-        return enrichedItem as T;
-      } catch (error) {
-        logger.error(
-          `Error fetching details for ${type} ID ${item.id}:`,
-          error,
-        );
-        return item; // Return original item on error
-      }
-    }),
-  );
-  return enrichedItems;
 }
 
 export async function enrichItemsWithContentRatings<

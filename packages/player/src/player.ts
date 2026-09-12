@@ -30,6 +30,7 @@ export type {
   RendererType,
   DecoderType,
   PlayerConfig,
+  HlsJsConfigPatch,
   MediaInfo,
   VideoDecoderConfig,
   AudioDecoderConfig,

@@ -1,4 +1,4 @@
-import { db, watchlist } from "@/db/schema";
+import { db, watchlist } from "@/db";
 import { and, eq } from "drizzle-orm";
 
 import {

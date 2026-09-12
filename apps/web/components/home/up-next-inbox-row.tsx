@@ -3,13 +3,11 @@
 import { RecentlyWatchedRowFallback } from "@/components/catalog/catalog-suspense-fallbacks";
 import { HomeWideCarouselRow } from "@/components/home/home-wide-carousel-row";
 import { RecentlyWatchedCard } from "@/components/home/recently-watched-card";
-import {
-  useUpNextInbox,
-  type UpNextInboxItem,
-} from "@/hooks/use-up-next-inbox";
+import { usePersonalizedHome } from "@/hooks/use-personalized-home";
+import type { PersonalizedUpNextItem } from "@/lib/personalization/personalized-home-client";
 
 export function UpNextInboxRow() {
-  const { items, isLoading, isSignedIn } = useUpNextInbox();
+  const { upNext: items, isLoading, isSignedIn } = usePersonalizedHome();
 
   if (!isSignedIn) {
     return null;
@@ -24,7 +22,7 @@ export function UpNextInboxRow() {
   }
 
   return (
-    <HomeWideCarouselRow<UpNextInboxItem>
+    <HomeWideCarouselRow<PersonalizedUpNextItem>
       ariaLabel="Up next"
       title="Up Next"
       description="Unwatched episodes from shows you are watching"

@@ -11,7 +11,6 @@ import {
 } from "react";
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
-import { useMoviPreview } from "@/hooks/use-movi-preview";
 import { PlaybackStartingOverlay } from "@/components/media/controls/playback-starting-overlay";
 import { ScrapingOverlay } from "@/components/media/controls/scraping-overlay";
 import { PlaybackErrorBoundary } from "@/components/media/playback-error-boundary";
@@ -22,66 +21,30 @@ import { useMoviPlayerLoaded } from "@/hooks/use-movi-player-loaded";
 import { ANIME_PLAYBACK_RESOLVING_MESSAGE } from "@/lib/anime/anime-playback-policy";
 import type { UseScrapeReturn } from "@/hooks/use-scrape";
 import { selectInitialEngine } from "@nyumatflix/playback";
+import type { PlayableManifest } from "@nyumatflix/playback";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
-import { USE_SHAKA_DASH } from "@/lib/constants";
+import { resolveHeroPlaybackOverlays } from "@/lib/playback/hero-playback-overlays";
+import {
+  toPlayableManifestFromDirect,
+  toPlayableManifestFromScrape,
+  type ScrapePlaybackPayload,
+} from "@/lib/playback/to-playable-manifest";
 import {
   PLAYBACK_STALL_FAILOVER_MS,
   PLAYBACK_START_TIMEOUT_MS,
 } from "@/lib/playback/playbackStart";
-import { buildScrapePlayerKey } from "@/lib/scrape/player-sources";
 import type { SourceOverlayItem } from "@/lib/scrape/source-overlay";
-import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
-import type {
-  ScrapeAudioVersion,
-  ScrapeQuality,
-  ScrapeSubtitle,
-} from "@/lib/scrape/types";
 import { isScrapeServer, type VideoServer } from "@/lib/stores/server-store";
+import {
+  isMoviPlayerMakingProgress,
+  isScrapeVideoMakingProgress,
+  type MoviHostElement,
+} from "@/lib/player/player-playback-ready";
 
-const DirectStreamPlayer = dynamic(
+const PlaybackShell = dynamic(
   () =>
-    import("@/components/media/direct-stream-player").then(
-      (module) => module.DirectStreamPlayer,
-    ),
-  { ssr: false, loading: () => null },
-);
-
-const CalluspiratesStreamPlayer = dynamic(
-  () =>
-    import("@/components/media/calluspirates-stream-player").then(
-      (module) => module.CalluspiratesStreamPlayer,
-    ),
-  { ssr: false, loading: () => null },
-);
-
-const MoviScrapePlayer = dynamic(
-  () =>
-    import("@/components/media/movi-scrape-player").then(
-      (module) => module.MoviScrapePlayer,
-    ),
-  { ssr: false, loading: () => null },
-);
-
-const MoviDirectPlayer = dynamic(
-  () =>
-    import("@/components/media/movi-direct-player").then(
-      (module) => module.MoviDirectPlayer,
-    ),
-  { ssr: false, loading: () => null },
-);
-
-const ScrapeHlsPlayer = dynamic(
-  () =>
-    import("@/components/media/scrape-hls-player").then(
-      (module) => module.ScrapeHlsPlayer,
-    ),
-  { ssr: false, loading: () => null },
-);
-
-const ScrapeShakaDashPlayer = dynamic(
-  () =>
-    import("@/components/media/scrape-shaka-dash-player").then(
-      (module) => module.ScrapeShakaDashPlayer,
+    import("@/components/media/playback-shell").then(
+      (module) => module.PlaybackShell,
     ),
   { ssr: false, loading: () => null },
 );
@@ -89,21 +52,8 @@ const ScrapeShakaDashPlayer = dynamic(
 type HeroScrapePlayerPanelProps = {
   selectedServer: VideoServer;
   scrapeStatus: UseScrapeReturn["status"];
-  scrapeResult: {
-    providerId?: string;
-    playUrl: string;
-    directPlayback?: "hls" | "direct" | "extended";
-    directFallbackUrl?: string;
-    directStreamName?: string;
-    directFileName?: string;
-    qualities?: ScrapeQuality[];
-    subtitles?: ScrapeSubtitle[];
-    audioVersions?: ScrapeAudioVersion[];
-    defaultAudioLang?: string;
-    defaultHardSubLang?: string;
-    referer?: string;
-    preferredAudioLang?: string;
-  } | null;
+  scrapeResult: ScrapePlaybackPayload | null;
+  playbackManifest?: PlayableManifest | null;
   scrapeError: string | null;
   activeProviderId: string | null;
   sourceOverlayItems: SourceOverlayItem[];
@@ -111,9 +61,9 @@ type HeroScrapePlayerPanelProps = {
   playbackPosterUrl: string | null;
   progressKey: PlaybackProgressKey | null;
   imdbId: string | null;
-  streamKind: StreamKind;
   isTv: boolean;
   onSelectEmbedServer: (serverId: string) => void;
+  onSelectScrapeProvider?: (providerId: string) => void;
   onRetryAllScraping?: () => void;
   onFatalError: () => void;
   onPlaybackStallFailover?: () => void;
@@ -129,6 +79,7 @@ export function HeroScrapePlayerPanel({
   selectedServer,
   scrapeStatus,
   scrapeResult,
+  playbackManifest,
   scrapeError,
   activeProviderId,
   sourceOverlayItems,
@@ -136,9 +87,9 @@ export function HeroScrapePlayerPanel({
   playbackPosterUrl,
   progressKey,
   imdbId,
-  streamKind,
   isTv,
   onSelectEmbedServer,
+  onSelectScrapeProvider,
   onRetryAllScraping,
   onFatalError,
   onPlaybackStallFailover,
@@ -150,32 +101,66 @@ export function HeroScrapePlayerPanel({
   isResolvingEpisode = false,
 }: HeroScrapePlayerPanelProps) {
   const { maintenanceMode } = useFeatureFlags();
-  const moviPreview = useMoviPreview();
   const [mediaReady, setMediaReady] = useState(false);
   const [playbackStartError, setPlaybackStartError] = useState<string | null>(
     null,
   );
   const moviLoaded = useMoviPlayerLoaded();
 
-  const playbackSessionKey = useMemo(() => {
+  const resolvedManifest = useMemo((): PlayableManifest | null => {
+    if (playbackManifest) {
+      return playbackManifest;
+    }
+
     if (isDirectMode && directPlayback?.activeStream) {
-      return `direct:${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`;
+      return toPlayableManifestFromDirect(
+        directPlayback.activeStream,
+        directPlayback.rankedStreams,
+      );
     }
-    if (scrapeResult?.playUrl) {
-      return `scrape:${scrapeResult.providerId ?? "unknown"}:${scrapeResult.playUrl}`;
+
+    if (scrapeResult) {
+      return toPlayableManifestFromScrape(
+        {
+          providerId: scrapeResult.providerId,
+          providerName: scrapeResult.providerName,
+          playUrl: scrapeResult.playUrl,
+          streamKind: scrapeResult.streamKind,
+          referer: scrapeResult.referer,
+          qualities: scrapeResult.qualities,
+          subtitles: scrapeResult.subtitles,
+          audioVersions: scrapeResult.audioVersions,
+          defaultAudioLang: scrapeResult.defaultAudioLang,
+          defaultHardSubLang: scrapeResult.defaultHardSubLang,
+          preferredAudioLang: scrapeResult.preferredAudioLang,
+          directPlayback: scrapeResult.directPlayback,
+          directFallbackUrl: scrapeResult.directFallbackUrl,
+          directStreamName: scrapeResult.directStreamName,
+          directFileName: scrapeResult.directFileName,
+        },
+        progressKey ?? undefined,
+      );
     }
-    return "idle";
+
+    return null;
   }, [
     directPlayback?.activeStream,
-    directPlayback?.streamIndex,
+    directPlayback?.rankedStreams,
     isDirectMode,
-    scrapeResult?.playUrl,
-    scrapeResult?.providerId,
+    playbackManifest,
+    progressKey,
+    scrapeResult,
   ]);
+
+  const playbackSessionKey = useMemo(
+    () => resolvedManifest?.id ?? "idle",
+    [resolvedManifest?.id],
+  );
 
   const onMediaReadyChangeRef = useRef(onMediaReadyChange);
   const onPlaybackStallFailoverRef = useRef(onPlaybackStallFailover);
   const onFatalErrorRef = useRef(onFatalError);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   onMediaReadyChangeRef.current = onMediaReadyChange;
   onPlaybackStallFailoverRef.current = onPlaybackStallFailover;
   onFatalErrorRef.current = onFatalError;
@@ -186,25 +171,32 @@ export function HeroScrapePlayerPanel({
     onMediaReadyChangeRef.current?.(false);
   }, [playbackSessionKey]);
 
-  const directHasPlayer = (() => {
-    if (!isDirectMode || !directPlayback) {
-      return false;
-    }
+  const directHasPlayer = Boolean(
+    isDirectMode &&
+      directPlayback &&
+      (directPlayback.status === "playing" ||
+        directPlayback.status === "loading") &&
+      directPlayback.activeStream &&
+      progressKey &&
+      resolvedManifest,
+  );
 
-    return (
-      directPlayback.status === "playing" &&
-      Boolean(directPlayback.activeStream) &&
-      Boolean(progressKey)
-    );
-  })();
-
-  const scrapeHasPlayer =
+  const scrapeHasPlayer = Boolean(
     !isDirectMode &&
-    scrapeStatus === "playing" &&
-    Boolean(scrapeResult?.playUrl) &&
-    Boolean(progressKey);
+      resolvedManifest &&
+      progressKey &&
+      (scrapeStatus === "playing" || scrapeStatus === "scraping"),
+  );
 
   const hasActivePlayer = directHasPlayer || scrapeHasPlayer;
+  const overlays = resolveHeroPlaybackOverlays({
+    isDirectMode,
+    scrapeStatus,
+    directStatus: directPlayback?.status,
+    hasManifest: Boolean(resolvedManifest),
+    mediaReady,
+    isResolvingEpisode,
+  });
 
   useEffect(() => {
     if (
@@ -217,6 +209,17 @@ export function HeroScrapePlayerPanel({
     }
 
     const timeout = window.setTimeout(() => {
+      const container = playerContainerRef.current;
+      const moviPlayer = container?.querySelector("movi-player");
+      if (
+        moviPlayer &&
+        isMoviPlayerMakingProgress(moviPlayer as MoviHostElement)
+      ) {
+        return;
+      }
+      if (isScrapeVideoMakingProgress(container)) {
+        return;
+      }
       onPlaybackStallFailoverRef.current?.();
     }, PLAYBACK_STALL_FAILOVER_MS);
 
@@ -252,103 +255,23 @@ export function HeroScrapePlayerPanel({
     </div>
   ) : null;
 
-  if (isDirectMode && directPlayback) {
-    const directStatus = directPlayback.status;
-    const directError = directPlayback.error ?? scrapeError;
-    const isDiscovering = directStatus === "loading" || directStatus === "idle";
-    const hasPlayer =
-      directStatus === "playing" &&
-      Boolean(directPlayback.activeStream) &&
-      Boolean(progressKey);
-    const showDiscoveryOverlay = isDiscovering;
-    const showBufferingOverlay = hasPlayer && !mediaReady;
-    const showErrorOverlay = directStatus === "error";
-    const directEngine = directPlayback.activeStream
-      ? selectInitialEngine(directPlayback.activeStream)
-      : null;
-    const startingMessage =
-      directEngine === "movi" && !moviLoaded
-        ? "Loading video decoder…"
-        : directEngine === "vidstack-hls"
-          ? "Starting transcode…"
-          : "Starting playback…";
-
-    return (
-      <>
-        {maintenanceBanner}
-
-        {hasPlayer && progressKey && directPlayback.activeStream ? (
-          <PlaybackErrorBoundary onClose={onFatalError}>
-            {moviPreview ? (
-              <MoviDirectPlayer
-                key={`movi-direct:${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`}
-                stream={directPlayback.activeStream}
-                candidates={directPlayback.rankedStreams}
-                title={playbackTitle}
-                poster={playbackPosterUrl}
-                progressKey={progressKey}
-                className="h-full w-full"
-                onStreamFailed={onDirectPlaybackExhausted ?? onFatalError}
-                onMediaReady={handleMediaReady}
-                onEnded={isTv ? onEnded : undefined}
-              />
-            ) : (
-              <CalluspiratesStreamPlayer
-                key={`${directPlayback.activeStream.hash}:${directPlayback.streamIndex}`}
-                stream={directPlayback.activeStream}
-                candidates={directPlayback.rankedStreams}
-                title={playbackTitle}
-                poster={playbackPosterUrl}
-                progressKey={progressKey}
-                className="h-full w-full"
-                onStreamFailed={onDirectPlaybackExhausted ?? onFatalError}
-                onMediaReady={handleMediaReady}
-                onEnded={isTv ? onEnded : undefined}
-              />
-            )}
-          </PlaybackErrorBoundary>
-        ) : null}
-
-        {showDiscoveryOverlay ? (
-          <ScrapingOverlay
-            items={sourceOverlayItems}
-            activeProviderId="direct"
-            error={directError}
-            onSelectEmbedServer={onSelectEmbedServer}
-          />
-        ) : null}
-
-        {showBufferingOverlay ? (
-          <PlaybackStartingOverlay
-            message={
-              playbackStartError ? "Trying another source…" : startingMessage
-            }
-            error={playbackStartError}
-          />
-        ) : null}
-
-        {showErrorOverlay ? (
-          <ScrapingOverlay
-            items={sourceOverlayItems}
-            activeProviderId="direct"
-            error={directError}
-            onSelectEmbedServer={onSelectEmbedServer}
-            onRetryAll={onRetryAllScraping}
-          />
-        ) : null}
-      </>
-    );
-  }
-
-  const isDiscovering = scrapeStatus === "scraping";
-  const hasPlayer =
-    scrapeStatus === "playing" &&
-    Boolean(scrapeResult?.playUrl) &&
-    Boolean(progressKey);
-  const showDiscoveryOverlay = isDiscovering && !isResolvingEpisode;
   const showResolvingOverlay = isResolvingEpisode && scrapeStatus === "idle";
-  const showBufferingOverlay = hasPlayer && !mediaReady;
-  const showErrorOverlay = scrapeStatus === "error";
+  const showDiscoveryOverlay = overlays.showDiscoveryOverlay;
+  const showBufferingOverlay = overlays.showBufferingOverlay;
+  const showErrorOverlay = overlays.showErrorOverlay;
+  const overlayError = isDirectMode
+    ? (directPlayback?.error ?? scrapeError)
+    : scrapeError;
+
+  const directEngine = directPlayback?.activeStream
+    ? selectInitialEngine(directPlayback.activeStream)
+    : null;
+  const startingMessage =
+    directEngine === "movi" && !moviLoaded
+      ? "Loading video decoder…"
+      : directEngine === "vidstack-hls"
+        ? "Starting transcode…"
+        : "Starting playback…";
 
   return (
     <>
@@ -358,129 +281,54 @@ export function HeroScrapePlayerPanel({
         <PlaybackStartingOverlay message={ANIME_PLAYBACK_RESOLVING_MESSAGE} />
       ) : null}
 
-      {hasPlayer && scrapeResult?.playUrl && progressKey ? (
-        scrapeResult.providerId === "direct" && scrapeResult.directPlayback ? (
-          <PlaybackErrorBoundary onClose={onFatalError}>
-            <DirectStreamPlayer
-              key={buildScrapePlayerKey({
-                playUrl: scrapeResult.playUrl,
-                qualities: scrapeResult.qualities,
-                subtitles: scrapeResult.subtitles,
-                audioVersions: scrapeResult.audioVersions,
-                progressKey,
-              })}
-              mediaUrl={scrapeResult.playUrl}
-              fallbackUrl={scrapeResult.directFallbackUrl}
-              playback={scrapeResult.directPlayback}
-              streamName={scrapeResult.directStreamName}
-              fileName={scrapeResult.directFileName}
-              qualities={scrapeResult.qualities}
-              referer={scrapeResult.referer}
-              subtitles={scrapeResult.subtitles}
-              audioVersions={scrapeResult.audioVersions}
-              defaultAudioLang={scrapeResult.defaultAudioLang}
-              defaultHardSubLang={scrapeResult.defaultHardSubLang}
-              preferredAudioLang={scrapeResult.preferredAudioLang}
+      {hasActivePlayer && resolvedManifest && progressKey ? (
+        <div ref={playerContainerRef} className="h-full w-full">
+          <PlaybackErrorBoundary
+            onClose={
+              isDirectMode
+                ? (onDirectPlaybackExhausted ?? onFatalError)
+                : onFatalError
+            }
+          >
+            <PlaybackShell
+              manifest={resolvedManifest}
               title={playbackTitle}
               poster={playbackPosterUrl}
               progressKey={progressKey}
               imdbId={imdbId}
+              isTv={isTv}
               className="h-full w-full"
-              onFatalError={onFatalError}
+              onFatalError={
+                isDirectMode
+                  ? (onDirectPlaybackExhausted ?? onFatalError)
+                  : onFatalError
+              }
               onMediaReady={handleMediaReady}
+              onPlaybackStallFailover={onPlaybackStallFailover}
               onEnded={isTv ? onEnded : undefined}
             />
           </PlaybackErrorBoundary>
-        ) : USE_SHAKA_DASH && streamKind === "dash" ? (
-          <ScrapeShakaDashPlayer
-            key={buildScrapePlayerKey({
-              playUrl: scrapeResult.playUrl,
-              qualities: scrapeResult.qualities,
-              subtitles: scrapeResult.subtitles,
-              progressKey,
-            })}
-            playUrl={scrapeResult.playUrl}
-            referer={scrapeResult.referer}
-            subtitles={scrapeResult.subtitles}
-            title={playbackTitle}
-            poster={playbackPosterUrl}
-            progressKey={progressKey}
-            imdbId={imdbId}
-            className="h-full w-full"
-            onFatalError={onFatalError}
-            onMediaReady={handleMediaReady}
-            onEnded={isTv ? onEnded : undefined}
-          />
-        ) : moviPreview ? (
-          <MoviScrapePlayer
-            key={buildScrapePlayerKey({
-              playUrl: scrapeResult.playUrl,
-              qualities: scrapeResult.qualities,
-              subtitles: scrapeResult.subtitles,
-              audioVersions: scrapeResult.audioVersions,
-              progressKey,
-            })}
-            playUrl={scrapeResult.playUrl}
-            streamKind={streamKind}
-            qualities={scrapeResult.qualities}
-            referer={scrapeResult.referer}
-            subtitles={scrapeResult.subtitles}
-            audioVersions={scrapeResult.audioVersions}
-            defaultAudioLang={scrapeResult.defaultAudioLang}
-            defaultHardSubLang={scrapeResult.defaultHardSubLang}
-            preferredAudioLang={scrapeResult.preferredAudioLang}
-            title={playbackTitle}
-            poster={playbackPosterUrl}
-            progressKey={progressKey}
-            imdbId={imdbId}
-            className="h-full w-full"
-            onFatalError={onFatalError}
-            onMediaReady={handleMediaReady}
-            onEnded={isTv ? onEnded : undefined}
-          />
-        ) : (
-          <ScrapeHlsPlayer
-            key={buildScrapePlayerKey({
-              playUrl: scrapeResult.playUrl,
-              qualities: scrapeResult.qualities,
-              subtitles: scrapeResult.subtitles,
-              audioVersions: scrapeResult.audioVersions,
-              progressKey,
-            })}
-            playUrl={scrapeResult.playUrl}
-            streamKind={streamKind}
-            qualities={scrapeResult.qualities}
-            referer={scrapeResult.referer}
-            subtitles={scrapeResult.subtitles}
-            audioVersions={scrapeResult.audioVersions}
-            defaultAudioLang={scrapeResult.defaultAudioLang}
-            defaultHardSubLang={scrapeResult.defaultHardSubLang}
-            preferredAudioLang={scrapeResult.preferredAudioLang}
-            title={playbackTitle}
-            poster={playbackPosterUrl}
-            progressKey={progressKey}
-            imdbId={imdbId}
-            className="h-full w-full"
-            onFatalError={onFatalError}
-            onMediaReady={handleMediaReady}
-            onEnded={isTv ? onEnded : undefined}
-          />
-        )
+        </div>
       ) : null}
 
       {showDiscoveryOverlay ? (
         <ScrapingOverlay
           items={sourceOverlayItems}
-          activeProviderId={activeProviderId}
-          error={scrapeError}
+          activeProviderId={isDirectMode ? "direct" : activeProviderId}
+          error={overlayError}
           onSelectEmbedServer={onSelectEmbedServer}
+          onSelectScrapeProvider={onSelectScrapeProvider}
         />
       ) : null}
 
       {showBufferingOverlay ? (
         <PlaybackStartingOverlay
           message={
-            playbackStartError ? "Trying another source…" : "Starting playback…"
+            playbackStartError
+              ? "Trying another source…"
+              : isDirectMode
+                ? startingMessage
+                : "Starting playback…"
           }
           error={playbackStartError}
         />
@@ -489,9 +337,10 @@ export function HeroScrapePlayerPanel({
       {showErrorOverlay ? (
         <ScrapingOverlay
           items={sourceOverlayItems}
-          activeProviderId={activeProviderId}
-          error={scrapeError}
+          activeProviderId={isDirectMode ? "direct" : activeProviderId}
+          error={overlayError}
           onSelectEmbedServer={onSelectEmbedServer}
+          onSelectScrapeProvider={onSelectScrapeProvider}
           onRetryAll={onRetryAllScraping}
         />
       ) : null}
@@ -530,29 +379,35 @@ export function HeroPlaybackShell({
   scrapeStatus,
   playbackBackdropUrl,
   mediaReady = false,
+  hasPlaybackManifest = false,
   isPlaybackBuffering = false,
+  isDirectMode = false,
+  directStatus,
   children,
 }: {
   selectedServer: VideoServer;
   scrapeStatus: UseScrapeReturn["status"] | UseAnimeScrapeReturn["status"];
   playbackBackdropUrl: string | null;
   mediaReady?: boolean;
+  hasPlaybackManifest?: boolean;
   isPlaybackBuffering?: boolean;
+  isDirectMode?: boolean;
+  directStatus?: UseDirectPlaybackReturn["status"];
   children: ReactNode;
 }) {
-  const playbackStarted =
-    isScrapeServer(selectedServer) && isPlaybackBuffering && mediaReady;
+  const overlays = resolveHeroPlaybackOverlays({
+    isDirectMode,
+    scrapeStatus,
+    directStatus,
+    hasManifest: hasPlaybackManifest || isPlaybackBuffering,
+    mediaReady,
+  });
 
   return (
     <ScrapePlayerShell
       backdropUrl={playbackBackdropUrl}
-      blurBackdrop={
-        isScrapeServer(selectedServer) &&
-        (scrapeStatus === "scraping" ||
-          scrapeStatus === "error" ||
-          (isPlaybackBuffering && !mediaReady))
-      }
-      hideBackdrop={playbackStarted}
+      blurBackdrop={isScrapeServer(selectedServer) && overlays.blurBackdrop}
+      hideBackdrop={isScrapeServer(selectedServer) && overlays.hideBackdrop}
     >
       {children}
     </ScrapePlayerShell>

@@ -87,6 +87,10 @@ export const fetchAnilistTitleCandidates = async (
   }
 };
 
+export const peekAnilistMediaMeta = (
+  anilistId: number,
+): AnilistMediaMeta | null => mediaMetaCache.get(anilistId) ?? null;
+
 export const fetchAnilistSearchQuery = async (
   anilistId: number,
 ): Promise<string | null> => {

@@ -1,6 +1,5 @@
 import "server-only";
 
-import { isAniListIdBlocked } from "@/lib/anime-blocklist";
 import { getAnimeSeasonContext } from "@/lib/anime-season";
 import {
   ANILIST_ENDPOINT,
@@ -91,9 +90,7 @@ const hubPageField = (alias: string, args: string, isAdult = false) => `
 `;
 
 const filterHubRow = (items: AniListMedia[]) =>
-  items
-    .filter((item) => !isAniListIdBlocked(item.id))
-    .slice(0, SEASON_ROW_TARGET);
+  items.slice(0, SEASON_ROW_TARGET);
 
 const buildHubRowQuery = (mediaArgs: string, isAdult: boolean) => {
   const variableDefs = ["$perPage: Int!"];

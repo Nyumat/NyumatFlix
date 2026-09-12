@@ -35,10 +35,17 @@ export default function CookiePolicyPage() {
               </h2>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
                 <li>
-                  Session and security cookies for magic-link sign-in,
-                  watchlists, and progress.
+                  Session and security cookies for magic-link sign-in and
+                  watchlists.
                 </li>
-                <li>Local browser storage for app settings when needed.</li>
+                <li>
+                  Signed-in playback progress and settings stored on our server
+                  so resume and preferences follow your account.
+                </li>
+                <li>
+                  Small local one-shots (for example banner dismissals and proxy
+                  hints) and tab session mechanics only.
+                </li>
                 <li>
                   Privacy-friendly analytics through{" "}
                   <a

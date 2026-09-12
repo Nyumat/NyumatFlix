@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveTmdbShowToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { resolveAnilistTvTmdbRoute } from "@/lib/anilist-tmdb-route";
 import {
   getCachedAnilistTvMedia,
@@ -9,6 +10,7 @@ import { MediaItemSchema, type MediaItem } from "@/lib/domain/typings";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { runInChunks } from "@/lib/server/chunked-parallel";
 import { shouldPreferAnilistWatchlistMedia } from "@/lib/watchlist/anilist-watchlist-id";
+import { isAnime } from "@/utils/anilist-helpers";
 import { tmdb } from "@/tmdb/api";
 import { cache } from "react";
 
@@ -145,8 +147,29 @@ function buildAnilistWatchlistMediaItem(
       ? `${anilistMedia.startDate.year}-01-01`
       : undefined,
     watchlistItem: item,
-    sourceAnilistId: item.contentId,
+    sourceAnilistId: anilistMedia.id,
   } as WatchlistMediaItem;
+}
+
+async function attachSourceAnilistIdForTmdbTvItem(
+  item: WatchlistMediaItem,
+): Promise<WatchlistMediaItem> {
+  if (item.sourceAnilistId || item.media_type !== "tv" || !isAnime(item)) {
+    return item;
+  }
+
+  try {
+    const anilistId = await resolveTmdbShowToAnilistId(
+      item.watchlistItem.contentId,
+    );
+    if (anilistId && anilistId > 0) {
+      return { ...item, sourceAnilistId: anilistId };
+    }
+  } catch {
+    // Keep TMDB-only metadata when mapping lookup fails.
+  }
+
+  return item;
 }
 
 function parseTmdbWatchlistMediaItem(
@@ -250,7 +273,7 @@ async function fetchTvWatchlistMediaDetail(
   if (tmdbData) {
     const parsed = parseTmdbWatchlistMediaItem(tmdbData, item);
     if (parsed) {
-      return parsed;
+      return attachSourceAnilistIdForTmdbTvItem(parsed);
     }
   }
 

@@ -29,6 +29,8 @@ import {
 } from "@/lib/seo/constants";
 import { DevtoolsTrollProvider } from "@/components/providers/devtools-troll-provider";
 import { FeatureFlagsProvider } from "@/components/providers/feature-flags-provider";
+import { StorageHydrationProvider } from "@/components/providers/storage-hydration-provider";
+import { getSiteFlags } from "@/lib/flags/site-flags";
 import { getCdnOrigin } from "@/lib/cdn";
 
 const manrope = Manrope({
@@ -89,11 +91,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const siteFlags = await getSiteFlags();
+
   return (
     <html
       lang="en"
@@ -137,8 +141,9 @@ export default function RootLayout({
         <CapWarmup />
         <RouteScrollReset />
         <QueryProvider>
-          <FeatureFlagsProvider>
+          <FeatureFlagsProvider flags={siteFlags}>
             <AuthSessionProvider>
+              <StorageHydrationProvider />
               <TooltipProvider>
                 <AdblockGateProvider>
                   <HoverSoundProvider>

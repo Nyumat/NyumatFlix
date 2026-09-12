@@ -19,6 +19,7 @@ import { MediaItem } from "@/lib/domain/typings";
 import { Calendar, MapPin, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
+import { tmdbImage } from "@/tmdb/utils";
 import { notFound } from "next/navigation";
 import { PersonFilmography } from "./client-filmography";
 
@@ -126,7 +127,7 @@ export default async function PersonPage(props: PersonPageProps) {
                 <div className="rounded-lg overflow-hidden shadow-xl w-[280px] sm:w-[320px] lg:w-full">
                   {person.profile_path ? (
                     <Image
-                      src={`https://image.tmdb.org/t/p/w500${person.profile_path}`}
+                      src={tmdbImage.profile(person.profile_path, "h632")}
                       alt={person.name || "Person"}
                       width={500}
                       height={750}

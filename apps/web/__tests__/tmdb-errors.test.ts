@@ -1,7 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { isTmdbNotFoundError } from "@/lib/tmdb-errors";
+import { isTmdbNotFoundError, TmdbHttpError } from "@/lib/tmdb-errors";
 
 describe("isTmdbNotFoundError", () => {
+  test("detects TmdbHttpError instances", () => {
+    expect(isTmdbNotFoundError(new TmdbHttpError(404, "not found"))).toBe(true);
+    expect(isTmdbNotFoundError(new TmdbHttpError(500, "server error"))).toBe(
+      false,
+    );
+  });
+
   test("detects moviedb-promise axios errors with top-level status", () => {
     expect(
       isTmdbNotFoundError({

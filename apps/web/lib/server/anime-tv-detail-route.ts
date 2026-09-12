@@ -2,13 +2,13 @@ import {
   buildAnilistTvDetailHref,
   fromAnilistTvRouteId,
   isAnimeAnilistRouteId,
+  isBareAnilistRouteId,
   parseAnimeAnilistRouteId,
   toAnilistTvRouteSlug,
 } from "@/lib/anilist-route-id";
 import { resolveAnilistMovieTmdbRoute } from "@/lib/anilist-movie-route";
 import { resolveCanonicalAnilistRoute } from "@/lib/anilist-tv-detail";
-import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
-import { resolveTmdbToAnilistFromMappings } from "@/lib/mal/id-resolver";
+import { resolveTmdbShowToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -64,12 +64,8 @@ export async function resolveAnilistTvDetailRedirects(
       });
       redirect(appendSearchParams(canonicalHref, requestSearchParams));
     }
-  } else {
-    const mappedAnilistId =
-      (await getAnilistIdFromFribb(entryAnilistId, "tv")) ??
-      (await resolveTmdbToAnilistFromMappings(entryAnilistId, "tv")) ??
-      (await getAnilistIdFromFribb(entryAnilistId, "movie")) ??
-      (await resolveTmdbToAnilistFromMappings(entryAnilistId, "movie"));
+  } else if (isBareAnilistRouteId(id)) {
+    const mappedAnilistId = await resolveTmdbShowToAnilistId(entryAnilistId);
 
     if (mappedAnilistId && mappedAnilistId !== entryAnilistId) {
       redirect(

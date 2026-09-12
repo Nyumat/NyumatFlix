@@ -328,6 +328,7 @@ export function HeroContent({
               />
             )}
             <button
+              type="button"
               onClick={() => {
                 if (isPlayingTrailer && youtubePlayer) {
                   youtubePlayer.destroy();
@@ -335,7 +336,7 @@ export function HeroContent({
                 }
                 handleTrailerEnded();
               }}
-              className="group relative bg-background/90 hover:bg-background backdrop-blur-md transition-all duration-200 rounded-full p-2.5 sm:p-3 text-foreground border border-border/50 hover:border-border shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+              className="group relative shrink-0 bg-background/90 hover:bg-background backdrop-blur-md transition-all duration-200 rounded-full p-2.5 sm:p-3 text-foreground border border-border/50 hover:border-border shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 focus:outline-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
               aria-label={isPlayingTrailer ? "Stop trailer" : "Close video"}
             >
               <X

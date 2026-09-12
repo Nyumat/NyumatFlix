@@ -1,3 +1,4 @@
+import { scrapeCatalogTitle } from "./catalog-title";
 import type { ScrapeMediaInput, ScrapeMediaType } from "./types";
 import {
   getWingsApiRuntime,
@@ -56,7 +57,7 @@ export const wingsSourceUrl = (
   query: WingsSourceQuery,
 ): string => {
   const params = new URLSearchParams({
-    title: query.title,
+    title: scrapeCatalogTitle(query.title, query.year),
     mediaType: query.mediaType,
     year: query.year,
     episodeId: query.episodeId,

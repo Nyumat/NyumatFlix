@@ -11,7 +11,6 @@ import {
   resolveResumeTime,
   type TvEpisodeCoords,
 } from "@/lib/playback/progress-storage";
-import { getVidsrcLastTvEpisode } from "@/lib/playback/recently-watched";
 
 export const normalizeTvContentKey = (id: string | number): number | null => {
   const asString = String(id);
@@ -65,6 +64,17 @@ const pickNewestTvCoords = (
   };
 };
 
+export function hasTvAutoplayEligibility(
+  watchlistItem?: WatchlistItem | null,
+  localCoords?: LocalTvWatchCoords | null,
+): boolean {
+  if (localCoords) {
+    return true;
+  }
+
+  return watchlistItem != null;
+}
+
 export function resolveLocalTvWatchCoords(
   contentId: number,
 ): LocalTvWatchCoords | null {
@@ -76,7 +86,6 @@ export function resolveLocalTvWatchCoords(
   return pickNewestTvCoords([
     getRememberedLastTvEpisode(contentKey),
     getLatestTvPlaybackCoords(contentKey),
-    getVidsrcLastTvEpisode(contentKey),
   ]);
 }
 

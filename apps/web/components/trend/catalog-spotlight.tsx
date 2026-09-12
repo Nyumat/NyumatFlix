@@ -248,7 +248,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
 
           <div className="flex flex-col items-center gap-3 pt-2 sm:flex-row md:justify-start">
             <Link
-              href={`${pages.tv.root.link}/${item.id}?autoplay=true`}
+              href={`${pages.tv.root.link}/${item.id}`}
               className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/60 bg-white px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
             >
               <Play className="mr-2 size-4 fill-black text-black" />

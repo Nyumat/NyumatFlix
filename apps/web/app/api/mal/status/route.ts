@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { accounts, db } from "@/db/schema";
+import { accounts, db } from "@/db";
 import {
   getMalUserProfile,
   getValidMalAccessToken,

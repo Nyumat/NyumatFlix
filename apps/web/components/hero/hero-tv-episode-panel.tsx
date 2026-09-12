@@ -26,7 +26,10 @@ import {
 } from "@/lib/anime/tmdb-anilist-map";
 import { readMappedTmdbTvIdFromMedia } from "@/lib/tv-playback-tmdb-id";
 import { normalizeTvContentKey } from "@/lib/tv-watch-target";
-import { resolveEpisodeThumbnailUrl } from "@/lib/anime/episode-thumbnail-url";
+import {
+  resolveEpisodeThumbnailUrl,
+  isPlaceholderEpisodeName,
+} from "@/lib/anime/episode-thumbnail-url";
 import { resolveEpisodeAnimeSelection } from "@/lib/anime/episode-playback-source";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
@@ -41,7 +44,12 @@ import { useLocalTvWatchCoords } from "@/hooks/use-local-tv-watch-coords";
 import { TvEpisodesPanelSkeleton } from "@/components/tvshow/tv-detail-bootstrap-context";
 import { queryStaleTime } from "@/lib/cache-policy";
 import { fetchTvAllSeasonsClient } from "@/lib/media-detail-tab-client";
-import { buildEpisodeIndex, type IndexedEpisode } from "@/lib/tv-episode-index";
+import {
+  buildEpisodeIndex,
+  maxLoadedEpisodeNumber,
+  shouldPreferSeasonDetails,
+  type IndexedEpisode,
+} from "@/lib/tv-episode-index";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Episode, SeasonDetails, TvShowDetails } from "@/lib/domain/typings";
@@ -77,10 +85,15 @@ const seasonHasLoadedEpisodes = (
   seasonNumber: number,
 ): boolean => (seasons[seasonNumber]?.episodes?.length ?? 0) > 0;
 
-const fetchKitsuEpisodeThumbnails = async (
+type KitsuEpisodeAssets = {
+  thumbnails: Record<number, string>;
+  titles: Record<number, string>;
+};
+
+const fetchKitsuEpisodeAssets = async (
   tvId: string,
   request: KitsuThumbnailRequest,
-): Promise<Record<number, string>> => {
+): Promise<KitsuEpisodeAssets> => {
   const params = new URLSearchParams(
     request.kind === "anilist"
       ? { anilistId: String(request.anilistId) }
@@ -94,13 +107,15 @@ const fetchKitsuEpisodeThumbnails = async (
 
   const response = await fetch(`/api/anime/episode-thumbnails?${params}`);
   if (!response.ok) {
-    return {};
+    return { thumbnails: {}, titles: {} };
   }
 
   const payload = (await response.json()) as {
     thumbnails?: Record<string, string>;
+    titles?: Record<string, string>;
   };
   const thumbnails: Record<number, string> = {};
+  const titles: Record<number, string> = {};
 
   for (const [key, value] of Object.entries(payload.thumbnails ?? {})) {
     const episodeNumber = Number(key);
@@ -109,7 +124,14 @@ const fetchKitsuEpisodeThumbnails = async (
     }
   }
 
-  return thumbnails;
+  for (const [key, value] of Object.entries(payload.titles ?? {})) {
+    const episodeNumber = Number(key);
+    if (Number.isInteger(episodeNumber) && episodeNumber > 0 && value) {
+      titles[episodeNumber] = value;
+    }
+  }
+
+  return { thumbnails, titles };
 };
 
 export function HeroTvEpisodePanel({
@@ -223,9 +245,7 @@ export function HeroTvEpisodePanel({
         const seasonNumber = Number(key);
         if (!Number.isInteger(seasonNumber) || seasonNumber <= 0) continue;
         const existing = merged[seasonNumber];
-        if (
-          (existing?.episodes?.length ?? 0) < (season.episodes?.length ?? 0)
-        ) {
+        if (shouldPreferSeasonDetails(existing, season)) {
           merged[seasonNumber] = season;
         }
       }
@@ -291,23 +311,6 @@ export function HeroTvEpisodePanel({
     selectedSeason,
   );
 
-  const selectedSeasonQuery = useQuery({
-    queryKey: queryKeys.tvSeasonRoute(tvId, selectedSeason),
-    queryFn: async () => {
-      const seasonDetail = await fetchSeasonDetails(tvId, selectedSeason);
-      if (!seasonDetail?.episodes?.length) {
-        throw new Error(`Season ${selectedSeason} has no episodes`);
-      }
-      return seasonDetail;
-    },
-    enabled:
-      isHydrated &&
-      seasonNumbers.includes(selectedSeason) &&
-      !selectedSeasonHasEpisodes,
-    staleTime: queryStaleTime(60 * 60 * 1000),
-    retry: 2,
-  });
-
   const animeMapTmdbShowId =
     typeof mappedTmdbTvId === "number" && mappedTmdbTvId > 0
       ? mappedTmdbTvId
@@ -340,6 +343,42 @@ export function HeroTvEpisodePanel({
   });
 
   const animeSegments = animeSeasonMapQuery.data?.segments ?? [];
+  const requiredMaxEpisode = useMemo(
+    () =>
+      animeSegments.length > 0
+        ? Math.max(...animeSegments.map((segment) => segment.endEpisode))
+        : 0,
+    [animeSegments],
+  );
+  const loadedMaxEpisode = useMemo(
+    () => maxLoadedEpisodeNumber(loadedSeasonDetails[selectedSeason]?.episodes),
+    [loadedSeasonDetails, selectedSeason],
+  );
+  const seasonEpisodeListIncomplete =
+    requiredMaxEpisode > 0 &&
+    animeSeasonMapQuery.isSuccess &&
+    (loadedMaxEpisode === 0 || loadedMaxEpisode < requiredMaxEpisode);
+
+  const selectedSeasonQuery = useQuery({
+    queryKey: [
+      ...queryKeys.tvSeasonRoute(tvId, selectedSeason),
+      requiredMaxEpisode,
+    ],
+    queryFn: async () => {
+      const seasonDetail = await fetchSeasonDetails(tvId, selectedSeason);
+      if (!seasonDetail?.episodes?.length) {
+        throw new Error(`Season ${selectedSeason} has no episodes`);
+      }
+      return seasonDetail;
+    },
+    enabled:
+      isHydrated &&
+      seasonNumbers.includes(selectedSeason) &&
+      (!selectedSeasonHasEpisodes || seasonEpisodeListIncomplete),
+    staleTime: queryStaleTime(60 * 60 * 1000),
+    retry: 2,
+  });
+
   const listPresentation = episodeListPresentation({
     tmdbSeasonCount: seasonNumbers.length,
     segmentCount: animeSegments.length,
@@ -370,10 +409,16 @@ export function HeroTvEpisodePanel({
   useEffect(() => {
     const seasonDetail = selectedSeasonQuery.data;
     if (!seasonDetail) return;
-    setLoadedSeasonDetails((current) => ({
-      ...current,
-      [seasonDetail.season_number]: seasonDetail,
-    }));
+    setLoadedSeasonDetails((current) => {
+      const existing = current[seasonDetail.season_number];
+      if (!shouldPreferSeasonDetails(existing, seasonDetail)) {
+        return current;
+      }
+      return {
+        ...current,
+        [seasonDetail.season_number]: seasonDetail,
+      };
+    });
   }, [selectedSeasonQuery.data]);
 
   const seasonEpisodes = useMemo(() => {
@@ -382,34 +427,17 @@ export function HeroTvEpisodePanel({
     const segment = animeSegments[selectedAnimeSegment];
     if (!segment) return episodes;
 
-    const maxSegmentEnd = Math.max(
-      ...animeSegments.map((entry) => entry.endEpisode),
-      0,
-    );
-    const lastSegmentIndex = animeSegments.length - 1;
-
     const filtered = episodes.filter(
       (episode) =>
         episode.episode_number >= segment.startEpisode &&
         episode.episode_number <= segment.endEpisode,
     );
 
-    if (selectedAnimeSegment !== lastSegmentIndex) {
+    if (selectedAnimeSegment !== animeSegments.length - 1) {
       return filtered.length > 0 ? filtered : episodes;
     }
 
-    const trailingAppendix = episodes.filter(
-      (episode) => episode.episode_number > maxSegmentEnd,
-    );
-    if (trailingAppendix.length === 0) {
-      return filtered.length > 0 ? filtered : episodes;
-    }
-
-    const seen = new Set(filtered.map((episode) => episode.id));
-    return [
-      ...filtered,
-      ...trailingAppendix.filter((episode) => !seen.has(episode.id)),
-    ];
+    return filtered;
   }, [
     animeSegments,
     loadedSeasonDetails,
@@ -438,9 +466,7 @@ export function HeroTvEpisodePanel({
         const seasonNumber = Number(key);
         if (!Number.isInteger(seasonNumber) || seasonNumber <= 0) continue;
         const existing = merged[seasonNumber];
-        if (
-          (existing?.episodes?.length ?? 0) < (season.episodes?.length ?? 0)
-        ) {
+        if (shouldPreferSeasonDetails(existing, season)) {
           merged[seasonNumber] = season;
         }
       }
@@ -568,7 +594,7 @@ export function HeroTvEpisodePanel({
               request.sourceAnilistId,
               request.tmdbSeasonCount,
             ],
-      queryFn: () => fetchKitsuEpisodeThumbnails(tvId, request),
+      queryFn: () => fetchKitsuEpisodeAssets(tvId, request),
       enabled: kitsuThumbnailsEnabled,
       staleTime: queryStaleTime(24 * 60 * 60 * 1000),
     })),
@@ -578,7 +604,7 @@ export function HeroTvEpisodePanel({
     const map: Record<number, Record<number, string>> = {};
     for (const [index, request] of kitsuThumbnailRequests.entries()) {
       if (request.kind !== "tmdb") continue;
-      const data = kitsuThumbnailQueries[index]?.data;
+      const data = kitsuThumbnailQueries[index]?.data?.thumbnails;
       if (data) {
         map[request.seasonNumber] = data;
       }
@@ -590,7 +616,7 @@ export function HeroTvEpisodePanel({
     const map: Record<number, Record<number, string>> = {};
     for (const [index, request] of kitsuThumbnailRequests.entries()) {
       if (request.kind !== "anilist") continue;
-      const data = kitsuThumbnailQueries[index]?.data;
+      const data = kitsuThumbnailQueries[index]?.data?.thumbnails;
       if (data) {
         map[request.anilistId] = data;
       }
@@ -598,8 +624,37 @@ export function HeroTvEpisodePanel({
     return map;
   }, [kitsuThumbnailQueries, kitsuThumbnailRequests]);
 
-  const resolveKitsuThumbnail = useCallback(
-    (episode: Episode, seasonNumber: number) => {
+  const kitsuTitlesBySeason = useMemo(() => {
+    const map: Record<number, Record<number, string>> = {};
+    for (const [index, request] of kitsuThumbnailRequests.entries()) {
+      if (request.kind !== "tmdb") continue;
+      const data = kitsuThumbnailQueries[index]?.data?.titles;
+      if (data) {
+        map[request.seasonNumber] = data;
+      }
+    }
+    return map;
+  }, [kitsuThumbnailQueries, kitsuThumbnailRequests]);
+
+  const kitsuTitlesByAnilist = useMemo(() => {
+    const map: Record<number, Record<number, string>> = {};
+    for (const [index, request] of kitsuThumbnailRequests.entries()) {
+      if (request.kind !== "anilist") continue;
+      const data = kitsuThumbnailQueries[index]?.data?.titles;
+      if (data) {
+        map[request.anilistId] = data;
+      }
+    }
+    return map;
+  }, [kitsuThumbnailQueries, kitsuThumbnailRequests]);
+
+  const lookupKitsuAsset = useCallback(
+    (
+      byAnilist: Record<number, Record<number, string>>,
+      bySeason: Record<number, Record<number, string>>,
+      episode: Episode,
+      seasonNumber: number,
+    ) => {
       if (splitCour && seasonNumber === selectedSeason) {
         const segment = findSegmentForEpisode(
           animeSegments,
@@ -608,32 +663,38 @@ export function HeroTvEpisodePanel({
         if (!segment) return null;
         const relativeEpisode =
           episode.episode_number - segment.startEpisode + 1;
-        return (
-          kitsuThumbnailsByAnilist[segment.anilistMediaId]?.[relativeEpisode] ??
-          null
-        );
+        return byAnilist[segment.anilistMediaId]?.[relativeEpisode] ?? null;
       }
 
       if (isAnilistRoute && routeAnilistId !== null) {
-        return (
-          kitsuThumbnailsByAnilist[routeAnilistId]?.[episode.episode_number] ??
-          null
-        );
+        return byAnilist[routeAnilistId]?.[episode.episode_number] ?? null;
       }
 
-      return (
-        kitsuThumbnailsBySeason[seasonNumber]?.[episode.episode_number] ?? null
-      );
+      return bySeason[seasonNumber]?.[episode.episode_number] ?? null;
     },
-    [
-      animeSegments,
-      isAnilistRoute,
-      kitsuThumbnailsByAnilist,
-      kitsuThumbnailsBySeason,
-      routeAnilistId,
-      selectedSeason,
-      splitCour,
-    ],
+    [animeSegments, isAnilistRoute, routeAnilistId, selectedSeason, splitCour],
+  );
+
+  const resolveKitsuThumbnail = useCallback(
+    (episode: Episode, seasonNumber: number) =>
+      lookupKitsuAsset(
+        kitsuThumbnailsByAnilist,
+        kitsuThumbnailsBySeason,
+        episode,
+        seasonNumber,
+      ),
+    [kitsuThumbnailsByAnilist, kitsuThumbnailsBySeason, lookupKitsuAsset],
+  );
+
+  const resolveKitsuTitle = useCallback(
+    (episode: Episode, seasonNumber: number) =>
+      lookupKitsuAsset(
+        kitsuTitlesByAnilist,
+        kitsuTitlesBySeason,
+        episode,
+        seasonNumber,
+      ),
+    [kitsuTitlesByAnilist, kitsuTitlesBySeason, lookupKitsuAsset],
   );
 
   const displayedList: IndexedEpisode[] = useMemo(() => {
@@ -643,7 +704,11 @@ export function HeroTvEpisodePanel({
           seasonNumber: selectedSeason,
         }))
       : episodeIndex.filter(({ episode, seasonNumber }) => {
-          const titleLower = (episode.name || "").toLowerCase();
+          const kitsuTitle = resolveKitsuTitle(episode, seasonNumber);
+          const titleLower = [episode.name, kitsuTitle]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
           return matchesEpisodeSearch(
             episode,
             seasonNumber,
@@ -663,6 +728,7 @@ export function HeroTvEpisodePanel({
     episodeIndex,
     parsedQuery,
     query,
+    resolveKitsuTitle,
     seasonEpisodes,
     selectedSeason,
     sortDirection,
@@ -756,9 +822,20 @@ export function HeroTvEpisodePanel({
     return null;
   }
 
-  if (!isHydrated) {
+  const hasBootstrappedEpisodes = seasonNumbers.some((seasonNumber) =>
+    seasonHasLoadedEpisodes(loadedSeasonDetails, seasonNumber),
+  );
+
+  if (!isHydrated && !hasBootstrappedEpisodes) {
     return <TvEpisodesPanelSkeleton />;
   }
+
+  const showSeasonEpisodeSkeleton =
+    selectedSeasonQuery.isLoading ||
+    (selectedSeasonQuery.isFetching && !selectedSeasonHasEpisodes) ||
+    (seasonEpisodeListIncomplete &&
+      displayedList.length === 0 &&
+      selectedSeasonQuery.isFetching);
 
   return (
     <div className={cn("flex h-[min(680px,72vh)] w-full flex-col gap-5")}>
@@ -882,7 +959,7 @@ export function HeroTvEpisodePanel({
 
       <ScrollArea className="min-h-0 flex-1 pr-1">
         <div className="space-y-3 pb-1 pt-0.5">
-          {selectedSeasonQuery.isPending || selectedSeasonQuery.isFetching ? (
+          {showSeasonEpisodeSkeleton ? (
             Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
@@ -916,8 +993,14 @@ export function HeroTvEpisodePanel({
                 stillPath: episode.still_path,
                 kitsuUrl: resolveKitsuThumbnail(episode, epSeason),
                 fallbackPosterPath: details.poster_path,
+                fallbackBackdropPath: details.backdrop_path,
                 tmdbImageUrl: tmdbImage.url,
               });
+              const kitsuTitle = resolveKitsuTitle(episode, epSeason);
+              const displayName =
+                isPlaceholderEpisodeName(episode.name) && kitsuTitle
+                  ? kitsuTitle
+                  : episode.name;
               return (
                 <button
                   key={`${epSeason}-${episode.id}`}
@@ -967,7 +1050,7 @@ export function HeroTvEpisodePanel({
                         active && "text-primary",
                       )}
                     >
-                      {episode.name}
+                      {displayName}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                       {episode.runtime ? (

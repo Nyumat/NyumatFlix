@@ -4,6 +4,8 @@ import { resolveAnimeSearchContext } from "../anilist-meta";
 import { isExactAnimeTitleMatch } from "../title-match";
 import type { AnimeScrapeInput, AnimeScrapeResult } from "../types";
 import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../../fetch";
+import { probeScrapePlaybackPath } from "../../playback-probe";
+import { trySourcesUntil } from "../../source-resolve";
 import type { ScrapeSubtitle } from "../../types";
 
 const KAA_ORIGIN = "https://kaa.lt";
@@ -31,8 +33,23 @@ export const selectKaaSearchResult = (
 type KaaEpisodeList = {
   result?: Array<{
     slug?: string;
-    episode_number?: number;
+    episode_number?: number | string;
   }>;
+  pages?: number | string;
+  last_page?: number | string;
+};
+
+const MAX_KAA_EPISODE_PAGES = 40;
+
+const asFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 };
 
 type KaaEpisodeDetail = {
@@ -42,14 +59,75 @@ type KaaEpisodeDetail = {
   servers?: Array<{ name?: string; src?: string }>;
 };
 
-const findEpisodeSlug = (
+export const matchKaaEpisodeSlug = (
   episodes: KaaEpisodeList["result"],
   episodeNumber: number,
 ): string | null => {
   const match = episodes?.find(
-    (entry) => entry.episode_number === episodeNumber,
+    (entry) => asFiniteNumber(entry.episode_number) === episodeNumber,
   );
   return match?.slug ? `ep-${episodeNumber}-${match.slug}` : null;
+};
+
+export const kaaEpisodeListPageCount = (payload: {
+  pages?: unknown;
+  last_page?: unknown;
+}): number => {
+  const pages = asFiniteNumber(payload.pages);
+  const lastPage = asFiniteNumber(payload.last_page);
+  const count = pages ?? lastPage ?? 1;
+  return Number.isInteger(count) && count > 0
+    ? Math.min(count, MAX_KAA_EPISODE_PAGES)
+    : 1;
+};
+
+const resolveKaaEpisodeSlug = async (
+  slug: string,
+  lang: "ja-JP" | "en-US",
+  episodeNumber: number,
+): Promise<string | null> => {
+  let advertisedPages: number | null = null;
+
+  for (let page = 1; page <= MAX_KAA_EPISODE_PAGES; page += 1) {
+    const episodesResponse = await scrapeFetch(
+      `${KAA_ORIGIN}/api/show/${slug}/episodes?page=${page}&lang=${lang}`,
+      { headers: { Referer: `${KAA_ORIGIN}/` } },
+    );
+
+    if (!episodesResponse.ok) {
+      await cancelResponseBody(episodesResponse);
+      return null;
+    }
+
+    const episodesPayload = (await episodesResponse.json()) as KaaEpisodeList;
+    if (page === 1) {
+      const pages = asFiniteNumber(episodesPayload.pages);
+      const lastPage = asFiniteNumber(episodesPayload.last_page);
+      const count = pages ?? lastPage;
+      advertisedPages =
+        count !== null && Number.isInteger(count) && count > 0
+          ? Math.min(count, MAX_KAA_EPISODE_PAGES)
+          : null;
+    }
+
+    const episodeSlug = matchKaaEpisodeSlug(
+      episodesPayload.result,
+      episodeNumber,
+    );
+    if (episodeSlug) {
+      return episodeSlug;
+    }
+
+    const pageResults = episodesPayload.result ?? [];
+    if (pageResults.length === 0) {
+      return null;
+    }
+    if (advertisedPages !== null && page >= advertisedPages) {
+      return null;
+    }
+  }
+
+  return null;
 };
 
 const normalizeCatPlayerUrl = (src: string): string => {
@@ -130,26 +208,44 @@ type KaaLangStreamResult =
   | { ok: true; value: KaaLangStream }
   | { ok: false; error: string };
 
+const extractKaaStreamFromServer = async (
+  server: KaaServer & { src: string },
+): Promise<KaaLangStream | null> => {
+  const playerUrl = normalizeCatPlayerUrl(server.src);
+  const playerPage = await scrapeFetchText(playerUrl, {
+    Referer: `${KAA_ORIGIN}/`,
+  });
+
+  const props = parseCatPlayerProps(playerPage.text);
+  let manifest = typeof props?.manifest === "string" ? props.manifest : null;
+
+  if (!manifest) {
+    const fallbackUrls = extractM3u8Urls(playerPage.text);
+    manifest =
+      fallbackUrls.find((url) => /\/master\.m3u8(?:[?#]|$)/i.test(url)) ??
+      fallbackUrls[0] ??
+      null;
+  }
+
+  if (!manifest) {
+    return null;
+  }
+
+  const streamUrl = manifest.startsWith("//") ? `https:${manifest}` : manifest;
+
+  return {
+    url: streamUrl,
+    subtitles: mapCatPlayerSubtitles(props?.subtitles),
+  };
+};
+
 const resolveKaaLangStream = async (
   slug: string,
   lang: "ja-JP" | "en-US",
   episodeNumber: number,
+  signal?: AbortSignal,
 ): Promise<KaaLangStreamResult> => {
-  const episodesResponse = await scrapeFetch(
-    `${KAA_ORIGIN}/api/show/${slug}/episodes?page=1&lang=${lang}`,
-    { headers: { Referer: `${KAA_ORIGIN}/` } },
-  );
-
-  if (!episodesResponse.ok) {
-    await cancelResponseBody(episodesResponse);
-    return {
-      ok: false,
-      error: `KAA episodes failed (${episodesResponse.status})`,
-    };
-  }
-
-  const episodesPayload = (await episodesResponse.json()) as KaaEpisodeList;
-  const episodeSlug = findEpisodeSlug(episodesPayload.result, episodeNumber);
+  const episodeSlug = await resolveKaaEpisodeSlug(slug, lang, episodeNumber);
 
   if (!episodeSlug) {
     return { ok: false, error: `KAA episode ${episodeNumber} not listed` };
@@ -170,42 +266,35 @@ const resolveKaaLangStream = async (
 
   const detailPayload = (await detailResponse.json()) as KaaEpisodeDetail;
   const servers = detailPayload.result?.servers ?? detailPayload.servers ?? [];
+  const ranked = rankKaaServers(servers);
 
-  for (const server of rankKaaServers(servers)) {
-    const playerUrl = normalizeCatPlayerUrl(server.src);
-    const playerPage = await scrapeFetchText(playerUrl, {
-      Referer: `${KAA_ORIGIN}/`,
-    });
+  const winner = await trySourcesUntil(ranked, async (server) => {
+    try {
+      const stream = await extractKaaStreamFromServer(server);
+      if (!stream) {
+        return { ok: false };
+      }
 
-    const props = parseCatPlayerProps(playerPage.text);
-    let manifest = typeof props?.manifest === "string" ? props.manifest : null;
+      const playable = await probeScrapePlaybackPath(
+        {
+          url: stream.url,
+          referer: KAA_STREAM_REFERER,
+        },
+        "hls",
+        { signal },
+      );
 
-    if (!manifest) {
-      const fallbackUrls = extractM3u8Urls(playerPage.text);
-      manifest =
-        fallbackUrls.find((url) => /\/master\.m3u8(?:[?#]|$)/i.test(url)) ??
-        fallbackUrls[0] ??
-        null;
+      return playable ? { ok: true, value: stream } : { ok: false };
+    } catch {
+      return { ok: false };
     }
+  });
 
-    if (!manifest) {
-      continue;
-    }
-
-    const streamUrl = manifest.startsWith("//")
-      ? `https:${manifest}`
-      : manifest;
-
-    return {
-      ok: true,
-      value: {
-        url: streamUrl,
-        subtitles: mapCatPlayerSubtitles(props?.subtitles),
-      },
-    };
+  if (!winner) {
+    return { ok: false, error: "KAA servers failed playback-path probe" };
   }
 
-  return { ok: false, error: "KAA cat-player URL missing" };
+  return { ok: true, value: winner };
 };
 
 export async function scrapeKickassanime(
@@ -254,6 +343,7 @@ export async function scrapeKickassanime(
       slug,
       primaryLang,
       input.episodeNumber,
+      input.signal,
     );
 
     if (!primary.ok) {
@@ -264,6 +354,7 @@ export async function scrapeKickassanime(
     return {
       ok: true,
       providerId,
+      validated: true,
       streamUrl: primary.value.url,
       streamKind: "hls",
       referer: KAA_STREAM_REFERER,
