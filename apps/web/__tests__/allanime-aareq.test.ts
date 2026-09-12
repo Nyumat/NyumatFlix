@@ -53,6 +53,31 @@ describe("allanime aaReq helpers", () => {
     ).toBe("351b496f677e5d86758b86ce0546bd64a9fabb7769adf6813d294f1756fb4d23");
   });
 
+  it("builds mkissa colon-ordered boot tokens with live mask params", () => {
+    const maskParts = [
+      "Xe0sbWji894=",
+      "kDl8ZYLJjcY=",
+      "Zp9QHHse7BY=",
+      "UscVFCx+xrI=",
+    ] as const;
+    const maskParams = {
+      saltMul: 241,
+      saltAdd: 209,
+      fragMul: 210,
+      fragAdd: 42,
+    };
+    const maskKey = deriveAllanimeMaskKey(maskParts, "168", maskParams);
+    expect(maskKey.toString("hex")).toBe(
+      "bd33f386638e49a623be5721d45584ff15bb5abcaacffd9c7c0baced29108a18",
+    );
+    expect(
+      buildAllanimeBootToken(maskKey, "168", 2955, ALLANIME_EPISODE_LANE, {
+        bootPrefix: "vmcFXS3Dmg:",
+        messageJoin: ":",
+      }),
+    ).toBe("07bb64a548d57e794eb33543cc2cad32f149fa768b17f01166e67e3aadeadab6");
+  });
+
   it("still discovers legacy buildId ternaries", () => {
     expect(extractAllanimeBuildId(`Am=typeof x!=="string"?"119":""`)).toBe(
       "119",
