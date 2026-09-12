@@ -25,6 +25,7 @@
 - [TMDb API](https://www.themoviedb.org/documentation/api)
 - [Biome](https://biomejs.dev/) -->
 
+<!--
 ## 🏃🏾‍♂️ Run NyumatFlix Locally
 
 > [!IMPORTANT]
@@ -113,6 +114,7 @@ bun run dev
 First run may build `@nyumatflix/player` via Docker if `public/vendor/player/` is missing.
 
 8. Open [http://localhost:3000](http://localhost:3000)
+-->
 
 <!-- ## Production infrastructure
 
@@ -173,6 +175,7 @@ docker compose \
 
 Set `APP_URL`, `AUTH_URL`, and `NEXTAUTH_URL` to your public origin in production. `AUTH_URL` and `NEXTAUTH_URL` default to `APP_URL` in Docker Compose, so most deployments can set all three to the same value. Server-only values such as `DATABASE_URL`, `AUTH_SECRET`, `TMDB_API_KEY`, and `AUTH_RESEND_KEY` are runtime secrets and should never be copied into the Docker image. -->
 
+<!--
 ## FAQ
 
 ### How do I add a new stream provider?
@@ -237,3 +240,4 @@ Contributions, feedback, and suggestions are always welcome here. Please, if you
 ## 🙏🏿 Support the project
 
 If you find the project useful, consider starring the repo! I appreciate all the support and feedback I've received from the community over the years developing this project.
+-->
