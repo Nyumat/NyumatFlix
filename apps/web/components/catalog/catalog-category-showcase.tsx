@@ -1,57 +1,91 @@
-import { Suspense } from "react";
+"use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
 import { TrendCarousel } from "@/components/trend/trend-client";
-import { TMDB_WATCH_REGION } from "@/lib/constants";
-import { fetchCatalogShowcaseRows } from "@/lib/catalog-showcase-fetch";
 import type { MovieWithMediaType, TvShowWithMediaType } from "@/tmdb/models";
 import type { MediaItem } from "@/lib/domain/typings";
+import { useEffect, useMemo, useState } from "react";
 
-const toMovieWithType = (items: MediaItem[]): MovieWithMediaType[] =>
-  items.map((item) => ({
-    ...item,
-    media_type: "movie" as const,
-  })) as MovieWithMediaType[];
+const SHOWCASE_START_DELAY_MS = 2500;
+const SHOWCASE_IDLE_TIMEOUT_MS = 2000;
 
-const toTvWithType = (items: MediaItem[]): TvShowWithMediaType[] =>
-  items.map((item) => ({
-    ...item,
-    media_type: "tv" as const,
-  })) as TvShowWithMediaType[];
+type CatalogShowcaseRow = {
+  rowId: string;
+  title: string;
+  href: string;
+  items: MediaItem[];
+};
 
-const CatalogCategoryShowcaseSkeleton = () => (
-  <div className="space-y-10" aria-hidden>
-    {[0, 1, 2].map((key) => (
-      <div key={key} className="space-y-4">
-        <Skeleton className="h-8 w-48 rounded-lg" />
-        <div className="flex gap-3 overflow-hidden">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton
-              key={i}
-              className="aspect-poster w-28 shrink-0 rounded-lg sm:w-32"
-            />
-          ))}
-        </div>
-      </div>
-    ))}
-  </div>
-);
+type CatalogShowcaseResponse = {
+  rows?: CatalogShowcaseRow[];
+};
 
-async function CatalogCategoryShowcaseInner({
+export const CatalogCategoryShowcase = ({
   pageKey,
   excludeIds = [],
 }: {
   pageKey: "movies" | "tv";
   excludeIds?: number[];
-}) {
+}) => {
   const mediaType = pageKey === "movies" ? "movie" : "tv";
-  const rowsData = await fetchCatalogShowcaseRows(
-    pageKey,
-    TMDB_WATCH_REGION,
-    excludeIds ?? [],
+  const excludeIdsKey = useMemo(
+    () => excludeIds.filter((id) => Number.isInteger(id) && id > 0).join(","),
+    [excludeIds],
   );
+  const [rowsData, setRowsData] = useState<CatalogShowcaseRow[]>([]);
 
-  if (rowsData.length === 0) return null;
+  useEffect(() => {
+    const controller = new AbortController();
+    let startDelayId: number | null = null;
+    let idleId: number | null = null;
+
+    const loadRows = async () => {
+      const params = new URLSearchParams({ pageKey });
+      if (excludeIdsKey) {
+        params.set("excludeIds", excludeIdsKey);
+      }
+
+      try {
+        const response = await fetch(`/api/catalog/showcase?${params}`, {
+          headers: { Accept: "application/json" },
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as CatalogShowcaseResponse;
+        setRowsData(Array.isArray(payload.rows) ? payload.rows : []);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error("Catalog showcase load error:", error);
+        }
+      }
+    };
+
+    startDelayId = window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === "function") {
+        idleId = window.requestIdleCallback(
+          () => {
+            void loadRows();
+          },
+          { timeout: SHOWCASE_IDLE_TIMEOUT_MS },
+        );
+        return;
+      }
+
+      void loadRows();
+    }, SHOWCASE_START_DELAY_MS);
+
+    return () => {
+      controller.abort();
+      if (startDelayId !== null) window.clearTimeout(startDelayId);
+      if (idleId !== null && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+    };
+  }, [excludeIdsKey, pageKey]);
+
+  if (rowsData.length === 0) {
+    return null;
+  }
 
   return (
     <>
@@ -59,8 +93,8 @@ async function CatalogCategoryShowcaseInner({
         if (row.items.length === 0) return null;
         const items =
           mediaType === "movie"
-            ? toMovieWithType(row.items)
-            : toTvWithType(row.items);
+            ? (row.items as MovieWithMediaType[])
+            : (row.items as TvShowWithMediaType[]);
         return (
           <TrendCarousel
             key={row.rowId}
@@ -70,21 +104,10 @@ async function CatalogCategoryShowcaseInner({
             link={row.href}
             items={items}
             compact
+            bleed
           />
         );
       })}
     </>
   );
-}
-
-export const CatalogCategoryShowcase = ({
-  pageKey,
-  excludeIds,
-}: {
-  pageKey: "movies" | "tv";
-  excludeIds?: number[];
-}) => (
-  <Suspense fallback={<CatalogCategoryShowcaseSkeleton />}>
-    <CatalogCategoryShowcaseInner excludeIds={excludeIds} pageKey={pageKey} />
-  </Suspense>
-);
+};

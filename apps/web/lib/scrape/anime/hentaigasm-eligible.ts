@@ -1,4 +1,4 @@
-import { requiresAdultAniListContent } from "@/lib/anilist";
+import { requiresAdultAniListContent } from "@/lib/anilist-shared";
 
 import type { AnilistMediaMeta } from "./anilist-meta";
 

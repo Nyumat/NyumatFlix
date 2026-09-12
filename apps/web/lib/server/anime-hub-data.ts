@@ -6,7 +6,7 @@ import {
   buildAniListUrl,
   type AniListMedia,
   type AniListSearchParams,
-} from "@/lib/anilist";
+} from "@/lib/anilist-shared";
 import {
   enrichAniListHubRow,
   enrichAniListSearchCatalogItems,

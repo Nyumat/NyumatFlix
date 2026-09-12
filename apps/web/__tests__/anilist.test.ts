@@ -2,7 +2,7 @@ import {
   ANIME_BROWSE_PATH,
   buildAniListUrl,
   requiresAdultAniListContent,
-} from "@/lib/anilist";
+} from "@/lib/anilist-shared";
 import { describe, expect, test } from "vitest";
 
 describe("AniList URL helpers", () => {

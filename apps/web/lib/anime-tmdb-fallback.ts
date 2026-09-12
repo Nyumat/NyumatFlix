@@ -1,9 +1,11 @@
+import "server-only";
+
 import {
   requiresAdultAniListContent,
   type AniListMedia,
   type AniListPage,
   type AniListSearchParams,
-} from "@/lib/anilist";
+} from "@/lib/anilist-shared";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { tmdb } from "@/tmdb/api";
 import type {

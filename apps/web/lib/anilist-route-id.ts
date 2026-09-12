@@ -1,5 +1,6 @@
 /** AniList-backed anime catalog routes use `anilist-{id}` slugs under `/anime/`. */
 
+import { isKitsuAnimeRouteId } from "@/lib/kitsu/route-id";
 import { isMalAnimeRouteId } from "@/lib/mal/route-id";
 import { isTmdbAnimeRouteId } from "@/lib/tmdb-anime-route-id";
 
@@ -15,7 +16,11 @@ export const isBareAnilistRouteId = (routeId: string): boolean =>
 
 /** Route ids for `/anime/[id]` detail pages (prefixed slug, legacy bare numeric, or negative). */
 export const isAnimeAnilistRouteId = (routeId: string): boolean => {
-  if (isMalAnimeRouteId(routeId) || isTmdbAnimeRouteId(routeId)) {
+  if (
+    isMalAnimeRouteId(routeId) ||
+    isTmdbAnimeRouteId(routeId) ||
+    isKitsuAnimeRouteId(routeId)
+  ) {
     return false;
   }
 
@@ -110,7 +115,9 @@ export const resolveTvDetailRouteId = (
   const routeSegment = match?.[1];
   if (
     routeSegment &&
-    (isMalAnimeRouteId(routeSegment) || isTmdbAnimeRouteId(routeSegment))
+    (isMalAnimeRouteId(routeSegment) ||
+      isTmdbAnimeRouteId(routeSegment) ||
+      isKitsuAnimeRouteId(routeSegment))
   ) {
     return routeSegment;
   }

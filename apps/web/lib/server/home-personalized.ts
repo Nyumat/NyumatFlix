@@ -3,7 +3,10 @@ import "server-only";
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { getCachedMovieDetail } from "@/lib/media-detail-cache";
-import type { BecauseYouWatchedResult } from "@/lib/personalization/because-you-watched";
+import type {
+  BecauseYouWatchedResult,
+  BecauseYouWatchedSeed,
+} from "@/lib/personalization/because-you-watched";
 import {
   buildAnimeUpNextHref,
   buildUpNextHref,
@@ -31,7 +34,7 @@ import {
   resolveEpisodeCheckForShow,
 } from "@/lib/server/episode-check-cache";
 import { getCoalescingMemoryCache } from "@/lib/cache/coalescing-memory-cache";
-import { firstNonNull, runInChunks } from "@/lib/server/chunked-parallel";
+import { runInChunks } from "@/lib/server/chunked-parallel";
 import {
   createServerRecentlyWatchedEnrichmentFetchers,
   createTvDetailFetcher,
@@ -44,7 +47,8 @@ import { takeUniqueByIdInOrder } from "@/lib/catalog-page-dedupe";
 import { tmdb } from "@/tmdb/api";
 import {
   BECAUSE_YOU_WATCHED_LIMIT,
-  BECAUSE_YOU_WATCHED_SEED_ATTEMPTS,
+  BECAUSE_YOU_WATCHED_SEED_FETCH_CHUNK_SIZE,
+  BECAUSE_YOU_WATCHED_SEED_LIMIT,
 } from "@/lib/personalization/because-you-watched";
 
 export type { PersonalizedHomeResponseWire as PersonalizedHomeResponse } from "@/lib/personalization/personalized-home-types";
@@ -127,7 +131,7 @@ const tryBecauseYouWatchedStub = async (
   stub: RecentlyWatchedStub,
   excludeIds: ReadonlySet<number>,
   fetchTv: TvDetailFetcher,
-): Promise<BecauseYouWatchedResult | null> => {
+): Promise<BecauseYouWatchedSeed | null> => {
   if (stub.mediaType === "movie") {
     const detail = await getCachedMovieDetail(String(stub.contentId), {
       append: "shell",
@@ -158,6 +162,7 @@ const tryBecauseYouWatchedStub = async (
     }
 
     return {
+      contentId: stub.contentId,
       seedTitle,
       mediaType: "movie",
       items,
@@ -191,6 +196,7 @@ const tryBecauseYouWatchedStub = async (
   }
 
   return {
+    contentId: stub.contentId,
     seedTitle,
     mediaType: "tv",
     items,
@@ -201,10 +207,26 @@ const fetchBecauseYouWatchedRow = async (
   stubs: RecentlyWatchedStub[],
   excludeIds: ReadonlySet<number>,
   fetchTv: TvDetailFetcher,
-): Promise<BecauseYouWatchedResult | null> =>
-  firstNonNull(stubs.slice(0, BECAUSE_YOU_WATCHED_SEED_ATTEMPTS), (stub) =>
-    tryBecauseYouWatchedStub(stub, excludeIds, fetchTv),
+): Promise<BecauseYouWatchedResult | null> => {
+  const seedResults = await runInChunks(
+    stubs.slice(0, BECAUSE_YOU_WATCHED_SEED_LIMIT),
+    (stub) => tryBecauseYouWatchedStub(stub, excludeIds, fetchTv),
+    BECAUSE_YOU_WATCHED_SEED_FETCH_CHUNK_SIZE,
   );
+
+  const seeds = seedResults.filter(
+    (seed): seed is BecauseYouWatchedSeed => seed !== null,
+  );
+  const primarySeed = seeds[0];
+  if (!primarySeed) {
+    return null;
+  }
+
+  return {
+    ...primarySeed,
+    seeds,
+  };
+};
 
 const PERSONALIZED_HOME_CACHE_TTL_MS = 30_000;
 

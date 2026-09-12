@@ -117,3 +117,29 @@ export const getHomePopularTv = cache(async (): Promise<HomeTvItem[]> => {
       media_type: "tv" as const,
     }));
 });
+
+export type HomeHubCard = HomeMovieItem | HomeTvItem;
+
+export type HomeHubData = {
+  trendingMovies: HomeMovieItem[];
+  popularMovies: HomeMovieItem[];
+  trendingTv: HomeTvItem[];
+  popularTv: HomeTvItem[];
+};
+
+/**
+ * Single consolidated fetch for the home surface. Runs every catalog query in
+ * parallel so the home renders in one pass instead of many suspense sections.
+ * Each leaf query is React-cache()-deduped within the request.
+ */
+export const getHomeHub = cache(async (): Promise<HomeHubData> => {
+  const [trendingMovies, popularMovies, trendingTv, popularTv] =
+    await Promise.all([
+      getHomeTrendingMovies(),
+      getHomePopularMovies(),
+      getHomeTrendingTv(),
+      getHomePopularTv(),
+    ]);
+
+  return { trendingMovies, popularMovies, trendingTv, popularTv };
+});
