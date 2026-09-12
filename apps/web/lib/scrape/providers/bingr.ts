@@ -1,3 +1,4 @@
+import { scrapeCatalogTitle } from "../catalog-title";
 import { cancelResponseBody, scrapeFetch } from "../fetch";
 import { resolveHlsPlaylistUrl } from "../hls-url";
 import { attachSubtitlesToQualities } from "../linked-config";
@@ -12,6 +13,7 @@ import type {
   ScrapeResult,
   ScrapeSubtitle,
 } from "../types";
+import { resolveWingsTmdbLookup } from "../tmdb-lookup";
 
 const BINGR_ORIGIN = "https://bingr.one";
 const BINGR_API = "https://api.bingr.one/api";
@@ -55,6 +57,7 @@ type BingrStreamResponse = {
 type BingrDetails = {
   title?: string;
   year?: string | number;
+  imdb_id?: string;
 };
 
 export type BingrStreamBody = {
@@ -147,10 +150,13 @@ export const buildBingrStreamBody = (
 ): BingrStreamBody => {
   const query: Record<string, string | number> = {};
   if (details?.title) {
-    query.title = details.title;
+    query.title = scrapeCatalogTitle(details.title, details.year);
   }
   if (details?.year != null && String(details.year).length > 0) {
     query.year = String(details.year);
+  }
+  if (details?.imdb_id) {
+    query.imdb_id = details.imdb_id;
   }
 
   switch (input.mediaType) {
@@ -419,13 +425,40 @@ const probeMp4 = async (
   }
 };
 
+const resolveBingrCatalogDetails = async (
+  input: ScrapeMediaInput,
+  details: BingrDetails | null,
+): Promise<BingrDetails | null> => {
+  if (
+    details?.title &&
+    details.year != null &&
+    String(details.year).length > 0
+  ) {
+    return details;
+  }
+
+  const lookup = await resolveWingsTmdbLookup(input);
+  if (!lookup) {
+    return details;
+  }
+
+  return {
+    title: details?.title || lookup.title,
+    year: details?.year ?? lookup.year,
+    imdb_id: details?.imdb_id || lookup.imdbId,
+  };
+};
+
 export async function scrapeBingr(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
   const providerId = "bingr" as const;
 
   try {
-    const details = await fetchDetails(input);
+    const details = await resolveBingrCatalogDetails(
+      input,
+      await fetchDetails(input),
+    );
 
     for (const server of BINGR_SERVERS) {
       const payloadResult = await raceWithTimeout(

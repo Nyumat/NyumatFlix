@@ -1,15 +1,12 @@
-import { DEV_CACHE_CONTROL } from "@/lib/cache-policy";
-import { getSiteFlags } from "@/lib/flags/site-flags";
+import { getCachedSiteFlags } from "@/lib/flags/site-flags";
 import { NextResponse } from "next/server";
-
-export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const flags = await getSiteFlags();
+    const flags = await getCachedSiteFlags();
     return NextResponse.json(flags, {
       headers: {
-        "Cache-Control": DEV_CACHE_CONTROL,
+        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
       },
     });
   } catch (error) {

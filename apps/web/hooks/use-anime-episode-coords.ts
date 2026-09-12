@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { applySegmentAnimeEpisodeMapping } from "@/lib/anime/apply-segment-episode-mapping";
+import { ANIME_COORDS_PENDING_TIMEOUT_MS } from "@/lib/anime/anime-playback-policy";
 import { resolveEpisodeAnimeSelection } from "@/lib/anime/episode-playback-source";
 import {
   resolveAnimeEpisodeMappingTmdbShowId,
@@ -168,7 +169,7 @@ export function useAnimeEpisodeCoords({
       playbackTmdbTvId,
     );
 
-    if (tmdbShowId === null) {
+    if (tmdbShowId === null && !defaultAnilistId) {
       if (
         applyEmbeddedEpisodeSelection(
           selectedEpisode,
@@ -207,6 +208,7 @@ export function useAnimeEpisodeCoords({
 
     void resolveEpisodeAnimeMapping({
       tmdbShowId,
+      anilistId: defaultAnilistId,
       seasonNumber,
       episodeNumber: selectedEpisode.episode_number,
       isAdult: defaultIsAdultAnime,
@@ -267,6 +269,84 @@ export function useAnimeEpisodeCoords({
     seasonNumber,
     selectedEpisode,
     setAnimeCoordsStatus,
+    tvRouteId,
+    tvShowId,
+  ]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+
+    if (!defaultAnilistId || !selectedEpisode || !tvShowId || !seasonNumber) {
+      return undefined;
+    }
+
+    if (tvShowId !== tvRouteId) {
+      return undefined;
+    }
+
+    if (
+      !shouldAwaitPlaybackTmdbTvIdForMapping(
+        tvRouteId,
+        defaultAnilistId,
+        playbackTmdbTvId,
+      )
+    ) {
+      return undefined;
+    }
+
+    const mappingContext: AnimeEpisodeMappingContext = {
+      tvShowId: tvRouteId,
+      seasonNumber,
+      episodeNumber: selectedEpisode.episode_number,
+    };
+
+    const timeout = window.setTimeout(() => {
+      const state = useEpisodeStore.getState();
+      if (state.animeCoordsStatus !== "pending") {
+        return;
+      }
+      if (state.playbackTmdbTvId != null) {
+        return;
+      }
+
+      if (
+        applyEmbeddedEpisodeSelection(
+          selectedEpisode,
+          seasonNumber,
+          defaultIsAdultAnime,
+          mappingContext,
+        )
+      ) {
+        return;
+      }
+
+      applyAnimeEpisodeMapping(
+        {
+          animeInfo: {
+            anilistId: defaultAnilistId,
+            startEpisode: 1,
+            endEpisode: selectedEpisode.episode_number,
+          },
+          relativeEpisodeNumber: selectedEpisode.episode_number,
+          confidence: "low",
+          isAdult: defaultIsAdultAnime,
+          animeSeasonNumber: seasonNumber,
+        },
+        mappingContext,
+      );
+    }, ANIME_COORDS_PENDING_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    applyAnimeEpisodeMapping,
+    defaultAnilistId,
+    defaultIsAdultAnime,
+    enabled,
+    playbackTmdbTvId,
+    seasonNumber,
+    selectedEpisode,
     tvRouteId,
     tvShowId,
   ]);

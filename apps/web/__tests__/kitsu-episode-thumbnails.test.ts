@@ -6,6 +6,7 @@ import {
 } from "@/lib/anilist-franchise";
 import {
   buildKitsuEpisodeThumbnailMap,
+  buildKitsuEpisodeTitleMap,
   pickKitsuAnimeFromSearch,
 } from "@/lib/anime/kitsu-episode-thumbnails";
 
@@ -33,12 +34,31 @@ describe("kitsu episode thumbnails", () => {
   it("builds episode-number keyed thumbnail maps", () => {
     expect(
       buildKitsuEpisodeThumbnailMap([
-        { number: 1, thumbnailUrl: "https://media.kitsu.app/ep1.jpg" },
-        { number: 2, thumbnailUrl: "https://media.kitsu.app/ep2.jpg" },
+        {
+          number: 1,
+          thumbnailUrl: "https://media.kitsu.app/ep1.jpg",
+          title: "To You",
+        },
+        {
+          number: 2,
+          thumbnailUrl: "https://media.kitsu.app/ep2.jpg",
+          title: null,
+        },
       ]),
     ).toEqual({
       1: "https://media.kitsu.app/ep1.jpg",
       2: "https://media.kitsu.app/ep2.jpg",
+    });
+  });
+
+  it("builds episode titles and skips numbered placeholders", () => {
+    expect(
+      buildKitsuEpisodeTitleMap([
+        { number: 1, thumbnailUrl: null, title: "To You, in 2000 Years" },
+        { number: 2, thumbnailUrl: null, title: "Episode 2" },
+      ]),
+    ).toEqual({
+      1: "To You, in 2000 Years",
     });
   });
 });

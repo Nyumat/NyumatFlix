@@ -101,8 +101,8 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
 ];
 
 /**
- * Direct leads so the overlay solos it first. Remaining order is from latency
- * bench + reliability audits. VidNest scrape removed. VixSrc is embed-only.
+ * Provider order from latency bench + reliability audits. VidNest scrape removed.
+ * VixSrc is embed-only.
  */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("direct", "Direct", { embed: false, tmdbScrape: true }),

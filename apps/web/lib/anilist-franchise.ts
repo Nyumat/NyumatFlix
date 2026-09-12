@@ -1,6 +1,9 @@
 import "server-only";
 
-import { ANILIST_ENDPOINT } from "@/lib/anilist";
+import {
+  fetchAniListGraphql,
+  isAnilistUnavailableError,
+} from "@/lib/anilist-graphql";
 import {
   malAnimeToRelationMedia,
   resolveFribbTmdbFranchiseSeasonIds,
@@ -172,47 +175,32 @@ const fetchRelationMediaBestEffort: RelationMediaFetcher = async (
 const fetchRelationMediaUncached = async (
   anilistId: number,
 ): Promise<RelationMedia | null> => {
-  let response: Response;
+  let payload: Awaited<
+    ReturnType<typeof fetchAniListGraphql<{ Media?: RelationMedia | null }>>
+  >;
   try {
-    response = await fetch(ANILIST_ENDPOINT, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
+    payload = await fetchAniListGraphql<{ Media?: RelationMedia | null }>(
+      {
         query: RELATION_WALK_QUERY,
         variables: { id: anilistId },
-      }),
-      signal: AbortSignal.timeout(ANILIST_FETCH_TIMEOUT_MS),
-      next: { revalidate: 3600 },
-    });
+      },
+      { timeoutMs: ANILIST_FETCH_TIMEOUT_MS },
+    );
   } catch (error) {
+    if (isAnilistUnavailableError(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  if (payload.status === 404) return null;
+  if (payload.status >= 400) {
     throw new AnilistFranchiseFetchError(
-      `AniList relation fetch failed for ${anilistId}`,
-      { cause: error },
+      `AniList relation fetch returned ${payload.status} for ${anilistId}`,
     );
   }
 
-  // AniList returns 404 for unknown media — a real "does not exist".
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new AnilistFranchiseFetchError(
-      `AniList relation fetch returned ${response.status} for ${anilistId}`,
-    );
-  }
-
-  try {
-    const payload = (await response.json()) as {
-      data?: { Media?: RelationMedia | null };
-    };
-    return payload.data?.Media ?? null;
-  } catch (error) {
-    throw new AnilistFranchiseFetchError(
-      `AniList relation payload unreadable for ${anilistId}`,
-      { cause: error },
-    );
-  }
+  return payload.data?.Media ?? null;
 };
 
 const getCachedRelationMedia = cache(fetchRelationMediaUncached);

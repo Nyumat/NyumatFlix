@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useState } from "react";
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { prefetchDirectPlayerModules } from "@/lib/direct/prefetch-playback-player";
@@ -11,44 +10,51 @@ import { isScrapeServer } from "@/lib/stores/server-store";
 
 const PLAYER_SERVICE_WORKER = "/player-sw.js";
 
-const DETAIL_PAGE_PATTERN = /^\/(movies|tvshows)\/[^/]+/;
+export const DETAIL_PAGE_PATTERN = /^\/(movies|tvshows|anime)\/[^/]+/;
 
-/**
- * Warms direct-playback assets when the user is likely to need them:
- * - on movie/TV detail pages (modulepreload + player chunks)
- * - anywhere when PROXY/Direct scrape mode is selected (movi decoder + chunks)
- */
-export function DirectPlaybackWarmup() {
-  const pathname = usePathname();
-  const selectedServer = usePlaybackModeStore((state) => state.selectedServer);
-  const { directScrapeProviderAvailable } = useFeatureFlags();
+type WarmDirectPlaybackOptions = {
+  usesDirectPlayback?: boolean;
+};
 
-  const onDetailPage = DETAIL_PAGE_PATTERN.test(pathname);
-  const usesDirectPlayback =
-    directScrapeProviderAvailable && isScrapeServer(selectedServer);
-  const shouldWarm = onDetailPage || usesDirectPlayback;
-
-  useEffect(() => {
-    if (!shouldWarm) {
-      return;
-    }
-
-    prefetchDirectPlayerModules();
-
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker
-        .register(PLAYER_SERVICE_WORKER)
-        .catch(() => undefined);
-    }
-
-    if (usesDirectPlayback) {
-      void loadMoviPlayer();
-    }
-  }, [shouldWarm, usesDirectPlayback]);
-
-  if (!shouldWarm) {
-    return null;
+export function warmDirectPlaybackOnPlayIntent(
+  options: WarmDirectPlaybackOptions = {},
+): void {
+  if (typeof window === "undefined") {
+    return;
   }
 
-  return <link rel="modulepreload" href={MOVI_PLAYER_SCRIPT} />;
+  prefetchDirectPlayerModules();
+
+  if ("serviceWorker" in navigator) {
+    void navigator.serviceWorker
+      .register(PLAYER_SERVICE_WORKER)
+      .catch(() => undefined);
+  }
+
+  if (options.usesDirectPlayback) {
+    void loadMoviPlayer();
+  }
+}
+
+export function usePlayIntentDirectPlaybackWarmup() {
+  const selectedServer = usePlaybackModeStore((state) => state.selectedServer);
+  const { directScrapeProviderAvailable } = useFeatureFlags();
+  const [shouldPreloadMovi, setShouldPreloadMovi] = useState(false);
+
+  const usesDirectPlayback =
+    directScrapeProviderAvailable && isScrapeServer(selectedServer);
+
+  const warmPlayback = useCallback(() => {
+    warmDirectPlaybackOnPlayIntent({ usesDirectPlayback });
+    if (usesDirectPlayback) {
+      setShouldPreloadMovi(true);
+    }
+  }, [usesDirectPlayback]);
+
+  const preloadLink =
+    shouldPreloadMovi && usesDirectPlayback ? (
+      <link rel="modulepreload" href={MOVI_PLAYER_SCRIPT} />
+    ) : null;
+
+  return { warmPlayback, preloadLink };
 }

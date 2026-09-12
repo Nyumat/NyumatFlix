@@ -9,12 +9,15 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
+import { useContinueWatchingActions } from "@/hooks/use-continue-watching-actions";
+import { usePersonalizedHome } from "@/hooks/use-personalized-home";
 import { useRecentlyWatched } from "@/hooks/use-recently-watched";
 import { continueWatchingTitleKey } from "@/lib/playback/continue-watching-dismiss";
 import type { RecentlyWatchedScope } from "@/lib/playback/recently-watched";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 type RecentlyWatchedRowProps = {
@@ -22,8 +25,31 @@ type RecentlyWatchedRowProps = {
 };
 
 export function RecentlyWatchedRow({ scope = "all" }: RecentlyWatchedRowProps) {
+  const { status: sessionStatus } = useSession();
+  const personalized = usePersonalizedHome({ enabled: scope === "all" });
+  const continueWatchingActions = useContinueWatchingActions();
+  const usePersonalizedSource =
+    scope === "all" && sessionStatus !== "loading" && personalized.isSignedIn;
+  const scopedRecentlyWatched = useRecentlyWatched(scope, {
+    enabled: !usePersonalizedSource,
+  });
+
   const { items, isLoading, isSignedIn, markComplete, pendingCompleteKey } =
-    useRecentlyWatched(scope);
+    usePersonalizedSource
+      ? {
+          items: personalized.recentlyWatched,
+          isLoading: personalized.isLoading,
+          isSignedIn: personalized.isSignedIn,
+          markComplete: continueWatchingActions.markComplete,
+          pendingCompleteKey: continueWatchingActions.pendingCompleteKey,
+        }
+      : {
+          ...scopedRecentlyWatched,
+          isLoading:
+            scope === "all" && sessionStatus === "loading"
+              ? true
+              : scopedRecentlyWatched.isLoading,
+        };
   const [api, setApi] = useState<CarouselApi>();
   const [pageCount, setPageCount] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);

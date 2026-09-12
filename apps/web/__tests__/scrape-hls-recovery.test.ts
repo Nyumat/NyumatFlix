@@ -370,7 +370,7 @@ describe("scrape hls midstream recovery", () => {
     expect(onRecoveryExhausted).toHaveBeenCalledTimes(1);
   });
 
-  it("tightens fragment retries after the first successful load", () => {
+  it("tightens fragment retries after the first successful load without a 15s seek timeout", () => {
     const listeners = new Map<string, Array<() => void>>();
     const hls = {
       media: null,
@@ -397,5 +397,7 @@ describe("scrape hls midstream recovery", () => {
 
     expect(hls.config.fragLoadingTimeOut).toBe(PLAYING_FRAG_LOADING_TIMEOUT_MS);
     expect(hls.config.fragLoadingMaxRetry).toBe(PLAYING_FRAG_LOADING_MAX_RETRY);
+    expect(PLAYING_FRAG_LOADING_TIMEOUT_MS).toBeGreaterThanOrEqual(45_000);
+    expect(PLAYING_FRAG_LOADING_MAX_RETRY).toBeLessThanOrEqual(2);
   });
 });

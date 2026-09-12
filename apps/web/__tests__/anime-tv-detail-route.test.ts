@@ -28,37 +28,29 @@ vi.mock("@/lib/anilist-movie-route", () => ({
   resolveAnilistMovieTmdbRoute: vi.fn(),
 }));
 
-vi.mock("@/lib/fribb-mapping", () => ({
-  getAnilistIdFromFribb: vi.fn(),
-}));
-
-vi.mock("@/lib/mal/id-resolver", () => ({
-  resolveTmdbToAnilistFromMappings: vi.fn(),
+vi.mock("@/lib/anime/cross-id-resolver", () => ({
+  resolveTmdbShowToAnilistId: vi.fn(),
 }));
 
 import { resolveCanonicalAnilistRoute } from "@/lib/anilist-tv-detail";
 import { resolveAnilistMovieTmdbRoute } from "@/lib/anilist-movie-route";
-import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
-import { resolveTmdbToAnilistFromMappings } from "@/lib/mal/id-resolver";
+import { resolveTmdbShowToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { resolveAnilistTvDetailRedirects } from "@/lib/server/anime-tv-detail-route";
 
 const mockResolveCanonicalAnilistRoute =
   resolveCanonicalAnilistRoute as ReturnType<typeof vi.fn>;
 const mockResolveAnilistMovieTmdbRoute =
   resolveAnilistMovieTmdbRoute as ReturnType<typeof vi.fn>;
-const mockGetAnilistIdFromFribb = getAnilistIdFromFribb as ReturnType<
+const mockResolveTmdbShowToAnilistId = resolveTmdbShowToAnilistId as ReturnType<
   typeof vi.fn
 >;
-const mockResolveTmdbToAnilistFromMappings =
-  resolveTmdbToAnilistFromMappings as ReturnType<typeof vi.fn>;
 
 describe("resolveAnilistTvDetailRedirects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockResolveCanonicalAnilistRoute.mockResolvedValue(null);
     mockResolveAnilistMovieTmdbRoute.mockResolvedValue(null);
-    mockGetAnilistIdFromFribb.mockResolvedValue(null);
-    mockResolveTmdbToAnilistFromMappings.mockResolvedValue(null);
+    mockResolveTmdbShowToAnilistId.mockResolvedValue(null);
   });
 
   it("redirects mapped anime movies to TMDB movie detail", async () => {
@@ -94,7 +86,7 @@ describe("resolveAnilistTvDetailRedirects", () => {
 
   it("resolves bare TMDB id to canonical AniList anime URL if AniList lookup fails", async () => {
     mockResolveCanonicalAnilistRoute.mockResolvedValue(null);
-    mockResolveTmdbToAnilistFromMappings.mockResolvedValue(153567);
+    mockResolveTmdbShowToAnilistId.mockResolvedValue(153567);
 
     await expect(resolveAnilistTvDetailRedirects("207840")).rejects.toThrow(
       "REDIRECT:/anime/anilist-153567?",

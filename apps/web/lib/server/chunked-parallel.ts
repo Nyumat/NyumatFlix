@@ -17,3 +17,17 @@ export async function runInChunks<T, R>(
 
   return results;
 }
+
+export async function firstNonNull<T, R>(
+  items: readonly T[],
+  worker: (item: T) => Promise<R | null>,
+): Promise<R | null> {
+  for (const item of items) {
+    const result = await worker(item);
+    if (result) {
+      return result;
+    }
+  }
+
+  return null;
+}

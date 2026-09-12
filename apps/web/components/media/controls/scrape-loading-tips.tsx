@@ -25,7 +25,7 @@ function TipContent({ tip }: { tip: ScrapeLoadingTip }) {
       href={tip.href}
       target="_blank"
       rel="noopener noreferrer"
-      className="block w-full underline text-white/45 hover:text-white/75 underline-offset-2"
+      className="block w-full text-white/50 hover:text-white/75 underline-offset-2"
     >
       {tip.text}
     </Link>
@@ -47,20 +47,19 @@ export function ScrapeLoadingTips({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "mt-8 flex min-h-14 w-full flex-col items-center justify-center text-center",
+        "flex min-h-12 w-full max-w-xs flex-col items-center justify-center text-center",
         className,
       )}
     >
-      <p className="mb-2 text-[10px] font-semibold text-white/30">tip</p>
       <div className="relative w-full">
         <AnimatePresence mode="wait">
           <motion.p
             key={tipKey(tip)}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.28, ease: "easeInOut" }}
-            className="w-full text-sm leading-snug text-white/45"
+            className="w-full text-sm leading-relaxed text-white/50"
           >
             <TipContent tip={tip} />
           </motion.p>

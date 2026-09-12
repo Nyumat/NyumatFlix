@@ -13,41 +13,18 @@ export type TrackPreferences = {
 
 export type TrackPreferencesMap = Record<string, TrackPreferences>;
 
+const sessionTrackPreferences: TrackPreferencesMap = {};
+
+export const resetTrackPreferencesForTests = (): void => {
+  for (const key of Object.keys(sessionTrackPreferences)) {
+    delete sessionTrackPreferences[key];
+  }
+};
+
 export const trackPreferenceStorageKey = (key: PlaybackProgressKey): string =>
   `${key.mediaType}:${key.contentId}`;
 
-const readMap = (): TrackPreferencesMap => {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    const raw = window.localStorage.getItem(TRACK_PREFERENCES_STORAGE_KEY);
-    if (!raw) {
-      return {};
-    }
-
-    const parsed = JSON.parse(raw) as TrackPreferencesMap;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const writeMap = (map: TrackPreferencesMap): void => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(
-      TRACK_PREFERENCES_STORAGE_KEY,
-      JSON.stringify(map),
-    );
-  } catch {
-    void 0;
-  }
-};
+const readMap = (): TrackPreferencesMap => sessionTrackPreferences;
 
 export const getTrackPreferences = (
   scopeKey: string,
@@ -69,7 +46,6 @@ export const setTrackPreferences = (
     ...preferences,
     updatedAt: Date.now(),
   };
-  writeMap(map);
 };
 
 export const updateTrackPreferences = (
@@ -85,6 +61,5 @@ export const updateTrackPreferences = (
 
   const map = readMap();
   map[scopeKey] = next;
-  writeMap(map);
   return next;
 };

@@ -4,6 +4,8 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { suppressConsole } from "@/test/suppress-console";
+import { resetGuestLedger } from "@/lib/playback/progress-ledger-facade";
+import { setPlaybackProgress } from "@/lib/playback/progress-storage";
 
 vi.mock("next-auth/react", () => ({
   useSession: vi.fn(),
@@ -36,6 +38,7 @@ describe("WatchlistButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.fetch = vi.fn();
+    resetGuestLedger();
   });
 
   afterEach(() => {
@@ -213,15 +216,9 @@ describe("WatchlistButton", () => {
 
     mockGetWatchlistItem.mockResolvedValue(null);
 
-    window.localStorage.setItem(
-      "nyumatflix.playback.progress",
-      JSON.stringify({
-        "movie:456::": {
-          watched: 300,
-          duration: 3600,
-          updatedAt: Date.now(),
-        },
-      }),
+    setPlaybackProgress(
+      { mediaType: "movie", contentId: 456 },
+      { watched: 300, duration: 3600 },
     );
 
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -270,15 +267,14 @@ describe("WatchlistButton", () => {
 
     mockGetWatchlistItem.mockResolvedValue(null);
 
-    window.localStorage.setItem(
-      "nyumatflix.playback.progress",
-      JSON.stringify({
-        "tv:789:1:3": {
-          watched: 500,
-          duration: 1400,
-          updatedAt: Date.now(),
-        },
-      }),
+    setPlaybackProgress(
+      {
+        mediaType: "tv",
+        contentId: 789,
+        seasonNumber: 1,
+        episodeNumber: 3,
+      },
+      { watched: 500, duration: 1400 },
     );
 
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

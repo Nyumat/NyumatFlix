@@ -75,10 +75,10 @@ export const rankSourcesHlsFirst = <T extends RankableSource>(
   });
 
 /** Try ranked sources until a caller-supplied probe accepts one. */
-export const trySourcesUntil = async <T>(
+export const trySourcesUntil = async <T, R = T>(
   sources: readonly T[],
-  probe: (source: T) => Promise<{ ok: true; value: T } | { ok: false }>,
-): Promise<T | null> => {
+  probe: (source: T) => Promise<{ ok: true; value: R } | { ok: false }>,
+): Promise<R | null> => {
   for (const source of sources) {
     const result = await probe(source);
     if (result.ok) {

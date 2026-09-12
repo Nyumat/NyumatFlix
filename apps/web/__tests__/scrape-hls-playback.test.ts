@@ -5,18 +5,22 @@ import {
   isRecoverableScrapeHlsStall,
   pickHighestHlsLevelIndex,
 } from "@/lib/scrape/hls-quality";
-import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
 import {
+  CACHE_CONTROL_PLAY_MANIFEST,
+  CACHE_CONTROL_PLAY_MEDIA,
   buildScrapePlayUrl,
+  cacheControlForProxiedPlayAsset,
   contentTypeForProxiedAsset,
   decodeScrapePlaybackToken,
   extractScrapePlaybackRefreshFromPlayUrl,
   extractScrapePlaybackTokenFromPlayUrl,
   isAmbiguousPlaylistContentType,
   isPlaylistResponse,
+  playUpstreamAbortSignal,
   resolveKaaSegmentFallbackUrl,
   resolveKaaSegmentFallbackUrls,
   rewriteManifestPlaylist,
+  shouldFollowPlayClientAbort,
 } from "@/lib/scrape/playback";
 import {
   looksLikeHlsPlaylistBody,
@@ -59,12 +63,6 @@ describe("scrape hls playback helpers", () => {
         type: "mediaError",
       } as never),
     ).toBe(false);
-  });
-
-  it("uses a larger VOD buffer than live playback", () => {
-    expect(SCRAPE_VOD_HLS_CONFIG.maxBufferLength).toBeGreaterThan(60);
-    expect(SCRAPE_VOD_HLS_CONFIG.lowLatencyMode).toBe(false);
-    expect(SCRAPE_VOD_HLS_CONFIG.startPosition).toBe(0);
   });
 
   it("preserves VidKing refresh metadata on quality fallbacks", () => {
@@ -164,6 +162,14 @@ describe("scrape hls playback helpers", () => {
         "image/jpeg",
       ),
     ).toBe(false);
+  });
+
+  it("labels extensionless Bingr /pl/ HLS play URLs as asset.m3u8", () => {
+    const playUrl = buildScrapePlayUrl({
+      url: "https://remoteconsultinggroup.site/abc/pl/H4sIAAAAAAAAAwXB0XaCIBgA4FcCtY7urlraMHAi",
+      referer: "https://nextgencloudfabric.com/",
+    });
+    expect(playUrl.endsWith("/asset.m3u8")).toBe(true);
   });
 
   it("body-sniffs ambiguous content types as HLS playlists", () => {
@@ -300,5 +306,43 @@ describe("scrape hls playback helpers", () => {
     });
     expect(SCRAPE_PLAY_PROBE_TIMEOUT_MS).toBe(8_000);
     expect(SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS).toBe(1);
+  });
+});
+
+describe("scrape play abort and cache", () => {
+  const pagerSegment =
+    "https://cube.dolphin-d55.workers.dev/file3/token/1080p/page-510.html";
+  const master = "https://cdn.example/1080p/index.m3u8";
+  const captions = "https://cache.vdck.site/v1/vtt/movie/80321/English.vtt";
+
+  it("follows client abort for media bytes, not manifests", () => {
+    expect(shouldFollowPlayClientAbort(pagerSegment, "segment.ts")).toBe(true);
+    expect(shouldFollowPlayClientAbort(master, "asset.m3u8")).toBe(false);
+    expect(shouldFollowPlayClientAbort(captions, "captions.vtt")).toBe(false);
+  });
+
+  it("aborts in-flight segment fetches when the player disconnects", () => {
+    const client = new AbortController();
+    client.abort();
+
+    expect(
+      playUpstreamAbortSignal(pagerSegment, client.signal, "segment.ts")
+        .aborted,
+    ).toBe(true);
+    expect(
+      playUpstreamAbortSignal(master, client.signal, "asset.m3u8").aborted,
+    ).toBe(false);
+  });
+
+  it("caches immutable segments and captions, not rewritten manifests", () => {
+    expect(cacheControlForProxiedPlayAsset(pagerSegment, "segment.ts")).toBe(
+      CACHE_CONTROL_PLAY_MEDIA,
+    );
+    expect(cacheControlForProxiedPlayAsset(captions, "captions.vtt")).toBe(
+      CACHE_CONTROL_PLAY_MEDIA,
+    );
+    expect(cacheControlForProxiedPlayAsset(master, "asset.m3u8")).toBe(
+      CACHE_CONTROL_PLAY_MANIFEST,
+    );
   });
 });

@@ -13,7 +13,11 @@ import {
   TmdbResponse,
   TvShow,
 } from "@/lib/domain/typings";
-import { catalogCacheHeaders } from "@/lib/http-cache";
+import {
+  CACHE_REVALIDATE_SECONDS,
+  catalogCacheHeaders,
+} from "@/lib/http-cache";
+import { tmdbFetchInit } from "@/lib/tmdb-cache-policy";
 import { fetchAniListSearchMedia } from "@/lib/search/anilist-search";
 import { mergeSearchMediaResults } from "@/lib/search/merge-search-media";
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
@@ -68,18 +72,33 @@ export async function GET(request: Request) {
       language: "en-US",
     });
 
-    const [movieResponse, tvResponse, anilistResults] = await Promise.all([
-      fetch(`${baseUrl}/movie?${commonParams}`),
-      fetch(`${baseUrl}/tv?${commonParams}`),
-      page === "1"
-        ? fetchAniListSearchMedia(query.trim(), { page: 1, perPage: 20 })
-        : Promise.resolve({
-            items: [],
-            page: 1,
-            totalPages: 1,
-            totalResults: 0,
-          }),
-    ]);
+    const searchParams = { query: query.trim(), page };
+    const tmdbInit = (endpoint: string) =>
+      tmdbFetchInit({
+        endpoint,
+        params: searchParams,
+        revalidate: CACHE_REVALIDATE_SECONDS,
+      });
+
+    const [movieResponse, tvResponse, anilistResults, peopleResponse] =
+      await Promise.all([
+        fetch(`${baseUrl}/movie?${commonParams}`, tmdbInit("/search/movie")),
+        fetch(`${baseUrl}/tv?${commonParams}`, tmdbInit("/search/tv")),
+        page === "1"
+          ? fetchAniListSearchMedia(query.trim(), { page: 1, perPage: 20 })
+          : Promise.resolve({
+              items: [],
+              page: 1,
+              totalPages: 1,
+              totalResults: 0,
+            }),
+        page === "1"
+          ? fetch(
+              `${baseUrl}/person?${commonParams}`,
+              tmdbInit("/search/person"),
+            ).catch(() => null)
+          : Promise.resolve(null),
+      ]);
 
     if (!movieResponse.ok || !tvResponse.ok) {
       console.error(
@@ -124,46 +143,37 @@ export async function GET(request: Request) {
     });
 
     const people: Person[] = [];
-    if (page === "1") {
-      const peopleUrl = new URL(`${baseUrl}/person`);
-      peopleUrl.searchParams.append("api_key", apiKey);
-      peopleUrl.searchParams.append("query", query.trim());
-      peopleUrl.searchParams.append("page", "1");
-      peopleUrl.searchParams.append("include_adult", "false");
-
+    if (peopleResponse?.ok) {
       try {
-        const peopleResponse = await fetch(peopleUrl.toString());
-        if (peopleResponse.ok) {
-          const peopleData = await peopleResponse.json();
-          if (Array.isArray(peopleData.results)) {
-            peopleData.results.forEach((person: unknown) => {
-              if (
-                typeof person === "object" &&
-                person !== null &&
-                "id" in person &&
-                "name" in person &&
-                typeof person.id === "number" &&
-                typeof person.name === "string"
-              ) {
-                const p = person as {
-                  id: number;
-                  name: string;
-                  profile_path?: string | null;
-                  popularity?: number;
-                };
-                people.push({
-                  id: p.id,
-                  name: p.name,
-                  profile_path: p.profile_path || null,
-                  popularity: p.popularity || 0,
-                  media_type: "person",
-                });
-              }
-            });
-          }
+        const peopleData = await peopleResponse.json();
+        if (Array.isArray(peopleData.results)) {
+          peopleData.results.forEach((person: unknown) => {
+            if (
+              typeof person === "object" &&
+              person !== null &&
+              "id" in person &&
+              "name" in person &&
+              typeof person.id === "number" &&
+              typeof person.name === "string"
+            ) {
+              const p = person as {
+                id: number;
+                name: string;
+                profile_path?: string | null;
+                popularity?: number;
+              };
+              people.push({
+                id: p.id,
+                name: p.name,
+                profile_path: p.profile_path || null,
+                popularity: p.popularity || 0,
+                media_type: "person",
+              });
+            }
+          });
         }
       } catch (error) {
-        console.error("Error fetching people:", error);
+        console.error("Error parsing people search:", error);
       }
     }
 

@@ -3,7 +3,6 @@ import {
   DetailPageLoading,
 } from "@/components/layout/page-loading/detail-page-loading";
 import { MediaDetailLayout } from "@/components/media/media-server";
-import { DirectPlaybackWarmup } from "@/components/media/direct-playback-warmup";
 import { hydrateMovieDetailQueries } from "@/lib/prefetch-media-detail-queries";
 import { getCachedMovieDetail } from "@/lib/media-detail-cache";
 import { getDetailRouteSearchParams } from "@/lib/detail-search-params";
@@ -53,7 +52,6 @@ async function MovieDetailLayoutContent({ children, params }: Props) {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <DirectPlaybackWarmup />
       <MediaDetailLayout
         media={[movie]}
         mediaType="movie"

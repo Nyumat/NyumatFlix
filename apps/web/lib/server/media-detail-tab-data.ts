@@ -1,10 +1,20 @@
 import "server-only";
 
-import { fetchAllSeasonDetails } from "@/lib/server/tvshow-api";
+import {
+  fetchSeasonDetailsServer,
+  getCachedAllSeasonDetailsForShow,
+} from "@/lib/server/tvshow-api";
+import {
+  getCachedTmdbResponse,
+  tmdbTvCacheTag,
+} from "@/lib/server/tmdb-response-cache";
+import { unwrapTmdbLookupId } from "@/lib/tmdb-anime-route-id";
 import {
   getCachedMovieDetail,
   getCachedTvShowDetail,
 } from "@/lib/media-detail-cache";
+import type { TvDetailCatalog } from "@/lib/tv-detail-catalog";
+import type { TvShowDetails } from "@/lib/domain/typings";
 import { tmdb } from "@/tmdb/api";
 
 export async function fetchCollectionDetails(collectionId: number) {
@@ -15,12 +25,46 @@ export async function getTvShowDetailsForQuery(id: string) {
   return getCachedTvShowDetail(id);
 }
 
-export async function getTvAllSeasonsForQuery(id: string) {
-  const details = await getCachedTvShowDetail(id);
+export async function getTvSeasonForQuery(
+  id: string,
+  seasonNumber: number,
+  catalog: TvDetailCatalog | null = null,
+) {
+  const routeId = unwrapTmdbLookupId(id);
+  return getCachedTmdbResponse({
+    cacheKey: `tv-season:${routeId}:${seasonNumber}`,
+    tags: [tmdbTvCacheTag(routeId)],
+    revalidateSeconds: 3600,
+    memoryFallback: true,
+    load: () =>
+      fetchSeasonDetailsServer(id, seasonNumber, {
+        catalog: catalog ?? undefined,
+      }),
+  });
+}
+
+export async function getTvAllSeasonsForQuery(
+  id: string,
+  prefetchedDetails?: TvShowDetails | null,
+  catalog: TvDetailCatalog | null = null,
+) {
+  if (
+    prefetchedDetails?.allSeasonDetails &&
+    Object.keys(prefetchedDetails.allSeasonDetails).length > 0
+  ) {
+    return prefetchedDetails.allSeasonDetails;
+  }
+
+  const details =
+    prefetchedDetails ??
+    (await getCachedTvShowDetail(id, {
+      animeCatalog: catalog === "anime",
+    }));
   if (!details) {
     return {};
   }
-  return fetchAllSeasonDetails(id, details.seasons);
+
+  return getCachedAllSeasonDetailsForShow(id, details.seasons, { catalog });
 }
 
 export async function getMovieDetailsForQuery(id: string) {

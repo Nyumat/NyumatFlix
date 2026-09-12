@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { db, users } from "@/db/schema";
+import { db, users } from "@/db";
 import { isAllowedAvatar } from "@/lib/user/avatar";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";

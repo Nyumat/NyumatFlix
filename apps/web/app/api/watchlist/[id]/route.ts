@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { db, watchlist } from "@/db/schema";
+import { db, watchlist } from "@/db";
 import type { WatchlistStatus } from "@/lib/domain/watchlist";
 import { scrobbleToMal } from "@/lib/mal/sync";
 import { eq, and } from "drizzle-orm";

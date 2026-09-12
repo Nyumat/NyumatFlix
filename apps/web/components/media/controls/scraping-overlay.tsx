@@ -1,12 +1,9 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { Loader2, RefreshCw } from "lucide-react";
 
-import { ScrapeSourceRow } from "@/components/media/controls/scrape-card";
 import { ScrapeLoadingTips } from "@/components/media/controls/scrape-loading-tips";
 import type { SourceOverlayItem } from "@/lib/scrape/source-overlay";
-import type { ScrapeItem, ScrapeItemStatus } from "@/lib/scrape/types";
 import { cn } from "@/lib/utils";
 
 type ScrapingOverlayProps = {
@@ -15,29 +12,17 @@ type ScrapingOverlayProps = {
   error?: string | null;
   className?: string;
   onSelectEmbedServer?: (serverId: string) => void;
+  onSelectScrapeProvider?: (providerId: string) => void;
   onRetryAll?: () => void;
 };
 
-function toScrapeItems(items: SourceOverlayItem[]): ScrapeItem[] {
-  return items
-    .filter((item) => item.kind === "scrape")
-    .map((item) => ({
-      providerId: item.id,
-      name: item.name,
-      status: item.status as ScrapeItemStatus,
-      error: item.error,
-    }));
-}
-
 export function ScrapingOverlay({
   items,
-  activeProviderId,
   error,
   className,
   onSelectEmbedServer,
   onRetryAll,
 }: ScrapingOverlayProps) {
-  const scrapeItems = useMemo(() => toScrapeItems(items), [items]);
   const availableEmbeds = items.filter(
     (item) =>
       item.kind === "embed" &&
@@ -45,64 +30,38 @@ export function ScrapingOverlay({
       Boolean(onSelectEmbedServer),
   );
 
-  const activeRowRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    activeRowRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-    });
-  }, [activeProviderId]);
-
   return (
     <div
       className={cn(
         "absolute inset-0 z-30 flex items-center justify-center bg-black px-6",
         className,
       )}
+      aria-live="polite"
+      aria-busy={!error}
     >
-      <div className="flex w-full max-w-sm flex-col items-center">
-        <div className="max-h-80 w-full space-y-1 overflow-y-auto scrollbar-hidden">
-          <div className="mx-auto flex w-fit flex-col">
-            {scrapeItems.map((item) => {
-              const isActive =
-                item.providerId === activeProviderId ||
-                item.status === "pending";
-              return (
-                <div
-                  key={item.providerId}
-                  ref={
-                    item.providerId === activeProviderId
-                      ? activeRowRef
-                      : undefined
-                  }
-                >
-                  <ScrapeSourceRow
-                    id={item.providerId}
-                    name={item.name}
-                    status={item.status}
-                    error={item.error}
-                    active={isActive}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {!error ? <ScrapeLoadingTips /> : null}
-
-        {error ? (
-          <div className="mt-8 flex w-full flex-col items-center gap-4 text-center">
-            <p className="max-w-xs text-base text-white/55">{error}</p>
+      <div className="flex w-full max-w-sm flex-col items-center gap-8 text-center">
+        {!error ? (
+          <>
+            <div className="flex flex-col items-center gap-3">
+              <Loader2
+                className="size-5 animate-spin text-white/45"
+                aria-hidden
+              />
+              <p className="text-sm text-white/50">Finding a source…</p>
+            </div>
+            <ScrapeLoadingTips />
+          </>
+        ) : (
+          <div className="flex max-w-xs flex-col items-center gap-4">
+            <p className="text-sm text-white/50">{error}</p>
             {onRetryAll ? (
               <button
                 type="button"
                 onClick={onRetryAll}
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/8 px-4 py-2 text-sm font-medium text-white/85 transition-colors hover:border-white/35 hover:bg-white/12 hover:text-white"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-medium text-white/75 transition-colors hover:border-white/30 hover:bg-white/6 hover:text-white"
               >
-                <RefreshCw className="h-4 w-4" aria-hidden />
-                Try all sources again
+                <RefreshCw className="size-3.5" aria-hidden />
+                Try again
               </button>
             ) : null}
             {availableEmbeds.length > 0 ? (
@@ -112,7 +71,7 @@ export function ScrapingOverlay({
                     key={item.id}
                     type="button"
                     onClick={() => onSelectEmbedServer?.(item.id)}
-                    className="rounded-full border border-white/15 px-3 py-1.5 text-sm text-white/60 transition-colors hover:border-white/30 hover:text-white/80"
+                    className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-white/45 transition-colors hover:border-white/25 hover:text-white/70"
                   >
                     {item.name}
                   </button>
@@ -120,7 +79,7 @@ export function ScrapingOverlay({
               </div>
             ) : null}
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

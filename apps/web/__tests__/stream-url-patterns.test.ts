@@ -21,6 +21,14 @@ describe("stream url patterns", () => {
     ).toBe(true);
   });
 
+  it("recognizes Bingr extensionless /pl/ HLS URLs", () => {
+    expect(
+      looksLikeHlsStreamUrl(
+        "https://remoteconsultinggroup.site/abc/pl/H4sIAAAAAAAAAwXB0XaCIBgA4FcCtY7urlraMHAi",
+      ),
+    ).toBe(true);
+  });
+
   it("recognizes VidNest goodstream HLS wrapper URLs", () => {
     expect(
       looksLikeHlsStreamUrl(

@@ -3,15 +3,14 @@
 import { useCallback, useMemo } from "react";
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { usePlaybackResolve } from "@/hooks/use-playback-resolve";
 import {
   filterTmdbScrapeProviderIds,
   getTmdbScrapeProviderMenuOrder,
 } from "@/lib/flags/site-flags";
-import { useProviderScrapeLoop } from "@/hooks/use-provider-scrape-loop";
-import { TMDB_SCRAPE_SOLO_FIRST_PROVIDERS } from "@/lib/scrape/provider-race";
+import { TMDB_SCRAPE_PROVIDER_LABELS } from "@/lib/providers/registry";
 import {
   SCRAPE_PROVIDER_LABELS,
-  SCRAPE_PROVIDER_ORDER,
   scrapeMediaKeyFor,
   type ScrapeAudioVersion,
   type ScrapeMediaInput,
@@ -19,6 +18,7 @@ import {
   type ScrapeQuality,
   type ScrapeSubtitle,
 } from "@/lib/scrape/types";
+import type { ScrapePlaybackPayload } from "@/lib/playback/to-playable-manifest";
 
 export type ScrapePlayerStatus = "idle" | "scraping" | "playing" | "error";
 
@@ -40,27 +40,6 @@ export type ScrapeSuccessPayload = {
   directFileName?: string;
 };
 
-const scrapeLoopConfig = {
-  providerOrder: SCRAPE_PROVIDER_ORDER,
-  providerLabels: SCRAPE_PROVIDER_LABELS,
-  mediaKeyFor: scrapeMediaKeyFor,
-  allFailedError: "No playable source found.",
-  apiPath: "/api/scrape",
-  buildRequestBody: (
-    providerId: ScrapeProviderId,
-    input: ScrapeMediaInput,
-  ) => ({
-    mediaKind: "tmdb",
-    providerId,
-    mediaType: input.mediaType,
-    tmdbId: input.tmdbId,
-    seasonNumber: input.seasonNumber,
-    episodeNumber: input.episodeNumber,
-  }),
-  soloFirstProviders: TMDB_SCRAPE_SOLO_FIRST_PROVIDERS,
-  raceFirstWin: true,
-} as const;
-
 type UseScrapeOptions = {
   onAllProvidersFailed?: () => void;
 };
@@ -68,23 +47,46 @@ type UseScrapeOptions = {
 export function useScrape(options?: UseScrapeOptions) {
   const flags = useFeatureFlags();
   const onAllProvidersFailed = options?.onAllProvidersFailed;
-  const config = useMemo(
-    () => ({
-      ...scrapeLoopConfig,
-      providerOrder: filterTmdbScrapeProviderIds(
-        flags,
-        getTmdbScrapeProviderMenuOrder(flags),
-      ) as typeof SCRAPE_PROVIDER_ORDER,
-      onAllProvidersFailed,
-    }),
-    [flags, onAllProvidersFailed],
+
+  const providerOrder = useMemo(
+    () =>
+      filterTmdbScrapeProviderIds(flags, getTmdbScrapeProviderMenuOrder(flags)),
+    [flags],
   );
 
-  return useProviderScrapeLoop<
-    ScrapeProviderId,
-    ScrapeMediaInput,
-    ScrapeSuccessPayload
-  >(config);
+  const buildScrapeBody = useCallback(
+    (input: ScrapeMediaInput, providerId: string) => ({
+      mediaKind: "tmdb" as const,
+      providerId,
+      mediaType: input.mediaType,
+      tmdbId: input.tmdbId,
+      seasonNumber: input.seasonNumber,
+      episodeNumber: input.episodeNumber,
+      preferMultiTrack: input.preferMultiTrack,
+      preferredAudioLang: input.preferredAudioLang,
+    }),
+    [],
+  );
+
+  const mapResult = useCallback(
+    (payload: ScrapePlaybackPayload): ScrapeSuccessPayload => ({
+      ...payload,
+      providerId: payload.providerId as ScrapeProviderId,
+      providerName:
+        SCRAPE_PROVIDER_LABELS[payload.providerId as ScrapeProviderId] ??
+        payload.providerName,
+    }),
+    [],
+  );
+
+  return usePlaybackResolve<ScrapeMediaInput, ScrapeSuccessPayload>({
+    mediaKeyFor: scrapeMediaKeyFor,
+    providerOrderFor: () => providerOrder,
+    providerLabels: TMDB_SCRAPE_PROVIDER_LABELS,
+    buildScrapeBody,
+    onAllProvidersFailed,
+    mapResult,
+  });
 }
 
 export type UseScrapeReturn = ReturnType<typeof useScrape>;
