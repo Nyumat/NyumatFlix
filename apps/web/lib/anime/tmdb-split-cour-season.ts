@@ -23,7 +23,7 @@ import {
 import { buildAniListTvMediaStubFromTmdb } from "@/lib/anilist-tv-stub";
 import type { Episode, SeasonDetails } from "@/lib/domain/typings";
 import { getFribbAnimeList } from "@/lib/fribb-mapping";
-import { getAniListTitle, type AniListMedia } from "@/lib/anilist";
+import { getAniListTitle, type AniListMedia } from "@/lib/anilist-shared";
 
 const buildEpisodesFromMedia = (media: SeasonEpisodeSource): Episode[] => {
   const tvMedia = media as AniListTvMedia;

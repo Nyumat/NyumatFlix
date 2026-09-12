@@ -3,6 +3,9 @@ import {
   isAnilistTvRouteId,
   parseAnimeAnilistRouteId,
 } from "@/lib/anilist-route-id";
+import { isKitsuAnimeRouteId } from "@/lib/kitsu/route-id";
+import { isMalAnimeRouteId } from "@/lib/mal/route-id";
+import { getKitsuAnimeDetail } from "@/lib/server/kitsu-anime-detail-route";
 import { CACHE_REVALIDATE_SECONDS } from "@/lib/http-cache";
 import {
   type DetailAppendMode,
@@ -118,6 +121,16 @@ const getCachedTvShowDetailCached = cache(
       return getCachedAnilistTvShowDetail(id, {
         acceptBareNumeric: animeCatalog,
       });
+    }
+
+    // Kitsu (`kitsu-{id}`) + Jikan/MAL (`mal-{id}`) fallback detail pages —
+    // served from Kitsu so grids stay navigable when AniList is down.
+    if (animeCatalog && (isKitsuAnimeRouteId(id) || isMalAnimeRouteId(id))) {
+      try {
+        return await getKitsuAnimeDetail(id);
+      } catch {
+        return null;
+      }
     }
 
     try {

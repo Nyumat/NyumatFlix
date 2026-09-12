@@ -1,6 +1,6 @@
 "use server";
 
-import type { AniListSearchParams } from "@/lib/anilist";
+import type { AniListSearchParams } from "@/lib/anilist-shared";
 import type { MediaItem } from "@/lib/domain/typings";
 import { fetchAnimeNextPage as fetchAnimeNextPageImpl } from "@/lib/server/fetch-anime-next-page";
 

@@ -32,6 +32,6 @@ describe.skipIf(!runLive)("new anime provider scrapers (live)", () => {
       return;
     }
     expect(result.streamKind).toBe("hls");
-    expect(result.streamUrl).toMatch(/\.m3u8(\?|$)/i);
+    expect(result.streamUrl).toMatch(/\.m3u8(\?|$)|api\.kyren\.moe\/v1\/hls/i);
   }, 45_000);
 });

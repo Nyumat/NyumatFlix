@@ -1,5 +1,5 @@
 import { buildCatalogCtaUrl } from "@/lib/catalog-query";
-import { buildAniListUrl } from "@/lib/anilist";
+import { buildAniListUrl } from "@/lib/anilist-shared";
 
 const movie = {
   root: {

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { requiresAdultAniListContent } from "@/lib/anilist";
+import { requiresAdultAniListContent } from "@/lib/anilist-shared";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 
 type AniListAdultHintResponse = {

@@ -2,7 +2,16 @@ import {
   buildAnilistTvDetailHref,
   normalizeAnilistAnimeDetailHref,
 } from "@/lib/anilist-route-id";
+import { buildMalAnimeDetailHref } from "@/lib/mal/route-id";
 import { buildTmdbAnimeDetailHref } from "@/lib/tmdb-anime-route-id";
+import {
+  isJikanFallbackId,
+  jikanFallbackIdToMalId,
+} from "@/lib/anime-jikan-fallback";
+import {
+  isKitsuFallbackId,
+  kitsuFallbackIdToKitsuId,
+} from "@/lib/anime-kitsu-fallback";
 import type { MediaItem } from "@/lib/domain/typings";
 
 type AnimePageItem = MediaItem & {
@@ -66,6 +75,8 @@ export const withAnimePageHref = (item: MediaItem): MediaItem => {
     } as MediaItem;
   }
 
+  // Kitsu/Jikan fallback sentinels without a canonical AniList id resolve to
+  // their own detail route namespaces (kitsu-/mal- slugs).
   if (animeItem.tmdbFallback) {
     const { id, type } = animeItem.tmdbFallback;
     return {
@@ -73,6 +84,21 @@ export const withAnimePageHref = (item: MediaItem): MediaItem => {
       href:
         type === "movie" ? `/movies/${id}` : buildTmdbAnimeDetailHref(id, "tv"),
     } as MediaItem;
+  }
+
+  if (Number.isInteger(item.id) && item.id < 0) {
+    if (isKitsuFallbackId(item.id)) {
+      const kitsuId = kitsuFallbackIdToKitsuId(item.id);
+      if (kitsuId) {
+        return { ...item, href: `/anime/kitsu-${kitsuId}` } as MediaItem;
+      }
+    }
+    if (isJikanFallbackId(item.id)) {
+      const malId = jikanFallbackIdToMalId(item.id);
+      if (malId) {
+        return { ...item, href: buildMalAnimeDetailHref(malId) } as MediaItem;
+      }
+    }
   }
 
   const existingHref =

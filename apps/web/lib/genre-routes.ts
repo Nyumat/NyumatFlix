@@ -29,7 +29,7 @@ const normalizeGenreName = (genreName: string) =>
 export const getAniListGenreFromTmdbName = (genreName: string) =>
   ANILIST_GENRE_BY_TMDB_NAME[normalizeGenreName(genreName)];
 
-import { ANIME_BROWSE_PATH } from "@/lib/anilist";
+import { ANIME_BROWSE_PATH } from "@/lib/anilist-shared";
 
 export const buildAnimeGenreUrl = (genreName: string) => {
   const anilistGenre = getAniListGenreFromTmdbName(genreName);

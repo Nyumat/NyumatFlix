@@ -6,6 +6,7 @@ export type CatalogMovieCard = {
   id: number;
   media_type: "movie";
   title: string;
+  overview: string;
   poster_path: string;
   backdrop_path?: string;
   release_date: string;
@@ -19,6 +20,7 @@ export type CatalogTvCard = {
   media_type: "tv";
   name: string;
   title: string;
+  overview: string;
   poster_path: string;
   backdrop_path?: string;
   first_air_date: string;
@@ -53,6 +55,7 @@ export const toCatalogMovieCard = (
   id: movie.id,
   media_type: "movie",
   title: movie.title,
+  overview: movie.overview,
   poster_path: movie.poster_path,
   backdrop_path: movie.backdrop_path,
   release_date: movie.release_date,
@@ -68,6 +71,7 @@ export const toCatalogTvCard = (
   media_type: "tv",
   name: show.name,
   title: show.name,
+  overview: show.overview,
   poster_path: show.poster_path,
   backdrop_path: show.backdrop_path,
   first_air_date: show.first_air_date,
@@ -126,7 +130,7 @@ export const catalogMovieToMediaItem = (
   vote_average: card.vote_average,
   vote_count: card.vote_count ?? 0,
   adult: false,
-  overview: "",
+  overview: card.overview,
   genre_ids: [],
   original_title: card.title,
   original_language: "",
@@ -146,7 +150,7 @@ export const catalogTvToMediaItem = (
   first_air_date: card.first_air_date,
   vote_average: card.vote_average,
   vote_count: card.vote_count ?? 0,
-  overview: "",
+  overview: card.overview,
   genre_ids: [],
   original_language: "",
   original_name: card.name,
@@ -175,6 +179,7 @@ type MappableBrowseItem = {
   backdrop_path?: string | null;
   release_date?: string;
   first_air_date?: string;
+  overview?: string;
   vote_average?: number;
   vote_count?: number;
 };
@@ -190,6 +195,7 @@ export const mapReleasedItemsToCatalogCards = (
         id: item.id,
         media_type: "movie",
         title,
+        overview: item.overview ?? "",
         poster_path: item.poster_path,
         backdrop_path: item.backdrop_path ?? undefined,
         release_date: item.release_date ?? "",
@@ -204,6 +210,7 @@ export const mapReleasedItemsToCatalogCards = (
       media_type: "tv",
       name,
       title: name,
+      overview: item.overview ?? "",
       poster_path: item.poster_path,
       backdrop_path: item.backdrop_path ?? undefined,
       first_air_date: item.first_air_date ?? "",
@@ -248,16 +255,59 @@ export const toHeroTvRefs = (
   shows: Array<{ id: number }>,
 ): Array<Pick<TvShow, "id">> => shows.map((show) => ({ id: show.id }));
 
-export const slimMediaItemsForRsc = <
-  T extends { id: number; media_type: "movie" | "tv" },
->(
+type SlimmableMediaItem = {
+  id: number;
+  media_type?: string;
+  title?: string;
+  name?: string;
+  overview?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average?: number;
+  vote_count?: number;
+  logo?: CanonicalCardLogo;
+};
+
+const getSlimMediaType = (item: SlimmableMediaItem): "movie" | "tv" => {
+  if (item.media_type === "tv") return "tv";
+  if (item.media_type === "movie") return "movie";
+  return "name" in item && !("title" in item) ? "tv" : "movie";
+};
+
+export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
   items: T[],
 ): T[] =>
-  toCatalogMediaCards(
-    items as unknown as Array<
-      (Movie | TvShow) & {
-        media_type: "movie" | "tv";
-        logo?: CanonicalCardLogo;
-      }
-    >,
-  ).map((card) => catalogCardToMediaItem(card) as unknown as T);
+  items.map((item) => {
+    const mediaType = getSlimMediaType(item);
+    const title = item.title ?? item.name ?? "";
+    const card =
+      mediaType === "tv"
+        ? ({
+            id: item.id,
+            media_type: "tv",
+            name: item.name ?? title,
+            title,
+            overview: item.overview ?? "",
+            poster_path: item.poster_path ?? "",
+            backdrop_path: item.backdrop_path ?? undefined,
+            first_air_date: item.first_air_date ?? item.release_date ?? "",
+            vote_average: item.vote_average ?? 0,
+            vote_count: item.vote_count,
+            logo: item.logo,
+          } satisfies CatalogTvCard)
+        : ({
+            id: item.id,
+            media_type: "movie",
+            title,
+            overview: item.overview ?? "",
+            poster_path: item.poster_path ?? "",
+            backdrop_path: item.backdrop_path ?? undefined,
+            release_date: item.release_date ?? item.first_air_date ?? "",
+            vote_average: item.vote_average ?? 0,
+            vote_count: item.vote_count,
+            logo: item.logo,
+          } satisfies CatalogMovieCard);
+    return catalogCardToMediaItem(card) as unknown as T;
+  });

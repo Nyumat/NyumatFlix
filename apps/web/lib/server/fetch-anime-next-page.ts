@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AniListSearchParams } from "@/lib/anilist";
+import type { AniListSearchParams } from "@/lib/anilist-shared";
 import { enrichAniListSearchCatalogItems } from "@/lib/anilist-tmdb";
 import type { MediaItem } from "@/lib/domain/typings";
 import { fetchStableAniListPage } from "@/lib/server/anilist-page";

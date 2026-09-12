@@ -18,7 +18,7 @@ const sampleMovie: Movie = {
   id: 42,
   original_language: "en",
   original_title: "Sample Movie",
-  overview: "A long overview that should not ship in catalog cards.",
+  overview: "A long overview that should ship in catalog cards.",
   popularity: 123.4,
   poster_path: "/poster.jpg",
   release_date: "2024-01-15",
@@ -37,7 +37,7 @@ const sampleTv: TvShow = {
   origin_country: ["US"],
   original_language: "en",
   original_name: "Sample Show",
-  overview: "TV overview we do not need in cards.",
+  overview: "TV overview that should ship in catalog cards.",
   popularity: 88.2,
   poster_path: "/tv-poster.jpg",
   vote_average: 8.1,
@@ -45,7 +45,7 @@ const sampleTv: TvShow = {
 };
 
 describe("catalog card DTO mapping", () => {
-  it("keeps only fields the catalog UI reads for movies", () => {
+  it("keeps the fields the catalog UI reads for movies", () => {
     const card = toCatalogMovieCard({
       ...sampleMovie,
       media_type: "movie",
@@ -56,6 +56,7 @@ describe("catalog card DTO mapping", () => {
       id: 42,
       media_type: "movie",
       title: "Sample Movie",
+      overview: "A long overview that should ship in catalog cards.",
       poster_path: "/poster.jpg",
       backdrop_path: "/backdrop.jpg",
       release_date: "2024-01-15",
@@ -63,7 +64,6 @@ describe("catalog card DTO mapping", () => {
       vote_count: 900,
       logo: { file_path: "/logo.png", width: 200, height: 80 },
     });
-    expect(card).not.toHaveProperty("overview");
     expect(card).not.toHaveProperty("popularity");
   });
 
@@ -74,7 +74,9 @@ describe("catalog card DTO mapping", () => {
     expect(restored.id).toBe(42);
     expect(restored.title).toBe("Sample Movie");
     expect(restored.media_type).toBe("movie");
-    expect(restored.overview).toBe("");
+    expect(restored.overview).toBe(
+      "A long overview that should ship in catalog cards.",
+    );
     expect(restored.popularity).toBe(0);
   });
 
@@ -85,11 +87,18 @@ describe("catalog card DTO mapping", () => {
     ]);
 
     expect(items).toHaveLength(2);
-    expect(items[0]?.overview).toBe("");
-    expect(items[1]?.overview).toBe("");
+    expect(items[0]?.overview).toBe(
+      "A long overview that should ship in catalog cards.",
+    );
+    expect(items[1]?.overview).toBe(
+      "TV overview that should ship in catalog cards.",
+    );
     const tvItem = catalogCardToMediaItem(toCatalogTvCard(sampleTv));
     expect(tvItem.media_type).toBe("tv");
     expect("name" in tvItem && tvItem.name).toBe("Sample Show");
+    expect(tvItem.overview).toBe(
+      "TV overview that should ship in catalog cards.",
+    );
   });
 
   it("maps collection payloads to slim part cards", () => {
