@@ -62,6 +62,7 @@ function CollectionFilmStrip({
           align: "start",
           slidesToScroll: "auto",
           dragFree: true,
+          containScroll: "trimSnaps",
         }}
         className="w-full"
       >
@@ -108,7 +109,7 @@ export function CollectionShowcase({
     : null;
 
   return (
-    <article className="group/collection relative isolate overflow-hidden rounded-2xl">
+    <article className="group/collection relative isolate h-full overflow-hidden rounded-2xl border border-white/10 bg-card/35 shadow-xl shadow-black/20 backdrop-blur-md">
       {backdropUrl ? (
         <div className="pointer-events-none absolute inset-0 opacity-35 transition-opacity duration-700 group-hover/collection:opacity-45">
           <Image
@@ -125,7 +126,7 @@ export function CollectionShowcase({
       <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-background/95 via-background/70 to-background/30" />
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/90 via-transparent to-background/20" />
 
-      <div className="relative space-y-3 p-3 sm:space-y-4 sm:p-4">
+      <div className="relative flex h-full flex-col space-y-3 p-3 sm:space-y-4 sm:p-4">
         <div className="flex items-start gap-3 sm:gap-4">
           <Link href={href} className="shrink-0">
             <div className="relative w-20 overflow-hidden rounded-xl shadow-xl transition-transform duration-500 group-hover/collection:scale-[1.02] sm:w-24">
@@ -167,7 +168,9 @@ export function CollectionShowcase({
           </div>
         </div>
 
-        <CollectionFilmStrip items={items} priority={priority} />
+        <div className="mt-auto">
+          <CollectionFilmStrip items={items} priority={priority} />
+        </div>
       </div>
     </article>
   );
