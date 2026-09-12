@@ -1,4 +1,5 @@
 .git
+.deploy-desk
 .github
 .husky
 .next

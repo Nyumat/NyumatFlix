@@ -3,17 +3,17 @@ name: nyumatflix
 services:
   app:
     extends:
-      file: docker-compose.yml
+      file: infra/docker-compose.yml
       service: app
 
   flaresolverr:
     extends:
-      file: docker-compose.yml
+      file: infra/docker-compose.yml
       service: flaresolverr
 
   imgproxy:
     extends:
-      file: docker-compose.yml
+      file: infra/docker-compose.yml
       service: imgproxy
 
   gluetun:
@@ -28,19 +28,19 @@ services:
 
   flipt:
     extends:
-      file: docker-compose.ffs.yml
+      file: infra/docker-compose.ffs.yml
       service: flipt
     ports:
       - "127.0.0.1:8090:8080"
 
   cap:
     extends:
-      file: docker-compose.cap.yml
+      file: infra/docker-compose.cap.yml
       service: cap
 
   cap-valkey:
     extends:
-      file: docker-compose.cap.yml
+      file: infra/docker-compose.cap.yml
       service: cap-valkey
 
 networks:

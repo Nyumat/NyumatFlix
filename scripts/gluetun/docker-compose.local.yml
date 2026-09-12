@@ -1,6 +1,7 @@
 # Local dev overlay: publish Gluetun HTTP proxy + control API to the host.
 # Usage (from scripts/gluetun):
 #   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# run from scripts/gluetun/
 services:
   gluetun:
     ports:

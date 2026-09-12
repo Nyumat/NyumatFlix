@@ -9,17 +9,17 @@ SSH_HOST="${SSH_HOST:-leetbot}"
 LOCAL_VPN_ENV="${LOCAL_VPN_ENV:-$ROOT/.env.vpn}"
 
 sync_reconciler() {
-  ssh "$SSH_HOST" 'mkdir -p "$HOME/apps/nyumatflix/scripts" "$HOME/apps/gluetun"'
+  ssh "$SSH_HOST" 'mkdir -p "$HOME/apps/nyumatflix/infra" "$HOME/apps/nyumatflix/scripts" "$HOME/apps/gluetun"'
   if [[ -f "$ROOT/.env.prod" ]]; then
     rsync -avz "$ROOT/.env.prod" "$SSH_HOST:~/apps/nyumatflix/.env.prod"
   fi
   rsync -avz \
-    "$ROOT/docker-compose.scrape.yml" \
-    "$ROOT/docker-compose.ffs.yml" \
-    "$ROOT/docker-compose.imgproxy.yml" \
-    "$ROOT/scripts/prod-env-managed-keys.txt" \
-    "$SSH_HOST:~/apps/nyumatflix/"
+    "$ROOT/infra/docker-compose.scrape.yml" \
+    "$ROOT/infra/docker-compose.ffs.yml" \
+    "$ROOT/infra/docker-compose.imgproxy.yml" \
+    "$SSH_HOST:~/apps/nyumatflix/infra/"
   rsync -avz \
+    "$ROOT/scripts/prod-env-managed-keys.txt" \
     "$ROOT/scripts/reconcile-prod-infra.sh" \
     "$ROOT/scripts/deploy.sh" \
     "$ROOT/scripts/deploy-lib.sh" \

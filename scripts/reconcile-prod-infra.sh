@@ -19,9 +19,9 @@ IMGPROXY_PROJECT="${IMGPROXY_PROJECT:-nyumatflix}"
 GLUETUN_ENV_FILE="${GLUETUN_ENV_FILE:-$HOME/apps/gluetun/.env}"
 GLUETUN_SEED_ENV_FILE="${GLUETUN_SEED_ENV_FILE:-$HOME/apps/gluetun/.env.seed}"
 APP_ENV_FILE="${APP_ENV_FILE:-$HOME/apps/nyumatflix/.env}"
-SCRAPE_COMPOSE_FILE="${SCRAPE_COMPOSE_FILE:-$ROOT/docker-compose.scrape.yml}"
-FLIPT_COMPOSE_FILE="${FLIPT_COMPOSE_FILE:-$ROOT/docker-compose.ffs.yml}"
-IMGPROXY_COMPOSE_FILE="${IMGPROXY_COMPOSE_FILE:-$ROOT/docker-compose.imgproxy.yml}"
+SCRAPE_COMPOSE_FILE="${SCRAPE_COMPOSE_FILE:-$ROOT/infra/docker-compose.scrape.yml}"
+FLIPT_COMPOSE_FILE="${FLIPT_COMPOSE_FILE:-$ROOT/infra/docker-compose.ffs.yml}"
+IMGPROXY_COMPOSE_FILE="${IMGPROXY_COMPOSE_FILE:-$ROOT/infra/docker-compose.imgproxy.yml}"
 LOCK_FILE="${INFRA_LOCK_FILE:-$ROOT/.prod-infra.lock}"
 ROTATE_COUNTRIES="${ROTATE_COUNTRIES:-Germany,Netherlands,France,United States}"
 HEALTH_WAIT_SECONDS="${INFRA_HEALTH_WAIT_SECONDS:-90}"
@@ -166,12 +166,12 @@ sync_managed_app_env_from_seed() {
 
 scrape_compose() {
   sudo env "GLUETUN_ENV_FILE=$GLUETUN_ENV_FILE" \
-    docker compose -p "$SCRAPE_PROJECT" -f "$SCRAPE_COMPOSE_FILE" "$@"
+    docker compose --project-directory "$ROOT" -p "$SCRAPE_PROJECT" -f "$SCRAPE_COMPOSE_FILE" "$@"
 }
 
 flipt_compose() {
   sudo env "FLIPT_VOLUME_NAME=${FLIPT_VOLUME_NAME:-nyumatflix_flipt-data}" \
-    docker compose --env-file "$APP_ENV_FILE" \
+    docker compose --project-directory "$ROOT" --env-file "$APP_ENV_FILE" \
     -p "$FLIPT_PROJECT" -f "$FLIPT_COMPOSE_FILE" "$@"
 }
 
@@ -190,7 +190,7 @@ ensure_flipt_volume_name() {
 }
 
 imgproxy_compose() {
-  sudo docker compose -p "$IMGPROXY_PROJECT" -f "$IMGPROXY_COMPOSE_FILE" "$@"
+  sudo docker compose --project-directory "$ROOT" -p "$IMGPROXY_PROJECT" -f "$IMGPROXY_COMPOSE_FILE" "$@"
 }
 
 validate_compose() {
@@ -226,7 +226,7 @@ wait_for_gluetun() {
   while ((SECONDS < deadline)); do
     health="$(sudo docker inspect gluetun --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null || true)"
     if [[ "$health" == "healthy" ]] && sudo docker exec gluetun wget -qO- --timeout=5 \
-      --header="X-API-Key: $control_api_key" http://127.0.0.1:8000/v1/vpn/status >/dev/null 2>&1; then
+      --header="X-API-Key: $control_api_key" http://127.0.0.1:8000/v1/vpn/status 2>/dev/null | grep -q '"status":"running"'; then
       return 0
     fi
     [[ "$health" == "unhealthy" ]] && break
@@ -234,6 +234,17 @@ wait_for_gluetun() {
   done
   sudo docker logs --tail 50 gluetun >&2 || true
   die "Gluetun did not become healthy"
+}
+
+verify_runtime_dependencies() {
+  # shellcheck disable=SC1091
+  source "$SCRIPT_DIR/infra-health.sh"
+  if ! infra_verify_all_dependencies; then
+    sudo docker logs --tail 50 gluetun >&2 || true
+    sudo docker logs --tail 50 flaresolverr >&2 || true
+    sudo docker logs --tail 50 nyumatflix-imgproxy >&2 || true
+    die "production dependencies failed post-start verification (VPN proxy, imgproxy, flaresolverr, or flipt)"
+  fi
 }
 
 wait_for_service_url() {
@@ -269,6 +280,14 @@ print_status() {
     --filter name=^/flipt$ \
     --filter name=^/nyumatflix-imgproxy$ \
     --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+  # shellcheck disable=SC1091
+  source "$SCRIPT_DIR/infra-health.sh"
+  if infra_verify_all_dependencies >/dev/null 2>&1; then
+    echo "dependency verification: ok"
+  else
+    echo "dependency verification: failed" >&2
+    return 1
+  fi
 }
 
 acquire_lock() {
@@ -301,6 +320,7 @@ reconcile() {
   wait_for_service_url flaresolverr http://flaresolverr:8191/
   wait_for_service_url flipt http://flipt:8080/health
   wait_for_imgproxy
+  verify_runtime_dependencies
   print_status
 }
 

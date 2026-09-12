@@ -38,6 +38,8 @@
     "bp": "./scripts/deploy.sh bp",
     "deploy": "bun scripts/nyumatflix.ts",
     "deploy:fast": "bun scripts/nyumatflix.ts fast",
+    "deploy:desk": "bun --filter @nyumatflix/deploy-desk dev",
+    "deploy:desk:build": "bun --filter @nyumatflix/deploy-desk build",
     "deploy:plain": "./scripts/deploy-remote.sh",
     "prepare-movi-player": "node apps/web/scripts/prepare-movi-player.mjs",
     "deploy:env": "./scripts/sync-prod-env.sh push",

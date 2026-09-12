@@ -2,6 +2,7 @@ import { Check, Play, Plus } from "lucide-react";
 import Image from "next/image";
 import { BrandLogo } from "@/components/brand-logo";
 import { SITE_HERO_BANNER_URL } from "@/lib/constants";
+import { tmdbImage } from "@/tmdb/utils";
 import type { ReactNode } from "react";
 
 type AuthShellProps = {
@@ -159,7 +160,7 @@ function WatchlistPreview() {
               className="relative mr-3 aspect-poster w-20 shrink-0 overflow-hidden rounded-sm border border-white/10 bg-zinc-900"
             >
               <Image
-                src={`https://image.tmdb.org/t/p/w342${item.poster}`}
+                src={tmdbImage.posterDirect(item.poster, "w342")}
                 alt=""
                 fill
                 sizes="80px"
@@ -173,7 +174,7 @@ function WatchlistPreview() {
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
         <div className="relative aspect-poster w-12 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
           <Image
-            src={`https://image.tmdb.org/t/p/w185${continuePreview.poster}`}
+            src={tmdbImage.posterDirect(continuePreview.poster, "w185")}
             alt=""
             fill
             sizes="48px"

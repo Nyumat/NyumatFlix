@@ -1,0 +1,14 @@
+[Unit]
+Description=Reconcile NyumatFlix scrape/CDN dependencies when unhealthy
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nyumatflix-infra-watchdog
+RuntimeDirectory=nyumatflix-infra-watchdog
+RuntimeDirectoryMode=0750
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
