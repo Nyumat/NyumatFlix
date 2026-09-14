@@ -77,7 +77,10 @@ const loadMovieDetail = async (
   return {
     ...data,
     content_rating: pickMovieCertification(data),
-    logo: appendMode === "full" ? pickEnglishLogo(data.images?.logos) : null,
+    logo:
+      appendMode === "full"
+        ? (pickEnglishLogo(data.images?.logos) ?? null)
+        : null,
   };
 };
 

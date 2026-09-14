@@ -38,11 +38,26 @@ export const isCatalogSubtitle = (track: ScrapeSubtitle): boolean => {
   }
 };
 
-export const isVttSubtitle = (track: ScrapeSubtitle): boolean =>
-  track.format === "vtt" ||
-  (track.format !== "ass" &&
+export const isVttSubtitle = (track: ScrapeSubtitle): boolean => {
+  // Upstream catalogs typo `.vtt` as `.wtt` — always treat as VTT.
+  if (/\.wtt(?:[?#]|$)/i.test(track.url)) {
+    return true;
+  }
+
+  if (track.format === "vtt") {
+    // format==="vtt" alone isn't proof when the URL has a non-vtt extension.
+    if (/\.(?:srt|ass)(?:[?#]|$)/i.test(track.url)) {
+      return false;
+    }
+    return true;
+  }
+
+  return (
+    track.format !== "ass" &&
     track.format !== "srt" &&
-    /\.vtt(?:[?#]|$)/i.test(track.url));
+    /\.vtt(?:[?#]|$)/i.test(track.url)
+  );
+};
 
 export const stampDonorSubtitles = (
   subtitles: ScrapeSubtitle[] | undefined,

@@ -17,6 +17,7 @@ const rowToWire = (
   playbackEnglishSubtitles: row.playbackEnglishSubtitles,
   disableHoverSound: row.disableHoverSound,
   disableHeroTrailers: row.disableHeroTrailers,
+  catalogCardStyle: row.catalogCardStyle,
   selectedServerId: row.selectedServerId,
   userSelectedPlaybackServer: row.userSelectedPlaybackServer,
   policyGenerationAtChoice: row.policyGenerationAtChoice,
@@ -31,8 +32,9 @@ export const getDefaultUserSettingsWire = (): UserSettingsWire => ({
   playbackQuality: DEFAULT_PLAYBACK_PREFERENCES.playbackQuality,
   playbackEnglishSubtitles:
     DEFAULT_PLAYBACK_PREFERENCES.playbackEnglishSubtitles,
-  disableHoverSound: false,
+  disableHoverSound: true,
   disableHeroTrailers: false,
+  catalogCardStyle: "backdrop",
   selectedServerId: null,
   userSelectedPlaybackServer: false,
   policyGenerationAtChoice: null,
@@ -83,6 +85,7 @@ export const upsertUserSettings = async (
           patch.disableHoverSound ?? defaults.disableHoverSound,
         disableHeroTrailers:
           patch.disableHeroTrailers ?? defaults.disableHeroTrailers,
+        catalogCardStyle: patch.catalogCardStyle ?? defaults.catalogCardStyle,
         selectedServerId: patch.selectedServerId ?? defaults.selectedServerId,
         userSelectedPlaybackServer:
           patch.userSelectedPlaybackServer ??

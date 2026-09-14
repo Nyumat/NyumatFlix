@@ -1,10 +1,13 @@
 import { tmdbImage } from "@/tmdb/utils";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import type { WatchProviderBrand } from "@/lib/watch-providers";
-
 type ProviderLogoMarkProps = {
-  provider: WatchProviderBrand;
+  provider: {
+    name: string;
+    logoPath?: string;
+    localLogo?: string;
+    surface: string;
+  };
   className?: string;
 };
 

@@ -10,7 +10,6 @@ import { resolveTmdbShowToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { hydrateTvShowDetailQueries } from "@/lib/server/hydrate-tv-show-detail-queries";
 import type { TvDetailCatalog } from "@/lib/tv-detail-catalog";
 import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
-import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
 import type { TvShowDetails } from "@/lib/domain/typings";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
@@ -39,29 +38,35 @@ export async function TvShowDetailLayoutContent({
       ? isAnimeAnilistRouteId(id)
       : isAnilistTvRouteId(id);
 
-  let details: TvShowDetails | null = null;
-  try {
-    details = (await getCachedTvShowDetail(id, {
+  // Detail pages trust the link-time namespace: cards navigate directly to
+  // the canonical `/anime/anilist-*` URL, so the hot path needs only the
+  // detail fetch + search params. Anime mapping stays a cold-path safety net
+  // (stale links, `/anime/tmdb-*`) — never a TTFB blocker.
+  const [detailsResult, requestSearchParams] = await Promise.all([
+    getCachedTvShowDetail(id, {
       animeCatalog: routeNamespace === "anime",
-    })) as TvShowDetails | null;
-  } catch {
-    notFound();
-  }
+    }).catch(() => null) as Promise<TvShowDetails | null>,
+    getDetailRouteSearchParams(),
+  ]);
+  const details = detailsResult;
 
   if (!details) {
     notFound();
   }
-
-  const requestSearchParams = await getDetailRouteSearchParams();
   const queryAnilistId = parsePositiveInt(requestSearchParams.get("anilistId"));
   const requestedSeason = parsePositiveInt(requestSearchParams.get("season"));
 
+  // Cold-path safety net only: canonical links already carry the AniList id,
+  // so skip mapping I/O when the route is AniList-backed or the caller pinned
+  // `?anilistId=`. Live AniList search is gone from this path — unmapped
+  // titles stay on the TMDB experience instead of blocking TTFB.
+  const needsMapping = !isAnilistBackedRoute && queryAnilistId === null;
   const mappedAnilistId = isAnilistBackedRoute
     ? (parseAnimeAnilistRouteId(id) ?? details.id)
-    : await resolveTmdbShowToAnilistId(details.id, requestedSeason);
-  const autoResolvedAnilistId = isAnilistBackedRoute
-    ? null
-    : (mappedAnilistId ?? (await getAnilistIdForMedia(details)) ?? null);
+    : needsMapping
+      ? await resolveTmdbShowToAnilistId(details.id, requestedSeason)
+      : null;
+  const autoResolvedAnilistId = isAnilistBackedRoute ? null : mappedAnilistId;
   const anilistId = isAnilistBackedRoute
     ? (parseAnimeAnilistRouteId(id) ?? details.id)
     : (queryAnilistId ?? autoResolvedAnilistId);

@@ -1,17 +1,19 @@
 import { IndexPage } from "@/components/catalog/index-page";
-import { CatalogDiscoverHubLoading } from "@/components/layout/page-loading/catalog-hub-loading";
+import { IndexFeatureHeroFallback } from "@/components/catalog/index-feature-hero-fallback";
 import { CatalogResultsLoading } from "@/components/layout/page-loading/catalog-results-loading";
 import {
   MoviesDiscoverContent,
-  getMoviesHubFeature,
+  MoviesDiscoverHubSections,
   MoviesListCatalogSection,
 } from "@/components/movies/movies-catalog-sections";
+import { MoviesHubFeatureHero } from "@/components/movies/movies-hub-feature-hero";
 import { pages } from "@/config/pages";
 import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import { parseMovieView, stripCatalogUiParams } from "@/lib/catalog-query";
 import { getMovieCatalogListCopy } from "@/lib/catalog-list-copy";
 import { getDiscoverCatalogCopy } from "@/lib/discover-page-copy";
 import { normalizeRouteSearchParams } from "@/lib/utils";
+import { getMoviesCatalogHubFeature } from "@/lib/server/catalog-hub-feature";
 import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -55,24 +57,35 @@ export default async function MoviesCatalogPage(props: PageProps) {
   const catalogQueryParams = toCatalogQueryParams(sp);
   const indexHref =
     Object.keys(sp).length > 0 ? pages.movie.root.link : undefined;
-  const hubFeature = layoutState.isHubLayout
-    ? await getMoviesHubFeature()
-    : null;
-  const backdrop = hubFeature?.backdrop ?? null;
 
   if (view === "discover") {
+    const hubBackdrop = layoutState.isHubLayout
+      ? ((await getMoviesCatalogHubFeature())?.backdrop ?? null)
+      : null;
+
     return (
-      <IndexPage backdrop={backdrop}>
-        <Suspense fallback={<CatalogDiscoverHubLoading />}>
-          <MoviesDiscoverContent
-            searchParams={sp}
-            title={title}
-            description={description ?? ""}
-            catalogQueryParams={catalogQueryParams}
-            indexHref={indexHref}
-            feature={hubFeature?.item ?? null}
-          />
-        </Suspense>
+      <IndexPage
+        background={layoutState.isHubLayout ? "hub" : "shader"}
+        backdrop={hubBackdrop}
+      >
+        {layoutState.isHubLayout ? (
+          <>
+            <Suspense fallback={<IndexFeatureHeroFallback />}>
+              <MoviesHubFeatureHero />
+            </Suspense>
+            <MoviesDiscoverHubSections searchParams={sp} />
+          </>
+        ) : (
+          <Suspense fallback={<CatalogResultsLoading />}>
+            <MoviesDiscoverContent
+              searchParams={sp}
+              title={title}
+              description={description ?? ""}
+              catalogQueryParams={catalogQueryParams}
+              indexHref={indexHref}
+            />
+          </Suspense>
+        )}
       </IndexPage>
     );
   }

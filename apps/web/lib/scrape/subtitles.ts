@@ -16,6 +16,8 @@ type Sub1x2SubtitleEntry = {
   label?: string;
   language?: string;
   url?: string;
+  /** sub1x2 marks entries it failed to fetch/convert — those URLs 404. */
+  status?: string;
 };
 
 type VdrkCatalogSubtitleEntry = {
@@ -54,15 +56,29 @@ export const resolveSub1x2SubtitleUrl = (
   return `${SUB1X2_SUBTITLE_ORIGIN}${relativeOrAbsolute.startsWith("/") ? relativeOrAbsolute : `/${relativeOrAbsolute}`}`;
 };
 
+const normalizeWttSubtitleUrl = (url: string): string =>
+  url.replace(/\.wtt(?=[?#]|$)/i, ".vtt");
+
 const subtitleFormatFromUrl = (url: string): ScrapeSubtitle["format"] => {
+  if (/\.ass(?:[?#]|$)/i.test(url)) {
+    return "ass";
+  }
+
   if (/\.srt(?:[?#]|$)/i.test(url)) {
     return "srt";
+  }
+
+  // Treat `.wtt` as a `.vtt` typo from upstream catalogs.
+  if (/\.wtt(?:[?#]|$)/i.test(url)) {
+    return "vtt";
   }
 
   return "vtt";
 };
 
-const parseSub1x2SubtitleEntries = (payload: unknown): ScrapeSubtitle[] => {
+export const parseSub1x2SubtitleEntries = (
+  payload: unknown,
+): ScrapeSubtitle[] => {
   if (!Array.isArray(payload)) {
     return [];
   }
@@ -72,11 +88,28 @@ const parseSub1x2SubtitleEntries = (payload: unknown): ScrapeSubtitle[] => {
       return [];
     }
 
+    // sub1x2 explicitly marks entries it failed to fetch/convert with
+    // status:"failed" — those files don't exist (verified: 42/44 404 for
+    // tv/125988/1/1). Only "cached" entries are fetchable.
+    if (entry.status !== undefined && entry.status !== "cached") {
+      return [];
+    }
+
+    const trimmed = entry.url.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    const resolved = normalizeWttSubtitleUrl(resolveSub1x2SubtitleUrl(trimmed));
+    if (!/\.(?:vtt|srt|ass)(?:[?#]|$)/i.test(resolved)) {
+      return [];
+    }
+
     return [
       {
         lang: entry.label ?? entry.language ?? "und",
-        url: resolveSub1x2SubtitleUrl(entry.url),
-        format: "vtt" as const,
+        url: resolved,
+        format: subtitleFormatFromUrl(resolved),
       },
     ];
   });
@@ -86,10 +119,12 @@ const normalizeVdrkCatalogSubtitleEntry = (
   entry: VdrkCatalogSubtitleEntry,
   fallbackLang?: string,
 ): ScrapeSubtitle | null => {
-  const url = entry.file ?? entry.url;
-  if (!url?.startsWith("http")) {
+  const rawUrl = entry.file ?? entry.url;
+  if (!rawUrl?.startsWith("http")) {
     return null;
   }
+
+  const url = normalizeWttSubtitleUrl(rawUrl);
 
   const lang =
     entry.label ?? entry.language ?? entry.lang ?? fallbackLang ?? "und";

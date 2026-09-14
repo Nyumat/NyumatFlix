@@ -3,6 +3,8 @@
 import { NavbarClient } from "@/components/layout/nav/navbar-client";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { AppSettingsSync } from "@/components/providers/app-settings-sync";
+import { CatalogCardStyleSync } from "@/components/providers/catalog-card-style-sync";
+import { CardHoverPreviewProvider } from "@/components/providers/card-hover-preview-provider";
 import { MalReauthProvider } from "@/components/providers/mal-reauth-provider";
 import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { AppChromeDeferred } from "@/components/layout/app-chrome-deferred";
@@ -27,13 +29,16 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
     <>
       <AppChromeDeferred />
       <AppSettingsSync />
-      <MalReauthProvider />
-      <GlobalDockProvider>
-        <NavbarClient />
-        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-        <FooterSection />
-        <Toaster richColors closeButton />
-      </GlobalDockProvider>
+      <CatalogCardStyleSync />
+      <CardHoverPreviewProvider>
+        <MalReauthProvider />
+        <GlobalDockProvider>
+          <NavbarClient />
+          <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+          <FooterSection />
+          <Toaster richColors closeButton />
+        </GlobalDockProvider>
+      </CardHoverPreviewProvider>
     </>
   );
 }

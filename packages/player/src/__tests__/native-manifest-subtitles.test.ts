@@ -122,4 +122,21 @@ describe("native manifest subtitle helpers", () => {
     expect(cue.text).toBe("Delayed");
     expect(cue.key).toBe("5.000|Delayed");
   });
+
+  it("returns stable overlay keys for unchanged cue windows", () => {
+    const textTracks = makeTextTrackList([
+      {
+        kind: "subtitles",
+        label: "English",
+        mode: "hidden",
+        cues: [{ startTime: 1, endTime: 4, text: "Line" }],
+      },
+    ]);
+
+    const first = readNativeSubtitleCue(textTracks[0] ?? null, 2, 0);
+    const second = readNativeSubtitleCue(textTracks[0] ?? null, 2.05, 0);
+
+    expect(first.key).toBe(second.key);
+    expect(first.text).toBe("Line");
+  });
 });

@@ -1,0 +1,1 @@
+ALTER TABLE "user_settings" ALTER COLUMN "catalogCardStyle" SET DEFAULT 'backdrop';

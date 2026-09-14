@@ -173,7 +173,7 @@ const anime = {
 const collection = {
   root: {
     title: "Collections",
-    link: "/search",
+    link: "/collections",
   },
 };
 

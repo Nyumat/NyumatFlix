@@ -1,5 +1,9 @@
 "use client";
 
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { AvatarAccentPicker } from "@/components/settings/avatar-accent-picker";
+import { MalSyncPanel } from "@/components/settings/mal-sync-panel";
+import { PlaybackPreferencesPanel } from "@/components/settings/playback-preferences-panel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,10 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ProfileAvatar } from "@/components/user/profile-avatar";
-import { AvatarAccentPicker } from "@/components/settings/avatar-accent-picker";
-import { MalSyncPanel } from "@/components/settings/mal-sync-panel";
-import { PlaybackPreferencesPanel } from "@/components/settings/playback-preferences-panel";
-import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { loginHref } from "@/lib/auth/callback-url";
+import { resolveAuthSession } from "@/lib/auth/session-state";
+import type { MalSyncStatusResponse } from "@/lib/mal/types";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { scrapeServer, useServerStore } from "@/lib/stores/server-store";
 import {
@@ -33,12 +36,10 @@ import {
   type AvatarPreset,
   type AvatarVariant,
 } from "@/lib/user/avatar";
-import type { MalSyncStatusResponse } from "@/lib/mal/types";
-import { loginHref } from "@/lib/auth/callback-url";
-import { resolveAuthSession } from "@/lib/auth/session-state";
 import { cn } from "@/lib/utils";
 import {
   ImageIcon,
+  LayoutGrid,
   Loader2,
   LogIn,
   ShieldOff,
@@ -76,6 +77,12 @@ export function SettingsClient({ session }: SettingsClientProps) {
   );
   const setDisableHoverSound = useAppSettingsStore(
     (state) => state.setDisableHoverSound,
+  );
+  const catalogCardStyle = useAppSettingsStore(
+    (state) => state.catalogCardStyle,
+  );
+  const setCatalogCardStyle = useAppSettingsStore(
+    (state) => state.setCatalogCardStyle,
   );
   const setSelectedServer = useServerStore((state) => state.setSelectedServer);
 
@@ -261,46 +268,57 @@ export function SettingsClient({ session }: SettingsClientProps) {
         </div>
 
         {showPreferences ? (
-          <section className="border-b border-white/10 px-4 py-5 md:px-6">
-            <h2 className="mb-3 text-sm font-semibold text-foreground">
-              Playback
-            </h2>
+          <div className="space-y-2">
+            <section className="border-b border-white/10 px-4 py-5 md:px-6">
+              <h2 className="text-sm font-bold tracking-tight text-foreground">
+                Playback
+              </h2>
 
-            <div className="divide-y divide-white/8">
-              <div className="py-3.5">
-                <PlaybackPreferencesPanel />
+              <div className="divide-y divide-white/8">
+                <div className="py-3.5">
+                  <PlaybackPreferencesPanel />
+                </div>
+                {!hideNoAds ? (
+                  <SettingSwitchRow
+                    icon={ShieldOff}
+                    title="No ads mode"
+                    description="Hides iframe at server selection and skips embed fallback"
+                    checked={noAdsMode}
+                    onCheckedChange={handleNoAdsModeChange}
+                  />
+                ) : null}
+                {!hideHero ? (
+                  <SettingSwitchRow
+                    icon={ImageIcon}
+                    title="Static hero"
+                    description="See backdrop image instead of autoplay trailers on detail pages"
+                    checked={disableHeroTrailers}
+                    onCheckedChange={setDisableHeroTrailers}
+                  />
+                ) : null}
+                <SettingSwitchRow
+                  icon={Volume2}
+                  title="Card hover sounds"
+                  description="Play sounds when hovering posters and cards"
+                  checked={!disableHoverSound}
+                  onCheckedChange={(enabled) => setDisableHoverSound(!enabled)}
+                />
+                <SettingSwitchRow
+                  icon={LayoutGrid}
+                  title="Wide catalog cards"
+                  description="Wide cards with trailer preview on hover when available"
+                  checked={catalogCardStyle === "backdrop"}
+                  onCheckedChange={(enabled) =>
+                    setCatalogCardStyle(enabled ? "backdrop" : "poster")
+                  }
+                />
               </div>
-              {!hideNoAds ? (
-                <SettingSwitchRow
-                  icon={ShieldOff}
-                  title="No ads mode"
-                  description="Proxy only — hides iframe and skips embed fallback"
-                  checked={noAdsMode}
-                  onCheckedChange={handleNoAdsModeChange}
-                />
-              ) : null}
-              {!hideHero ? (
-                <SettingSwitchRow
-                  icon={ImageIcon}
-                  title="Static hero"
-                  description="Backdrop image instead of autoplay trailers"
-                  checked={disableHeroTrailers}
-                  onCheckedChange={setDisableHeroTrailers}
-                />
-              ) : null}
-              <SettingSwitchRow
-                icon={Volume2}
-                title="Card hover sounds"
-                description="Play sounds when hovering posters and cards"
-                checked={!disableHoverSound}
-                onCheckedChange={(enabled) => setDisableHoverSound(!enabled)}
-              />
-            </div>
-          </section>
+            </section>
+          </div>
         ) : null}
 
-        <section className="border-b border-white/10 px-4 py-5 md:px-6">
-          <h2 className="mb-3 text-sm font-semibold text-foreground">
+        <section className="space-y-2 border-b border-white/10 px-4 py-5 md:px-6">
+          <h2 className="text-sm font-bold tracking-tight text-foreground">
             Integrations
           </h2>
           <MalSyncPanel
@@ -309,8 +327,8 @@ export function SettingsClient({ session }: SettingsClientProps) {
           />
         </section>
 
-        <section className="px-4 py-5 md:px-6">
-          <h2 className="mb-4 text-sm font-semibold text-foreground">
+        <section className="space-y-2 px-4 py-5 md:px-6">
+          <h2 className="text-sm font-bold tracking-tight text-foreground">
             Account
           </h2>
 

@@ -9,7 +9,7 @@ SSH_HOST="${SSH_HOST:-leetbot}"
 LOCAL_VPN_ENV="${LOCAL_VPN_ENV:-$ROOT/.env.vpn}"
 
 sync_reconciler() {
-  ssh "$SSH_HOST" 'mkdir -p "$HOME/apps/nyumatflix/infra" "$HOME/apps/nyumatflix/scripts" "$HOME/apps/gluetun"'
+  ssh "$SSH_HOST" 'mkdir -p "$HOME/apps/nyumatflix/infra" "$HOME/apps/nyumatflix/scripts/gluetun" "$HOME/apps/gluetun"'
   if [[ -f "$ROOT/.env.prod" ]]; then
     rsync -avz "$ROOT/.env.prod" "$SSH_HOST:~/apps/nyumatflix/.env.prod"
   fi
@@ -19,8 +19,12 @@ sync_reconciler() {
     "$ROOT/infra/docker-compose.imgproxy.yml" \
     "$SSH_HOST:~/apps/nyumatflix/infra/"
   rsync -avz \
+    "$ROOT/scripts/gluetun/defaults.env" \
+    "$SSH_HOST:~/apps/nyumatflix/scripts/gluetun/"
+  rsync -avz \
     "$ROOT/scripts/prod-env-managed-keys.txt" \
     "$ROOT/scripts/reconcile-prod-infra.sh" \
+    "$ROOT/scripts/infra-health.sh" \
     "$ROOT/scripts/deploy.sh" \
     "$ROOT/scripts/deploy-lib.sh" \
     "$SSH_HOST:~/apps/nyumatflix/scripts/"

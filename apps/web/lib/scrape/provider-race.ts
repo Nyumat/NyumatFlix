@@ -15,9 +15,12 @@ const PROVIDER_ATTEMPT_TIMEOUT_MS: Partial<Record<string, number>> = {
   vidnest: 30_000,
   videasy: 60_000,
   vidking: 30_000,
+  vidlink: 25_000,
+  hexa: 25_000,
   animegg: 18_000,
   anizone: 20_000,
   kickassanime: 35_000,
+  animekai: 35_000,
   animeonsen: 15_000,
   anipm: 20_000,
 };

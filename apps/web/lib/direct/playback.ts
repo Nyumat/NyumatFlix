@@ -15,6 +15,10 @@ import {
 
 export type DirectPlaybackEngine = "movi" | "vidstack-hls" | "vidstack-direct";
 
+export type DirectEngineSelectionOptions = {
+  userPlayerEngine?: "vidstack" | "movi";
+};
+
 type StreamNameFields = {
   name: string;
   fileName?: string;
@@ -270,7 +274,57 @@ const engineLabel = (
 
 export const playbackEngineLabel = engineLabel;
 
-function buildEngineCandidates(stream: DirectStream): DirectPlaybackEngine[] {
+function shouldTryMoviBeforeVidstack(
+  stream: DirectStream,
+  options?: DirectEngineSelectionOptions,
+): boolean {
+  if (stream.playbackHint === "hls-first" || isHeavyBrowserDecode(stream)) {
+    return false;
+  }
+  if (!canUseMoviEngine(stream)) {
+    return false;
+  }
+  if (stream.playbackHint === "movi-first") {
+    return true;
+  }
+  if (options?.userPlayerEngine !== "movi") {
+    return false;
+  }
+  if (prefersMoviFirstEngine(stream)) {
+    return true;
+  }
+  return (
+    stream.playback === "extended" &&
+    Boolean(stream.fallbackUrl) &&
+    supportsWebCodecs()
+  );
+}
+
+function appendTranscodeAndMovi(
+  stream: DirectStream,
+  add: (engine: DirectPlaybackEngine) => void,
+  options?: DirectEngineSelectionOptions,
+): void {
+  const addMoviEngine = () => {
+    if (canUseMoviEngine(stream)) {
+      add("movi");
+    }
+  };
+  const addTranscode = () => addVidstackTranscodeCandidates(stream, add);
+
+  if (shouldTryMoviBeforeVidstack(stream, options)) {
+    addMoviEngine();
+    addTranscode();
+  } else {
+    addTranscode();
+    addMoviEngine();
+  }
+}
+
+function buildEngineCandidates(
+  stream: DirectStream,
+  options?: DirectEngineSelectionOptions,
+): DirectPlaybackEngine[] {
   const candidates: DirectPlaybackEngine[] = [];
   const add = (engine: DirectPlaybackEngine) => {
     if (!candidates.includes(engine)) candidates.push(engine);
@@ -288,9 +342,15 @@ function buildEngineCandidates(stream: DirectStream): DirectPlaybackEngine[] {
 
   if (stream.playback === "direct") {
     if (looksLikeMultiTrackStream(stream)) {
-      addMovi();
-      add("vidstack-direct");
-      if (stream.fallbackUrl) add("vidstack-hls");
+      if (shouldTryMoviBeforeVidstack(stream, options)) {
+        addMovi();
+        add("vidstack-direct");
+        if (stream.fallbackUrl) add("vidstack-hls");
+      } else {
+        add("vidstack-direct");
+        if (stream.fallbackUrl) add("vidstack-hls");
+        addMovi();
+      }
       return candidates;
     }
     add("vidstack-direct");
@@ -299,25 +359,8 @@ function buildEngineCandidates(stream: DirectStream): DirectPlaybackEngine[] {
   }
 
   if (stream.playback === "extended") {
-    if (prefersMoviFirstEngine(stream)) {
-      addMovi();
-      addVidstackTranscodeCandidates(stream, add);
-      return candidates;
-    }
-
     if (stream.fallbackUrl) {
-      if (
-        stream.playbackHint !== "hls-first" &&
-        supportsWebCodecs() &&
-        canUseMoviEngine(stream)
-      ) {
-        addMovi();
-        addVidstackTranscodeCandidates(stream, add);
-        return candidates;
-      }
-
-      addVidstackTranscodeCandidates(stream, add);
-      addMovi();
+      appendTranscodeAndMovi(stream, add, options);
       return candidates;
     }
 
@@ -349,8 +392,9 @@ export function supportsWebCodecs(): boolean {
 
 export function selectInitialEngine(
   stream: DirectStream,
+  options?: DirectEngineSelectionOptions,
 ): DirectPlaybackEngine | null {
-  return buildEngineCandidates(stream)[0] ?? null;
+  return buildEngineCandidates(stream, options)[0] ?? null;
 }
 
 export function isStreamPlayable(stream: DirectStream): boolean {
@@ -361,13 +405,16 @@ export function nextFallbackEngine(
   stream: DirectStream,
   current: DirectPlaybackEngine,
   tried?: ReadonlySet<DirectPlaybackEngine>,
+  options?: DirectEngineSelectionOptions,
 ): DirectPlaybackEngine | null {
   if (current === "movi" && shouldRetainMoviEngine(stream)) {
     return null;
   }
   const excluded = new Set(tried);
   excluded.add(current);
-  return buildEngineCandidates(stream).find((c) => !excluded.has(c)) ?? null;
+  return (
+    buildEngineCandidates(stream, options).find((c) => !excluded.has(c)) ?? null
+  );
 }
 
 export function engineSourceUrl(
@@ -416,8 +463,9 @@ export function openDownloadUrl(stream: DirectStream): string {
 
 export function playbackEngineCandidates(
   stream: DirectStream,
+  options?: DirectEngineSelectionOptions,
 ): DirectPlaybackEngine[] {
-  return buildEngineCandidates(stream);
+  return buildEngineCandidates(stream, options);
 }
 
 export function toDirectStream(input: {

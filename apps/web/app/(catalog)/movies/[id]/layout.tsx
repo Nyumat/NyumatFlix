@@ -6,8 +6,8 @@ import { MediaDetailLayout } from "@/components/media/media-server";
 import { hydrateMovieDetailQueries } from "@/lib/prefetch-media-detail-queries";
 import { getCachedMovieDetail } from "@/lib/media-detail-cache";
 import { getDetailRouteSearchParams } from "@/lib/detail-search-params";
-import { getAnilistIdFromFribb } from "@/lib/fribb-mapping";
-import { getAnilistIdForMedia, isAnime } from "@/utils/anilist-helpers";
+import { resolveTmdbMediaToAnilistId } from "@/lib/anime/cross-id-resolver";
+import { isAnime } from "@/utils/anilist-helpers";
 import { isUpcomingMovie } from "@/utils/movie-helpers";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
@@ -28,7 +28,10 @@ const parsePositiveInt = (value: string | null) => {
 
 async function MovieDetailLayoutContent({ children, params }: Props) {
   const { id } = await params;
-  const movie = await getCachedMovieDetail(id);
+  const [movie, requestSearchParams] = await Promise.all([
+    getCachedMovieDetail(id),
+    getDetailRouteSearchParams(),
+  ]);
 
   if (!movie || !("title" in movie)) {
     notFound();
@@ -37,22 +40,22 @@ async function MovieDetailLayoutContent({ children, params }: Props) {
     notFound();
   }
 
-  const requestSearchParams = await getDetailRouteSearchParams();
   const queryAnilistId = parsePositiveInt(requestSearchParams.get("anilistId"));
   const numericMovieId = Number.parseInt(id, 10);
+  // Cold-path prop only (TMDB->anime UI hints). Never blocks paint: the
+  // O(1) cached resolver runs alongside hydration data, no live search.
   const shouldAutoResolveAnime = queryAnilistId === null && isAnime(movie);
-  const mappedAnilistId =
+  const anilistIdPromise =
     shouldAutoResolveAnime && Number.isInteger(numericMovieId)
-      ? await getAnilistIdFromFribb(numericMovieId, "movie")
-      : null;
-  const anilistId =
-    queryAnilistId ??
-    mappedAnilistId ??
-    (shouldAutoResolveAnime ? await getAnilistIdForMedia(movie) : null);
+      ? resolveTmdbMediaToAnilistId(numericMovieId, "movie").catch(() => null)
+      : Promise.resolve(null);
   const isUpcoming = isUpcomingMovie(movie);
 
   const queryClient = new QueryClient();
-  await hydrateMovieDetailQueries(queryClient, id, movie);
+  const [anilistId] = await Promise.all([
+    anilistIdPromise.then((mapped) => queryAnilistId ?? mapped),
+    hydrateMovieDetailQueries(queryClient, id, movie),
+  ]);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

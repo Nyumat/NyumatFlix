@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildSub1x2SubtitleApiUrl,
+  parseSub1x2SubtitleEntries,
   resolveSub1x2SubtitleUrl,
 } from "@/lib/scrape/subtitles";
 
@@ -56,5 +57,59 @@ describe("sub1x2 subtitles", () => {
         episodeNumber: 1,
       }),
     ).toBe("https://sub.1x2.space/api/tv/13916/1/1");
+  });
+
+  it("normalizes bogus .wtt Tym URLs to .vtt", () => {
+    const [track] = parseSub1x2SubtitleEntries([
+      {
+        label: "Slovak",
+        url: "https://sub.1x2.space/subtitle/tv/125988/1/1/Slovak - Slovak.wtt",
+      },
+    ]);
+
+    expect(track?.url).toBe(
+      "https://sub.1x2.space/subtitle/tv/125988/1/1/Slovak - Slovak.vtt",
+    );
+    expect(track?.format).toBe("vtt");
+  });
+
+  it("drops entries without a subtitle extension and trims whitespace", () => {
+    const tracks = parseSub1x2SubtitleEntries([
+      { label: "English", url: "https://cdn.example/en.txt" },
+      { label: "French", url: "  https://cdn.example/fr.vtt  " },
+      { label: "German", url: "" },
+      { url: "https://cdn.example/de.srt" },
+      { label: "Arabic", url: "https://cdn.example/ar.ass" },
+    ]);
+
+    expect(tracks.map((track) => track.url)).toEqual([
+      "https://cdn.example/fr.vtt",
+      "https://cdn.example/de.srt",
+      "https://cdn.example/ar.ass",
+    ]);
+    expect(tracks[1]?.format).toBe("srt");
+    expect(tracks[2]?.format).toBe("ass");
+  });
+
+  it("drops sub1x2 entries it failed to fetch, keeps cached ones", () => {
+    const tracks = parseSub1x2SubtitleEntries([
+      {
+        label: "Arabic",
+        url: "/subtitle/tv/125988/1/1/Arabic.vtt",
+        status: "cached",
+      },
+      {
+        label: "Arabic - Arabic",
+        url: "/subtitle/tv/125988/1/1/Arabic - Arabic.vtt",
+        status: "failed",
+      },
+      // No status (older API shape) — keep for backwards compat.
+      { label: "English", url: "/subtitle/tv/125988/1/1/English.vtt" },
+    ]);
+
+    expect(tracks.map((track) => track.url)).toEqual([
+      "https://sub.1x2.space/subtitle/tv/125988/1/1/Arabic.vtt",
+      "https://sub.1x2.space/subtitle/tv/125988/1/1/English.vtt",
+    ]);
   });
 });

@@ -1,6 +1,6 @@
 import { engineSourceUrl as directEngineSourceUrlFromStream, engineStreamKind, nextFallbackEngine, selectInitialEngine, supportsWebCodecs, toDirectStream, } from "./playback";
 export { supportsWebCodecs };
-export function selectDirectPlaybackEngine(playback, fallbackUrl, mediaUrl, fileName, name, size, browserPlayable, playbackHint) {
+export function selectDirectPlaybackEngine(playback, fallbackUrl, mediaUrl, fileName, name, size, browserPlayable, playbackHint, options) {
     const resolvedFileName = fileName ?? (mediaUrl ? mediaUrl.split("/").pop() : undefined);
     const resolvedName = name ?? resolvedFileName;
     return selectInitialEngine(toDirectStream({
@@ -12,9 +12,9 @@ export function selectDirectPlaybackEngine(playback, fallbackUrl, mediaUrl, file
         name: resolvedName,
         size,
         playbackHint,
-    }));
+    }), options);
 }
-export function nextDirectPlaybackEngine(playback, current, fallbackUrl, mediaUrl, fileName, name, playbackHint) {
+export function nextDirectPlaybackEngine(playback, current, fallbackUrl, mediaUrl, fileName, name, playbackHint, options) {
     const resolvedFileName = fileName ?? (mediaUrl ? mediaUrl.split("/").pop() : undefined);
     const resolvedName = name ?? resolvedFileName;
     return nextFallbackEngine(toDirectStream({
@@ -24,7 +24,7 @@ export function nextDirectPlaybackEngine(playback, current, fallbackUrl, mediaUr
         fileName: resolvedFileName,
         name: resolvedName,
         playbackHint,
-    }), current);
+    }), current, undefined, options);
 }
 export function directEngineSourceUrl(mediaUrl, fallbackUrl, engine) {
     return directEngineSourceUrlFromStream(toDirectStream({ url: mediaUrl, fallbackUrl }), engine);

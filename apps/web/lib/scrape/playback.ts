@@ -63,6 +63,10 @@ const DISGUISED_HLS_SEGMENT =
 
 const MPEG_TS_CONTENT_TYPE = "video/mp2t";
 
+/** Upstream catalogs (sub1x2) typo `.vtt` as `.wtt` — normalize before checks. */
+export const normalizeSubtitleUrl = (url: string): string =>
+  url.replace(/\.wtt(?=[?#]|$)/i, ".vtt");
+
 const suffixForUrl = (
   url: string,
   subtitleFormat?: ScrapePlaybackToken["subtitleFormat"],
@@ -95,7 +99,7 @@ const suffixForUrl = (
     return "asset.json";
   }
 
-  if (/\.vtt(?:[?#].*)?$/i.test(url)) {
+  if (/\.vtt(?:[?#].*)?$/i.test(normalizeSubtitleUrl(url))) {
     return "captions.vtt";
   }
 
@@ -122,7 +126,7 @@ export const isDisguisedHlsSegment = (url: string) =>
   DISGUISED_HLS_SEGMENT.test(url);
 
 const PLAY_MEDIA_BYTES_ASSET = /^(?:segment\.ts|asset\.mp4)$/i;
-const PLAY_CAPTION_ASSET = /^captions\.(?:vtt|srt)$/i;
+const PLAY_CAPTION_ASSET = /^captions\.(?:vtt|srt|wtt)$/i;
 
 export const CACHE_CONTROL_PLAY_MEDIA = "private, max-age=3600";
 export const CACHE_CONTROL_PLAY_MANIFEST = "no-store";
@@ -147,7 +151,18 @@ export const isProxiedPlayCaption = (
   if (asset && PLAY_CAPTION_ASSET.test(asset)) {
     return true;
   }
-  return /\.(?:vtt|srt|ass)(?:[?#].*)?$/i.test(upstreamUrl);
+  return /\.(?:vtt|srt|ass|wtt)(?:[?#].*)?$/i.test(upstreamUrl);
+};
+
+/** SRT arrives as `captions.srt` (or `?format=srt`) and must be converted to VTT. */
+export const isProxiedPlaySrtCaption = (
+  upstreamUrl: string,
+  asset?: string,
+): boolean => {
+  if (asset === "captions.srt") {
+    return true;
+  }
+  return /(?:\.srt(?:[?#]|$)|\bformat=srt\b)/i.test(upstreamUrl);
 };
 
 export const shouldFollowPlayClientAbort = (
@@ -184,17 +199,20 @@ export const playUpstreamAbortSignal = (
 export const contentTypeForProxiedAsset = (
   upstreamUrl: string,
   upstreamContentType: string | null,
+  asset?: string,
 ): string | undefined => {
   if (isDisguisedHlsSegment(upstreamUrl)) {
     return MPEG_TS_CONTENT_TYPE;
   }
 
-  if (/\.vtt(?:[?#].*)?$/i.test(upstreamUrl)) {
+  if (isProxiedPlaySrtCaption(upstreamUrl, asset)) {
+    // Browsers cannot parse SRT into a native <track>; the proxy converts it
+    // to WebVTT (see convertSrtToVtt), so advertise the converted type.
     return "text/vtt";
   }
 
-  if (/\.srt(?:[?#].*)?$/i.test(upstreamUrl)) {
-    return "application/x-subrip";
+  if (/\.vtt(?:[?#].*)?$/i.test(normalizeSubtitleUrl(upstreamUrl))) {
+    return "text/vtt";
   }
 
   if (/\.ass(?:[?#].*)?$/i.test(upstreamUrl)) {
@@ -233,6 +251,29 @@ export const convertAssToVtt = (ass: string): string => {
     return text ? [`${start} --> ${end}\n${text}`] : [];
   });
   return `WEBVTT\n\n${cues.join("\n\n")}\n`;
+};
+
+/**
+ * Native `<track>` only understands WebVTT, but several scrape providers serve
+ * SubRip. Convert SRT to WebVTT so the sidecar loads in the player's native
+ * presentation path: drop the optional cue-index line and swap the decimal
+ * comma in timestamps for a dot.
+ */
+export const convertSrtToVtt = (srt: string): string => {
+  const lines = srt.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const out: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const nextLine = lines[index + 1] ?? "";
+    const isIndexLine = /^\s*\d+\s*$/.test(line) && /-->/.test(nextLine);
+    if (isIndexLine) {
+      continue;
+    }
+    out.push(line.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2"));
+  }
+
+  return `WEBVTT\n\n${out.join("\n").trim()}\n`;
 };
 
 const KAA_SEGMENT_HOST_PATTERN =

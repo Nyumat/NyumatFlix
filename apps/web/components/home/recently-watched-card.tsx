@@ -52,7 +52,7 @@ export function RecentlyWatchedCard({
 
   return (
     <div
-      className="group relative aspect-video select-none overflow-hidden rounded-t-lg bg-black/40 shadow-lg shadow-black/10 ring-1 ring-white/8 transition-shadow duration-300 hover:shadow-xl rounded-xs"
+      className="group relative aspect-video select-none overflow-hidden rounded-lg bg-black/40 shadow-lg shadow-black/10 ring-1 ring-white/8 transition-shadow duration-300 hover:shadow-xl"
       aria-label={item.title}
       onPointerEnter={() => playHoverSound?.()}
     >
@@ -115,7 +115,7 @@ export function RecentlyWatchedCard({
       {showProgress ? (
         <div
           className={cn(
-            "pointer-events-none absolute inset-x-0 bottom-0 z-30 h-[3px]",
+            "pointer-events-none absolute inset-x-0 bottom-0 z-30 h-3",
             continueWatchingProgressTrackClass,
           )}
           role="progressbar"

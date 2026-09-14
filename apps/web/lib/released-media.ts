@@ -8,6 +8,35 @@ export const getTodayIsoDateUtc = (): string => {
   return `${y}-${m}-${d}`;
 };
 
+const formatUtcIsoDate = (date: Date): string => {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+/** Rolling 365-day window ending today (UTC). */
+export const getRollingYearDateRangeUtc = (): { gte: string; lte: string } => {
+  const lte = getTodayIsoDateUtc();
+  const end = new Date(`${lte}T00:00:00.000Z`);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - 365);
+  return { gte: formatUtcIsoDate(start), lte };
+};
+
+/** Exclude recent releases from hub picks (TMDB hype / sparse votes). */
+export const getAcclaimedHubMovieReleaseDateLte = (
+  minAgeDays = 540,
+): string => {
+  const today = getTodayIsoDateUtc();
+  const cutoff = new Date(`${today}T00:00:00.000Z`);
+  cutoff.setUTCDate(cutoff.getUTCDate() - minAgeDays);
+  return formatUtcIsoDate(cutoff);
+};
+
+export const isoDateToAniListFuzzyDateInt = (isoDate: string): number =>
+  Number.parseInt(isoDate.replace(/-/g, ""), 10);
+
 export const isReleasedMovieByDate = (
   releaseDate: string | null | undefined,
 ): boolean => {

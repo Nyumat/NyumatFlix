@@ -7,7 +7,7 @@ import { Movie } from "@/tmdb/models";
 import { tmdb } from "@/tmdb/api";
 import { MovieListType, WithImages } from "@/tmdb/api";
 import { format, tmdbImage } from "@/tmdb/utils";
-import { Info, Play } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
@@ -16,11 +16,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { MediaPoster } from "@/components/media/media-display";
 import { getGenreName } from "@/components/content/genre-helpers";
+import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import {
   MediaBackdrop,
   mediaMetaBadgeClass,
 } from "@/components/media/media-shared";
 import { ListPagination } from "@/components/shared/list-pagination";
+import { MovieHeroPlayButton } from "@/components/movie/movie-hero-play-button";
 import { MovieCard } from "./movie-card";
 
 export const MovieCollectionPart: React.FC<Movie> = ({
@@ -221,10 +223,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
           {!hideGenre && (
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {genres.map((genre) => (
-                <Link
-                  href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
-                  key={genre.id}
-                >
+                <Link href={buildGenreBrowseUrl(genre, "movie")} key={genre.id}>
                   <Badge
                     variant="secondary"
                     className={cn(
@@ -244,13 +243,7 @@ export const MovieHeroItem: React.FC<MovieHeroItemProps> = async ({
           </p>
 
           <div className="flex items-center justify-center gap-3 md:justify-start">
-            <Link
-              href={`${pages.movie.root.link}/${item.id}?autoplay=true`}
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/60 bg-white px-4 py-2 text-sm font-bold text-black shadow-lg transition hover:border-white/70 hover:bg-white/90 hover:shadow-xl"
-            >
-              <Play className="mr-2 size-4 fill-black text-black" />
-              Play
-            </Link>
+            <MovieHeroPlayButton itemId={item.id} />
 
             <Link
               href={`${pages.movie.root.link}/${item.id}`}

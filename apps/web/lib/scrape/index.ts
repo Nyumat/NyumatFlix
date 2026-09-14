@@ -4,6 +4,8 @@ import { scrapeVidKing } from "./providers/vidking";
 import { scrapeVidSrc } from "./providers/vidsrc";
 import { scrapeVidrock } from "./providers/vidrock";
 import { scrapeBingr } from "./providers/bingr";
+import { scrapeVidlink } from "./providers/vidlink";
+import { scrapeHexa } from "./providers/hexa";
 import { scrapeDirect } from "./providers/direct";
 import { scrapeXPass } from "./providers/xpass";
 import { attachHlsTrackCapabilities } from "./hls-track-capabilities";
@@ -28,6 +30,8 @@ const SCRAPERS: Record<
   "2embed": scrapeXPass,
   vidrock: scrapeVidrock,
   bingr: scrapeBingr,
+  vidlink: scrapeVidlink,
+  hexa: scrapeHexa,
 };
 
 const inferTmdbStreamKind = (streamUrl: string): StreamKind => {

@@ -23,7 +23,6 @@ describe("provider registry", () => {
       "111movies",
       "vidfast",
       "vidnest",
-      "vidlink",
       "vidcore",
       "1embed",
       "vidlux",
@@ -37,6 +36,9 @@ describe("provider registry", () => {
     expect(order[0]).toBe("direct");
     expect(order.at(-1)).toBe("2embed");
     expect(order).not.toContain("vixsrc");
+    expect(order).not.toContain("vidfast");
+    expect(order).not.toContain("vidcore");
+    expect(order).not.toContain("vidup");
   });
 
   it("lists dual-capability providers for embed sub-picker", () => {
@@ -45,6 +47,7 @@ describe("provider registry", () => {
       "vidking",
       "videasy",
       "2embed",
+      "vidlink",
     ]);
   });
 

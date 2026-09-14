@@ -1,7 +1,10 @@
 "use client";
 
-import { PosterCard } from "@/components/cards/poster-card";
-import { hasPosterPath } from "@/lib/media-poster-path";
+import { ContentCard } from "@/components/content/content-card";
+import {
+  hasCatalogCardArt,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
 import { formatYear } from "@/lib/cards/formatters";
 import { type Movie } from "@/tmdb/models";
 
@@ -11,13 +14,14 @@ export type MovieCardProps = Movie & {
 
 export const MovieCard: React.FC<MovieCardProps> = (props) => {
   const { variant: _variant, ...movie } = props;
+  const catalogCardStyle = useCatalogCardStyle();
 
-  if (!hasPosterPath(movie)) {
+  if (!hasCatalogCardArt(movie, catalogCardStyle)) {
     return null;
   }
 
   return (
-    <PosterCard
+    <ContentCard
       item={{
         ...movie,
         media_type: "movie",
@@ -29,6 +33,7 @@ export const MovieCard: React.FC<MovieCardProps> = (props) => {
         date: movie.release_date,
         year: formatYear(movie.release_date),
       }}
+      isMobile={false}
     />
   );
 };

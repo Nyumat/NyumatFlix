@@ -50,7 +50,6 @@ describe("buildSourceOverlayItems", () => {
       "vidfast",
       "vidsrc-mirror",
       "hentaini",
-      "vidlink",
       "vidcore",
       "1embed",
       "vidlux",

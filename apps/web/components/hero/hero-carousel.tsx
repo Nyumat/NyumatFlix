@@ -20,9 +20,10 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WatchlistButton } from "@/components/watchlist/watchlist";
+import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
 import { isMovie, type MediaItem } from "@/lib/domain/typings";
 import { Icons } from "@/lib/icons";
-import { buildDetailPlayHref } from "@/lib/playback/detail-autoplay-href";
+import { requestDetailPlay } from "@/lib/playback/detail-autoplay-href";
 import { cn } from "@/lib/utils";
 import { Calendar, Clock, Globe, Info, Star } from "lucide-react";
 import Link from "next/link";
@@ -98,7 +99,7 @@ export function MediaInfoDialog({
   const handleWatchNow = () => {
     onClose();
     gateAction(() => {
-      router.push(buildDetailPlayHref(href, { media }));
+      requestDetailPlay((target) => router.push(target), href, { media });
     });
   };
 
@@ -286,6 +287,7 @@ export const CarouselDetails = React.memo(function CarouselDetails({
   const [dialogMedia, setDialogMedia] = useState<MediaItem | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const router = useRouter();
+  const { prefetch } = useMediaCardPrefetch(current);
 
   const titleText = useMemo(
     () =>
@@ -326,7 +328,9 @@ export const CarouselDetails = React.memo(function CarouselDetails({
 
   const handlePlay = useMemo(
     () => () => {
-      router.push(buildDetailPlayHref(href, { media: current }));
+      requestDetailPlay((target) => router.push(target), href, {
+        media: current,
+      });
     },
     [router, href, current],
   );
@@ -417,18 +421,24 @@ export const CarouselDetails = React.memo(function CarouselDetails({
           </p>
 
           <div className="flex items-center space-x-4 mb-6">
-            <Button
-              onClick={handlePlay}
-              size="lg"
-              className={cn(
-                "font-bold transition-all duration-200 shadow-lg",
-                "backdrop-blur-md bg-white/20 border border-white/30 text-white",
-                "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
-              )}
+            <span
+              onPointerEnter={prefetch}
+              onFocus={prefetch}
+              className="inline-flex"
             >
-              <Icons.play className="mr-2 h-5 w-5" />
-              Play
-            </Button>
+              <Button
+                onClick={handlePlay}
+                size="lg"
+                className={cn(
+                  "font-bold transition-all duration-200 shadow-lg",
+                  "backdrop-blur-md bg-white/20 border border-white/30 text-white",
+                  "hover:bg-white/30 hover:border-white/40 hover:shadow-xl",
+                )}
+              >
+                <Icons.play className="mr-2 h-5 w-5" />
+                Play
+              </Button>
+            </span>
             <Button
               size="lg"
               onClick={() => {

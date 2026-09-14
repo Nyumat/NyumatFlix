@@ -115,7 +115,6 @@ export type AnimeHubPools = {
   airing: MediaItem[];
   topRated: MediaItem[];
   movies: MediaItem[];
-  hentai: MediaItem[];
   genreRows: AnimeHubGenrePool[];
 };
 
@@ -129,7 +128,6 @@ export const buildAnimeHubLayout = (
     airing: string;
     topRated: string;
     movies: string;
-    hentai: string;
     genre: (name: string) => string;
   },
 ): AnimeHubLayout => {
@@ -162,12 +160,6 @@ export const buildAnimeHubLayout = (
       allocator.take(items, ANIME_HUB_ROW_GENRE),
     );
   }
-
-  pushRow(
-    "Hentai",
-    links.hentai,
-    allocator.take(pools.hentai, ANIME_HUB_ROW_GENRE),
-  );
 
   return {
     season,

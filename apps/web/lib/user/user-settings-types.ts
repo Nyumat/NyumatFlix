@@ -5,12 +5,15 @@ import type {
 } from "@/lib/playback/playback-preferences";
 import type { VidsrcApi } from "@/lib/providers/embed-urls";
 
+export type CatalogCardStyle = "poster" | "backdrop";
+
 export type UserSettingsWire = {
   playbackAudio: PlaybackAudioPreference;
   playbackQuality: PlaybackQualityPreference;
   playbackEnglishSubtitles: boolean;
   disableHoverSound: boolean;
   disableHeroTrailers: boolean;
+  catalogCardStyle: CatalogCardStyle;
   selectedServerId: string | null;
   userSelectedPlaybackServer: boolean;
   policyGenerationAtChoice: string | null;

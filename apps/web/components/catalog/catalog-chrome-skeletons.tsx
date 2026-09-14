@@ -58,10 +58,7 @@ export const CatalogPageShellHeaderSkeleton = ({
 );
 
 export const CatalogHubChromeSkeleton = () => (
-  <>
-    <QueryPageHeaderSkeleton showDescription={false} />
-    <DiscoverToolbarSkeleton />
-  </>
+  <QueryPageHeaderSkeleton showDescription={false} />
 );
 
 export const CatalogPageShellChromeSkeleton = ({

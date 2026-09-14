@@ -50,6 +50,7 @@
   --animate-button-pulse: button-pulse var(--duration, 1.5s) ease-out infinite;
   --animate-button-pulse-ripple: button-pulse-ripple var(--duration, 1.5s)
     cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  --animate-hero-progress: hero-progress 10s linear forwards;
 
   @keyframes button-pulse {
     0%,
@@ -69,6 +70,17 @@
     100% {
       box-shadow: 0 0 0 var(--distance, 8px)
         oklch(from var(--pulse-color, var(--bg)) l c h / 0);
+    }
+  }
+
+  @keyframes hero-progress {
+    from {
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+    to {
+      transform: scaleX(1);
+      transform-origin: left;
     }
   }
 
@@ -524,7 +536,6 @@ html {
 @utility index-container {
   margin-inline: auto;
   width: 100%;
-  max-width: 1760px;
   padding-inline: 1rem;
 
   @media (width >= 40rem) {
@@ -562,6 +573,23 @@ html {
   @media (width >= 96rem) {
     margin-inline: -4rem;
   }
+}
+
+/* Full viewport width inside index-container (avoids blur-only side pillars when zoomed). */
+@utility index-hero-viewport-bleed {
+  position: relative;
+  left: 50%;
+  right: 50%;
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: -50vw;
+  margin-right: -50vw;
+}
+
+@utility index-full-bleed {
+  position: relative;
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
 }
 
 @utility index-rail-padding {
@@ -614,6 +642,30 @@ html {
 
   @media (width >= 96rem) {
     grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  }
+}
+
+@layer utilities {
+  [data-catalog-card-style="backdrop"] .grid-list {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+
+    @media (width >= 48rem) {
+      grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    }
+
+    @media (width >= 64rem) {
+      grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    }
+  }
+
+  .catalog-grid-tile-skeleton {
+    aspect-ratio: var(--aspect-poster);
+    border-radius: 28px;
+  }
+
+  [data-catalog-card-style="backdrop"] .catalog-grid-tile-skeleton {
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-lg);
   }
 }
 

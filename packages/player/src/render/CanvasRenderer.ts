@@ -3138,12 +3138,10 @@ export class CanvasRenderer {
       // movi-subtitle-fade keyframes in a tight loop). Result: subtitle
       // never finishes fading in during playback and only becomes visible
       // when the loop pauses.
-      const renderKey = `${cue.start.toFixed(3)}|${cue.text}`;
-      if (renderKey === this._lastRenderedSubtitleKey) {
-        return;
-      }
-      this._lastRenderedSubtitleKey = renderKey;
-
+      // Proxy karaoke cues may update their hidden GHOST/final-sentence tail
+      // while the visible words are unchanged. Key on what is actually
+      // painted; keying on the raw cue text recreates the DOM and restarts the
+      // fade animation for every hidden-tail update, which looks like flicker.
       // Karaoke cues from the proxy embed the FULL final sentence after
       // a `⟨⟨GHOST⟩⟩` delimiter. Only the *visible* portion goes into
       // the DOM — the full sentence's width is measured offscreen via a
@@ -3154,6 +3152,9 @@ export class CanvasRenderer {
       const delimIdx = cue.text.indexOf(KARAOKE_DELIM);
       const visibleText =
         delimIdx >= 0 ? cue.text.slice(0, delimIdx) : cue.text;
+      const renderKey = `${cue.start.toFixed(3)}|${visibleText}`;
+      if (renderKey === this._lastRenderedSubtitleKey) return;
+      this._lastRenderedSubtitleKey = renderKey;
       const renderText =
         delimIdx >= 0
           ? cue.text.slice(delimIdx + KARAOKE_DELIM.length)

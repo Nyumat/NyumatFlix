@@ -3,12 +3,14 @@ import { NextResponse } from "next/server";
 import {
   cacheControlForProxiedPlayAsset,
   convertAssToVtt,
+  convertSrtToVtt,
   contentTypeForProxiedAsset,
   decodeScrapePlaybackToken,
   isAmbiguousPlaylistContentType,
   isDashManifestResponse,
   isDisguisedHlsSegment,
   isPlaylistResponse,
+  isProxiedPlaySrtCaption,
   playUpstreamAbortSignal,
   resolveKaaSegmentFallbackUrls,
   resolveDashTemplateUrl,
@@ -303,6 +305,7 @@ export async function GET(request: Request, context: RouteContext) {
     const contentType = contentTypeForProxiedAsset(
       upstreamUrl,
       upstream.headers.get("content-type"),
+      asset,
     );
     if (contentType) {
       headers.set("Content-Type", contentType);
@@ -313,10 +316,13 @@ export async function GET(request: Request, context: RouteContext) {
       cacheControlForProxiedPlayAsset(upstreamUrl, asset),
     );
 
+    const isSrtCaption = isProxiedPlaySrtCaption(upstreamUrl, asset);
     const rawText =
       playback.subtitleFormat === "ass" ||
       /\.ass(?:[?#].*)?$/i.test(upstreamUrl) ||
-      /\.vtt(?:[?#].*)?$/i.test(upstreamUrl)
+      isSrtCaption ||
+      /\.vtt(?:[?#].*)?$/i.test(upstreamUrl) ||
+      /\.wtt(?:[?#].*)?$/i.test(upstreamUrl)
         ? await upstream.text()
         : null;
     const body =
@@ -324,7 +330,9 @@ export async function GET(request: Request, context: RouteContext) {
         ? playback.subtitleFormat === "ass" ||
           /\.ass(?:[?#].*)?$/i.test(upstreamUrl)
           ? convertAssToVtt(rawText)
-          : decodeObfuscatedHlsBody(rawText)
+          : isSrtCaption
+            ? convertSrtToVtt(rawText)
+            : decodeObfuscatedHlsBody(rawText)
         : upstream.body;
 
     if (typeof body === "string") {

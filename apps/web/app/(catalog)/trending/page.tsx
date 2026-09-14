@@ -1,12 +1,14 @@
+import { CatalogRowFallback } from "@/components/catalog/catalog-suspense-fallbacks";
 import {
-  CatalogHeroPairFallback,
-  CatalogRowFallback,
-  TrendingSpotlightFallback,
-} from "@/components/catalog/catalog-suspense-fallbacks";
+  TrendingMoviesSectionFallback,
+  TrendingTvSectionFallback,
+} from "@/components/catalog/hub-loading-manifests";
 import { IndexHeader } from "@/components/catalog/index-header";
+import { IndexFeatureHeroFallback } from "@/components/catalog/index-feature-hero-fallback";
 import { IndexPage } from "@/components/catalog/index-page";
 import {
   TrendingMoviesSection,
+  TrendingFeatureHero,
   TrendingPeopleSection,
   TrendingTvSection,
 } from "@/components/trending/trending-hub-sections";
@@ -34,27 +36,14 @@ export default function TrendingHub() {
         />
       }
     >
-      <Suspense
-        fallback={
-          <>
-            <TrendingSpotlightFallback />
-            <CatalogRowFallback bleed />
-            <CatalogHeroPairFallback />
-          </>
-        }
-      >
+      <Suspense fallback={<IndexFeatureHeroFallback />}>
+        <TrendingFeatureHero />
+      </Suspense>
+      <Suspense fallback={<TrendingMoviesSectionFallback />}>
         <TrendingMoviesSection />
       </Suspense>
 
-      <Suspense
-        fallback={
-          <>
-            <TrendingSpotlightFallback />
-            <CatalogRowFallback bleed />
-            <CatalogHeroPairFallback />
-          </>
-        }
-      >
+      <Suspense fallback={<TrendingTvSectionFallback />}>
         <TrendingTvSection />
       </Suspense>
 

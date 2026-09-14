@@ -1,3 +1,6 @@
+import { ANIME_BROWSE_PATH } from "@/lib/anilist-shared";
+import { pages } from "@/config/pages";
+
 const ANILIST_GENRE_BY_TMDB_NAME: Record<string, string> = {
   action: "Action",
   "action adventure": "Action",
@@ -29,7 +32,15 @@ const normalizeGenreName = (genreName: string) =>
 export const getAniListGenreFromTmdbName = (genreName: string) =>
   ANILIST_GENRE_BY_TMDB_NAME[normalizeGenreName(genreName)];
 
-import { ANIME_BROWSE_PATH } from "@/lib/anilist-shared";
+export const buildCatalogDiscoverGenreUrl = (
+  genreId: number,
+  mediaType: "movie" | "tv",
+) => {
+  const catalogLink =
+    mediaType === "movie" ? pages.movie.catalog.link : pages.tv.catalog.link;
+
+  return `${catalogLink}?view=discover&with_genres=${genreId}&mode=results`;
+};
 
 export const buildAnimeGenreUrl = (genreName: string) => {
   const anilistGenre = getAniListGenreFromTmdbName(genreName);
@@ -50,5 +61,5 @@ export const buildGenreBrowseUrl = (
     return buildAnimeGenreUrl(genre.name);
   }
 
-  return `/browse/genre/${genre.id}?type=${mediaType}`;
+  return buildCatalogDiscoverGenreUrl(genre.id, mediaType);
 };

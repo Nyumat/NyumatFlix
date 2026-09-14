@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 
+const ENABLE_MEDIA_PEEK_SHEET = false;
+
 const GlobalCommandMenu = dynamic(
   () =>
     import("@/components/command-menu/global-command-menu").then(
@@ -70,7 +72,7 @@ export function AppChromeDeferred() {
   return (
     <>
       <GlobalCommandMenu />
-      <MediaPeekSheet />
+      {ENABLE_MEDIA_PEEK_SHEET ? <MediaPeekSheet /> : null}
     </>
   );
 }

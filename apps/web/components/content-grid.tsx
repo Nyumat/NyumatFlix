@@ -1,5 +1,6 @@
 "use client";
 
+import { CatalogGridTileSkeleton } from "@/components/catalog/catalog-card-skeletons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -7,19 +8,10 @@ import { Grid2X2, List } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const GridSkeleton = ({ count = 8 }: { count?: number }) => (
-  <div className="grid-list">
+  <div className="grid-list" aria-hidden data-catalog-grid-skeleton>
     {Array.from({ length: count }).map((_, i) => (
       <div key={i} className="min-w-0">
-        <div className="bg-card/40 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-xl animate-pulse">
-          <Skeleton className="aspect-2/3 w-full rounded-none" />
-          <div className="p-4 space-y-3">
-            <Skeleton className="h-4 w-3/4 mx-auto bg-muted/20" />
-            <div className="flex justify-center gap-2">
-              <Skeleton className="h-3 w-1/4 bg-muted/10" />
-              <Skeleton className="h-3 w-1/4 bg-muted/10" />
-            </div>
-          </div>
-        </div>
+        <CatalogGridTileSkeleton />
       </div>
     ))}
   </div>
@@ -85,6 +77,8 @@ export interface BaseContentGridProps {
   dockPosition?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   itemsPerRow?: number;
   gridMinItemWidth?: string;
+  /** Extra skeleton tiles appended inside the grid (infinite scroll). */
+  trailingGridSkeletonCount?: number;
 }
 
 export function BaseContentGrid({
@@ -100,9 +94,10 @@ export function BaseContentGrid({
   showDock = false,
   itemsPerRow = 4,
   gridMinItemWidth,
+  trailingGridSkeletonCount = 0,
 }: BaseContentGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => items.length === 0);
   const isFirstMount = useRef(true);
 
   useEffect(() => {
@@ -112,12 +107,14 @@ export function BaseContentGrid({
     } else {
       setViewMode(defaultViewMode);
     }
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [defaultViewMode]);
+    if (items.length === 0) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+    setIsLoading(false);
+  }, [defaultViewMode, items.length]);
 
   const _completeRows = Math.floor(items.length / itemsPerRow);
   const _itemsInLastRow = items.length % itemsPerRow;
@@ -270,6 +267,19 @@ export function BaseContentGrid({
           }
           return card;
         })}
+        {viewMode === "grid" && trailingGridSkeletonCount > 0
+          ? Array.from({ length: trailingGridSkeletonCount }).map(
+              (_, index) => (
+                <div
+                  key={`grid-skeleton-${index}`}
+                  className={getItemClasses()}
+                  aria-hidden
+                >
+                  <CatalogGridTileSkeleton />
+                </div>
+              ),
+            )
+          : null}
       </div>
 
       {itemsToDisplay.length === 0 && (

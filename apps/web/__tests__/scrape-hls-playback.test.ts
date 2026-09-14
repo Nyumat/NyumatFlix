@@ -16,6 +16,9 @@ import {
   extractScrapePlaybackTokenFromPlayUrl,
   isAmbiguousPlaylistContentType,
   isPlaylistResponse,
+  isProxiedPlayCaption,
+  isProxiedPlaySrtCaption,
+  normalizeSubtitleUrl,
   playUpstreamAbortSignal,
   resolveKaaSegmentFallbackUrl,
   resolveKaaSegmentFallbackUrls,
@@ -257,6 +260,41 @@ describe("scrape hls playback helpers", () => {
         "image/x-pict",
       ),
     ).toBe("video/mp2t");
+  });
+
+  it("treats bogus .wtt Tym URLs as VTT captions", () => {
+    const wtt =
+      "https://sub.1x2.space/subtitle/tv/125988/1/1/Slovak - Slovak.wtt";
+
+    expect(normalizeSubtitleUrl(wtt)).toBe(
+      "https://sub.1x2.space/subtitle/tv/125988/1/1/Slovak - Slovak.vtt",
+    );
+    expect(buildScrapePlayUrl({ url: wtt })).toMatch(/\/captions\.vtt$/);
+    expect(isProxiedPlayCaption(wtt)).toBe(true);
+    expect(isProxiedPlayCaption(wtt, "captions.vtt")).toBe(true);
+    expect(contentTypeForProxiedAsset(wtt, null)).toBe("text/vtt");
+    expect(cacheControlForProxiedPlayAsset(wtt, "captions.vtt")).toBe(
+      CACHE_CONTROL_PLAY_MEDIA,
+    );
+  });
+
+  it("serves SRT captions as converted WebVTT", () => {
+    expect(
+      contentTypeForProxiedAsset("https://cdn.example/show/en.srt", null),
+    ).toBe("text/vtt");
+    expect(
+      contentTypeForProxiedAsset(
+        "https://cdn.example/show/sub?format=srt",
+        "text/plain",
+        "captions.srt",
+      ),
+    ).toBe("text/vtt");
+    expect(isProxiedPlaySrtCaption("https://cdn.example/show/en.srt")).toBe(
+      true,
+    );
+    expect(
+      isProxiedPlaySrtCaption("https://cdn.example/show/sub?format=srt"),
+    ).toBe(true);
   });
 
   it("retries blocked KAA segment mirrors across the rotation pool", () => {

@@ -7,12 +7,17 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import {
+  carouselItemClassName,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
+import { wideCarouselItemClassName } from "@/lib/carousel-layout";
+import { contentRowActionLinkClassName } from "@/lib/content-row-action-link";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode } from "react";
 
-export const homeWideCarouselItemClassName =
-  "pl-3 basis-[82%] sm:basis-[58%] md:basis-[42%] lg:pl-4 lg:basis-[26rem] xl:basis-[28rem] 2xl:basis-[30rem]";
+export const homeWideCarouselItemClassName = wideCarouselItemClassName;
 
 type HomeWideCarouselRowProps<T> = {
   ariaLabel: string;
@@ -37,6 +42,9 @@ export function HomeWideCarouselRow<T>({
   getItemKey,
   renderItem,
 }: HomeWideCarouselRowProps<T>) {
+  const catalogCardStyle = useCatalogCardStyle();
+  const itemClassName = carouselItemClassName(catalogCardStyle);
+
   return (
     <section
       aria-label={ariaLabel}
@@ -63,7 +71,7 @@ export function HomeWideCarouselRow<T>({
             (actionHref ? (
               <Link
                 href={actionHref}
-                className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className={contentRowActionLinkClassName}
                 prefetch={false}
               >
                 <span>{actionLabel}</span>
@@ -79,7 +87,7 @@ export function HomeWideCarouselRow<T>({
           {items.map((item, index) => (
             <CarouselItem
               key={getItemKey(item, index)}
-              className={homeWideCarouselItemClassName}
+              className={itemClassName}
             >
               {renderItem(item, index)}
             </CarouselItem>

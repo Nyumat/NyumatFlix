@@ -2,16 +2,11 @@ import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
 import {
+  CatalogRankedRowFallback,
   CatalogRowFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
-import { DiscoverToolbarSkeleton } from "@/components/catalog/catalog-chrome-skeletons";
-import {
-  IndexFeatureHero,
-  type IndexFeatureHeroItem,
-} from "@/components/catalog/index-feature-hero";
 import { ContentRow } from "@/components/content/content-row";
-import { DiscoverHubToolbarDynamic } from "@/components/discover/discover-hub-toolbar-dynamic";
 import type { PageBackdrop } from "@/components/hero/ambient-page-backdrop";
 import { RecentlyWatchedRow } from "@/components/home/recently-watched-row";
 import { TrendCarousel } from "@/components/trend/trend-client";
@@ -26,8 +21,11 @@ import {
 } from "@/lib/released-media";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterDiscoverParams, getUserTimezone } from "@/lib/utils";
-import { tmdb, type SortByTypeTv, type WithImages } from "@/tmdb/api";
-import { tmdbImage } from "@/tmdb/utils";
+import {
+  getTvHubFeature as loadTvHubFeature,
+  type CatalogHubFeature,
+} from "@/lib/server/catalog-hub-feature";
+import { tmdb, type SortByTypeTv } from "@/tmdb/api";
 import type { MediaItem } from "@/lib/domain/typings";
 import { cache } from "react";
 import { Suspense } from "react";
@@ -45,46 +43,8 @@ const getCachedTrendingTvDay = cache(async () => {
   return filterReleasedTvShows(results ?? []);
 });
 
-type TvHubFeature = {
-  item: IndexFeatureHeroItem;
-  backdrop: PageBackdrop | null;
-};
-
-const toTvHubBackdrop = (item: IndexFeatureHeroItem): PageBackdrop | null => {
-  if (!item.backdrop_path) return null;
-
-  return {
-    imageUrl: tmdbImage.backdrop(item.backdrop_path, "w1280"),
-    alt: item.name ?? "Featured TV series",
-    priority: true,
-  };
-};
-
-const getCachedTvHubFeature = cache(async (): Promise<TvHubFeature | null> => {
-  const shows = await getCachedTrendingTvDay();
-  const featured = shows.find((show) => Boolean(show.backdrop_path));
-
-  if (!featured) return null;
-
-  let item: IndexFeatureHeroItem = featured;
-
-  try {
-    item = await tmdb.tv.detail<WithImages>({
-      id: featured.id,
-      append: "images",
-    });
-  } catch {
-    item = featured;
-  }
-
-  return {
-    item,
-    backdrop: toTvHubBackdrop(item) ?? toTvHubBackdrop(featured),
-  };
-});
-
-export async function getTvHubFeature(): Promise<TvHubFeature | null> {
-  return getCachedTvHubFeature();
+export async function getTvHubFeature(): Promise<CatalogHubFeature | null> {
+  return loadTvHubFeature();
 }
 
 const getCachedPopularTvByVote = cache(async (sp: SearchParams) => {
@@ -129,32 +89,8 @@ const getCachedDiscoverCatalog = cache(async (sp: SearchParams) => {
   });
 });
 
-export async function TvDiscoverToolbarSection({
-  searchParams: sp,
-}: {
-  searchParams: SearchParams;
-}) {
-  const [{ genres }, providerResponse] = await Promise.all([
-    tmdb.genres.tv(),
-    tmdb.watchProviders.tv({ region: TMDB_WATCH_REGION }),
-  ]);
-
-  return (
-    <DiscoverHubToolbarDynamic
-      type="tv"
-      genres={genres}
-      providers={providerResponse.results ?? []}
-      serverDiscoverFilters={filterDiscoverParams(sp)}
-    />
-  );
-}
-
-export function TvDiscoverToolbarFallback() {
-  return <DiscoverToolbarSkeleton />;
-}
-
 export async function getTvHubAmbientBackdrop(): Promise<PageBackdrop | null> {
-  return (await getCachedTvHubFeature())?.backdrop ?? null;
+  return (await loadTvHubFeature())?.backdrop ?? null;
 }
 
 export async function TvDiscoverResultsSection({
@@ -196,7 +132,6 @@ export async function TvDiscoverResultsSection({
       currentPage={catalogResponse.page}
       totalPages={catalogResponse.total_pages}
       queryParams={catalogQueryParams}
-      resultCount={catalogResponse.total_results ?? shows.length}
       emptyTitle="No TV shows found for the selected filters."
       emptyDescription="Try removing some filters or sorting differently."
       indexHref={indexHref}
@@ -305,23 +240,13 @@ async function TvDiscoverCategoryShowcase({
   );
 }
 
-export async function TvDiscoverHubSections({
-  feature,
+export function TvDiscoverHubSections({
   searchParams: sp,
 }: {
-  feature?: IndexFeatureHeroItem | null;
   searchParams: SearchParams;
 }) {
   return (
     <>
-      {feature ? (
-        <IndexFeatureHero item={feature} mediaType="tv" priority />
-      ) : null}
-
-      <Suspense fallback={<TvDiscoverToolbarFallback />}>
-        <TvDiscoverToolbarSection searchParams={sp} />
-      </Suspense>
-
       <Suspense fallback={<RecentlyWatchedRowFallback bleed />}>
         <RecentlyWatchedRow bleed scope="tv" />
       </Suspense>
@@ -330,7 +255,7 @@ export async function TvDiscoverHubSections({
         <TvDiscoverTrendingCarouselSection />
       </Suspense>
 
-      <Suspense fallback={<CatalogRowFallback bleed />}>
+      <Suspense fallback={<CatalogRankedRowFallback bleed />}>
         <TvDiscoverTopRatedSection />
       </Suspense>
 
@@ -338,7 +263,7 @@ export async function TvDiscoverHubSections({
         <TvDiscoverPopularCarouselSection searchParams={sp} />
       </Suspense>
 
-      <Suspense fallback={<CatalogRowFallback bleed />}>
+      <Suspense fallback={null}>
         <TvDiscoverCategoryShowcase searchParams={sp} />
       </Suspense>
     </>
@@ -351,33 +276,29 @@ export async function TvDiscoverContent({
   description,
   catalogQueryParams,
   indexHref,
-  feature,
 }: {
   searchParams: SearchParams;
   title: string;
   description: string;
   catalogQueryParams: Record<string, string>;
   indexHref?: string;
-  feature?: IndexFeatureHeroItem | null;
 }) {
   const layoutState = getCatalogLayoutState(sp, parseTvView(sp.view));
-  const catalogResponse = await getCachedDiscoverCatalog(sp);
-  const shows = filterReleasedTvShows(catalogResponse.results ?? []);
 
-  if (layoutState.isResultsLayout || shows.length === 0) {
-    return (
-      <TvDiscoverResultsSection
-        searchParams={sp}
-        title={title}
-        description={description}
-        catalogQueryParams={catalogQueryParams}
-        indexHref={indexHref}
-        includeChrome={!layoutState.isHubLayout}
-      />
-    );
+  if (layoutState.isHubLayout) {
+    return <TvDiscoverHubSections searchParams={sp} />;
   }
 
-  return <TvDiscoverHubSections feature={feature} searchParams={sp} />;
+  return (
+    <TvDiscoverResultsSection
+      searchParams={sp}
+      title={title}
+      description={description}
+      catalogQueryParams={catalogQueryParams}
+      indexHref={indexHref}
+      includeChrome
+    />
+  );
 }
 
 export async function TvListCatalogSection({
@@ -420,7 +341,6 @@ export async function TvListCatalogSection({
     results: showsRaw,
     page: currentPage,
     total_pages: totalPages,
-    total_results: totalResults,
   } = catalogResponse;
 
   const shows = filterReleasedTvShows(showsRaw);
@@ -442,7 +362,6 @@ export async function TvListCatalogSection({
       currentPage={currentPage}
       totalPages={totalPages}
       queryParams={catalogQueryParams}
-      resultCount={totalResults ?? tvItems.length}
       emptyTitle="No TV shows found for this list."
       indexHref={indexHref}
     />

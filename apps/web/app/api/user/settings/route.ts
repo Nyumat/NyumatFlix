@@ -15,6 +15,7 @@ const patchSchema = z
     playbackEnglishSubtitles: z.boolean().optional(),
     disableHoverSound: z.boolean().optional(),
     disableHeroTrailers: z.boolean().optional(),
+    catalogCardStyle: z.enum(["poster", "backdrop"]).optional(),
     selectedServerId: z.string().nullable().optional(),
     userSelectedPlaybackServer: z.boolean().optional(),
     policyGenerationAtChoice: z.string().nullable().optional(),

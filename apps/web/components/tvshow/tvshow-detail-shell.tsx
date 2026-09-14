@@ -59,6 +59,9 @@ export const TvShowDetailShell = ({
     ? null
     : watchlistItem;
 
+  // Client backstop for stale `/tvshows/{tmdb}` links. Canonical links land
+  // directly on `/anime/anilist-*`, so this only fires for unmapped or
+  // shared URLs — the server already redirected those during SSR.
   useEffect(() => {
     if (catalog !== "tvshows") return;
     if (searchParams.has("anilistId")) return;
@@ -70,18 +73,22 @@ export const TvShowDetailShell = ({
       return;
     }
 
-    const season = Number.parseInt(searchParams.get("season") ?? "", 10);
-    const canonicalHref = buildAnilistTvDetailHref(
-      resolvedAnilistId as number,
-      {
-        season: Number.isInteger(season) && season > 0 ? season : undefined,
-      },
-    );
-    const currentHref = stripSearchParam(pathname, searchParams, "season");
+    const timer = window.setTimeout(() => {
+      const season = Number.parseInt(searchParams.get("season") ?? "", 10);
+      const canonicalHref = buildAnilistTvDetailHref(
+        resolvedAnilistId as number,
+        {
+          season: Number.isInteger(season) && season > 0 ? season : undefined,
+        },
+      );
+      const currentHref = stripSearchParam(pathname, searchParams, "season");
 
-    if (currentHref !== canonicalHref) {
-      router.replace(canonicalHref);
-    }
+      if (currentHref !== canonicalHref) {
+        router.replace(canonicalHref);
+      }
+    }, 1500);
+
+    return () => window.clearTimeout(timer);
   }, [catalog, pathname, resolvedAnilistId, router, searchParams, tvId]);
 
   useEffect(() => {

@@ -9,6 +9,7 @@ import {
 } from "@/lib/playback/movi-subtitle-preference";
 import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
 import {
+  getTrackPreferences,
   trackPreferenceStorageKey,
   updateTrackPreferences,
 } from "@/lib/playback/track-preferences-storage";
@@ -29,6 +30,11 @@ export function useMoviPlaybackTrackPreferences(
     () => trackPreferenceStorageKey(progressKey),
     [progressKey.contentId, progressKey.mediaType],
   );
+  // Destructure options so the effect below depends on stable primitives —
+  // the engine passes a fresh object literal every render, which used to
+  // resubscribe listeners + reschedule the 0/250/1000/2500ms apply timers
+  // on every parent render (timeupdate → setCurrentTime → rerender).
+  const { preferEnglishSubtitles, preferredAudioLang } = options ?? {};
   const applyingRef = useRef(false);
   const appliedForSourceRef = useRef<string | null>(null);
 
@@ -66,7 +72,16 @@ export function useMoviPlaybackTrackPreferences(
         return;
       }
 
-      const preferred = resolvePreferredSubtitleLang(scopeKey, options);
+      const stored = getTrackPreferences(scopeKey)?.subtitleLang;
+      if (stored === "off") {
+        appliedForSourceRef.current = sourceKey;
+        return;
+      }
+
+      const preferred = resolvePreferredSubtitleLang(scopeKey, {
+        preferEnglishSubtitles,
+        preferredAudioLang,
+      });
       if (!preferred || preferred === "off") {
         return;
       }
@@ -90,13 +105,17 @@ export function useMoviPlaybackTrackPreferences(
     };
 
     const persistSubtitlePreference = () => {
-      if (disposed || applyingRef.current) {
+      if (disposed) {
         return;
       }
 
-      updateTrackPreferences(scopeKey, {
-        subtitleLang: readActiveMoviSubtitlePreference(player),
-      });
+      const subtitleLang = readActiveMoviSubtitlePreference(player);
+      updateTrackPreferences(scopeKey, { subtitleLang });
+
+      if (subtitleLang === "off") {
+        clearTimers();
+        appliedForSourceRef.current = sourceKey;
+      }
     };
 
     const handleTracksChange = () => {
@@ -122,11 +141,5 @@ export function useMoviPlaybackTrackPreferences(
         persistSubtitlePreference,
       );
     };
-  }, [
-    options?.preferEnglishSubtitles,
-    options?.preferredAudioLang,
-    player,
-    scopeKey,
-    sourceKey,
-  ]);
+  }, [preferEnglishSubtitles, preferredAudioLang, player, scopeKey, sourceKey]);
 }

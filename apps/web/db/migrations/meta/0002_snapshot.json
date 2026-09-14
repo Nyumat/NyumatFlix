@@ -1,6 +1,6 @@
 {
-  "id": "e19a30fa-5d66-49a2-9675-87a7979ea022",
-  "prevId": "7e5c1264-ca43-4897-a29a-40e98fa0c67b",
+  "id": "49e89a50-df70-4530-96af-541c85d0b650",
+  "prevId": "e19a30fa-5d66-49a2-9675-87a7979ea022",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -170,6 +170,127 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.playback_progress": {
+      "name": "playback_progress",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contentId": {
+          "name": "contentId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mediaType": {
+          "name": "mediaType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seasonNumber": {
+          "name": "seasonNumber",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "episodeNumber": {
+          "name": "episodeNumber",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "watchedSeconds": {
+          "name": "watchedSeconds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "durationSeconds": {
+          "name": "durationSeconds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "playback_progress_user_updated_idx": {
+          "name": "playback_progress_user_updated_idx",
+          "columns": [
+            {
+              "expression": "userId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updatedAt",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "playback_progress_userId_user_id_fk": {
+          "name": "playback_progress_userId_user_id_fk",
+          "tableFrom": "playback_progress",
+          "tableTo": "user",
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "playback_progress_userId_mediaType_contentId_seasonNumber_episodeNumber_unique": {
+          "name": "playback_progress_userId_mediaType_contentId_seasonNumber_episodeNumber_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "userId",
+            "mediaType",
+            "contentId",
+            "seasonNumber",
+            "episodeNumber"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "playback_progress_media_type_check": {
+          "name": "playback_progress_media_type_check",
+          "value": "\"playback_progress\".\"mediaType\" IN ('movie', 'tv')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.session": {
       "name": "session",
       "schema": "",
@@ -198,6 +319,123 @@
         "session_userId_user_id_fk": {
           "name": "session_userId_user_id_fk",
           "tableFrom": "session",
+          "tableTo": "user",
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_settings": {
+      "name": "user_settings",
+      "schema": "",
+      "columns": {
+        "userId": {
+          "name": "userId",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "playbackAudio": {
+          "name": "playbackAudio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sub'"
+        },
+        "playbackQuality": {
+          "name": "playbackQuality",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'1080p'"
+        },
+        "playbackEnglishSubtitles": {
+          "name": "playbackEnglishSubtitles",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "disableHoverSound": {
+          "name": "disableHoverSound",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "disableHeroTrailers": {
+          "name": "disableHeroTrailers",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "catalogCardStyle": {
+          "name": "catalogCardStyle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'poster'"
+        },
+        "selectedServerId": {
+          "name": "selectedServerId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "userSelectedPlaybackServer": {
+          "name": "userSelectedPlaybackServer",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "policyGenerationAtChoice": {
+          "name": "policyGenerationAtChoice",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vidnestContentType": {
+          "name": "vidnestContentType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'tv'"
+        },
+        "vidsrcApi": {
+          "name": "vidsrcApi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'1'"
+        },
+        "subtitleAppearance": {
+          "name": "subtitleAppearance",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_settings_userId_user_id_fk": {
+          "name": "user_settings_userId_user_id_fk",
+          "tableFrom": "user_settings",
           "tableTo": "user",
           "columnsFrom": ["userId"],
           "columnsTo": ["id"],
@@ -340,6 +578,12 @@
         },
         "lastWatchedAt": {
           "name": "lastWatchedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dismissedAt": {
+          "name": "dismissedAt",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false

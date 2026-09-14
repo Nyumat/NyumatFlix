@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { usePlayerEngine } from "@/hooks/use-movi-preview";
 
 import {
   classifyStreamFailure,
@@ -15,6 +17,7 @@ import {
   playbackEngineLabel,
   selectInitialEngine,
   shouldRetainMoviEngine,
+  type DirectEngineSelectionOptions,
   type DirectPlaybackEngine,
 } from "@nyumatflix/playback";
 import { prefetchMoviMediaBytes } from "@/lib/player/prefetch-player-media";
@@ -34,6 +37,12 @@ export function useDirectPlaybackOrchestrator({
   onReady,
   onExhausted,
 }: UseDirectPlaybackOrchestratorOptions) {
+  const { engine: userPlayerEngine } = usePlayerEngine();
+  const engineSelection = useMemo<DirectEngineSelectionOptions>(
+    () => ({ userPlayerEngine }),
+    [userPlayerEngine],
+  );
+
   const onExhaustedRef = useRef(onExhausted);
   onExhaustedRef.current = onExhausted;
   const candidateList = candidates?.length ? candidates : [stream];
@@ -42,20 +51,22 @@ export function useDirectPlaybackOrchestrator({
 
   const [activeStream, setActiveStream] = useState(stream);
   const [engine, setEngine] = useState<DirectPlaybackEngine | null>(() =>
-    selectInitialEngine(stream),
+    selectInitialEngine(stream, engineSelection),
   );
   const [failed, setFailed] = useState(
-    () => selectInitialEngine(stream) === null,
+    () => selectInitialEngine(stream, engineSelection) === null,
   );
   const [failureReason, setFailureReason] =
     useState<PlaybackFailureReason | null>(() =>
-      selectInitialEngine(stream) === null ? "no_engine" : null,
+      selectInitialEngine(stream, engineSelection) === null
+        ? "no_engine"
+        : null,
     );
   const [buffering, setBuffering] = useState(true);
   const [statusNote, setStatusNote] = useState<string | null>(null);
   const [playbackAttempt, setPlaybackAttempt] = useState(0);
   const [engineLabel, setEngineLabel] = useState<string>(() => {
-    const initial = selectInitialEngine(stream);
+    const initial = selectInitialEngine(stream, engineSelection);
     return initial
       ? playbackEngineLabel(initial, engineSourceUrl(stream, initial))
       : "Unavailable";
@@ -102,7 +113,7 @@ export function useDirectPlaybackOrchestrator({
 
       if (lastErrorKindRef.current === "timeout") {
         triedEnginesRef.current = new Set();
-        const initial = selectInitialEngine(current);
+        const initial = selectInitialEngine(current, engineSelection);
         readyReportedRef.current = false;
         setStatusNote("Still starting…");
         setFailureReason(null);
@@ -128,7 +139,7 @@ export function useDirectPlaybackOrchestrator({
       advancingRef.current = false;
       onExhaustedRef.current?.();
     },
-    [],
+    [engineSelection],
   );
 
   useEffect(() => {
@@ -136,12 +147,16 @@ export function useDirectPlaybackOrchestrator({
     triedStreamsRef.current = new Set([streamIdentity(stream)]);
     advancingRef.current = false;
     setStatusNote(null);
-    setFailureReason(selectInitialEngine(stream) === null ? "no_engine" : null);
-  }, [stream]);
+    setFailureReason(
+      selectInitialEngine(stream, engineSelection) === null
+        ? "no_engine"
+        : null,
+    );
+  }, [engineSelection, stream]);
 
   useEffect(() => {
     triedEnginesRef.current = new Set();
-    const initial = selectInitialEngine(activeStream);
+    const initial = selectInitialEngine(activeStream, engineSelection);
     setEngine(initial);
     setFailed(initial === null);
     setBuffering(true);
@@ -156,7 +171,7 @@ export function useDirectPlaybackOrchestrator({
     if (initial === null) {
       void exhaustActiveStream(null);
     }
-  }, [activeStream, exhaustActiveStream]);
+  }, [activeStream, engineSelection, exhaustActiveStream]);
 
   useEffect(() => {
     if (!activeStream.fallbackUrl) return;
@@ -191,6 +206,7 @@ export function useDirectPlaybackOrchestrator({
         activeStream,
         engine,
         triedEnginesRef.current,
+        engineSelection,
       );
       if (fallback) {
         const label = playbackEngineLabel(
@@ -205,7 +221,7 @@ export function useDirectPlaybackOrchestrator({
       }
       void exhaustActiveStream(engine);
     },
-    [activeStream, engine, exhaustActiveStream],
+    [activeStream, engine, engineSelection, exhaustActiveStream],
   );
 
   return {

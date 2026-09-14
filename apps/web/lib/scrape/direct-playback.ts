@@ -5,6 +5,7 @@ import {
   selectInitialEngine,
   supportsWebCodecs,
   toDirectStream,
+  type DirectEngineSelectionOptions,
   type DirectPlaybackEngine,
 } from "@/lib/direct/playback";
 
@@ -23,6 +24,7 @@ export function selectDirectPlaybackEngine(
   size?: number | string,
   browserPlayable?: boolean,
   playbackHint?: "movi-first" | "hls-first",
+  options?: DirectEngineSelectionOptions,
 ): DirectPlaybackEngine | null {
   const resolvedFileName =
     fileName ?? (mediaUrl ? mediaUrl.split("/").pop() : undefined);
@@ -38,6 +40,7 @@ export function selectDirectPlaybackEngine(
       size,
       playbackHint,
     }),
+    options,
   );
 }
 
@@ -49,6 +52,7 @@ export function nextDirectPlaybackEngine(
   fileName?: string,
   name?: string,
   playbackHint?: "movi-first" | "hls-first",
+  options?: DirectEngineSelectionOptions,
 ): DirectPlaybackEngine | null {
   const resolvedFileName =
     fileName ?? (mediaUrl ? mediaUrl.split("/").pop() : undefined);
@@ -63,6 +67,8 @@ export function nextDirectPlaybackEngine(
       playbackHint,
     }),
     current,
+    undefined,
+    options,
   );
 }
 

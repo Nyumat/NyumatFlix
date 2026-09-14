@@ -1,5 +1,5 @@
-import { CatalogPageShellLoading } from "@/components/layout/page-loading/catalog-page-shell-loading";
+import { AnimeIndexHubLoading } from "@/components/layout/page-loading/catalog-hub-loading";
 
 export default function AnimeLoading() {
-  return <CatalogPageShellLoading />;
+  return <AnimeIndexHubLoading />;
 }

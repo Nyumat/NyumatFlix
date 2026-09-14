@@ -3,6 +3,7 @@ import {
   BookOpen,
   Clapperboard,
   Flame,
+  Layers3,
   LayoutGrid,
   RadioTower,
   Tv,
@@ -16,6 +17,7 @@ export const parentIcons: Record<string, LucideIcon> = {
   Anime: BookOpen,
   "Live TV": RadioTower,
   People: Users,
+  Collections: Layers3,
   Trending: Flame,
 };
 
@@ -44,6 +46,7 @@ export const isInNavGroup = (
   if (item.href === "/people") return pathname.startsWith("/people");
   if (item.href === "/trending") return pathname.startsWith("/trending");
   if (item.href === "/anime") return pathname.startsWith("/anime");
+  if (item.href === "/collections") return pathname.startsWith("/collections");
   if (item.href === "/live") return pathname.startsWith("/live");
 
   return false;

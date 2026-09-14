@@ -5,10 +5,14 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+EnvironmentFile=-/etc/nyumatflix/infra-watchdog.env
 ExecStart=/usr/local/sbin/nyumatflix-infra-watchdog
 RuntimeDirectory=nyumatflix-infra-watchdog
 RuntimeDirectoryMode=0750
 NoNewPrivileges=yes
 PrivateTmp=yes
-ProtectHome=yes
 ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

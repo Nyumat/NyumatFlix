@@ -3,12 +3,49 @@ import {
   filterReleasedMovies,
   filterReleasedTvShows,
 } from "@/lib/released-media";
-import { MovieHero } from "@/components/movie/movie-server";
+import { ContentRow } from "@/components/content/content-row";
+import { IndexFeatureHero } from "@/components/catalog/index-feature-hero";
 import { TrendCarousel } from "@/components/trend/trend-client";
-import { TrendingSpotlight } from "@/components/trend/trending-spotlight";
-import { TvHero } from "@/components/tv/tv-server";
 import { pages } from "@/config/pages";
+import type { MediaItem } from "@/lib/domain/typings";
+import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
+import {
+  buildCatalogHubFeature,
+  toMovieHubBackdrop,
+} from "@/lib/server/catalog-hub-feature";
+import type { Movie, TvShow } from "@/tmdb/models";
 import { tmdb } from "@/tmdb/api";
+
+const toMediaItems = <T extends Movie | TvShow>(
+  items: T[],
+  mediaType: "movie" | "tv",
+) =>
+  slimMediaItemsForRsc(
+    items.map((item) => ({ ...item, media_type: mediaType })),
+  ) as unknown as MediaItem[];
+
+export async function TrendingFeatureHero() {
+  const { results } = await tmdb.trending.movie({ time: "day", page: "1" });
+  const movies = filterReleasedMovies(results);
+  const feature = await buildCatalogHubFeature({
+    candidates: movies,
+    mediaType: "movie",
+    pick: (items) => items.find((item) => item.backdrop_path) ?? items[0],
+    toBackdrop: toMovieHubBackdrop,
+  });
+
+  if (!feature) return null;
+
+  return (
+    <IndexFeatureHero
+      mediaType="movie"
+      item={feature.item}
+      items={feature.items}
+      label="Trending now"
+      priority
+    />
+  );
+}
 
 export async function TrendingMoviesSection() {
   const { results: moviesRaw } = await tmdb.trending.movie({
@@ -16,32 +53,19 @@ export async function TrendingMoviesSection() {
     page: "1",
   });
   const movies = filterReleasedMovies(moviesRaw);
-  const featured = movies.find((m) => Boolean(m.poster_path)) ?? movies[0];
-
-  if (!featured) {
+  if (movies.length === 0) {
     return null;
   }
 
   return (
     <ContentReveal className="space-y-10">
-      <TrendingSpotlight mediaType="movie" id={featured.id} priority />
-
-      <TrendCarousel
-        type="movie"
+      <ContentRow
         title={pages.trending.movie.title}
-        link={pages.trending.movie.link}
-        items={movies}
+        href={pages.trending.movie.link}
+        items={toMediaItems(movies, "movie")}
+        variant="ranked"
         bleed
       />
-
-      <div className="grid gap-4 md:grid-cols-2 xl:gap-6">
-        <MovieHero
-          movies={movies}
-          label="Trending now"
-          count={2}
-          itemClassName="h-index-feature"
-        />
-      </div>
     </ContentReveal>
   );
 }
@@ -52,33 +76,19 @@ export async function TrendingTvSection() {
     page: "1",
   });
   const tvShows = filterReleasedTvShows(tvShowsRaw);
-  const featured =
-    tvShows.find((show) => Boolean(show.poster_path)) ?? tvShows[0];
-
-  if (!featured) {
+  if (tvShows.length === 0) {
     return null;
   }
 
   return (
     <ContentReveal className="space-y-10">
-      <TrendingSpotlight mediaType="tv" id={featured.id} priority />
-
-      <TrendCarousel
-        type="tv"
+      <ContentRow
         title={pages.trending.tv.title}
-        link={pages.trending.tv.link}
-        items={tvShows}
+        href={pages.trending.tv.link}
+        items={toMediaItems(tvShows, "tv")}
+        variant="ranked"
         bleed
       />
-
-      <div className="grid gap-4 md:grid-cols-2 xl:gap-6">
-        <TvHero
-          tvShows={tvShows}
-          label="Trending now"
-          count={2}
-          itemClassName="h-index-feature"
-        />
-      </div>
     </ContentReveal>
   );
 }

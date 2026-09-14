@@ -34,6 +34,10 @@ push_env() {
   rsync -avz \
     "$ROOT/scripts/crowdsec/" \
     "${SSH_HOST}:~/${REMOTE_DIR}/scripts/crowdsec/"
+  ssh "$SSH_HOST" "mkdir -p \"\$HOME/${REMOTE_DIR}/scripts/gluetun\""
+  rsync -avz \
+    "$ROOT/scripts/gluetun/defaults.env" \
+    "${SSH_HOST}:~/${REMOTE_DIR}/scripts/gluetun/"
   rsync -avz \
     "$MANAGED_KEYS_FILE" \
     "$ROOT/scripts/reconcile-prod-infra.sh" \

@@ -15,6 +15,7 @@ import { usePersonalizedHome } from "@/hooks/use-personalized-home";
 import { useRecentlyWatched } from "@/hooks/use-recently-watched";
 import { continueWatchingTitleKey } from "@/lib/playback/continue-watching-dismiss";
 import type { RecentlyWatchedScope } from "@/lib/playback/recently-watched";
+import { contentRowActionLinkClassName } from "@/lib/content-row-action-link";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -100,7 +101,7 @@ export function RecentlyWatchedRow({
           {isSignedIn ? (
             <Link
               href="/watchlist"
-              className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className={contentRowActionLinkClassName}
               prefetch={false}
             >
               <span>Watchlist</span>

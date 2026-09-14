@@ -1,28 +1,14 @@
 import {
-  CatalogRowFallback,
-  RecentlyWatchedRowFallback,
-} from "@/components/catalog/catalog-suspense-fallbacks";
-import { CatalogHubChromeSkeleton } from "@/components/catalog/catalog-chrome-skeletons";
-import { PageLoadingShell } from "./page-loading-shell";
-
-const catalogHubSectionClassName = "min-h-screen w-full pb-16 pt-8 md:pt-12";
-
-const CatalogHubSections = () => (
-  <>
-    <CatalogRowFallback bleed />
-    <CatalogRowFallback bleed />
-    <CatalogRowFallback bleed />
-  </>
-);
-
-const CatalogDiscoverHubSections = () => (
-  <>
-    <RecentlyWatchedRowFallback bleed />
-    <CatalogRowFallback bleed />
-    <CatalogRowFallback bleed />
-    <CatalogRowFallback bleed />
-  </>
-);
+  AnimeHubLoadingSections,
+  HomeHubLoadingSections,
+  MoviesDiscoverHubLoadingSections,
+  TrendingHubHeaderFallback,
+  TrendingMoviesSectionFallback,
+  TrendingTvSectionFallback,
+  TvDiscoverHubLoadingSections,
+} from "@/components/catalog/hub-loading-manifests";
+import { IndexPageSkeleton } from "@/components/catalog/index-page-skeleton";
+import { CatalogRowFallback } from "@/components/catalog/catalog-suspense-fallbacks";
 
 type CatalogHubLoadingProps = {
   withPageContainer?: boolean;
@@ -32,27 +18,48 @@ export function CatalogHubLoading({
   withPageContainer = true,
 }: CatalogHubLoadingProps = {}) {
   return (
-    <PageLoadingShell withPageContainer={withPageContainer}>
-      <section className={catalogHubSectionClassName}>
-        <div className="index-container space-y-8 md:space-y-10 lg:space-y-12">
-          <CatalogHubSections />
-        </div>
-      </section>
-    </PageLoadingShell>
+    <IndexPageSkeleton background="hub" withPageContainer={withPageContainer}>
+      <HomeHubLoadingSections />
+    </IndexPageSkeleton>
   );
 }
 
 export function CatalogDiscoverHubLoading({
   withPageContainer = false,
+  mediaType = "movie",
+}: CatalogHubLoadingProps & { mediaType?: "movie" | "tv" } = {}) {
+  return (
+    <IndexPageSkeleton background="hub" withPageContainer={withPageContainer}>
+      {mediaType === "tv" ? (
+        <TvDiscoverHubLoadingSections />
+      ) : (
+        <MoviesDiscoverHubLoadingSections />
+      )}
+    </IndexPageSkeleton>
+  );
+}
+
+export function AnimeIndexHubLoading({
+  withPageContainer = false,
 }: CatalogHubLoadingProps = {}) {
   return (
-    <PageLoadingShell withPageContainer={withPageContainer}>
-      <section className={catalogHubSectionClassName}>
-        <div className="index-container space-y-8 md:space-y-10 lg:space-y-12">
-          <CatalogHubChromeSkeleton />
-          <CatalogDiscoverHubSections />
-        </div>
-      </section>
-    </PageLoadingShell>
+    <IndexPageSkeleton background="hub" withPageContainer={withPageContainer}>
+      <AnimeHubLoadingSections />
+    </IndexPageSkeleton>
+  );
+}
+
+export function TrendingIndexHubLoading({
+  withPageContainer = false,
+}: CatalogHubLoadingProps = {}) {
+  return (
+    <IndexPageSkeleton
+      withPageContainer={withPageContainer}
+      header={<TrendingHubHeaderFallback />}
+    >
+      <TrendingMoviesSectionFallback />
+      <TrendingTvSectionFallback />
+      <CatalogRowFallback bleed />
+    </IndexPageSkeleton>
   );
 }

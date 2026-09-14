@@ -1,24 +1,22 @@
 import { AniListFiltersDynamic } from "@/components/anilist/anilist-filters-dynamic";
 import {
   AnimeHubAiringCarousel,
-  AnimeHubGenreRowsPart1,
-  AnimeHubGenreRowsPart2,
-  AnimeHubGenreRowsPart3,
-  getAnimeHubAmbientBackdrop,
   AnimeHubHero,
-  AnimeHubHentaiCarousel,
   AnimeHubMoviesCarousel,
   AnimeHubPopularCarousel,
   AnimeHubRankedRow,
   AnimeHubSeasonCarousel,
   AnimeHubTrendingCarousel,
+  getAnimeHubAmbientBackdrop,
 } from "@/components/anilist/anime-hub-sections";
-import { AnimeHeroFallback } from "@/components/anilist/anime-suspense-fallbacks";
+import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
+import { IndexFeatureHeroFallback } from "@/components/catalog/index-feature-hero-fallback";
 import { AnimeResultsGrid } from "@/components/anilist/anime-results-grid";
 import { CatalogPageShell } from "@/components/catalog/catalog-page-shell";
 import { IndexPage } from "@/components/catalog/index-page";
 import {
   CatalogGridFallback,
+  CatalogRankedRowFallback,
   CatalogRowFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
@@ -93,7 +91,7 @@ const redirectLegacyAnimeModeParam = (sp: Record<string, string>) => {
 
 const AnimeHubHome = ({ chrome }: { chrome?: ReactNode }) => (
   <>
-    <Suspense fallback={<AnimeHeroFallback />}>
+    <Suspense fallback={<IndexFeatureHeroFallback />}>
       <AnimeHubHero />
     </Suspense>
 
@@ -103,7 +101,7 @@ const AnimeHubHome = ({ chrome }: { chrome?: ReactNode }) => (
       <RecentlyWatchedRow bleed scope="anime" />
     </Suspense>
 
-    <Suspense fallback={<CatalogRowFallback bleed />}>
+    <Suspense fallback={<CatalogRankedRowFallback bleed />}>
       <AnimeHubRankedRow />
     </Suspense>
 
@@ -127,21 +125,7 @@ const AnimeHubHome = ({ chrome }: { chrome?: ReactNode }) => (
       <AnimeHubMoviesCarousel />
     </Suspense>
 
-    <Suspense fallback={<CatalogRowFallback bleed />}>
-      <AnimeHubGenreRowsPart1 />
-    </Suspense>
-
-    <Suspense fallback={<CatalogRowFallback bleed />}>
-      <AnimeHubGenreRowsPart2 />
-    </Suspense>
-
-    <Suspense fallback={<CatalogRowFallback bleed />}>
-      <AnimeHubGenreRowsPart3 />
-    </Suspense>
-
-    <Suspense fallback={<CatalogRowFallback bleed />}>
-      <AnimeHubHentaiCarousel />
-    </Suspense>
+    <CatalogCategoryShowcase pageKey="anime" />
   </>
 );
 
@@ -153,15 +137,15 @@ export default async function AnimePage(props: PageProps) {
   const params = parseAniListSearchParams(sp);
   const currentPage = toPageNumber(sp.page);
   const isResultsLayout = isAniListResultsLayout(sp);
-  const backdrop = isResultsLayout ? null : await getAnimeHubAmbientBackdrop();
 
   if (!isResultsLayout) {
+    const hubBackdrop = await getAnimeHubAmbientBackdrop();
+
     return (
-      <IndexPage backdrop={backdrop}>
+      <IndexPage background="hub" backdrop={hubBackdrop}>
         <AnimeHubHome
           chrome={
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <AniListFiltersDynamic serverParams={sp} />
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <Button asChild variant="outline">
                 <Link href={ANIME_BROWSE_PATH}>All anime</Link>
               </Button>

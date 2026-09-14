@@ -121,8 +121,10 @@ const EpisodesSection = () => {
       return nextDetails;
     },
     initialData: bootstrapDetails,
+    initialDataUpdatedAt: Date.now(),
     staleTime: queryStaleTime(60 * 60 * 1000),
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   return (

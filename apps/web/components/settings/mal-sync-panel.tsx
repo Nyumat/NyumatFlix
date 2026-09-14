@@ -180,7 +180,7 @@ export function MalSyncPanel({
             <p className="text-xs text-zinc-400">
               {status?.reauthRequired
                 ? "Your authorization expired or was revoked. Reconnect to resume syncing."
-                : "Sync your watchlist and auto-track anime episode playback progress."}
+                : "Sync your watchlist and scrobble anime as you watch them"}
             </p>
           </div>
           <Button

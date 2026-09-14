@@ -13,6 +13,8 @@ export type CatalogMovieCard = {
   vote_average: number;
   vote_count?: number;
   logo?: CanonicalCardLogo;
+  /** Canonical detail href (e.g. `/anime/anilist-21`). Slimmed cards only carry it when server-enriched. */
+  href?: string;
 };
 
 export type CatalogTvCard = {
@@ -27,6 +29,8 @@ export type CatalogTvCard = {
   vote_average: number;
   vote_count?: number;
   logo?: CanonicalCardLogo;
+  /** Canonical detail href (e.g. `/anime/anilist-21`). Slimmed cards only carry it when server-enriched. */
+  href?: string;
 };
 
 export type CatalogMediaCard = CatalogMovieCard | CatalogTvCard;
@@ -50,7 +54,11 @@ export type HomeCollectionCard = {
 };
 
 export const toCatalogMovieCard = (
-  movie: Movie & { media_type?: "movie"; logo?: CanonicalCardLogo },
+  movie: Movie & {
+    media_type?: "movie";
+    logo?: CanonicalCardLogo;
+    href?: string;
+  },
 ): CatalogMovieCard => ({
   id: movie.id,
   media_type: "movie",
@@ -62,10 +70,17 @@ export const toCatalogMovieCard = (
   vote_average: movie.vote_average,
   vote_count: movie.vote_count,
   logo: movie.logo,
+  ...(typeof movie.href === "string" && movie.href.length > 0
+    ? { href: movie.href }
+    : {}),
 });
 
 export const toCatalogTvCard = (
-  show: TvShow & { media_type?: "tv"; logo?: CanonicalCardLogo },
+  show: TvShow & {
+    media_type?: "tv";
+    logo?: CanonicalCardLogo;
+    href?: string;
+  },
 ): CatalogTvCard => ({
   id: show.id,
   media_type: "tv",
@@ -78,11 +93,18 @@ export const toCatalogTvCard = (
   vote_average: show.vote_average,
   vote_count: show.vote_count,
   logo: show.logo,
+  ...(typeof show.href === "string" && show.href.length > 0
+    ? { href: show.href }
+    : {}),
 });
 
 export const toCatalogMediaCards = (
   items: Array<
-    (Movie | TvShow) & { media_type: "movie" | "tv"; logo?: CanonicalCardLogo }
+    (Movie | TvShow) & {
+      media_type: "movie" | "tv";
+      logo?: CanonicalCardLogo;
+      href?: string;
+    }
   >,
 ): CatalogMediaCard[] =>
   items.map((item) =>
@@ -120,7 +142,11 @@ export const toHomeCollectionCard = (collection: {
 
 export const catalogMovieToMediaItem = (
   card: CatalogMovieCard,
-): Movie & { media_type: "movie"; logo?: CanonicalCardLogo } => ({
+): Movie & {
+  media_type: "movie";
+  logo?: CanonicalCardLogo;
+  href?: string;
+} => ({
   id: card.id,
   media_type: "movie",
   title: card.title,
@@ -137,11 +163,14 @@ export const catalogMovieToMediaItem = (
   popularity: 0,
   video: false,
   logo: card.logo,
+  ...(typeof card.href === "string" && card.href.length > 0
+    ? { href: card.href }
+    : {}),
 });
 
 export const catalogTvToMediaItem = (
   card: CatalogTvCard,
-): TvShow & { media_type: "tv"; logo?: CanonicalCardLogo } => ({
+): TvShow & { media_type: "tv"; logo?: CanonicalCardLogo; href?: string } => ({
   id: card.id,
   media_type: "tv",
   name: card.name,
@@ -157,6 +186,9 @@ export const catalogTvToMediaItem = (
   origin_country: [],
   popularity: 0,
   logo: card.logo,
+  ...(typeof card.href === "string" && card.href.length > 0
+    ? { href: card.href }
+    : {}),
 });
 
 export const catalogCardToMediaItem = (
@@ -164,6 +196,7 @@ export const catalogCardToMediaItem = (
 ): (Movie | TvShow) & {
   media_type: "movie" | "tv";
   logo?: CanonicalCardLogo;
+  href?: string;
 } =>
   card.media_type === "tv"
     ? catalogTvToMediaItem(card)
@@ -268,6 +301,12 @@ type SlimmableMediaItem = {
   vote_average?: number;
   vote_count?: number;
   logo?: CanonicalCardLogo;
+  href?: string;
+};
+
+const readSlimHref = (item: SlimmableMediaItem): string | undefined => {
+  const href = (item as { href?: unknown }).href;
+  return typeof href === "string" && href.startsWith("/") ? href : undefined;
 };
 
 const getSlimMediaType = (item: SlimmableMediaItem): "movie" | "tv" => {
@@ -282,6 +321,7 @@ export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
   items.map((item) => {
     const mediaType = getSlimMediaType(item);
     const title = item.title ?? item.name ?? "";
+    const href = readSlimHref(item);
     const card =
       mediaType === "tv"
         ? ({
@@ -296,6 +336,7 @@ export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
             vote_average: item.vote_average ?? 0,
             vote_count: item.vote_count,
             logo: item.logo,
+            ...(href ? { href } : {}),
           } satisfies CatalogTvCard)
         : ({
             id: item.id,
@@ -308,6 +349,7 @@ export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
             vote_average: item.vote_average ?? 0,
             vote_count: item.vote_count,
             logo: item.logo,
+            ...(href ? { href } : {}),
           } satisfies CatalogMovieCard);
     return catalogCardToMediaItem(card) as unknown as T;
   });

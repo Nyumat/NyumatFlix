@@ -6,13 +6,13 @@ import {
 } from "@/lib/genre-routes";
 
 describe("genre route helpers", () => {
-  test("builds movie and TV genre browse URLs", () => {
+  test("builds movie and TV catalog discover genre URLs", () => {
     expect(buildGenreBrowseUrl({ id: 18, name: "Drama" }, "movie")).toBe(
-      "/browse/genre/18?type=movie",
+      "/movies?view=discover&with_genres=18&mode=results",
     );
     expect(
       buildGenreBrowseUrl({ id: 10759, name: "Action & Adventure" }, "tv"),
-    ).toBe("/browse/genre/10759?type=tv");
+    ).toBe("/tvshows?view=discover&with_genres=10759&mode=results");
   });
 
   test("maps compatible TMDB genre names to AniList browse URLs", () => {

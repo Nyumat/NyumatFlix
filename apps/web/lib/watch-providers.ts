@@ -9,6 +9,8 @@ export type WatchProviderSeed = {
   name: string;
   localLogo?: string;
   surface: string;
+  /** TMDB discover `with_watch_monetization_types` for provider browse pages */
+  discoverMonetizationTypes?: string;
 };
 
 export type WatchProviderBrand = WatchProviderSeed & {
@@ -21,94 +23,117 @@ export const WATCH_PROVIDER_SEEDS: readonly WatchProviderSeed[] = [
     name: "Netflix",
     localLogo: "/netflix.svg",
     surface: "bg-linear-to-br from-[#9b111e] via-[#4e080e] to-[#100103]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 9,
     name: "Prime Video",
     localLogo: "/primevideo.svg",
     surface: "bg-linear-to-br from-[#0f5378] via-[#082b42] to-[#020b13]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 337,
     name: "Disney Plus",
     localLogo: "/disneyplus.svg",
     surface: "bg-linear-to-br from-[#263e9f] via-[#111e5b] to-[#050817]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 350,
     name: "Apple TV+",
     localLogo: "/appletvplus.svg",
     surface: "bg-linear-to-br from-[#145b19] via-[#073b0d] to-[#010b03]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 15,
     name: "Hulu",
     localLogo: "/hulu.svg",
     surface: "bg-linear-to-br from-[#16885e] via-[#084d36] to-[#021a12]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 1899,
     name: "HBO Max",
     localLogo: "/hbomax.svg",
     surface: "bg-linear-to-br from-[#6730bb] via-[#2f125f] to-[#0e0621]",
-  },
-  {
-    id: 2,
-    name: "Apple TV",
-    surface: "bg-linear-to-br from-[#565660] via-[#25252d] to-[#08080b]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 2303,
     name: "Paramount Plus",
     surface: "bg-linear-to-br from-[#275faa] via-[#153764] to-[#050d1d]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 386,
     name: "Peacock Premium",
     localLogo: "/peacock.svg",
     surface: "bg-linear-to-br from-[#3e4350] via-[#1b1e28] to-[#07080c]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 283,
     name: "Crunchyroll",
     surface: "bg-linear-to-br from-[#e89a16] via-[#a9570a] to-[#321301]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 43,
     name: "Starz",
     surface: "bg-linear-to-br from-[#292929] via-[#121212] to-[#020202]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 526,
     name: "AMC+",
     surface: "bg-linear-to-br from-[#9baaba] via-[#4b5d6e] to-[#131d27]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 34,
     name: "MGM Plus",
     surface: "bg-linear-to-br from-[#826e2e] via-[#473810] to-[#171106]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 188,
     name: "YouTube Premium",
     surface: "bg-linear-to-br from-[#e72d2f] via-[#941218] to-[#2c0306]",
+    discoverMonetizationTypes: "flatrate",
   },
   {
     id: 192,
     name: "YouTube",
     surface: "bg-linear-to-br from-[#e9383d] via-[#9f161d] to-[#300306]",
+    discoverMonetizationTypes: "free|ads",
   },
   {
     id: 73,
     name: "Tubi TV",
     surface: "bg-linear-to-br from-[#e34a3a] via-[#a51e22] to-[#35070b]",
+    discoverMonetizationTypes: "free|ads",
   },
   {
     id: 300,
     name: "Pluto TV",
     surface: "bg-linear-to-br from-[#5542d5] via-[#30258b] to-[#0e0b31]",
+    discoverMonetizationTypes: "free|ads",
   },
 ];
+
+export function getProviderDiscoverQueryParams(
+  provider: WatchProviderSeed,
+): Record<string, string> {
+  const params: Record<string, string> = {
+    with_watch_providers: String(provider.id),
+  };
+  if (provider.discoverMonetizationTypes) {
+    params.with_watch_monetization_types = provider.discoverMonetizationTypes;
+  }
+  return params;
+}
 
 const getProviderLogoPaths = cache(async () => {
   const [movieResponse, tvResponse] = await Promise.allSettled([

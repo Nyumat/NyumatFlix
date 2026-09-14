@@ -37,7 +37,7 @@ const browseCellClassName = (isActive: boolean) =>
     isActive && "bg-primary/10 text-primary",
   );
 
-const browseTrendingClassName = (isActive: boolean) =>
+const browseWideClassName = (isActive: boolean) =>
   cn(
     "group flex h-12 w-full items-center justify-between px-3.5 text-left text-white outline-hidden transition-colors duration-150",
     "hover:bg-white/[0.06] data-[highlighted]:bg-white/[0.06]",
@@ -91,12 +91,11 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
   );
   const isSettingsActive = pathname.startsWith("/settings");
 
-  const isTrending = (title: string) => title.toLowerCase() === "trending";
-  const gridItems = navigationItems.filter((item) => !isTrending(item.title));
-  const trendingItem = navigationItems.find((item) => isTrending(item.title));
+  const isWide = (title: string) =>
+    ["collections", "trending"].includes(title.toLowerCase());
+  const gridItems = navigationItems.filter((item) => !isWide(item.title));
+  const wideItems = navigationItems.filter((item) => isWide(item.title));
   const totalRows = Math.ceil(gridItems.length / 2);
-  const TrendingIcon = trendingItem ? getNavIcon(trendingItem) : null;
-  const isTrendingActive = trendingItem?.title === activeItem?.title;
   const { schedulePrefetch, cancelPrefetch } = useRoutePrefetchOnHover();
 
   return (
@@ -155,8 +154,7 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
                   className={cn(
                     browseCellClassName(isActive),
                     col === 0 && "border-r border-white/10",
-                    (row < totalRows - 1 || trendingItem) &&
-                      "border-b border-white/10",
+                    row < totalRows - 1 && "border-b border-white/10",
                   )}
                 >
                   <div className="flex w-full items-center justify-between">
@@ -190,46 +188,58 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
           })}
         </div>
 
-        {trendingItem && TrendingIcon ? (
-          <DropdownMenuItem asChild className={menuItemShellClassName}>
-            <Link
-              href={trendingItem.href}
-              prefetch={false}
-              {...routePrefetchHandlers(
-                trendingItem.href,
-                schedulePrefetch,
-                cancelPrefetch,
-              )}
-              className={cn(
-                browseTrendingClassName(Boolean(isTrendingActive)),
-                "border-t border-white/10",
-              )}
+        {wideItems.map((item) => {
+          const Icon = getNavIcon(item);
+          const isActive = item.title === activeItem?.title;
+
+          return (
+            <DropdownMenuItem
+              key={item.title}
+              asChild
+              className={menuItemShellClassName}
             >
-              <div className="flex items-center gap-2.5">
-                <TrendingIcon
-                  className="size-4 shrink-0 text-amber-400"
-                  strokeWidth={1.75}
-                />
-                <span
-                  className={cn(
-                    "text-base font-medium",
-                    isTrendingActive
-                      ? "font-semibold text-primary"
-                      : "text-white",
-                  )}
-                >
-                  {toTitleCase(trendingItem.title)}
-                </span>
-              </div>
-              {isTrendingActive ? (
-                <Check
-                  className="size-3.5 shrink-0 text-primary"
-                  strokeWidth={1.75}
-                />
-              ) : null}
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
+              <Link
+                href={item.href}
+                prefetch={false}
+                {...routePrefetchHandlers(
+                  item.href,
+                  schedulePrefetch,
+                  cancelPrefetch,
+                )}
+                className={cn(
+                  browseWideClassName(isActive),
+                  "border-t border-white/10",
+                )}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Icon
+                    className={cn(
+                      "size-4 shrink-0",
+                      item.title === "Trending"
+                        ? "text-amber-400"
+                        : "text-white/70",
+                    )}
+                    strokeWidth={1.75}
+                  />
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      isActive ? "font-semibold text-primary" : "text-white",
+                    )}
+                  >
+                    {toTitleCase(item.title)}
+                  </span>
+                </div>
+                {isActive ? (
+                  <Check
+                    className="size-3.5 shrink-0 text-primary"
+                    strokeWidth={1.75}
+                  />
+                ) : null}
+              </Link>
+            </DropdownMenuItem>
+          );
+        })}
 
         <DropdownMenuSeparator className="m-0 h-px bg-white/8" />
 

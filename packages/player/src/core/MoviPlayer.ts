@@ -20,7 +20,12 @@ import type {
   ExternalQualityEntry,
   ChapterMarker,
 } from "../types";
-import { getExternalSubtitleId } from "../types";
+import { getExternalSubtitleId, mergeExternalSubtitleActiveId } from "../types";
+import {
+  applyNativeExternalTextTrackSelection,
+  forceNativeTextTracksHidden,
+  nativeExternalTextTrackExists,
+} from "../render/native-manifest-subtitles";
 import { EventEmitter } from "../events/EventEmitter";
 import {
   HttpSource,
@@ -692,6 +697,20 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
           return;
         } catch (eHlsJs) {
           Logger.warn(TAG, "hls.js failed on Firefox, falling back to Shaka", eHlsJs);
+          try { this.streamWrapper?.destroy(); } catch {}
+          this.streamWrapper = null;
+        }
+      }
+
+      // Opt-in (scrape playback): hls.js first for HLS, Shaka as fallback.
+      // Default path stays Shaka-first so non-scrape behavior is unchanged.
+      if (isHls && this.config.preferHlsJs) {
+        try {
+          const hls = new HLSPlayerWrapper(this.config);
+          await finishStreamLoad(hls, `Detected ${kind} stream, using hls.js (preferHlsJs)`);
+          return;
+        } catch (eHlsFirst) {
+          Logger.warn(TAG, "hls.js (preferHlsJs) failed, falling back to Shaka", eHlsFirst);
           try { this.streamWrapper?.destroy(); } catch {}
           this.streamWrapper = null;
         }
@@ -4174,7 +4193,10 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
   /**
    * Set subtitle overlay element for HTML-based subtitle rendering
    */
+  private subtitleOverlayElement: HTMLElement | null = null;
+
   setSubtitleOverlay(overlay: HTMLElement | null): void {
+    this.subtitleOverlayElement = overlay;
     if (this.videoRenderer) {
       this.videoRenderer.setSubtitleOverlay(overlay);
     }
@@ -4186,6 +4208,23 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
   setSubtitleControlsPadding(padding: number): void {
     if (this.videoRenderer) {
       this.videoRenderer.setSubtitleControlsPadding(padding);
+      return;
+    }
+    if (
+      this.presentationMode === "native" &&
+      this.subtitleOverlayElement
+    ) {
+      // The overlay's default offset is its CSS `bottom`. When the controls
+      // are up we position with padding from the bottom edge and zero the
+      // `bottom` offset, so the two don't stack (previously the lift was added
+      // on top of the default bottom offset, shoving cues far too high).
+      if (padding > 0) {
+        this.subtitleOverlayElement.style.bottom = "0px";
+        this.subtitleOverlayElement.style.paddingBottom = `${padding}px`;
+      } else {
+        this.subtitleOverlayElement.style.bottom = "";
+        this.subtitleOverlayElement.style.paddingBottom = "";
+      }
     }
   }
 
@@ -4716,10 +4755,18 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     }
 
     if (this.presentationMode === "native" && !this.videoRenderer) {
+      // Clear any muxed selection BEFORE re-asserting the external sidecar.
+      // With hls.js, clearing the muxed track (subtitleTrack = -1) calls
+      // toggleTrackModes(), which flips EVERY DOM subtitle text track —
+      // including our sidecar <track> — to "disabled", so cues never load and
+      // the overlay stays empty. Selecting the sidecar first and clearing
+      // second put the sidecar in exactly that disabled state.
+      if (this.trackManager.getActiveSubtitleTrack()) {
+        this.trackManager.selectSubtitleTrack(null);
+      }
       const ok = this.setNativeExternalTextTracks(id);
       if (!ok) return false;
       this._activeExternalSubtitleId = id;
-      this.trackManager.selectSubtitleTrack(null);
       this.emit("subtitleTrackChange" as any, {
         lang: track.lang,
         label: track.label,
@@ -4830,11 +4877,15 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
 
   setExternalSubtitleTracks(tracks: SubtitleSourceEntry[]): void {
     this.stopExternalSubtitles();
-    this._activeExternalSubtitleId = "";
+    const previousId = this._activeExternalSubtitleId;
     this._subtitleTracks = tracks.map((track, index) => ({
       ...track,
       id: track.id ?? track.url ?? `external-sub-${index}`,
     }));
+    this._activeExternalSubtitleId = mergeExternalSubtitleActiveId(
+      previousId,
+      this._subtitleTracks,
+    );
   }
 
   private clearStreamTrackHandlers(): void {
@@ -4864,32 +4915,36 @@ export class MoviPlayer extends EventEmitter<PlayerEventMap> {
     }
   }
 
-  /** Toggle external subtitle TextTracks on the native stream video element. */
+  /** Keep external TextTracks hidden; cues render in MoviElement overlay. */
   private setNativeExternalTextTracks(id: string | null): boolean {
     const video = this.streamWrapper?.getVideoElement();
     if (!video) return false;
 
-    const selected = id
-      ? this._subtitleTracks.find((track) => getExternalSubtitleId(track) === id)
-      : null;
+    forceNativeTextTracksHidden(video.textTracks);
 
-    const tracks = video.textTracks;
-    let matched = false;
-    for (let i = 0; i < tracks.length; i++) {
-      const tt = tracks[i];
-      if (!selected) {
-        tt.mode = "hidden";
-        continue;
-      }
-      const isMatch = tt.label === selected.label;
-      if (isMatch) {
-        tt.mode = "showing";
-        matched = true;
-      } else {
-        tt.mode = "hidden";
-      }
+    if (!id) {
+      return true;
     }
-    return id === null || matched;
+
+    const selected = this._subtitleTracks.find(
+      (track) => getExternalSubtitleId(track) === id,
+    );
+    if (!selected) {
+      return false;
+    }
+
+    if (nativeExternalTextTrackExists(video, id)) {
+      applyNativeExternalTextTrackSelection(
+        video.textTracks,
+        selected.label,
+      );
+      return true;
+    }
+
+    return applyNativeExternalTextTrackSelection(
+      video.textTracks,
+      selected.label,
+    );
   }
 
   /**

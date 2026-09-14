@@ -13,13 +13,20 @@ import {
   DefaultVideoLayout,
 } from "@vidstack/react/player/layouts/default";
 import Hls from "hls.js";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { MoviStreamPlayer } from "@/components/media/movi-stream-player";
 import { MoviScrapeEngine } from "@/components/media/engines/movi-scrape-engine";
 import { VidstackScrapeEngine } from "@/components/media/engines/vidstack-scrape-engine";
 import { useDirectPlaybackOrchestrator } from "@/hooks/use-direct-playback-orchestrator";
-import { useMoviPreview } from "@/hooks/use-movi-preview";
+import { usePlayerEngine } from "@/hooks/use-movi-preview";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
 import type { EngineErrorKind } from "@/lib/direct/playbackFailure";
 import {
@@ -571,34 +578,51 @@ function DirectUrlPlayback({
   onMediaReady,
   onEnded,
 }: DirectPlaybackEngineProps) {
-  const moviPreview = useMoviPreview();
+  const { engine: userPlayerEngine, isMovi: moviPreview } = usePlayerEngine();
+  const engineSelection = useMemo(
+    () => ({ userPlayerEngine }),
+    [userPlayerEngine],
+  );
   const playback = manifest.directPlayback ?? "hls";
   const mediaUrl = manifest.url;
   const fallbackUrl = manifest.fallbackUrl;
   const streamName = manifest.streamName;
   const fileName = manifest.fileName;
 
-  const [engine, setEngine] = useState<DirectEngineKind | null>(() =>
-    selectDirectPlaybackEngine(
-      playback,
+  const resolveEngine = useCallback(
+    () =>
+      selectDirectPlaybackEngine(
+        playback,
+        fallbackUrl,
+        mediaUrl,
+        fileName,
+        streamName ?? title,
+        undefined,
+        playback === "direct" ? true : undefined,
+        undefined,
+        engineSelection,
+      ),
+    [
+      engineSelection,
       fallbackUrl,
-      mediaUrl,
       fileName,
-      streamName ?? title,
-      undefined,
-      playback === "direct" ? true : undefined,
-    ),
+      mediaUrl,
+      playback,
+      streamName,
+      title,
+    ],
   );
-  const [failed, setFailed] = useState(() => {
-    const initial = selectDirectPlaybackEngine(
-      playback,
-      fallbackUrl,
-      mediaUrl,
-      fileName,
-      streamName ?? title,
-    );
-    return initial === null;
-  });
+
+  const [engine, setEngine] = useState<DirectEngineKind | null>(() =>
+    resolveEngine(),
+  );
+  const [failed, setFailed] = useState(() => resolveEngine() === null);
+
+  useEffect(() => {
+    const initial = resolveEngine();
+    setEngine(initial);
+    setFailed(initial === null);
+  }, [resolveEngine]);
 
   const handleEngineError = useCallback(() => {
     if (!engine) {
@@ -613,6 +637,8 @@ function DirectUrlPlayback({
       mediaUrl,
       fileName,
       streamName ?? title,
+      undefined,
+      engineSelection,
     );
     if (next) {
       setFailed(false);
@@ -628,6 +654,7 @@ function DirectUrlPlayback({
     mediaUrl,
     onFatalError,
     playback,
+    engineSelection,
     streamName,
     title,
   ]);

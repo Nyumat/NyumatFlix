@@ -10,7 +10,7 @@ import { MediaPeekSectionHeading } from "@/components/peek/media-peek-section-he
 import { Button } from "@/components/ui/button";
 import { useWatchlistItem } from "@/hooks/useWatchlistItem";
 import { movieWatchButtonLabel } from "@/lib/playback/movie-watch-label";
-import { buildDetailPlayHref } from "@/lib/playback/detail-autoplay-href";
+import { requestDetailPlay } from "@/lib/playback/detail-autoplay-href";
 import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import {
   fetchMovieCreditsClient,
@@ -385,11 +385,6 @@ const MediaPeekBody = ({
     [credits?.cast],
   );
   const similar = (similarQuery.data?.results ?? []).slice(0, 16);
-  const watchHref = buildDetailPlayHref(target.href, {
-    mediaType: target.mediaType,
-    watchlistItem,
-    localCoords,
-  });
   const canPlayTrailer = Boolean(trailer?.key);
   const isPeekLoading =
     detailsQuery.isPending ||
@@ -463,7 +458,11 @@ const MediaPeekBody = ({
 
   const handlePlay = () => {
     onRequestClose();
-    router.push(watchHref);
+    requestDetailPlay((href) => router.push(href), target.href, {
+      mediaType: target.mediaType,
+      watchlistItem,
+      localCoords,
+    });
   };
 
   const handlePlayTrailer = (videoKey?: string) => {

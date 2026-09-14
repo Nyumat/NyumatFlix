@@ -376,16 +376,17 @@ const MobileBrowseRoot = ({
   activeTitle?: string;
   onNavigate: () => void;
 }) => {
-  const isTrending = (title: string) => title.toLowerCase() === "trending";
+  const isWide = (title: string) =>
+    ["collections", "trending"].includes(title.toLowerCase());
 
   return (
     <div className="grid grid-cols-2 gap-2">
       {items.map((item) => {
         const Icon = getNavIcon(item);
         const isActive = item.title === activeTitle;
-        const trendingItem = isTrending(item.title);
+        const wideItem = isWide(item.title);
 
-        if (trendingItem) {
+        if (wideItem) {
           return (
             <Link
               key={item.title}
@@ -401,7 +402,12 @@ const MobileBrowseRoot = ({
             >
               <div className="flex items-center gap-2.5">
                 <Icon
-                  className="size-5 shrink-0 text-amber-400"
+                  className={cn(
+                    "size-5 shrink-0",
+                    item.title === "Trending"
+                      ? "text-amber-400"
+                      : "text-white/70",
+                  )}
                   strokeWidth={1.75}
                 />
                 <span

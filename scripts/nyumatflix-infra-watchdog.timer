@@ -2,6 +2,7 @@
 Description=Check NyumatFlix scrape/CDN dependencies every five minutes
 
 [Timer]
+Unit=nyumatflix-infra-watchdog.service
 OnBootSec=3min
 OnUnitActiveSec=5min
 AccuracySec=30s

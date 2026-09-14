@@ -1,4 +1,7 @@
+import { CatalogGridSkeleton } from "@/components/catalog/catalog-card-skeletons";
+import { CatalogPosterRowFallback } from "@/components/catalog/catalog-poster-row-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
+import { wideCarouselItemClassName } from "@/lib/carousel-layout";
 import { cn } from "@/lib/utils";
 
 type RowFallbackProps = {
@@ -14,46 +17,43 @@ export const CatalogGridFallback = () => (
         <Skeleton className="h-8 w-10 rounded-md" />
       </div>
     </div>
-    <div className="grid-list">
-      {Array.from({ length: 10 }).map((_, index) => (
-        <div key={index} className="min-w-0">
-          <Skeleton className="aspect-poster w-full rounded-[28px]" />
-        </div>
-      ))}
-    </div>
+    <CatalogGridSkeleton count={10} />
   </div>
 );
 
+/** Poster carousel row — matches {@link StandardContentRow} layout. */
 export const CatalogRowFallback = ({
   bleed = false,
-}: RowFallbackProps = {}) => (
-  <div className={cn("space-y-4", bleed && "index-bleed")} aria-hidden>
-    <div
-      className={cn(
-        "flex items-baseline justify-between gap-3",
-        bleed ? "index-rail-padding" : "px-1",
-      )}
-    >
-      <Skeleton className={cn("rounded-lg", bleed ? "h-8 w-64" : "h-6 w-40")} />
-      <Skeleton className="h-4 w-14 shrink-0 rounded-md" />
+}: RowFallbackProps = {}) => <CatalogPosterRowFallback bleed={bleed} />;
+
+export { CatalogRankedRowFallback } from "@/components/catalog/catalog-ranked-row-fallback";
+
+export const HomeProviderRailFallback = () => (
+  <section className="index-bleed space-y-4" aria-hidden>
+    <div className="index-rail-padding">
+      <Skeleton className="h-7 w-44 rounded-lg" />
     </div>
-    <div
-      className={cn(
-        "flex overflow-hidden",
-        bleed ? "index-rail-padding gap-3 lg:gap-4" : "gap-4",
-      )}
-    >
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Skeleton
-          key={index}
-          className={cn(
-            "aspect-poster w-[46%] shrink-0 rounded-[28px] sm:w-[31%] md:w-[24%] lg:w-44 xl:w-48 2xl:w-52",
-          )}
-        />
-      ))}
+    <div className="index-rail-padding scroll-px-6 lg:scroll-px-16">
+      <div className="scrollbar-hide overflow-x-hidden">
+        <div className="flex w-max snap-x snap-mandatory gap-5 pb-1 lg:gap-6">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div
+              key={index}
+              className="w-[5.75rem] shrink-0 snap-start lg:w-[6.75rem]"
+            >
+              <Skeleton className="mx-auto aspect-square w-20 rounded-2xl lg:w-24" />
+              <Skeleton className="mx-auto mt-2.5 h-5 w-16 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 );
+
+export const CatalogShowcaseRowFallback = ({
+  bleed = false,
+}: RowFallbackProps = {}) => <CatalogPosterRowFallback bleed={bleed} />;
 
 export const RecentlyWatchedRowFallback = ({
   bleed = false,
@@ -83,10 +83,7 @@ export const RecentlyWatchedRowFallback = ({
       )}
     >
       {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          className="basis-[82%] shrink-0 pl-3 sm:basis-[58%] md:basis-[42%] lg:basis-[26rem] lg:pl-4 xl:basis-[28rem] 2xl:basis-[30rem]"
-        >
+        <div key={index} className={wideCarouselItemClassName}>
           <div className="relative overflow-hidden rounded-xs">
             <Skeleton className="aspect-video w-full rounded-xs" />
             <div

@@ -31,6 +31,7 @@ export const hydrateUserSettings = async (): Promise<void> => {
     playbackEnglishSubtitles: settings.playbackEnglishSubtitles,
     disableHoverSound: settings.disableHoverSound,
     disableHeroTrailers: settings.disableHeroTrailers,
+    catalogCardStyle: settings.catalogCardStyle ?? "backdrop",
   });
 
   useEmbedServerStore.setState({

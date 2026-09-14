@@ -25,7 +25,7 @@ function PreferenceOptionGroup<T extends string>({
   return (
     <div className="space-y-2">
       <Label className="text-sm font-medium text-foreground">{label}</Label>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 my-2">
         {options.map((option) => {
           const isActive = option.value === value;
           return (
@@ -67,11 +67,11 @@ export function PlaybackPreferencesPanel() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <PlayerEngineSwitch />
 
       <PreferenceOptionGroup<PlaybackAudioPreference>
-        label="Audio"
+        label="For the anime watchers"
         value={playbackAudio}
         options={[
           { value: "sub", label: "Japanese (sub)" },

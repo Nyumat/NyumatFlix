@@ -181,7 +181,7 @@ describe("direct engine playback", () => {
     expect(playbackEngineCandidates(stream)).toEqual(["vidstack-hls"]);
   });
 
-  it("prefers movi for light extended mkv when WebCodecs is available", () => {
+  it("prefers vidstack for light extended mkv when WebCodecs is available", () => {
     const previous = globalThis.VideoDecoder;
     // @ts-expect-error test shim
     globalThis.VideoDecoder = class VideoDecoder {};
@@ -194,11 +194,11 @@ describe("direct engine playback", () => {
         fallbackUrl: "/api/direct/transcode/playlist?u=x",
       });
       expect(playbackEngineCandidates(stream)).toEqual([
-        "movi",
         "vidstack-hls",
         "vidstack-direct",
+        "movi",
       ]);
-      expect(selectInitialEngine(stream)).toBe("movi");
+      expect(selectInitialEngine(stream)).toBe("vidstack-hls");
     } finally {
       if (previous === undefined) {
         // @ts-expect-error test cleanup
@@ -266,7 +266,7 @@ describe("direct engine playback", () => {
     }
   });
 
-  it("stays on movi for dual-sub and dual-audio filenames", () => {
+  it("starts on vidstack for dual-sub and dual-audio filenames", () => {
     const dualSub = baseStream({
       playback: "extended",
       browserPlayable: false,
@@ -274,8 +274,12 @@ describe("direct engine playback", () => {
       name: "Show.S01E01.1080p.WEB-DL.Dual.Audio.Dual.Sub.mkv",
       fallbackUrl: "/api/direct/transcode/playlist?u=x",
     });
-    expect(selectInitialEngine(dualSub)).toBe("movi");
-    expect(nextFallbackEngine(dualSub, "movi", new Set(["movi"]))).toBeNull();
+    expect(selectInitialEngine(dualSub)).toBe("vidstack-hls");
+    expect(
+      nextFallbackEngine(dualSub, "movi", new Set(["movi"]), {
+        userPlayerEngine: "movi",
+      }),
+    ).toBeNull();
 
     const jaEn = baseStream({
       playback: "extended",
@@ -285,8 +289,37 @@ describe("direct engine playback", () => {
       name: "Movie.2024.1080p.BluRay.JA+EN.mp4",
       fallbackUrl: "/api/direct/transcode/playlist?u=x",
     });
-    expect(selectInitialEngine(jaEn)).toBe("movi");
-    expect(nextFallbackEngine(jaEn, "movi", new Set(["movi"]))).toBeNull();
+    expect(selectInitialEngine(jaEn)).toBe("vidstack-hls");
+    expect(
+      nextFallbackEngine(jaEn, "movi", new Set(["movi"]), {
+        userPlayerEngine: "movi",
+      }),
+    ).toBeNull();
+  });
+
+  it("restores movi-first ordering when the user selects Movi", () => {
+    const previous = globalThis.VideoDecoder;
+    // @ts-expect-error test shim
+    globalThis.VideoDecoder = class VideoDecoder {};
+    try {
+      const stream = baseStream({
+        playback: "extended",
+        browserPlayable: false,
+        fileName: "movie.1080p.WEB-DL.H.265-FLUX.mkv",
+        name: "movie.1080p.WEB-DL.H.265-FLUX.mkv",
+        fallbackUrl: "/api/direct/transcode/playlist?u=x",
+      });
+      expect(
+        selectInitialEngine(stream, { userPlayerEngine: "movi" }),
+      ).toBe("movi");
+    } finally {
+      if (previous === undefined) {
+        // @ts-expect-error test cleanup
+        delete globalThis.VideoDecoder;
+      } else {
+        globalThis.VideoDecoder = previous;
+      }
+    }
   });
 
   it("plays a 4k hevc remux with movi when that is all we have", () => {

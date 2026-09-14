@@ -1,36 +1,31 @@
 import {
   CatalogCollectionsFallback,
   CatalogRowFallback,
+  HomeProviderRailFallback,
   RecentlyWatchedRowFallback,
 } from "@/components/catalog/catalog-suspense-fallbacks";
+import { IndexFeatureHeroFallback } from "@/components/catalog/index-feature-hero-fallback";
 import { HomeBecauseYouWatched } from "@/components/home/because-you-watched-row";
+import { HomeHubFeatureHero } from "@/components/home/home-hub-feature-hero";
+import { HomeProviderGenreShowcaseSection } from "@/components/home/home-provider-genre-showcase-section";
 import { HomeProviderRail } from "@/components/home/home-provider-rail";
 import {
-  HomeCollectionsSection,
   HomePopularMoviesCarousel,
   HomePopularTvCarousel,
-  HomeTrendingMoviesCarousel,
-  HomeTrendingTvCarousel,
 } from "@/components/home/home-sections";
+import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { HomeRecentlyWatched } from "@/components/home/recently-watched-row";
 import { HomeUpNextInbox } from "@/components/home/up-next-inbox-row";
-import type { PageBackdrop } from "@/components/hero/ambient-page-backdrop";
-import {
-  IndexFeatureHero,
-  type IndexFeatureHeroItem,
-} from "@/components/catalog/index-feature-hero";
 import { IndexPage } from "@/components/catalog/index-page";
 import { PageContainer } from "@/components/layout/page-container";
 import { siteConfig } from "@/config/site";
 import { SITE_URL } from "@/lib/constants";
-import { getHomeTrendingMovies } from "@/lib/server/home-hub-data";
 import {
   DEFAULT_OG_IMAGE,
   DEFAULT_OG_IMAGE_TYPE,
   OG_IMAGE_SIZE,
 } from "@/lib/seo/constants";
-import { tmdb, type WithImages } from "@/tmdb/api";
-import { tmdbImage } from "@/tmdb/utils";
+import { getHomeMovieHubFeature } from "@/lib/server/catalog-hub-feature";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -63,60 +58,23 @@ export const metadata: Metadata = {
   },
 };
 
-type HomeHeroFeature = {
-  item: IndexFeatureHeroItem;
-  backdrop: PageBackdrop | null;
-};
-
-const toHomeBackdrop = (item: IndexFeatureHeroItem): PageBackdrop | null => {
-  if (!item.backdrop_path) return null;
-
-  return {
-    imageUrl: tmdbImage.backdrop(item.backdrop_path, "w1280"),
-    alt: item.title ?? "Featured movie",
-    priority: true,
-  };
-};
-
-const getHomeHeroFeature = async (): Promise<HomeHeroFeature | null> => {
-  const movies = await getHomeTrendingMovies();
-  const featured = movies.find((movie) => Boolean(movie.backdrop_path));
-
-  if (!featured) return null;
-
-  let item: IndexFeatureHeroItem = featured;
-
-  try {
-    item = await tmdb.movie.detail<WithImages>({
-      id: featured.id,
-      append: "images",
-    });
-  } catch {
-    item = featured;
-  }
-
-  return {
-    item,
-    backdrop: toHomeBackdrop(item) ?? toHomeBackdrop(featured),
-  };
-};
-
 export default async function Home() {
-  const heroFeature = await getHomeHeroFeature();
-  const backdrop = heroFeature?.backdrop ?? null;
+  const hubFeature = await getHomeMovieHubFeature();
 
   return (
-    <PageContainer>
-      <IndexPage backdrop={backdrop}>
-        {heroFeature ? (
-          <IndexFeatureHero
-            item={heroFeature.item}
-            mediaType="movie"
-            priority
-          />
-        ) : null}
+    <PageContainer className="bg-transparent">
+      <IndexPage background="hub" backdrop={hubFeature?.backdrop ?? null}>
+        <Suspense fallback={<IndexFeatureHeroFallback />}>
+          <HomeHubFeatureHero />
+        </Suspense>
 
-        <HomeProviderRail />
+        <Suspense fallback={<HomeProviderRailFallback />}>
+          <HomeProviderRail />
+        </Suspense>
+
+        <Suspense fallback={<CatalogRowFallback bleed />}>
+          <HomeProviderGenreShowcaseSection />
+        </Suspense>
 
         <Suspense fallback={<RecentlyWatchedRowFallback bleed />}>
           <HomeRecentlyWatched />
@@ -131,24 +89,14 @@ export default async function Home() {
         </Suspense>
 
         <Suspense fallback={<CatalogRowFallback bleed />}>
-          <HomeTrendingMoviesCarousel />
-        </Suspense>
-
-        <Suspense fallback={<CatalogCollectionsFallback />}>
-          <HomeCollectionsSection />
-        </Suspense>
-
-        <Suspense fallback={<CatalogRowFallback bleed />}>
           <HomePopularMoviesCarousel />
-        </Suspense>
-
-        <Suspense fallback={<CatalogRowFallback bleed />}>
-          <HomeTrendingTvCarousel />
         </Suspense>
 
         <Suspense fallback={<CatalogRowFallback bleed />}>
           <HomePopularTvCarousel />
         </Suspense>
+
+        <CatalogCategoryShowcase pageKey="movies" />
       </IndexPage>
     </PageContainer>
   );

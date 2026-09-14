@@ -1,3 +1,4 @@
+import { scrapeAnimekai } from "./providers/animekai";
 import { scrapeAnimegg } from "./providers/animegg";
 import { scrapeAnimeonsen } from "./providers/animeonsen";
 import { scrapeAllmanga } from "./providers/allmanga";
@@ -35,6 +36,7 @@ const ANIME_SCRAPERS: Record<
   anipm: scrapeAnipm,
   hentaigasm: scrapeHentaigasm,
   kickassanime: scrapeKickassanime,
+  animekai: scrapeAnimekai,
   animeonsen: scrapeAnimeonsen,
   allmanga: scrapeAllmanga,
   animegg: scrapeAnimegg,

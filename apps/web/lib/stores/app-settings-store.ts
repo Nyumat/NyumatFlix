@@ -7,14 +7,17 @@ import {
   type PlaybackPreferences,
 } from "@/lib/playback/playback-preferences";
 import { patchUserSettings } from "@/lib/user/patch-user-settings";
+import type { CatalogCardStyle } from "@/lib/user/user-settings-types";
 
 interface AppSettingsState extends PlaybackPreferences {
   noAdsMode: boolean;
   disableHeroTrailers: boolean;
   disableHoverSound: boolean;
+  catalogCardStyle: CatalogCardStyle;
   setNoAdsMode: (enabled: boolean) => void;
   setDisableHeroTrailers: (enabled: boolean) => void;
   setDisableHoverSound: (enabled: boolean) => void;
+  setCatalogCardStyle: (style: CatalogCardStyle) => void;
   setPlaybackAudio: (audio: PlaybackAudioPreference) => void;
   setPlaybackQuality: (quality: PlaybackQualityPreference) => void;
   setPlaybackEnglishSubtitles: (enabled: boolean) => void;
@@ -39,7 +42,8 @@ export const useAppSettingsStore = create<AppSettingsState>()((set) => ({
   ...DEFAULT_PLAYBACK_PREFERENCES,
   noAdsMode: false,
   disableHeroTrailers: false,
-  disableHoverSound: false,
+  disableHoverSound: true,
+  catalogCardStyle: "backdrop",
   setNoAdsMode: (enabled) => set({ noAdsMode: enabled }),
   setDisableHeroTrailers: (enabled) => {
     set({ disableHeroTrailers: enabled });
@@ -48,6 +52,10 @@ export const useAppSettingsStore = create<AppSettingsState>()((set) => ({
   setDisableHoverSound: (enabled) => {
     set({ disableHoverSound: enabled });
     void patchUserSettings({ disableHoverSound: enabled });
+  },
+  setCatalogCardStyle: (catalogCardStyle) => {
+    set({ catalogCardStyle });
+    void patchUserSettings({ catalogCardStyle });
   },
   setPlaybackAudio: (playbackAudio) => {
     set({ playbackAudio });

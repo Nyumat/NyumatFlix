@@ -24,7 +24,8 @@ FLIPT_COMPOSE_FILE="${FLIPT_COMPOSE_FILE:-$ROOT/infra/docker-compose.ffs.yml}"
 IMGPROXY_COMPOSE_FILE="${IMGPROXY_COMPOSE_FILE:-$ROOT/infra/docker-compose.imgproxy.yml}"
 LOCK_FILE="${INFRA_LOCK_FILE:-$ROOT/.prod-infra.lock}"
 ROTATE_COUNTRIES="${ROTATE_COUNTRIES:-Germany,Netherlands,France,United States}"
-HEALTH_WAIT_SECONDS="${INFRA_HEALTH_WAIT_SECONDS:-90}"
+HEALTH_WAIT_SECONDS="${INFRA_HEALTH_WAIT_SECONDS:-120}"
+GLUETUN_DEFAULTS_ENV="${GLUETUN_DEFAULTS_ENV:-$ROOT/scripts/gluetun/defaults.env}"
 
 die() {
   echo "production infrastructure: $*" >&2
@@ -164,9 +165,42 @@ sync_managed_app_env_from_seed() {
   done <"$keys_file"
 }
 
+resolve_gluetun_image() {
+  local image="${GLUETUN_IMAGE:-}"
+  if [[ -z "$image" && -f "$GLUETUN_DEFAULTS_ENV" ]]; then
+    image="$(read_env_value "$GLUETUN_DEFAULTS_ENV" GLUETUN_IMAGE || true)"
+  fi
+  printf '%s' "${image:-qmcgaw/gluetun:v3.41.3}"
+}
+
 scrape_compose() {
-  sudo env "GLUETUN_ENV_FILE=$GLUETUN_ENV_FILE" \
+  local gluetun_image
+  gluetun_image="$(resolve_gluetun_image)"
+  sudo env "GLUETUN_ENV_FILE=$GLUETUN_ENV_FILE" "GLUETUN_IMAGE=$gluetun_image" \
     docker compose --project-directory "$ROOT" -p "$SCRAPE_PROJECT" -f "$SCRAPE_COMPOSE_FILE" "$@"
+}
+
+maybe_recreate_gluetun_on_env_drift() {
+  local file_key container_key
+  sudo docker inspect gluetun >/dev/null 2>&1 || return 0
+
+  file_key="$(read_env_value "$GLUETUN_ENV_FILE" GLUETUN_CONTROL_API_KEY || true)"
+  container_key="$(sudo docker exec gluetun printenv GLUETUN_CONTROL_API_KEY 2>/dev/null || true)"
+  if [[ -n "$file_key" && -n "$container_key" && "$file_key" != "$container_key" ]]; then
+    echo "recreating gluetun: control API key changed in env file"
+    scrape_compose up -d --force-recreate --no-deps gluetun
+    return 0
+  fi
+
+  if [[ -n "$file_key" ]]; then
+    local status_payload=""
+    status_payload="$(sudo docker exec gluetun wget -qO- --timeout=8 \
+      --header="X-API-Key: $file_key" http://127.0.0.1:8000/v1/vpn/status 2>/dev/null || true)"
+    if [[ -z "$status_payload" || "$status_payload" != *'"status"'* ]]; then
+      echo "recreating gluetun: control API unreachable or auth rejected"
+      scrape_compose up -d --force-recreate --no-deps gluetun
+    fi
+  fi
 }
 
 flipt_compose() {
@@ -220,19 +254,12 @@ reconcile_container_owner() {
 }
 
 wait_for_gluetun() {
-  local control_api_key deadline health
-  control_api_key="$(read_env_value "$GLUETUN_ENV_FILE" GLUETUN_CONTROL_API_KEY)"
-  deadline=$((SECONDS + HEALTH_WAIT_SECONDS))
-  while ((SECONDS < deadline)); do
-    health="$(sudo docker inspect gluetun --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null || true)"
-    if [[ "$health" == "healthy" ]] && sudo docker exec gluetun wget -qO- --timeout=5 \
-      --header="X-API-Key: $control_api_key" http://127.0.0.1:8000/v1/vpn/status 2>/dev/null | grep -q '"status":"running"'; then
-      return 0
-    fi
-    [[ "$health" == "unhealthy" ]] && break
-    sleep 2
-  done
-  sudo docker logs --tail 50 gluetun >&2 || true
+  # shellcheck disable=SC1091
+  source "$SCRIPT_DIR/infra-health.sh"
+  if infra_wait_for_gluetun_healthy "$HEALTH_WAIT_SECONDS"; then
+    return 0
+  fi
+  sudo docker logs --tail 80 gluetun >&2 || true
   die "Gluetun did not become healthy"
 }
 
@@ -313,6 +340,7 @@ reconcile() {
     imgproxy_compose pull
   fi
 
+  maybe_recreate_gluetun_on_env_drift
   scrape_compose up -d
   flipt_compose up -d
   imgproxy_compose up -d

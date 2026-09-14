@@ -31,7 +31,10 @@ import type {
   TvShowWithMediaType,
 } from "@/tmdb/models";
 import type { MediaItem } from "@/lib/domain/typings";
-import { withAnimePageHrefs } from "@/lib/anilist-page-hrefs";
+import {
+  withAnimePageHref,
+  withAnimePageHrefs,
+} from "@/lib/anilist-page-hrefs";
 import { runInChunks } from "@/lib/server/chunked-parallel";
 
 type TmdbFindResponse = {
@@ -543,6 +546,48 @@ export const enrichAniListSearchCatalogItems = async (
     ...tailMainstream,
     ...adultFallback,
   ]);
+};
+
+type AnimeHubFeatureItem = MediaItem & { sourceAnilistId?: number };
+
+/** Hub hero: keep AniList copy, swap in TMDB poster/backdrop when mapped. */
+export const enrichAnimeHubFeatureTmdbImages = async (
+  item: MediaItem,
+): Promise<MediaItem> => {
+  const tagged = item as AnimeHubFeatureItem;
+  const anilistId = tagged.sourceAnilistId;
+  const tmdbId = item.id;
+  const mediaType = item.media_type;
+
+  if (
+    typeof anilistId !== "number" ||
+    !Number.isInteger(anilistId) ||
+    anilistId <= 0 ||
+    !Number.isInteger(tmdbId) ||
+    tmdbId <= 0 ||
+    (mediaType !== "movie" && mediaType !== "tv")
+  ) {
+    return item;
+  }
+
+  try {
+    const enriched = await fetchTmdbMappedItem(
+      tmdbId,
+      mediaType,
+      item,
+      anilistId,
+    );
+
+    return withAnimePageHref({
+      ...item,
+      backdrop_path: enriched.backdrop_path ?? item.backdrop_path,
+      poster_path: enriched.poster_path ?? item.poster_path,
+      logo: enriched.logo ?? item.logo,
+      images: enriched.images ?? item.images,
+    });
+  } catch {
+    return item;
+  }
 };
 
 export const enrichAniListHubRow = async (

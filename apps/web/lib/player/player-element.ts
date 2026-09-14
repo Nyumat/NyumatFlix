@@ -18,6 +18,8 @@ export interface MoviPlayerElement extends MoviHostElement {
   playing?: boolean;
   play?: () => Promise<void>;
   headers?: Record<string, string> | null;
+  /** Opt-in hls.js-first engine order for HLS (forwarded as config.preferHlsJs). */
+  preferHlsJs?: boolean;
   hlsConfig?: {
     enableWorker?: boolean;
     lowLatencyMode?: boolean;
@@ -165,7 +167,6 @@ const MOVI_HOST_OVERLAY_SELECTORS = [
   ".movi-empty-state",
   ".movi-broken-indicator",
   ".movi-resume-dialog",
-  ".movi-error-indicator",
 ] as const;
 
 export const suppressMoviHostOverlays = (el: MoviPlayerElement): void => {

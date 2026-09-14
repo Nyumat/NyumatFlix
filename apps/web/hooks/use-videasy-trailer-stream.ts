@@ -82,6 +82,7 @@ const getTrailerStreams = (imdbId: string): Promise<TrailerStreams> => {
 export const useVideasyTrailerStream = (
   imdbId: string | undefined,
   enabled: boolean,
+  options?: { initialStreamDelayMs?: number },
 ): UseVideasyTrailerStreamResult => {
   const [mp4Url, setMp4Url] = useState<string | null>(null);
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
@@ -90,6 +91,8 @@ export const useVideasyTrailerStream = (
   const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const loadingRef = useRef(false);
+  const initialStreamDelayMs =
+    options?.initialStreamDelayMs ?? INITIAL_STREAM_DELAY_MS;
 
   const loadStreams = useCallback(
     async (options?: { isRetry?: boolean }) => {
@@ -180,7 +183,7 @@ export const useVideasyTrailerStream = (
       }
 
       void loadStreams();
-    }, INITIAL_STREAM_DELAY_MS);
+    }, initialStreamDelayMs);
 
     return () => {
       abortRef.current?.abort();
@@ -191,7 +194,7 @@ export const useVideasyTrailerStream = (
         window.cancelIdleCallback(idleId);
       }
     };
-  }, [imdbId, enabled, loadStreams]);
+  }, [imdbId, enabled, loadStreams, initialStreamDelayMs]);
 
   return { mp4Url, hlsUrl, status, handleStreamError };
 };

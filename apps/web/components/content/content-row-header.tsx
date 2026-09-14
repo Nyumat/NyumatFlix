@@ -1,3 +1,4 @@
+import { contentRowActionLinkClassName } from "@/lib/content-row-action-link";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -22,10 +23,7 @@ export function ContentRowHeader({
       <h2 className="truncate text-lg font-semibold tracking-tight md:text-xl">
         {title}
       </h2>
-      <Link
-        href={href}
-        className="ml-auto shrink-0 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
+      <Link href={href} className={contentRowActionLinkClassName}>
         View all
       </Link>
     </div>

@@ -74,7 +74,7 @@ import { cn } from "@/lib/utils";
 import "../movi-scrape-player.css";
 
 const VIDKING_KEEPALIVE_INTERVAL_MS = VIDKING_PROACTIVE_REFRESH_AFTER_MS;
-const MOVI_STALL_TIMEOUT_MS = 180_000;
+const MOVI_STALL_TIMEOUT_MS = 45_000;
 const MOVI_STALL_POLL_MS = 5_000;
 
 const toIntroDbChapterMarkers = (segments: IntroDbSegment[]): ChapterMarker[] =>
@@ -251,16 +251,53 @@ export function MoviScrapeEngine({
     return activeOption?.subtitles ?? subtitles ?? [];
   }, [activeOption?.subtitles, audioLang, audioVersions, subtitles]);
 
+  // textTracks identity must be stable across unrelated rerenders
+  // (timeupdate → setCurrentTime fires ~4Hz). buildScrapeSubtitleTracks
+  // returns a fresh array every call, and the effect below re-applies
+  // setExternalSubtitles on every identity change — each re-apply wipes +
+  // rebuilds the native <track> elements, resets track modes, and fires
+  // trackschange → the CC menu rebuilds + the overlay restarts mid-cue.
+  // Serialize to a signature string so the array is only rebuilt when the
+  // underlying tracks (or the default pick) actually change.
+  const preferredSubtitleLang = resolvePreferredSubtitleLang(
+    trackPreferenceStorageKey(progressKey),
+    {
+      preferEnglishSubtitles: playbackEnglishSubtitles,
+      preferredAudioLang,
+    },
+  );
+  const textTracksSignature = useMemo(() => {
+    const tracks = buildScrapeSubtitleTracks(activeSubtitles, referer);
+    let matched = false;
+    return JSON.stringify(
+      tracks.map((track) => {
+        const isDefault =
+          preferredSubtitleLang != null &&
+          preferredSubtitleLang !== "off" &&
+          !matched &&
+          trackMatchesLanguage(
+            { lang: track.lang, label: track.label },
+            preferredSubtitleLang,
+          );
+        if (isDefault) {
+          matched = true;
+        }
+        return [track.id, track.src, isDefault];
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeSubtitles,
+    referer,
+    // preferredSubtitleLang is derived from progressKey + store values;
+    // depend on the stable inputs instead of the derived string.
+    playbackEnglishSubtitles,
+    preferredAudioLang,
+    progressKey.contentId,
+    progressKey.mediaType,
+  ]);
   const textTracks = useMemo(() => {
     const tracks = buildScrapeSubtitleTracks(activeSubtitles, referer);
-    const preferredSubtitleLang = resolvePreferredSubtitleLang(
-      trackPreferenceStorageKey(progressKey),
-      {
-        preferEnglishSubtitles: playbackEnglishSubtitles,
-        preferredAudioLang,
-      },
-    );
-
     if (!preferredSubtitleLang || preferredSubtitleLang === "off") {
       return tracks;
     }
@@ -283,13 +320,8 @@ export function MoviScrapeEngine({
         default: isDefault,
       };
     });
-  }, [
-    activeSubtitles,
-    playbackEnglishSubtitles,
-    preferredAudioLang,
-    progressKey,
-    referer,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textTracksSignature]);
 
   const playerMountKey = activePlaybackUrl;
 
@@ -489,6 +521,10 @@ export function MoviScrapeEngine({
           el.headers = headers;
         }
         el.hlsConfig = buildScrapeVodHlsConfig(mountStartAt);
+        // Scrape HLS serves flaky proxied segments — hls.js recovers from
+        // stalls/errors in seconds where Shaka hangs. Falls back to Shaka
+        // automatically if hls.js fails to load.
+        el.preferHlsJs = true;
 
         const subtitlePayload = textTracks.map((track) => ({
           id: track.id,

@@ -23,6 +23,7 @@ import type {
   PresentationMode,
   ExternalQualityEntry,
   ChapterMarker,
+  HlsJsConfigPatch,
 } from "../types";
 import { Logger, LogLevel } from "../utils/Logger";
 import {
@@ -37,6 +38,12 @@ import {
   type VideoPresenter,
 } from "./VideoPresenter";
 import { RemotePlaybackController } from "./RemotePlaybackController";
+import {
+  forceNativeTextTracksHidden,
+  readNativeSubtitleCue,
+  resolveNativeExternalTextTrackBySubtitleId,
+  resolveNativeManifestTextTrack,
+} from "./native-manifest-subtitles";
 
 import { SettingsStorage } from "../utils/SettingsStorage";
 import { QoECollector, beaconSink, type QoESink, type QoESession } from "../utils/QoE";
@@ -113,6 +120,7 @@ export class MoviElement extends HTMLElement {
   // arrived OR extraction failed). Until then, if the source has an art track,
   // we hold the audio-strip layout off so the player doesn't flash strip→cover.
   private _coverArtResolved: boolean = false;
+  private _mediaMetadataReady: boolean = false;
   // The last audio-strip value we dispatched to the embedding page. Survives
   // load() (unlike the movi-audio-strip class) so a strip↔non-strip switch is
   // detected even across a source change. null = never told the page yet.
@@ -206,6 +214,15 @@ export class MoviElement extends HTMLElement {
   // segments for streams, progressive downloads too). Set declaratively via the
   // `headers` attribute (JSON) or programmatically via the `headers` property.
   private _headers: Record<string, string> | null = null;
+  // hls.js tuning patch for HLS playback (buffer targets, retry budgets,
+  // startPosition, …). Set programmatically via the `hlsConfig` property —
+  // objects can't go through attributes. Forwarded as `config.hls` to the
+  // stream wrappers; HLSPlayerWrapper spreads it over its defaults.
+  private _hlsConfig: HlsJsConfigPatch | null = null;
+  // Opt-in hls.js-first engine order for HLS (.m3u8): forwarded as
+  // `config.preferHlsJs` to MoviPlayer. Scrape playback sets this via the
+  // `preferHlsJs` property. Default false — Shaka first.
+  private _preferHlsJs: boolean = false;
   // Audio-only (data-saver) mode: skip video decode (CPU) and, for adaptive
   // streams, fetch only audio (bandwidth). Toggleable via the `audioonly`
   // attribute or the `audioOnly` property. The UI shows the album-art / strip.
@@ -229,6 +246,9 @@ export class MoviElement extends HTMLElement {
   private _remotePlayback: RemotePlaybackController | null = null;
   private _nativeCueStyle: HTMLStyleElement | null = null;
   private _nativeSubDelayFrameId: number | null = null;
+  private _lastNativeSubtitleRenderKey = "";
+  private _subtitleUserWantsOff = false;
+  private _nativeSubOverlayCleanup: (() => void) | null = null;
   private _castFallbackSrc: string = "";
   private _autoplay: boolean = false;
   // True from the moment an autoplay attempt is kicked off until playback
@@ -3953,42 +3973,71 @@ export class MoviElement extends HTMLElement {
             const subOsdOn = OSD.subOn;
             const subOsdOff = OSD.subOff;
 
-            if (extSubs.length > 0) {
-              // Cycle through external subtitle tracks: off → lang1 → lang2 → ... → off
-              const activeIdx = extSubs.findIndex((t) => t.active);
-              if (activeIdx === -1) {
-                // Currently off → select first
-                this.player.selectExternalSubtitle(extSubs[0].id);
-                this.showOSD(subOsdOn, `${extSubs[0].label} [${extSubs[0].lang.toUpperCase()}] (1/${extSubs.length})`);
-              } else if (activeIdx + 1 < extSubs.length) {
-                // Next track
-                const next = extSubs[activeIdx + 1];
-                this.player.selectExternalSubtitle(next.id);
-                this.showOSD(subOsdOn, `${next.label} [${next.lang.toUpperCase()}] (${activeIdx + 2}/${extSubs.length})`);
-              } else {
-                // Last → off
-                this.player.selectExternalSubtitle(null);
-                this.showOSD(subOsdOff, "Subtitles Off");
+            void (async () => {
+              if (!this.player) return;
+
+              if (extSubs.length > 0) {
+                const activeIdx = extSubs.findIndex((t) => t.active);
+                if (activeIdx === -1) {
+                  this._subtitleUserWantsOff = false;
+                  const ok = await this.player.selectExternalSubtitle(
+                    extSubs[0].id,
+                  );
+                  if (ok) {
+                    this.showOSD(
+                      subOsdOn,
+                      `${extSubs[0].label} [${extSubs[0].lang.toUpperCase()}] (1/${extSubs.length})`,
+                    );
+                  }
+                } else if (activeIdx + 1 < extSubs.length) {
+                  this._subtitleUserWantsOff = false;
+                  const next = extSubs[activeIdx + 1];
+                  const ok = await this.player.selectExternalSubtitle(next.id);
+                  if (ok) {
+                    this.showOSD(
+                      subOsdOn,
+                      `${next.label} [${next.lang.toUpperCase()}] (${activeIdx + 2}/${extSubs.length})`,
+                    );
+                  }
+                } else {
+                  this._subtitleUserWantsOff = true;
+                  await this.player.selectExternalSubtitle(null);
+                  this.showOSD(subOsdOff, "Subtitles Off");
+                }
+                this.updateSubtitleTrackMenu();
+                this.updateNativeSubtitleOverlayRendering();
+              } else if (muxedSubs.length > 0) {
+                const active =
+                  this.player.trackManager.getActiveSubtitleTrack();
+                const activeIdx = active
+                  ? muxedSubs.findIndex((t) => t.id === active.id)
+                  : -1;
+                const nextIdx = activeIdx + 1;
+                if (nextIdx >= muxedSubs.length) {
+                  this._subtitleUserWantsOff = true;
+                  await this.player.selectSubtitleTrack(null);
+                  this.showOSD(subOsdOff, "Subtitles Off");
+                } else {
+                  this._subtitleUserWantsOff = false;
+                  const next = muxedSubs[nextIdx];
+                  const ok = await this.player.selectSubtitleTrack(next.id);
+                  if (ok !== false) {
+                    const muxSubLang = next.language?.toUpperCase() || "";
+                    const muxSubLabel = next.label || muxSubLang || "Sub";
+                    const muxSubOsd =
+                      muxSubLang && muxSubLabel !== muxSubLang
+                        ? `${muxSubLabel} [${muxSubLang}]`
+                        : muxSubLabel;
+                    this.showOSD(
+                      subOsdOn,
+                      `${muxSubOsd} (${nextIdx + 1}/${muxedSubs.length})`,
+                    );
+                  }
+                }
+                this.updateSubtitleTrackMenu();
+                this.updateNativeSubtitleOverlayRendering();
               }
-              this.updateSubtitleTrackMenu();
-            } else if (muxedSubs.length > 0) {
-              // Fallback: muxed subtitle tracks
-              const active = this.player.trackManager.getActiveSubtitleTrack();
-              const activeIdx = active ? muxedSubs.findIndex(t => t.id === active.id) : -1;
-              const nextIdx = activeIdx + 1;
-              if (nextIdx >= muxedSubs.length) {
-                this.player.selectSubtitleTrack(null);
-                this.showOSD(subOsdOff, "Subtitles Off");
-              } else {
-                const next = muxedSubs[nextIdx];
-                this.player.selectSubtitleTrack(next.id);
-                const muxSubLang = next.language?.toUpperCase() || "";
-                const muxSubLabel = next.label || muxSubLang || "Sub";
-                const muxSubOsd = muxSubLang && muxSubLabel !== muxSubLang ? `${muxSubLabel} [${muxSubLang}]` : muxSubLabel;
-                this.showOSD(subOsdOn, `${muxSubOsd} (${nextIdx + 1}/${muxedSubs.length})`);
-              }
-              this.updateSubtitleTrackMenu();
-            }
+            })();
           }
           break;
         case "z":
@@ -4869,40 +4918,53 @@ export class MoviElement extends HTMLElement {
           submenu.classList.add("movi-context-menu-submenu-visible");
         }
       } else if (subtitleId !== undefined) {
-        // Select external subtitle track
-        if (this.player) {
-          const subTrack = this.player.getSubtitleLangs().find((t) => t.id === subtitleId);
-          this.player.selectExternalSubtitle(subtitleId);
-          this.updateSubtitleTrackMenu();
-          this.showOSD(
-            OSD.subOn,
-            subTrack?.label || subtitleId,
-          );
-        }
-        hideContextMenu();
-      } else if (subtitleTrackId !== undefined) {
-        // Select muxed subtitle track
-        const trackId = parseInt(subtitleTrackId);
-        if (this.player) {
-          const subOsdIcon = OSD.subOn;
-          if (trackId === -1) {
-            this.player.selectSubtitleTrack(null);
-            this.player.selectExternalSubtitle(null);
-            this.showOSD(
-              OSD.subOff,
-              "Subtitles Off",
-            );
-          } else {
-            this.player.selectExternalSubtitle(null);
-            this.player.selectSubtitleTrack(trackId);
-            const trk = this.player.getSubtitleTracks().find(t => t.id === trackId);
-            const ctxSubLang = trk?.language?.toUpperCase() || "";
-            const ctxSubLabel = trk?.label || ctxSubLang || `Subtitle ${trackId}`;
-            const ctxSubOsd = ctxSubLang && ctxSubLabel !== ctxSubLang ? `${ctxSubLabel} [${ctxSubLang}]` : ctxSubLabel;
-            this.showOSD(subOsdIcon, ctxSubOsd);
+        void (async () => {
+          if (this.player) {
+            const subTrack = this.player
+              .getSubtitleLangs()
+              .find((t) => t.id === subtitleId);
+            this._subtitleUserWantsOff = false;
+            const ok = await this.player.selectExternalSubtitle(subtitleId);
+            this.updateSubtitleTrackMenu();
+            if (ok) {
+              this.showOSD(OSD.subOn, subTrack?.label || subtitleId);
+            }
+            this.updateNativeSubtitleOverlayRendering();
           }
-        }
-        hideContextMenu();
+          hideContextMenu();
+        })();
+      } else if (subtitleTrackId !== undefined) {
+        void (async () => {
+          const trackId = parseInt(subtitleTrackId, 10);
+          if (this.player) {
+            const subOsdIcon = OSD.subOn;
+            if (trackId === -1) {
+              this._subtitleUserWantsOff = true;
+              await this.player.selectSubtitleTrack(null);
+              await this.player.selectExternalSubtitle(null);
+              this.showOSD(OSD.subOff, "Subtitles Off");
+            } else {
+              this._subtitleUserWantsOff = false;
+              await this.player.selectExternalSubtitle(null);
+              const ok = await this.player.selectSubtitleTrack(trackId);
+              const trk = this.player
+                .getSubtitleTracks()
+                .find((t) => t.id === trackId);
+              const ctxSubLang = trk?.language?.toUpperCase() || "";
+              const ctxSubLabel = trk?.label || ctxSubLang || `Subtitle ${trackId}`;
+              const ctxSubOsd =
+                ctxSubLang && ctxSubLabel !== ctxSubLang
+                  ? `${ctxSubLabel} [${ctxSubLang}]`
+                  : ctxSubLabel;
+              if (ok !== false) {
+                this.showOSD(subOsdIcon, ctxSubOsd);
+              }
+            }
+            this.updateSubtitleTrackMenu();
+            this.updateNativeSubtitleOverlayRendering();
+          }
+          hideContextMenu();
+        })();
       } else if (speed) {
         // Set playback speed
         const playbackSpeed = parseFloat(speed);
@@ -7805,24 +7867,53 @@ export class MoviElement extends HTMLElement {
     }
   }
 
+  private subtitleMenuRenderToken = 0;
+  private subtitleMenuSignature: string | null = null;
+
   private updateSubtitleTrackMenu(): void {
     if (!this.player) return;
 
-    const subtitleTrackList = this.shadowRoot?.querySelector(
-      ".movi-subtitle-track-list",
-    ) as HTMLElement;
-    const subtitleTrackBtn = this.shadowRoot?.querySelector(
-      ".movi-subtitle-track-btn",
-    ) as HTMLElement;
-    const subtitleTrackContainer = this.shadowRoot?.querySelector(
-      ".movi-subtitle-track-container",
-    ) as HTMLElement;
-    if (!subtitleTrackList || !subtitleTrackBtn || !subtitleTrackContainer)
-      return;
-
+    // Rebuilds are cheap but not free — innerHTML + rewire + fade animation.
+    // HLS level switches and track syncs fire tracksChange at 2Hz+, so skip
+    // the rebuild when the rendered state is unchanged. A rebuild is only
+    // needed when the track list, active selection, or panel mode changed.
+    const renderToken = ++this.subtitleMenuRenderToken;
     const subtitleTracks = this.player.getSubtitleTracks();
     const activeTrack = this.player.trackManager.getActiveSubtitleTrack();
     const externalSubs = this.getSubtitleLangs();
+    const menuSignature = JSON.stringify({
+      customize: this._showingSubtitleCustomize,
+      muxed: subtitleTracks.map((track) => [track.id, track.label]),
+      active: activeTrack?.id ?? null,
+      external: externalSubs.map((track) => [track.id, track.active]),
+      off: activeTrack === null && !externalSubs.some((t) => t.active),
+    });
+    if (
+      menuSignature === this.subtitleMenuSignature &&
+      renderToken !== 1
+    ) {
+      return;
+    }
+    this.subtitleMenuSignature = menuSignature;
+
+    const subtitleTrackList = this.shadowRoot?.querySelector(
+      ".movi-subtitle-track-list",
+    ) as HTMLElement | null;
+    const subtitleTrackBtn = this.shadowRoot?.querySelector(
+      ".movi-subtitle-track-btn",
+    ) as HTMLElement | null;
+    const subtitleTrackContainer = this.shadowRoot?.querySelector(
+      ".movi-subtitle-track-container",
+    ) as HTMLElement | null;
+    if (
+      !subtitleTrackList ||
+      !subtitleTrackBtn ||
+      !subtitleTrackContainer
+    ) {
+      this.subtitleMenuSignature = null;
+      return;
+    }
+
     const hasExternalSubs = externalSubs.length > 0;
 
     // Hide container if no subtitle tracks (muxed or external)
@@ -7972,40 +8063,56 @@ export class MoviElement extends HTMLElement {
           const trackIdStr = (item as HTMLElement).dataset.trackId;
           const subtitleId = (item as HTMLElement).dataset.subtitleId;
 
-          if (this.player) {
+          void (async () => {
+            if (!this.player) return;
+
             const subIconOn = OSD.subOn;
             const subIconOff = OSD.subOff;
             if (subtitleId !== undefined) {
-              // External subtitle track
-              const st = this.player.getSubtitleLangs().find((t) => t.id === subtitleId);
-              this.player.selectExternalSubtitle(subtitleId);
+              const st = this.player
+                .getSubtitleLangs()
+                .find((t) => t.id === subtitleId);
+              this._subtitleUserWantsOff = false;
+              const ok = await this.player.selectExternalSubtitle(subtitleId);
               this.updateSubtitleTrackMenu();
-              const extSubOsd = st ? `${st.label} [${st.lang.toUpperCase()}]` : subtitleId;
-              this.showOSD(subIconOn, extSubOsd);
+              if (ok) {
+                const extSubOsd = st
+                  ? `${st.label} [${st.lang.toUpperCase()}]`
+                  : subtitleId;
+                this.showOSD(subIconOn, extSubOsd);
+              }
+              this.updateNativeSubtitleOverlayRendering();
             } else if (trackIdStr === "null") {
-              // Disable all subtitles (muxed + external)
-              this.player.selectSubtitleTrack(null).catch(() => {});
-              this.player.selectExternalSubtitle(null);
+              this._subtitleUserWantsOff = true;
+              await this.player.selectSubtitleTrack(null).catch(() => {});
+              await this.player.selectExternalSubtitle(null);
               this.updateSubtitleTrackMenu();
               this.showOSD(subIconOff, "Subtitles Off");
+              this.updateNativeSubtitleOverlayRendering();
             } else {
-              // Muxed subtitle track
-              const trackId = parseInt(trackIdStr || "0");
-              this.player.selectExternalSubtitle(null);
-              this.player.selectSubtitleTrack(trackId).catch(() => {});
-              const trk = this.player.getSubtitleTracks().find(t => t.id === trackId);
+              const trackId = parseInt(trackIdStr || "0", 10);
+              this._subtitleUserWantsOff = false;
+              await this.player.selectExternalSubtitle(null);
+              const ok = await this.player
+                .selectSubtitleTrack(trackId)
+                .catch(() => false);
+              const trk = this.player
+                .getSubtitleTracks()
+                .find((t) => t.id === trackId);
               const muxSubLangC = trk?.language?.toUpperCase() || "";
-              const muxSubLabelC = trk?.label || muxSubLangC || `Subtitle ${trackId}`;
-              const muxSubOsdC = muxSubLangC && muxSubLabelC !== muxSubLangC ? `${muxSubLabelC} [${muxSubLangC}]` : muxSubLabelC;
-              this.showOSD(subIconOn, muxSubOsdC);
+              const muxSubLabelC =
+                trk?.label || muxSubLangC || `Subtitle ${trackId}`;
+              const muxSubOsdC =
+                muxSubLangC && muxSubLabelC !== muxSubLangC
+                  ? `${muxSubLabelC} [${muxSubLangC}]`
+                  : muxSubLabelC;
+              if (ok) {
+                this.showOSD(subIconOn, muxSubOsdC);
+              }
+              this.updateNativeSubtitleOverlayRendering();
             }
-            // Re-render so the active row's checkmark + the gear/browse
-            // icons reflect the new selection. Do NOT close the menu —
-            // user wants to glance at the panel, swap a track, and
-            // possibly tweak something else (Transcript, customize)
-            // without re-opening the dropdown each time.
             this.updateSubtitleTrackMenu();
-          }
+          })();
         });
       });
   }
@@ -8200,7 +8307,7 @@ export class MoviElement extends HTMLElement {
     const bar = this.shadowRoot?.querySelector(".movi-controls-bar") as HTMLElement;
     const barHeight = bar?.offsetHeight ?? 80;
     const timelinePanel = this.shadowRoot?.querySelector(".movi-timeline-panel") as HTMLElement;
-    let subtitlePadding = barHeight + 20;
+    let subtitlePadding = barHeight + 10;
 
     if (timelinePanel && timelinePanel.style.display !== "none") {
       timelinePanel.style.bottom = `${barHeight + 20}px`;
@@ -8208,7 +8315,7 @@ export class MoviElement extends HTMLElement {
       requestAnimationFrame(() => {
         const tlHeight = timelinePanel.offsetHeight || 0;
         if (tlHeight > 0 && this.player) {
-          this.player.setSubtitleControlsPadding(barHeight + tlHeight + 30);
+          this.player.setSubtitleControlsPadding(barHeight + tlHeight + 16);
         }
       });
     } else if (this.player) {
@@ -12897,7 +13004,7 @@ export class MoviElement extends HTMLElement {
       }
       .movi-subtitle-overlay {
         position: absolute;
-        bottom: 12%;
+        bottom: 6%;
         left: 0;
         right: 0;
         z-index: 5;
@@ -12905,7 +13012,14 @@ export class MoviElement extends HTMLElement {
         display: none;
         text-align: center;
         padding: 0 5%;
-        transition: padding-bottom 0.3s ease;
+        transition: bottom 0.3s ease, padding-bottom 0.3s ease;
+        /* The native overlay path only toggles display:flex; without these the
+           flex row left-aligns the cue block. Column + center keeps the block
+           horizontally centered and bottom-anchored like the canvas renderer
+           (which also sets these inline). */
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
       }
 
       /* Subtitle shift is handled via JS in showControls/hideControls */
@@ -15624,9 +15738,12 @@ export class MoviElement extends HTMLElement {
     const canvas = this.coverArtCanvas;
     if (!overlay || !canvas) return;
 
+    // loadEnd can fire before mountNativeStreamVideo replaces the placeholder.
+    // Read the current wrapper's video, never the previous source's element.
+    const nativeVideo = this.player?.getNativeVideoElement() ?? null;
     const hasVideoTrack =
-      !!this.player?.trackManager?.getActiveVideoTrack?.() ||
-      (this._presentation === "native" && (this.video?.videoWidth ?? 0) > 0);
+      (this.player?.trackManager.getVideoTracks().length ?? 0) > 0 ||
+      (!!nativeVideo && nativeVideo.videoWidth > 0 && nativeVideo.videoHeight > 0);
     const hasAudio = !!this.player?.hasAudibleSource?.();
 
     // Two related-but-distinct host states for an audio source (audio
@@ -15640,22 +15757,15 @@ export class MoviElement extends HTMLElement {
     //     player to a native-<audio>-style 56px control strip. Cover art
     //     needs the full surface to paint, so strip layout is suppressed
     //     when a bitmap is present (audio-mode still hides the controls).
-    // A failed load has NO tracks, so hasVideoTrack is always false and the
-    // audio renderer (built at construction) makes hasAudibleSource() read true
-    // — which wrongly flags a failed VIDEO/manifest as audio and, on the next
-    // resize, collapses it to the 56px strip. In the error state there are no
-    // tracks to trust, so decide from the src's own media type instead: a real
-    // audio file stays a strip, a failed video/manifest shows full-size.
-    // The SAME trap exists DURING load (idle/loading): tracks aren't resolved
-    // yet, hasVideoTrack is still false, yet hasAudibleSource() already reads
-    // true — so a resize mid-load (e.g. responsive layout settling, sidebar
-    // toggling) collapses a still-loading VIDEO into the strip. Treat that
-    // window like the error state and decide from the src's media type until
-    // the real tracks arrive.
+    // A stream wrapper already counts as audible while its metadata is still
+    // pending. It can report ready/paused/buffering before video dimensions
+    // arrive, so playback state alone cannot establish an audio-only source.
+    // Wait for loadEnd and native media data before interpreting missing video.
     const state = this.player?.getState?.();
     const errored = state === "error" || this._isUnsupported;
     const tracksUnresolved =
-      !hasVideoTrack && (errored || state === "idle" || state === "loading");
+      errored || !this._mediaMetadataReady ||
+      (!!nativeVideo && nativeVideo.readyState < 2);
     const srcIsAudio =
       typeof this._src === "string" &&
       this.guessMediaType(this._src).startsWith("audio/");
@@ -15663,7 +15773,7 @@ export class MoviElement extends HTMLElement {
     // we're deliberately not decoding the video, so show album art / strip.
     const audioMode =
       this._audioOnly ||
-      (tracksUnresolved ? srcIsAudio : !hasVideoTrack && hasAudio);
+      (!hasVideoTrack && (tracksUnresolved ? srcIsAudio : hasAudio));
 
     // Audio-only with a `poster` URL but no embedded album art: load the poster
     // into a bitmap and paint it through the cover-art canvas so it reads as
@@ -15934,7 +16044,7 @@ export class MoviElement extends HTMLElement {
     if (this.player) {
       this.player.setSubtitleDelay(this._subtitleDelay);
     }
-    this.updateNativeSubtitleDelayRendering();
+    this.updateNativeSubtitleOverlayRendering();
   }
 
   private updatePlaybackRate() {
@@ -16120,6 +16230,8 @@ export class MoviElement extends HTMLElement {
         enablePreviews: this._thumb && !this._audioOnly,
         ...(this._fps > 0 && { frameRate: this._fps }),
         ...(this._headers && { headers: this._headers }),
+        ...(this._hlsConfig && { hls: this._hlsConfig }),
+        ...(this._preferHlsJs && { preferHlsJs: true }),
         ...(this._audioOnly && { audioOnly: true }),
         ...(this._sourceAdapter && { sourceAdapter: this._sourceAdapter }),
       };
@@ -16493,16 +16605,39 @@ export class MoviElement extends HTMLElement {
   private mountNativeStreamVideo(): void {
     if (!this.player) return;
     const streamVideo = this.player.getNativeVideoElement();
-    if (!streamVideo || streamVideo === this.video) return;
+    if (!streamVideo) return;
 
-    streamVideo.style.width = "100%";
-    streamVideo.style.height = "100%";
-    streamVideo.style.display = "block";
-    streamVideo.style.objectFit = this.video.style.objectFit || "contain";
-    streamVideo.className = this.video.className;
-    this.video.replaceWith(streamVideo);
-    this.video = streamVideo;
-    Logger.info(TAG, "Mounted native stream video element in light DOM");
+    if (streamVideo !== this.video) {
+      streamVideo.style.width = "100%";
+      streamVideo.style.height = "100%";
+      streamVideo.style.display = "block";
+      streamVideo.style.objectFit = this.video.style.objectFit || "contain";
+      streamVideo.className = this.video.className;
+      this.video.replaceWith(streamVideo);
+      this.video = streamVideo;
+      Logger.info(TAG, "Mounted native stream video element in light DOM");
+    }
+
+    this.observeNativeVideoLayout();
+  }
+
+  private observeNativeVideoLayout(): void {
+    const streamVideo = this.player?.getNativeVideoElement();
+    if (!streamVideo) return;
+
+    this.eventHandlers.get("nativeVideoLayout")?.();
+    const updateLayout = () => {
+      if (this.player?.getNativeVideoElement() === streamVideo) {
+        this.updateCoverArtOverlay();
+      }
+    };
+    // Intrinsic video dimensions can arrive without a host ResizeObserver tick.
+    const events = ["loadedmetadata", "loadeddata", "resize", "emptied"] as const;
+    for (const event of events) streamVideo.addEventListener(event, updateLayout);
+    this.eventHandlers.set("nativeVideoLayout", () => {
+      for (const event of events) streamVideo.removeEventListener(event, updateLayout);
+    });
+    updateLayout();
   }
 
   private setupRemotePlaybackControls(): void {
@@ -16630,9 +16765,35 @@ export class MoviElement extends HTMLElement {
   private syncNativeSubtitleTracks(): void {
     if (this._presentation !== "native") return;
     const video = this.video;
+    // <track> loads are async — the TextTrack list only populates after the
+    // video element processes the new children. Snapshot the restore decision
+    // up front: if the user already picked a sidecar (resolve back to its
+    // _subtitleTracks entry) or the page marked a default, re-assert it after
+    // the rebuild instead of racing modes here.
+    const activeExternal = this.player
+      ?.getSubtitleLangs()
+      .find((t) => t.active);
+    const activeEntry = activeExternal
+      ? this._subtitleTracks.find(
+          (sub) => this.resolveExternalSubtitleId(sub) === activeExternal.id,
+        )
+      : undefined;
+    const preselected =
+      activeEntry ??
+      (!this._subtitleUserWantsOff
+        ? (this._subtitleTracks.find((sub) => sub.default) ??
+          (this._subtitleTracks.length === 1
+            ? this._subtitleTracks[0]
+            : undefined))
+        : undefined);
+    const restoreId = preselected
+      ? this.resolveExternalSubtitleId(preselected)
+      : null;
     for (const track of [...video.querySelectorAll("track")]) {
       track.remove();
     }
+    let appended = 0;
+    let restoreTrackElement: HTMLTrackElement | null = null;
     for (const sub of this._subtitleTracks) {
       const src = this.resolveNativeSubtitleSrc(sub.src);
       if (!src) continue;
@@ -16641,115 +16802,223 @@ export class MoviElement extends HTMLElement {
       track.label = sub.label;
       track.srclang = sub.lang;
       track.src = src;
+      track.dataset.subtitleId = this.resolveExternalSubtitleId(sub);
       if (sub.default) {
         track.default = true;
       }
       video.appendChild(track);
+      if (restoreId === this.resolveExternalSubtitleId(sub)) {
+        restoreTrackElement = track;
+      }
+      appended += 1;
     }
-    const textTracks = video.textTracks;
-    let defaultShown = false;
-    for (let i = 0; i < textTracks.length; i++) {
-      if (textTracks[i].mode === "showing") {
-        defaultShown = true;
-        const matchingSub = this._subtitleTracks.find(
-          (sub) => sub.label === textTracks[i].label,
-        );
-        if (matchingSub && this.player) {
-          void this.player.selectExternalSubtitle(
-            this.resolveExternalSubtitleId(matchingSub),
-          );
+    if (appended === 0) {
+      // No usable sidecar tracks (all filtered as non-proxied) — leave any
+      // manifest tracks alone so an active HLS subtitle selection keeps
+      // rendering instead of being force-hidden below.
+      return;
+    }
+    forceNativeTextTracksHidden(video.textTracks);
+    if (this._subtitleUserWantsOff) {
+      if (this.player) {
+        void this.player.selectExternalSubtitle(null);
+      }
+    } else if (restoreId && this.player) {
+      // Re-assert the pre-rebuild selection against the fresh <track>
+      // elements. selectExternalSubtitle keeps TextTracks hidden and paints
+      // cues into the overlay — never "showing", so no native-render flash.
+      void this.player.selectExternalSubtitle(restoreId);
+    }
+    this.updateNativeSubtitleOverlayRendering();
+
+    // Native TextTracks are populated asynchronously after the <track>
+    // element is appended. Re-apply the selection once the browser has
+    // finished loading the selected sidecar; otherwise the menu can show an
+    // active subtitle while the overlay still resolves no usable TextTrack.
+    if (restoreTrackElement && restoreId && this.player) {
+      const activateLoadedTrack = () => {
+        if (!this.player || this._presentation !== "native") return;
+        void this.player.selectExternalSubtitle(restoreId).then((ok) => {
+          if (ok) {
+            this.updateSubtitleTrackMenu();
+            this.updateNativeSubtitleOverlayRendering();
+          }
+        });
+      };
+
+      restoreTrackElement.addEventListener("load", activateLoadedTrack, {
+        once: true,
+      });
+      restoreTrackElement.addEventListener(
+        "error",
+        () =>
+          Logger.warn(
+            TAG,
+            `Failed to load native subtitle track: ${restoreTrackElement?.src}`,
+          ),
+        { once: true },
+      );
+
+      // If the track completed before the listener was attached, activate it
+      // on the next task after the browser updates TextTrackList/cues.
+      window.setTimeout(() => {
+        if (restoreTrackElement?.readyState === 2) {
+          activateLoadedTrack();
         }
-        continue;
-      }
-      textTracks[i].mode = "hidden";
+      }, 0);
     }
-    if (!defaultShown && this.player) {
-      const preferredSub =
-        this._subtitleTracks.find((sub) => sub.default) ??
-        (this._subtitleTracks.length === 1
-          ? this._subtitleTracks[0]
-          : undefined);
-      if (preferredSub) {
-        void this.player.selectExternalSubtitle(
-          this.resolveExternalSubtitleId(preferredSub),
-        );
-      }
-    }
-    this.updateNativeSubtitleDelayRendering();
   }
 
-  private stopNativeSubtitleDelayRendering(): void {
+  private resolveNativeActiveTextTrack(): TextTrack | null {
+    if (!this.player) return null;
+
+    const activeExternal = this.player.getSubtitleLangs().find((t) => t.active);
+    if (activeExternal) {
+      const byId = resolveNativeExternalTextTrackBySubtitleId(
+        this.video,
+        activeExternal.id,
+      );
+      if (byId) return byId;
+    }
+
+    const muxed = this.player.trackManager.getActiveSubtitleTrack();
+    if (muxed) {
+      return resolveNativeManifestTextTrack(this.video.textTracks, muxed);
+    }
+
+    return null;
+  }
+
+  private paintNativeSubtitleOverlayFromCue(cue: {
+    text: string;
+    key: string;
+  }): void {
+    if (!this.subtitleOverlay) return;
+
+    if (cue.key === this._lastNativeSubtitleRenderKey) {
+      return;
+    }
+    this._lastNativeSubtitleRenderKey = cue.key;
+
+    if (!cue.text) {
+      this.subtitleOverlay.innerHTML = "";
+      this.subtitleOverlay.style.display = "none";
+      return;
+    }
+
+    this.subtitleOverlay.style.display = "flex";
+    this.subtitleOverlay.classList.add("movi-subtitle-format-vtt");
+    const block = document.createElement("div");
+    block.className = "movi-subtitle-block";
+    const line = document.createElement("div");
+    line.className = "movi-subtitle-line";
+    line.textContent = cue.text;
+    block.appendChild(line);
+    this.subtitleOverlay.replaceChildren(block);
+  }
+
+  private stopNativeSubtitleOverlayRendering(): void {
     if (this._nativeSubDelayFrameId !== null) {
       this.video.cancelVideoFrameCallback(this._nativeSubDelayFrameId);
       this._nativeSubDelayFrameId = null;
     }
+    this._nativeSubOverlayCleanup?.();
+    this._nativeSubOverlayCleanup = null;
+    this._lastNativeSubtitleRenderKey = "";
     if (this.subtitleOverlay) {
       this.subtitleOverlay.innerHTML = "";
+      this.subtitleOverlay.style.display = "none";
     }
   }
 
-  private updateNativeSubtitleDelayRendering(): void {
-    this.stopNativeSubtitleDelayRendering();
-    if (this._presentation !== "native" || this._subtitleDelay === 0) {
+  private updateNativeSubtitleOverlayRendering(): void {
+    this.stopNativeSubtitleOverlayRendering();
+    if (this._presentation !== "native") {
       return;
     }
 
-    const renderDelayedNativeSubtitles = () => {
-      if (this._presentation !== "native" || this._subtitleDelay === 0) {
+    const sampleAndPaint = () => {
+      if (this._presentation !== "native") {
         return;
       }
-
-      const adjustedTime = this.video.currentTime - this._subtitleDelay;
-      let activeText = "";
-
-      for (let i = 0; i < this.video.textTracks.length; i++) {
-        const textTrack = this.video.textTracks[i];
-        if (textTrack.kind !== "subtitles" && textTrack.kind !== "captions") {
-          continue;
-        }
-        if (textTrack.mode === "showing") {
-          textTrack.mode = "hidden";
-        }
-        const cues = textTrack.cues;
-        if (!cues) continue;
-        for (let j = 0; j < cues.length; j++) {
-          const cue = cues[j];
-          if (
-            cue &&
-            adjustedTime >= cue.startTime &&
-            adjustedTime <= cue.endTime
-          ) {
-            activeText = (cue as VTTCue).text;
-            break;
-          }
-        }
-        if (activeText) break;
+      const textTrack = this.resolveNativeActiveTextTrack();
+      // Keep the active track "hidden" (loaded, not UA-painted) while we draw
+      // the overlay ourselves. hls.js's subtitleTrack=-1 calls
+      // toggleTrackModes(), which flips every DOM subtitle text track —
+      // including our sidecar — to "disabled"; that blanks the cues and thus
+      // the overlay on any muxed subtitle switch. Re-assert hidden so the
+      // sidecar self-heals.
+      if (textTrack && textTrack.mode !== "hidden") {
+        textTrack.mode = "hidden";
       }
-
-      if (this.subtitleOverlay) {
-        this.subtitleOverlay.innerHTML = "";
-        if (activeText) {
-          const block = document.createElement("div");
-          block.className = "movi-subtitle-block";
-          const line = document.createElement("div");
-          line.className = "movi-subtitle-line";
-          line.textContent = activeText;
-          block.appendChild(line);
-          this.subtitleOverlay.appendChild(block);
-        }
-      }
-
-      this._nativeSubDelayFrameId = this.video.requestVideoFrameCallback(() => {
-        this._nativeSubDelayFrameId = null;
-        renderDelayedNativeSubtitles();
-      });
+      const cue = readNativeSubtitleCue(
+        textTrack,
+        this.video.currentTime,
+        this._subtitleDelay,
+      );
+      this.paintNativeSubtitleOverlayFromCue(cue);
     };
 
-    renderDelayedNativeSubtitles();
+    const scheduleNext = () => {
+      if (this._presentation !== "native") {
+        return;
+      }
+      if (typeof this.video.requestVideoFrameCallback === "function") {
+        this._nativeSubDelayFrameId = this.video.requestVideoFrameCallback(
+          () => {
+            this._nativeSubDelayFrameId = null;
+            sampleAndPaint();
+            scheduleNext();
+          },
+        );
+      }
+    };
+
+    const onTimeUpdate = () => sampleAndPaint();
+    const onCueChange = () => sampleAndPaint();
+
+    this.video.addEventListener("timeupdate", onTimeUpdate);
+    const cueTracks: TextTrack[] = [];
+    for (let i = 0; i < this.video.textTracks.length; i++) {
+      const tt = this.video.textTracks[i];
+      if (tt.kind !== "subtitles" && tt.kind !== "captions") {
+        continue;
+      }
+      tt.addEventListener("cuechange", onCueChange);
+      cueTracks.push(tt);
+    }
+    // <track> loads are async — cues arrive after the fetch completes, and
+    // the TextTrack list only populates once the video element processes the
+    // new children. Re-resolve + repaint on load/addtrack so a freshly loaded
+    // sidecar starts painting without waiting for the next seek/timeupdate.
+    const onTrackElementLoad = () => sampleAndPaint();
+    const trackElements: HTMLTrackElement[] = [
+      ...this.video.querySelectorAll("track"),
+    ];
+    for (const trackEl of trackElements) {
+      trackEl.addEventListener("load", onTrackElementLoad);
+    }
+    const onAddTrack = () => sampleAndPaint();
+    this.video.textTracks.addEventListener?.("addtrack", onAddTrack);
+
+    this._nativeSubOverlayCleanup = () => {
+      this.video.removeEventListener("timeupdate", onTimeUpdate);
+      for (const tt of cueTracks) {
+        tt.removeEventListener("cuechange", onCueChange);
+      }
+      for (const trackEl of trackElements) {
+        trackEl.removeEventListener("load", onTrackElementLoad);
+      }
+      this.video.textTracks.removeEventListener?.("addtrack", onAddTrack);
+    };
+
+    sampleAndPaint();
+    scheduleNext();
   }
 
   private setupEventHandlers(): void {
     if (!this.player) return;
+    this._mediaMetadataReady = false;
 
     // Remove existing listeners
     this.eventHandlers.forEach((unsubscribe) => unsubscribe());
@@ -16787,6 +17056,7 @@ export class MoviElement extends HTMLElement {
     // Handle subtitle track changes
     const subtitleTrackChangeHandler = () => {
       this.updateSubtitleTrackMenu();
+      this.updateNativeSubtitleOverlayRendering();
       this.dispatchEvent(new Event("subtitletrackchange"));
     };
     this.player.trackManager.on(
@@ -16798,6 +17068,10 @@ export class MoviElement extends HTMLElement {
         "subtitleTrackChange",
         subtitleTrackChangeHandler,
       ),
+    );
+    this.player.on("subtitleTrackChange", subtitleTrackChangeHandler);
+    this.eventHandlers.set("playerSubtitleTrackChange", () =>
+      this.player?.off("subtitleTrackChange", subtitleTrackChangeHandler),
     );
 
     // Handle tracks change (when media loads)
@@ -17020,6 +17294,8 @@ export class MoviElement extends HTMLElement {
 
     // Handle loadEnd event to hide loading indicator
     const loadEndHandler = () => {
+      this._mediaMetadataReady = true;
+      this.observeNativeVideoLayout();
       this.updateLoadingIndicator(this.player?.getState() || "idle");
       this.updateControlsState();
       this.updatePlayPauseIcon();
@@ -17209,6 +17485,9 @@ export class MoviElement extends HTMLElement {
    * Load the video source (automatic when src is set)
    */
   async load(): Promise<void> {
+    this._mediaMetadataReady = false;
+    this.eventHandlers.get("nativeVideoLayout")?.();
+    this.eventHandlers.delete("nativeVideoLayout");
     // Reset auto-loaded title flag and duration tracker for new video
     this._titleAutoLoaded = false;
     this._lastDuration = 0;
@@ -17536,6 +17815,9 @@ export class MoviElement extends HTMLElement {
    * and resetting the <video> can interfere with the DRM/HLS path.
    */
   dispose(): void {
+    this._mediaMetadataReady = false;
+    this.eventHandlers.get("nativeVideoLayout")?.();
+    this.eventHandlers.delete("nativeVideoLayout");
     // Cancel any queued play intent
     this._pendingPlay = false;
     this._elementPlayPromise = null;
@@ -18856,7 +19138,7 @@ export class MoviElement extends HTMLElement {
       default?: boolean;
     }[],
   ): void {
-    this._subtitleTracks = subtitles.map((sub) => ({
+    const next = subtitles.map((sub) => ({
       src: sub.src,
       lang: sub.lang,
       label: sub.label,
@@ -18864,6 +19146,24 @@ export class MoviElement extends HTMLElement {
       id: sub.id,
       default: sub.default,
     }));
+    const same =
+      next.length === this._subtitleTracks.length &&
+      next.every((sub, index) => {
+        const current = this._subtitleTracks[index];
+        return (
+          current !== undefined &&
+          current.src === sub.src &&
+          current.lang === sub.lang &&
+          current.label === sub.label &&
+          current.format === sub.format &&
+          (current.id ?? current.src) === (sub.id ?? sub.src) &&
+          (current.default ?? false) === (sub.default ?? false)
+        );
+      });
+    if (same) {
+      return;
+    }
+    this._subtitleTracks = next;
 
     if (this.player) {
       this.player.setExternalSubtitleTracks(
@@ -18879,6 +19179,7 @@ export class MoviElement extends HTMLElement {
 
     if (this._presentation === "native" && this.player) {
       this.syncNativeSubtitleTracks();
+      this.updateSubtitleTrackMenu();
     }
   }
 
@@ -19098,6 +19399,44 @@ export class MoviElement extends HTMLElement {
     if (this.isConnected && (this._src || this._sourceAdapter)) {
       this.load();
     }
+  }
+
+  /**
+   * hls.js tuning patch applied to HLS playback — buffer targets, retry
+   * budgets, startPosition, etc. The object form is the programmatic way to
+   * pass per-source HLS tuning; objects can't go through attributes.
+   *
+   *   player.hlsConfig = { maxBufferLength: 30, startPosition: 12.5 };
+   */
+  get hlsConfig(): HlsJsConfigPatch | null {
+    return this._hlsConfig;
+  }
+
+  set hlsConfig(value: HlsJsConfigPatch | null) {
+    this._hlsConfig = value && typeof value === "object" ? { ...value } : null;
+    // HLS config is consumed when the player/stream-wrapper is constructed,
+    // so a live change only takes effect on the next load. Reload if a source
+    // is already active.
+    if (this.isConnected && (this._src || this._sourceAdapter)) {
+      this.load();
+    }
+  }
+
+  /**
+   * Prefer hls.js over Shaka for HLS (.m3u8) playback. Forwarded as
+   * `config.preferHlsJs` to MoviPlayer. Default false (Shaka first).
+   * Takes effect on the next load.
+   *
+   *   player.preferHlsJs = true;  // hls.js first for scrape sources
+   */
+  get preferHlsJs(): boolean {
+    return this._preferHlsJs;
+  }
+
+  set preferHlsJs(value: boolean) {
+    const enabled = !!value;
+    if (enabled === this._preferHlsJs) return;
+    this._preferHlsJs = enabled;
   }
 
   /**
@@ -19356,6 +19695,8 @@ export class MoviElement extends HTMLElement {
         enablePreviews: this._thumb,
         frameRate: this._fps || undefined,
         ...(this._headers && { headers: this._headers }),
+        ...(this._hlsConfig && { hls: this._hlsConfig }),
+        ...(this._preferHlsJs && { preferHlsJs: true }),
       });
 
       // Bind device enumeration + apply any pending `audiooutput` selection.

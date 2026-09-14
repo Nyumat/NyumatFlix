@@ -182,8 +182,12 @@ export const userSettings = pgTable("user_settings", {
   playbackEnglishSubtitles: boolean("playbackEnglishSubtitles")
     .notNull()
     .default(true),
-  disableHoverSound: boolean("disableHoverSound").notNull().default(false),
+  disableHoverSound: boolean("disableHoverSound").notNull().default(true),
   disableHeroTrailers: boolean("disableHeroTrailers").notNull().default(false),
+  catalogCardStyle: text("catalogCardStyle")
+    .notNull()
+    .default("backdrop")
+    .$type<"poster" | "backdrop">(),
   selectedServerId: text("selectedServerId"),
   userSelectedPlaybackServer: boolean("userSelectedPlaybackServer")
     .notNull()

@@ -10,6 +10,7 @@ import { overlayKnownTmdbZeroSeasonSpecials } from "@/lib/anime/tmdb-zero-season
 import { mergeTmdbEpisodesIntoSeason } from "@/lib/anilist-tv-episode-merge";
 import { hasFribbSplitCourForTmdbSeason } from "@/lib/anime/split-cour-appendix";
 import { getSeasonIndexEntry } from "@/lib/anime/season-index";
+import { getAnilistIdFromTmdbLookup } from "@/lib/anime/tmdb-anilist-lookup-server";
 import { buildEpisodesFromMappingSegments } from "@/lib/anime/tmdb-anilist-map";
 import {
   collectEpisodeNumbers,
@@ -92,6 +93,21 @@ export const fetchTmdbSplitCourMergedSeasonDetails = async (
   tmdbShowId: number,
   seasonNumber: number,
 ): Promise<SeasonDetails | null> => {
+  // Skip the Fribb graph (5.6MB parse) for seasons no mapping knows about.
+  // The O(1) lookup also gates non-anime shows without any file I/O beyond
+  // the 130KB precomputed artifact.
+  const lookupHit = await getAnilistIdFromTmdbLookup(
+    tmdbShowId,
+    seasonNumber,
+  ).catch(() => null);
+  if (!lookupHit) {
+    const seasonIndexEntry = await getSeasonIndexEntry({
+      tmdbShowId,
+      seasonNumber,
+    }).catch(() => null);
+    if (!seasonIndexEntry) return null;
+  }
+
   const fribbRows = await getFribbAnimeList();
   if (!hasFribbSplitCourForTmdbSeason(fribbRows, tmdbShowId, seasonNumber)) {
     return null;

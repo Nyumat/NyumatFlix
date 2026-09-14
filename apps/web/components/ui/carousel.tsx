@@ -6,6 +6,10 @@ import useEmblaCarousel, {
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import {
+  carouselOffsetPanState,
+  shouldSnapCarouselWheelPan,
+} from "@/lib/carousel-pan";
 import { cn } from "@/lib/utils";
 
 type CarouselApi = UseEmblaCarouselType[1];
@@ -14,6 +18,15 @@ type CarouselOptions = UseCarouselParameters[0];
 type CarouselPlugin = UseCarouselParameters[1];
 
 const carouselApis = new WeakMap<HTMLElement, NonNullable<CarouselApi>>();
+
+const readCarouselEnginePanState = (api: NonNullable<CarouselApi>) => {
+  const engine = api.internalEngine();
+  return carouselOffsetPanState(
+    engine.offsetLocation.get(),
+    engine.limit.min,
+    engine.limit.max,
+  );
+};
 
 const restoreCarouselScrollProgress = (
   api: NonNullable<CarouselApi>,
@@ -156,6 +169,9 @@ const Carousel = React.forwardRef<
   ) => {
     const [carouselRef, api] = useEmblaCarousel(
       {
+        // Keep the final slide reachable when a row is free-dragged. Individual
+        // carousels can still opt out when they intentionally need loose bounds.
+        containScroll: "trimSnaps",
         ...opts,
         axis: orientation === "horizontal" ? "x" : "y",
       },
@@ -173,21 +189,34 @@ const Carousel = React.forwardRef<
       [ref],
     );
 
-    const onSelect = React.useCallback((api: CarouselApi) => {
+    const scrollPrev = React.useCallback(() => {
       if (!api) {
         return;
       }
 
-      setCanScrollPrev(api.canScrollPrev());
-      setCanScrollNext(api.canScrollNext());
-    }, []);
+      if (api.canScrollPrev()) {
+        api.scrollPrev();
+        return;
+      }
 
-    const scrollPrev = React.useCallback(() => {
-      api?.scrollPrev();
+      if (readCarouselEnginePanState(api).canPanPrev) {
+        restoreCarouselScrollProgress(api, 0);
+      }
     }, [api]);
 
     const scrollNext = React.useCallback(() => {
-      api?.scrollNext();
+      if (!api) {
+        return;
+      }
+
+      if (api.canScrollNext()) {
+        api.scrollNext();
+        return;
+      }
+
+      if (readCarouselEnginePanState(api).canPanNext) {
+        restoreCarouselScrollProgress(api, 1);
+      }
     }, [api]);
 
     const handleKeyDown = React.useCallback(
@@ -226,15 +255,27 @@ const Carousel = React.forwardRef<
         return;
       }
 
-      onSelect(api);
-      api.on("reInit", onSelect);
-      api.on("select", onSelect);
+      const updateScrollAvailability = (carouselApi: CarouselApi) => {
+        if (!carouselApi) {
+          return;
+        }
+
+        const panState = readCarouselEnginePanState(carouselApi);
+        setCanScrollPrev(panState.canPanPrev);
+        setCanScrollNext(panState.canPanNext);
+      };
+
+      updateScrollAvailability(api);
+      api.on("reInit", updateScrollAvailability);
+      api.on("select", updateScrollAvailability);
+      api.on("scroll", updateScrollAvailability);
 
       return () => {
-        api?.off("reInit", onSelect);
-        api?.off("select", onSelect);
+        api.off("reInit", updateScrollAvailability);
+        api.off("select", updateScrollAvailability);
+        api.off("scroll", updateScrollAvailability);
       };
-    }, [api, onSelect]);
+    }, [api]);
 
     return (
       <CarouselContext.Provider
@@ -300,18 +341,20 @@ const CarouselContent = React.forwardRef<HTMLDivElement, CarouselContentProps>(
           return;
         }
 
-        const isHorizontalIntent =
-          Math.abs(event.deltaX) > Math.abs(event.deltaY);
-        if (!isHorizontalIntent && !event.shiftKey) return;
+        const absX = Math.abs(event.deltaX);
+        const absY = Math.abs(event.deltaY);
+        const shiftWheel = event.shiftKey && absY > 0;
+        const horizontalDelta = shiftWheel ? event.deltaY : event.deltaX;
 
-        const rawDelta = isHorizontalIntent ? event.deltaX : event.deltaY;
-        if (Math.abs(rawDelta) < 1) return;
+        if (Math.abs(horizontalDelta) < 0.2) return;
+        // Keep clearly vertical page-scroll, but treat diagonal Mac
+        // trackpad swipes as carousel pans.
+        if (!shiftWheel && absY > absX * 1.15) return;
 
-        const canScroll =
-          rawDelta > 0
-            ? currentApi.canScrollNext()
-            : currentApi.canScrollPrev();
-        if (!canScroll) return;
+        const goingNext = horizontalDelta > 0;
+        const panState = readCarouselEnginePanState(currentApi);
+        const canPan = goingNext ? panState.canPanNext : panState.canPanPrev;
+        if (!canPan) return;
 
         event.preventDefault();
 
@@ -321,15 +364,26 @@ const CarouselContent = React.forwardRef<HTMLDivElement, CarouselContentProps>(
             : event.deltaMode === 2
               ? viewport.clientWidth
               : 1;
-        const engine = currentApi.internalEngine();
+        const signedDistance = -(horizontalDelta * deltaMultiplier);
+        const moveDistance = Math.abs(signedDistance);
+        const panDirection = goingNext ? "next" : "prev";
 
+        if (shouldSnapCarouselWheelPan(panDirection, moveDistance, panState)) {
+          restoreCarouselScrollProgress(currentApi, goingNext ? 1 : 0);
+          return;
+        }
+
+        const engine = currentApi.internalEngine();
         engine.scrollBody.useDuration(0).useFriction(0);
-        engine.scrollTo.distance(-(rawDelta * deltaMultiplier), false);
+        engine.scrollTo.distance(signedDistance, false);
       };
 
-      viewport.addEventListener("wheel", handleWheel, { passive: false });
+      viewport.addEventListener("wheel", handleWheel, {
+        passive: false,
+        capture: true,
+      });
       return () => {
-        viewport.removeEventListener("wheel", handleWheel);
+        viewport.removeEventListener("wheel", handleWheel, { capture: true });
       };
     }, []);
 
@@ -348,6 +402,7 @@ const CarouselContent = React.forwardRef<HTMLDivElement, CarouselContentProps>(
           className={cn(
             "flex min-w-0",
             orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col",
+            orientation === "horizontal" && "pr-4",
             className,
           )}
           {...props}

@@ -12,6 +12,10 @@ import {
   enrichAniListSearchCatalogItems,
   enrichAniListMediaItemsLightweight,
 } from "@/lib/anilist-tmdb";
+import {
+  getRollingYearDateRangeUtc,
+  isoDateToAniListFuzzyDateInt,
+} from "@/lib/released-media";
 import { withDevelopmentDataCache } from "@/lib/server/development-data-cache";
 import { cache } from "react";
 
@@ -19,9 +23,8 @@ export const ANIME_HOME_REVALIDATE_SECONDS = 3600;
 const ANIME_ROW_PAGE_SIZE = 24;
 const SEASON_ROW_TARGET = 24;
 const ANIME_HUB_FETCH_TIMEOUT_MS = 12_000;
-const ANIME_HUB_HENTAI_PAGE_SIZE = 18;
 const ANIME_HUB_GENRE_BATCH_SIZE = 4;
-const ANIME_HUB_CACHE_VERSION = "v18";
+const ANIME_HUB_CACHE_VERSION = "v20";
 
 /** Genre rows on the anime hub — AniList genre names, display order. */
 export const ANIME_HUB_GENRES = [
@@ -37,6 +40,7 @@ export const ANIME_HUB_GENRES = [
   "Drama",
   "Mystery",
   "Sports",
+  "Hentai",
 ] as const;
 
 export type AnimeHubLinks = {
@@ -47,7 +51,7 @@ export type AnimeHubLinks = {
   topRated: string;
   movies: string;
   hentai: string;
-  genre: (name: string) => string;
+  genre: (name: string, format?: string) => string;
 };
 
 type AnimeHubBatchResponse = {
@@ -99,6 +103,12 @@ const buildHubRowQuery = (mediaArgs: string, isAdult: boolean) => {
   }
   if (/\$genre\b/.test(mediaArgs)) {
     variableDefs.push("$genre: [String]");
+  }
+  if (/\$startDateGreater\b/.test(mediaArgs)) {
+    variableDefs.push(
+      "$startDateGreater: FuzzyDateInt",
+      "$startDateLesser: FuzzyDateInt",
+    );
   }
 
   return `
@@ -214,16 +224,27 @@ const withHubGenreBatchCache = (
     });
   });
 
-const fetchGenreBatchRaw = async (startIndex: number, count: number) => {
+export type AnimeHubGenreFormat = "series" | "movie";
+
+const genreFormatClause = (format: AnimeHubGenreFormat) =>
+  format === "movie" ? ", format: MOVIE" : ", format_not: MOVIE";
+
+const fetchGenreBatchRaw = async (
+  startIndex: number,
+  count: number,
+  format: AnimeHubGenreFormat,
+) => {
   const genres = ANIME_HUB_GENRES.slice(startIndex, startIndex + count);
   const genreVariables = genres
     .map((_, index) => `$genre${index}: [String]`)
     .join(",\n      ");
+  const formatArgs = genreFormatClause(format);
   const genreFields = genres
-    .map((_, index) =>
+    .map((genre, index) =>
       hubPageField(
         `genre${index}`,
-        `sort: POPULARITY_DESC, genre_in: $genre${index}`,
+        `sort: POPULARITY_DESC, genre_in: $genre${index}${formatArgs}`,
+        genre === "Hentai",
       ),
     )
     .join("\n");
@@ -254,12 +275,60 @@ const fetchGenreBatchRaw = async (startIndex: number, count: number) => {
 const safeFetchGenreBatchRaw = async (
   startIndex: number,
   count: number,
+  format: AnimeHubGenreFormat,
 ): Promise<AniListMedia[][]> => {
   try {
-    return await fetchGenreBatchRaw(startIndex, count);
-  } catch {
-    return Array.from({ length: count }, () => []);
+    return await fetchGenreBatchRaw(startIndex, count, format);
+  } catch (error) {
+    console.error("AniList genre batch failed, retrying", {
+      startIndex,
+      format,
+      error,
+    });
+    try {
+      return await fetchGenreBatchRaw(startIndex, count, format);
+    } catch {
+      return Array.from({ length: count }, () => []);
+    }
   }
+};
+
+const makeGenreBatchFetcher = (
+  format: AnimeHubGenreFormat,
+  startIndex: number,
+) =>
+  withHubGenreBatchCache(
+    `anime-hub-genres-${format}-${startIndex}-${ANIME_HUB_CACHE_VERSION}`,
+    () =>
+      safeFetchGenreBatchRaw(startIndex, ANIME_HUB_GENRE_BATCH_SIZE, format),
+  );
+
+const seriesGenreBatches = [
+  makeGenreBatchFetcher("series", 0),
+  makeGenreBatchFetcher("series", 4),
+  makeGenreBatchFetcher("series", 8),
+  makeGenreBatchFetcher("series", 12),
+] as const;
+
+const movieGenreBatches = [
+  makeGenreBatchFetcher("movie", 0),
+  makeGenreBatchFetcher("movie", 4),
+  makeGenreBatchFetcher("movie", 8),
+  makeGenreBatchFetcher("movie", 12),
+] as const;
+
+export const fetchAnimeHubAllGenreRows = async (
+  format: AnimeHubGenreFormat,
+): Promise<AniListMedia[][]> => {
+  const batches = format === "movie" ? movieGenreBatches : seriesGenreBatches;
+  const rows: AniListMedia[][] = [];
+
+  for (const fetchBatch of batches) {
+    const batch = await fetchBatch();
+    rows.push(...batch);
+  }
+
+  return rows;
 };
 
 export const fetchAnimeHubTrendingRaw = withHubRowCache(
@@ -270,6 +339,22 @@ export const fetchAnimeHubTrendingRaw = withHubRowCache(
 export const fetchAnimeHubPopularRaw = withHubRowCache(
   `anime-hub-row-popular-${ANIME_HUB_CACHE_VERSION}`,
   () => safeFetchHubRowRaw("sort: POPULARITY_DESC"),
+);
+
+export const fetchAnimeHubPastYearPopularRaw = withHubRowCache(
+  `anime-hub-past-year-popular-${ANIME_HUB_CACHE_VERSION}`,
+  () => {
+    const { gte, lte } = getRollingYearDateRangeUtc();
+    return safeFetchHubRowRaw(
+      "sort: POPULARITY_DESC, startDate_greater: $startDateGreater, startDate_lesser: $startDateLesser",
+      {
+        variables: {
+          startDateGreater: isoDateToAniListFuzzyDateInt(gte),
+          startDateLesser: isoDateToAniListFuzzyDateInt(lte),
+        },
+      },
+    );
+  },
 );
 
 export const fetchAnimeHubSeasonPopularRaw = withHubRowCache(
@@ -296,35 +381,11 @@ export const fetchAnimeHubMoviesRaw = withHubRowCache(
   () => safeFetchHubRowRaw("sort: POPULARITY_DESC, format: MOVIE"),
 );
 
-export const fetchAnimeHubHentaiRaw = withHubRowCache(
-  `anime-hub-row-hentai-${ANIME_HUB_CACHE_VERSION}`,
-  () =>
-    safeFetchHubRowRaw('sort: POPULARITY_DESC, genre_in: ["Hentai"]', {
-      isAdult: true,
-      perPage: ANIME_HUB_HENTAI_PAGE_SIZE,
-    }),
-);
-
-export const fetchAnimeHubGenreBatch0Raw = withHubGenreBatchCache(
-  `anime-hub-genres-0-${ANIME_HUB_CACHE_VERSION}`,
-  () => safeFetchGenreBatchRaw(0, ANIME_HUB_GENRE_BATCH_SIZE),
-);
-
-export const fetchAnimeHubGenreBatch4Raw = withHubGenreBatchCache(
-  `anime-hub-genres-4-${ANIME_HUB_CACHE_VERSION}`,
-  () => safeFetchGenreBatchRaw(4, ANIME_HUB_GENRE_BATCH_SIZE),
-);
-
-export const fetchAnimeHubGenreBatch8Raw = withHubGenreBatchCache(
-  `anime-hub-genres-8-${ANIME_HUB_CACHE_VERSION}`,
-  () => safeFetchGenreBatchRaw(8, ANIME_HUB_GENRE_BATCH_SIZE),
-);
-
 export const enrichAnimeHubTrendingRow = async (items: AniListMedia[]) =>
   enrichAniListHubRow(items, {
     fullEnrichCount: 1,
     lightweightCount: items.length,
-    heroEnrichment: "fast",
+    heroEnrichment: "full",
   });
 
 export const enrichAnimeHubStandardRow = async (items: AniListMedia[]) =>
@@ -355,7 +416,11 @@ export const getAnimeHubLinks = cache((): AnimeHubLinks => {
     topRated: seasonLink({ sort: "SCORE_DESC" }),
     movies: seasonLink({ sort: "POPULARITY_DESC", format: "MOVIE" }),
     hentai: seasonLink({ sort: "POPULARITY_DESC", genres: ["Hentai"] }),
-    genre: (genre) => seasonLink({ genres: [genre] }),
+    genre: (genre, format?: string) =>
+      seasonLink({
+        genres: [genre],
+        ...(format ? { format } : {}),
+      }),
   };
 });
 

@@ -4,8 +4,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_watchdog_basename="$(basename "${BASH_SOURCE[0]}")"
 if [[ -n "${NYUMATFLIX_ROOT:-}" ]]; then
   ROOT="$NYUMATFLIX_ROOT"
+elif [[ "$_watchdog_basename" == "nyumatflix-infra-watchdog" ]]; then
+  ROOT="${HOME}/apps/nyumatflix"
 else
   ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
@@ -18,7 +21,7 @@ exec 9>/run/nyumatflix-infra-watchdog/lock
 flock -n 9 || exit 0
 
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/infra-health.sh"
+source "$ROOT/scripts/infra-health.sh"
 
 if infra_verify_all_dependencies >/dev/null 2>&1; then
   exit 0

@@ -1,6 +1,6 @@
 services:
   gluetun:
-    image: qmcgaw/gluetun:latest
+    image: ${GLUETUN_IMAGE:-qmcgaw/gluetun:v3.41.3}
     container_name: gluetun
     cap_add:
       - NET_ADMIN
@@ -16,12 +16,12 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget -qO- --timeout=5 --header=\"X-API-Key: $$GLUETUN_CONTROL_API_KEY\" http://127.0.0.1:8000/v1/vpn/status | grep -q '\"status\":\"running\"' && wget -qO- --timeout=5 --header=\"X-API-Key: $$GLUETUN_CONTROL_API_KEY\" http://127.0.0.1:8000/v1/publicip/ip | grep -qE '\"public_ip\":\"[^\"]+'",
+          "wget -qO- --timeout=8 --header=\"X-API-Key: $$GLUETUN_CONTROL_API_KEY\" http://127.0.0.1:8000/v1/vpn/status | grep -q '\"status\":\"running\"'",
         ]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 90s
     networks:
       - betterome
 

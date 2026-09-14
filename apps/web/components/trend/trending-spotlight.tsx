@@ -7,6 +7,7 @@ import { mediaMetaBadgeClass } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { pages } from "@/config/pages";
+import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import { pickEnglishLogo } from "@/lib/tmdb-logo";
 import { cn } from "@/lib/utils";
 import { tmdb, type WithImages } from "@/tmdb/api";
@@ -104,10 +105,7 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
 
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {item.genres.slice(0, 4).map((genre) => (
-                <Link
-                  href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
-                  key={genre.id}
-                >
+                <Link href={buildGenreBrowseUrl(genre, "movie")} key={genre.id}>
                   <Badge
                     variant="secondary"
                     className={cn(
@@ -224,10 +222,7 @@ export const TrendingSpotlight: React.FC<TrendingSpotlightProps> = async ({
 
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
             {item.genres.slice(0, 4).map((genre) => (
-              <Link
-                href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
-                key={genre.id}
-              >
+              <Link href={buildGenreBrowseUrl(genre, "tv")} key={genre.id}>
                 <Badge
                   variant="secondary"
                   className={cn(mediaMetaBadgeClass, "select-none font-medium")}

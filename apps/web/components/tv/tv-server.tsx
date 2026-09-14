@@ -31,6 +31,7 @@ import {
 import { TabsProps } from "@radix-ui/react-tabs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getGenreName } from "@/components/content/genre-helpers";
+import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import { MediaImages } from "@/components/media/media-client";
 import {
   MediaBackdrop,
@@ -126,10 +127,7 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
           {!hideGenre && (
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {genres.map((genre) => (
-                <Link
-                  href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
-                  key={genre.id}
-                >
+                <Link href={buildGenreBrowseUrl(genre, "tv")} key={genre.id}>
                   <Badge
                     variant="secondary"
                     className={cn(
