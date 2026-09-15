@@ -1,4 +1,11 @@
-import { accounts, db, sessions, users, verificationTokens } from "@/db";
+import {
+  accounts,
+  authenticators,
+  db,
+  sessions,
+  users,
+  verificationTokens,
+} from "@/db";
 import { html, text } from "@/emails/email-helpers";
 import {
   MAGIC_LINK_RESEND_FROM,
@@ -16,6 +23,7 @@ import { getSiteFlags } from "@/lib/flags/site-flags";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
+import Passkey from "next-auth/providers/passkey";
 import { eq } from "drizzle-orm";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -26,16 +34,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
+    authenticatorsTable: authenticators,
   }),
-  // The adapter above defaults the session strategy to "database", which
-  // makes every `/api/auth/session` call (every `useSession()` mount, every
-  // window focus, every page load) round-trip to Postgres. Force JWT
-  // sessions instead: the adapter is still needed for magic-link
-  // verification tokens and user/account records, but the session itself
-  // lives in a signed cookie so reads are free. See
-  // https://github.com/nextauthjs/next-auth/issues/4891.
+  // Keep sessions in JWT cookies. The adapter stores users, email tokens,
+  // and passkeys; session reads check passkey enrollment in the database.
   session: { strategy: "jwt" },
+  experimental: { enableWebAuthn: true },
   providers: [
+    Passkey({
+      // New accounts must verify their email first. Signed-in users are
+      // resolved by Auth.js before this callback and can register normally.
+      getUserInfo: async () => null,
+    }),
     Resend({
       apiKey: process.env.AUTH_RESEND_KEY,
       from: MAGIC_LINK_RESEND_FROM,
@@ -107,7 +117,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    jwt: async ({ token, user, trigger, session }) => {
+    jwt: async ({ token, user, account, trigger, session }) => {
+      if (account) {
+        token.emailPasskeyEnrollmentRequired = account.provider === "resend";
+      }
       if (user) {
         token = applyAuthUserToJwt(token, user);
       }
@@ -144,6 +157,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session: async ({ session, token }) => {
       if (session?.user && typeof token.uid === "string") {
         session.user.id = token.uid;
+        // Check the database rather than trusting a client session update or
+        // a stale JWT after a passkey is removed on another device.
+        if (token.email) {
+          const [passkey] = await db
+            .select({ credentialID: authenticators.credentialID })
+            .from(authenticators)
+            .where(eq(authenticators.userId, token.uid))
+            .limit(1);
+          session.user.requiresPasskey =
+            token.emailPasskeyEnrollmentRequired === true || !passkey;
+        } else {
+          // MAL-only accounts retain their existing sign-in flow.
+          session.user.requiresPasskey = false;
+        }
         if (typeof token.name === "string") {
           session.user.name = token.name;
         }

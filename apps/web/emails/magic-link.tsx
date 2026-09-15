@@ -26,7 +26,7 @@ export const MagicLinkEmail = ({ url, host: _host }: MagicLinkEmailProps) => {
           <Heading style={heading}>Sign in</Heading>
           <Text style={copy}>
             Use this link to sign in. It expires in 24 hours and can only be
-            used once.
+            used once. After signing in, add a passkey for your next visit.
           </Text>
           <Text style={copy}>
             <Link href={url} style={signInLink}>

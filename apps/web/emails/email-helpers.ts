@@ -22,7 +22,7 @@ export const html = async ({
 export const text = ({ url, host: _host }: EmailParams): string => {
   return `Sign in to ${SITE_NAME}
 
-Use this link to sign in. It expires in 24 hours and can only be used once.
+Use this link to sign in. It expires in 24 hours and can only be used once. After signing in, add a passkey for your next visit.
 
 ${url}
 

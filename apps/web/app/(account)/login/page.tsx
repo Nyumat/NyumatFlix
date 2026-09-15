@@ -155,13 +155,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </CardTitle>
             <CardDescription className="text-sm leading-6 text-zinc-400">
               {flags.signupDisabled
-                ? "New accounts are paused. Existing members can still request a magic link."
-                : "Enter your email and we will send a magic link to login."}
+                ? "New accounts are paused. Existing members can still sign in."
+                : "Sign in with a passkey. If you cannot, use email as your backup."}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
-          <CapLoginForm action={handleLogin} endpoint={getCapApiEndpoint()} />
+          <CapLoginForm
+            action={handleLogin}
+            endpoint={getCapApiEndpoint()}
+            callbackUrl={callbackUrl}
+          />
           {process.env.MAL_CLIENT_ID ? (
             <div className="mt-5">
               <MalLoginButton callbackUrl={callbackUrl} />

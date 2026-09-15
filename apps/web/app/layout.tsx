@@ -1,3 +1,5 @@
+import { auth } from "@/auth";
+import { PasskeyGate } from "@/components/auth/passkey-gate";
 import { ApiFetchBootstrap } from "@/components/providers/api-fetch-bootstrap";
 import { CapWarmup } from "@/components/cap/cap-warmup";
 import { JsonLdScript } from "@/components/seo/json-ld-script";
@@ -96,7 +98,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const siteFlags = await getSiteFlags();
+  const [siteFlags, session] = await Promise.all([getSiteFlags(), auth()]);
 
   return (
     <html
@@ -142,17 +144,21 @@ export default async function RootLayout({
         <RouteScrollReset />
         <QueryProvider>
           <FeatureFlagsProvider flags={siteFlags}>
-            <AuthSessionProvider>
-              <StorageHydrationProvider />
-              <TooltipProvider>
-                <AdblockGateProvider>
-                  <HoverSoundProvider>
-                    <DevtoolsTrollProvider>
-                      <AppChrome>{children}</AppChrome>
-                    </DevtoolsTrollProvider>
-                  </HoverSoundProvider>
-                </AdblockGateProvider>
-              </TooltipProvider>
+            <AuthSessionProvider session={session}>
+              <PasskeyGate>
+                <StorageHydrationProvider />
+                <TooltipProvider>
+                  <AdblockGateProvider>
+                    <HoverSoundProvider>
+                      <DevtoolsTrollProvider>
+                        <AppChrome>
+                          {session?.user.requiresPasskey ? null : children}
+                        </AppChrome>
+                      </DevtoolsTrollProvider>
+                    </HoverSoundProvider>
+                  </AdblockGateProvider>
+                </TooltipProvider>
+              </PasskeyGate>
             </AuthSessionProvider>
           </FeatureFlagsProvider>
         </QueryProvider>

@@ -2,6 +2,7 @@
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { AvatarAccentPicker } from "@/components/settings/avatar-accent-picker";
+import { PasskeysPanel } from "@/components/settings/passkeys-panel";
 import { MalSyncPanel } from "@/components/settings/mal-sync-panel";
 import { PlaybackPreferencesPanel } from "@/components/settings/playback-preferences-panel";
 import {
@@ -317,6 +318,12 @@ export function SettingsClient({ session }: SettingsClientProps) {
           </div>
         ) : null}
 
+        {isSignedIn && userEmail ? (
+          <section className="space-y-3 border-b border-white/10 px-4 py-5 md:px-6">
+            <PasskeysPanel email={userEmail} />
+          </section>
+        ) : null}
+
         <section className="space-y-2 border-b border-white/10 px-4 py-5 md:px-6">
           <h2 className="text-sm font-bold tracking-tight text-foreground">
             Integrations
@@ -376,7 +383,7 @@ export function SettingsClient({ session }: SettingsClientProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Email</Label>
+                    <Label>Backup email</Label>
                     <p className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-300">
                       {userEmail || "Signed in with MyAnimeList (no email set)"}
                     </p>

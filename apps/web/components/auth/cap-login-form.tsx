@@ -5,18 +5,59 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isCapDevBypassEnabled } from "@/lib/cap/constants";
 import { warmCapWidgetAssets } from "@/lib/cap/warmup-client";
-import { ArrowRight, Loader2, Mail } from "lucide-react";
-import { createElement, useEffect, useState } from "react";
+import { ArrowRight, Fingerprint, Loader2, Mail } from "lucide-react";
+import { createElement, useEffect, useRef, useState } from "react";
+
+import { signIn } from "next-auth/webauthn";
+import { startPasskeyAutofill } from "@/lib/auth/passkey-autofill";
 
 type CapLoginFormProps = {
   action: (formData: FormData) => Promise<void>;
   endpoint: string;
+  callbackUrl?: string;
 };
 
-export function CapLoginForm({ action, endpoint }: CapLoginFormProps) {
+export function CapLoginForm({
+  action,
+  endpoint,
+  callbackUrl = "/",
+}: CapLoginFormProps) {
   const devBypass = isCapDevBypassEnabled();
   const [ready, setReady] = useState(devBypass);
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyError, setPasskeyError] = useState("");
+  const stopAutofill = useRef<(() => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    const stop = startPasskeyAutofill(callbackUrl);
+    stopAutofill.current = stop;
+    return () => {
+      void stop();
+    };
+  }, [callbackUrl]);
+
+  async function continueWithPasskey() {
+    setPasskeyBusy(true);
+    setPasskeyError("");
+    await stopAutofill.current?.();
+    try {
+      const result = await signIn("passkey", {
+        action: "authenticate",
+        redirect: false,
+        redirectTo: callbackUrl,
+      });
+      if (!result?.ok || result.error || !result.url)
+        throw new Error("Sign-in failed");
+      window.location.assign(result.url);
+    } catch {
+      setPasskeyError(
+        "Could not sign in with a passkey. Try again or use your email backup.",
+      );
+      setPasskeyBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (devBypass) return;
@@ -34,10 +75,11 @@ export function CapLoginForm({ action, endpoint }: CapLoginFormProps) {
   }, [devBypass]);
 
   const handleSubmit = () => {
+    void stopAutofill.current?.();
     setIsVerifying(true);
   };
 
-  const isBusy = isVerifying;
+  const isBusy = isVerifying || passkeyBusy;
 
   return (
     <form action={action} onSubmit={handleSubmit} className="space-y-5">
@@ -48,6 +90,7 @@ export function CapLoginForm({ action, endpoint }: CapLoginFormProps) {
         <Input
           id="email"
           name="email"
+          autoComplete="username webauthn"
           type="email"
           placeholder="you@example.com"
           required
@@ -55,6 +98,28 @@ export function CapLoginForm({ action, endpoint }: CapLoginFormProps) {
           className="h-12 rounded-xl border-white/12 bg-black/35 px-4 text-base text-white shadow-none placeholder:text-zinc-600 focus-visible:ring-sky-300/80 focus-visible:ring-offset-0 dark:border-white/12 dark:bg-black/35"
         />
       </div>
+      <Button
+        type="button"
+        size="lg"
+        disabled={isBusy}
+        onClick={continueWithPasskey}
+        className="h-12 w-full rounded-xl"
+      >
+        {passkeyBusy ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <Fingerprint className="mr-2 size-4" />
+        )}
+        Continue with passkey
+      </Button>
+      {passkeyError ? (
+        <p role="alert" className="text-sm text-red-400">
+          {passkeyError}
+        </p>
+      ) : null}
+      <p className="text-sm text-zinc-400">
+        Cannot use your passkey? Get a sign-in link by email.
+      </p>
       {devBypass ? null : (
         <div className="cap-login-widget">
           {createElement("cap-widget", {
@@ -75,7 +140,7 @@ export function CapLoginForm({ action, endpoint }: CapLoginFormProps) {
         disabled={!ready || isBusy}
         className="h-12 w-full rounded-xl border-sky-300/20 bg-sky-300/15 px-5 text-sm font-semibold text-sky-50 shadow-none hover:border-sky-300/35 hover:bg-sky-300/22"
       >
-        {isBusy ? (
+        {isVerifying ? (
           <>
             <Loader2 className="mr-2 size-4 animate-spin" />
             Sending magic link...
