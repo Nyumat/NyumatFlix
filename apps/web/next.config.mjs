@@ -1,15 +1,18 @@
 /** @type {import('next').NextConfig} */
-const moviPlayerResolveAliases = {
-  "movi-player/element": false,
-  "movi-player": false,
-};
-
+// assetPrefix must only point at the CDN in production builds. In dev, pointing
+// at cdn.nyumatflix.com loads prod chunk hashes and breaks HMR/static assets.
 const CDN_ORIGIN = (
-  process.env.NEXT_PUBLIC_CDN_ORIGIN ??
-  (process.env.NODE_ENV === "production" ? "https://cdn.nyumatflix.com" : "")
+  process.env.NODE_ENV === "production"
+    ? (process.env.NEXT_PUBLIC_CDN_ORIGIN ?? "https://cdn.nyumatflix.com")
+    : ""
 ).replace(/\/$/, "");
 
 const nextConfig = {
+  cacheComponents: true,
+  reactCompiler: {
+    compilationMode: "annotation",
+    panicThreshold: "none",
+  },
   assetPrefix: CDN_ORIGIN || undefined,
   env: {
     NEXT_PUBLIC_CDN_ORIGIN: CDN_ORIGIN,
@@ -63,7 +66,28 @@ const nextConfig = {
       value: "public, max-age=86400, stale-while-revalidate=604800",
     };
 
+    const securityHeaders = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      {
+        key: "Referrer-Policy",
+        value: "strict-origin-when-cross-origin",
+      },
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      {
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'self'",
+      },
+    ];
+
     return [
+      {
+        source: "/",
+        headers: securityHeaders,
+      },
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
       {
         source: "/vendor/player/:path*",
         headers: [playerAssetCache],
@@ -166,11 +190,17 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    taint: true,
-    browserDebugInfoInTerminal:
+  logging: {
+    browserToTerminal:
       process.env.NEXT_BROWSER_DEBUG === "1" &&
       process.env.NODE_ENV !== "production",
+  },
+  experimental: {
+    turbopackFileSystemCacheForDev: true,
+    turbopackFileSystemCacheForBuild: true,
+    taint: true,
+    instantInsights: { validationLevel: "warning" },
+    requestInsights: true,
     optimizePackageImports: [
       "@radix-ui/react-accordion",
       "@radix-ui/react-alert-dialog",
@@ -211,16 +241,6 @@ const nextConfig = {
         browser: "./lib/player/player-bundle-stub.ts",
       },
     },
-  },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        // movi-player must load via <script type="module"> — bundling breaks WASM literals.
-        ...moviPlayerResolveAliases,
-      };
-    }
-    return config;
   },
 };
 

@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import { NextRequest, NextResponse } from "next/server";

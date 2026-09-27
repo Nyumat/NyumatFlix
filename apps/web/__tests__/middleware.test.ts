@@ -3,7 +3,7 @@ import {
   getCachedRawFlagsSync,
   readAdminFlagState,
 } from "@/lib/flags/flipt-client";
-import { middleware } from "@/middleware";
+import { proxy } from "@/proxy";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -14,7 +14,7 @@ vi.mock("@/lib/flags/flipt-client", () => ({
 
 const getRedirectLocation = async (url: string) => {
   const parsed = new URL(url);
-  const response = await middleware(
+  const response = await proxy(
     new NextRequest(url, {
       headers: { host: parsed.host },
     }),
@@ -22,7 +22,7 @@ const getRedirectLocation = async (url: string) => {
   return response.headers.get("location");
 };
 
-describe("middleware", () => {
+describe("proxy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -76,7 +76,7 @@ describe("middleware", () => {
     (getCachedRawFlagsSync as ReturnType<typeof vi.fn>).mockReturnValue(null);
 
     const raced = await Promise.race([
-      middleware(
+      proxy(
         new NextRequest("http://localhost:3000/api/scrape", {
           method: "POST",
           headers: { "x-nyumat-client": "1" },

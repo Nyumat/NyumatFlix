@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "predev": "../../scripts/bootstrap-scrape-vpn.sh ensure-local && node scripts/ensure-player.mjs",
-    "dev": "next dev --turbopack",
-    "dev:next": "next dev --turbopack",
-    "dev:webpack": "next dev",
+    "dev": "next dev",
+    "dev:next": "next dev",
+    "dev:webpack": "next dev --webpack",
     "build": "next build",
     "prebuild": "node scripts/clean-next.mjs && node scripts/ensure-env.mjs",
     "start": "next start",
@@ -36,12 +36,16 @@
     "verify:hexa-scrape": "bun scripts/verify-hexa-scrape.mts",
     "refresh:hexa-fixture": "bun scripts/refresh-hexa-fixture.mts",
     "collections:refresh": "bun scripts/generate-collections.mts",
-    "collections:seed": "bun scripts/generate-collections.mts --seed"
+    "collections:seed": "bun scripts/generate-collections.mts --seed",
+    "collections:scrub": "bun scripts/scrub-adult-collections.mts",
+    "hubs:refresh": "bun scripts/generate-hub-snapshots.mts",
+    "audit:anime-routes": "bun scripts/audit-anime-provider-routes.mts",
+    "audit:anime-routes:live": "bun scripts/audit-anime-provider-routes.mts --live --sample 100"
   },
   "dependencies": {
-    "@auth/drizzle-adapter": "^1.10.0",
-    "@auth/neon-adapter": "^1.10.0",
-    "@auth/pg-adapter": "^1.10.0",
+    "@auth/drizzle-adapter": "^1.11.3",
+    "@auth/neon-adapter": "^1.11.3",
+    "@auth/pg-adapter": "^1.11.3",
     "@calluspirates/shared": "workspace:*",
     "@cap.js/widget": "0.1.56",
     "@esbuild/linux-x64": "^0.25.4",
@@ -114,14 +118,14 @@
     "lucide-react": "^0.544.0",
     "media-icons": "1.1.5",
     "moviedb-promise": "^4.0.7",
-    "next": "15.5.9",
-    "next-auth": "^5.0.0-beta.29",
+    "next": "16.3.6",
+    "next-auth": "5.0.0-beta.32",
     "nuqs": "^2.8.9",
     "postgres": "^3.4.7",
     "prettier": "^3.5.3",
-    "react": "^19.2.0",
+    "react": "19.2.0",
     "react-day-picker": "^8.10.1",
-    "react-dom": "^19.2.0",
+    "react-dom": "19.2.0",
     "react-hook-form": "^7.53.0",
     "react-intersection-observer": "^9.13.1",
     "react-loading-skeleton": "^3.5.0",
@@ -144,7 +148,7 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
-    "@auth/core": "^0.41.3",
+    "@auth/core": "0.41.3",
     "@biomejs/biome": "2.2.4",
     "@happy-dom/global-registrator": "^20.0.11",
     "@react-email/preview-server": "4.2.11",
@@ -154,10 +158,11 @@
     "@testing-library/react": "^16.0.1",
     "@types/lodash": "^4.17.16",
     "@types/node": "^20",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/ui": "^2.0.5",
+    "babel-plugin-react-compiler": "1.0.0",
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.8",
     "husky": "^9.1.6",
@@ -173,7 +178,7 @@
     "vitest": "^2.0.5"
   },
   "overrides": {
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0"
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0"
   }
 }

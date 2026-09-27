@@ -1,4 +1,6 @@
 import "@testing-library/jest-dom/vitest";
+
+process.env.AUTH_SECRET ??= "vitest-auth-secret";
 import { URLSearchParams } from "node:url";
 import ResizeObserver from "resize-observer-polyfill";
 import { afterEach, Mock, vi } from "vitest";
