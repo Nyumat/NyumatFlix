@@ -12,6 +12,7 @@ import React from "react";
 
 import { AppSettingsSync } from "@/components/providers/app-settings-sync";
 import { FeatureFlagsProvider } from "@/components/providers/feature-flags-provider";
+import { resetUserSettingsHydratedForTests } from "@/lib/user/hydrate-user-settings";
 
 const embedServer = videoServers[0]!;
 
@@ -25,6 +26,7 @@ function renderSync(flags = getDefaultSiteFlags()) {
 
 describe("AppSettingsSync", () => {
   beforeEach(() => {
+    resetUserSettingsHydratedForTests();
     useAppSettingsStore.setState({
       noAdsMode: false,
       disableHeroTrailers: false,
@@ -111,5 +113,18 @@ describe("AppSettingsSync", () => {
       );
       expect(useAppSettingsStore.getState().noAdsMode).toBe(false);
     });
+  });
+
+  it("does not flip the server before user settings hydrate", async () => {
+    // Pre-hydration the selected server is just the store default; resolving
+    // policy against it must not swap mid-scroll. No operator defaults, no
+    // locks, no policy change -> stay put until hydrateUserSettings() lands.
+    renderSync(getDefaultSiteFlags());
+
+    // Let the sync effect run a few ticks; the server must not move.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(usePlaybackModeStore.getState().selectedServer.id).toBe(
+      embedServer.id,
+    );
   });
 });

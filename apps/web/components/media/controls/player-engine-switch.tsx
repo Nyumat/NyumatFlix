@@ -11,7 +11,11 @@ type PlayerEngineSwitchProps = {
 };
 
 export function PlayerEngineSwitch({ className }: PlayerEngineSwitchProps) {
-  const { isMovi, setPlayerEngine } = usePlayerEngine();
+  const { isMovi, setPlayerEngine, locked } = usePlayerEngine();
+
+  if (locked) {
+    return null;
+  }
 
   const handleCheckedChange = (checked: boolean) => {
     const next = checked ? "vidstack" : "movi";

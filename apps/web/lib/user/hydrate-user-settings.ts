@@ -1,61 +1,52 @@
 "use client";
 
-import { getSession } from "next-auth/react";
-
-import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
+import { applyExperienceFromUserSettings } from "@/components/providers/experience-settings-sync";
+import { fetchSiteFlags } from "@/lib/flags/site-flags-client";
+import { getDefaultSiteFlags } from "@/lib/flags/site-flags";
 import { usePlaybackModeStore } from "@/lib/stores/playback-mode-store";
-import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
 import type { UserSettingsWire } from "@/lib/user/user-settings-types";
 import { setSubtitleAppearance } from "@/lib/playback/subtitle-appearance-storage";
 
 let hydrated = false;
 
-export const hydrateUserSettings = async (): Promise<void> => {
-  const session = await getSession();
-  if (!session?.user?.id) {
+export const resetUserSettingsHydratedForTests = (): void => {
+  hydrated = false;
+};
+
+export const hydrateUserSettings = async (userId: string): Promise<void> => {
+  if (!userId) {
     hydrated = false;
     return;
   }
 
-  const response = await fetch("/api/user/settings");
-  if (!response.ok) {
+  const [settingsResponse, flags] = await Promise.all([
+    fetch("/api/user/settings"),
+    fetchSiteFlags(),
+  ]);
+  if (!settingsResponse.ok) {
     return;
   }
 
-  const payload = (await response.json()) as { settings: UserSettingsWire };
+  const payload = (await settingsResponse.json()) as {
+    settings: UserSettingsWire;
+  };
   const settings = payload.settings;
 
-  useAppSettingsStore.setState({
-    playbackAudio: settings.playbackAudio,
-    playbackQuality: settings.playbackQuality,
-    playbackEnglishSubtitles: settings.playbackEnglishSubtitles,
-    disableHoverSound: settings.disableHoverSound,
-    disableHeroTrailers: settings.disableHeroTrailers,
-    catalogCardStyle: settings.catalogCardStyle ?? "backdrop",
-  });
-
-  useEmbedServerStore.setState({
-    vidnestContentType: settings.vidnestContentType,
-    vidsrcApi: settings.vidsrcApi,
-    animePreference: settings.playbackAudio,
-  });
+  applyExperienceFromUserSettings(flags ?? getDefaultSiteFlags(), settings);
 
   if (settings.subtitleAppearance) {
     setSubtitleAppearance(settings.subtitleAppearance);
   }
 
   if (settings.selectedServerId) {
-    const { resolveVideoServerById } = await import(
-      "@/lib/stores/video-servers"
+    const { resolveStoredServer } = await import(
+      "@/lib/stores/playback-mode-store"
     );
-    const server = resolveVideoServerById(settings.selectedServerId);
-    if (server) {
-      usePlaybackModeStore.setState({
-        selectedServer: server,
-        hasUserSelectedPlaybackServer: settings.userSelectedPlaybackServer,
-        policyGenerationAtChoice: settings.policyGenerationAtChoice,
-      });
-    }
+    usePlaybackModeStore.setState({
+      selectedServer: resolveStoredServer(settings.selectedServerId),
+      hasUserSelectedPlaybackServer: settings.userSelectedPlaybackServer,
+      policyGenerationAtChoice: settings.policyGenerationAtChoice,
+    });
   }
 
   hydrated = true;

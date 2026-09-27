@@ -6,6 +6,7 @@ import { DirectPlaybackEngine } from "@/components/media/engines/direct-playback
 import { MoviScrapeEngine } from "@/components/media/engines/movi-scrape-engine";
 import { ShakaScrapeEngine } from "@/components/media/engines/shaka-scrape-engine";
 import { VidstackScrapeEngine } from "@/components/media/engines/vidstack-scrape-engine";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { usePlayerEngine } from "@/hooks/use-movi-preview";
 import { selectPlaybackShellEngine } from "@/lib/playback/select-playback-engine";
 import { manifestSessionKey } from "@/lib/playback/to-playable-manifest";
@@ -38,8 +39,12 @@ export function PlaybackShell({
   onEnded,
   onPlaybackStallFailover,
 }: PlaybackShellProps) {
+  const flags = useFeatureFlags();
   const { engine: userEngine } = usePlayerEngine();
-  const shellEngine = selectPlaybackShellEngine(manifest, { userEngine });
+  const shellEngine = selectPlaybackShellEngine(manifest, {
+    userEngine,
+    dashEngine: flags.experienceDefaults.dashEngine,
+  });
   const sessionKey = manifestSessionKey(manifest, progressKey);
   const engineSessionKey = `${sessionKey}:${userEngine}`;
 

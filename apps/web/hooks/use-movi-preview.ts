@@ -1,8 +1,13 @@
 "use client";
 
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import {
+  DEFAULT_EXPERIENCE_DEFAULTS,
+  type PlayerEngine,
+} from "@/lib/flags/experience-defaults";
 import { useCallback, useEffect, useState } from "react";
 
-export type PlayerEngine = "vidstack" | "movi";
+export type { PlayerEngine } from "@/lib/flags/experience-defaults";
 
 export const PLAYER_ENGINE_STORAGE_KEY = "nyumat:playerEngine";
 export const PLAYER_ENGINE_CHANGE_EVENT = "nyumat:player-engine-change";
@@ -24,8 +29,14 @@ export const readStoredPlayerEngine = (): PlayerEngine | null => {
   }
 };
 
-export const resolvePlayerEngine = (): PlayerEngine => {
-  return readStoredPlayerEngine() ?? DEFAULT_PLAYER_ENGINE;
+export const resolvePlayerEngine = (
+  siteDefault: PlayerEngine = DEFAULT_PLAYER_ENGINE,
+  force = false,
+): PlayerEngine => {
+  if (force) {
+    return siteDefault;
+  }
+  return readStoredPlayerEngine() ?? siteDefault;
 };
 
 export const writePlayerEnginePreference = (engine: PlayerEngine): void => {
@@ -42,15 +53,26 @@ export const writePlayerEnginePreference = (engine: PlayerEngine): void => {
 };
 
 export const usePlayerEngine = () => {
+  const flags = useFeatureFlagsOptional();
+  const siteDefault =
+    flags?.experienceDefaults.playerEngine ??
+    DEFAULT_EXPERIENCE_DEFAULTS.playerEngine;
+  const forced = flags?.experienceDefaults.forcePlayerEngine ?? false;
+  const locked = forced;
+
   const [engine, setEngine] = useState<PlayerEngine>(() =>
     typeof window !== "undefined"
-      ? resolvePlayerEngine()
-      : DEFAULT_PLAYER_ENGINE,
+      ? resolvePlayerEngine(siteDefault, forced)
+      : siteDefault,
   );
 
   useEffect(() => {
+    setEngine(resolvePlayerEngine(siteDefault, forced));
+  }, [siteDefault, forced]);
+
+  useEffect(() => {
     const sync = () => {
-      setEngine(resolvePlayerEngine());
+      setEngine(resolvePlayerEngine(siteDefault, forced));
     };
 
     window.addEventListener(PLAYER_ENGINE_CHANGE_EVENT, sync);
@@ -65,17 +87,24 @@ export const usePlayerEngine = () => {
       window.removeEventListener(PLAYER_ENGINE_CHANGE_EVENT, sync);
       window.removeEventListener("storage", onStorage);
     };
-  }, []);
+  }, [siteDefault, forced]);
 
-  const setPlayerEngine = useCallback((next: PlayerEngine) => {
-    writePlayerEnginePreference(next);
-    setEngine(next);
-  }, []);
+  const setPlayerEngine = useCallback(
+    (next: PlayerEngine) => {
+      if (locked) {
+        return;
+      }
+      writePlayerEnginePreference(next);
+      setEngine(next);
+    },
+    [locked],
+  );
 
   return {
     engine,
     isMovi: engine === "movi",
     setPlayerEngine,
+    locked,
   };
 };
 

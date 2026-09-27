@@ -9,6 +9,7 @@ const updateProfileSchema = z
   .object({
     name: z
       .string()
+      .trim()
       .min(1, "Name is required")
       .max(100, "Name must be less than 100 characters")
       .optional(),
@@ -38,7 +39,7 @@ export async function PATCH(request: NextRequest) {
 
     const updates: { name?: string; image?: string } = {};
     if (validatedData.name !== undefined) {
-      updates.name = validatedData.name.trim();
+      updates.name = validatedData.name;
     }
     if (validatedData.image !== undefined) {
       updates.image = validatedData.image;
