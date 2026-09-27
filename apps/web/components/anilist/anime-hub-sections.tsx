@@ -5,6 +5,14 @@ import {
 import { ContentRow } from "@/components/content/content-row";
 import type { PageBackdrop } from "@/components/hero/ambient-page-backdrop";
 import { ContentReveal } from "@/components/layout/page-loading/content-reveal";
+import { buildHeroBackdropFromItem } from "@/lib/hero-hub-backdrops";
+import {
+  mergeFeaturedHeroItems,
+  selectFeaturedEntriesForHub,
+} from "@/lib/flags/hero-featured-items";
+import { hydrateFeaturedHubEntries } from "@/lib/flags/hero-featured-hydration";
+import { getHeroBackdropOverrides } from "@/lib/flags/hero-backdrop-overrides-server";
+import type { CatalogHubFeature } from "@/lib/server/catalog-hub-feature";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { enrichAnimeHubFeatureTmdbImages } from "@/lib/anilist-tmdb";
 import type { MediaItem } from "@/lib/domain/typings";
@@ -28,13 +36,10 @@ import {
   pickHubCarouselItems,
 } from "@/lib/server/anime-hub-layout";
 import type { TvShowWithMediaType } from "@/tmdb/models";
-import { tmdbImage } from "@/tmdb/utils";
 import { cache } from "react";
 
 const asTvItems = (items: MediaItem[]) =>
   items as unknown as TvShowWithMediaType[];
-
-const getString = (value: unknown) => (typeof value === "string" ? value : "");
 
 const pickAnimeMainstreamFeatured = (items: MediaItem[]) => {
   const withArt = items.filter(
@@ -49,39 +54,47 @@ const pickAnimeMainstreamFeatured = (items: MediaItem[]) => {
   });
 };
 
-const getAnimeHubFeature = cache(async () => {
-  const raw = await fetchAnimeHubPastYearPopularRaw();
-  const items = await enrichAnimeHubTrendingRow(raw);
-  const picked = pickAnimeMainstreamFeatured(items) ?? items[0] ?? null;
-  if (!picked) return null;
-  const featureItems = [
-    picked,
-    ...items.filter((item) => item.id !== picked.id),
-  ].slice(0, 5);
-  const enrichedItems = await Promise.all(
-    featureItems.map((item) => enrichAnimeHubFeatureTmdbImages(item)),
-  );
-  return {
-    item: (enrichedItems[0] ?? picked) as unknown as IndexFeatureHeroItem,
-    items: enrichedItems as unknown as IndexFeatureHeroItem[],
-  };
-});
+export const getAnimeHubFeature = cache(
+  async (): Promise<CatalogHubFeature | null> => {
+    const raw = await fetchAnimeHubPastYearPopularRaw();
+    const items = await enrichAnimeHubTrendingRow(raw);
+    const picked = pickAnimeMainstreamFeatured(items) ?? items[0] ?? null;
+    const overrides = await getHeroBackdropOverrides();
+    const pinnedEntries = selectFeaturedEntriesForHub(overrides, "anime");
+
+    const automaticCandidates = picked
+      ? [picked, ...items.filter((item) => item.id !== picked.id)].slice(0, 5)
+      : [];
+    const [pinnedItems, enrichedAutomatic] = await Promise.all([
+      hydrateFeaturedHubEntries(pinnedEntries, overrides),
+      Promise.all(
+        automaticCandidates.map((item) =>
+          enrichAnimeHubFeatureTmdbImages(item),
+        ),
+      ),
+    ]);
+    const automaticItems = enrichedAutomatic as IndexFeatureHeroItem[];
+
+    if (pinnedItems.length === 0 && automaticItems.length === 0) {
+      return null;
+    }
+
+    const heroItems = mergeFeaturedHeroItems(pinnedItems, automaticItems);
+    const item = heroItems[0];
+    if (!item) {
+      return null;
+    }
+
+    return {
+      item,
+      items: heroItems,
+      backdrop: buildHeroBackdropFromItem(item, "tv", true),
+    };
+  },
+);
 
 export async function getAnimeHubAmbientBackdrop(): Promise<PageBackdrop | null> {
-  const featured = await getAnimeHubFeature();
-  const backdropPath =
-    featured?.item.backdrop_path ?? featured?.item.poster_path;
-
-  if (!backdropPath || !featured) return null;
-
-  return {
-    imageUrl: tmdbImage.backdrop(backdropPath, "w1280"),
-    alt:
-      getString(featured.item.title) ||
-      getString(featured.item.name) ||
-      "Featured anime",
-    priority: true,
-  };
+  return (await getAnimeHubFeature())?.backdrop ?? null;
 }
 
 type HubTrendCarouselProps = {

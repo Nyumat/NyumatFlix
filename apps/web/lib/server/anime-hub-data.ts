@@ -24,7 +24,7 @@ const ANIME_ROW_PAGE_SIZE = 24;
 const SEASON_ROW_TARGET = 24;
 const ANIME_HUB_FETCH_TIMEOUT_MS = 12_000;
 const ANIME_HUB_GENRE_BATCH_SIZE = 4;
-const ANIME_HUB_CACHE_VERSION = "v20";
+const ANIME_HUB_CACHE_VERSION = "v21";
 
 /** Genre rows on the anime hub — AniList genre names, display order. */
 export const ANIME_HUB_GENRES = [
@@ -82,6 +82,10 @@ const ANILIST_HUB_MEDIA_FIELDS = `
     year
     month
     day
+  }
+  trailer {
+    id
+    site
   }
 `;
 

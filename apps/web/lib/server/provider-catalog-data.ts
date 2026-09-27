@@ -1,4 +1,4 @@
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
+import { prepareCatalogRowItemsForRsc } from "@/lib/server/prepare-catalog-row-items";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import type { MediaItem } from "@/lib/domain/typings";
 import {
@@ -38,7 +38,7 @@ export async function getProviderCatalog(
     const movies = filterReleasedMovies(response.results ?? []);
 
     return {
-      items: slimMediaItemsForRsc(
+      items: await prepareCatalogRowItemsForRsc(
         movies.map((movie) => ({ ...movie, media_type: "movie" as const })),
       ),
       currentPage: response.page,
@@ -56,7 +56,7 @@ export async function getProviderCatalog(
   const shows = filterReleasedTvShows(response.results ?? []);
 
   return {
-    items: slimMediaItemsForRsc(
+    items: await prepareCatalogRowItemsForRsc(
       shows.map((show) => ({ ...show, media_type: "tv" as const })),
     ),
     currentPage: response.page,

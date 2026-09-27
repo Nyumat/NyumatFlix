@@ -1,7 +1,7 @@
 import { fetchProviderCatalogShowcaseRows } from "@/lib/catalog-showcase-fetch";
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import { withCanonicalCatalogHrefs } from "@/lib/server/catalog-canonical-hrefs";
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
+import { prepareCatalogRowItemsForRsc } from "@/lib/server/prepare-catalog-row-items";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { getProviderCatalog } from "@/lib/server/provider-catalog-data";
 import {
@@ -65,20 +65,21 @@ export async function GET(request: Request) {
       );
     }
 
-    const rows = (
-      await withCanonicalCatalogHrefs(
-        await fetchProviderCatalogShowcaseRows(
-          pageKey,
-          TMDB_WATCH_REGION,
-          getProviderDiscoverQueryParams(provider),
-          parseExcludeIds(url.searchParams.get("excludeIds")),
-        ),
-        pageKey === "movies" ? "movie" : "tv",
-      )
-    ).map((row) => ({
-      ...row,
-      items: slimMediaItemsForRsc(row.items),
-    }));
+    const enriched = await withCanonicalCatalogHrefs(
+      await fetchProviderCatalogShowcaseRows(
+        pageKey,
+        TMDB_WATCH_REGION,
+        getProviderDiscoverQueryParams(provider),
+        parseExcludeIds(url.searchParams.get("excludeIds")),
+      ),
+      pageKey === "movies" ? "movie" : "tv",
+    );
+    const rows = await Promise.all(
+      enriched.map(async (row) => ({
+        ...row,
+        items: await prepareCatalogRowItemsForRsc(row.items),
+      })),
+    );
 
     return NextResponse.json({ rows }, { headers: catalogCacheHeaders() });
   } catch (error) {

@@ -8,17 +8,16 @@ import {
 } from "@/components/movies/movies-catalog-sections";
 import { MoviesHubFeatureHero } from "@/components/movies/movies-hub-feature-hero";
 import { pages } from "@/config/pages";
+import { getMoviesCatalogHubFeature } from "@/lib/server/catalog-hub-feature";
+import { resolveHubIndexPageBackdrops } from "@/lib/server/hub-index-page";
 import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import { parseMovieView, stripCatalogUiParams } from "@/lib/catalog-query";
 import { getMovieCatalogListCopy } from "@/lib/catalog-list-copy";
 import { getDiscoverCatalogCopy } from "@/lib/discover-page-copy";
 import { normalizeRouteSearchParams } from "@/lib/utils";
-import { getMoviesCatalogHubFeature } from "@/lib/server/catalog-hub-feature";
 import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 import { Suspense } from "react";
-
-export const revalidate = 3600;
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -59,14 +58,18 @@ export default async function MoviesCatalogPage(props: PageProps) {
     Object.keys(sp).length > 0 ? pages.movie.root.link : undefined;
 
   if (view === "discover") {
-    const hubBackdrop = layoutState.isHubLayout
-      ? ((await getMoviesCatalogHubFeature())?.backdrop ?? null)
+    const hubFeature = layoutState.isHubLayout
+      ? await getMoviesCatalogHubFeature()
+      : null;
+    const hubBackdrops = layoutState.isHubLayout
+      ? resolveHubIndexPageBackdrops(hubFeature, "movie")
       : null;
 
     return (
       <IndexPage
         background={layoutState.isHubLayout ? "hub" : "shader"}
-        backdrop={hubBackdrop}
+        backdrop={hubBackdrops?.backdrop ?? null}
+        heroBackdrops={hubBackdrops?.heroBackdrops}
       >
         {layoutState.isHubLayout ? (
           <>

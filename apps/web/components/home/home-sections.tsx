@@ -1,4 +1,4 @@
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
+import { prepareCatalogRowItemsForRsc } from "@/lib/server/prepare-catalog-row-items";
 import { ContentReveal } from "@/components/layout/page-loading/content-reveal";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { pages } from "@/config/pages";
@@ -20,13 +20,13 @@ export async function HomeTrendingMoviesCarousel() {
         link={pages.trending.movie.link}
         compact
         bleed
-        items={toSlimCarouselItems(movies)}
+        items={await toSlimCarouselItems(movies)}
       />
     </ContentReveal>
   );
 }
 
-const toSlimCarouselItems = slimMediaItemsForRsc;
+const toSlimCarouselItems = prepareCatalogRowItemsForRsc;
 
 export async function HomePopularMoviesCarousel() {
   const popularMovies = await getHomePopularMovies();
@@ -39,7 +39,7 @@ export async function HomePopularMoviesCarousel() {
         link={pages.movie.popular.link}
         compact
         bleed
-        items={toSlimCarouselItems(popularMovies.slice(0, 22))}
+        items={await toSlimCarouselItems(popularMovies.slice(0, 22))}
       />
     </ContentReveal>
   );
@@ -56,7 +56,7 @@ export async function HomeTrendingTvCarousel() {
         link={pages.trending.tv.link}
         compact
         bleed
-        items={toSlimCarouselItems(tvShows)}
+        items={await toSlimCarouselItems(tvShows)}
       />
     </ContentReveal>
   );
@@ -73,7 +73,7 @@ export async function HomePopularTvCarousel() {
         link={pages.tv.popular.link}
         compact
         bleed
-        items={toSlimCarouselItems(popularTv.slice(0, 22))}
+        items={await toSlimCarouselItems(popularTv.slice(0, 22))}
       />
     </ContentReveal>
   );

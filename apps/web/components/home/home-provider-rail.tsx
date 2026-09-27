@@ -14,12 +14,15 @@ export async function HomeProviderRail() {
       className="index-bleed relative z-[1] space-y-4"
     >
       <div className="index-rail-padding">
-        <h2
-          id="home-providers-heading"
-          className="text-xl font-semibold text-foreground"
-        >
-          Browse by Provider
-        </h2>
+        <div className="flex items-baseline gap-2.5">
+          <span className="h-[1.2em] w-1 shrink-0 bg-pink-500" aria-hidden />
+          <h2
+            id="home-providers-heading"
+            className="text-xl font-semibold text-foreground md:text-2xl"
+          >
+            Browse by Provider
+          </h2>
+        </div>
       </div>
 
       <div className="index-rail-padding scroll-px-6 lg:scroll-px-16">
@@ -36,7 +39,7 @@ export async function HomeProviderRail() {
                 className="group w-[5.75rem] shrink-0 snap-start lg:w-[6.75rem]"
                 aria-label={`Browse ${provider.name}`}
                 role="listitem"
-                prefetch={false}
+                prefetch={true}
               >
                 <ProviderLogoMark
                   provider={provider}

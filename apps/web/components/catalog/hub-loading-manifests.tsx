@@ -158,13 +158,6 @@ export const AnimeHubLoadingSections = () =>
     },
   ]);
 
-export const TrendingHubHeaderFallback = () => (
-  <header className="space-y-1 text-center md:text-left" aria-hidden>
-    <Skeleton className="mx-auto h-9 w-40 rounded-lg sm:h-10 md:mx-0 md:h-12" />
-    <Skeleton className="mx-auto h-5 w-full max-w-md rounded-md md:mx-0" />
-  </header>
-);
-
 export const TrendingMoviesSectionFallback = () => (
   <CatalogRankedRowFallback bleed />
 );
@@ -176,8 +169,12 @@ export const TrendingTvSectionFallback = () => (
 export const TrendingHubLoadingSections = () =>
   manifestSections([
     {
-      id: "trending-hub-section-header",
-      node: <TrendingHubHeaderFallback />,
+      id: "trending-hub-section-hero",
+      node: <IndexFeatureHeroFallback />,
+    },
+    {
+      id: "trending-hub-section-recent",
+      node: <RecentlyWatchedRowFallback bleed />,
     },
     {
       id: "trending-hub-section-movies",

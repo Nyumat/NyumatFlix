@@ -7,7 +7,6 @@ import {
   AnimeHubRankedRow,
   AnimeHubSeasonCarousel,
   AnimeHubTrendingCarousel,
-  getAnimeHubAmbientBackdrop,
 } from "@/components/anilist/anime-hub-sections";
 import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
 import { IndexFeatureHeroFallback } from "@/components/catalog/index-feature-hero-fallback";
@@ -32,8 +31,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-
-export const revalidate = 3600;
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -139,16 +136,14 @@ export default async function AnimePage(props: PageProps) {
   const isResultsLayout = isAniListResultsLayout(sp);
 
   if (!isResultsLayout) {
-    const hubBackdrop = await getAnimeHubAmbientBackdrop();
-
     return (
-      <IndexPage background="hub" backdrop={hubBackdrop}>
+      <IndexPage background="hub">
         <AnimeHubHome
           chrome={
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button asChild variant="outline">
+              {/* <Button asChild variant="outline">
                 <Link href={ANIME_BROWSE_PATH}>All anime</Link>
-              </Button>
+              </Button> */}
             </div>
           }
         />

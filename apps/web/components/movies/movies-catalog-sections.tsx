@@ -1,5 +1,5 @@
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
-import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
+import { prepareCatalogRowItemsForRsc } from "@/lib/server/prepare-catalog-row-items";
+import { CatalogCategoryShowcaseServer } from "@/components/catalog/catalog-category-showcase-server";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
 import {
   CatalogRankedRowFallback,
@@ -94,12 +94,14 @@ export async function MoviesDiscoverResultsSection({
       description={description}
       genres={genres}
       providers={providers}
-      items={slimMediaItemsForRsc(
-        movies.map((m) => ({
-          ...m,
-          media_type: "movie" as const,
-        })),
-      )}
+      items={
+        await prepareCatalogRowItemsForRsc(
+          movies.map((m) => ({
+            ...m,
+            media_type: "movie" as const,
+          })),
+        )
+      }
       currentPage={currentPage}
       totalPages={totalPages}
       queryParams={catalogQueryParams}
@@ -175,7 +177,7 @@ const getCachedTopRatedMoviesHub = cache(async () => {
 
 async function MoviesDiscoverTrendingCarouselSection() {
   const trendingMovies = await getCachedTrendingMoviesDay();
-  const items = slimMediaItemsForRsc(
+  const items = await prepareCatalogRowItemsForRsc(
     trendingMovies.slice(0, 40).map((m) => ({
       ...m,
       media_type: "movie" as const,
@@ -205,12 +207,14 @@ async function MoviesDiscoverTopRatedSection() {
     <ContentRow
       variant="ranked"
       title="Top Rated"
-      items={slimMediaItemsForRsc(
-        hubTopPicksRow.map((m) => ({
-          ...m,
-          media_type: "movie" as const,
-        })),
-      )}
+      items={
+        await prepareCatalogRowItemsForRsc(
+          hubTopPicksRow.map((m) => ({
+            ...m,
+            media_type: "movie" as const,
+          })),
+        )
+      }
       href={pages.movie.topRated.link}
       bleed
     />
@@ -223,7 +227,7 @@ async function MoviesDiscoverPopularCarouselSection({
   searchParams: SearchParams;
 }) {
   const popularMovies = await getCachedPopularMoviesByVote(sp);
-  const items = slimMediaItemsForRsc(
+  const items = await prepareCatalogRowItemsForRsc(
     popularMovies.slice(0, 40).map((m) => ({
       ...m,
       media_type: "movie" as const,
@@ -259,7 +263,7 @@ async function MoviesDiscoverCategoryShowcase() {
   }
 
   return (
-    <CatalogCategoryShowcase
+    <CatalogCategoryShowcaseServer
       excludeIds={Array.from(excludeIds)}
       pageKey="movies"
     />
@@ -334,7 +338,7 @@ export async function MoviesListCatalogSection({
 
   const movies = filterReleasedMovies(moviesRaw);
   const providers = providerResponse.results ?? [];
-  const movieItems: MediaItem[] = slimMediaItemsForRsc(
+  const movieItems: MediaItem[] = await prepareCatalogRowItemsForRsc(
     movies.map((m) => ({
       ...m,
       media_type: "movie" as const,

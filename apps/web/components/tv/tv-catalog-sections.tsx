@@ -1,5 +1,5 @@
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
-import { CatalogCategoryShowcase } from "@/components/catalog/catalog-category-showcase";
+import { prepareCatalogRowItemsForRsc } from "@/lib/server/prepare-catalog-row-items";
+import { CatalogCategoryShowcaseServer } from "@/components/catalog/catalog-category-showcase-server";
 import { CatalogResultsLayout } from "@/components/catalog/catalog-results-layout";
 import {
   CatalogRankedRowFallback,
@@ -123,12 +123,14 @@ export async function TvDiscoverResultsSection({
       description={description}
       genres={genres}
       providers={providerResponse.results ?? []}
-      items={slimMediaItemsForRsc(
-        shows.map((show) => ({
-          ...show,
-          media_type: "tv" as const,
-        })),
-      )}
+      items={
+        await prepareCatalogRowItemsForRsc(
+          shows.map((show) => ({
+            ...show,
+            media_type: "tv" as const,
+          })),
+        )
+      }
       currentPage={catalogResponse.page}
       totalPages={catalogResponse.total_pages}
       queryParams={catalogQueryParams}
@@ -142,7 +144,7 @@ export async function TvDiscoverResultsSection({
 
 async function TvDiscoverTrendingCarouselSection() {
   const trendingShows = await getCachedTrendingTvDay();
-  const items = slimMediaItemsForRsc(
+  const items = await prepareCatalogRowItemsForRsc(
     trendingShows.slice(0, 40).map((show) => ({
       ...show,
       media_type: "tv" as const,
@@ -176,12 +178,14 @@ async function TvDiscoverTopRatedSection() {
     <ContentRow
       variant="ranked"
       title="Top Rated"
-      items={slimMediaItemsForRsc(
-        hubTopPicksRow.map((show) => ({
-          ...show,
-          media_type: "tv" as const,
-        })),
-      )}
+      items={
+        await prepareCatalogRowItemsForRsc(
+          hubTopPicksRow.map((show) => ({
+            ...show,
+            media_type: "tv" as const,
+          })),
+        )
+      }
       href={pages.tv.topRated.link}
       bleed
     />
@@ -194,7 +198,7 @@ async function TvDiscoverPopularCarouselSection({
   searchParams: SearchParams;
 }) {
   const popularTv = await getCachedPopularTvByVote(sp);
-  const items = slimMediaItemsForRsc(
+  const items = await prepareCatalogRowItemsForRsc(
     popularTv.slice(0, 40).map((show) => ({
       ...show,
       media_type: "tv" as const,
@@ -236,7 +240,10 @@ async function TvDiscoverCategoryShowcase({
   }
 
   return (
-    <CatalogCategoryShowcase excludeIds={Array.from(excludeIds)} pageKey="tv" />
+    <CatalogCategoryShowcaseServer
+      excludeIds={Array.from(excludeIds)}
+      pageKey="tv"
+    />
   );
 }
 
@@ -344,7 +351,7 @@ export async function TvListCatalogSection({
   } = catalogResponse;
 
   const shows = filterReleasedTvShows(showsRaw);
-  const tvItems: MediaItem[] = slimMediaItemsForRsc(
+  const tvItems: MediaItem[] = await prepareCatalogRowItemsForRsc(
     shows.map((show) => ({
       ...show,
       media_type: "tv" as const,

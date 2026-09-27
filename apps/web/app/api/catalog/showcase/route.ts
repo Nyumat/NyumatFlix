@@ -2,7 +2,7 @@ import { catalogCacheHeaders } from "@/lib/http-cache";
 import { fetchCatalogShowcaseRows } from "@/lib/catalog-showcase-fetch";
 import { fetchAnimeShowcaseRows } from "@/lib/server/anime-showcase-fetch";
 import { withCanonicalCatalogHrefs } from "@/lib/server/catalog-canonical-hrefs";
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
+import { prepareCatalogRowItemsForRsc } from "@/lib/server/prepare-catalog-row-items";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { NextResponse } from "next/server";
 
@@ -63,10 +63,12 @@ export async function GET(request: Request) {
       ),
       pageKey === "movies" ? "movie" : "tv",
     );
-    const rows = enriched.map((row) => ({
-      ...row,
-      items: slimMediaItemsForRsc(row.items),
-    }));
+    const rows = await Promise.all(
+      enriched.map(async (row) => ({
+        ...row,
+        items: await prepareCatalogRowItemsForRsc(row.items),
+      })),
+    );
 
     return NextResponse.json({ rows }, { headers: catalogCacheHeaders() });
   } catch (error) {

@@ -1,14 +1,16 @@
 import {
+  CatalogRankedRowFallback,
+  CatalogRowFallback,
+} from "@/components/catalog/catalog-suspense-fallbacks";
+import { IndexFeatureHeroFallback } from "@/components/catalog/index-feature-hero-fallback";
+import {
   AnimeHubLoadingSections,
   HomeHubLoadingSections,
   MoviesDiscoverHubLoadingSections,
-  TrendingHubHeaderFallback,
-  TrendingMoviesSectionFallback,
-  TrendingTvSectionFallback,
+  TrendingHubLoadingSections,
   TvDiscoverHubLoadingSections,
 } from "@/components/catalog/hub-loading-manifests";
 import { IndexPageSkeleton } from "@/components/catalog/index-page-skeleton";
-import { CatalogRowFallback } from "@/components/catalog/catalog-suspense-fallbacks";
 
 type CatalogHubLoadingProps = {
   withPageContainer?: boolean;
@@ -20,6 +22,18 @@ export function CatalogHubLoading({
   return (
     <IndexPageSkeleton background="hub" withPageContainer={withPageContainer}>
       <HomeHubLoadingSections />
+    </IndexPageSkeleton>
+  );
+}
+
+/** Lightweight shell for catalog routes that do not define their own loading UI. */
+export function CatalogNavigationLoading() {
+  return (
+    <IndexPageSkeleton background="hub" withPageContainer={false}>
+      <IndexFeatureHeroFallback />
+      <CatalogRankedRowFallback bleed />
+      <CatalogRowFallback bleed />
+      <CatalogRowFallback bleed />
     </IndexPageSkeleton>
   );
 }
@@ -53,13 +67,8 @@ export function TrendingIndexHubLoading({
   withPageContainer = false,
 }: CatalogHubLoadingProps = {}) {
   return (
-    <IndexPageSkeleton
-      withPageContainer={withPageContainer}
-      header={<TrendingHubHeaderFallback />}
-    >
-      <TrendingMoviesSectionFallback />
-      <TrendingTvSectionFallback />
-      <CatalogRowFallback bleed />
+    <IndexPageSkeleton background="hub" withPageContainer={withPageContainer}>
+      <TrendingHubLoadingSections />
     </IndexPageSkeleton>
   );
 }

@@ -3,6 +3,11 @@
 import React, { useMemo } from "react";
 import Link from "next/link";
 import {
+  type CatalogMediaCard,
+  isCatalogMediaCard,
+  toCanonicalHubCard,
+} from "@/lib/cards/catalog-dto";
+import {
   MovieWithMediaType,
   PersonWithMediaType,
   TvShowWithMediaType,
@@ -19,17 +24,15 @@ import useMedia from "@/hooks/useMedia";
 import { PersonCard } from "@/components/person/person-card";
 import { TvCard } from "@/components/tv/tv-card";
 import type { MediaItem } from "@/lib/domain/typings";
+import {
+  CatalogHubRow,
+  CatalogHubRowToolbar,
+} from "@/components/catalog/catalog-hub-row";
 import { contentRowActionLinkClassName } from "@/lib/content-row-action-link";
 import { contentRowSelectTriggerClassName } from "@/lib/content-row-select-trigger";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
+import { CarouselItem } from "@/components/ui/carousel";
 import {
   Select,
   SelectContent,
@@ -48,7 +51,11 @@ interface TrendCarouselProps {
   description?: string;
   icon?: React.ReactNode;
   link?: string;
-  items: MovieWithMediaType[] | TvShowWithMediaType[] | PersonWithMediaType[];
+  items:
+    | MovieWithMediaType[]
+    | TvShowWithMediaType[]
+    | PersonWithMediaType[]
+    | CatalogMediaCard[];
   type: "movie" | "tv" | "person";
   /**
    * tighter slides + poster cards with title/rating overlay (discover showcase rows).
@@ -143,10 +150,13 @@ export function RecommendationSeed({
   );
 }
 
-const getTrendItemKey = (
-  item: MovieWithMediaType | TvShowWithMediaType | PersonWithMediaType,
-  index: number,
-) => {
+type TrendCarouselItem =
+  | MovieWithMediaType
+  | TvShowWithMediaType
+  | PersonWithMediaType
+  | CatalogMediaCard;
+
+const getTrendItemKey = (item: TrendCarouselItem, index: number) => {
   const animeId =
     "sourceAnilistId" in item && typeof item.sourceAnilistId === "number"
       ? item.sourceAnilistId
@@ -187,116 +197,70 @@ export const TrendCarousel: React.FC<TrendCarouselProps> = ({
   const isMobile = useMedia("(max-width: 768px)", false);
   const useRailPadding = railPadding ?? bleed;
 
-  const carousel = (
-    <Carousel
-      className="group/row"
-      opts={{
-        align: "start",
-        slidesToScroll: "auto",
-        dragFree: true,
-        containScroll: "trimSnaps",
-      }}
+  const toolbarHeader = showToolbar ? (
+    <CatalogHubRowToolbar
+      bleed={bleed}
+      railPadding={useRailPadding}
+      icon={icon}
+      heading={heading}
+      title={title}
+      titleAddon={
+        description ? (
+          <RecommendationSeed
+            title={description}
+            large={bleed}
+            options={recommendationSeedOptions}
+            selectedValue={selectedRecommendationSeed}
+            onValueChange={onRecommendationSeedChange}
+          />
+        ) : undefined
+      }
+      trailing={
+        trailing ??
+        (link ? (
+          <Link href={link} className={contentRowActionLinkClassName}>
+            <span>View all</span>
+            <ChevronRight className="size-4" aria-hidden />
+          </Link>
+        ) : undefined)
+      }
+      toolbar={Boolean(heading && trailing)}
+    />
+  ) : undefined;
+
+  const carouselItems = visibleItems.map((item, index) => (
+    <CarouselItem
+      key={getTrendItemKey(item, index)}
+      className={carouselItemClassName(catalogCardStyle)}
     >
-      {showToolbar ? (
-        <div
-          className={cn(
-            "mb-4 flex min-w-0 gap-3 md:gap-4",
-            heading || trailing ? "items-end" : "items-baseline",
-            heading && trailing ? "justify-between gap-x-4" : null,
-            useRailPadding ? "index-rail-padding" : "px-1 md:px-0",
-          )}
-        >
-          {icon ? <div className="shrink-0">{icon}</div> : null}
+      {item.media_type === "tv" ? (
+        isCatalogMediaCard(item) ? (
+          <ContentCard item={toCanonicalHubCard(item)} isMobile={isMobile} />
+        ) : compact ? (
+          <TvCard {...item} />
+        ) : (
+          <ContentCard item={item as MediaItem} isMobile={isMobile} />
+        )
+      ) : item.media_type === "person" ? (
+        <PersonCard key={item.id} {...item} />
+      ) : isCatalogMediaCard(item) ? (
+        <ContentCard item={toCanonicalHubCard(item)} isMobile={isMobile} />
+      ) : compact ? (
+        <MovieCard {...item} />
+      ) : (
+        <ContentCard item={item as MediaItem} isMobile={isMobile} />
+      )}
+    </CarouselItem>
+  ));
 
-          <div
-            className={cn(
-              "flex gap-2",
-              heading
-                ? "min-w-0 w-fit max-w-full shrink-0 items-end"
-                : "min-w-0 flex-1 items-baseline",
-            )}
-          >
-            {heading ?? (
-              <>
-                <h2
-                  className={cn(
-                    "min-w-0 truncate whitespace-nowrap font-semibold tracking-tight",
-                    bleed ? "text-xl md:text-2xl" : "text-lg md:text-xl",
-                  )}
-                >
-                  {title}
-                </h2>
-                {description ? (
-                  <RecommendationSeed
-                    title={description}
-                    large={bleed}
-                    options={recommendationSeedOptions}
-                    selectedValue={selectedRecommendationSeed}
-                    onValueChange={onRecommendationSeedChange}
-                  />
-                ) : null}
-              </>
-            )}
-          </div>
-
-          {trailing ??
-            (link ? (
-              <Link
-                href={link}
-                className={contentRowActionLinkClassName}
-                prefetch={false}
-              >
-                <span>View all</span>
-                <ChevronRight className="size-4" aria-hidden />
-              </Link>
-            ) : null)}
-        </div>
-      ) : null}
-
-      <CarouselContent
-        className="-ml-3 lg:-ml-4"
-        viewportClassName={useRailPadding ? "index-rail-padding" : undefined}
-      >
-        {visibleItems.map((item, index) => (
-          <CarouselItem
-            key={getTrendItemKey(item, index)}
-            className={carouselItemClassName(catalogCardStyle)}
-          >
-            {item.media_type === "tv" ? (
-              compact ? (
-                <TvCard {...item} />
-              ) : (
-                <ContentCard item={item as MediaItem} isMobile={isMobile} />
-              )
-            ) : item.media_type === "person" ? (
-              <PersonCard key={item.id} {...item} />
-            ) : compact ? (
-              <MovieCard {...item} />
-            ) : (
-              <ContentCard item={item as MediaItem} isMobile={isMobile} />
-            )}
-          </CarouselItem>
-        ))}
-      </CarouselContent>
-
-      <CarouselPrevious
-        variant="ghost"
-        className={cn(
-          "hidden top-1/2 z-20 h-12 w-12 -translate-y-1/2 text-white opacity-0 drop-shadow-lg transition-all duration-300 hover:scale-110 hover:bg-transparent hover:text-white group-hover/row:opacity-100 group-focus-within/row:opacity-100 disabled:pointer-events-none disabled:opacity-0 lg:inline-flex",
-          useRailPadding ? "left-2" : "left-0",
-        )}
-        aria-label="Scroll left"
-      />
-      <CarouselNext
-        variant="ghost"
-        className={cn(
-          "hidden top-1/2 z-20 h-12 w-12 -translate-y-1/2 text-white opacity-0 drop-shadow-lg transition-all duration-300 hover:scale-110 hover:bg-transparent hover:text-white group-hover/row:opacity-100 group-focus-within/row:opacity-100 disabled:pointer-events-none disabled:opacity-0 lg:inline-flex",
-          useRailPadding ? "right-2" : "right-0",
-        )}
-        aria-label="Scroll right"
-      />
-    </Carousel>
+  return (
+    <CatalogHubRow
+      ariaLabel={title ?? "Catalog row"}
+      bleed={bleed}
+      railPadding={useRailPadding}
+      header={toolbarHeader}
+    >
+      {carouselItems}
+    </CatalogHubRow>
   );
-
-  return bleed ? <div className="index-bleed">{carousel}</div> : carousel;
 };

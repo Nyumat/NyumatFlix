@@ -1,6 +1,10 @@
 "use client";
 
-import { CatalogPosterRowFallback } from "@/components/catalog/catalog-poster-row-fallback";
+import { CatalogCarouselTileSkeleton } from "@/components/catalog/catalog-card-skeletons";
+import {
+  CatalogHubRow,
+  CatalogHubRowToolbar,
+} from "@/components/catalog/catalog-hub-row";
 import {
   MoviesSeriesTabs,
   type CatalogMediaKind,
@@ -9,7 +13,13 @@ import {
   ProviderWatchSelect,
   type ProviderWatchBrand,
 } from "@/components/provider/provider-watch-select";
-import { TrendCarousel } from "@/components/trend/trend-client";
+import { MovieCard } from "@/components/movie/movie-card";
+import { TvCard } from "@/components/tv/tv-card";
+import { CarouselItem } from "@/components/ui/carousel";
+import {
+  carouselItemClassName,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
 import {
   fetchProviderPopularItems,
   providerPopularCacheKey,
@@ -21,7 +31,6 @@ import { isAbortError } from "@/lib/scrape/abort";
 import type { MediaItem } from "@/lib/domain/typings";
 import type { MovieWithMediaType, TvShowWithMediaType } from "@/tmdb/models";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
 
 const loadKindsForProvider = async (
   providerId: string,
@@ -181,9 +190,11 @@ export function HomeProviderGenreShowcase({
     };
   }, [prefetchProvider, providerId, providers]);
 
+  const catalogCardStyle = useCatalogCardStyle();
   const activeKey = providerPopularCacheKey(providerId, mediaKind);
   const items = itemsByKey[activeKey];
   const isCarouselLoading = items === undefined;
+  const itemClassName = carouselItemClassName(catalogCardStyle);
 
   const handleProviderChange = (nextProviderId: string) => {
     if (nextProviderId === providerId) {
@@ -206,54 +217,57 @@ export function HomeProviderGenreShowcase({
       : (items as TvShowWithMediaType[]);
 
   return (
-    <section
-      className="index-bleed"
-      aria-label={`Popular on ${activeProviderName}`}
-      aria-busy={isCarouselLoading}
-    >
-      <div
-        className={cn(
-          "mb-4 flex min-w-0 gap-3 md:gap-4",
-          "items-end justify-between gap-x-4",
-          "index-rail-padding",
-        )}
-      >
-        <div className="flex min-w-0 w-fit max-w-full shrink-0 items-end gap-2">
-          <div className="flex min-w-0 items-baseline gap-2">
-            <h2 className="shrink-0 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
-              Only on
-            </h2>
-            <ProviderWatchSelect
-              providers={providers}
-              value={providerId}
-              onValueChange={handleProviderChange}
-              onProviderPrefetch={prefetchProviderBothKinds}
-              onMenuOpen={() => {
-                for (const provider of providers) {
-                  prefetchProviderBothKinds(String(provider.id));
-                }
-              }}
-              large
-            />
-          </div>
-        </div>
-
-        <MoviesSeriesTabs value={mediaKind} onChange={setMediaKind} />
-      </div>
-
-      {isCarouselLoading ? (
-        <CatalogPosterRowFallback hideHeader railPadding />
-      ) : (
-        <TrendCarousel
-          key={`${providerId}-${mediaKind}`}
-          type={mediaKind}
-          items={carouselItems}
-          compact
-          bleed={false}
-          railPadding
-          showToolbar={false}
+    <CatalogHubRow
+      ariaLabel={`Popular on ${activeProviderName}`}
+      bleed
+      busy={isCarouselLoading}
+      header={
+        <CatalogHubRowToolbar
+          bleed
+          toolbar
+          heading={
+            <div className="flex min-w-0 items-baseline gap-2">
+              <h2 className="shrink-0 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+                Only on
+              </h2>
+              <ProviderWatchSelect
+                providers={providers}
+                value={providerId}
+                onValueChange={handleProviderChange}
+                onProviderPrefetch={prefetchProviderBothKinds}
+                onMenuOpen={() => {
+                  for (const provider of providers) {
+                    prefetchProviderBothKinds(String(provider.id));
+                  }
+                }}
+                large
+              />
+            </div>
+          }
+          trailing={
+            <MoviesSeriesTabs value={mediaKind} onChange={setMediaKind} />
+          }
         />
-      )}
-    </section>
+      }
+    >
+      {isCarouselLoading
+        ? Array.from({ length: 6 }).map((_, index) => (
+            <CarouselItem key={index} className={itemClassName}>
+              <CatalogCarouselTileSkeleton style={catalogCardStyle} />
+            </CarouselItem>
+          ))
+        : carouselItems.map((item, index) => (
+            <CarouselItem
+              key={`${providerId}-${mediaKind}-${item.id}-${index}`}
+              className={itemClassName}
+            >
+              {mediaKind === "movie" ? (
+                <MovieCard {...item} />
+              ) : (
+                <TvCard {...item} />
+              )}
+            </CarouselItem>
+          ))}
+    </CatalogHubRow>
   );
 }

@@ -8,33 +8,47 @@ import { IndexFeatureHero } from "@/components/catalog/index-feature-hero";
 import { TrendCarousel } from "@/components/trend/trend-client";
 import { pages } from "@/config/pages";
 import type { MediaItem } from "@/lib/domain/typings";
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
+import { prepareCatalogRowItemsForRsc } from "@/lib/server/prepare-catalog-row-items";
 import {
   buildCatalogHubFeature,
   toMovieHubBackdrop,
 } from "@/lib/server/catalog-hub-feature";
 import type { Movie, TvShow } from "@/tmdb/models";
 import { tmdb } from "@/tmdb/api";
+import { cache } from "react";
 
-const toMediaItems = <T extends Movie | TvShow>(
+const toMediaItems = async <T extends Movie | TvShow>(
   items: T[],
   mediaType: "movie" | "tv",
 ) =>
-  slimMediaItemsForRsc(
+  (await prepareCatalogRowItemsForRsc(
     items.map((item) => ({ ...item, media_type: mediaType })),
-  ) as unknown as MediaItem[];
+  )) as unknown as MediaItem[];
 
-export async function TrendingFeatureHero() {
+const getCachedTrendingMoviesDay = cache(async () => {
   const { results } = await tmdb.trending.movie({ time: "day", page: "1" });
-  const movies = filterReleasedMovies(results);
-  const feature = await buildCatalogHubFeature({
+  return filterReleasedMovies(results ?? []);
+});
+
+export const getTrendingHubFeature = cache(async () => {
+  const movies = await getCachedTrendingMoviesDay();
+
+  return buildCatalogHubFeature({
     candidates: movies,
     mediaType: "movie",
     pick: (items) => items.find((item) => item.backdrop_path) ?? items[0],
     toBackdrop: toMovieHubBackdrop,
   });
+});
 
-  if (!feature) return null;
+export async function getTrendingHubAmbientBackdrop() {
+  return (await getTrendingHubFeature())?.backdrop ?? null;
+}
+
+export async function TrendingFeatureHero() {
+  const feature = await getTrendingHubFeature();
+
+  if (!feature?.item) return null;
 
   return (
     <IndexFeatureHero
@@ -48,11 +62,7 @@ export async function TrendingFeatureHero() {
 }
 
 export async function TrendingMoviesSection() {
-  const { results: moviesRaw } = await tmdb.trending.movie({
-    time: "day",
-    page: "1",
-  });
-  const movies = filterReleasedMovies(moviesRaw);
+  const movies = await getCachedTrendingMoviesDay();
   if (movies.length === 0) {
     return null;
   }
@@ -62,7 +72,7 @@ export async function TrendingMoviesSection() {
       <ContentRow
         title={pages.trending.movie.title}
         href={pages.trending.movie.link}
-        items={toMediaItems(movies, "movie")}
+        items={await toMediaItems(movies, "movie")}
         variant="ranked"
         bleed
       />
@@ -85,7 +95,7 @@ export async function TrendingTvSection() {
       <ContentRow
         title={pages.trending.tv.title}
         href={pages.trending.tv.link}
-        items={toMediaItems(tvShows, "tv")}
+        items={await toMediaItems(tvShows, "tv")}
         variant="ranked"
         bleed
       />

@@ -8,17 +8,16 @@ import {
 } from "@/components/tv/tv-catalog-sections";
 import { TvHubFeatureHero } from "@/components/tv/tv-hub-feature-hero";
 import { pages } from "@/config/pages";
+import { getTvHubFeature } from "@/lib/server/catalog-hub-feature";
+import { resolveHubIndexPageBackdrops } from "@/lib/server/hub-index-page";
 import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import { parseTvView, stripCatalogUiParams } from "@/lib/catalog-query";
 import { getTvCatalogListCopy } from "@/lib/catalog-list-copy";
 import { getDiscoverCatalogCopy } from "@/lib/discover-page-copy";
 import { normalizeRouteSearchParams } from "@/lib/utils";
-import { getTvHubFeature } from "@/lib/server/catalog-hub-feature";
 import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 import { Suspense } from "react";
-
-export const revalidate = 3600;
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -58,14 +57,16 @@ export default async function TvShowsCatalogPage(props: PageProps) {
   const indexHref = Object.keys(sp).length > 0 ? pages.tv.root.link : undefined;
 
   if (view === "discover") {
-    const hubBackdrop = layoutState.isHubLayout
-      ? ((await getTvHubFeature())?.backdrop ?? null)
+    const hubFeature = layoutState.isHubLayout ? await getTvHubFeature() : null;
+    const hubBackdrops = layoutState.isHubLayout
+      ? resolveHubIndexPageBackdrops(hubFeature, "tv")
       : null;
 
     return (
       <IndexPage
         background={layoutState.isHubLayout ? "hub" : "shader"}
-        backdrop={hubBackdrop}
+        backdrop={hubBackdrops?.backdrop ?? null}
+        heroBackdrops={hubBackdrops?.heroBackdrops}
       >
         {layoutState.isHubLayout ? (
           <>
