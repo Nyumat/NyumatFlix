@@ -1,6 +1,12 @@
 "use client";
 
 import { HeroTvEpisodePanel } from "@/components/hero/hero-tv-episode-panel";
+import {
+  CastGridSkeleton,
+  RecommendationsGridSkeleton,
+  SeriesGraphSectionSkeleton,
+  SeriesGraphSkeleton,
+} from "@/components/layout/page-loading/detail-section-skeletons";
 import { ExpandableCastGrid } from "@/components/media/expandable-cast-grid";
 import { TvCard } from "@/components/tv/tv-card";
 import { TvShowSeasonsPage } from "@/components/tvshow/tvshow-seasons-page";
@@ -45,23 +51,6 @@ const DetailSection = ({
     </h2>
     {children}
   </section>
-);
-
-const GridSectionSkeleton = () => (
-  <div className="grid-list">
-    {Array.from({ length: 8 }).map((_, index) => (
-      <div
-        key={index}
-        className="aspect-poster rounded-lg border border-border/60 bg-card/25"
-      />
-    ))}
-  </div>
-);
-
-const SeriesGraphFallback = () => (
-  <DetailSection title="Series Graph" headingClassName="mb-3">
-    <div className="h-64 rounded-xl border border-white/10 bg-black/10" />
-  </DetailSection>
 );
 
 type LazyTabSectionProps = {
@@ -146,7 +135,7 @@ const SeriesGraphSection = () => {
   });
 
   if (!allSeasonDetails || Object.keys(allSeasonDetails).length === 0) {
-    return <GridSectionSkeleton />;
+    return <SeriesGraphSkeleton />;
   }
 
   return <TvShowSeasonsPage allSeasonDetails={allSeasonDetails} />;
@@ -156,7 +145,7 @@ const LazySeriesGraphSection = () => (
   <LazyTabSection
     title="Series Graph"
     headingClassName="mb-3"
-    fallback={<SeriesGraphFallback />}
+    fallback={<SeriesGraphSectionSkeleton />}
   >
     <SeriesGraphSection />
   </LazyTabSection>
@@ -172,7 +161,7 @@ const CastSection = () => {
   });
 
   if (isPending) {
-    return <GridSectionSkeleton />;
+    return <CastGridSkeleton />;
   }
 
   if (credits?.cast?.length) {
@@ -187,7 +176,7 @@ const LazyCastSection = () => (
     title="Cast"
     fallback={
       <DetailSection title="Cast">
-        <GridSectionSkeleton />
+        <CastGridSkeleton />
       </DetailSection>
     }
   >
@@ -205,7 +194,7 @@ const RecommendationsSection = () => {
   });
 
   if (isPending) {
-    return <GridSectionSkeleton />;
+    return <RecommendationsGridSkeleton />;
   }
 
   if (recommendationsData?.results?.length) {
@@ -231,7 +220,7 @@ const LazyRecommendationsSection = () => (
     title="You Might Like"
     fallback={
       <DetailSection title="You Might Like">
-        <GridSectionSkeleton />
+        <RecommendationsGridSkeleton />
       </DetailSection>
     }
   >

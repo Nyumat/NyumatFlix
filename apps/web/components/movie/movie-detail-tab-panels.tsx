@@ -1,6 +1,11 @@
 "use client";
 
 import { ExpandableCastGrid } from "@/components/media/expandable-cast-grid";
+import {
+  CastSectionSkeleton,
+  OverviewSectionSkeleton,
+  RecommendationsSectionSkeleton,
+} from "@/components/layout/page-loading/detail-section-skeletons";
 import { MovieCard } from "@/components/movie/movie-card";
 import { MovieOverviewTab } from "@/components/movie/movie-overview-tab";
 import {
@@ -37,32 +42,6 @@ const DetailSection = ({ title, children }: DetailSectionProps) => (
   </section>
 );
 
-const OverviewFallback = () => (
-  <DetailSection title="Overview">
-    <div className="space-y-6">
-      <div className="space-y-3">
-        <div className="h-4 w-full rounded bg-card/50" />
-        <div className="h-4 w-11/12 rounded bg-card/50" />
-        <div className="h-4 w-3/4 rounded bg-card/50" />
-      </div>
-      <div className="h-64 rounded-xl border border-white/15 bg-black/25" />
-    </div>
-  </DetailSection>
-);
-
-const GridSectionFallback = ({ title }: { title: string }) => (
-  <DetailSection title={title}>
-    <div className="grid-list">
-      {Array.from({ length: 8 }).map((_, index) => (
-        <div
-          key={index}
-          className="aspect-poster rounded-lg border border-border/60 bg-card/25"
-        />
-      ))}
-    </div>
-  </DetailSection>
-);
-
 const OverviewSection = ({ movieId }: MovieDetailTabPanelsProps) => {
   const numId = Number.parseInt(movieId, 10);
 
@@ -75,7 +54,7 @@ const OverviewSection = ({ movieId }: MovieDetailTabPanelsProps) => {
     },
   });
 
-  if (isPending && !raw) return <OverviewFallback />;
+  if (isPending && !raw) return <OverviewSectionSkeleton />;
 
   return (
     <DetailSection title="Overview">
@@ -93,9 +72,9 @@ const CastSection = ({ movieId }: MovieDetailTabPanelsProps) => {
     queryFn: () => fetchMovieCreditsClient(movieId),
   });
 
-  if (isPending && !credits) return <GridSectionFallback title="Cast" />;
+  if (isPending && !credits) return <CastSectionSkeleton />;
 
-  if (!credits) return <GridSectionFallback title="Cast" />;
+  if (!credits) return <CastSectionSkeleton />;
 
   return (
     <DetailSection title="Cast">
@@ -115,11 +94,11 @@ const RecommendationsSection = ({ movieId }: MovieDetailTabPanelsProps) => {
   });
 
   if (isPending && !recommendationsData) {
-    return <GridSectionFallback title="You Might Like" />;
+    return <RecommendationsSectionSkeleton />;
   }
 
   if (!recommendationsData) {
-    return <GridSectionFallback title="You Might Like" />;
+    return <RecommendationsSectionSkeleton />;
   }
 
   return (
@@ -142,15 +121,15 @@ export const MovieDetailTabPanels = ({
 }: MovieDetailTabPanelsProps) => {
   return (
     <div className="space-y-8">
-      <Suspense fallback={<OverviewFallback />}>
+      <Suspense fallback={<OverviewSectionSkeleton />}>
         <OverviewSection movieId={movieId} />
       </Suspense>
 
-      <Suspense fallback={<GridSectionFallback title="Cast" />}>
+      <Suspense fallback={<CastSectionSkeleton />}>
         <CastSection movieId={movieId} />
       </Suspense>
 
-      <Suspense fallback={<GridSectionFallback title="You Might Like" />}>
+      <Suspense fallback={<RecommendationsSectionSkeleton />}>
         <RecommendationsSection movieId={movieId} />
       </Suspense>
     </div>

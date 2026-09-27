@@ -1,5 +1,8 @@
+import {
+  DetailRouteSearchParamsBoundary,
+  type DetailRouteSearchParams,
+} from "@/components/detail/detail-route-search-params-boundary";
 import { TvShowDetailShell } from "@/components/tvshow/tvshow-detail-shell";
-import { getDetailRouteSearchParams } from "@/lib/detail-search-params";
 import {
   buildAnilistTvDetailHref,
   isAnilistTvRouteId,
@@ -8,12 +11,19 @@ import {
 } from "@/lib/anilist-route-id";
 import { resolveTmdbShowToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { hydrateTvShowDetailQueries } from "@/lib/server/hydrate-tv-show-detail-queries";
+import { applyCatalogHourCacheLife } from "@/lib/server/route-cache-life";
 import type { TvDetailCatalog } from "@/lib/tv-detail-catalog";
 import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
+import {
+  applyHeroBackdropOverride,
+  getHeroBackdropOverrides,
+} from "@/lib/flags/hero-backdrop-overrides-server";
+import { fromMalAnimeRouteId, isMalAnimeRouteId } from "@/lib/mal/route-id";
 import type { TvShowDetails } from "@/lib/domain/typings";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { notFound, redirect } from "next/navigation";
+import type { ReactNode } from "react";
 
 type TvDetailLayoutContentProps = {
   children: React.ReactNode;
@@ -21,45 +31,30 @@ type TvDetailLayoutContentProps = {
   routeNamespace?: "anime" | "tv";
 };
 
-const parsePositiveInt = (value: string | null) => {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+type TvShowDetailSearchParamsLayerProps = {
+  children: ReactNode;
+  id: string;
+  details: TvShowDetails;
+  heroDetails: TvShowDetails;
+  routeNamespace: "anime" | "tv";
+  search: DetailRouteSearchParams;
 };
 
-export async function TvShowDetailLayoutContent({
+const TvShowDetailSearchParamsLayer = async ({
   children,
-  params,
-  routeNamespace = "tv",
-}: TvDetailLayoutContentProps) {
-  const { id } = await params;
-
+  id,
+  details,
+  heroDetails,
+  routeNamespace,
+  search,
+}: TvShowDetailSearchParamsLayerProps) => {
   const isAnilistBackedRoute =
     routeNamespace === "anime"
       ? isAnimeAnilistRouteId(id)
       : isAnilistTvRouteId(id);
+  const queryAnilistId = search.anilistId;
+  const requestedSeason = search.season;
 
-  // Detail pages trust the link-time namespace: cards navigate directly to
-  // the canonical `/anime/anilist-*` URL, so the hot path needs only the
-  // detail fetch + search params. Anime mapping stays a cold-path safety net
-  // (stale links, `/anime/tmdb-*`) — never a TTFB blocker.
-  const [detailsResult, requestSearchParams] = await Promise.all([
-    getCachedTvShowDetail(id, {
-      animeCatalog: routeNamespace === "anime",
-    }).catch(() => null) as Promise<TvShowDetails | null>,
-    getDetailRouteSearchParams(),
-  ]);
-  const details = detailsResult;
-
-  if (!details) {
-    notFound();
-  }
-  const queryAnilistId = parsePositiveInt(requestSearchParams.get("anilistId"));
-  const requestedSeason = parsePositiveInt(requestSearchParams.get("season"));
-
-  // Cold-path safety net only: canonical links already carry the AniList id,
-  // so skip mapping I/O when the route is AniList-backed or the caller pinned
-  // `?anilistId=`. Live AniList search is gone from this path — unmapped
-  // titles stay on the TMDB experience instead of blocking TTFB.
   const needsMapping = !isAnilistBackedRoute && queryAnilistId === null;
   const mappedAnilistId = isAnilistBackedRoute
     ? (parseAnimeAnilistRouteId(id) ?? details.id)
@@ -71,10 +66,6 @@ export async function TvShowDetailLayoutContent({
     ? (parseAnimeAnilistRouteId(id) ?? details.id)
     : (queryAnilistId ?? autoResolvedAnilistId);
 
-  // TMDB TV pages that resolve to a known anime canonicalize to `/anime/[id]`
-  // so playback, episode mapping, and the anime UI shell all use AniList data.
-  // Skip when the caller explicitly pinned `?anilistId=` — that's an opt-out
-  // used for shows that intentionally stay on the TMDB experience.
   if (
     routeNamespace === "tv" &&
     queryAnilistId === null &&
@@ -87,7 +78,7 @@ export async function TvShowDetailLayoutContent({
     );
     const [path, query = ""] = canonicalHref.split("?");
     const mergedParams = new URLSearchParams(query);
-    for (const [key, value] of requestSearchParams.entries()) {
+    for (const [key, value] of search.searchParams.entries()) {
       if (key !== "season" && !mergedParams.has(key)) {
         mergedParams.set(key, value);
       }
@@ -116,7 +107,7 @@ export async function TvShowDetailLayoutContent({
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <TvShowDetailShell
-        details={details}
+        details={heroDetails}
         tvId={id}
         anilistId={anilistId}
         routeCatalog={catalog}
@@ -125,5 +116,91 @@ export async function TvShowDetailLayoutContent({
         {children}
       </TvShowDetailShell>
     </HydrationBoundary>
+  );
+};
+
+type CachedTvShowDetailLayoutData = {
+  details: TvShowDetails;
+  heroDetails: TvShowDetails;
+};
+
+async function loadCachedTvShowDetailLayout(
+  id: string,
+  routeNamespace: "anime" | "tv",
+): Promise<CachedTvShowDetailLayoutData> {
+  "use cache";
+  applyCatalogHourCacheLife();
+
+  const details = (await getCachedTvShowDetail(id, {
+    animeCatalog: routeNamespace === "anime",
+  }).catch(() => null)) as TvShowDetails | null;
+
+  if (!details) {
+    notFound();
+  }
+
+  const overrides = await getHeroBackdropOverrides();
+  const isAnilistBackedRoute =
+    routeNamespace === "anime"
+      ? isAnimeAnilistRouteId(id)
+      : isAnilistTvRouteId(id);
+  const isMalBackedRoute = routeNamespace === "anime" && isMalAnimeRouteId(id);
+  const heroDetails = applyHeroBackdropOverride(details, overrides, {
+    mediaType: routeNamespace === "anime" ? "anime" : "tv",
+    tmdbId: isAnilistBackedRoute || isMalBackedRoute ? null : details.id,
+    anilistId: isAnilistBackedRoute
+      ? (parseAnimeAnilistRouteId(id) ?? details.id)
+      : null,
+    malId: isMalBackedRoute ? fromMalAnimeRouteId(id) : null,
+  });
+
+  return { details, heroDetails };
+}
+
+async function TvShowDetailLayoutBody({
+  children,
+  id,
+  routeNamespace,
+  search,
+}: {
+  children: ReactNode;
+  id: string;
+  routeNamespace: "anime" | "tv";
+  search: DetailRouteSearchParams;
+}) {
+  const cached = await loadCachedTvShowDetailLayout(id, routeNamespace);
+
+  return (
+    <TvShowDetailSearchParamsLayer
+      id={id}
+      details={cached.details}
+      heroDetails={cached.heroDetails}
+      routeNamespace={routeNamespace}
+      search={search}
+    >
+      {children}
+    </TvShowDetailSearchParamsLayer>
+  );
+}
+
+export async function TvShowDetailLayoutContent({
+  children,
+  params,
+  routeNamespace = "tv",
+}: TvDetailLayoutContentProps) {
+  const { id } = await params;
+
+  return (
+    <DetailRouteSearchParamsBoundary>
+      {(search) => (
+        <TvShowDetailLayoutBody
+          id={id}
+          routeNamespace={routeNamespace}
+          search={search}
+        >
+          {children}
+        </TvShowDetailLayoutBody>
+      )}
+    </DetailRouteSearchParamsBoundary>
   );
 }

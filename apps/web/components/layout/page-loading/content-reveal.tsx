@@ -10,7 +10,8 @@ export function ContentReveal({ children, className }: ContentRevealProps) {
   return (
     <div
       className={cn(
-        "animate-in fade-in slide-in-from-bottom-1 duration-500 fill-mode-both",
+        "max-lg:animate-none",
+        "lg:animate-in lg:fade-in lg:slide-in-from-bottom-1 lg:duration-500 lg:fill-mode-both",
         className,
       )}
     >

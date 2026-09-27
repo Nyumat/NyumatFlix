@@ -15,7 +15,7 @@ export function TvSeriesGraphTab({ allSeasonDetails }: TvSeriesGraphTabProps) {
       id="section-seasons"
       className="scroll-mt-24"
     >
-      <SeriesGraph allSeasonDetails={allSeasonDetails} title="Series Graph" />
+      <SeriesGraph allSeasonDetails={allSeasonDetails} />
     </section>
   );
 }
