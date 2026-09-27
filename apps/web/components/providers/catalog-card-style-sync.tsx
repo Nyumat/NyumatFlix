@@ -10,9 +10,6 @@ export function CatalogCardStyleSync() {
 
   useEffect(() => {
     document.documentElement.dataset.catalogCardStyle = catalogCardStyle;
-    return () => {
-      delete document.documentElement.dataset.catalogCardStyle;
-    };
   }, [catalogCardStyle]);
 
   return null;

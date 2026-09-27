@@ -6,6 +6,7 @@ import {
   catalogGridTileImageClassName,
   filterCatalogCardArt,
   hasCatalogCardArt,
+  readCardPreviewSource,
   readImdbIdForPreview,
 } from "@/lib/catalog-card-presentation";
 import {
@@ -67,6 +68,73 @@ describe("catalog-card-presentation", () => {
     expect(buildCardHoverPreviewId({ mediaType: "movie", id: 42 })).toBe(
       "movie-42",
     );
+  });
+
+  describe("readCardPreviewSource", () => {
+    it("treats a plain TMDB item as a stream source by TMDB id", () => {
+      expect(readCardPreviewSource({ id: 550, media_type: "movie" })).toEqual({
+        kind: "stream",
+        tmdbId: 550,
+        mediaType: "movie",
+      });
+    });
+
+    it("prefers an explicit imdb id over the TMDB id", () => {
+      expect(
+        readCardPreviewSource({
+          id: 550,
+          media_type: "movie",
+          imdb_id: "tt0137523",
+        }),
+      ).toEqual({
+        kind: "stream",
+        imdbId: "tt0137523",
+        tmdbId: 550,
+        mediaType: "movie",
+      });
+    });
+
+    it("does not treat an unresolved AniList id as a TMDB id", () => {
+      // AniList fallback with no imdb and no youtube key has no preview.
+      expect(
+        readCardPreviewSource({
+          id: 21,
+          media_type: "tv",
+          isAniListFallback: true,
+        }),
+      ).toBeUndefined();
+    });
+
+    it("uses the YouTube trailer for an AniList fallback", () => {
+      expect(
+        readCardPreviewSource({
+          id: 21,
+          media_type: "tv",
+          isAniListFallback: true,
+          youtube_trailer_key: "RIyb52EMx8c",
+        }),
+      ).toEqual({ kind: "youtube", youtubeKey: "RIyb52EMx8c" });
+    });
+
+    it("uses the IMDb id attached to an AniList fallback", () => {
+      expect(
+        readCardPreviewSource({
+          id: 21,
+          media_type: "tv",
+          isAniListFallback: true,
+          imdb_id: "tt0388629",
+        }),
+      ).toEqual({
+        kind: "stream",
+        imdbId: "tt0388629",
+        mediaType: "tv",
+      });
+    });
+
+    it("returns undefined for non-objects", () => {
+      expect(readCardPreviewSource(null)).toBeUndefined();
+      expect(readCardPreviewSource("x")).toBeUndefined();
+    });
   });
 
   it("defaults catalogCardStyle to backdrop in user settings wire", () => {

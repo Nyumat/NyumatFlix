@@ -50,7 +50,7 @@ export function BackdropCardCaption({
           {rating ? (
             <span className="inline-flex items-center gap-1">
               <Star
-                className="size-3 shrink-0 fill-white/75 text-white/75"
+                className="size-3 shrink-0 fill-pink-500 text-pink-500 drop-shadow-[0_0_5px_rgba(236,72,153,0.55)]"
                 aria-hidden
               />
               {rating}

@@ -51,6 +51,19 @@
   --animate-button-pulse-ripple: button-pulse-ripple var(--duration, 1.5s)
     cubic-bezier(0.16, 1, 0.3, 1) infinite;
   --animate-hero-progress: hero-progress 10s linear forwards;
+  --animate-card-preview-in: card-preview-in 520ms cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+
+  @keyframes card-preview-in {
+    from {
+      opacity: 0;
+      transform: scale(1.03);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 
   @keyframes button-pulse {
     0%,
@@ -270,6 +283,17 @@
 html {
   overflow-x: clip;
   color-scheme: dark;
+}
+
+html.ffs-admin-root {
+  overflow-y: auto;
+}
+
+html.ffs-admin-root body {
+  display: block;
+  height: auto;
+  min-height: 100dvh;
+  overflow-y: auto;
 }
 
 /* *=========== Default theme =========== */
@@ -655,6 +679,23 @@ html {
 
     @media (width >= 64rem) {
       grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    }
+  }
+
+  .people-grid,
+  [data-catalog-card-style="backdrop"] .people-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 7rem), 1fr));
+
+    @media (width >= 48rem) {
+      grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    }
+
+    @media (width >= 64rem) {
+      grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    }
+
+    @media (width >= 96rem) {
+      grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
     }
   }
 

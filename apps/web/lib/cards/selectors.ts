@@ -77,6 +77,16 @@ export function getBackdropPath(
   return item.backdrop_path;
 }
 
+export const hasLocalizedCatalogBackdrop = (
+  item: CanonicalCard | LegacyMediaLike,
+): boolean =>
+  Boolean(
+    item &&
+      typeof item === "object" &&
+      "localized_backdrop" in item &&
+      (item as { localized_backdrop?: boolean }).localized_backdrop,
+  );
+
 export function getRatingDisplay(
   item: CanonicalCard | LegacyMediaLike,
 ): string | undefined {
@@ -129,10 +139,30 @@ export function getStableCardKey(
   return `${item.media_type ?? "media"}-${item.id}`;
 }
 
+export const isAnimeHubCatalogCard = (
+  item: CanonicalCard | LegacyMediaLike,
+): boolean => {
+  const source = item as { sourceAnilistId?: unknown };
+  return (
+    typeof source.sourceAnilistId === "number" &&
+    Number.isInteger(source.sourceAnilistId) &&
+    source.sourceAnilistId > 0
+  );
+};
+
+export function getAnimeHubCatalogMediaLabel(
+  item: CanonicalMediaCard | LegacyMediaLike,
+): string {
+  return item.media_type === "movie" ? "Movie" : "Series";
+}
+
 export function getMediaLabel(
   item: CanonicalMediaCard | LegacyMediaLike,
 ): string {
   const isMovieItem = item.media_type === "movie";
+  if (isAnimeHubCatalogCard(item)) {
+    return getAnimeHubCatalogMediaLabel(item);
+  }
   if (isAnimeSearchCard(item)) {
     return isMovieItem ? "Anime Movie" : "Anime";
   }

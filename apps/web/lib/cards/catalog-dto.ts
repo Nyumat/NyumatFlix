@@ -1,14 +1,27 @@
-import type { CanonicalCardLogo } from "@/lib/domain/typings";
+import type {
+  CanonicalCardLogo,
+  CanonicalMediaCard,
+} from "@/lib/domain/typings";
 import type { Movie, TvShow } from "@/tmdb/models";
 import { formatYear } from "./formatters";
 
-export type CatalogMovieCard = {
+type CatalogCardPreviewFields = {
+  /** IMDb id used for the hover trailer stream. */
+  imdb_id?: string;
+  /** YouTube trailer id (AniList-sourced) for the hover preview fallback. */
+  youtube_trailer_key?: string;
+  /** True when `id` is an AniList id, not a TMDB id. */
+  isAniListFallback?: boolean;
+};
+
+export type CatalogMovieCard = CatalogCardPreviewFields & {
   id: number;
   media_type: "movie";
   title: string;
   overview: string;
   poster_path: string;
   backdrop_path?: string;
+  localized_backdrop?: boolean;
   release_date: string;
   vote_average: number;
   vote_count?: number;
@@ -17,7 +30,7 @@ export type CatalogMovieCard = {
   href?: string;
 };
 
-export type CatalogTvCard = {
+export type CatalogTvCard = CatalogCardPreviewFields & {
   id: number;
   media_type: "tv";
   name: string;
@@ -25,6 +38,7 @@ export type CatalogTvCard = {
   overview: string;
   poster_path: string;
   backdrop_path?: string;
+  localized_backdrop?: boolean;
   first_air_date: string;
   vote_average: number;
   vote_count?: number;
@@ -98,6 +112,47 @@ export const toCatalogTvCard = (
     : {}),
 });
 
+export const catalogCardDefaultHref = (card: CatalogMediaCard): string => {
+  if (typeof card.href === "string" && card.href.startsWith("/")) {
+    return card.href;
+  }
+
+  return card.media_type === "movie"
+    ? `/movies/${card.id}`
+    : `/tvshows/${card.id}`;
+};
+
+export const toCanonicalHubCard = (
+  card: CatalogMediaCard,
+): CanonicalMediaCard => {
+  const href = catalogCardDefaultHref(card);
+  const { logo: _logo, ...rest } = card;
+
+  if (card.media_type === "tv") {
+    return {
+      ...rest,
+      href,
+      media_type: "tv",
+      title: card.title,
+      name: card.name,
+    } as CanonicalMediaCard;
+  }
+
+  return {
+    ...rest,
+    href,
+    media_type: "movie",
+    title: card.title,
+  } as CanonicalMediaCard;
+};
+
+export const isCatalogMediaCard = (item: {
+  media_type?: string;
+  genre_ids?: number[];
+}): item is CatalogMediaCard =>
+  (item.media_type === "movie" || item.media_type === "tv") &&
+  !Array.isArray(item.genre_ids);
+
 export const toCatalogMediaCards = (
   items: Array<
     (Movie | TvShow) & {
@@ -163,6 +218,14 @@ export const catalogMovieToMediaItem = (
   popularity: 0,
   video: false,
   logo: card.logo,
+  ...(card.localized_backdrop ? { localized_backdrop: true } : {}),
+  ...(typeof card.imdb_id === "string" ? { imdb_id: card.imdb_id } : {}),
+  ...(typeof card.youtube_trailer_key === "string"
+    ? { youtube_trailer_key: card.youtube_trailer_key }
+    : {}),
+  ...(typeof card.isAniListFallback === "boolean"
+    ? { isAniListFallback: card.isAniListFallback }
+    : {}),
   ...(typeof card.href === "string" && card.href.length > 0
     ? { href: card.href }
     : {}),
@@ -186,6 +249,14 @@ export const catalogTvToMediaItem = (
   origin_country: [],
   popularity: 0,
   logo: card.logo,
+  ...(card.localized_backdrop ? { localized_backdrop: true } : {}),
+  ...(typeof card.imdb_id === "string" ? { imdb_id: card.imdb_id } : {}),
+  ...(typeof card.youtube_trailer_key === "string"
+    ? { youtube_trailer_key: card.youtube_trailer_key }
+    : {}),
+  ...(typeof card.isAniListFallback === "boolean"
+    ? { isAniListFallback: card.isAniListFallback }
+    : {}),
   ...(typeof card.href === "string" && card.href.length > 0
     ? { href: card.href }
     : {}),
@@ -288,7 +359,7 @@ export const toHeroTvRefs = (
   shows: Array<{ id: number }>,
 ): Array<Pick<TvShow, "id">> => shows.map((show) => ({ id: show.id }));
 
-type SlimmableMediaItem = {
+export type SlimmableMediaItem = {
   id: number;
   media_type?: string;
   title?: string;
@@ -296,17 +367,44 @@ type SlimmableMediaItem = {
   overview?: string;
   poster_path?: string | null;
   backdrop_path?: string | null;
+  localized_backdrop?: boolean;
   release_date?: string;
   first_air_date?: string;
   vote_average?: number;
   vote_count?: number;
   logo?: CanonicalCardLogo;
   href?: string;
+  imdb_id?: string;
+  youtube_trailer_key?: string;
+  isAniListFallback?: boolean;
 };
 
 const readSlimHref = (item: SlimmableMediaItem): string | undefined => {
   const href = (item as { href?: unknown }).href;
   return typeof href === "string" && href.startsWith("/") ? href : undefined;
+};
+
+/** Preview fields the hover-trailer pipeline needs to survive RSC slimming. */
+const readSlimPreviewFields = (
+  item: SlimmableMediaItem,
+): CatalogCardPreviewFields => {
+  const source = item as {
+    imdb_id?: unknown;
+    youtube_trailer_key?: unknown;
+    isAniListFallback?: unknown;
+  };
+  return {
+    ...(typeof source.imdb_id === "string" && source.imdb_id.startsWith("tt")
+      ? { imdb_id: source.imdb_id }
+      : {}),
+    ...(typeof source.youtube_trailer_key === "string" &&
+    source.youtube_trailer_key.length > 0
+      ? { youtube_trailer_key: source.youtube_trailer_key }
+      : {}),
+    ...(typeof source.isAniListFallback === "boolean"
+      ? { isAniListFallback: source.isAniListFallback }
+      : {}),
+  };
 };
 
 const getSlimMediaType = (item: SlimmableMediaItem): "movie" | "tv" => {
@@ -322,6 +420,7 @@ export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
     const mediaType = getSlimMediaType(item);
     const title = item.title ?? item.name ?? "";
     const href = readSlimHref(item);
+    const previewFields = readSlimPreviewFields(item);
     const card =
       mediaType === "tv"
         ? ({
@@ -332,10 +431,12 @@ export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
             overview: item.overview ?? "",
             poster_path: item.poster_path ?? "",
             backdrop_path: item.backdrop_path ?? undefined,
+            localized_backdrop: item.localized_backdrop,
             first_air_date: item.first_air_date ?? item.release_date ?? "",
             vote_average: item.vote_average ?? 0,
             vote_count: item.vote_count,
             logo: item.logo,
+            ...previewFields,
             ...(href ? { href } : {}),
           } satisfies CatalogTvCard)
         : ({
@@ -345,10 +446,12 @@ export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
             overview: item.overview ?? "",
             poster_path: item.poster_path ?? "",
             backdrop_path: item.backdrop_path ?? undefined,
+            localized_backdrop: item.localized_backdrop,
             release_date: item.release_date ?? item.first_air_date ?? "",
             vote_average: item.vote_average ?? 0,
             vote_count: item.vote_count,
             logo: item.logo,
+            ...previewFields,
             ...(href ? { href } : {}),
           } satisfies CatalogMovieCard);
     return catalogCardToMediaItem(card) as unknown as T;

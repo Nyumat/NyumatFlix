@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { contentRowTabIndicatorClassName } from "@/lib/content-row-select-trigger";
 import { cn } from "@/lib/utils";
 import type { MediaItem } from "@/lib/domain/typings";
@@ -47,17 +46,11 @@ export function MoviesSeriesTabs({
             <span className="relative inline-block">
               {label}
               {selected ? (
-                <motion.span
-                  layoutId="catalog-movies-series-tab-indicator"
+                <span
                   className={cn(
-                    "absolute -bottom-2.5 left-0 right-0 h-[3px] rounded-full",
+                    "absolute -bottom-2.5 left-0 right-0 h-0.75 rounded-full",
                     contentRowTabIndicatorClassName,
                   )}
-                  transition={{
-                    type: "spring",
-                    stiffness: 420,
-                    damping: 32,
-                  }}
                 />
               ) : null}
             </span>

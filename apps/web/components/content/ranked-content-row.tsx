@@ -1,5 +1,6 @@
 "use client";
 
+import { CatalogHubRow } from "@/components/catalog/catalog-hub-row";
 import {
   Carousel,
   CarouselContent,
@@ -49,54 +50,16 @@ export function RankedContentRow({
 
   if (isWideCatalogRanked) {
     return (
-      <section className={cn(bleed && "index-bleed")}>
-        {header}
-        <div className="relative">
-          <Carousel
-            className="group/row"
-            opts={{
-              align: "start",
-              slidesToScroll: "auto",
-              dragFree: true,
-              containScroll: "trimSnaps",
-            }}
+      <CatalogHubRow ariaLabel={title} bleed={bleed} header={header}>
+        {items.map((item, index) => (
+          <CarouselItem
+            key={`${item.id}-${index}`}
+            className={carouselItemClassName("backdrop")}
           >
-            <CarouselContent
-              className="-ml-3 lg:-ml-4"
-              viewportClassName={bleed ? "index-rail-padding" : undefined}
-            >
-              {items.map((item, index) => (
-                <CarouselItem
-                  key={`${item.id}-${index}`}
-                  className={carouselItemClassName("backdrop")}
-                >
-                  <RankedBackdropCard
-                    item={item}
-                    rank={index + 1}
-                    variant="ribbon"
-                  />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious
-              variant="ghost"
-              className={cn(
-                "hidden top-1/2 z-20 h-11 w-11 -translate-y-1/2 text-white opacity-0 drop-shadow-lg transition-all duration-300 hover:scale-110 hover:bg-transparent hover:text-white group-hover/row:opacity-100 group-focus-within/row:opacity-100 disabled:pointer-events-none disabled:opacity-0 lg:inline-flex",
-                bleed ? "left-2" : "left-0",
-              )}
-              aria-label="Scroll left"
-            />
-            <CarouselNext
-              variant="ghost"
-              className={cn(
-                "hidden top-1/2 z-20 h-11 w-11 -translate-y-1/2 text-white opacity-0 drop-shadow-lg transition-all duration-300 hover:scale-110 hover:bg-transparent hover:text-white group-hover/row:opacity-100 group-focus-within/row:opacity-100 disabled:pointer-events-none disabled:opacity-0 lg:inline-flex",
-                bleed ? "right-2" : "right-0",
-              )}
-              aria-label="Scroll right"
-            />
-          </Carousel>
-        </div>
-      </section>
+            <RankedBackdropCard item={item} rank={index + 1} variant="ribbon" />
+          </CarouselItem>
+        ))}
+      </CatalogHubRow>
     );
   }
 

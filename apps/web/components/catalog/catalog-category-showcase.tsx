@@ -60,9 +60,14 @@ const fetchShowcaseRows = async (
 export const CatalogCategoryShowcase = ({
   pageKey,
   excludeIds = [],
+  initialRowsByKind,
 }: {
   pageKey: CatalogShowcaseCatalog;
   excludeIds?: number[];
+  initialRowsByKind?: {
+    movie: CatalogShowcaseRow[] | null;
+    tv: CatalogShowcaseRow[] | null;
+  };
 }) => {
   const excludeIdsKey = useMemo(
     () => excludeIds.filter((id) => Number.isInteger(id) && id > 0).join(","),
@@ -74,10 +79,24 @@ export const CatalogCategoryShowcase = ({
   const [rowsByKind, setRowsByKind] = useState<{
     movie: CatalogShowcaseRow[] | null;
     tv: CatalogShowcaseRow[] | null;
-  }>({ movie: null, tv: null });
+  }>(() => initialRowsByKind ?? { movie: null, tv: null });
   const [selectedRowId, setSelectedRowId] = useState("");
 
   useEffect(() => {
+    if (initialRowsByKind) {
+      const initialKind = kindForCatalog(pageKey);
+      const rows = initialRowsByKind[initialKind];
+      if (rows?.length) {
+        setSelectedRowId((currentId) => {
+          if (currentId && rows.some((row) => row.rowId === currentId)) {
+            return currentId;
+          }
+          return rows[0]?.rowId ?? "";
+        });
+      }
+      return;
+    }
+
     const controller = new AbortController();
     const initialKind = kindForCatalog(pageKey);
     const otherKind: CatalogMediaKind =
@@ -121,7 +140,7 @@ export const CatalogCategoryShowcase = ({
     return () => {
       controller.abort();
     };
-  }, [excludeIdsKey, pageKey]);
+  }, [excludeIdsKey, initialRowsByKind, pageKey]);
 
   const rows = rowsByKind[mediaKind];
   const selectedRow =
@@ -169,35 +188,28 @@ export const CatalogCategoryShowcase = ({
       : (selectedRow.items as TvShowWithMediaType[]);
 
   return (
-    <section
-      aria-label={`${selectedRow.title} ${mediaKind === "movie" ? "movies" : "series"}`}
-    >
-      <TrendCarousel
-        key={`${mediaKind}-${selectedRow.rowId}`}
-        type={carouselType}
-        title={selectedRow.title}
-        items={items}
-        compact
-        bleed
-        heading={
-          <RecommendationSeed
-            title={selectedRow.title}
-            large
-            options={rows.map((row) => ({
-              value: row.rowId,
-              title: row.title,
-            }))}
-            selectedValue={selectedRow.rowId}
-            onValueChange={setSelectedRowId}
-          />
-        }
-        trailing={
-          <MoviesSeriesTabs
-            value={mediaKind}
-            onChange={handleMediaKindChange}
-          />
-        }
-      />
-    </section>
+    <TrendCarousel
+      key={`${mediaKind}-${selectedRow.rowId}`}
+      type={carouselType}
+      title={selectedRow.title}
+      items={items}
+      compact
+      bleed
+      heading={
+        <RecommendationSeed
+          title={selectedRow.title}
+          large
+          options={rows.map((row) => ({
+            value: row.rowId,
+            title: row.title,
+          }))}
+          selectedValue={selectedRow.rowId}
+          onValueChange={setSelectedRowId}
+        />
+      }
+      trailing={
+        <MoviesSeriesTabs value={mediaKind} onChange={handleMediaKindChange} />
+      }
+    />
   );
 };

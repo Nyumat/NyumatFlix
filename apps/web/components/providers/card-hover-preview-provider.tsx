@@ -5,6 +5,9 @@ import {
   getActiveCardHoverPreviewId,
   subscribeCardHoverPreview,
 } from "@/lib/card-hover-preview-coordinator";
+import { YouTubeHoverPreviewLayer } from "@/components/cards/youtube-hover-preview-layer";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import { initUserInteractionTracking } from "@/lib/media/autoplay-unlock";
 import {
   createContext,
   useContext,
@@ -26,11 +29,15 @@ export function CardHoverPreviewProvider({
 }: {
   children: ReactNode;
 }) {
+  const flags = useFeatureFlags();
+  const showYoutubeFallback =
+    flags.cardHoverPreviews && flags.youtubeHoverFallback;
   const [activePreviewId, setActivePreviewId] = useState<string | null>(() =>
     getActiveCardHoverPreviewId(),
   );
 
   useEffect(() => {
+    initUserInteractionTracking();
     return subscribeCardHoverPreview(setActivePreviewId);
   }, []);
 
@@ -42,6 +49,7 @@ export function CardHoverPreviewProvider({
       }}
     >
       {children}
+      {showYoutubeFallback ? <YouTubeHoverPreviewLayer /> : null}
     </CardHoverPreviewContext.Provider>
   );
 }

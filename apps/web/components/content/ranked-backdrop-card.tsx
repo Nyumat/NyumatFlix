@@ -2,7 +2,11 @@
 
 import { BackdropCard } from "@/components/cards/backdrop-card";
 import { BackdropTopRankRibbon } from "@/components/cards/backdrop-top-rank-ribbon";
-import { isMovie, MediaItem } from "@/lib/domain/typings";
+import {
+  type CanonicalMediaCard,
+  isMovie,
+  type MediaItem,
+} from "@/lib/domain/typings";
 import { cn } from "@/lib/utils";
 
 export type RankedBackdropCardVariant = "overlay" | "ribbon";
@@ -15,7 +19,7 @@ const getRankOverlayClassName = (rank: number) => {
 };
 
 export interface RankedBackdropCardProps {
-  item: MediaItem;
+  item: CanonicalMediaCard | MediaItem;
   rank: number;
   variant?: RankedBackdropCardVariant;
 }

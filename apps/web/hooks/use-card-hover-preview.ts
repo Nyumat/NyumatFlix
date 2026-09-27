@@ -6,8 +6,11 @@ import {
   subscribeCardHoverPreview,
 } from "@/lib/card-hover-preview-coordinator";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
+import { useFeatureFlagsOptional } from "@/components/providers/feature-flags-provider";
+import { useHasUserInteracted } from "@/lib/media/autoplay-unlock";
 import { useVideasyTrailerStream } from "@/hooks/use-videasy-trailer-stream";
 import useMedia from "@/hooks/useMedia";
+import type { CardPreviewSource } from "@/lib/catalog-card-presentation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const HOVER_DWELL_MS = 500;
@@ -15,13 +18,16 @@ const CARD_STREAM_DELAY_MS = 0;
 
 export type UseCardHoverPreviewArgs = {
   previewId: string;
-  imdbId: string | undefined;
+  previewSource: CardPreviewSource | undefined;
   catalogCardStyle: "poster" | "backdrop";
 };
 
 export type UseCardHoverPreviewResult = {
   isPreviewActive: boolean;
+  isPreviewEligible: boolean;
   isPreviewPlaying: boolean;
+  /** True once a playable trailer is known for this card. */
+  isTrailerAvailable: boolean;
   isUnmuted: boolean;
   toggleUnmute: () => void;
   mp4Url: string | null;
@@ -34,16 +40,23 @@ export type UseCardHoverPreviewResult = {
 
 export const useCardHoverPreview = ({
   previewId,
-  imdbId,
+  previewSource,
   catalogCardStyle,
 }: UseCardHoverPreviewArgs): UseCardHoverPreviewResult => {
   const disableHeroTrailers = useAppSettingsStore(
     (state) => state.disableHeroTrailers,
   );
+  const flags = useFeatureFlagsOptional();
+  const staticHeroBackdrops = flags?.staticHeroBackdrops ?? false;
+  const cardHoverPreviewsEnabled = flags?.cardHoverPreviews ?? true;
   const isMobile = useMedia("(max-width: 768px)", false);
+  const userInteracted = useHasUserInteracted();
+  const userInteractedRef = useRef(userInteracted);
+  userInteractedRef.current = userInteracted;
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [hoverArmed, setHoverArmed] = useState(false);
   const [isUnmuted, setIsUnmuted] = useState(false);
+  const manualMuteRef = useRef(false);
   const dwellTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -55,17 +68,21 @@ export const useCardHoverPreview = ({
   }, []);
 
   const previewEligible =
+    cardHoverPreviewsEnabled &&
     catalogCardStyle === "backdrop" &&
     !isMobile &&
     !prefersReducedMotion &&
     !disableHeroTrailers &&
-    Boolean(imdbId?.startsWith("tt"));
+    !staticHeroBackdrops &&
+    Boolean(previewSource);
 
   const streamEnabled = previewEligible && hoverArmed;
+  const streamSource =
+    previewSource?.kind === "stream" ? previewSource : undefined;
 
   const { mp4Url, hlsUrl, status, handleStreamError } = useVideasyTrailerStream(
-    imdbId,
-    streamEnabled,
+    streamSource,
+    streamEnabled && Boolean(streamSource),
     { initialStreamDelayMs: CARD_STREAM_DELAY_MS },
   );
 
@@ -80,6 +97,7 @@ export const useCardHoverPreview = ({
     clearDwellTimer();
     setHoverArmed(false);
     setIsUnmuted(false);
+    manualMuteRef.current = false;
     releaseCardHoverPreview(previewId);
   }, [clearDwellTimer, previewId]);
 
@@ -91,6 +109,11 @@ export const useCardHoverPreview = ({
     dwellTimerRef.current = window.setTimeout(() => {
       claimCardHoverPreview(previewId);
       setHoverArmed(true);
+      // With sound only when the browser will allow it (post-gesture) and the
+      // user hasn't explicitly muted a previous preview.
+      if (userInteractedRef.current && !manualMuteRef.current) {
+        setIsUnmuted(true);
+      }
     }, HOVER_DWELL_MS);
   }, [clearDwellTimer, previewEligible, previewId]);
 
@@ -104,6 +127,7 @@ export const useCardHoverPreview = ({
         clearDwellTimer();
         setHoverArmed(false);
         setIsUnmuted(false);
+        manualMuteRef.current = false;
       }
     });
   }, [clearDwellTimer, previewId]);
@@ -116,15 +140,37 @@ export const useCardHoverPreview = ({
   }, [clearDwellTimer, previewId]);
 
   const toggleUnmute = useCallback(() => {
-    setIsUnmuted((prev) => !prev);
+    setIsUnmuted((prev) => {
+      const next = !prev;
+      manualMuteRef.current = !next;
+      return next;
+    });
   }, []);
 
+  // If the user interacts while a preview is already playing muted, upgrade it
+  // to sound (the gesture unlocks unmuted playback).
+  useEffect(() => {
+    if (userInteracted && hoverArmed && !manualMuteRef.current) {
+      setIsUnmuted(true);
+    }
+  }, [userInteracted, hoverArmed]);
+
   const isPreviewPlaying =
-    streamEnabled && status === "ready" && Boolean(mp4Url || hlsUrl);
+    Boolean(streamSource) &&
+    streamEnabled &&
+    status === "ready" &&
+    Boolean(mp4Url || hlsUrl);
+
+  const isTrailerAvailable =
+    previewSource?.kind === "youtube"
+      ? Boolean(previewSource.youtubeKey)
+      : status === "ready" && Boolean(mp4Url || hlsUrl);
 
   return {
     isPreviewActive: streamEnabled,
+    isPreviewEligible: previewEligible,
     isPreviewPlaying,
+    isTrailerAvailable,
     isUnmuted,
     toggleUnmute,
     mp4Url,

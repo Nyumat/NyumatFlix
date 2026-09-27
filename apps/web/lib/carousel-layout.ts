@@ -9,3 +9,7 @@ export const wideCarouselItemClassName =
 
 export const wideCarouselSkeletonClassName =
   "aspect-video w-[66%] shrink-0 rounded-lg sm:w-[46%] md:w-[34%] lg:w-[29%] xl:w-[26%] 2xl:w-[22%]";
+
+/** Prevents hub carousels from collapsing to zero height during hydration/scroll. */
+export const catalogHubRowTrackMinHeightClassName =
+  "min-h-[12.5rem] sm:min-h-[13.5rem] md:min-h-[15rem]";

@@ -1,6 +1,7 @@
 import { fetchImdbTrailerStreams } from "@/lib/imdb-trailer";
-import { getSiteFlags } from "@/lib/flags/site-flags";
+import { getSiteFlags } from "@/lib/flags/site-flags-server";
 import { signedUrlCacheHeaders } from "@/lib/http-cache";
+import { resolveImdbIdFromTmdb } from "@/lib/trailer-imdb-resolve";
 import {
   pickBestVideasyHlsStream,
   pickBestVideasyMp4Stream,
@@ -8,9 +9,16 @@ import {
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 const IMDB_ID_PATTERN = /^tt\d+$/;
+
+const parseTmdbId = (value: string | null): number | null => {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const parseMediaType = (value: string | null): "movie" | "tv" | null =>
+  value === "movie" || value === "tv" ? value : null;
 
 export async function GET(request: Request) {
   const capDenied = await rejectUnlessCapAllowed(request);
@@ -25,9 +33,27 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const imdbId = searchParams.get("imdbId")?.trim() ?? "";
+  const rawImdbId = searchParams.get("imdbId")?.trim() ?? "";
+  const tmdbId = parseTmdbId(searchParams.get("tmdbId"));
+  const mediaType = parseMediaType(searchParams.get("mediaType"));
 
-  if (!IMDB_ID_PATTERN.test(imdbId)) {
+  const hasImdbParam = rawImdbId.length > 0;
+  let imdbId = IMDB_ID_PATTERN.test(rawImdbId) ? rawImdbId : null;
+  let resolvedFrom: "imdb" | "tmdb" = "imdb";
+
+  if (!imdbId && tmdbId && mediaType) {
+    imdbId = await resolveImdbIdFromTmdb(tmdbId, mediaType);
+    resolvedFrom = "tmdb";
+  }
+
+  if (!imdbId) {
+    // A TMDB id we couldn't resolve is a data gap, not a bad request.
+    if (!hasImdbParam && tmdbId && mediaType) {
+      return NextResponse.json(
+        { url: null, hlsUrl: null, error: "no_imdb_id" },
+        { status: 200 },
+      );
+    }
     return NextResponse.json(
       { url: null, hlsUrl: null, error: "invalid_imdb_id" },
       { status: 400 },
@@ -49,6 +75,8 @@ export async function GET(request: Request) {
       console.info(
         "[videasy] ok",
         imdbId,
+        "via",
+        resolvedFrom,
         "mp4Len",
         url?.length ?? 0,
         "hlsLen",
