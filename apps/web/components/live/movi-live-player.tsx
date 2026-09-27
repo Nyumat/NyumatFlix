@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-import { LiveChannelSidebar } from "@/components/live/live-channel-sidebar";
-import { LiveTvGuideProvider } from "@/components/live/live-tv-guide-context";
+import { LiveTvShell } from "@/components/live/live-tv-shell";
 import { useAdaptiveLiveHls } from "@/hooks/use-adaptive-live-hls";
 import { buildLiveChannelShareUrl } from "@/lib/live/channel-slugs";
 import type { LiveChannel, LiveChannelsResponse } from "@/lib/live/types";
@@ -19,13 +18,13 @@ import {
   isMoviVideoPlaybackReady,
   resetMoviProgressObservation,
 } from "@/lib/player/player-playback-ready";
-import { cn } from "@/lib/utils";
 
 type LiveGuideCategory = LiveChannelsResponse["categories"][number];
 
 type MoviLivePlayerProps = {
   categories: LiveGuideCategory[];
   channels: LiveChannel[];
+  channelCount?: number;
   loadingMoreChannels?: boolean;
   onCategoryChange: (categoryId: string) => void;
   onRefresh: () => void;
@@ -119,6 +118,7 @@ function MoviLiveStream({
 export function MoviLivePlayer({
   categories,
   channels,
+  channelCount,
   loadingMoreChannels = false,
   onCategoryChange,
   onRefresh,
@@ -143,52 +143,42 @@ export function MoviLivePlayer({
     : null;
 
   return (
-    <LiveTvGuideProvider shareUrl={shareUrl}>
-      <div className="overflow-hidden rounded-[8px] border border-border bg-card/40 shadow-2xl shadow-black/35 backdrop-blur-md">
-        <div className="flex flex-col xl:relative">
-          <div className="relative min-w-0 bg-black xl:pr-[320px]">
-            <div className="aspect-video w-full">
-              {playUrl ? (
-                <>
-                  <MoviLiveStream
-                    key={playerKey}
-                    playUrl={playUrl}
-                    poster={poster}
-                    title={selectedChannel?.name}
-                    playerKey={playerKey}
-                    onPlaying={handlePlaying}
-                  />
-                  <div className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-red-600 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-white">
-                    Live
-                  </div>
-                </>
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                  Select a channel
-                </div>
-              )}
-            </div>
-          </div>
-
-          <LiveChannelSidebar
-            categories={categories}
-            channels={channels}
-            loadingMore={loadingMoreChannels}
-            className={cn(
-              "max-xl:max-h-[min(50vh,28rem)] max-xl:w-full max-xl:border-t max-xl:border-l-0",
-              "xl:absolute xl:inset-y-0 xl:right-0 xl:z-30 xl:flex xl:w-[320px] xl:max-h-none xl:border-l xl:border-t-0",
-            )}
-            onCategoryChange={onCategoryChange}
-            onRefresh={onRefresh}
-            onQueryChange={onQueryChange}
-            onSelectChannel={onSelectChannel}
-            query={query}
-            refreshing={refreshing}
-            selectedCategory={selectedCategory}
-            selectedChannelId={selectedChannelId}
+    <LiveTvShell
+      categories={categories}
+      channels={channels}
+      channelCount={channelCount}
+      loadingMoreChannels={loadingMoreChannels}
+      onCategoryChange={onCategoryChange}
+      onRefresh={onRefresh}
+      onQueryChange={onQueryChange}
+      onSelectChannel={onSelectChannel}
+      query={query}
+      refreshing={refreshing}
+      selectedCategory={selectedCategory}
+      selectedChannel={selectedChannel}
+      selectedChannelId={selectedChannelId}
+      shareUrl={shareUrl}
+      player={
+        playUrl ? (
+          <MoviLiveStream
+            key={playerKey}
+            playUrl={playUrl}
+            poster={poster}
+            title={selectedChannel?.name}
+            playerKey={playerKey}
+            onPlaying={handlePlaying}
           />
-        </div>
-      </div>
-    </LiveTvGuideProvider>
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-black text-muted-foreground">
+            <p className="text-sm font-medium text-foreground/80">
+              Select a channel
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Pick a channel from the guide to start watching
+            </p>
+          </div>
+        )
+      }
+    />
   );
 }

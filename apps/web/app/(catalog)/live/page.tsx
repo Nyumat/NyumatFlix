@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 
-import { IndexHeader } from "@/components/catalog/index-header";
 import { IndexPage } from "@/components/catalog/index-page";
 import { PageContainer } from "@/components/layout/page-container";
 import { LiveTvPage } from "@/components/live/live-tv-page";
-import { getSiteFlags } from "@/lib/flags/site-flags";
+import { getSiteFlags } from "@/lib/flags/site-flags-server";
 import { getLiveChannels } from "@/lib/live/dulo";
 import { EMPTY_LIVE_GUIDE } from "@/lib/live/empty-guide";
 import {
@@ -17,6 +17,9 @@ import type { LiveChannelsResponse } from "@/lib/live/types";
 type LivePageProps = {
   searchParams: Promise<{ ch?: string }>;
 };
+
+export const prefetch = "partial";
+export const instant = false;
 
 export async function generateMetadata({
   searchParams,
@@ -47,7 +50,9 @@ const loadInitialLiveGuide = async (): Promise<LiveChannelsResponse> => {
   }
 };
 
-export default async function LivePage({ searchParams }: LivePageProps) {
+export default async function LivePage(props: LivePageProps) {
+  await connection();
+  const searchParams = await props.searchParams;
   const flags = await getSiteFlags();
   if (!flags.liveTvEnabled) {
     notFound();
@@ -60,14 +65,7 @@ export default async function LivePage({ searchParams }: LivePageProps) {
 
   return (
     <PageContainer>
-      <IndexPage
-        header={
-          <IndexHeader
-            title="Live"
-            description="Channels streaming right now. Pick a channel to tune in."
-          />
-        }
-      >
+      <IndexPage>
         <LiveTvPage
           initialGuide={initialGuide}
           initialChannelSlug={ch ?? null}

@@ -8,6 +8,7 @@
   --video-bg: #000000;
   --video-border-radius: 0px;
   --video-border: 0px solid transparent;
+  --video-controls-color: rgb(255 255 255 / 0.92);
   --media-font-family:
     var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --media-live-button-edge-bg: hsl(var(--destructive));
@@ -63,4 +64,23 @@
 
 .nyumat-live-player .vds-live-channel-meta .vds-chapter-title {
   margin-left: 0;
+}
+
+.nyumat-live-player .vds-video-layout .vds-controls {
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 0.82) 0%,
+    rgb(0 0 0 / 0.45) 55%,
+    transparent 100%
+  );
+}
+
+.nyumat-live-player .vds-video-layout[data-lg] .vds-controls-group {
+  padding-inline: 1rem;
+}
+
+@media (width >= 64rem) {
+  .nyumat-live-player .vds-video-layout[data-lg] .vds-controls-group {
+    padding-inline: 1.25rem;
+  }
 }
