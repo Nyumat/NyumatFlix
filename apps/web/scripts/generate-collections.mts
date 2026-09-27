@@ -11,6 +11,8 @@ const EXPORT_URL = `https://files.tmdb.org/p/exports/collection_ids_${exportDate
 const TMDB_URL = "https://api.themoviedb.org/3";
 const MIN_PARTS = 4;
 const MIN_POPULARITY = 5;
+const ADULT_NAME_PATTERN =
+  /\b(adult|erotic|erotica|porn|pornographic|xxx|nude|nudity|sex|sexual|softcore|hardcore|hentai|pinku|pink film|emmanuelle|deep throat|grindhouse|pink film)\b/i;
 const BATCH_SIZE = 4;
 const SEED_IDS = [
   131296, 86311, 1241, 9485, 10, 119, 328, 295, 87359, 8650, 10194, 948, 8091,
@@ -24,6 +26,7 @@ type Movie = {
   poster_path?: string | null;
   backdrop_path?: string | null;
   release_date?: string | null;
+  adult?: boolean;
 };
 type Collection = {
   id: number;
@@ -32,6 +35,7 @@ type Collection = {
   poster_path?: string | null;
   backdrop_path?: string | null;
   popularity?: number;
+  adult?: boolean;
   parts?: Movie[];
 };
 
@@ -78,13 +82,20 @@ async function fetchCollection(id: number): Promise<Collection | null> {
 }
 
 function normalize(collection: Collection) {
-  const parts = (collection.parts ?? []).filter(
-    (part) =>
-      Boolean(part.poster_path) &&
-      Boolean(part.release_date) &&
-      String(part.release_date).slice(0, 10) <=
-        new Date().toISOString().slice(0, 10),
-  );
+  if (collection.adult) return null;
+  if (ADULT_NAME_PATTERN.test(collection.name)) return null;
+  if (collection.overview && ADULT_NAME_PATTERN.test(collection.overview)) {
+    return null;
+  }
+  const parts = (collection.parts ?? [])
+    .filter((part) => !part.adult)
+    .filter(
+      (part) =>
+        Boolean(part.poster_path) &&
+        Boolean(part.release_date) &&
+        String(part.release_date).slice(0, 10) <=
+          new Date().toISOString().slice(0, 10),
+    );
   const popularity = Math.max(
     collection.popularity ?? 0,
     ...parts.map((part) => part.popularity ?? 0),

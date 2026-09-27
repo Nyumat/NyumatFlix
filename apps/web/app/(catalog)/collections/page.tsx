@@ -2,20 +2,24 @@ import { CollectionsInfiniteList } from "@/components/collections/collections-in
 import { IndexPage } from "@/components/catalog/index-page";
 import { PageContainer } from "@/components/layout/page-container";
 import { getHomeCollections } from "@/lib/server/home-collections-data";
+import { applyCatalogHourCacheLife } from "@/lib/server/route-cache-life";
 import type { Metadata } from "next";
-
-export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Collections | NyumatFlix",
   description: "Browse curated movie collections on NyumatFlix.",
 };
 
+export const instant = true;
+
 /**
  * Collections surface contract: preserve the home showcase grammar while
  * giving the complete curated collection series its own browsable route.
  */
 export default async function CollectionsPage() {
+  "use cache";
+  applyCatalogHourCacheLife();
+
   const collections = await getHomeCollections();
 
   return (
