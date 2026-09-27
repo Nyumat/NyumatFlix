@@ -9,6 +9,7 @@ import {
   shouldRewriteDirectProxyPlaylist,
   toClientDirectPlaybackUrl,
   toUpstreamCalluspiratesPlaybackUrl,
+  isAllowedDirectFallbackProxyPath,
   unwrapDirectProxyPath,
 } from "@/lib/scrape/direct-proxy";
 
@@ -69,6 +70,17 @@ describe("direct-proxy", () => {
     ).toBe(
       "http://localhost:8788/api/transcode/playlist?u=https%3A%2F%2Fexample.com%2Fmovie.mkv&access_token=session-token",
     );
+  });
+
+  it("allows only media and transcode fallback paths", () => {
+    expect(isAllowedDirectFallbackProxyPath("/api/direct/media")).toBe(true);
+    expect(
+      isAllowedDirectFallbackProxyPath("/api/direct/transcode/playlist"),
+    ).toBe(true);
+    expect(isAllowedDirectFallbackProxyPath("/api/direct/session")).toBe(false);
+    expect(
+      isAllowedDirectFallbackProxyPath("/api/direct/movie/550/streams"),
+    ).toBe(false);
   });
 
   it("resolves leftover proxy target back to calluspirates", () => {
