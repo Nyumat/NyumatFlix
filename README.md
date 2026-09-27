@@ -42,6 +42,7 @@
 >
 > - `ID_MOE_API_KEY` — anime ↔ TMDB mapping
 > - `MAL_CLIENT_ID` / `MAL_CLIENT_SECRET` — MyAnimeList sync on login
+> - `ANIMEONSEN_CLIENT_ID` / `ANIMEONSEN_CLIENT_SECRET` — AnimeOnsen scrape provider
 > - `scripts/gluetun/.env` — Surfshark (or other) WireGuard creds for scrape VPN egress
 > - `CALLUSPIRATES_*` — Direct playback provider (nyumatflix.com only in prod)
 > - `bun run cap:up` — self-hosted Cap instead of dev bypass on `/login`

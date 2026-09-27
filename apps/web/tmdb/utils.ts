@@ -44,7 +44,32 @@ const imageSizes = {
   original: "original",
 };
 
-import { optimizeRemoteImageUrl } from "@/lib/images/cdn-image";
+import {
+  backdropSrcSet,
+  BACKDROP_IMAGE_WIDTHS,
+  heroSrcSet,
+  isImageProxyEnabled,
+  optimizeRemoteImageUrl,
+  posterSrcSet,
+  POSTER_IMAGE_WIDTHS,
+} from "@/lib/images/cdn-image";
+
+const TMDB_SIZE_TO_WIDTH: Record<string, number> = {
+  w45: 45,
+  w92: 92,
+  w154: 154,
+  w185: 185,
+  w300: 300,
+  w342: 342,
+  w500: 500,
+  w780: 780,
+  w1280: 1280,
+  h632: 632,
+  original: 1920,
+};
+
+const resolveProxyWidth = (type: ImageSize) =>
+  TMDB_SIZE_TO_WIDTH[String(type)] ?? 1920;
 
 const directUrl = (path: string, type: ImageSize = "original") => {
   if (!path) {
@@ -55,13 +80,28 @@ const directUrl = (path: string, type: ImageSize = "original") => {
   return `https://image.tmdb.org/t/p/${type}/${path.replace(/^\/+/, "")}`;
 };
 
+const proxySourceType = (type: ImageSize) =>
+  isImageProxyEnabled() ? "original" : type;
+
 const url = (path: string, type: ImageSize = "original") => {
   if (!path) {
     console.error("Invalid image path provided.");
     return "/placeholder.png";
   }
-  if (/^https?:\/\//.test(path)) return optimizeRemoteImageUrl(path);
-  return optimizeRemoteImageUrl(directUrl(path, type));
+  const width = resolveProxyWidth(type);
+  if (/^https?:\/\//.test(path)) {
+    return optimizeRemoteImageUrl(path, { width });
+  }
+  return optimizeRemoteImageUrl(directUrl(path, proxySourceType(type)), {
+    width,
+  });
+};
+
+const remoteOriginalUrl = (path: string) => {
+  if (/^https?:\/\//.test(path)) {
+    return path;
+  }
+  return directUrl(path, "original");
 };
 
 const poster = (path: string, size: PosterSize = "w342") => {
@@ -92,18 +132,15 @@ export const tmdbImage = {
   url,
   poster,
   posterDirect,
+  posterSrcSet: (path: string) => posterSrcSet(remoteOriginalUrl(path)),
   backdrop,
   backdropDirect,
+  backdropSrcSet: (path: string) => backdropSrcSet(remoteOriginalUrl(path)),
+  heroSrcSet: (path: string) => heroSrcSet(remoteOriginalUrl(path)),
   profile,
   logo,
-};
-
-const content = (string: string) => {
-  return string
-    .split("\n")
-    .filter((section) => section !== "")
-    .map((section) => `<p>${section}</p>`)
-    .join("");
+  posterWidths: POSTER_IMAGE_WIDTHS,
+  backdropWidths: BACKDROP_IMAGE_WIDTHS,
 };
 
 const runtime = (minutes: number) => {
@@ -139,7 +176,6 @@ const country = (code: string) => {
 };
 
 export const format = {
-  content,
   runtime,
   date,
   year,

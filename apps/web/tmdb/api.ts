@@ -555,6 +555,14 @@ export const tv = {
 };
 
 export const trending = {
+  all: ({ time, page = "1" }: TrendingRequestParams) =>
+    api.fetcher<ListResponse<MovieWithMediaType | TvShowWithMediaType>>({
+      endpoint: `trending/all/${time}`,
+      params: {
+        page,
+      },
+    }),
+
   movie: ({ time, page = "1" }: TrendingRequestParams) =>
     api.fetcher<ListResponse<MovieWithMediaType>>({
       endpoint: `trending/movie/${time}`,
