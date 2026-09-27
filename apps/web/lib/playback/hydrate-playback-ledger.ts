@@ -1,7 +1,5 @@
 "use client";
 
-import { getSession } from "next-auth/react";
-
 import {
   PLAYBACK_PROGRESS_STORAGE_KEY,
   LAST_TV_EPISODE_STORAGE_KEY,
@@ -100,9 +98,9 @@ const migrateLegacyLocalProgress = async (
   return true;
 };
 
-export const hydrateSignedInPlaybackLedger = async (): Promise<void> => {
-  const session = await getSession();
-  const userId = session?.user?.id;
+export const hydrateSignedInPlaybackLedger = async (
+  userId: string,
+): Promise<void> => {
   if (!userId) {
     return;
   }

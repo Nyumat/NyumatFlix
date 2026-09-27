@@ -51,6 +51,7 @@ export type RecentlyWatchedItem = {
   voteAverage?: number;
   year?: string;
   isAnime: boolean;
+  imdbId?: string | null;
   lastAiredSeason?: number;
   lastAiredEpisode?: number;
   showStatus?: string | null;
@@ -106,14 +107,9 @@ export const getVidsrcLastTvEpisode = (
 export const buildRecentlyWatchedHref = (
   mediaType: PlaybackMediaType,
   contentId: number,
-  seasonNumber?: number,
 ): string => {
   if (mediaType === "movie") {
     return `/movies/${contentId}`;
-  }
-
-  if (seasonNumber && seasonNumber > 0) {
-    return `/tvshows/${contentId}?season=${seasonNumber}`;
   }
 
   return `/tvshows/${contentId}`;
@@ -457,6 +453,9 @@ export const mediaTypesForScope = (
   }
 };
 
+const isValidAnilistId = (value: number | null | undefined): boolean =>
+  typeof value === "number" && Number.isInteger(value) && value > 0;
+
 export const toRecentlyWatchedItem = (
   stub: RecentlyWatchedStub,
   media: {
@@ -466,38 +465,39 @@ export const toRecentlyWatchedItem = (
     voteAverage?: number;
     year?: string;
     isAnime?: boolean;
+    /** Verified AniList id — never fabricate one from `stub.contentId`. */
+    anilistId?: number | null;
+    imdbId?: string | null;
     lastAiredSeason?: number;
     lastAiredEpisode?: number;
     showStatus?: string | null;
     hasNextEpisode?: boolean;
   },
-): RecentlyWatchedItem => ({
-  mediaType: stub.mediaType,
-  contentId: stub.contentId,
-  title: media.title || stub.title || "Untitled",
-  href: media.isAnime
-    ? buildAnilistTvDetailHref(
-        stub.contentId,
-        stub.seasonNumber && stub.seasonNumber > 0
-          ? { season: stub.seasonNumber }
-          : undefined,
-      )
-    : buildRecentlyWatchedHref(
-        stub.mediaType,
-        stub.contentId,
-        stub.seasonNumber,
-      ),
-  backdropPath: media.backdropPath ?? stub.backdropPath ?? null,
-  posterPath: media.posterPath ?? stub.posterPath ?? null,
-  progressRatio: stub.progressRatio,
-  updatedAt: stub.updatedAt,
-  seasonNumber: stub.seasonNumber,
-  episodeNumber: stub.episodeNumber,
-  voteAverage: media.voteAverage ?? stub.voteAverage,
-  year: media.year ?? stub.year,
-  isAnime: media.isAnime ?? false,
-  lastAiredSeason: media.lastAiredSeason,
-  lastAiredEpisode: media.lastAiredEpisode,
-  showStatus: media.showStatus,
-  hasNextEpisode: media.hasNextEpisode,
-});
+): RecentlyWatchedItem => {
+  const isAnime = media.isAnime ?? false;
+  const hasVerifiedAnilistId = isValidAnilistId(media.anilistId);
+
+  return {
+    mediaType: stub.mediaType,
+    contentId: stub.contentId,
+    title: media.title || stub.title || "Untitled",
+    href:
+      isAnime && hasVerifiedAnilistId
+        ? buildAnilistTvDetailHref(media.anilistId as number)
+        : buildRecentlyWatchedHref(stub.mediaType, stub.contentId),
+    backdropPath: media.backdropPath ?? stub.backdropPath ?? null,
+    posterPath: media.posterPath ?? stub.posterPath ?? null,
+    progressRatio: stub.progressRatio,
+    updatedAt: stub.updatedAt,
+    seasonNumber: stub.seasonNumber,
+    episodeNumber: stub.episodeNumber,
+    voteAverage: media.voteAverage ?? stub.voteAverage,
+    year: media.year ?? stub.year,
+    isAnime,
+    imdbId: media.imdbId ?? null,
+    lastAiredSeason: media.lastAiredSeason,
+    lastAiredEpisode: media.lastAiredEpisode,
+    showStatus: media.showStatus,
+    hasNextEpisode: media.hasNextEpisode,
+  };
+};

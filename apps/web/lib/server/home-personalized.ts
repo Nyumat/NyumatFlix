@@ -35,6 +35,7 @@ import {
 } from "@/lib/server/episode-check-cache";
 import { getCoalescingMemoryCache } from "@/lib/cache/coalescing-memory-cache";
 import { runInChunks } from "@/lib/server/chunked-parallel";
+import { enrichLocalizedCatalogBackdrops } from "@/lib/server/enrich-catalog-backdrops";
 import {
   createServerRecentlyWatchedEnrichmentFetchers,
   createTvDetailFetcher,
@@ -79,6 +80,14 @@ const enrichUpNextCandidate = async (
   }
 
   const isAnimeItem = fetched.catalog === "anime" || isAnime(detail);
+  const verifiedAnilistId =
+    typeof detail.sourceAnilistId === "number" &&
+    Number.isInteger(detail.sourceAnilistId) &&
+    detail.sourceAnilistId > 0
+      ? detail.sourceAnilistId
+      : fetched.catalog === "anime"
+        ? candidate.contentId
+        : null;
   const stub = {
     mediaType: "tv" as const,
     contentId: candidate.contentId,
@@ -103,21 +112,23 @@ const enrichUpNextCandidate = async (
     voteAverage: detail.vote_average,
     year: detail.first_air_date?.substring(0, 4),
     isAnime: isAnimeItem,
+    anilistId: verifiedAnilistId,
   });
 
-  const upNextHref = isAnimeItem
-    ? buildAnimeUpNextHref(
-        candidate.contentId,
-        candidate.episodeInfo.nextUnwatchedEpisode,
-        candidate.watchlistItem.lastWatchedSeason,
-        candidate.watchlistItem.lastWatchedEpisode,
-      )
-    : buildUpNextHref(
-        candidate.contentId,
-        candidate.episodeInfo.nextUnwatchedEpisode,
-        candidate.watchlistItem.lastWatchedSeason,
-        candidate.watchlistItem.lastWatchedEpisode,
-      );
+  const upNextHref =
+    isAnimeItem && verifiedAnilistId
+      ? buildAnimeUpNextHref(
+          verifiedAnilistId,
+          candidate.episodeInfo.nextUnwatchedEpisode,
+          candidate.watchlistItem.lastWatchedSeason,
+          candidate.watchlistItem.lastWatchedEpisode,
+        )
+      : buildUpNextHref(
+          candidate.contentId,
+          candidate.episodeInfo.nextUnwatchedEpisode,
+          candidate.watchlistItem.lastWatchedSeason,
+          candidate.watchlistItem.lastWatchedEpisode,
+        );
 
   return {
     ...item,
@@ -165,7 +176,7 @@ const tryBecauseYouWatchedStub = async (
       contentId: stub.contentId,
       seedTitle,
       mediaType: "movie",
-      items,
+      items: await enrichLocalizedCatalogBackdrops(items),
     };
   }
 
@@ -199,7 +210,7 @@ const tryBecauseYouWatchedStub = async (
     contentId: stub.contentId,
     seedTitle,
     mediaType: "tv",
-    items,
+    items: await enrichLocalizedCatalogBackdrops(items),
   };
 };
 

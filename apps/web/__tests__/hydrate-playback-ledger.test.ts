@@ -11,18 +11,11 @@ import {
   resetGuestLedger,
 } from "@/lib/playback/progress-ledger-facade";
 
-const getSessionMock = vi.hoisted(() => vi.fn());
-
-vi.mock("next-auth/react", () => ({
-  getSession: getSessionMock,
-}));
-
 describe("hydrateSignedInPlaybackLedger", () => {
   beforeEach(() => {
     resetGuestLedger();
     clearSignedInLedger();
     window.localStorage.clear();
-    getSessionMock.mockReset();
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -31,8 +24,6 @@ describe("hydrateSignedInPlaybackLedger", () => {
   });
 
   it("migrates legacy local progress through the playback progress api", async () => {
-    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
-
     window.localStorage.setItem(
       PLAYBACK_PROGRESS_STORAGE_KEY,
       JSON.stringify({
@@ -70,7 +61,7 @@ describe("hydrateSignedInPlaybackLedger", () => {
         json: async () => ({ entries: serverEntries }),
       } as Response);
 
-    await hydrateSignedInPlaybackLedger();
+    await hydrateSignedInPlaybackLedger("user-1");
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -101,8 +92,6 @@ describe("hydrateSignedInPlaybackLedger", () => {
   });
 
   it("does not mark migration complete when bulk save fails", async () => {
-    getSessionMock.mockResolvedValue({ user: { id: "user-2" } });
-
     window.localStorage.setItem(
       PLAYBACK_PROGRESS_STORAGE_KEY,
       JSON.stringify({
@@ -125,7 +114,7 @@ describe("hydrateSignedInPlaybackLedger", () => {
         json: async () => ({ error: "failed" }),
       } as Response);
 
-    await hydrateSignedInPlaybackLedger();
+    await hydrateSignedInPlaybackLedger("user-2");
 
     expect(
       window.localStorage.getItem("nyumatflix:playback-ledger-migrated:user-2"),

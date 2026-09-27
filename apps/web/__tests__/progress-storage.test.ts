@@ -36,6 +36,34 @@ describe("mergePlaybackProgressEntry", () => {
     });
   });
 
+  it("keeps the highest watched when a slightly stale write arrives late", () => {
+    const merged = mergePlaybackProgressEntry(
+      { watched: 640, duration: 1000, updatedAt: 5_000 },
+      { watched: 610, duration: 1000 },
+      5_500,
+    );
+
+    expect(merged).toEqual({
+      watched: 640,
+      duration: 1000,
+      updatedAt: 5_500,
+    });
+  });
+
+  it("accepts a deliberate large rewind even when timestamps are newer", () => {
+    const merged = mergePlaybackProgressEntry(
+      { watched: 640, duration: 1000, updatedAt: 5_000 },
+      { watched: 100, duration: 1000 },
+      5_500,
+    );
+
+    expect(merged).toEqual({
+      watched: 100,
+      duration: 1000,
+      updatedAt: 5_500,
+    });
+  });
+
   it("still accepts higher watched from a slower tab when timestamps are stale", () => {
     const merged = mergePlaybackProgressEntry(
       { watched: 100, duration: 1000, updatedAt: 500 },
