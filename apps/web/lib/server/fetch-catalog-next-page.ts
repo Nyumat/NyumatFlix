@@ -16,6 +16,7 @@ import {
 } from "@/lib/released-media";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { filterDiscoverParams, getUserTimezone } from "@/lib/utils";
+import { enrichLocalizedCatalogBackdrops } from "@/lib/server/enrich-catalog-backdrops";
 import { tmdb } from "@/tmdb/api";
 import type { SortByTypeMovie, SortByTypeTv } from "@/tmdb/api";
 import type { CanonicalMediaCard } from "@/lib/domain/typings";
@@ -24,6 +25,14 @@ const toSearchParams = (queryParams: Record<string, string>) => {
   const sp: Record<string, string> = { ...queryParams };
   return sp;
 };
+
+const toLocalizedPage = async (
+  results: CanonicalMediaCard[],
+  page: number,
+): Promise<{ results: CanonicalMediaCard[]; page: number }> => ({
+  results: await enrichLocalizedCatalogBackdrops(results),
+  page,
+});
 
 export async function fetchCatalogNextPage(
   mediaType: "movie" | "tv",
@@ -53,25 +62,25 @@ export async function fetchCatalogNextPage(
           today,
         ),
       });
-      return {
-        results: mapMediaListToCanonicalCardsValue(
+      return toLocalizedPage(
+        mapMediaListToCanonicalCardsValue(
           filterReleasedMovies(data.results),
           "movie",
         ),
-        page: data.page,
-      };
+        data.page,
+      );
     }
 
     if (view === "trending") {
       const time = parseTrendingTime(sp.trending_time);
       const data = await tmdb.trending.movie({ time, page: pageStr });
-      return {
-        results: mapMediaListToCanonicalCardsValue(
+      return toLocalizedPage(
+        mapMediaListToCanonicalCardsValue(
           filterReleasedMovies(data.results),
           "movie",
         ),
-        page: data.page,
-      };
+        data.page,
+      );
     }
 
     const data = await tmdb.movie.list({
@@ -79,13 +88,13 @@ export async function fetchCatalogNextPage(
       list: view,
       page: pageStr,
     });
-    return {
-      results: mapMediaListToCanonicalCardsValue(
+    return toLocalizedPage(
+      mapMediaListToCanonicalCardsValue(
         filterReleasedMovies(data.results),
         "movie",
       ),
-      page: data.page,
-    };
+      data.page,
+    );
   }
 
   const view = parseTvView(sp.view);
@@ -106,25 +115,25 @@ export async function fetchCatalogNextPage(
         today,
       ),
     });
-    return {
-      results: mapMediaListToCanonicalCardsValue(
+    return toLocalizedPage(
+      mapMediaListToCanonicalCardsValue(
         filterReleasedTvShows(data.results),
         "tv",
       ),
-      page: data.page,
-    };
+      data.page,
+    );
   }
 
   if (view === "trending") {
     const time = parseTrendingTime(sp.trending_time);
     const data = await tmdb.trending.tv({ time, page: pageStr });
-    return {
-      results: mapMediaListToCanonicalCardsValue(
+    return toLocalizedPage(
+      mapMediaListToCanonicalCardsValue(
         filterReleasedTvShows(data.results),
         "tv",
       ),
-      page: data.page,
-    };
+      data.page,
+    );
   }
 
   const data = await tmdb.tv.list({
@@ -133,11 +142,11 @@ export async function fetchCatalogNextPage(
     page: pageStr,
     timezone,
   });
-  return {
-    results: mapMediaListToCanonicalCardsValue(
+  return toLocalizedPage(
+    mapMediaListToCanonicalCardsValue(
       filterReleasedTvShows(data.results),
       "tv",
     ),
-    page: data.page,
-  };
+    data.page,
+  );
 }

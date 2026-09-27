@@ -4,6 +4,7 @@ import {
   getCachedMovieDetail,
   getCachedTvShowDetail,
 } from "@/lib/media-detail-cache";
+import { enrichLocalizedCatalogBackdrops } from "@/lib/server/enrich-catalog-backdrops";
 
 export const BULK_MEDIA_SHELL_MAX_ITEMS = 20;
 
@@ -67,19 +68,49 @@ export const parseBulkMediaShellRequestItems = (
   return value;
 };
 
+const readOptionalString = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+const readGenreList = (
+  value: unknown,
+): Array<{ id: number; name?: string }> | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const genres: Array<{ id: number; name?: string }> = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || !("id" in entry)) {
+      continue;
+    }
+    if (typeof entry.id !== "number") {
+      continue;
+    }
+    genres.push({
+      id: entry.id,
+      name:
+        "name" in entry && typeof entry.name === "string"
+          ? entry.name
+          : undefined,
+    });
+  }
+
+  return genres;
+};
+
 const mapMovieShell = (
   item: BulkMediaShellRequestItem,
   detail: NonNullable<Awaited<ReturnType<typeof getCachedMovieDetail>>>,
 ): BulkMediaShellResponseItem => ({
   mediaType: "movie",
   contentId: item.contentId,
-  title: detail.title,
+  title: readOptionalString(detail.title),
   backdrop_path: detail.backdrop_path,
   poster_path: detail.poster_path,
   vote_average: detail.vote_average,
-  release_date: detail.release_date,
+  release_date: readOptionalString(detail.release_date),
   genre_ids: detail.genre_ids,
-  genres: detail.genres,
+  genres: readGenreList(detail.genres),
 });
 
 const mapTvShell = (
@@ -116,7 +147,32 @@ const fetchBulkMediaShell = async (
   return detail ? mapTvShell(item, detail) : null;
 };
 
-export const fetchBulkMediaShells = (
+export const fetchBulkMediaShells = async (
   items: BulkMediaShellRequestItem[],
-): Promise<(BulkMediaShellResponseItem | null)[]> =>
-  Promise.all(items.map(fetchBulkMediaShell));
+): Promise<(BulkMediaShellResponseItem | null)[]> => {
+  const shells = await Promise.all(items.map(fetchBulkMediaShell));
+  const shellIndexes: number[] = [];
+  const payloads = shells.flatMap((shell, index) => {
+    if (!shell) {
+      return [];
+    }
+    shellIndexes.push(index);
+    return [
+      {
+        id: shell.contentId,
+        media_type: shell.mediaType,
+        backdrop_path: shell.backdrop_path,
+      },
+    ];
+  });
+  const enriched = await enrichLocalizedCatalogBackdrops(payloads);
+
+  return shells.map((shell, index) => {
+    if (!shell) {
+      return null;
+    }
+    const enrichedIndex = shellIndexes.indexOf(index);
+    const backdropPath = enriched[enrichedIndex]?.backdrop_path;
+    return backdropPath ? { ...shell, backdrop_path: backdropPath } : shell;
+  });
+};

@@ -1,6 +1,8 @@
 export const DEVELOPMENT_DATA_CACHE_TTL_MS = 60 * 60 * 1000;
 const DEVELOPMENT_DATA_CACHE_MAX_ENTRIES = 500;
 
+const readMonotonicTime = () => performance.now();
+
 type CacheEntry = {
   expiresAt: number;
   value: Promise<unknown>;
@@ -27,7 +29,7 @@ export class AsyncExpiringLruCache {
     key,
     load,
     ttlMs = DEVELOPMENT_DATA_CACHE_TTL_MS,
-    now = Date.now,
+    now = readMonotonicTime,
     cacheResult,
   }: GetOrLoadOptions<T>): Promise<T> {
     const cached = this.entries.get(key);

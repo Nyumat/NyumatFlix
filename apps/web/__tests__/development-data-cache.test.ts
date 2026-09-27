@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 describe("development data cache", () => {
   afterEach(() => {
     clearDevelopmentDataCache();
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
@@ -28,6 +29,24 @@ describe("development data cache", () => {
       cache.getOrLoad({ key: "catalog", load, ttlMs: 50, now: () => now }),
     ).resolves.toBe(2);
     expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the default clock as a method on Performance", async () => {
+    const cache = new AsyncExpiringLruCache(10);
+    const nativeNow = performance.now.bind(performance);
+    const now = vi
+      .spyOn(performance, "now")
+      .mockImplementation(function readClock(this: Performance) {
+        if (this !== performance) {
+          throw new TypeError('Value of "this" must be of type Performance');
+        }
+        return nativeNow();
+      });
+
+    await expect(
+      cache.getOrLoad({ key: "catalog", load: async () => "ok" }),
+    ).resolves.toBe("ok");
+    expect(now).toHaveBeenCalled();
   });
 
   it("shares an in-flight request", async () => {
