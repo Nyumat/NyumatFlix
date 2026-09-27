@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.4
+
 FROM oven/bun:1 AS deps
 WORKDIR /app
 
@@ -11,6 +13,7 @@ WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENSURE_ENV=1
+ENV SKIP_CLEAN_NEXT=1
 
 ARG TMDB_API_KEY
 ARG CAP_API_ENDPOINT
@@ -24,17 +27,21 @@ COPY apps/web ./apps/web
 COPY packages ./packages
 RUN test -f packages/player/dist/wasm/movi.js || (echo "missing packages/player/dist/wasm/movi.js — run: bunx turbo build:wasm --filter=@nyumatflix/player" && exit 1)
 RUN node apps/web/scripts/prepare-anime-mappings.mjs
-RUN bunx turbo build --filter=@calluspirates/shared --filter=@nyumatflix/playback
+RUN --mount=type=cache,target=/app/.turbo \
+    bunx turbo build --filter=@calluspirates/shared --filter=@nyumatflix/playback
 RUN if [ "$SKIP_PLAYER_BUILD" = "1" ] && \
       [ -f packages/player/dist/element.js ] && \
-      [ -f packages/player/dist/wasm/movi.js ] && \
-      [ -f apps/web/public/vendor/player/element.js ]; then \
-      echo "[build] player artifacts present — skipping player rebuild"; \
+      [ -f packages/player/dist/wasm/movi.js ]; then \
+      echo "[build] player dist present — copying vendor chunks without a rebuild"; \
+      node packages/player/scripts/copy-vendor.mjs; \
     else \
       cd packages/player && bun run build; \
     fi
 RUN cd apps/web && bun install --foreground-scripts sharp @img/sharp-linux-x64
-RUN cd apps/web && bun run build
+RUN cd apps/web && bun run hubs:refresh
+RUN --mount=type=cache,target=/app/.turbo \
+    --mount=type=cache,target=/app/apps/web/.next/cache \
+    cd apps/web && bun run build
 
 FROM node:24.15.0-slim AS runner
 WORKDIR /app

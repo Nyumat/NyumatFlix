@@ -12,6 +12,9 @@ services:
     environment:
       HTTPPROXY: "on"
       HTTPPROXY_LOG: "off"
+      # Keep the WireGuard tunnel alive through NAT/CGNAT timeouts so it does
+      # not silently drop (control API can report "running" on a dead tunnel).
+      WIREGUARD_PERSISTENT_KEEPALIVE_INTERVAL: "${WIREGUARD_PERSISTENT_KEEPALIVE_INTERVAL:-25s}"
     healthcheck:
       test:
         [
