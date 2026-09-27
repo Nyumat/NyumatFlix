@@ -1,0 +1,35 @@
+/* Outward soft bloom — never masks/clips the picture. */
+.nyumat-player-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+.nyumat-player-halo {
+  pointer-events: none;
+  position: absolute;
+  inset: -4%;
+  z-index: 0;
+  border-radius: 1.45rem;
+  background: radial-gradient(
+    120% 100% at 50% 50%,
+    rgb(255 255 255 / 0.1) 0%,
+    rgb(255 255 255 / 0.03) 42%,
+    transparent 72%
+  );
+  filter: blur(36px);
+  opacity: 0.85;
+}
+
+.nyumat-player-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 1.15rem;
+  background: #000;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.07),
+    0 0 48px 12px rgb(255 255 255 / 0.045),
+    0 28px 90px 18px rgb(0 0 0 / 0.55);
+}
