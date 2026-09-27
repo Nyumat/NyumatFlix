@@ -7,7 +7,6 @@ import { headers } from "next/headers";
 export const alt = SITE_NAME;
 export const size = OG_IMAGE_SIZE;
 export const contentType = ogImageContentType;
-export const revalidate = 86400; // OG_IMAGE_REVALIDATE_SECONDS
 
 const getRequestOrigin = async () => {
   const headerList = await headers();

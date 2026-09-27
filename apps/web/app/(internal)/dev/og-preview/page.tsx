@@ -4,6 +4,7 @@ import {
   getPopularMovieSeoExamples,
   getPopularTvSeoExamples,
 } from "@/lib/seo/preview-examples";
+
 const routeForType = (type: string, id: string) => {
   switch (type) {
     case "movie":

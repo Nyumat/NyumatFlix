@@ -1,6 +1,6 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
+import { applyDataRevalidateCacheLife } from "@/lib/server/route-cache-life";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const OG_TMDB_REVALIDATE_SECONDS = 86400;
@@ -79,9 +79,10 @@ const fetchOgPersonCastCreditsUncached = async (
   }
 };
 
-export const fetchOgPersonCastCredits = (personId: number) =>
-  unstable_cache(
-    () => fetchOgPersonCastCreditsUncached(personId),
-    ["og-person-credits", String(personId)],
-    { revalidate: OG_TMDB_REVALIDATE_SECONDS },
-  )();
+export async function fetchOgPersonCastCredits(
+  personId: number,
+): Promise<OgPersonCastCredit[]> {
+  "use cache";
+  applyDataRevalidateCacheLife(OG_TMDB_REVALIDATE_SECONDS);
+  return fetchOgPersonCastCreditsUncached(personId);
+}

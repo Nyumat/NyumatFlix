@@ -1,7 +1,9 @@
+import "server-only";
+
 import { tmdb } from "@/tmdb/api";
 import type { Person } from "@/tmdb/models";
 import { getTodayIsoDateUtc } from "@/lib/released-media";
-import { unstable_cache } from "next/cache";
+import { applyDataRevalidateCacheLife } from "@/lib/server/route-cache-life";
 
 const PER_PAGE = 20;
 const SCAN_POPULAR_PAGES = 12;
@@ -27,52 +29,51 @@ export const isPeopleGenderFilter = (
   value: string | undefined,
 ): value is "1" | "2" => value === "1" || value === "2";
 
-const getCachedPopularDirectors = unstable_cache(
-  async (): Promise<Person[]> => {
-    const today = getTodayIsoDateUtc();
-    const movieBatches = await Promise.all(
-      Array.from({ length: DIRECTOR_MOVIE_PAGES }, (_, i) =>
-        tmdb.discover.movie({
-          page: String(i + 1),
-          sort_by: "popularity.desc",
-          "primary_release_date.lte": today,
-        }),
-      ),
-    );
+const getCachedPopularDirectors = async (): Promise<Person[]> => {
+  "use cache";
+  applyDataRevalidateCacheLife(3600);
 
-    const movies = movieBatches.flatMap((batch) => batch.results ?? []);
+  const today = getTodayIsoDateUtc();
+  const movieBatches = await Promise.all(
+    Array.from({ length: DIRECTOR_MOVIE_PAGES }, (_, i) =>
+      tmdb.discover.movie({
+        page: String(i + 1),
+        sort_by: "popularity.desc",
+        "primary_release_date.lte": today,
+      }),
+    ),
+  );
 
-    const creditsBatches = await Promise.all(
-      movies.map((movie) => tmdb.movie.credits({ id: movie.id })),
-    );
+  const movies = movieBatches.flatMap((batch) => batch.results ?? []);
 
-    const directors: Person[] = [];
-    const seen = new Set<number>();
+  const creditsBatches = await Promise.all(
+    movies.map((movie) => tmdb.movie.credits({ id: movie.id })),
+  );
 
-    for (const credits of creditsBatches) {
-      for (const crew of credits.crew ?? []) {
-        if (crew.job !== "Director") continue;
-        if (!crew.profile_path) continue;
-        if (seen.has(crew.id)) continue;
-        seen.add(crew.id);
-        directors.push({
-          id: crew.id,
-          name: crew.name,
-          known_for: [],
-          profile_path: crew.profile_path,
-          adult: crew.adult,
-          known_for_department: crew.known_for_department ?? "Directing",
-          gender: crew.gender ?? 0,
-          popularity: crew.popularity ?? 0,
-        });
-      }
+  const directors: Person[] = [];
+  const seen = new Set<number>();
+
+  for (const credits of creditsBatches) {
+    for (const crew of credits.crew ?? []) {
+      if (crew.job !== "Director") continue;
+      if (!crew.profile_path) continue;
+      if (seen.has(crew.id)) continue;
+      seen.add(crew.id);
+      directors.push({
+        id: crew.id,
+        name: crew.name,
+        known_for: [],
+        profile_path: crew.profile_path,
+        adult: crew.adult,
+        known_for_department: crew.known_for_department ?? "Directing",
+        gender: crew.gender ?? 0,
+        popularity: crew.popularity ?? 0,
+      });
     }
+  }
 
-    return directors;
-  },
-  ["popular-directors-v1"],
-  { revalidate: 3600 },
-);
+  return directors;
+};
 
 export async function fetchPopularPeopleByDepartment(
   department: PeopleDepartmentValue,
