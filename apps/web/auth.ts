@@ -19,12 +19,62 @@ import {
   applyAuthUserToJwt,
   shouldRefreshAuthJwtFromDatabase,
 } from "@/lib/auth/jwt-profile";
-import { getSiteFlags } from "@/lib/flags/site-flags";
+import { getSiteFlags } from "@/lib/flags/site-flags-server";
+import { arePasskeysEnabled } from "@/lib/passkeys/passkeys-enabled";
+import { applyPendingPasskeyMetadata } from "@/lib/passkeys/apply-registration-metadata";
+import { getPasskeyRelayingParty } from "@/lib/passkeys/auth-relaying-party";
+import { resolveWebAuthnRelayingParty } from "@/lib/passkeys/rp-config";
+import {
+  generatePasskeyAuthenticationOptions,
+  generatePasskeyRegistrationOptions,
+  verifyPasskeyAuthenticationResponse,
+  verifyPasskeyRegistrationResponse,
+} from "@/lib/passkeys/simplewebauthn-server";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
 import Passkey from "next-auth/providers/passkey";
 import { eq } from "drizzle-orm";
+
+const passkeyRelayingParty = resolveWebAuthnRelayingParty();
+
+const PASSKEY_ENROLLMENT_TTL_MS = 5 * 60 * 1000;
+
+const shouldRefreshPasskeyEnrollment = (
+  token: {
+    uid?: string;
+    email?: string | null;
+    passkeyCheckedAt?: number;
+  },
+  trigger?: string,
+): boolean => {
+  if (typeof token.uid !== "string" || !token.email) {
+    return false;
+  }
+  if (trigger === "signIn" || trigger === "signUp") {
+    return true;
+  }
+  if (token.passkeyCheckedAt === undefined) {
+    return true;
+  }
+  return Date.now() - token.passkeyCheckedAt > PASSKEY_ENROLLMENT_TTL_MS;
+};
+
+const resolveRequiresPasskey = async (
+  userId: string,
+  emailPasskeyEnrollmentRequired: boolean,
+  passkeysEnabled: boolean,
+): Promise<boolean> => {
+  if (!passkeysEnabled) {
+    return false;
+  }
+  const [passkey] = await db
+    .select({ credentialID: authenticators.credentialID })
+    .from(authenticators)
+    .where(eq(authenticators.userId, userId))
+    .limit(1);
+  return emailPasskeyEnrollmentRequired || !passkey;
+};
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
@@ -45,6 +95,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // New accounts must verify their email first. Signed-in users are
       // resolved by Auth.js before this callback and can register normally.
       getUserInfo: async () => null,
+      enableConditionalUI: false,
+      getRelayingParty: getPasskeyRelayingParty,
+      relayingParty: {
+        id: passkeyRelayingParty.id,
+        name: passkeyRelayingParty.name,
+        origin: passkeyRelayingParty.origin,
+      },
+      simpleWebAuthn: {
+        generateAuthenticationOptions: generatePasskeyAuthenticationOptions,
+        generateRegistrationOptions: generatePasskeyRegistrationOptions,
+        verifyAuthenticationResponse: verifyPasskeyAuthenticationResponse,
+        verifyRegistrationResponse: verifyPasskeyRegistrationResponse,
+      },
+      registrationOptions: {
+        attestationType: "none",
+        authenticatorSelection: {
+          residentKey: "required",
+          userVerification: "required",
+        },
+      },
     }),
     Resend({
       apiKey: process.env.AUTH_RESEND_KEY,
@@ -67,8 +137,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return;
         }
         const { host } = new URL(url);
-        const emailHtml = await html({ url, host, theme });
-        const emailText = text({ url, host });
+        const flags = await getSiteFlags();
+        const passkeysEnabled = arePasskeysEnabled(flags);
+        const emailHtml = await html({ url, host, theme, passkeysEnabled });
+        const emailText = text({ url, host, passkeysEnabled });
         const subject = MAGIC_LINK_RESEND_SUBJECT;
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -100,9 +172,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    signIn: async ({ user }) => {
+    signIn: async ({ user, account }) => {
       const flags = await getSiteFlags();
       if (!flags.authEnabled) {
+        return false;
+      }
+      if (account?.provider === "passkey" && !arePasskeysEnabled(flags)) {
         return false;
       }
       if (flags.signupDisabled && user.email) {
@@ -152,6 +227,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
+      if (shouldRefreshPasskeyEnrollment(token, trigger)) {
+        const uid = token.uid;
+        const flags = await getSiteFlags();
+        const passkeysEnabled = arePasskeysEnabled(flags);
+        if (typeof uid === "string" && token.email) {
+          token.requiresPasskey = await resolveRequiresPasskey(
+            uid,
+            token.emailPasskeyEnrollmentRequired === true,
+            passkeysEnabled,
+          );
+          token.passkeyCheckedAt = Date.now();
+        } else if (!passkeysEnabled) {
+          token.requiresPasskey = false;
+        }
+      }
+
       return token;
     },
     session: async ({ session, token }) => {
@@ -159,16 +250,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.uid;
         // Check the database rather than trusting a client session update or
         // a stale JWT after a passkey is removed on another device.
-        if (token.email) {
-          const [passkey] = await db
-            .select({ credentialID: authenticators.credentialID })
-            .from(authenticators)
-            .where(eq(authenticators.userId, token.uid))
-            .limit(1);
-          session.user.requiresPasskey =
-            token.emailPasskeyEnrollmentRequired === true || !passkey;
+        const flags = await getSiteFlags();
+        if (token.email && arePasskeysEnabled(flags)) {
+          session.user.requiresPasskey = token.requiresPasskey === true;
         } else {
-          // MAL-only accounts retain their existing sign-in flow.
           session.user.requiresPasskey = false;
         }
         if (typeof token.name === "string") {
@@ -202,5 +287,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
     error: "/login/error",
     verifyRequest: "/login/verify",
+  },
+  events: {
+    signIn: async ({ account, user }) => {
+      if (
+        account?.provider !== "passkey" ||
+        !user.id ||
+        !account.providerAccountId
+      ) {
+        return;
+      }
+      await applyPendingPasskeyMetadata(account.providerAccountId, user.id);
+    },
   },
 });

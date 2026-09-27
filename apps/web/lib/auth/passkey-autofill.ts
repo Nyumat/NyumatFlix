@@ -1,14 +1,17 @@
 "use client";
 
 import {
-  browserSupportsWebAuthnAutofill,
   startAuthentication,
   WebAuthnAbortService,
 } from "@simplewebauthn/browser";
+import {
+  readWebAuthnClientFeatures,
+  resolveAuthenticationHints,
+} from "@/lib/passkeys/client-capabilities";
 import { getCsrfToken } from "next-auth/react";
 import { z } from "zod";
 
-const authenticationOptions = z.object({
+const passkeyAuthenticationOptionsSchema = z.object({
   action: z.literal("authenticate"),
   options: z.object({
     challenge: z.string(),
@@ -25,8 +28,11 @@ const authenticationOptions = z.object({
 export function startPasskeyAutofill(callbackUrl: string) {
   const controller = new AbortController();
   const pending = (async () => {
-    if (!(await browserSupportsWebAuthnAutofill()) || controller.signal.aborted)
+    const features = await readWebAuthnClientFeatures();
+    if (!features.conditionalAutofill || controller.signal.aborted) {
       return;
+    }
+
     const response = await fetch(
       "/api/auth/webauthn-options/passkey?action=authenticate",
       {
@@ -34,9 +40,16 @@ export function startPasskeyAutofill(callbackUrl: string) {
       },
     );
     if (!response.ok || controller.signal.aborted) return;
-    const { options } = authenticationOptions.parse(await response.json());
+    const { options } = passkeyAuthenticationOptionsSchema.parse(
+      await response.json(),
+    );
     if (controller.signal.aborted) return;
-    const credential = await startAuthentication(options, true);
+
+    const hints = resolveAuthenticationHints(features);
+    const authenticationOptions = hints
+      ? ({ ...options, hints } as Parameters<typeof startAuthentication>[0])
+      : options;
+    const credential = await startAuthentication(authenticationOptions, true);
     if (controller.signal.aborted) return;
     const csrfToken = await getCsrfToken();
     if (controller.signal.aborted) return;

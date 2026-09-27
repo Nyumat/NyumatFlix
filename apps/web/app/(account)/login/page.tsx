@@ -1,13 +1,8 @@
 import { auth, signIn } from "@/auth";
 import { CapLoginForm } from "@/components/auth/cap-login-form";
+import { LoginMethodHeader } from "@/components/auth/login-method-header";
 import { MalLoginButton } from "@/components/auth/mal-login-button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getCapApiEndpoint } from "@/lib/cap/config";
 import { withCapVerifiedSignIn } from "@/lib/cap/auth-authorization";
 import { isCapDevBypassEnabled } from "@/lib/cap/constants";
@@ -19,11 +14,10 @@ import {
   DEFAULT_OG_IMAGE_TYPE,
   OG_IMAGE_SIZE,
 } from "@/lib/seo/constants";
-import { Mail } from "lucide-react";
 import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSiteFlags } from "@/lib/flags/site-flags";
+import { getSiteFlags } from "@/lib/flags/site-flags-server";
 import {
   loginErrorHref,
   loginVerifyHref,
@@ -78,7 +72,8 @@ type LoginPageProps = {
   searchParams: Promise<{ callbackUrl?: string }>;
 };
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
+export default async function LoginPage(props: LoginPageProps) {
+  const searchParams = await props.searchParams;
   const [flags, session, params] = await Promise.all([
     getSiteFlags(),
     auth(),
@@ -140,38 +135,24 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <AuthShell
-      eyebrow="Sign in to keep everything synced."
+      eyebrow="Create an account to keep everything synced."
       title="Make NyumatFlix yours."
       description="Unlock watchlists, progress, and direct feature requests."
     >
-      <Card className="overflow-hidden rounded-2xl border-white/12 bg-zinc-950/72 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
-        <CardHeader className="space-y-3 px-6 pb-4 pt-6 sm:px-8 sm:pt-8">
-          <div className="flex size-11 items-center justify-center rounded-xl border border-sky-300/15 bg-sky-300/10 text-sky-200">
-            <Mail className="size-5" />
-          </div>
-          <div className="space-y-2">
-            <CardTitle className="text-2xl font-semibold leading-tight tracking-tight text-white">
-              Sign in
-            </CardTitle>
-            <CardDescription className="text-sm leading-6 text-zinc-400">
-              {flags.signupDisabled
-                ? "New accounts are paused. Existing members can still sign in."
-                : "Sign in with a passkey. If you cannot, use email as your backup."}
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
+      <Card className="overflow-hidden rounded-2xl border-white/12 bg-zinc-950/82 text-white shadow-[0_28px_90px_rgba(0,0,0,0.58)] backdrop-blur-xl">
+        <LoginMethodHeader signupDisabled={flags.signupDisabled} />
+        <CardContent className="px-6 pb-7 sm:px-8 sm:pb-8">
           <CapLoginForm
             action={handleLogin}
             endpoint={getCapApiEndpoint()}
             callbackUrl={callbackUrl}
           />
           {process.env.MAL_CLIENT_ID ? (
-            <div className="mt-5">
-              <MalLoginButton callbackUrl={callbackUrl} />
+            <div className="mt-4">
+              <MalLoginButton callbackUrl={callbackUrl} helperText={null} />
             </div>
           ) : null}
-          <p className="mt-5 text-center text-xs leading-5 text-zinc-500">
+          <p className="mt-6 text-center text-xs leading-5 text-zinc-600">
             By continuing, you agree to the{" "}
             <Link
               href="/terms"

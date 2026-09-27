@@ -52,9 +52,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function VerifyRequestPage({
-  searchParams,
-}: VerifyRequestPageProps) {
+export default async function VerifyRequestPage(props: VerifyRequestPageProps) {
+  const searchParams = await props.searchParams;
   const [params, session] = await Promise.all([searchParams, auth()]);
   const callbackUrl = safeAuthCallbackPath(params.callbackUrl);
   const devLink =

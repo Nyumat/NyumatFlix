@@ -14,5 +14,7 @@ declare module "next-auth/jwt" {
     uid?: string;
     emailPasskeyEnrollmentRequired?: boolean;
     profileHydrated?: boolean;
+    requiresPasskey?: boolean;
+    passkeyCheckedAt?: number;
   }
 }

@@ -5,6 +5,7 @@ import MagicLinkEmail from "./magic-link";
 interface EmailParams {
   url: string;
   host: string;
+  passkeysEnabled?: boolean;
   theme?: {
     brandColor?: string;
     buttonText?: string;
@@ -14,15 +15,24 @@ interface EmailParams {
 export const html = async ({
   url,
   host,
+  passkeysEnabled = false,
   theme: _theme,
 }: EmailParams): Promise<string> => {
-  return await render(MagicLinkEmail({ url, host }));
+  return await render(MagicLinkEmail({ url, host, passkeysEnabled }));
 };
 
-export const text = ({ url, host: _host }: EmailParams): string => {
+export const text = ({
+  url,
+  host: _host,
+  passkeysEnabled = false,
+}: EmailParams): string => {
+  const passkeyLine = passkeysEnabled
+    ? " After signing in, add a passkey for your next visit."
+    : "";
+
   return `Sign in to ${SITE_NAME}
 
-Use this link to sign in. It expires in 24 hours and can only be used once. After signing in, add a passkey for your next visit.
+Use this link to sign in. It expires in 24 hours and can only be used once.${passkeyLine}
 
 ${url}
 

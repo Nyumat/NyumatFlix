@@ -50,9 +50,14 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     const tokens = await exchangeMalAuthCode(code, storedVerifier, baseUrl);
-    const { returnUrl } = await handleMalAuthSuccess(tokens, session?.user?.id);
+    const result = await handleMalAuthSuccess(tokens, session?.user?.id);
+    if (result.status === "linked-elsewhere") {
+      return NextResponse.redirect(
+        new URL("/login/error?error=MalAccountLinked", baseUrl),
+      );
+    }
 
-    return NextResponse.redirect(new URL(returnUrl, baseUrl));
+    return NextResponse.redirect(new URL(result.returnUrl, baseUrl));
   } catch (err) {
     console.error("Failed to complete MAL OAuth callback:", err);
     return NextResponse.redirect(

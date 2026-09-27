@@ -1,11 +1,28 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Fingerprint, Loader2 } from "lucide-react";
-import { signIn } from "next-auth/webauthn";
+import { PasskeyMark } from "@/components/auth/passkey-mark";
+import { cn } from "@/lib/utils";
+import { usePasskeySupport } from "@/hooks/use-passkey-support";
+import { usePasskeysEnabled } from "@/hooks/use-passkeys-enabled";
+import { refreshPasskeySignals } from "@/components/providers/passkey-signal-sync";
+import { registerPasskey } from "@/lib/passkeys/client-register-passkey";
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
 
-export function AddPasskeyButton() {
+type AddPasskeyButtonProps = {
+  label?: string;
+  className?: string;
+  showIcon?: boolean;
+};
+
+export function AddPasskeyButton({
+  label = "Add a passkey",
+  className,
+  showIcon = true,
+}: AddPasskeyButtonProps = {}) {
+  const passkeysEnabled = usePasskeysEnabled();
+  const passkeysSupported = usePasskeySupport();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -13,14 +30,16 @@ export function AddPasskeyButton() {
     setBusy(true);
     setError("");
     try {
-      const result = await signIn("passkey", {
-        action: "register",
-        redirect: false,
-      });
-      if (!result?.ok || result.error) {
-        throw new Error("Registration failed");
-      }
-      // Reload both the server gate and the settings list with the new cookie.
+      const registration = await registerPasskey();
+      await fetch("/api/account/passkeys/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credentialID: registration.credentialID,
+          attestationObject: registration.attestationObject,
+        }),
+      }).catch(() => undefined);
+      await refreshPasskeySignals();
       window.location.reload();
     } catch {
       setError(
@@ -30,15 +49,33 @@ export function AddPasskeyButton() {
     }
   }
 
+  if (!passkeysEnabled) return null;
+
+  if (passkeysSupported === null) {
+    return (
+      <Button type="button" disabled className={cn(className)}>
+        <Loader2 className="mr-2 size-4 animate-spin" />
+        Checking passkey support…
+      </Button>
+    );
+  }
+
+  if (!passkeysSupported) return null;
+
   return (
     <div className="space-y-2">
-      <Button type="button" onClick={addPasskey} disabled={busy}>
+      <Button
+        type="button"
+        onClick={addPasskey}
+        disabled={busy}
+        className={cn(className)}
+      >
         {busy ? (
           <Loader2 className="mr-2 size-4 animate-spin" />
-        ) : (
-          <Fingerprint className="mr-2 size-4" />
-        )}
-        {busy ? "Adding passkey…" : "Add a passkey"}
+        ) : showIcon ? (
+          <PasskeyMark className="mr-2 size-4" />
+        ) : null}
+        {busy ? "Creating passkey…" : label}
       </Button>
       {error ? (
         <p role="alert" className="text-sm text-red-400">

@@ -125,7 +125,7 @@ export function AuthShell({
           <WatchlistPreview />
         </section>
 
-        <section className="mx-auto w-full max-w-[27rem]">
+        <section className="mx-auto w-full max-w-[29rem]">
           <BrandLogo placement="auth-compact" />
           {children}
         </section>

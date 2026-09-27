@@ -1,4 +1,5 @@
 import { accounts, db, users } from "@/db";
+import { safeAuthCallbackPath } from "@/lib/auth/callback-url";
 import { and, eq } from "drizzle-orm";
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
@@ -73,7 +74,11 @@ export async function buildMalAuthUrl(
 
   cookieStore.set(PKCE_COOKIE_NAME, verifier, cookieOpts);
   cookieStore.set(STATE_COOKIE_NAME, state, cookieOpts);
-  cookieStore.set(REDIRECT_COOKIE_NAME, returnUrl, cookieOpts);
+  cookieStore.set(
+    REDIRECT_COOKIE_NAME,
+    safeAuthCallbackPath(returnUrl),
+    cookieOpts,
+  );
 
   return { url: authUrl.toString(), verifier, state };
 }
@@ -129,7 +134,6 @@ export async function exchangeMalAuthCode(
   if (!res.ok) {
     console.error("MAL token exchange failed:", {
       status: res.status,
-      body: data,
     });
     throw new Error(
       data.error_description ||
@@ -144,10 +148,21 @@ export async function exchangeMalAuthCode(
 /**
  * Upserts a MAL account into Drizzle DB and establishes an Auth.js JWT session.
  */
+export type MalAuthResult =
+  | { status: "ok"; userId: string; returnUrl: string }
+  | { status: "linked-elsewhere" };
+
+const clearMalOAuthCookies = async () => {
+  const cookieStore = await cookies();
+  cookieStore.delete(PKCE_COOKIE_NAME);
+  cookieStore.delete(STATE_COOKIE_NAME);
+  cookieStore.delete(REDIRECT_COOKIE_NAME);
+};
+
 export async function handleMalAuthSuccess(
   tokens: MalTokenResponse,
   currentUserId?: string | null,
-): Promise<{ userId: string; returnUrl: string }> {
+): Promise<MalAuthResult> {
   const profile = await getMalUserProfile(tokens.access_token);
   const providerAccountId = String(profile.id);
   const now = Math.floor(Date.now() / 1000);
@@ -170,11 +185,16 @@ export async function handleMalAuthSuccess(
 
   let targetUserId: string;
 
+  if (
+    existingMalAccount &&
+    currentUserId &&
+    existingMalAccount.userId !== currentUserId
+  ) {
+    await clearMalOAuthCookies();
+    return { status: "linked-elsewhere" };
+  }
+
   if (existingMalAccount) {
-    // This MAL account is already connected to a NyumatFlix account
-    // (possibly the current session, possibly not). Either way, we don't
-    // touch that account's data beyond refreshing tokens — we just connect
-    // the session to the account that already owns this MAL link.
     targetUserId = existingMalAccount.userId;
     await db
       .update(accounts)
@@ -264,12 +284,11 @@ export async function handleMalAuthSuccess(
     expires: sessionExpires,
   });
 
-  const returnUrl = cookieStore.get(REDIRECT_COOKIE_NAME)?.value || "/";
+  const returnUrl = safeAuthCallbackPath(
+    cookieStore.get(REDIRECT_COOKIE_NAME)?.value,
+  );
 
-  // Clean up transient cookies
-  cookieStore.delete(PKCE_COOKIE_NAME);
-  cookieStore.delete(STATE_COOKIE_NAME);
-  cookieStore.delete(REDIRECT_COOKIE_NAME);
+  await clearMalOAuthCookies();
 
-  return { userId: targetUserId, returnUrl };
+  return { status: "ok", userId: targetUserId, returnUrl };
 }
