@@ -238,12 +238,18 @@ export const TvEpisodeCard: React.FC<Episode> = ({
           </h3>
         </Link>
 
-        <div
-          className="mb-4 mt-1 line-clamp-6 space-y-2 text-sm leading-relaxed text-muted-foreground"
-          dangerouslySetInnerHTML={{
-            __html: format.content(overview || "<em>No details</em>"),
-          }}
-        />
+        <div className="mb-4 mt-1 line-clamp-6 space-y-2 text-sm leading-relaxed text-muted-foreground">
+          {overview?.trim() ? (
+            overview
+              .split("\n")
+              .filter((section) => section.trim() !== "")
+              .map((section, index) => <p key={index}>{section}</p>)
+          ) : (
+            <p>
+              <em>No details</em>
+            </p>
+          )}
+        </div>
 
         <div className="mt-auto flex items-center gap-2">
           <MediaRating

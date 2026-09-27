@@ -10,7 +10,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import type { NavbarSearchClientProps } from "@/components/search/search";
-import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import {
+  useFeatureFlags,
+  useFeatureFlagsReady,
+} from "@/components/providers/feature-flags-provider";
 import { type NavItem } from "@/config/site";
 import { getNavigationItems } from "@/lib/navigation";
 import { useWatchlistSummary } from "@/hooks/useWatchlistSummary";
@@ -81,6 +84,7 @@ export const NavbarMobileNavigation = ({
   triggerClassName,
 }: NavbarMobileNavigationProps) => {
   const { liveTvEnabled, authEnabled } = useFeatureFlags();
+  const flagsReady = useFeatureFlagsReady();
   const navigationItems = getNavigationItems(liveTvEnabled);
   const [open, setOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -242,7 +246,7 @@ export const NavbarMobileNavigation = ({
                 <LogOut className="size-4" />
                 Sign out
               </button>
-            ) : authEnabled ? (
+            ) : flagsReady && authEnabled ? (
               <Button asChild variant="chrome" className="w-full gap-2">
                 <Link href={loginHref(pathname)} onClick={handleLinkClick}>
                   Sign in
@@ -322,7 +326,7 @@ const LoggedInProfileCard = ({
         <List className="size-4 text-primary" />
         My Watchlist
         {!isWatchlistLoading && watchlistSummary ? (
-          <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-xs text-white/70">
+          <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-xs text-white/70">
             {watchlistSummary.total}
           </span>
         ) : null}

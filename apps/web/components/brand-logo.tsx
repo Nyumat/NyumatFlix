@@ -38,6 +38,7 @@ const PLACEMENT_CONFIG: Record<BrandLogoPlacement, PlacementConfig> = {
     size: "md",
     priority: true,
     linked: true,
+    imageClassName: "drop-shadow-[0_2px_6px_rgba(0,0,0,0.65)]",
     linkClassName: "inline-flex shrink-0 items-center",
     ariaLabel: `${BRAND_NAME} home`,
   },

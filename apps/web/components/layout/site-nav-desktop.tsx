@@ -70,16 +70,25 @@ const useRoutePrefetchOnHover = () => {
   return { schedulePrefetch, cancelPrefetch };
 };
 
+const navLinkPrefetch = (href: string): true | undefined =>
+  href === "/live" ? undefined : true;
+
 const routePrefetchHandlers = (
   href: string,
   schedulePrefetch: (href: string) => void,
   cancelPrefetch: () => void,
-) => ({
-  onPointerEnter: () => schedulePrefetch(href),
-  onPointerLeave: cancelPrefetch,
-  onFocus: () => schedulePrefetch(href),
-  onBlur: cancelPrefetch,
-});
+) => {
+  if (href === "/live") {
+    return {};
+  }
+
+  return {
+    onPointerEnter: () => schedulePrefetch(href),
+    onPointerLeave: cancelPrefetch,
+    onFocus: () => schedulePrefetch(href),
+    onBlur: cancelPrefetch,
+  };
+};
 
 export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
   const flags = useFeatureFlags();
@@ -145,7 +154,7 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
               >
                 <Link
                   href={item.href}
-                  prefetch={false}
+                  prefetch={navLinkPrefetch(item.href)}
                   {...routePrefetchHandlers(
                     item.href,
                     schedulePrefetch,
@@ -200,7 +209,7 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
             >
               <Link
                 href={item.href}
-                prefetch={false}
+                prefetch={navLinkPrefetch(item.href)}
                 {...routePrefetchHandlers(
                   item.href,
                   schedulePrefetch,
@@ -246,7 +255,7 @@ export const SiteNavDesktop = ({ triggerClassName }: SiteNavDesktopProps) => {
         <DropdownMenuItem asChild className={menuItemShellClassName}>
           <Link
             href="/settings"
-            prefetch={false}
+            prefetch={true}
             {...routePrefetchHandlers(
               "/settings",
               schedulePrefetch,

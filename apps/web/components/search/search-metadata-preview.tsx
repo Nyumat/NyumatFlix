@@ -224,7 +224,7 @@ export function SearchMetadataPreview({
               size="sm"
               className="h-9 w-full rounded-md bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto sm:px-5"
             >
-              <Link href={href} onClick={onNavigate} prefetch>
+              <Link href={href} onClick={onNavigate} prefetch={true}>
                 View
                 <ArrowRight className="ml-2 size-3.5" aria-hidden />
               </Link>
@@ -328,7 +328,11 @@ function PersonMetadataPreview({
             size="sm"
             className="h-9 w-full rounded-md bg-primary text-primary-foreground sm:w-auto sm:px-5"
           >
-            <Link href={`/person/${person.id}`} onClick={onNavigate} prefetch>
+            <Link
+              href={`/person/${person.id}`}
+              onClick={onNavigate}
+              prefetch={true}
+            >
               View profile
               <ArrowRight className="ml-2 size-3.5" aria-hidden />
             </Link>

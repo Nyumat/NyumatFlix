@@ -10,6 +10,7 @@ export type TvShowDetailClientPayload = {
   status?: string | null;
   last_episode_to_air?: unknown;
   next_episode_to_air?: unknown;
+  sourceAnilistId?: number | null;
 };
 
 export type FetchedTvShowDetail = {

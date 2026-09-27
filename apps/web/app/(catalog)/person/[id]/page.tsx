@@ -21,9 +21,8 @@ import { Metadata } from "next";
 import Image from "next/image";
 import { tmdbImage } from "@/tmdb/utils";
 import { notFound } from "next/navigation";
+import { applyCatalogHourCacheLife } from "@/lib/server/route-cache-life";
 import { PersonFilmography } from "./client-filmography";
-
-export const revalidate = 3600;
 
 interface PersonPageProps {
   params: Promise<{
@@ -67,6 +66,9 @@ export async function generateMetadata(
 }
 
 export default async function PersonPage(props: PersonPageProps) {
+  "use cache";
+  applyCatalogHourCacheLife();
+
   const params = await props.params;
   const personId = Number.parseInt(params.id, 10);
 

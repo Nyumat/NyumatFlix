@@ -1,20 +1,20 @@
-import { auth } from "@/auth";
 import { PasskeyGate } from "@/components/auth/passkey-gate";
+import { PasskeySignalSync } from "@/components/providers/passkey-signal-sync";
 import { ApiFetchBootstrap } from "@/components/providers/api-fetch-bootstrap";
 import { CapWarmup } from "@/components/cap/cap-warmup";
 import { JsonLdScript } from "@/components/seo/json-ld-script";
 import { buildWebsiteStructuredData } from "@/lib/seo/structured-data";
 import { AppChrome } from "@/components/layout/app-chrome";
-import { RouteScrollReset } from "@/components/layout/route-scroll-reset";
+import { RouteScrollResetGate } from "@/components/layout/route-scroll-reset-gate";
 import { AdblockGateProvider } from "@/components/providers/adblock-gate-provider";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
-import { HoverSoundProvider } from "@/components/providers/hover-sound-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/lib/query-client";
 import { cn, validateEnv } from "@/lib/utils";
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import Script from "next/script";
+import { Suspense } from "react";
 import "./globals.css";
 import {
   DEFAULT_DESCRIPTION,
@@ -31,8 +31,10 @@ import {
 } from "@/lib/seo/constants";
 import { DevtoolsTrollProvider } from "@/components/providers/devtools-troll-provider";
 import { FeatureFlagsProvider } from "@/components/providers/feature-flags-provider";
+import { getShellSiteFlags } from "@/lib/flags/site-flags-server";
+import { RequestCatalogCardStyle } from "@/components/providers/request-catalog-card-style";
 import { StorageHydrationProvider } from "@/components/providers/storage-hydration-provider";
-import { getSiteFlags } from "@/lib/flags/site-flags";
+import { CatalogCardStyleProvider } from "@/lib/catalog-card-presentation";
 import { getCdnOrigin } from "@/lib/cdn";
 
 const manrope = Manrope({
@@ -98,7 +100,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [siteFlags, session] = await Promise.all([getSiteFlags(), auth()]);
+  // Runs before first paint: restores persisted prefs from cookie /
+  // localStorage so SSR HTML and the first client render already agree —
+  // no settings / layout flip after hydration.
+  const siteFlags = await getShellSiteFlags();
+  const defaultCatalogCardStyle = siteFlags.experienceDefaults.catalogCardStyle;
+  const defaultAmbientGlow =
+    siteFlags.ambientGlowEnabled && siteFlags.experienceDefaults.ambientGlow
+      ? "1"
+      : "0";
+  const catalogCardStyleBootstrap = `(function(){try{var d=document.documentElement;var m=document.cookie.match(/(?:^|;\\s*)nf-catalog-card-style=([^;]*)/);var v=m&&m[1]?decodeURIComponent(m[1]):null;if(v!=='poster'&&v!=='backdrop'){try{v=localStorage.getItem('nyumatflix:catalog-card-style');}catch(e){v=null;}}if(v!=='poster'&&v!=='backdrop'){v='${defaultCatalogCardStyle}';}d.dataset.catalogCardStyle=v;}catch(e){}})();`;
+  const ambientGlowBootstrap = `(function(){try{var d=document.documentElement;var m=document.cookie.match(/(?:^|;\\s*)nf-ambient-glow=([^;]*)/);var v=m&&m[1]?decodeURIComponent(m[1]):null;if(v!=='0'&&v!=='1'){try{v=localStorage.getItem('nyumatflix:ambient-glow');}catch(e){v=null;}}if(v!=='0'&&v!=='1'){v='${defaultAmbientGlow}';}d.dataset.ambientGlow=v;}catch(e){}})();`;
 
   return (
     <html
@@ -116,8 +128,21 @@ export default async function RootLayout({
         ) : null}
         <script
           dangerouslySetInnerHTML={{
+            __html: `(function(){try{var p=location.pathname;var h=location.hostname;if(p==='/ffs'||p.indexOf('/ffs/')===0||h.indexOf('ffs.')===0){document.documentElement.classList.add('ffs-admin-root');}}catch(e){}})();`,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
             __html: "history.scrollRestoration='manual'",
           }}
+        />
+        <script
+          id="nf-catalog-card-style"
+          dangerouslySetInnerHTML={{ __html: catalogCardStyleBootstrap }}
+        />
+        <script
+          id="nf-ambient-glow"
+          dangerouslySetInnerHTML={{ __html: ambientGlowBootstrap }}
         />
         {process.env.NODE_ENV === "production" && (
           <>
@@ -140,22 +165,39 @@ export default async function RootLayout({
       <body className={cn("flex min-h-dvh flex-col bg-background font-sans")}>
         <JsonLdScript data={buildWebsiteStructuredData()} />
         <ApiFetchBootstrap />
-        <CapWarmup />
-        <RouteScrollReset />
+        <Suspense fallback={null}>
+          <CapWarmup />
+        </Suspense>
+        <Suspense fallback={null}>
+          <RouteScrollResetGate />
+        </Suspense>
         <QueryProvider>
-          <FeatureFlagsProvider flags={siteFlags}>
-            <AuthSessionProvider session={session}>
+          <FeatureFlagsProvider initialFlags={siteFlags}>
+            <AuthSessionProvider>
+              <PasskeySignalSync />
               <PasskeyGate>
                 <StorageHydrationProvider />
                 <TooltipProvider>
                   <AdblockGateProvider>
-                    <HoverSoundProvider>
-                      <DevtoolsTrollProvider>
-                        <AppChrome>
-                          {session?.user.requiresPasskey ? null : children}
-                        </AppChrome>
-                      </DevtoolsTrollProvider>
-                    </HoverSoundProvider>
+                    <DevtoolsTrollProvider>
+                      <AppChrome>
+                        <Suspense
+                          fallback={
+                            <CatalogCardStyleProvider
+                              initialStyle={defaultCatalogCardStyle}
+                            >
+                              {children}
+                            </CatalogCardStyleProvider>
+                          }
+                        >
+                          <RequestCatalogCardStyle
+                            fallback={defaultCatalogCardStyle}
+                          >
+                            {children}
+                          </RequestCatalogCardStyle>
+                        </Suspense>
+                      </AppChrome>
+                    </DevtoolsTrollProvider>
                   </AdblockGateProvider>
                 </TooltipProvider>
               </PasskeyGate>

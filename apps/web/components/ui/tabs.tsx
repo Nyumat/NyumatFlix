@@ -57,7 +57,7 @@ TabsContent.displayName = TabsPrimitive.Content.displayName;
 const TabsLink = React.forwardRef<
   React.ElementRef<typeof Link>,
   React.ComponentPropsWithoutRef<typeof Link>
->(({ href, prefetch = false, scroll = false, className, ...props }, ref) => {
+>(({ href, prefetch = true, scroll = false, className, ...props }, ref) => {
   const pathname = usePathname();
   const hrefStr = typeof href === "string" ? href : (href.pathname ?? "");
   const isActive = pathname === hrefStr;

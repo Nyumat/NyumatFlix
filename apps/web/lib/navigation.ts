@@ -21,11 +21,16 @@ export function getFooterLinks(liveTvEnabled: boolean) {
     { href: "/anime", label: "Anime" },
   ] as const;
   if (!liveTvEnabled) {
-    return [...base, { href: "/search", label: "Search" }] as const;
+    return [
+      ...base,
+      { href: "/search", label: "Search" },
+      { href: "/manifesto", label: "Manifesto" },
+    ] as const;
   }
   return [
     ...base,
     { href: "/live", label: "Live TV" },
     { href: "/search", label: "Search" },
+    { href: "/manifesto", label: "Manifesto" },
   ] as const;
 }
