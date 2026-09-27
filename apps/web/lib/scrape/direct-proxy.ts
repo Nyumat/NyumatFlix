@@ -221,6 +221,14 @@ export function inferDirectMediaContentType(
   return upstreamType;
 }
 
+export function isAllowedDirectFallbackProxyPath(pathname: string): boolean {
+  return (
+    pathname === `${DIRECT_PROXY_PREFIX}/media` ||
+    pathname.startsWith(`${DIRECT_PROXY_PREFIX}/media/`) ||
+    pathname.startsWith(`${DIRECT_PROXY_PREFIX}/transcode/`)
+  );
+}
+
 export function isDirectMediaProxyPath(pathname: string): boolean {
   return (
     pathname === `${DIRECT_PROXY_PREFIX}/media` ||

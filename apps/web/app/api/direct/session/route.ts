@@ -2,6 +2,7 @@ import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextResponse } from "next/server";
 
 import { mintCalluspiratesClientSession } from "@/lib/direct/server-session";
+import { directUpstreamErrorBody } from "@/lib/direct/upstream-unavailable";
 import { isDirectScrapeProviderConfigured } from "@/lib/scrape/calluspirates-config";
 
 export async function GET(request: Request) {
@@ -25,8 +26,7 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(session);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Upstream fetch failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    const failure = directUpstreamErrorBody(error);
+    return NextResponse.json(failure.body, { status: failure.status });
   }
 }

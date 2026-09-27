@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  isDASHProvider,
   isHLSProvider,
   MediaPlayer,
   MediaProvider,
@@ -12,7 +13,7 @@ import {
   defaultLayoutIcons,
   DefaultVideoLayout,
 } from "@vidstack/react/player/layouts/default";
-import Hls from "hls.js";
+import Hls, { type ErrorData } from "hls.js";
 import {
   Suspense,
   useCallback,
@@ -22,6 +23,8 @@ import {
   useState,
 } from "react";
 
+import { AmbientGlowLayer } from "@/components/media/ambient-glow-layer";
+import { PlayerSurface } from "@/components/media/player-surface";
 import { MoviStreamPlayer } from "@/components/media/movi-stream-player";
 import { MoviScrapeEngine } from "@/components/media/engines/movi-scrape-engine";
 import { VidstackScrapeEngine } from "@/components/media/engines/vidstack-scrape-engine";
@@ -41,13 +44,26 @@ import {
   type PlayableManifest,
 } from "@nyumatflix/playback";
 import { mergeTranscodeHlsAuthConfig } from "@/lib/direct/transcode-hls-auth";
-import { configureScrapeHlsInstance } from "@/lib/scrape/hls-quality";
+import { configureVidstackDashProvider } from "@/lib/scrape/dash-vod-config";
+import {
+  configureScrapeHlsInstance,
+  isScrapeHlsMidstream,
+  shouldFailoverScrapeHlsFatal,
+} from "@/lib/scrape/hls-quality";
 import { manifestSessionKey } from "@/lib/playback/to-playable-manifest";
 import { preferredAudioLangForTranslation } from "@/lib/scrape/anime/audio-preference";
 import { useEpisodeStore } from "@/lib/stores/episode-store";
 import { useServerStore } from "@/lib/stores/server-store";
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
-import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import {
+  progressStorageKey,
+  type PlaybackProgressKey,
+} from "@/lib/playback/progress-storage";
+import {
+  readLivePlayhead,
+  rememberLivePlayhead,
+  sourceSwitchStartPosition,
+} from "@/lib/playback/source-switch-resume";
 import {
   bindHlsStartPosition,
   decidePlaybackAutoStart,
@@ -153,11 +169,14 @@ function VidstackDirectPlayer({
   persistImmediateRef.current = persistImmediate;
   const sourceUrl = engineSourceUrl(stream, engine);
   const startTimeoutMs = vidstackStartTimeoutMs(engine, sourceUrl);
-  const startAt = hlsStartPosition(resumeTime);
+  const playheadKey = progressStorageKey(progressKey);
+  const startAt = hlsStartPosition(
+    sourceSwitchStartPosition(resumeTime, readLivePlayhead(playheadKey)),
+  );
   const enforceStartAtZero = shouldEnforceVidstackStartAtZero(
     engine,
     sourceUrl,
-    resumeTime,
+    startAt,
   );
 
   const getVideoElement = useCallback((): HTMLVideoElement | null => {
@@ -292,7 +311,15 @@ function VidstackDirectPlayer({
       hlsCleanupRef.current?.();
       hlsCleanupRef.current = null;
 
-      if (!isHLSProvider(provider)) return;
+      if (!isHLSProvider(provider) && !isDASHProvider(provider)) return;
+
+      if (isDASHProvider(provider)) {
+        // Direct streams can carry a dash+xml mime from upstream providers;
+        // without the config dash.js logs at WARNING level and spams the
+        // console with benign SourceBuffer teardown errors.
+        configureVidstackDashProvider(provider);
+        return;
+      }
 
       const transcodeHls = isTranscodeHlsPath(sourceUrl);
       provider.config = mergeTranscodeHlsAuthConfig(sourceUrl, {
@@ -314,19 +341,18 @@ function VidstackDirectPlayer({
           getVideoElement,
           startAt,
         );
-        const onHlsError = (_event: string, data: { fatal?: boolean }) => {
-          if (transcodeHls && data.fatal) {
-            onError({ kind: "error" });
+        const onHlsError = (_event: string, data: ErrorData) => {
+          const midstream =
+            settledRef.current || isScrapeHlsMidstream(getVideoElement());
+          if (!shouldFailoverScrapeHlsFatal(data, midstream)) {
+            return;
           }
+          onError({ kind: "error" });
         };
-        if (transcodeHls) {
-          hls.on(Hls.Events.ERROR, onHlsError);
-        }
+        hls.on(Hls.Events.ERROR, onHlsError);
         hlsCleanupRef.current = () => {
           startPositionCleanup();
-          if (transcodeHls) {
-            hls.off(Hls.Events.ERROR, onHlsError);
-          }
+          hls.off(Hls.Events.ERROR, onHlsError);
         };
       });
     },
@@ -393,67 +419,75 @@ function VidstackDirectPlayer({
         : sourceUrl;
 
   return (
-    <MediaPlayer
-      key={`${engine}:${sourceUrl}`}
-      ref={playerRef}
-      className="nyumat-direct-stream-player h-full w-full"
-      title={title ?? stream.name}
-      src={src}
-      poster={poster ?? undefined}
-      playsInline
-      autoPlay
-      muted={false}
-      volume={1}
-      streamType="on-demand"
-      load="eager"
-      logLevel="silent"
-      crossOrigin="anonymous"
-      onProviderChange={handleProviderChange}
-      onCanPlay={handleCanPlay}
-      onLoadedData={attemptPlaybackStart}
-      onPlaying={() => {
-        startedRef.current = true;
-        markPlaybackReady();
-      }}
-      onPause={() => {
-        const player = playerRef.current;
-        if (!player || !settledRef.current) {
-          return;
-        }
-        persistImmediateRef.current(player.currentTime, player.duration);
-      }}
-      onEnded={() => {
-        const player = playerRef.current;
-        if (player) {
-          persistImmediateRef.current(player.currentTime, player.duration);
-        }
-        void onEnded?.();
-      }}
-      onTimeUpdate={(detail) => {
-        if (
-          enforceStartAtZero &&
-          !settledRef.current &&
-          isStartPositionDrifted(detail.currentTime)
-        ) {
-          const video = getVideoElement();
-          if (video) ensurePlaybackAtStart(video);
-          return;
-        }
-        const player = playerRef.current;
-        if (player && settledRef.current) {
-          persistRef.current(detail.currentTime, player.duration);
-        }
-      }}
-      onError={() => {
-        if (engine === "vidstack-hls" && isTranscodeHlsPath(sourceUrl)) {
-          return;
-        }
-        onError({ kind: "error" });
-      }}
-    >
-      <MediaProvider />
-      {layoutReady ? <DefaultVideoLayout icons={defaultLayoutIcons} /> : null}
-    </MediaPlayer>
+    <div className="relative h-full w-full">
+      <AmbientGlowLayer getVideo={getVideoElement} />
+      <PlayerSurface>
+        <MediaPlayer
+          key={`${engine}:${sourceUrl}`}
+          ref={playerRef}
+          className="nyumat-direct-stream-player h-full w-full"
+          title={title ?? stream.name}
+          src={src}
+          poster={poster ?? undefined}
+          playsInline
+          autoPlay
+          muted={false}
+          volume={1}
+          streamType="on-demand"
+          load="eager"
+          logLevel="silent"
+          crossOrigin="anonymous"
+          onProviderChange={handleProviderChange}
+          onCanPlay={handleCanPlay}
+          onLoadedData={attemptPlaybackStart}
+          onPlaying={() => {
+            startedRef.current = true;
+            markPlaybackReady();
+          }}
+          onPause={() => {
+            const player = playerRef.current;
+            if (!player || !settledRef.current) {
+              return;
+            }
+            persistImmediateRef.current(player.currentTime, player.duration);
+          }}
+          onEnded={() => {
+            const player = playerRef.current;
+            if (player) {
+              persistImmediateRef.current(player.currentTime, player.duration);
+            }
+            void onEnded?.();
+          }}
+          onTimeUpdate={(detail) => {
+            if (
+              enforceStartAtZero &&
+              !settledRef.current &&
+              isStartPositionDrifted(detail.currentTime)
+            ) {
+              const video = getVideoElement();
+              if (video) ensurePlaybackAtStart(video);
+              return;
+            }
+            const player = playerRef.current;
+            if (player && settledRef.current) {
+              rememberLivePlayhead(playheadKey, detail.currentTime);
+              persistRef.current(detail.currentTime, player.duration);
+            }
+          }}
+          onError={() => {
+            if (engine === "vidstack-hls") {
+              return;
+            }
+            onError({ kind: "error" });
+          }}
+        >
+          <MediaProvider />
+          {layoutReady ? (
+            <DefaultVideoLayout icons={defaultLayoutIcons} />
+          ) : null}
+        </MediaPlayer>
+      </PlayerSurface>
+    </div>
   );
 }
 
@@ -663,7 +697,7 @@ function DirectUrlPlayback({
     return (
       <div
         className={cn(
-          "flex h-full w-full items-center justify-center rounded-lg border border-border/20 bg-black text-sm text-muted-foreground",
+          "flex h-full w-full items-center justify-center rounded-[1.35rem] bg-transparent text-sm text-muted-foreground",
           className,
         )}
       >

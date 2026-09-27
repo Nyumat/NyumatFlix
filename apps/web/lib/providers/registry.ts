@@ -12,6 +12,8 @@ export type TmdbScrapeProviderId =
   | "vidrock"
   | "bingr"
   | "vidlink"
+  | "vidnest"
+  | "kisskh"
   | "hexa"; // scrape implemented; disabled in TMDB_SCRAPE_PROVIDER_REGISTRY
 
 export type AnimeScrapeProviderId =
@@ -104,7 +106,9 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
 ];
 
 /**
- * Provider order from latency bench + reliability audits. VidNest scrape removed.
+ * Provider order from latency bench + reliability audits.
+ * VidNest is late: several resolvers are slow, and tiny MP4 stubs are rejected.
+ * KissKH covers Asian movie/drama catalogs the TMDB-id providers miss.
  * VixSrc is embed-only.
  */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
@@ -120,6 +124,12 @@ export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   // hexa: keep scrapeHexa / hexa-cipher; omit from race until Cap/WASM egress is reliable
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
   provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
+  provider("vidnest", "VidNest", {
+    embed: true,
+    tmdbScrape: true,
+    animeEmbed: true,
+  }),
+  provider("kisskh", "KissKH", { embed: false, tmdbScrape: true }),
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
 ];
 

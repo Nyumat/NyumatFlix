@@ -70,9 +70,14 @@ export function ProviderWatchSelect({
     >
       <SelectTrigger
         aria-label={`Streaming service: ${activeProvider.name}`}
-        className={contentRowSelectTriggerClassName(large)}
+        className={cn(
+          contentRowSelectTriggerClassName(large),
+          "group/trigger data-[state=open]:[&>span]:border-pink-500",
+        )}
       >
-        <SelectValue placeholder={activeProvider.name} />
+        <span className="border-b-2 border-pink-500/45 pb-1 transition-colors group-hover/trigger:border-pink-500">
+          <SelectValue placeholder={activeProvider.name} />
+        </span>
       </SelectTrigger>
       <SelectContent
         align="start"

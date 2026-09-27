@@ -17,6 +17,7 @@ import {
 import { scrapeProvider } from "@/lib/scrape";
 import {
   buildScrapePlayUrl,
+  sealScrapePlaybackCatalog,
   type ScrapePlaybackToken,
 } from "@/lib/scrape/playback";
 import {
@@ -32,10 +33,10 @@ import { isVidnestClientOnlyCdn } from "@/lib/scrape/vidnest-shared";
 import {
   filterAnimeScrapeProviderIds,
   filterTmdbScrapeProviderIds,
-  getSiteFlags,
   isAnimeScrapeProviderEnabled,
   isTmdbScrapeProviderEnabled,
 } from "@/lib/flags/site-flags";
+import { getSiteFlags } from "@/lib/flags/site-flags-server";
 import { inferScrapeStreamKind } from "@/lib/scrape/stream-kind";
 import { stampDonorSubtitles } from "@/lib/scrape/subtitle-harvest";
 import { isDirectScrapeProviderConfigured } from "@/lib/scrape/calluspirates-config";
@@ -265,6 +266,18 @@ async function handleTmdbScrapePost(
     result.providerId === "direct"
       ? inferDirectStreamKind(result.streamUrl, result.directPlayback)
       : inferScrapeStreamKind(result.streamUrl);
+  const sealed = sealScrapePlaybackCatalog({
+    referer: result.referer,
+    refresh: playbackToken.refresh,
+    subtitles: stampDonorSubtitles(result.subtitles, {
+      referer: result.referer,
+      source:
+        TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
+    }),
+    qualities: result.qualities,
+    audioVersions: result.audioVersions,
+    sealQualities: !playUrl.startsWith("http"),
+  });
 
   return NextResponse.json({
     ok: true,
@@ -275,13 +288,9 @@ async function handleTmdbScrapePost(
     playUrl,
     streamKind,
     referer: result.referer,
-    subtitles: stampDonorSubtitles(result.subtitles, {
-      referer: result.referer,
-      source:
-        TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
-    }),
-    qualities: result.qualities,
-    audioVersions: result.audioVersions,
+    subtitles: sealed.subtitles,
+    qualities: sealed.qualities,
+    audioVersions: sealed.audioVersions,
     nativeAudioTrackCount: result.nativeAudioTrackCount,
     nativeSubtitleTrackCount: result.nativeSubtitleTrackCount,
     preferredAudioLang: result.preferredAudioLang,
@@ -371,6 +380,17 @@ async function handleAnimeScrapePost(
   };
 
   const playUrl = buildScrapePlayUrl(playbackToken);
+  const sealed = sealScrapePlaybackCatalog({
+    referer: result.referer,
+    refresh: playbackToken.refresh,
+    subtitles: stampDonorSubtitles(result.subtitles, {
+      referer: result.referer,
+      source: ANIME_SCRAPE_PROVIDER_LABELS[result.providerId],
+    }),
+    qualities: result.qualities,
+    audioVersions: result.audioVersions,
+    sealQualities: true,
+  });
 
   return NextResponse.json({
     ok: true,
@@ -380,12 +400,9 @@ async function handleAnimeScrapePost(
     streamKind: result.streamKind,
     playUrl,
     referer: result.referer,
-    subtitles: stampDonorSubtitles(result.subtitles, {
-      referer: result.referer,
-      source: ANIME_SCRAPE_PROVIDER_LABELS[result.providerId],
-    }),
-    qualities: result.qualities,
-    audioVersions: result.audioVersions,
+    subtitles: sealed.subtitles,
+    qualities: sealed.qualities,
+    audioVersions: sealed.audioVersions,
     nativeAudioTrackCount: result.nativeAudioTrackCount,
     nativeSubtitleTrackCount: result.nativeSubtitleTrackCount,
     defaultAudioLang: result.defaultAudioLang,

@@ -4,13 +4,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { PlayableManifest } from "@nyumatflix/playback";
 
+import { AmbientGlowLayer } from "@/components/media/ambient-glow-layer";
+import { PlayerSurface } from "@/components/media/player-surface";
 import { IntroDbSegmentControl } from "@/components/media/controls/introdb-segment-control";
 import { useSubtitleOffsetKeyboardShortcuts } from "@/components/media/controls/scrape-subtitle-offset-controls";
 import { useIntroDbSegments } from "@/hooks/use-introdb-segments";
 import { useNativeSubtitleOffset } from "@/hooks/use-native-subtitle-offset";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
 import { buildIntroDbChaptersVtt } from "@/lib/playback/introdb";
-import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import {
+  progressStorageKey,
+  type PlaybackProgressKey,
+} from "@/lib/playback/progress-storage";
+import {
+  readLivePlayhead,
+  rememberLivePlayhead,
+  sourceSwitchStartPosition,
+} from "@/lib/playback/source-switch-resume";
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
 import {
   decidePlaybackAutoStart,
@@ -75,6 +85,7 @@ function ShakaScrapeEngineInstance({
     source: track.source,
   }));
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const getVideoElement = useCallback(() => videoRef.current, []);
   const playerRef = useRef<import("shaka-player").default.Player | null>(null);
   const loadGenerationRef = useRef(0);
   const readyRef = useRef(false);
@@ -137,6 +148,11 @@ function ShakaScrapeEngineInstance({
 
   const { resumeTime, persist, persistImmediate } =
     usePlaybackProgress(progressKey);
+  const playheadKey = progressStorageKey(progressKey);
+  const startAt = sourceSwitchStartPosition(
+    resumeTime,
+    readLivePlayhead(playheadKey),
+  );
 
   const textTracks = useMemo(
     () => buildScrapeSubtitleTracks(subtitles, referer),
@@ -310,7 +326,7 @@ function ShakaScrapeEngineInstance({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || resumeTime <= 0) {
+    if (!video || startAt <= 0) {
       return;
     }
 
@@ -318,96 +334,100 @@ function ShakaScrapeEngineInstance({
       if (!Number.isFinite(video.duration) || video.duration <= 0) {
         return;
       }
-      video.currentTime = Math.min(resumeTime, video.duration);
+      video.currentTime = Math.min(startAt, video.duration);
     };
 
     video.addEventListener("loadedmetadata", apply);
     return () => video.removeEventListener("loadedmetadata", apply);
-  }, [resumeTime]);
+  }, [startAt]);
 
   return (
     <div className={cn("relative h-full w-full", className)}>
-      <video
-        ref={videoRef}
-        className="h-full w-full rounded-lg bg-black"
-        controls
-        playsInline
-        preload="auto"
-        poster={poster ?? undefined}
-        title={title}
-        onLoadedMetadata={(event) => {
-          const video = event.currentTarget;
-          setPlaybackState({
-            currentTime: video.currentTime,
-            duration: video.duration || 0,
-          });
-          attemptPlaybackStart();
-        }}
-        onCanPlay={() => {
-          attemptPlaybackStart();
-        }}
-        onDurationChange={(event) => {
-          const video = event.currentTarget;
-          setPlaybackState((state) => ({
-            ...state,
-            duration: state.duration || video.duration || 0,
-          }));
-        }}
-        onPlaying={() => {
-          startedRef.current = true;
-          markMediaReady();
-        }}
-        onTimeUpdate={(e) => {
-          const video = e.currentTarget;
-          if (video.currentTime > 0) {
+      <AmbientGlowLayer getVideo={getVideoElement} />
+      <PlayerSurface>
+        <video
+          ref={videoRef}
+          className="h-full w-full bg-black"
+          controls
+          playsInline
+          preload="auto"
+          poster={poster ?? undefined}
+          title={title}
+          onLoadedMetadata={(event) => {
+            const video = event.currentTarget;
+            setPlaybackState({
+              currentTime: video.currentTime,
+              duration: video.duration || 0,
+            });
+            attemptPlaybackStart();
+          }}
+          onCanPlay={() => {
+            attemptPlaybackStart();
+          }}
+          onDurationChange={(event) => {
+            const video = event.currentTarget;
+            setPlaybackState((state) => ({
+              ...state,
+              duration: state.duration || video.duration || 0,
+            }));
+          }}
+          onPlaying={() => {
+            startedRef.current = true;
             markMediaReady();
-          }
-          setPlaybackState((state) => ({
-            currentTime: video.currentTime,
-            duration: state.duration || video.duration || 0,
-          }));
-          persist(video.currentTime, video.duration || 0);
-        }}
-        onEnded={(e) => {
-          const video = e.currentTarget;
-          persistImmediate(video.currentTime, video.duration || 0);
-          void onEnded?.();
-        }}
-      >
-        {textTracks
-          .filter((track) => track.type === "vtt")
-          .map((track) => (
+          }}
+          onTimeUpdate={(e) => {
+            const video = e.currentTarget;
+            if (video.currentTime > 0) {
+              markMediaReady();
+            }
+            setPlaybackState((state) => ({
+              currentTime: video.currentTime,
+              duration: state.duration || video.duration || 0,
+            }));
+            rememberLivePlayhead(playheadKey, video.currentTime);
+            persist(video.currentTime, video.duration || 0);
+          }}
+          onEnded={(e) => {
+            const video = e.currentTarget;
+            persistImmediate(video.currentTime, video.duration || 0);
+            void onEnded?.();
+          }}
+        >
+          {textTracks
+            .filter((track) => track.type === "vtt")
+            .map((track) => (
+              <track
+                key={track.id}
+                src={track.src}
+                kind="subtitles"
+                label={track.label}
+                srcLang={track.lang}
+                default={track.default}
+              />
+            ))}
+          {introDbChaptersUrl ? (
             <track
-              key={track.id}
-              src={track.src}
-              kind="subtitles"
-              label={track.label}
-              srcLang={track.lang}
-              default={track.default}
+              src={introDbChaptersUrl}
+              kind="chapters"
+              label="TheIntroDB segments"
+              default
             />
-          ))}
-        {introDbChaptersUrl ? (
-          <track
-            src={introDbChaptersUrl}
-            kind="chapters"
-            label="TheIntroDB segments"
-            default
-          />
-        ) : null}
-      </video>
-      <IntroDbSegmentControl
-        segments={introDbSegments}
-        currentTime={playbackState.currentTime}
-        duration={playbackState.duration}
-        isTv={isTv ?? progressKey.mediaType === "tv"}
-        onSeek={(time) => {
-          const video = videoRef.current;
-          if (video) {
-            video.currentTime = time;
-          }
-        }}
-        onAdvanceToNextEpisode={onEnded}
-      />
+          ) : null}
+        </video>
+        <IntroDbSegmentControl
+          segments={introDbSegments}
+          currentTime={playbackState.currentTime}
+          duration={playbackState.duration}
+          isTv={isTv ?? progressKey.mediaType === "tv"}
+          onSeek={(time) => {
+            const video = videoRef.current;
+            if (video) {
+              video.currentTime = time;
+            }
+          }}
+          onAdvanceToNextEpisode={onEnded}
+        />
+      </PlayerSurface>
     </div>
   );
 }

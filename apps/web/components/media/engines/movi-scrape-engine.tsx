@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { PlayableManifest } from "@nyumatflix/playback";
 
+import { AmbientGlowLayer } from "@/components/media/ambient-glow-layer";
 import { IntroDbSegmentControl } from "@/components/media/controls/introdb-segment-control";
+import { PlayerSurface } from "@/components/media/player-surface";
 import { useIntroDbSegments } from "@/hooks/use-introdb-segments";
 import { useMoviPlaybackTrackPreferences } from "@/hooks/use-movi-playback-track-preferences";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
@@ -14,7 +16,15 @@ import {
   formatIntroDbSegmentTitle,
   type IntroDbSegment,
 } from "@/lib/playback/introdb";
-import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import {
+  progressStorageKey,
+  type PlaybackProgressKey,
+} from "@/lib/playback/progress-storage";
+import {
+  readLivePlayhead,
+  rememberLivePlayhead,
+  sourceSwitchStartPosition,
+} from "@/lib/playback/source-switch-resume";
 import { pickScrapeQualityIndexForPreference } from "@/lib/playback/playback-preferences";
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
 import { resolvePreferredSubtitleLang } from "@/lib/playback/movi-subtitle-preference";
@@ -59,6 +69,8 @@ import {
 import {
   buildScrapePlayUrl,
   extractScrapePlaybackRefreshFromPlayUrl,
+  isScrapePlayProxyUrl,
+  relativeScrapePlayUrl,
 } from "@/lib/scrape/playback";
 import { resolveActiveSubtitles } from "@/lib/scrape/linked-config";
 import type { ScrapeStreamKind } from "@/lib/scrape/stream-kind";
@@ -159,6 +171,10 @@ export function MoviScrapeEngine({
   const preferredAudioLang = manifest.preferredAudioLang;
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<MoviPlayerElement | null>(null);
+  const getVideoElement = useCallback(() => {
+    const host = playerRef.current;
+    return host ? getMoviVideoElement(host) : null;
+  }, []);
   const [player, setPlayer] = useState<MoviPlayerElement | null>(null);
   const onFatalErrorRef = useRef(onFatalError);
   const onPlaybackStallFailoverRef = useRef(onPlaybackStallFailover);
@@ -180,8 +196,11 @@ export function MoviScrapeEngine({
   );
   const { resumeTime, persist, persistImmediate } =
     usePlaybackProgress(progressKey);
+  const playheadKey = progressStorageKey(progressKey);
   const resumeTimeRef = useRef(resumeTime);
   resumeTimeRef.current = resumeTime;
+  const playheadKeyRef = useRef(playheadKey);
+  playheadKeyRef.current = playheadKey;
 
   onFatalErrorRef.current = onFatalError;
   onPlaybackStallFailoverRef.current = onPlaybackStallFailover;
@@ -203,6 +222,9 @@ export function MoviScrapeEngine({
   const variantPlayUrl = useMemo(() => {
     if (!variantRawUrl) {
       return null;
+    }
+    if (isScrapePlayProxyUrl(variantRawUrl)) {
+      return relativeScrapePlayUrl(variantRawUrl);
     }
     const refresh = extractScrapePlaybackRefreshFromPlayUrl(playUrl);
     return buildScrapePlayUrl({
@@ -501,7 +523,12 @@ export function MoviScrapeEngine({
     let stopReadyWatch: (() => void) | undefined;
     let detachControlBridge: (() => void) | undefined;
     let detachOverlaySuppressor: (() => void) | undefined;
-    const mountStartAt = hlsStartPosition(resumeTimeRef.current);
+    const mountStartAt = hlsStartPosition(
+      sourceSwitchStartPosition(
+        resumeTimeRef.current,
+        readLivePlayhead(playheadKeyRef.current),
+      ),
+    );
 
     void loadMoviCompat()
       .then(() => {
@@ -601,6 +628,7 @@ export function MoviScrapeEngine({
           }
           if (Number.isFinite(nextCurrentTime) && nextCurrentTime > 0) {
             markMediaReady();
+            rememberLivePlayhead(playheadKeyRef.current, nextCurrentTime);
             persist(nextCurrentTime, el.duration);
           }
         });
@@ -707,25 +735,27 @@ export function MoviScrapeEngine({
 
   return (
     <div
-      ref={containerRef}
       className={cn("relative h-full w-full", className)}
       data-stream-kind={streamKind ?? "hls"}
     >
-      <IntroDbSegmentControl
-        segments={introDbSegments}
-        currentTime={currentTime}
-        duration={duration}
-        isTv={isTv ?? progressKey.mediaType === "tv"}
-        onSeek={(time) => {
-          const player = playerRef.current;
-          if (!player) {
-            return;
-          }
-          player.currentTime = time;
-          setCurrentTime(time);
-        }}
-        onAdvanceToNextEpisode={onEnded}
-      />
+      <AmbientGlowLayer getVideo={getVideoElement} />
+      <PlayerSurface ref={containerRef}>
+        <IntroDbSegmentControl
+          segments={introDbSegments}
+          currentTime={currentTime}
+          duration={duration}
+          isTv={isTv ?? progressKey.mediaType === "tv"}
+          onSeek={(time) => {
+            const player = playerRef.current;
+            if (!player) {
+              return;
+            }
+            player.currentTime = time;
+            setCurrentTime(time);
+          }}
+          onAdvanceToNextEpisode={onEnded}
+        />
+      </PlayerSurface>
     </div>
   );
 }

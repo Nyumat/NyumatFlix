@@ -5,7 +5,9 @@ export const looksLikeHlsStreamUrl = (url: string): boolean =>
   /\/master(?:[?#].*|$)/i.test(url) ||
   /goodstream\.cc\/(?:streamsvr|pl)\//i.test(url) ||
   /1x2\.space\/playlist\//i.test(url) ||
-  /api\.kyren\.moe\/v1\/hls\//i.test(url) ||
+  // Kyren masters live under /v1/hls/ but segments use /v1/hls/s/<token> —
+  // excluding s/ keeps binary TS segments out of playlist classification.
+  /api\.kyren\.moe\/v1\/hls\/(?!s\/)/i.test(url) ||
   /(?:vixsrc\.to|vixcloud\.co)\/playlist\//i.test(url) ||
   /wormhole\.filmu\.in\/proxy\/m3u8/i.test(url) ||
   /ani\.pm\/api\/anime\/src\/hls(?:[?#].*|$)/i.test(url) ||

@@ -1,6 +1,10 @@
 import { mergeDirectStreams } from "@/lib/direct/merge-direct-streams";
 import { directDiscoveryEventPath } from "@/lib/direct/discovery-paths";
 import {
+  DirectUnavailableError,
+  isDirectUnavailableHttpFailure,
+} from "@/lib/direct/upstream-unavailable";
+import {
   collectStreamsFromDirectSse,
   type DirectSseStream,
 } from "@/lib/direct/scrape-sse";
@@ -29,9 +33,10 @@ export async function collectDirectStreamsClient(
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(
-      `Direct stream discovery ${response.status}${detail ? `: ${detail.slice(0, 120)}` : ""}`,
-    );
+    if (isDirectUnavailableHttpFailure(response.status, detail)) {
+      throw new DirectUnavailableError();
+    }
+    throw new Error(`Direct stream discovery ${response.status}`);
   }
 
   const quick = options?.quick ?? false;

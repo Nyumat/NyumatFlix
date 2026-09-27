@@ -85,6 +85,27 @@ export async function classifyStreamFailure(
   return "unknown";
 }
 
+export function shouldAttemptStreamAfterProbe(
+  probe: MediaProbeResult,
+): boolean {
+  return probe.ok || probe.status === null;
+}
+
+export type DirectExhaustionDecision = "reload" | "wait" | "failed";
+
+export function decideDirectExhaustion(state: {
+  freshRetryStarted: boolean;
+  freshPlaybackStarted: boolean;
+}): DirectExhaustionDecision {
+  if (!state.freshRetryStarted) {
+    return "reload";
+  }
+  if (!state.freshPlaybackStarted) {
+    return "wait";
+  }
+  return "failed";
+}
+
 export async function findNextViableStream(
   candidates: readonly DirectStream[],
   tried: Set<string>,
@@ -101,7 +122,7 @@ export async function findNextViableStream(
   for (const stream of remaining) {
     const id = streamIdentity(stream);
     const probe = await probeMediaUrl(stream.url);
-    if (probe.ok) {
+    if (shouldAttemptStreamAfterProbe(probe)) {
       return { kind: "stream", stream };
     }
     tried.add(id);

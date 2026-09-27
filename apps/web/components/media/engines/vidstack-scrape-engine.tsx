@@ -24,6 +24,8 @@ import {
   useState,
 } from "react";
 
+import { AmbientGlowLayer } from "@/components/media/ambient-glow-layer";
+import { PlayerSurface } from "@/components/media/player-surface";
 import { VidstackIntroDbSegmentControl } from "@/components/media/controls/introdb-segment-control";
 import { shouldShowScrapeAudioVariantMenu } from "@/components/media/controls/scrape-audio-variant-menu";
 import { useSubtitleOffsetKeyboardShortcuts } from "@/components/media/controls/scrape-subtitle-offset-controls";
@@ -38,7 +40,15 @@ import {
   buildIntroDbChapterGradient,
   buildIntroDbChaptersVtt,
 } from "@/lib/playback/introdb";
-import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import {
+  progressStorageKey,
+  type PlaybackProgressKey,
+} from "@/lib/playback/progress-storage";
+import {
+  readLivePlayhead,
+  rememberLivePlayhead,
+  sourceSwitchStartPosition,
+} from "@/lib/playback/source-switch-resume";
 import { trackMatchesLanguage } from "@/lib/playback/track-matching";
 import {
   getTrackPreferences,
@@ -58,11 +68,8 @@ import {
   isScrapeHlsMidstream,
   shouldFailoverScrapeHlsFatal,
 } from "@/lib/scrape/hls-quality";
-import {
-  configureScrapeDashInstance,
-  SCRAPE_VOD_DASH_CONFIG,
-} from "@/lib/scrape/dash-vod-config";
-import { SCRAPE_VOD_HLS_CONFIG } from "@/lib/scrape/hls-vod-config";
+import { configureVidstackDashProvider } from "@/lib/scrape/dash-vod-config";
+import { buildScrapeVodHlsConfig } from "@/lib/scrape/hls-vod-config";
 import { resolveActiveSubtitles } from "@/lib/scrape/linked-config";
 import {
   buildScrapeQualityPlayOptions,
@@ -72,6 +79,8 @@ import {
 import {
   buildScrapePlayUrl,
   extractScrapePlaybackRefreshFromPlayUrl,
+  isScrapePlayProxyUrl,
+  relativeScrapePlayUrl,
 } from "@/lib/scrape/playback";
 import {
   buildScrapeMediaPlayerSrc,
@@ -96,9 +105,6 @@ import type { PlayableManifest } from "@nyumatflix/playback";
 import "../scrape-hls-player.css";
 
 const VIDKING_KEEPALIVE_INTERVAL_MS = VIDKING_PROACTIVE_REFRESH_AFTER_MS;
-
-const loadDashjsLibrary = () =>
-  import("dashjs").then((module) => ({ default: module.MediaPlayer }));
 
 type VidstackScrapeEngineProps = {
   manifest: PlayableManifest;
@@ -172,26 +178,34 @@ export function VidstackScrapeEngine({
       : manifest.kind === "progressive"
         ? "mp4"
         : "hls";
-  const qualities = manifest.qualities?.map((quality) => ({
-    label: quality.label,
-    url: quality.url,
-    referer: quality.referer,
-    subtitles: quality.subtitles?.map((track) => ({
-      lang: track.lang,
-      url: track.url,
-      format: track.format,
-      referer: track.referer,
-      source: track.source,
-    })),
-  }));
+  const qualities = useMemo(
+    () =>
+      manifest.qualities?.map((quality) => ({
+        label: quality.label,
+        url: quality.url,
+        referer: quality.referer,
+        subtitles: quality.subtitles?.map((track) => ({
+          lang: track.lang,
+          url: track.url,
+          format: track.format,
+          referer: track.referer,
+          source: track.source,
+        })),
+      })),
+    [manifest],
+  );
   const referer = manifest.referer;
-  const subtitles = manifest.subtitles.map((track) => ({
-    lang: track.lang,
-    url: track.url,
-    format: track.format,
-    referer: track.referer,
-    source: track.source,
-  }));
+  const subtitles = useMemo(
+    () =>
+      manifest.subtitles.map((track) => ({
+        lang: track.lang,
+        url: track.url,
+        format: track.format,
+        referer: track.referer,
+        source: track.source,
+      })),
+    [manifest],
+  );
   const audioVersions = manifest.audioVersions as
     | ScrapeAudioVersion[]
     | undefined;
@@ -199,6 +213,10 @@ export function VidstackScrapeEngine({
   const defaultHardSubLang = manifest.defaultHardSubLang;
   const preferredAudioLang = manifest.preferredAudioLang;
   const playerRef = useRef<MediaPlayerInstance>(null);
+  const getVideoElement = useCallback(
+    () => readProviderVideo(playerRef.current),
+    [],
+  );
   const resumedRef = useRef(false);
   const readyRef = useRef(false);
   const startedRef = useRef(false);
@@ -215,6 +233,11 @@ export function VidstackScrapeEngine({
   }, []);
   const { resumeTime, persist, persistImmediate } =
     usePlaybackProgress(progressKey);
+  const playheadKey = progressStorageKey(progressKey);
+  const resumeTarget = useCallback(
+    () => sourceSwitchStartPosition(resumeTime, readLivePlayhead(playheadKey)),
+    [playheadKey, resumeTime],
+  );
   const playbackQuality = useAppSettingsStore((state) => state.playbackQuality);
   const playbackEnglishSubtitles = useAppSettingsStore(
     (state) => state.playbackEnglishSubtitles,
@@ -295,6 +318,9 @@ export function VidstackScrapeEngine({
   const variantPlayUrl = useMemo(() => {
     if (!variantRawUrl) {
       return null;
+    }
+    if (isScrapePlayProxyUrl(variantRawUrl)) {
+      return relativeScrapePlayUrl(variantRawUrl);
     }
     const refresh = extractScrapePlaybackRefreshFromPlayUrl(playUrl);
     return buildScrapePlayUrl({
@@ -468,13 +494,11 @@ export function VidstackScrapeEngine({
 
       if (isHLSProvider(provider)) {
         provider.library = Hls;
+        const hlsConfig = buildScrapeVodHlsConfig(resumeTarget());
         provider.config = mergeScrapeHlsClientAuthConfig(
           isDirectTranscodeHlsUrl(activePlaybackUrl)
-            ? mergeTranscodeHlsAuthConfig(
-                activePlaybackUrl,
-                SCRAPE_VOD_HLS_CONFIG,
-              )
-            : SCRAPE_VOD_HLS_CONFIG,
+            ? mergeTranscodeHlsAuthConfig(activePlaybackUrl, hlsConfig)
+            : hlsConfig,
         );
         provider.onInstance((hls) => {
           configureScrapeHlsInstance(hls, {
@@ -487,20 +511,17 @@ export function VidstackScrapeEngine({
       }
 
       if (isDASHProvider(provider)) {
-        provider.config = SCRAPE_VOD_DASH_CONFIG;
-        provider.library = loadDashjsLibrary;
-        provider.onInstance((dash) => {
-          configureScrapeDashInstance(dash);
-        });
+        configureVidstackDashProvider(provider);
         return;
       }
     },
-    [activePlaybackUrl, autoPlay, streamKind],
+    [activePlaybackUrl, autoPlay, resumeTarget, streamKind],
   );
 
   const applyResumePosition = useCallback(() => {
     const player = playerRef.current;
-    if (!player || resumedRef.current || resumeTime <= 0) {
+    const target = resumeTarget();
+    if (!player || resumedRef.current || target <= 0) {
       return;
     }
 
@@ -510,12 +531,12 @@ export function VidstackScrapeEngine({
     }
 
     resumedRef.current = true;
-    player.currentTime = Math.min(resumeTime, duration);
-  }, [resumeTime]);
+    player.currentTime = Math.min(target, duration);
+  }, [resumeTarget]);
 
   const normalizeSpuriousStartupPosition = useCallback(() => {
     const player = playerRef.current;
-    if (!player || resumeTime > 0 || resumedRef.current) {
+    if (!player || resumeTarget() > 0 || resumedRef.current) {
       return;
     }
 
@@ -524,7 +545,7 @@ export function VidstackScrapeEngine({
     }
 
     player.currentTime = 0;
-  }, [resumeTime]);
+  }, [resumeTarget]);
 
   const updateDuration = useCallback((nextDuration: number) => {
     if (Number.isFinite(nextDuration) && nextDuration > 0) {
@@ -640,9 +661,18 @@ export function VidstackScrapeEngine({
         markMediaReady();
       }
 
+      const target = resumeTarget();
+      if (
+        resumedRef.current ||
+        target <= 1 ||
+        detail.currentTime + 2 >= target
+      ) {
+        rememberLivePlayhead(playheadKey, detail.currentTime);
+      }
+
       persist(detail.currentTime, player.duration);
     },
-    [markMediaReady, persist],
+    [markMediaReady, persist, playheadKey, resumeTarget],
   );
 
   const handleEnded = useCallback(() => {
@@ -773,77 +803,80 @@ export function VidstackScrapeEngine({
 
   return (
     <div className={cn("relative h-full w-full", className)}>
-      <MediaPlayer
-        key={activePlayUrl}
-        ref={playerRef}
-        className="nyumat-scrape-player h-full w-full"
-        style={introDbPlayerStyle}
-        src={playerSrc}
-        title={title}
-        poster={poster ?? undefined}
-        autoPlay={autoPlay}
-        muted={false}
-        volume={1}
-        streamType="on-demand"
-        playsInline
-        load="eager"
-        logLevel="silent"
-        onProviderChange={handleProviderChange}
-        onLoadedMetadata={handleLoadedMetadata}
-        onLoadedData={handleLoadedData}
-        onCanPlay={handleCanPlay}
-        onPlaying={handlePlaying}
-        onDurationChange={updateDuration}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-        onError={handlePlaybackError}
-        onHlsError={handleHlsError}
-      >
-        <MediaProvider>
-          {textTracks.map((track) => (
-            <Track
-              key={track.id}
-              id={track.id}
-              src={track.src}
-              kind="subtitles"
-              label={track.label}
-              lang={track.lang}
-              type={track.type}
-              default={track.default}
-            />
-          ))}
-          {introDbChapters ? (
-            <Track
-              id="introdb-chapters"
-              content={introDbChapters}
-              kind="chapters"
-              label="TheIntroDB segments"
-              type="vtt"
-              default
-            />
-          ) : null}
-        </MediaProvider>
-        <MediaAnnouncer />
-        <Poster className="vds-poster" alt="" />
-        <ScrapeVideoLayout
-          audioVariant={audioVariantMenu}
-          subtitleOffset={{
-            offsetSeconds: subtitleOffset.offsetSeconds,
-            onOffsetChange: subtitleOffset.setOffsetSeconds,
-            visible: subtitleOffset.hasTracks,
-          }}
-          subtitleAppearance={{
-            appearance: subtitleAppearance.appearance,
-            onAppearanceChange: subtitleAppearance.setAppearance,
-            onAppearanceReset: subtitleAppearance.resetAppearance,
-          }}
-        />
-        <VidstackIntroDbSegmentControl
-          segments={introDbSegments}
-          isTv={isTv ?? progressKey.mediaType === "tv"}
-          onAdvanceToNextEpisode={onEnded}
-        />
-      </MediaPlayer>
+      <AmbientGlowLayer getVideo={getVideoElement} />
+      <PlayerSurface>
+        <MediaPlayer
+          key={manifest.id}
+          ref={playerRef}
+          className="nyumat-scrape-player h-full w-full"
+          style={introDbPlayerStyle}
+          src={playerSrc}
+          title={title}
+          poster={poster ?? undefined}
+          autoPlay={autoPlay}
+          muted={false}
+          volume={1}
+          streamType="on-demand"
+          playsInline
+          load="eager"
+          logLevel="silent"
+          onProviderChange={handleProviderChange}
+          onLoadedMetadata={handleLoadedMetadata}
+          onLoadedData={handleLoadedData}
+          onCanPlay={handleCanPlay}
+          onPlaying={handlePlaying}
+          onDurationChange={updateDuration}
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={handleEnded}
+          onError={handlePlaybackError}
+          onHlsError={handleHlsError}
+        >
+          <MediaProvider>
+            {textTracks.map((track) => (
+              <Track
+                key={track.id}
+                id={track.id}
+                src={track.src}
+                kind="subtitles"
+                label={track.label}
+                lang={track.lang}
+                type={track.type}
+                default={track.default}
+              />
+            ))}
+            {introDbChapters ? (
+              <Track
+                id="introdb-chapters"
+                content={introDbChapters}
+                kind="chapters"
+                label="TheIntroDB segments"
+                type="vtt"
+                default
+              />
+            ) : null}
+          </MediaProvider>
+          <MediaAnnouncer />
+          <Poster className="vds-poster" alt="" />
+          <ScrapeVideoLayout
+            audioVariant={audioVariantMenu}
+            subtitleOffset={{
+              offsetSeconds: subtitleOffset.offsetSeconds,
+              onOffsetChange: subtitleOffset.setOffsetSeconds,
+              visible: subtitleOffset.hasTracks,
+            }}
+            subtitleAppearance={{
+              appearance: subtitleAppearance.appearance,
+              onAppearanceChange: subtitleAppearance.setAppearance,
+              onAppearanceReset: subtitleAppearance.resetAppearance,
+            }}
+          />
+          <VidstackIntroDbSegmentControl
+            segments={introDbSegments}
+            isTv={isTv ?? progressKey.mediaType === "tv"}
+            onAdvanceToNextEpisode={onEnded}
+          />
+        </MediaPlayer>
+      </PlayerSurface>
     </div>
   );
 }

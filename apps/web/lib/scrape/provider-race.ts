@@ -13,6 +13,7 @@ const PROVIDER_ATTEMPT_TIMEOUT_MS: Partial<Record<string, number>> = {
   bingr: 30_000,
   vidsrc: 20_000,
   vidnest: 30_000,
+  kisskh: 20_000,
   videasy: 60_000,
   vidking: 30_000,
   vidlink: 25_000,

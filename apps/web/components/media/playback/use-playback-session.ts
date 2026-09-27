@@ -33,9 +33,20 @@ export const usePlaybackSession = (progressKey: PlaybackProgressKey) => {
       };
 
       window.addEventListener("pagehide", persistNow);
+      window.addEventListener("beforeunload", persistNow);
+      window.addEventListener("freeze", persistNow);
+      const onVisibilityChange = () => {
+        if (document.visibilityState === "hidden") {
+          persistNow();
+        }
+      };
+      document.addEventListener("visibilitychange", onVisibilityChange);
       registerPlaybackProgressFlush(persistNow);
       return () => {
         window.removeEventListener("pagehide", persistNow);
+        window.removeEventListener("beforeunload", persistNow);
+        window.removeEventListener("freeze", persistNow);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
         unregisterPlaybackProgressFlush(persistNow);
         persistNow();
       };

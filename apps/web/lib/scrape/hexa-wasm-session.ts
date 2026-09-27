@@ -1,5 +1,4 @@
 import type { Browser, BrowserContext, Page } from "playwright";
-import { chromium } from "playwright";
 
 const HEXA_ORIGIN = "https://hexa.su/";
 const WASM_ORIGIN = "https://theemoviedb.hexa.su";
@@ -46,10 +45,12 @@ let sessionPromise: Promise<HexaWasmSession> | null = null;
 let browserPromise: Promise<Browser> | null = null;
 
 const launchBrowser = (): Promise<Browser> => {
-  browserPromise ??= chromium.launch({
-    headless: false,
-    args: ["--disable-blink-features=AutomationControlled"],
-  });
+  browserPromise ??= import("playwright").then(({ chromium }) =>
+    chromium.launch({
+      headless: false,
+      args: ["--disable-blink-features=AutomationControlled"],
+    }),
+  );
   return browserPromise;
 };
 

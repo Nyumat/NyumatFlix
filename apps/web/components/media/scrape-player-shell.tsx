@@ -21,38 +21,36 @@ export function ScrapePlayerShell({
   children,
 }: ScrapePlayerShellProps) {
   return (
-    <div
-      className={cn(
-        "relative h-full w-full overflow-hidden rounded-lg border border-border/20 bg-black shadow-2xl",
-        className,
-      )}
-    >
-      {backdropUrl ? (
-        <Image
-          src={backdropUrl}
-          alt=""
-          fill
-          priority
-          sizes="(max-width: 1280px) 100vw, 1280px"
-          className={cn(
-            "object-cover transition-opacity duration-500",
-            hideBackdrop && "opacity-0",
-            !hideBackdrop &&
-              blurBackdrop &&
-              "scale-[1.02] blur-sm brightness-50",
-          )}
-          aria-hidden
-        />
-      ) : null}
-
+    <div className={cn("relative h-full w-full overflow-visible", className)}>
       <div
-        className={cn(
-          "pointer-events-none absolute inset-0 bg-black/50 transition-opacity duration-500",
-          hideBackdrop && "opacity-0",
-          !hideBackdrop && blurBackdrop && "bg-black/60",
-        )}
+        className="absolute inset-0 overflow-hidden rounded-[1.35rem]"
         aria-hidden
-      />
+      >
+        {backdropUrl ? (
+          <Image
+            src={backdropUrl}
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 1280px) 100vw, 1280px"
+            className={cn(
+              "object-cover transition-opacity duration-500",
+              hideBackdrop && "opacity-0",
+              !hideBackdrop &&
+                blurBackdrop &&
+                "scale-[1.02] blur-sm brightness-50",
+            )}
+          />
+        ) : null}
+
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 bg-black/50 transition-opacity duration-500",
+            hideBackdrop && "opacity-0",
+            !hideBackdrop && blurBackdrop && "bg-black/60",
+          )}
+        />
+      </div>
 
       <div className="relative z-10 h-full w-full">{children}</div>
     </div>

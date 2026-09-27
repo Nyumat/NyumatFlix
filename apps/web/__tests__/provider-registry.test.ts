@@ -22,7 +22,6 @@ describe("provider registry", () => {
       "superembed",
       "111movies",
       "vidfast",
-      "vidnest",
       "vidcore",
       "1embed",
       "vidlux",
@@ -46,6 +45,7 @@ describe("provider registry", () => {
       "vidsrc",
       "vidking",
       "videasy",
+      "vidnest",
       "2embed",
       "vidlink",
     ]);

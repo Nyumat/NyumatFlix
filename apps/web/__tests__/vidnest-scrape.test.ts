@@ -12,7 +12,10 @@ import {
 } from "@/lib/scrape/vidnest-shared";
 import { decodeVidnestPayload } from "@/lib/scrape/vidnest-crypto";
 import {
+  isUndersizedVidnestMp4,
+  readVidnestContentLength,
   VIDNEST_EXTRA_QUALITIES,
+  VIDNEST_MIN_MP4_BYTES,
   VIDNEST_PLAYABLE_CANDIDATE_BATCH,
   VIDNEST_PLAYABLE_CANDIDATE_LIMIT,
 } from "@/lib/scrape/providers/vidnest";
@@ -22,6 +25,17 @@ describe("vidnest scrape helpers", () => {
     expect(VIDNEST_PLAYABLE_CANDIDATE_LIMIT).toBe(4);
     expect(VIDNEST_PLAYABLE_CANDIDATE_BATCH).toBe(2);
     expect(VIDNEST_EXTRA_QUALITIES).toBe(3);
+    expect(VIDNEST_MIN_MP4_BYTES).toBe(8 * 1024 * 1024);
+  });
+
+  it("rejects sub-feature MP4 stubs from content-range totals", () => {
+    const stub = readVidnestContentLength(
+      new Headers({ "content-range": "bytes 0-1/952810" }),
+    );
+    expect(stub).toBe(952810);
+    expect(isUndersizedVidnestMp4(stub)).toBe(true);
+    expect(isUndersizedVidnestMp4(20_000_000)).toBe(false);
+    expect(isUndersizedVidnestMp4(null)).toBe(false);
   });
   it("builds movie and tv media paths", () => {
     expect(buildVidnestMediaPath({ mediaType: "movie", tmdbId: 550 })).toBe(
