@@ -101,6 +101,44 @@ describe("catalog card DTO mapping", () => {
     );
   });
 
+  it("preserves hover-trailer preview fields through RSC slimming", () => {
+    const [tvCard] = slimMediaItemsForRsc([
+      {
+        ...sampleTv,
+        media_type: "tv" as const,
+        title: sampleTv.name,
+        imdb_id: "tt1234567",
+        youtube_trailer_key: "RIyb52EMx8c",
+        isAniListFallback: false,
+      },
+    ]);
+
+    const restored = catalogCardToMediaItem(
+      tvCard as Parameters<typeof catalogCardToMediaItem>[0],
+    );
+    expect(restored).toMatchObject({
+      imdb_id: "tt1234567",
+      youtube_trailer_key: "RIyb52EMx8c",
+      isAniListFallback: false,
+    });
+  });
+
+  it("drops incomplete imdb ids while slimming", () => {
+    const [movieCard] = slimMediaItemsForRsc([
+      {
+        ...sampleMovie,
+        media_type: "movie" as const,
+        imdb_id: "nm1234567",
+      },
+    ]);
+
+    expect(
+      catalogCardToMediaItem(
+        movieCard as Parameters<typeof catalogCardToMediaItem>[0],
+      ),
+    ).not.toHaveProperty("imdb_id");
+  });
+
   it("maps collection payloads to slim part cards", () => {
     const collection = toHomeCollectionCard({
       id: 1,
