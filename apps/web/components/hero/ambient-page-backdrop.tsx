@@ -1,7 +1,6 @@
 "use client";
 
 import { useIndexHeroTransition } from "@/components/catalog/index-hero-transition-context";
-import { SilkShaderBackground } from "@/components/hero/silk-shader-background";
 import {
   HERO_CROSSFADE_DURATION_MS,
   HERO_CROSSFADE_EASE_CSS,
@@ -52,17 +51,7 @@ export function AmbientPageBackdrop({ backdrop }: AmbientPageBackdropProps) {
 
   backdrop = visibleBackdrop;
   if (!backdrop?.imageUrl) {
-    return (
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed top-0 left-0 z-0 h-[100dvh] min-h-[100vh] w-full overflow-hidden bg-background"
-        data-page-backdrop="shader"
-      >
-        <SilkShaderBackground className="h-full w-full opacity-70" />
-        <div className="absolute inset-0 bg-linear-to-b from-black/45 via-background/64 to-background" />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-b from-transparent to-background" />
-      </div>
-    );
+    return null;
   }
 
   const renderBackdrop = (
@@ -103,14 +92,11 @@ export function AmbientPageBackdrop({ backdrop }: AmbientPageBackdropProps) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed top-0 left-0 z-0 h-[100dvh] min-h-[100vh] w-full overflow-hidden bg-[#050505]"
+      className="pointer-events-none fixed inset-0 z-0 hidden overflow-hidden bg-[#050505] lg:block"
       data-page-backdrop="image"
     >
       {outgoingBackdrop
-        ? renderBackdrop(
-            outgoingBackdrop,
-            isTransitioning ? "opacity-100" : "opacity-0",
-          )
+        ? renderBackdrop(outgoingBackdrop, "opacity-100")
         : null}
       {renderBackdrop(backdrop, isTransitioning ? "opacity-0" : "opacity-100")}
     </div>

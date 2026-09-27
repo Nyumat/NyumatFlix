@@ -227,7 +227,7 @@ export function HeroScrapePlayerPanel({
   }, [hasActivePlayer, isDirectMode, mediaReady, playbackSessionKey]);
 
   useEffect(() => {
-    if (!hasActivePlayer || mediaReady) {
+    if (!hasActivePlayer || mediaReady || isDirectMode) {
       setPlaybackStartError(null);
       return undefined;
     }
@@ -238,7 +238,7 @@ export function HeroScrapePlayerPanel({
     }, PLAYBACK_START_TIMEOUT_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [hasActivePlayer, mediaReady, playbackSessionKey]);
+  }, [hasActivePlayer, isDirectMode, mediaReady, playbackSessionKey]);
 
   const handleMediaReady = useCallback(() => {
     setMediaReady(true);
@@ -357,7 +357,7 @@ export function HeroEmbedPlayerPanel({
 }) {
   if (!videoSrc) {
     return (
-      <div className="flex h-full w-full items-center justify-center rounded-lg border border-border/20 bg-black text-sm text-muted-foreground shadow-2xl">
+      <div className="flex h-full w-full items-center justify-center rounded-[1.35rem] bg-transparent text-sm text-muted-foreground">
         Loading stream...
       </div>
     );
@@ -367,7 +367,7 @@ export function HeroEmbedPlayerPanel({
     <iframe
       key={iframeKey}
       src={videoSrc}
-      className="absolute inset-0 h-full w-full rounded-lg bg-black"
+      className="absolute inset-0 h-full w-full rounded-[1.15rem] bg-black"
       allow="autoplay; encrypted-media; picture-in-picture"
       allowFullScreen
     />

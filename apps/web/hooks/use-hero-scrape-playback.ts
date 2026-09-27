@@ -3,9 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import {
+  useFeatureFlags,
+  useFeatureFlagsReady,
+} from "@/components/providers/feature-flags-provider";
 import { useTvDetailCatalog } from "@/hooks/use-tv-detail-catalog";
 import {
+  canOfferEmbedPlayback,
   getAnimePlaybackProviderOrders,
   getTmdbScrapeProviderMenuOrder,
   isAnimeScrapeProviderEnabled,
@@ -106,6 +110,13 @@ export function useHeroScrapePlayback({
   const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
   const playbackAudio = useAppSettingsStore((state) => state.playbackAudio);
   const flags = useFeatureFlags();
+  const flagsReady = useFeatureFlagsReady();
+  const embedAllowed = canOfferEmbedPlayback({
+    flagsReady,
+    proxyModeOnly: flags.proxyModeOnly,
+    iframeModeOnly: flags.iframeModeOnly,
+    noAdsMode,
+  });
   const tvDetailCatalog = useTvDetailCatalog();
   const animePlaybackProviderOrders = useMemo(
     () => getAnimePlaybackProviderOrders(flags),
@@ -416,6 +427,8 @@ export function useHeroScrapePlayback({
   const isAnimeScrapeActive =
     isAnimeScrapeMode && !usesDirectPlayback && hasEnabledAnimeScrapeProviders;
 
+  const fallbackFromUnavailableDirectRef = useRef<() => void>(() => undefined);
+
   const directPlayback = useDirectPlayback({
     tmdbId: directTmdbId ?? 0,
     mediaType: resolvedMediaType,
@@ -423,6 +436,12 @@ export function useHeroScrapePlayback({
     episodeNumber:
       providerEpisodeNumber ?? selectedEpisode?.episode_number ?? undefined,
     enabled: isDirectMode && directTmdbId !== null,
+    onAllStreamsFailed: (reason) => {
+      if (reason !== "unavailable") {
+        return;
+      }
+      fallbackFromUnavailableDirectRef.current();
+    },
   });
 
   const directPlaybackRef = useRef(directPlayback);
@@ -882,8 +901,9 @@ export function useHeroScrapePlayback({
   ]);
 
   const handleScrapedPlaybackError = useCallback(() => {
+    flushPlaybackProgress();
+
     if (isDirectMode) {
-      flushPlaybackProgress();
       directPlaybackRef.current.tryNextStream();
       return;
     }
@@ -957,8 +977,9 @@ export function useHeroScrapePlayback({
   ]);
 
   const handleScrapedPlaybackStallFailover = useCallback(() => {
+    flushPlaybackProgress();
+
     if (isDirectMode) {
-      flushPlaybackProgress();
       directPlaybackRef.current.tryNextStream();
       return;
     }
@@ -1030,7 +1051,7 @@ export function useHeroScrapePlayback({
     () =>
       buildSourceOverlayItems({
         scrapeItems: directPlaybackScrapeItems ?? activeScrape.items,
-        embedServers: videoServers,
+        embedServers: embedAllowed ? videoServers : [],
         availableServerIds,
         unavailableServerIds,
       }),
@@ -1038,12 +1059,17 @@ export function useHeroScrapePlayback({
       activeScrape.items,
       availableServerIds,
       directPlaybackScrapeItems,
+      embedAllowed,
       unavailableServerIds,
     ],
   );
 
   const handleSelectEmbedServer = useCallback(
     (serverId: string) => {
+      if (!embedAllowed) {
+        return;
+      }
+
       const server = videoServers.find((entry) => entry.id === serverId);
       if (!server) {
         return;
@@ -1053,8 +1079,35 @@ export function useHeroScrapePlayback({
       stopScraping();
       setSelectedServer(server, { userInitiated: true });
     },
-    [setSelectedServer, stopScraping],
+    [embedAllowed, setSelectedServer, stopScraping],
   );
+
+  const fallbackFromUnavailableDirect = useCallback(() => {
+    if (!embedAllowed) {
+      return;
+    }
+
+    const embed = videoServers.find(
+      (server) =>
+        availableServerIds.includes(server.id) &&
+        !unavailableServerIds.includes(server.id),
+    );
+    if (!embed) {
+      return;
+    }
+
+    scrapeFallbackHandledRef.current = null;
+    stopScraping();
+    directPlaybackRef.current.reset();
+    setSelectedServer(embed);
+  }, [
+    availableServerIds,
+    embedAllowed,
+    setSelectedServer,
+    stopScraping,
+    unavailableServerIds,
+  ]);
+  fallbackFromUnavailableDirectRef.current = fallbackFromUnavailableDirect;
 
   const handleSelectScrapeProvider = useCallback(
     (providerId: string) => {

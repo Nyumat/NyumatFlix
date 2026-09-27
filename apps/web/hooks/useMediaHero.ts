@@ -199,7 +199,10 @@ export const useMediaHero = ({
     hlsUrl: videasyTrailerHlsUrl,
     status: videasyTrailerStatus,
     handleStreamError: handleVideasyStreamError,
-  } = useVideasyTrailerStream(imdbId, videasyEnabled);
+  } = useVideasyTrailerStream(
+    imdbId ? { kind: "stream", imdbId } : undefined,
+    videasyEnabled,
+  );
 
   const startPlayback = useCallback(() => {
     setIsPlayingTrailer(false);

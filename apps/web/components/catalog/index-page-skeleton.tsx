@@ -1,7 +1,7 @@
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageContainer } from "@/components/layout/page-container";
 import { StaticHero } from "@/components/hero/hero-static";
-import { Skeleton } from "@/components/ui/skeleton";
+import { indexHubCatalogShellClassName } from "@/lib/hero-shell-layout";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -30,14 +30,9 @@ export function IndexPageSkeleton({
 
   const inner = (
     <div className="flex w-full flex-col">
-      {hasHubBand ? (
-        <div className="index-hero-viewport-bleed relative isolate h-[85dvh] max-h-[900px] overflow-hidden">
-          <Skeleton className="absolute inset-0 rounded-none" />
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background via-background/40 to-transparent" />
-        </div>
-      ) : (
+      {!hasHubBand ? (
         <StaticHero imageUrl="/movie-banner.webp" title="" route="" hideTitle />
-      )}
+      ) : null}
 
       <ContentContainer
         topSpacing={background !== "hub"}
@@ -53,6 +48,7 @@ export function IndexPageSkeleton({
           <div
             className={cn(
               "index-container space-y-8 md:space-y-10 lg:space-y-12",
+              hasHubBand && indexHubCatalogShellClassName,
               className,
             )}
           >

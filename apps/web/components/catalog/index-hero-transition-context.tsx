@@ -20,16 +20,15 @@ type ContextValue = {
 const Context = createContext<ContextValue | null>(null);
 
 export function IndexHeroTransitionProvider({
-  initialBackdrop,
+  initialBackdrops = [],
   children,
 }: {
-  initialBackdrop?: PageBackdrop | null;
+  initialBackdrops?: Array<PageBackdrop | null>;
   children: ReactNode;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [backdrops, setBackdropsState] = useState<Array<PageBackdrop | null>>(
-    initialBackdrop ? [initialBackdrop] : [],
-  );
+  const [backdrops, setBackdropsState] =
+    useState<Array<PageBackdrop | null>>(initialBackdrops);
   const setBackdrops = useCallback((next: Array<PageBackdrop | null>) => {
     setBackdropsState((current) =>
       current.length === next.length &&

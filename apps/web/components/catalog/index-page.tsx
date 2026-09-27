@@ -6,6 +6,7 @@ import {
 } from "@/components/hero/ambient-page-backdrop";
 import { StaticHero } from "@/components/hero/hero-static";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
+import { indexHubCatalogShellClassName } from "@/lib/hero-shell-layout";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -15,6 +16,8 @@ type IndexPageProps = {
   /** Hub surfaces use the ambient blurred still; list/discover-results use the silk banner. */
   background?: IndexPageBackground;
   backdrop?: PageBackdrop | null;
+  /** Full carousel backdrop stack for the hub hero — avoids client-only ambient paint. */
+  heroBackdrops?: Array<PageBackdrop | null>;
   header?: ReactNode;
   toolbar?: ReactNode;
   children: ReactNode;
@@ -30,6 +33,7 @@ type IndexPageProps = {
 export function IndexPage({
   background = "shader",
   backdrop,
+  heroBackdrops,
   header,
   toolbar,
   children,
@@ -39,22 +43,18 @@ export function IndexPage({
 }: IndexPageProps) {
   const isHubLayout = background === "hub";
   const resolvedContentTopSpacing = contentTopSpacing ?? !isHubLayout;
-  const hasAmbientBackdrop = isHubLayout && Boolean(backdrop?.imageUrl);
-  const isHubShellPending = isHubLayout && !hasAmbientBackdrop;
+  const initialBackdrops =
+    heroBackdrops && heroBackdrops.length > 0
+      ? heroBackdrops
+      : backdrop?.imageUrl
+        ? [backdrop]
+        : [];
 
   return (
-    <IndexHeroTransitionProvider
-      initialBackdrop={hasAmbientBackdrop ? backdrop : null}
-    >
+    <IndexHeroTransitionProvider initialBackdrops={initialBackdrops}>
       <div className="flex w-full flex-col">
-        {hasAmbientBackdrop ? (
-          <AmbientPageBackdrop backdrop={backdrop} />
-        ) : isHubShellPending ? (
-          <div
-            aria-hidden
-            className="pointer-events-none fixed top-0 left-0 z-0 h-[100dvh] min-h-[100vh] w-full bg-[#050505]"
-            data-page-backdrop="hub-pending"
-          />
+        {isHubLayout ? (
+          <AmbientPageBackdrop backdrop={backdrop ?? null} />
         ) : (
           <StaticHero
             imageUrl="/movie-banner.webp"
@@ -78,6 +78,7 @@ export function IndexPage({
             <div
               className={cn(
                 "index-container space-y-8 md:space-y-10 lg:space-y-12",
+                isHubLayout && indexHubCatalogShellClassName,
                 className,
               )}
             >

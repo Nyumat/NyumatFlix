@@ -955,7 +955,7 @@ export function HeroTvEpisodePanel({
         </p>
       ) : null}
 
-      <div className="space-y-3 pb-1 pt-0.5">
+      <div className="max-h-[36rem] space-y-3 overflow-y-auto overscroll-contain pb-1 pr-1 pt-0.5 [scrollbar-gutter:stable]">
         {showSeasonEpisodeSkeleton ? (
           Array.from({ length: 4 }).map((_, index) => (
             <div

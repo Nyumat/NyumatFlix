@@ -3,7 +3,6 @@ import "server-only";
 import type { IndexFeatureHeroItem } from "@/components/catalog/index-feature-hero";
 import type { PageBackdrop } from "@/components/hero/ambient-page-backdrop";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
-import { pickHeroBackdropPath } from "@/lib/catalog-hub-backdrop";
 import {
   pickCriticallyAcclaimedHubFeatured,
   pickMostPopularHubFeatured,
@@ -16,9 +15,23 @@ import {
   getRollingYearDateRangeUtc,
 } from "@/lib/released-media";
 import { isAnime } from "@/utils/anilist-helpers";
-import { tmdb, type WithImages } from "@/tmdb/api";
-import type { Image, MovieDetails, TvShowDetails } from "@/tmdb/models";
+import {
+  mergeFeaturedHeroItems,
+  selectFeaturedEntriesForHub,
+  type HeroFeaturedHubKind,
+} from "@/lib/flags/hero-featured-items";
+import { hydrateFeaturedHubEntries } from "@/lib/flags/hero-featured-hydration";
+import {
+  applyHeroBackdropOverride,
+  getHeroBackdropOverrides,
+} from "@/lib/flags/hero-backdrop-overrides-server";
+import {
+  enrichTmdbIndexHeroItem,
+  type TmdbIndexHeroMediaType,
+} from "@/lib/server/tmdb-index-hero-enrichment";
+import { tmdb } from "@/tmdb/api";
 import { tmdbImage } from "@/tmdb/utils";
+import { getSnapshotHomeHero } from "@/lib/server/hub-snapshots";
 import { cache } from "react";
 
 export type CatalogHubFeature = {
@@ -71,52 +84,42 @@ export const toTvHubBackdrop = (
   };
 };
 
-const selectLogo = (logos: Image[] | undefined) =>
-  logos?.find((logo) => logo.iso_639_1 === "en") ?? logos?.[0];
+export type { TmdbIndexHeroMediaType } from "@/lib/server/tmdb-index-hero-enrichment";
+export { enrichTmdbIndexHeroItem } from "@/lib/server/tmdb-index-hero-enrichment";
 
-const mapMovieHubFeatureItem = (
-  detail: MovieDetails & WithImages,
-): IndexFeatureHeroItem =>
-  ({
-    ...detail,
-    media_type: "movie" as const,
-    genre_ids: detail.genres.map((genre) => genre.id),
-    backdrop_path: pickHeroBackdropPath(detail),
-    logo: selectLogo(detail.images?.logos),
-  }) as IndexFeatureHeroItem;
-
-const mapTvHubFeatureItem = (
-  detail: TvShowDetails & WithImages,
-): IndexFeatureHeroItem =>
-  ({
-    ...detail,
-    media_type: "tv" as const,
-    genre_ids: detail.genres.map((genre) => genre.id),
-    backdrop_path: pickHeroBackdropPath(detail),
-    logo: selectLogo(detail.images?.logos),
-  }) as IndexFeatureHeroItem;
-
-const enrichHubFeatureItem = async (
-  featured: IndexFeatureHeroItem,
-  mediaType: "movie" | "tv",
-): Promise<IndexFeatureHeroItem> => {
-  try {
-    if (mediaType === "movie") {
-      const detail = await tmdb.movie.detail<WithImages>({
-        id: featured.id,
-        append: "images",
-      });
-      return mapMovieHubFeatureItem(detail);
-    }
-
-    const detail = await tmdb.tv.detail<WithImages>({
-      id: featured.id,
-      append: "images",
-    });
-    return mapTvHubFeatureItem(detail);
-  } catch {
-    return featured;
+const buildAutomaticHubHeroItems = async ({
+  candidates,
+  mediaType,
+  pick,
+  overrides,
+}: {
+  candidates: MediaItem[];
+  mediaType: TmdbIndexHeroMediaType;
+  pick: (items: MediaItem[]) => MediaItem | undefined;
+  overrides: Awaited<ReturnType<typeof getHeroBackdropOverrides>>;
+}): Promise<IndexFeatureHeroItem[]> => {
+  const featured = pick(candidates);
+  if (!featured) {
+    return [];
   }
+
+  const featuredItem = featured as IndexFeatureHeroItem;
+  const featureCandidates = [
+    featuredItem,
+    ...candidates.filter((candidate) => candidate.id !== featuredItem.id),
+  ].slice(0, 5);
+  const enrichedItems = await Promise.all(
+    featureCandidates.map((candidate) =>
+      enrichTmdbIndexHeroItem(candidate as IndexFeatureHeroItem, mediaType),
+    ),
+  );
+
+  return enrichedItems.map((item) =>
+    applyHeroBackdropOverride(item, overrides, {
+      mediaType: item.media_type ?? mediaType,
+      tmdbId: item.id,
+    }),
+  );
 };
 
 export const buildCatalogHubFeature = async ({
@@ -124,31 +127,35 @@ export const buildCatalogHubFeature = async ({
   mediaType,
   pick,
   toBackdrop,
+  hubKind = mediaType,
 }: {
   candidates: MediaItem[];
-  mediaType: "movie" | "tv";
+  mediaType: TmdbIndexHeroMediaType;
   pick: (items: MediaItem[]) => MediaItem | undefined;
   toBackdrop: (item: IndexFeatureHeroItem) => PageBackdrop | null;
+  hubKind?: HeroFeaturedHubKind;
 }): Promise<CatalogHubFeature | null> => {
-  const featured = pick(candidates);
-  if (!featured) return null;
+  const overrides = await getHeroBackdropOverrides();
+  const pinnedEntries = selectFeaturedEntriesForHub(overrides, hubKind);
+  const [pinnedItems, automaticItems] = await Promise.all([
+    hydrateFeaturedHubEntries(pinnedEntries, overrides),
+    buildAutomaticHubHeroItems({ candidates, mediaType, pick, overrides }),
+  ]);
 
-  const featuredItem = featured as IndexFeatureHeroItem;
-  const featureCandidates = [
-    featuredItem,
-    ...candidates.filter((candidate) => candidate.id !== featuredItem.id),
-  ].slice(0, 5);
-  const items = await Promise.all(
-    featureCandidates.map((candidate) =>
-      enrichHubFeatureItem(candidate as IndexFeatureHeroItem, mediaType),
-    ),
-  );
-  const item = items[0] ?? featuredItem;
+  if (pinnedItems.length === 0 && automaticItems.length === 0) {
+    return null;
+  }
+
+  const items = mergeFeaturedHeroItems(pinnedItems, automaticItems);
+  const item = items[0];
+  if (!item) {
+    return null;
+  }
 
   return {
     item,
     items,
-    backdrop: toBackdrop(item) ?? toBackdrop(featuredItem),
+    backdrop: toBackdrop(item),
   };
 };
 
@@ -176,8 +183,41 @@ const usDiscoverTvParams = () => {
   };
 };
 
+const resolveSnapshotHomeHero = async (): Promise<CatalogHubFeature | null> => {
+  const snapshotHero = getSnapshotHomeHero();
+  if (!snapshotHero?.items.length) {
+    return null;
+  }
+
+  const overrides = await getHeroBackdropOverrides();
+  const pinnedEntries = selectFeaturedEntriesForHub(overrides, "movie");
+  const automaticItems = snapshotHero.items.map((item) =>
+    applyHeroBackdropOverride(item, overrides, {
+      mediaType: item.media_type ?? "movie",
+      tmdbId: item.id,
+    }),
+  );
+  const pinnedItems = await hydrateFeaturedHubEntries(pinnedEntries, overrides);
+  const items = mergeFeaturedHeroItems(pinnedItems, automaticItems);
+  const item = items[0];
+  if (!item) {
+    return null;
+  }
+
+  return {
+    item,
+    items,
+    backdrop: toMovieHubBackdrop(item) ?? snapshotHero.backdrop,
+  };
+};
+
 const loadPastYearPopularMovieHubFeature = cache(
   async (): Promise<CatalogHubFeature | null> => {
+    const snapshotHero = await resolveSnapshotHomeHero();
+    if (snapshotHero) {
+      return snapshotHero;
+    }
+
     const { results } = await tmdb.discover.movie(usDiscoverMovieParams());
     const movies = filterReleasedMovies(results ?? []);
 
@@ -192,6 +232,10 @@ const loadPastYearPopularMovieHubFeature = cache(
 
 /** Past-year US movies by TMDB popularity (home `/` hub). */
 export const getHomeMovieHubFeature = loadPastYearPopularMovieHubFeature;
+
+export const getHomeHubAmbientBackdrop =
+  async (): Promise<PageBackdrop | null> =>
+    (await getHomeMovieHubFeature())?.backdrop ?? null;
 
 const MOVIES_HUB_ACCLAIMED_MIN_VOTE_COUNT = 3_000;
 const MOVIES_HUB_ACCLAIMED_MIN_VOTE_AVERAGE = 7.8;

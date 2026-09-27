@@ -10,10 +10,16 @@ import {
 import { pages } from "@/config/pages";
 import type { CanonicalCardLogo } from "@/lib/domain/typings";
 import { buildAnimeGenreUrl, buildGenreBrowseUrl } from "@/lib/genre-routes";
+import { buildHeroBackdropsFromItems } from "@/lib/hero-hub-backdrops";
 import {
   HERO_CROSSFADE_DURATION_MS,
   HERO_CROSSFADE_EASE,
 } from "@/lib/hero-crossfade";
+import {
+  indexHeroContentOverlapClassName,
+  indexHeroContentShellClassName,
+  indexHeroSectionClassName,
+} from "@/lib/hero-shell-layout";
 import { cn } from "@/lib/utils";
 import { tmdbImage } from "@/tmdb/utils";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -70,7 +76,7 @@ const getTitle = (item: IndexFeatureHeroItem, mediaType: "movie" | "tv") =>
     ? (item.title ?? item.name ?? "")
     : (item.name ?? item.title ?? "");
 
-const getLogoFromImages = (item: IndexFeatureHeroItem) => {
+const getLogoFromImages = (item: IndexFeatureHeroItem): FeatureLogo | null => {
   const logos = item.images?.logos ?? [];
   const isUsable = (
     logo: FeatureLogoSeed | null | undefined,
@@ -83,7 +89,8 @@ const getLogoFromImages = (item: IndexFeatureHeroItem) => {
     logos.find(
       (logo): logo is FeatureLogo => isUsable(logo) && !logo.iso_639_1,
     ) ??
-    logos.find(isUsable)
+    logos.find(isUsable) ??
+    null
   );
 };
 
@@ -91,11 +98,13 @@ const getResolvedLogo = (
   item: IndexFeatureHeroItem,
   variant: "tmdb" | "anime",
 ): FeatureLogo | null => {
-  if (variant === "anime" && item.logo?.file_path) {
-    return item.logo as FeatureLogo;
+  const logoFromItem = item.logo?.file_path ? (item.logo as FeatureLogo) : null;
+
+  if (variant === "anime") {
+    return logoFromItem ?? getLogoFromImages(item);
   }
 
-  return getLogoFromImages(item) ?? null;
+  return getLogoFromImages(item) ?? logoFromItem;
 };
 
 const getYear = (item: IndexFeatureHeroItem, mediaType: "movie" | "tv") => {
@@ -160,16 +169,7 @@ export function IndexFeatureHero({
 
   useEffect(() => {
     transition?.setBackdrops(
-      featureItems.map((feature) => {
-        const path = feature.backdrop_path ?? feature.poster_path;
-        return path
-          ? {
-              imageUrl: tmdbImage.backdrop(path, "original"),
-              alt: getTitle(feature, mediaType),
-              priority,
-            }
-          : null;
-      }),
+      buildHeroBackdropsFromItems(featureItems, mediaType, priority),
     );
   }, [featureItems, mediaType, priority, transition]);
 
@@ -248,7 +248,7 @@ export function IndexFeatureHero({
   if (!title) return null;
 
   return (
-    <section className="index-hero-viewport-bleed relative isolate mb-4 overflow-hidden lg:mb-12">
+    <section className={indexHeroSectionClassName}>
       {backdropUrl ? (
         <FeatureHeroStickyScrollBackdrop
           imageUrl={backdropUrl}
@@ -258,8 +258,8 @@ export function IndexFeatureHero({
 
       <div
         className={cn(
-          "relative z-20 flex min-h-[85dvh] items-end index-rail-padding pt-12 pb-20 lg:pb-24",
-          backdropUrl && "-mt-[85dvh]",
+          indexHeroContentShellClassName,
+          backdropUrl && indexHeroContentOverlapClassName,
         )}
       >
         <AnimatePresence initial={false} mode="popLayout">
@@ -335,6 +335,12 @@ export function IndexFeatureHero({
               </div>
             ) : null}
 
+            {hasOverview ? (
+              <p className="max-w-xl text-pretty text-sm font-normal leading-relaxed text-white/90 drop-shadow-lg sm:text-base sm:leading-relaxed line-clamp-3 lg:hidden">
+                {overview}
+              </p>
+            ) : null}
+
             <AnimatePresence initial={false}>
               {hasOverview && isOverviewOpen ? (
                 <motion.div
@@ -361,7 +367,7 @@ export function IndexFeatureHero({
                       },
                     },
                   }}
-                  className="overflow-hidden"
+                  className="hidden overflow-hidden lg:block"
                 >
                   <motion.p
                     variants={{
@@ -408,7 +414,7 @@ export function IndexFeatureHero({
                   aria-expanded={isOverviewOpen}
                   aria-label={overviewToggleLabel}
                   title={overviewToggleLabel}
-                  className="inline-flex size-11 items-center justify-center text-white/70 transition hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  className="hidden size-11 items-center justify-center text-white/70 transition hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:inline-flex"
                 >
                   <ChevronUp
                     aria-hidden
@@ -422,30 +428,31 @@ export function IndexFeatureHero({
             </div>
           </motion.div>
         </AnimatePresence>
+
+        {featureItems.length > 1 ? (
+          <div className="mt-4 flex justify-center gap-2 lg:absolute lg:right-8 lg:bottom-8 lg:mt-0 lg:justify-end">
+            {featureItems.map((feature, index) => (
+              <button
+                key={feature.id}
+                type="button"
+                aria-label={`Show featured item ${index + 1}`}
+                aria-current={activeIndex === index ? "true" : undefined}
+                onClick={() => selectFeature(index)}
+                className={cn(
+                  "relative h-2 overflow-hidden rounded-full transition-[width,background-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+                  activeIndex === index
+                    ? "w-8 bg-white/35"
+                    : "w-2 bg-white/50 hover:bg-white/70",
+                )}
+              >
+                {activeIndex === index ? (
+                  <span className="absolute inset-0 origin-left rounded-full bg-white motion-safe:animate-hero-progress motion-reduce:scale-x-100" />
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
-      {featureItems.length > 1 ? (
-        <div className="absolute right-1/2 bottom-8 z-30 flex translate-x-1/2 items-center gap-2 lg:right-8 lg:translate-x-0">
-          {featureItems.map((feature, index) => (
-            <button
-              key={feature.id}
-              type="button"
-              aria-label={`Show featured item ${index + 1}`}
-              aria-current={activeIndex === index ? "true" : undefined}
-              onClick={() => selectFeature(index)}
-              className={cn(
-                "relative h-2 overflow-hidden rounded-full transition-[width,background-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
-                activeIndex === index
-                  ? "w-8 bg-white/35"
-                  : "w-2 bg-white/50 hover:bg-white/70",
-              )}
-            >
-              {activeIndex === index ? (
-                <span className="absolute inset-0 origin-left rounded-full bg-white motion-safe:animate-hero-progress motion-reduce:scale-x-100" />
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </section>
   );
 }
