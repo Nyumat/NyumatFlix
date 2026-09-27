@@ -22,6 +22,7 @@ export const users = pgTable("user", {
   email: text("email").unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  webauthnUserHandle: text("webauthnUserHandle"),
 });
 
 export const accounts = pgTable(
@@ -87,6 +88,9 @@ export const authenticators = pgTable(
     credentialDeviceType: text("credentialDeviceType").notNull(),
     credentialBackedUp: boolean("credentialBackedUp").notNull(),
     transports: text("transports"),
+    aaguid: text("aaguid"),
+    nickname: text("nickname"),
+    webauthnUserId: text("webauthnUserId"),
   },
   (authenticator) => [
     {
@@ -171,33 +175,26 @@ export const userSettings = pgTable("user_settings", {
   userId: text("userId")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  playbackAudio: text("playbackAudio")
-    .notNull()
-    .default("sub")
-    .$type<"sub" | "dub">(),
-  playbackQuality: text("playbackQuality")
-    .notNull()
-    .default("1080p")
-    .$type<"1080p" | "720p" | "480p">(),
-  playbackEnglishSubtitles: boolean("playbackEnglishSubtitles")
-    .notNull()
-    .default(true),
-  disableHoverSound: boolean("disableHoverSound").notNull().default(true),
-  disableHeroTrailers: boolean("disableHeroTrailers").notNull().default(false),
-  catalogCardStyle: text("catalogCardStyle")
-    .notNull()
-    .default("backdrop")
-    .$type<"poster" | "backdrop">(),
+  playbackAudio: text("playbackAudio").$type<"sub" | "dub" | null>(),
+  playbackQuality: text("playbackQuality").$type<
+    "1080p" | "720p" | "480p" | null
+  >(),
+  playbackEnglishSubtitles: boolean("playbackEnglishSubtitles"),
+  disableHoverSound: boolean("disableHoverSound"),
+  disableHeroTrailers: boolean("disableHeroTrailers"),
+  ambientGlow: boolean("ambientGlow"),
+  catalogCardStyle: text("catalogCardStyle").$type<
+    "poster" | "backdrop" | null
+  >(),
   selectedServerId: text("selectedServerId"),
   userSelectedPlaybackServer: boolean("userSelectedPlaybackServer")
     .notNull()
     .default(false),
   policyGenerationAtChoice: text("policyGenerationAtChoice"),
-  vidnestContentType: text("vidnestContentType")
-    .notNull()
-    .default("tv")
-    .$type<"movie" | "tv" | "anime" | "animepahe">(),
-  vidsrcApi: text("vidsrcApi").notNull().default("1"),
+  vidnestContentType: text("vidnestContentType").$type<
+    "movie" | "tv" | "anime" | "animepahe" | null
+  >(),
+  vidsrcApi: text("vidsrcApi").$type<"1" | "2" | "3" | "4" | null>(),
   subtitleAppearance: jsonb("subtitleAppearance"),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });

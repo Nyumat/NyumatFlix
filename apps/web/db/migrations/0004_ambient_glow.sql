@@ -1,0 +1,1 @@
+ALTER TABLE "user_settings" ADD COLUMN "ambientGlow" boolean DEFAULT false NOT NULL;
