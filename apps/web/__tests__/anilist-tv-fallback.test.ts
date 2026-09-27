@@ -58,4 +58,35 @@ describe("buildAniListTvMediaStubFromTmdb", () => {
     expect(stub.title.english).toBe("Attack on Titan");
     expect(stub.episodes).toBe(87);
   });
+
+  it("prefers the TMDB show name over arc-style season names", () => {
+    const lordOfMysteriesShow = {
+      ...aotTmdbShow,
+      id: 232230,
+      name: "Lord of Mysteries",
+      original_name: "诡秘之主",
+      number_of_episodes: 13,
+      seasons: [
+        {
+          id: 1,
+          name: "The Clown",
+          season_number: 1,
+          episode_count: 13,
+          air_date: "2025-01-01",
+          poster_path: "/lom-s1.jpg",
+          overview: "Arc one overview",
+        },
+      ],
+    } as TvShowDetails;
+
+    const stub = buildAniListTvMediaStubFromTmdb(137667, lordOfMysteriesShow, {
+      anilist_id: 137667,
+      themoviedb_id: { tv: 232230 },
+      season: { tmdb: 1 },
+    });
+
+    expect(stub.title.english).toBe("Lord of Mysteries");
+    expect(stub.episodes).toBe(13);
+    expect(stub.coverImage?.large).toBe("/lom-s1.jpg");
+  });
 });

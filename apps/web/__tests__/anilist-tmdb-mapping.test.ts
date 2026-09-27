@@ -59,3 +59,33 @@ describe("TMDB to AniList mapping", () => {
     ).toBe(21);
   });
 });
+
+describe("AniList trailer mapping", () => {
+  it("keeps a YouTube trailer key on the media item", () => {
+    const item = mapAniListMediaToMediaItem({
+      id: 113415,
+      title: { english: "Jujutsu Kaisen", romaji: "Jujutsu Kaisen" },
+      type: "ANIME",
+      format: "TV",
+      trailer: { id: "RIyb52EMx8c", site: "youtube" },
+    });
+
+    expect((item as { youtube_trailer_key?: string }).youtube_trailer_key).toBe(
+      "RIyb52EMx8c",
+    );
+  });
+
+  it("ignores non-YouTube trailers", () => {
+    const item = mapAniListMediaToMediaItem({
+      id: 1,
+      title: { romaji: "Some Anime" },
+      type: "ANIME",
+      format: "TV",
+      trailer: { id: "x123", site: "dailymotion" },
+    });
+
+    expect(
+      (item as { youtube_trailer_key?: string }).youtube_trailer_key,
+    ).toBeUndefined();
+  });
+});

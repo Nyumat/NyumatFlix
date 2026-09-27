@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import {
   buildFranchiseFromSeasonIds,
   resolveAniListFranchise,
@@ -270,35 +271,36 @@ export const buildResolvedAniListTvShowWithFallback = async (
  * Franchise + TMDB stubs from bundled Fribb/AniBridge — no live AniList GraphQL.
  * Returns null when the entry has no TMDB TV mapping in either graph.
  */
-export const resolveFribbBackedFranchise = async (
-  entryAnilistId: number,
-): Promise<AniListFranchise | null> => {
-  const mapping = await getFribbMapping();
-  const entry = mapping[entryAnilistId];
-  if (entry?.tv) {
-    const seasonIds = await resolveFribbTmdbFranchiseSeasonIds(entryAnilistId);
-    const ids = seasonIds ?? [entryAnilistId];
-    return buildFranchiseFromSeasonIds(entryAnilistId, ids);
-  }
-
-  try {
-    const mapped = await resolveAnilistToTmdbShow(entryAnilistId);
-    if (!mapped?.tmdbShowId) {
-      return null;
+export const resolveFribbBackedFranchise = cache(
+  async (entryAnilistId: number): Promise<AniListFranchise | null> => {
+    const mapping = await getFribbMapping();
+    const entry = mapping[entryAnilistId];
+    if (entry?.tv) {
+      const seasonIds =
+        await resolveFribbTmdbFranchiseSeasonIds(entryAnilistId);
+      const ids = seasonIds ?? [entryAnilistId];
+      return buildFranchiseFromSeasonIds(entryAnilistId, ids);
     }
 
-    const anibridgeIds = collectAniBridgeAnilistIdsForTmdbShow(
-      await getAniBridgeMappings(),
-      mapped.tmdbShowId,
-    );
-    const ids = anibridgeIds.includes(entryAnilistId)
-      ? anibridgeIds
-      : [entryAnilistId];
-    return buildFranchiseFromSeasonIds(entryAnilistId, ids);
-  } catch {
-    return null;
-  }
-};
+    try {
+      const mapped = await resolveAnilistToTmdbShow(entryAnilistId);
+      if (!mapped?.tmdbShowId) {
+        return null;
+      }
+
+      const anibridgeIds = collectAniBridgeAnilistIdsForTmdbShow(
+        await getAniBridgeMappings(),
+        mapped.tmdbShowId,
+      );
+      const ids = anibridgeIds.includes(entryAnilistId)
+        ? anibridgeIds
+        : [entryAnilistId];
+      return buildFranchiseFromSeasonIds(entryAnilistId, ids);
+    } catch {
+      return null;
+    }
+  },
+);
 
 export const buildResolvedAniListTvShowFromFribb = async (
   entryAnilistId: number,

@@ -26,6 +26,19 @@ import type { Episode, SeasonDetails } from "@/lib/domain/typings";
 import { getFribbAnimeList } from "@/lib/fribb-mapping";
 import { getAniListTitle, type AniListMedia } from "@/lib/anilist-shared";
 
+const maxTmdbEpisodeNumber = (episodes: readonly Episode[]): number | null => {
+  let max = 0;
+  for (const episode of episodes) {
+    if (
+      typeof episode.episode_number === "number" &&
+      episode.episode_number > max
+    ) {
+      max = episode.episode_number;
+    }
+  }
+  return max > 0 ? max : episodes.length || null;
+};
+
 const buildEpisodesFromMedia = (media: SeasonEpisodeSource): Episode[] => {
   const tvMedia = media as AniListTvMedia;
   const episodeNumbers = collectEpisodeNumbers(tvMedia);
@@ -66,6 +79,7 @@ const buildEpisodesFromSeasonIndex = async (
 
   return buildEpisodesFromMappingSegments(indexed.segments, {
     runtime: baseSeason.episodes[0]?.runtime ?? null,
+    maxEpisodeNumber: maxTmdbEpisodeNumber(baseSeason.episodes),
   });
 };
 

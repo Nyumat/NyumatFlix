@@ -6,22 +6,42 @@ export type MappingSegment = {
   anilistMediaId: number;
 };
 
+/**
+ * Bundled AniBridge ranges can be open-ended (`"49-"`), which we encode as an
+ * `endEpisode` of `Number.MAX_SAFE_INTEGER`. Building a list straight from such
+ * a segment would loop for billions of iterations and hang the request, so
+ * callers must supply the real TMDB episode ceiling. This absolute cap is a
+ * belt-and-braces guard for any caller that forgets.
+ */
+const MAX_EPISODE_CEILING = 10_000;
+
 export const buildEpisodesFromMappingSegments = (
   segments: readonly MappingSegment[],
   options?: {
     posterPath?: string | null;
     runtime?: number | null;
+    maxEpisodeNumber?: number | null;
   },
 ): Episode[] => {
   const episodes: Episode[] = [];
+  const requestedCeiling = options?.maxEpisodeNumber;
+  const episodeCeiling =
+    typeof requestedCeiling === "number" &&
+    Number.isFinite(requestedCeiling) &&
+    requestedCeiling > 0
+      ? Math.floor(requestedCeiling)
+      : MAX_EPISODE_CEILING;
 
   for (const segment of segments) {
+    const startEpisode = Math.max(1, Math.floor(segment.startEpisode));
+    const endEpisode = Math.min(Math.floor(segment.endEpisode), episodeCeiling);
+
     for (
-      let tmdbEpisode = segment.startEpisode;
-      tmdbEpisode <= segment.endEpisode;
+      let tmdbEpisode = startEpisode;
+      tmdbEpisode <= endEpisode;
       tmdbEpisode += 1
     ) {
-      const relativeEpisode = tmdbEpisode - segment.startEpisode + 1;
+      const relativeEpisode = tmdbEpisode - startEpisode + 1;
       episodes.push({
         id: segment.anilistMediaId * 10_000 + tmdbEpisode,
         name: `Episode ${relativeEpisode}`,
@@ -234,9 +254,15 @@ export const formatCourSelectLabel = (
   index: number,
   options: { besideTmdbSeasons: boolean },
 ): string => {
-  const episodeCount = segment.endEpisode - segment.startEpisode + 1;
-  if (options.besideTmdbSeasons) {
-    return `Part ${index + 1} · ${episodeCount} ep${episodeCount === 1 ? "" : "s"}`;
+  if (!options.besideTmdbSeasons) {
+    return `Season ${index + 1}`;
   }
-  return `Season ${index + 1}`;
+
+  const episodeCount = segment.endEpisode - segment.startEpisode + 1;
+  // Open-ended AniBridge ranges encode "unknown count" as MAX_SAFE_INTEGER —
+  // never render that as an episode count.
+  if (!Number.isFinite(episodeCount) || episodeCount > MAX_EPISODE_CEILING) {
+    return `Part ${index + 1}`;
+  }
+  return `Part ${index + 1} · ${episodeCount} ep${episodeCount === 1 ? "" : "s"}`;
 };

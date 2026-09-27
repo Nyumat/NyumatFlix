@@ -49,6 +49,29 @@ describe("withAnimePageHref", () => {
     ).toBe("/movies/372058");
   });
 
+  it("never uses an AniList movie id as a TMDB movie path", () => {
+    expect(
+      withAnimePageHref({
+        id: 21519,
+        media_type: "movie",
+        title: "Your Name.",
+        href: "https://anilist.co/anime/21519",
+      } as unknown as MediaItem).href,
+    ).toBe("/anime/anilist-21519");
+  });
+
+  it("keeps unmapped AniList movies on the anime detail route", () => {
+    expect(
+      withAnimePageHref({
+        id: 21519,
+        media_type: "movie",
+        isAniListFallback: true,
+        sourceAnilistId: 21519,
+        href: "https://anilist.co/anime/21519",
+      } as unknown as MediaItem).href,
+    ).toBe("/anime/anilist-21519");
+  });
+
   it("leaves mapped hrefs alone when sourceAnilistId is missing", () => {
     expect(
       withAnimePageHref({

@@ -21,26 +21,26 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("@/lib/anilist-tv-detail", () => ({
-  resolveCanonicalAnilistRoute: vi.fn(),
+  resolveCanonicalAnilistRouteFromFribb: vi.fn(),
 }));
 
 vi.mock("@/lib/anilist-movie-route", () => ({
-  resolveAnilistMovieTmdbRoute: vi.fn(),
+  resolveAnilistMovieTmdbRouteFromFribb: vi.fn(),
 }));
 
 vi.mock("@/lib/anime/cross-id-resolver", () => ({
   resolveTmdbShowToAnilistId: vi.fn(),
 }));
 
-import { resolveCanonicalAnilistRoute } from "@/lib/anilist-tv-detail";
-import { resolveAnilistMovieTmdbRoute } from "@/lib/anilist-movie-route";
+import { resolveCanonicalAnilistRouteFromFribb } from "@/lib/anilist-tv-detail";
+import { resolveAnilistMovieTmdbRouteFromFribb } from "@/lib/anilist-movie-route";
 import { resolveTmdbShowToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { resolveAnilistTvDetailRedirects } from "@/lib/server/anime-tv-detail-route";
 
 const mockResolveCanonicalAnilistRoute =
-  resolveCanonicalAnilistRoute as ReturnType<typeof vi.fn>;
+  resolveCanonicalAnilistRouteFromFribb as ReturnType<typeof vi.fn>;
 const mockResolveAnilistMovieTmdbRoute =
-  resolveAnilistMovieTmdbRoute as ReturnType<typeof vi.fn>;
+  resolveAnilistMovieTmdbRouteFromFribb as ReturnType<typeof vi.fn>;
 const mockResolveTmdbShowToAnilistId = resolveTmdbShowToAnilistId as ReturnType<
   typeof vi.fn
 >;
@@ -71,6 +71,19 @@ describe("resolveAnilistTvDetailRedirects", () => {
     await expect(
       resolveAnilistTvDetailRedirects("anilist-154587"),
     ).resolves.toBeUndefined();
+    expect(mockResolveTmdbShowToAnilistId).not.toHaveBeenCalled();
+  });
+
+  it("canonicalizes a prefixed franchise entry from local mappings", async () => {
+    mockResolveCanonicalAnilistRoute.mockResolvedValue({
+      slug: "anilist-100",
+      season: 3,
+    });
+
+    await expect(
+      resolveAnilistTvDetailRedirects("anilist-200"),
+    ).rejects.toThrow("REDIRECT:/anime/anilist-100?");
+    expect(mockResolveTmdbShowToAnilistId).not.toHaveBeenCalled();
   });
 
   it("canonicalizes franchise entries on /anime", async () => {

@@ -10,8 +10,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-export const revalidate = 3600;
-
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };

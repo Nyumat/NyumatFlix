@@ -35,7 +35,12 @@ import {
   withAnimePageHref,
   withAnimePageHrefs,
 } from "@/lib/anilist-page-hrefs";
+import {
+  applyHeroBackdropOverride,
+  getHeroBackdropOverrides,
+} from "@/lib/flags/hero-backdrop-overrides-server";
 import { runInChunks } from "@/lib/server/chunked-parallel";
+import { enrichAnimeHubCatalogVisuals } from "@/lib/server/enrich-catalog-backdrops";
 
 type TmdbFindResponse = {
   movie_results?: Array<{ id: number }>;
@@ -273,6 +278,7 @@ const applyTmdbMapping = (
   fallback: MediaItem,
   tmdbId: number,
   type: "movie" | "tv",
+  imdbId?: string | null,
 ): MediaItem => {
   const displayTitle =
     getAniListTitleFromMediaItem(fallback) ||
@@ -292,6 +298,9 @@ const applyTmdbMapping = (
     original_name: fallback.original_name || displayTitle,
     original_title:
       ("original_title" in fallback && fallback.original_title) || displayTitle,
+    ...(typeof imdbId === "string" && imdbId.startsWith("tt")
+      ? { imdb_id: imdbId }
+      : {}),
   } as MediaItem;
 };
 
@@ -384,16 +393,28 @@ const enrichBatchLightweight = async (
     if (targetIndex === undefined) continue;
 
     const resolved = resolveIdsMoeMapping(mapping, items[targetIndex]?.format);
-    if (!resolved) continue;
 
     const current = results[targetIndex];
     if (!current?.isAniListFallback) continue;
 
-    results[targetIndex] = applyTmdbMapping(
-      current,
-      resolved.id,
-      resolved.type,
-    );
+    if (resolved) {
+      results[targetIndex] = applyTmdbMapping(
+        current,
+        resolved.id,
+        resolved.type,
+        mapping?.imdb,
+      );
+      continue;
+    }
+
+    // No TMDB match, but ids.moe knows the IMDb id: keep the AniList fallback
+    // id and attach IMDb so card hover can still resolve a trailer stream.
+    if (mapping?.imdb?.startsWith("tt")) {
+      results[targetIndex] = {
+        ...current,
+        imdb_id: mapping.imdb,
+      } as MediaItem;
+    }
   }
 
   return results;
@@ -517,7 +538,9 @@ export const enrichAniListMediaItemsLightweight = async (
 ): Promise<MediaItem[]> => {
   const head = items.slice(0, maxLookups);
   const tail = items.slice(maxLookups).map(toAniListFallbackMediaItem);
-  const enrichedHead = await enrichBatchLightweight(head);
+  const enrichedHead = await enrichAnimeHubCatalogVisuals(
+    await enrichBatchLightweight(head),
+  );
   return withAnimePageHrefs([...enrichedHead, ...tail]);
 };
 
@@ -538,7 +561,9 @@ export const enrichAniListSearchCatalogItems = async (
   const tailMainstream = mainstreamItems
     .slice(maxLookups)
     .map(toAniListFallbackMediaItem);
-  const enrichedHead = await enrichBatchLightweight(head);
+  const enrichedHead = await enrichAnimeHubCatalogVisuals(
+    await enrichBatchLightweight(head),
+  );
   const adultFallback = adultItems.map(toAniListFallbackMediaItem);
 
   return withAnimePageHrefs([
@@ -548,7 +573,41 @@ export const enrichAniListSearchCatalogItems = async (
   ]);
 };
 
-type AnimeHubFeatureItem = MediaItem & { sourceAnilistId?: number };
+type AnimeHubFeatureItem = MediaItem & {
+  sourceAnilistId?: number;
+  isAniListFallback?: boolean;
+};
+
+const mappedFeatureTmdbId = (item: AnimeHubFeatureItem): number | null => {
+  if (item.isAniListFallback) return null;
+  if (item.media_type !== "movie" && item.media_type !== "tv") return null;
+  if (!Number.isInteger(item.id) || item.id <= 0) return null;
+
+  const anilistId = item.sourceAnilistId;
+  if (
+    typeof anilistId === "number" &&
+    Number.isInteger(anilistId) &&
+    anilistId > 0 &&
+    anilistId === item.id
+  ) {
+    return null;
+  }
+
+  if (
+    typeof anilistId !== "number" ||
+    !Number.isInteger(anilistId) ||
+    anilistId <= 0
+  ) {
+    return null;
+  }
+
+  return item.id;
+};
+
+/** AniList media → hub feature item, using the same TMDB mapping as catalog heroes. */
+export const resolveAnimeFeaturedMediaItem = async (
+  media: AniListMedia,
+): Promise<MediaItem> => withAnimePageHref(await enrichOneHeroUncached(media));
 
 /** Hub hero: keep AniList copy, swap in TMDB poster/backdrop when mapped. */
 export const enrichAnimeHubFeatureTmdbImages = async (
@@ -556,37 +615,44 @@ export const enrichAnimeHubFeatureTmdbImages = async (
 ): Promise<MediaItem> => {
   const tagged = item as AnimeHubFeatureItem;
   const anilistId = tagged.sourceAnilistId;
-  const tmdbId = item.id;
-  const mediaType = item.media_type;
+  const tmdbId = mappedFeatureTmdbId(tagged);
 
-  if (
-    typeof anilistId !== "number" ||
-    !Number.isInteger(anilistId) ||
-    anilistId <= 0 ||
-    !Number.isInteger(tmdbId) ||
-    tmdbId <= 0 ||
-    (mediaType !== "movie" && mediaType !== "tv")
-  ) {
-    return item;
+  const overrides = await getHeroBackdropOverrides();
+  const withOverride = (value: MediaItem) =>
+    applyHeroBackdropOverride(value, overrides, {
+      mediaType: "anime",
+      tmdbId,
+      anilistId:
+        typeof anilistId === "number" &&
+        Number.isInteger(anilistId) &&
+        anilistId > 0
+          ? anilistId
+          : null,
+    });
+
+  if (!tmdbId || typeof anilistId !== "number") {
+    return withOverride(item);
   }
 
   try {
     const enriched = await fetchTmdbMappedItem(
       tmdbId,
-      mediaType,
+      tagged.media_type === "movie" ? "movie" : "tv",
       item,
       anilistId,
     );
 
-    return withAnimePageHref({
-      ...item,
-      backdrop_path: enriched.backdrop_path ?? item.backdrop_path,
-      poster_path: enriched.poster_path ?? item.poster_path,
-      logo: enriched.logo ?? item.logo,
-      images: enriched.images ?? item.images,
-    });
+    return withOverride(
+      withAnimePageHref({
+        ...item,
+        backdrop_path: enriched.backdrop_path ?? item.backdrop_path,
+        poster_path: enriched.poster_path ?? item.poster_path,
+        logo: enriched.logo ?? item.logo,
+        images: enriched.images ?? item.images,
+      }),
+    );
   } catch {
-    return item;
+    return withOverride(item);
   }
 };
 
@@ -612,7 +678,7 @@ export const enrichAniListHubRow = async (
 
   const [fullResults, lightResults] = await Promise.all([
     runInChunks(fullSlice, enrichHero, chunkSize),
-    enrichBatchLightweight(lightSlice),
+    enrichAnimeHubCatalogVisuals(await enrichBatchLightweight(lightSlice)),
   ]);
 
   return withAnimePageHrefs([...fullResults, ...lightResults, ...tail]);

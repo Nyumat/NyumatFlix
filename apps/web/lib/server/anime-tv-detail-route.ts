@@ -1,3 +1,4 @@
+import { resolveAnilistMovieTmdbRouteFromFribb } from "@/lib/anilist-movie-route";
 import {
   buildAnilistTvDetailHref,
   fromAnilistTvRouteId,
@@ -6,8 +7,7 @@ import {
   parseAnimeAnilistRouteId,
   toAnilistTvRouteSlug,
 } from "@/lib/anilist-route-id";
-import { resolveAnilistMovieTmdbRoute } from "@/lib/anilist-movie-route";
-import { resolveCanonicalAnilistRoute } from "@/lib/anilist-tv-detail";
+import { resolveCanonicalAnilistRouteFromFribb } from "@/lib/anilist-tv-detail";
 import { resolveTmdbShowToAnilistId } from "@/lib/anime/cross-id-resolver";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -27,6 +27,19 @@ const appendSearchParams = (
   return mergedQuery ? `${path}?${mergedQuery}` : path;
 };
 
+const redirectToMovie = (
+  tmdbMovieId: number,
+  searchParams: URLSearchParams,
+  anilistId: number,
+) => {
+  const params = new URLSearchParams(searchParams);
+  params.set("anilistId", String(anilistId));
+  const query = params.toString();
+  redirect(
+    query ? `/movies/${tmdbMovieId}?${query}` : `/movies/${tmdbMovieId}`,
+  );
+};
+
 export async function resolveAnilistTvDetailRedirects(
   id: string,
 ): Promise<void> {
@@ -42,20 +55,16 @@ export async function resolveAnilistTvDetailRedirects(
     return;
   }
 
-  const mappedMovieId = await resolveAnilistMovieTmdbRoute(entryAnilistId);
+  const canonicalSlug = toAnilistTvRouteSlug(entryAnilistId);
+  const [mappedMovieId, canonical] = await Promise.all([
+    resolveAnilistMovieTmdbRouteFromFribb(entryAnilistId),
+    resolveCanonicalAnilistRouteFromFribb(canonicalSlug),
+  ]);
+
   if (mappedMovieId) {
-    const params = new URLSearchParams(requestSearchParams);
-    params.set("anilistId", String(entryAnilistId));
-    const query = params.toString();
-    redirect(
-      query ? `/movies/${mappedMovieId}?${query}` : `/movies/${mappedMovieId}`,
-    );
+    redirectToMovie(mappedMovieId, requestSearchParams, entryAnilistId);
   }
 
-  const canonical = await resolveCanonicalAnilistRoute(
-    toAnilistTvRouteSlug(entryAnilistId),
-    { acceptBareNumeric: true },
-  );
   if (canonical) {
     const canonicalAnilistId = fromAnilistTvRouteId(canonical.slug);
     if (canonicalAnilistId !== entryAnilistId) {
@@ -77,7 +86,6 @@ export async function resolveAnilistTvDetailRedirects(
     }
   }
 
-  const canonicalSlug = toAnilistTvRouteSlug(entryAnilistId);
   if (id !== canonicalSlug) {
     redirect(
       appendSearchParams(

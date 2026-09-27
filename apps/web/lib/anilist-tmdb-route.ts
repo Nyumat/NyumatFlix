@@ -15,9 +15,9 @@ import {
   pickBestTmdbTvCandidate,
   type TmdbTvMatchCandidate,
 } from "@/lib/anilist-tmdb-match";
+import { applyDataRevalidateCacheLife } from "@/lib/server/route-cache-life";
 import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
-import { unstable_cache } from "next/cache";
 
 const ROUTE_MAPPING_REVALIDATE_SECONDS = 60 * 60 * 24;
 const MAX_STRONG_TITLE_DATE_DRIFT_DAYS = 14;
@@ -116,11 +116,13 @@ const findExactTmdbTvRoute = async (
   return match ? { id: match.id, type: "tv" } : null;
 };
 
-const getCachedExactTmdbTvRoute = unstable_cache(
-  findExactTmdbTvRoute,
-  ["anilist-tmdb-exact-tv-route-v3"],
-  { revalidate: ROUTE_MAPPING_REVALIDATE_SECONDS },
-);
+const getCachedExactTmdbTvRoute = async (
+  anilistId: number,
+): Promise<FribbTmdbMapping | null> => {
+  "use cache";
+  applyDataRevalidateCacheLife(ROUTE_MAPPING_REVALIDATE_SECONDS);
+  return findExactTmdbTvRoute(anilistId);
+};
 
 export const resolveAnilistTvTmdbRoute = async (
   anilistId: number,

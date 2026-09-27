@@ -31,12 +31,13 @@ export const buildAniListTvMediaStubFromTmdb = (
       : tmdbShow.seasons?.find(
           (season) => season.season_number === tmdbSeasonNumber,
         );
-  const title = fribbRow
-    ? (!isGenericSeasonName(tmdbSeason?.name) && tmdbSeason?.name?.trim()) ||
-      tmdbShow.name?.trim() ||
-      tmdbShow.original_name?.trim() ||
-      "Untitled"
-    : tmdbShow.name?.trim() || tmdbShow.original_name?.trim() || "Untitled";
+  const showTitle =
+    tmdbShow.name?.trim() || tmdbShow.original_name?.trim() || "";
+  const seasonTitle =
+    !isGenericSeasonName(tmdbSeason?.name) && tmdbSeason?.name?.trim()
+      ? tmdbSeason.name.trim()
+      : "";
+  const title = showTitle || seasonTitle || "Untitled";
   const year =
     parseYear(tmdbSeason?.air_date) ??
     parseYear(tmdbShow.first_air_date) ??

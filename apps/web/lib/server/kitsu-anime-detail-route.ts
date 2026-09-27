@@ -10,10 +10,13 @@ import { jikanItemToAniListMedia } from "@/lib/anime-jikan-fallback";
 import { fetchJikanAnimeByMalId } from "@/lib/jikan/client";
 import { isMalAnimeRouteId, fromMalAnimeRouteId } from "@/lib/mal/route-id";
 import { readKitsuAnimeById, readKitsuAnimeByMalId } from "@/lib/kitsu/detail";
+import { buildAnilistTvDetailHref } from "@/lib/anilist-route-id";
 import type { AniListMedia } from "@/lib/anilist-shared";
 import type { MediaAboveFoldDetail } from "@/lib/media-above-fold";
 import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-video";
 import type { TvShowDetails } from "@/lib/domain/typings";
+import { headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 
 type KitsuRouteKind = "kitsu" | "mal";
 
@@ -203,15 +206,57 @@ export const getKitsuAnimeAboveFoldDetail = async (
   };
 };
 
+const parsePositiveInt = (value: string | null) => {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
 /**
  * Canonicalize provider routes when a stronger id exists: kitsu-{id} with an
- * `anilist/anime` mapping redirects to the canonical `anilist-{id}` page, and
- * mal-{id} with a `myanimelist/anime` Kitsu mapping stays (MAL route already
- * redirects to AniList via resolveMalAnimeDetailRedirects when mapped).
+ * `anilist/anime` mapping redirects to the canonical `anilist-{id}` page.
+ * Unmapped kitsu-only titles stay on the kitsu slug.
  */
 export async function resolveKitsuAnimeDetailRedirects(
-  _routeId: string,
+  routeId: string,
 ): Promise<void> {
-  // Detail rendering handles kitsu-/mal- slugs directly; canonicalization to
-  // anilist-{id} happens at href build time via provider mappings.
+  if (!isKitsuAnimeRouteId(routeId)) {
+    return;
+  }
+
+  const kitsuId = fromKitsuAnimeRouteId(routeId);
+  if (!Number.isInteger(kitsuId) || kitsuId <= 0) {
+    notFound();
+  }
+
+  const detail = await readKitsuAnimeById(kitsuId);
+  if (!detail) {
+    notFound();
+  }
+
+  const anilistId = detail.anilistId;
+  if (!Number.isInteger(anilistId) || (anilistId as number) <= 0) {
+    return;
+  }
+
+  const requestSearchParams = new URLSearchParams(
+    (await headers()).get("x-search-params") ?? "",
+  );
+  const requestedSeason = parsePositiveInt(requestSearchParams.get("season"));
+  const autoplay = requestSearchParams.get("autoplay") === "true";
+
+  const canonicalHref = buildAnilistTvDetailHref(anilistId as number, {
+    season: requestedSeason ?? undefined,
+  });
+  const [path, query = ""] = canonicalHref.split("?");
+  const params = new URLSearchParams(query);
+  if (autoplay) {
+    params.set("autoplay", "true");
+  }
+  for (const [key, value] of requestSearchParams.entries()) {
+    if (key !== "season" && key !== "autoplay" && !params.has(key)) {
+      params.set(key, value);
+    }
+  }
+  const mergedQuery = params.toString();
+  redirect(mergedQuery ? `${path}?${mergedQuery}` : path);
 }

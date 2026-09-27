@@ -6,26 +6,41 @@ import { resolveTmdbAnimeDetailRedirects } from "@/lib/server/tmdb-anime-detail-
 import { TvShowDetailLayoutContent } from "@/lib/server/tv-detail-layout-content";
 import { Suspense } from "react";
 
-export const revalidate = 3600;
-
 type Props = {
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 };
 
-export default async function AnimeDetailLayout({ children, params }: Props) {
-  const { id } = await params;
-
+async function AnimeDetailGate({
+  id,
+  params,
+  children,
+}: {
+  id: string;
+  params: Promise<{ id: string }>;
+  children: React.ReactNode;
+}) {
   await resolveMalAnimeDetailRedirects(id);
   await resolveTmdbAnimeDetailRedirects(id);
   await resolveKitsuAnimeDetailRedirects(id);
   await resolveAnilistTvDetailRedirects(id);
 
   return (
+    <TvShowDetailLayoutContent params={params} routeNamespace="anime">
+      {children}
+    </TvShowDetailLayoutContent>
+  );
+}
+
+export default async function AnimeDetailLayout(props: Props) {
+  const { children, params } = props;
+  const { id } = await params;
+
+  return (
     <Suspense fallback={<DetailPageLoading mediaType="tv" />}>
-      <TvShowDetailLayoutContent params={params} routeNamespace="anime">
+      <AnimeDetailGate id={id} params={params}>
         {children}
-      </TvShowDetailLayoutContent>
+      </AnimeDetailGate>
     </Suspense>
   );
 }
