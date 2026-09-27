@@ -49,16 +49,17 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Restore Bun, Turbo, and Next.js caches
+      - name: Restore Bun, Turbo, and Turbopack caches
         uses: actions/cache@v4
         with:
           path: |
             ~/.bun/install/cache
             ${{ github.workspace }}/.turbo
             ${{ github.workspace }}/apps/web/.next/cache
-          key: ${{ runner.os }}-turbo-${{ hashFiles('bun.lock', 'turbo.json') }}-${{ github.sha }}
+          key: ${{ runner.os }}-nyumatflix-${{ hashFiles('bun.lock', 'turbo.json', 'apps/web/next.config.mjs') }}
           restore-keys: |
-            ${{ runner.os }}-turbo-${{ hashFiles('bun.lock', 'turbo.json') }}-
+            ${{ runner.os }}-nyumatflix-${{ hashFiles('bun.lock', 'turbo.json', 'apps/web/next.config.mjs') }}-
+            ${{ runner.os }}-nyumatflix-
 
       - name: Install dependencies
         run: bun install --ignore-scripts
@@ -199,7 +200,7 @@ jobs:
             infra/docker-compose.scrape.yml infra/docker-compose.ffs.yml infra/docker-compose.imgproxy.yml \
             "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/infra/"
           rsync -avz -e "ssh -p $DEPLOY_PORT" \
-            scripts/deploy.sh scripts/deploy-lib.sh scripts/reconcile-prod-infra.sh scripts/db-migrate-if-needed.sh \
+            scripts/deploy.sh scripts/deploy-lib.sh scripts/reconcile-prod-infra.sh scripts/db-migrate-if-needed.sh scripts/bunny-purge-catalog.sh \
             "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/scripts/"
           if [[ -d flipt ]]; then
             rsync -avz -e "ssh -p $DEPLOY_PORT" \
