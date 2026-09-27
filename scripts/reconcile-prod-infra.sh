@@ -53,13 +53,20 @@ read_env_value() {
 }
 
 upsert_env_var() {
-  local file="$1" key="$2" value="$3" tmp
+  local file="$1" key="$2" value="$3" tmp formatted_value
   [[ "$key" =~ ^[A-Z0-9_]+$ ]] || die "invalid env key: $key"
   [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || die "env value for $key contains a newline"
+  if [[ "$value" == *\"* ]]; then
+    formatted_value="'${value//\'/\'\\\'\'}'"
+  elif [[ "$value" == *" "* ]]; then
+    formatted_value="\"${value//\"/\\\"}\""
+  else
+    formatted_value="$value"
+  fi
   mkdir -p "$(dirname "$file")"
   touch "$file"
   tmp="$(mktemp "${file}.tmp.XXXXXX")"
-  awk -v key="$key" -v value="$value" '
+  awk -v key="$key" -v value="$formatted_value" '
     index($0, key "=") == 1 {
       if (!written) print key "=" value
       written = 1
@@ -203,10 +210,12 @@ maybe_recreate_gluetun_on_env_drift() {
   fi
 }
 
-flipt_compose() {
+infra_compose() {
+  [[ "$FLIPT_PROJECT" == "$IMGPROXY_PROJECT" ]] || \
+    die "FLIPT_PROJECT ($FLIPT_PROJECT) and IMGPROXY_PROJECT ($IMGPROXY_PROJECT) must match so Flipt and imgproxy share one Compose project"
   sudo env "FLIPT_VOLUME_NAME=${FLIPT_VOLUME_NAME:-nyumatflix_flipt-data}" \
     docker compose --project-directory "$ROOT" --env-file "$APP_ENV_FILE" \
-    -p "$FLIPT_PROJECT" -f "$FLIPT_COMPOSE_FILE" "$@"
+    -p "$FLIPT_PROJECT" -f "$FLIPT_COMPOSE_FILE" -f "$IMGPROXY_COMPOSE_FILE" "$@"
 }
 
 mounted_flipt_volume() {
@@ -223,17 +232,12 @@ ensure_flipt_volume_name() {
   export FLIPT_VOLUME_NAME="${FLIPT_VOLUME_NAME:-nyumatflix_flipt-data}"
 }
 
-imgproxy_compose() {
-  sudo docker compose --project-directory "$ROOT" -p "$IMGPROXY_PROJECT" -f "$IMGPROXY_COMPOSE_FILE" "$@"
-}
-
 validate_compose() {
   [[ -f "$SCRAPE_COMPOSE_FILE" ]] || die "scrape compose file is missing: $SCRAPE_COMPOSE_FILE"
   [[ -f "$FLIPT_COMPOSE_FILE" ]] || die "Flipt compose file is missing: $FLIPT_COMPOSE_FILE"
   [[ -f "$IMGPROXY_COMPOSE_FILE" ]] || die "imgproxy compose file is missing: $IMGPROXY_COMPOSE_FILE"
   scrape_compose config --quiet
-  flipt_compose config --quiet
-  imgproxy_compose config --quiet
+  infra_compose config --quiet
 }
 
 reconcile_container_owner() {
@@ -266,12 +270,14 @@ wait_for_gluetun() {
 verify_runtime_dependencies() {
   # shellcheck disable=SC1091
   source "$SCRIPT_DIR/infra-health.sh"
-  if ! infra_verify_all_dependencies; then
-    sudo docker logs --tail 50 gluetun >&2 || true
-    sudo docker logs --tail 50 flaresolverr >&2 || true
-    sudo docker logs --tail 50 nyumatflix-imgproxy >&2 || true
-    die "production dependencies failed post-start verification (VPN proxy, imgproxy, flaresolverr, or flipt)"
+  local failure
+  if failure="$(infra_verify_all_dependencies 2>&1 >/dev/null)"; then
+    return 0
   fi
+  sudo docker logs --tail 50 gluetun >&2 || true
+  sudo docker logs --tail 50 flaresolverr >&2 || true
+  sudo docker logs --tail 50 nyumatflix-imgproxy >&2 || true
+  die "production dependency verification failed: ${failure:-unknown check}"
 }
 
 wait_for_service_url() {
@@ -309,10 +315,11 @@ print_status() {
     --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
   # shellcheck disable=SC1091
   source "$SCRIPT_DIR/infra-health.sh"
-  if infra_verify_all_dependencies >/dev/null 2>&1; then
+  local failure
+  if failure="$(infra_verify_all_dependencies 2>&1 >/dev/null)"; then
     echo "dependency verification: ok"
   else
-    echo "dependency verification: failed" >&2
+    echo "dependency verification: failed (${failure:-unknown check})" >&2
     return 1
   fi
 }
@@ -336,14 +343,12 @@ reconcile() {
 
   if [[ "$update_images" == "true" ]]; then
     scrape_compose pull
-    flipt_compose pull
-    imgproxy_compose pull
+    infra_compose pull
   fi
 
   maybe_recreate_gluetun_on_env_drift
   scrape_compose up -d
-  flipt_compose up -d
-  imgproxy_compose up -d
+  infra_compose up -d
   wait_for_gluetun
   wait_for_service_url flaresolverr http://flaresolverr:8191/
   wait_for_service_url flipt http://flipt:8080/health

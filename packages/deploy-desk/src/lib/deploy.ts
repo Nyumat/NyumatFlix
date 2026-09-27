@@ -66,6 +66,19 @@ export const startDeploy = (options: {
       throw new Error(
         "Checkout changed during build. Image was pushed, but production rollout was stopped. Review and retry.",
       );
+    phase("Sync production database");
+    const migrate = await runProcess(
+      repoRoot + "/scripts/db-migrate-if-needed.sh",
+      [],
+      {
+        env: {
+          ENV_FILE: process.env.DEPLOY_DESK_PROD_ENV ?? repoRoot + "/.env.prod",
+        },
+        onLine: log,
+      },
+    );
+    if (!migrate.ok)
+      throw new Error("Database migration exited " + migrate.exitCode);
     phase("Sync production environment");
     const sync = await runProcess(
       repoRoot + "/scripts/sync-prod-env.sh",

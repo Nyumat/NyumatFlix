@@ -44,8 +44,14 @@ install_watchdog() {
 
 install_infra_watchdog_user() {
   local app_user="${1:-${SUDO_USER:-}}"
+  local app_home
   [[ -n "$app_user" && "$app_user" != "root" ]] || {
     echo "install-prod-watchdogs: run with sudo from your deploy user (e.g. sudo ./install-prod-watchdogs.sh)" >&2
+    exit 1
+  }
+  app_home="$(getent passwd "$app_user" | cut -d: -f6)"
+  [[ -n "$app_home" ]] || {
+    echo "install-prod-watchdogs: could not resolve home for user $app_user" >&2
     exit 1
   }
   write_infra_watchdog_env "$app_user"
@@ -54,6 +60,9 @@ install_infra_watchdog_user() {
 [Service]
 User=${app_user}
 Group=${app_user}
+# ProtectHome=read-only is inherited from the unit; re-open the paths the
+# reconcile scripts must write (infra lock + managed env files).
+ReadWritePaths=-${app_home}/apps/nyumatflix -${app_home}/apps/gluetun -/run/sudo
 EOF
   systemctl daemon-reload
 }

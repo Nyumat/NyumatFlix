@@ -174,11 +174,26 @@ infra_verify_flipt() {
 
 infra_verify_all_dependencies() {
   local proxy_ip
-  infra_ensure_gluetun_vpn || return 1
-  proxy_ip="$(infra_verify_gluetun_proxy)" || return 1
-  infra_verify_imgproxy || return 1
-  infra_verify_flaresolverr || return 1
-  infra_verify_flipt || return 1
+  if ! infra_ensure_gluetun_vpn; then
+    echo "VPN not running or public IP unavailable" >&2
+    return 1
+  fi
+  if ! proxy_ip="$(infra_verify_gluetun_proxy)"; then
+    echo "VPN egress proxy (gluetun:8888) not reachable" >&2
+    return 1
+  fi
+  if ! infra_verify_imgproxy; then
+    echo "imgproxy health check failed (http://127.0.0.1:9081/health)" >&2
+    return 1
+  fi
+  if ! infra_verify_flaresolverr; then
+    echo "flaresolverr unreachable (http://flaresolverr:8191/)" >&2
+    return 1
+  fi
+  if ! infra_verify_flipt; then
+    echo "flipt unreachable (http://flipt:8080/health)" >&2
+    return 1
+  fi
   echo "gluetun vpn ok (egress ${proxy_ip})"
   return 0
 }

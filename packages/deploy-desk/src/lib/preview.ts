@@ -144,6 +144,14 @@ export const startPreview = () =>
       );
       if (!result.ok)
         throw new Error("Preview start exited " + result.exitCode);
+      phase("Verify scrape route");
+      const scrapeVerify = await runProcess(
+        repoRoot + "/scripts/verify-scrape-route.sh",
+        ["--container", previewContainer],
+        { timeoutMs: 30_000, onLine: log },
+      );
+      if (!scrapeVerify.ok)
+        throw new Error("Preview scrape route verification failed");
       const { image, container } = await inspectPreview();
       const [imageId, fingerprint] = image.stdout.trim().split("|");
       const [containerId, status, health, label, runningImageId] =

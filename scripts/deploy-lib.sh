@@ -43,6 +43,43 @@ label_safe() {
   printf '%.120s' "$value"
 }
 
+read_env_file_value() {
+  local file="$1" key="$2"
+  [[ -f "$file" ]] || return 1
+  python3 - "$file" "$key" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+key = sys.argv[2]
+for raw in path.read_text(encoding="utf-8").splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    name, _, value = line.partition("=")
+    if name.strip() != key:
+        continue
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1]
+    print(value, end="")
+    break
+PY
+}
+
+export_env_keys_from_file() {
+  local file="$1"
+  shift
+  local key value
+  [[ -f "$file" ]] || return 0
+  for key in "$@"; do
+    value="$(read_env_file_value "$file" "$key" || true)"
+    if [[ -n "$value" ]]; then
+      export "$key=$value"
+    fi
+  done
+}
+
 record_deployment() {
   local history_file="${DEPLOY_HISTORY_FILE:-$ROOT/deployments.jsonl}"
   local deployed_at target_port
@@ -115,4 +152,81 @@ current_deploy_labels() {
   sudo docker inspect "$container" --format \
     '{{index .Config.Labels "nyumatflix.deploy.sha"}}|{{index .Config.Labels "nyumatflix.deploy.short_sha"}}|{{index .Config.Labels "nyumatflix.deploy.message"}}|{{index .Config.Labels "nyumatflix.deploy.author"}}|{{index .Config.Labels "nyumatflix.deploy.at"}}|{{index .Config.Labels "nyumatflix.deploy.source"}}|{{.Config.Image}}' \
     2>/dev/null || true
+}
+
+docker_cli_for_container() {
+  local container="$1"
+  if sudo docker inspect "$container" >/dev/null 2>&1; then
+    printf '%s\n' "sudo docker"
+    return 0
+  fi
+  if docker inspect "$container" >/dev/null 2>&1; then
+    printf '%s\n' "docker"
+    return 0
+  fi
+  return 1
+}
+
+verify_scrape_api_route() {
+  local container="${1:-}"
+  local port="${2:-${CONTAINER_APP_PORT:-8080}}"
+  local base_url="${3:-}"
+  local payload docker_cli
+
+  if [[ -n "$container" ]]; then
+    docker_cli="$(docker_cli_for_container "$container")" || {
+      echo "scrape route check failed: container not found ($container)" >&2
+      return 1
+    }
+    payload="$($docker_cli exec "$container" curl -fsS --max-time 15 \
+      -H "x-nyumat-client: 1" \
+      "http://127.0.0.1:${port}/api/scrape" 2>/dev/null)" || {
+      echo "scrape route check failed inside container: $container" >&2
+      return 1
+    }
+  elif [[ -n "$base_url" ]]; then
+    payload="$(curl -fsS --max-time 15 \
+      -H "x-nyumat-client: 1" \
+      "${base_url%/}/api/scrape" 2>/dev/null)" || {
+      echo "scrape route check failed at ${base_url}" >&2
+      return 1
+    }
+  else
+    echo "verify_scrape_api_route: container name or base_url required" >&2
+    return 1
+  fi
+
+  # -c keeps the program off stdin so the piped response body is what gets parsed.
+  printf '%s' "$payload" | python3 -c "$(cat <<'PY'
+import json
+import sys
+
+raw = sys.stdin.read()
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    print("scrape route returned invalid JSON", file=sys.stderr)
+    raise SystemExit(1)
+
+providers = data.get("providers")
+if not isinstance(providers, dict):
+    print("scrape route missing providers object", file=sys.stderr)
+    raise SystemExit(1)
+
+anime = providers.get("anime")
+if not isinstance(anime, list) or len(anime) == 0:
+    print("scrape route missing anime providers", file=sys.stderr)
+    raise SystemExit(1)
+
+tmdb = providers.get("tmdb")
+if not isinstance(tmdb, list) or len(tmdb) == 0:
+    print("scrape route missing tmdb providers", file=sys.stderr)
+    raise SystemExit(1)
+
+print(
+    f"scrape route ok ({len(anime)} anime, {len(tmdb)} tmdb providers)",
+    end="",
+)
+PY
+)"
 }

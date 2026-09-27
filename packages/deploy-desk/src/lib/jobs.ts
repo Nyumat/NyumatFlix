@@ -1,6 +1,7 @@
 import { dirname } from "node:path";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { previewImage, previewPort, statePath } from "./config";
+import { stopProcesses } from "./process";
 import type { Job, JobKind, PreviewState } from "./types";
 
 type StoredState = { jobs: Job[]; preview: PreviewState };
@@ -20,6 +21,7 @@ export class JobStore {
   };
   private writes: Promise<void> = Promise.resolve();
   private active: string | null = null;
+  private aborted = new Set<string>();
   private timer?: ReturnType<typeof setTimeout>;
   constructor(
     private path: string,
@@ -78,6 +80,22 @@ export class JobStore {
   busy() {
     return this.active !== null;
   }
+  abort(id: string) {
+    const job = this.get(id);
+    if (!job) throw new Error("Job not found");
+    if (this.active !== id)
+      throw new Error("Only the active job can be aborted");
+    if (job.status !== "running" && job.status !== "queued")
+      throw new Error("Job is not running");
+    job.phase = "Aborting";
+    this.aborted.add(id);
+    job.logs.push("→ Stopping local processes; remote work may continue");
+    stopProcesses();
+    void this.persist().catch((error) =>
+      console.error("Could not persist abort:", error),
+    );
+    return job;
+  }
   preview() {
     return this.state.preview;
   }
@@ -132,23 +150,27 @@ export class JobStore {
     void (async () => {
       job.status = "running";
       try {
+        if (this.aborted.has(job.id)) throw new Error("Job aborted");
         await task({
           log,
           phase: (name) => {
+            if (this.aborted.has(job.id)) throw new Error("Job aborted");
             job.phase = name;
             log("→ " + name);
           },
         });
+        if (this.aborted.has(job.id)) throw new Error("Job aborted");
         job.status = "succeeded";
         job.phase = "Complete";
       } catch (error) {
         job.status = "failed";
-        job.phase = "Failed";
-        job.error = this.redact(
-          error instanceof Error ? error.message : "Job failed",
-        );
+        job.phase = this.aborted.has(job.id) ? "Aborted" : "Failed";
+        job.error = this.aborted.has(job.id)
+          ? "Stopped locally. Remote work may have continued; check production status."
+          : this.redact(error instanceof Error ? error.message : "Job failed");
         log(job.error);
       } finally {
+        this.aborted.delete(job.id);
         job.finishedAt = new Date().toISOString();
         job.durationMs = Date.now() - Date.parse(job.startedAt);
         clearTimeout(this.timer);
@@ -198,3 +220,4 @@ export const startJob = (
   kind: JobKind,
   task: (context: JobContext) => Promise<void>,
 ) => jobs.start(kind, task);
+export const abortJob = (id: string) => jobs.abort(id);

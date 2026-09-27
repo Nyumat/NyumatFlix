@@ -9,10 +9,12 @@ EnvironmentFile=-/etc/nyumatflix/infra-watchdog.env
 ExecStart=/usr/local/sbin/nyumatflix-infra-watchdog
 RuntimeDirectory=nyumatflix-infra-watchdog
 RuntimeDirectoryMode=0750
-NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=read-only
+# NoNewPrivileges must stay off: the reconcile path runs `sudo docker ...`.
+# ReadWritePaths is supplied by the per-user drop-in (see
+# install-prod-watchdogs.sh) so the reconcile lock/env writes succeed.
 
 [Install]
 WantedBy=multi-user.target
