@@ -1,10 +1,11 @@
 "use client";
 
 import { DevtoolsTrollOverlay } from "@/components/devtools/devtools-troll-overlay";
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { setDevtoolsFetchBlocked } from "@/lib/api/devtools-fetch-guard";
 import { cancelBrowserQueries } from "@/lib/query-client";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 
 const DETECT_DELAY_MS = 400;
 
@@ -21,7 +22,8 @@ const DevtoolsTrollProviderInner = ({
   children,
 }: DevtoolsTrollProviderProps) => {
   const pathname = usePathname();
-  const enabled = !pathname.startsWith("/ffs");
+  const flags = useFeatureFlags();
+  const enabled = !pathname.startsWith("/ffs") && flags.devtoolsTrap;
   const [devtoolsOpen, setDevtoolsOpen] = useState(false);
   const cleanupRef = useRef<(() => void) | null>(null);
 
@@ -88,5 +90,9 @@ export function DevtoolsTrollProvider({
     return children;
   }
 
-  return <DevtoolsTrollProviderInner>{children}</DevtoolsTrollProviderInner>;
+  return (
+    <Suspense fallback={children}>
+      <DevtoolsTrollProviderInner>{children}</DevtoolsTrollProviderInner>
+    </Suspense>
+  );
 }

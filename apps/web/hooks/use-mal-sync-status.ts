@@ -1,5 +1,6 @@
 "use client";
 
+import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { queryStaleTime } from "@/lib/cache-policy";
@@ -66,8 +67,10 @@ function useMalSyncStatusEnabled(deferUntilIdleOrMenu: boolean): boolean {
 }
 
 export function useMalSyncStatus(options?: MalSyncStatusOptions) {
+  const flags = useFeatureFlags();
   const deferUntilIdleOrMenu = options?.deferUntilIdleOrMenu ?? false;
-  const enabled = useMalSyncStatusEnabled(deferUntilIdleOrMenu);
+  const enabled =
+    flags.malSync && useMalSyncStatusEnabled(deferUntilIdleOrMenu);
 
   return useQuery({
     queryKey: ["mal-status"],

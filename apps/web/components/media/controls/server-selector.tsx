@@ -24,8 +24,12 @@ import {
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { MediaItem } from "@/lib/domain/typings";
 import type { ScrapePlayerStatus } from "@/hooks/use-scrape";
-import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import {
+  useFeatureFlags,
+  useFeatureFlagsReady,
+} from "@/components/providers/feature-flags-provider";
+import {
+  canOfferEmbedPlayback,
   getPlaybackModePolicy,
   isAnimeScrapeProviderEnabled,
   isEmbedProviderEnabled,
@@ -100,7 +104,6 @@ interface ServerSelectorProps {
   findNextSourceLabel?: string;
   previewVariant?: ServerSelectorPreviewVariant;
   forcedMenuMode?: PlaybackMenuMode;
-  previewDefaultOpen?: boolean;
   previewSuppressProxyHint?: boolean;
 }
 
@@ -289,7 +292,6 @@ export function ServerSelector({
   findNextSourceLabel = "Try next source",
   previewVariant,
   forcedMenuMode,
-  previewDefaultOpen = false,
   previewSuppressProxyHint = false,
 }: ServerSelectorProps) {
   const isPreview = previewVariant !== undefined;
@@ -318,8 +320,9 @@ export function ServerSelector({
     (state) => state.setPlaybackAudio,
   );
   const flags = useFeatureFlags();
+  const flagsReady = useFeatureFlagsReady();
   const playbackPolicy = getPlaybackModePolicy(flags);
-  const playbackModeLocked = flags.locks.playbackMode;
+  const playbackModeLocked = !flagsReady || flags.locks.playbackMode;
 
   const menuMode: PlaybackMenuMode =
     previewPanelMode ??
@@ -335,7 +338,13 @@ export function ServerSelector({
     ([, enabled]) => enabled,
   );
   const showEmbedMode =
-    (isPreview || !noAdsMode) &&
+    (isPreview ||
+      canOfferEmbedPlayback({
+        flagsReady,
+        proxyModeOnly: flags.proxyModeOnly,
+        iframeModeOnly: flags.iframeModeOnly,
+        noAdsMode,
+      })) &&
     playbackPolicy !== "proxy" &&
     hasEnabledEmbedProviders;
 
@@ -455,7 +464,7 @@ export function ServerSelector({
 
   const keepMenuOpen = (event: Event) => event.preventDefault();
 
-  const triggerLabel = (() => {
+  const currentSourceLabel = (() => {
     if (isPreview) {
       if (previewVariant === "iframe") {
         return sortedEmbedServers[0]?.name ?? "Embed";
@@ -474,13 +483,7 @@ export function ServerSelector({
     return selectedServer.name;
   })();
 
-  const triggerModeHint = isPreview
-    ? previewVariant === "iframe"
-      ? "Iframe"
-      : "Proxy"
-    : isScrapeActive
-      ? "Proxy"
-      : "Iframe";
+  const triggerTitle = `Source: ${currentSourceLabel} — choose playback mode and source`;
 
   const serverHasOptions = (serverId: string) =>
     serverId === "vidnest" ||
@@ -798,7 +801,7 @@ export function ServerSelector({
 
   return (
     <DropdownMenu
-      defaultOpen={previewDefaultOpen}
+      modal={!isPreview}
       onOpenChange={(open) => {
         if (open) {
           if (previewPanelMode) {
@@ -831,20 +834,14 @@ export function ServerSelector({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          title="Choose playback mode and source"
-          aria-label="Choose playback mode and source"
+          title={triggerTitle}
+          aria-label={triggerTitle}
           className={cn(
-            "flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 font-bold text-white shadow-lg backdrop-blur-md transition hover:border-white/40 hover:bg-white/20 hover:shadow-xl",
+            "flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 p-2.5 font-bold text-white shadow-lg backdrop-blur-md transition hover:border-white/40 hover:bg-white/20 hover:shadow-xl",
             className,
           )}
         >
           <Server className="h-4 w-4 shrink-0" />
-          <span className="flex min-w-0 flex-col items-start leading-tight">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
-              {triggerModeHint}
-            </span>
-            <span className="truncate">{triggerLabel}</span>
-          </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
         </button>
       </DropdownMenuTrigger>

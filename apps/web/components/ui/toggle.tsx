@@ -15,6 +15,8 @@ const toggleVariants = cva(
           "border border-transparent bg-transparent shadow-none hover:bg-muted/50 data-[state=off]:hover:text-foreground dark:data-[state=off]:hover:bg-white/10 dark:data-[state=off]:hover:text-white",
         outline:
           "border border-border/80 bg-background/50 shadow-md hover:bg-muted/60 data-[state=off]:text-foreground dark:border-white/25 dark:bg-white/5 dark:data-[state=off]:text-white dark:hover:bg-white/5",
+        quiet:
+          "h-8 rounded-md border border-transparent bg-transparent px-2.5 text-sm shadow-none backdrop-blur-none transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-1 focus-visible:ring-offset-0 data-[state=off]:text-muted-foreground hover:bg-muted/40 data-[state=off]:hover:text-foreground data-[state=on]:border-transparent data-[state=on]:bg-muted data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:border-transparent dark:data-[state=on]:bg-muted dark:data-[state=on]:text-foreground",
       },
       size: {
         default: "h-10 px-3",

@@ -3,6 +3,8 @@ export {
   writeAdminFlagState,
   readAnnouncementBannerConfig,
   readProviderMenuOrderConfig,
+  readHeroBackdropOverridesConfig,
+  readExperienceDefaultsConfig,
 } from "@/lib/flags/flipt-client";
 
 export {

@@ -1,21 +1,36 @@
 "use client";
 
 import { AuthTogglesPanel } from "@/components/ffs/auth-toggles-panel";
+import { ExperienceDefaultsPanel } from "@/components/ffs/experience-defaults-panel";
 import { FfsSaveBar } from "@/components/ffs/ffs-save-bar";
 import { GlobalTogglesPanel } from "@/components/ffs/global-toggles-panel";
 import { PowerFeaturesPanel } from "@/components/ffs/power-features-panel";
 import { ProviderMatrixPanel } from "@/components/ffs/provider-matrix-panel";
 import { ProviderMenuOrderPanel } from "@/components/ffs/provider-menu-order-panel";
 import { AnnouncementBannerPanel } from "@/components/ffs/announcement-banner-panel";
+import { HeroBackdropPanel } from "@/components/ffs/hero-backdrop-panel";
+import { SurfacesTogglesPanel } from "@/components/ffs/surfaces-toggles-panel";
+import { SettingsSection } from "@/components/ffs/settings";
+import { Separator } from "@/components/ui/separator";
 import {
   DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
   type AnnouncementBannerConfig,
 } from "@/lib/flags/announcement-banner";
 import {
+  DEFAULT_EXPERIENCE_DEFAULTS,
+  experienceDefaultsEquals,
+  type ExperienceDefaultsConfig,
+} from "@/lib/flags/experience-defaults";
+import {
   DEFAULT_PROVIDER_MENU_ORDER,
   providerMenuOrderEquals,
   type ProviderMenuOrderConfig,
 } from "@/lib/flags/provider-menu-order";
+import {
+  DEFAULT_HERO_BACKDROP_OVERRIDES,
+  heroBackdropOverridesEquals,
+  type HeroBackdropOverridesConfig,
+} from "@/lib/flags/hero-backdrop-overrides";
 import { broadcastSiteFlagsUpdated } from "@/lib/flags/flags-sync";
 import {
   applyPlaybackMutualExclusion,
@@ -29,12 +44,16 @@ type FfsDashboardProps = {
   initialFlags: AdminFlagState;
   initialAnnouncementBanner: AnnouncementBannerConfig;
   initialProviderMenuOrder: ProviderMenuOrderConfig;
+  initialHeroBackdropOverrides: HeroBackdropOverridesConfig;
+  initialExperienceDefaults: ExperienceDefaultsConfig;
 };
 
 export function FfsDashboard({
   initialFlags,
   initialAnnouncementBanner,
   initialProviderMenuOrder,
+  initialHeroBackdropOverrides,
+  initialExperienceDefaults,
 }: FfsDashboardProps) {
   const [saved, setSaved] = useState(initialFlags);
   const [draft, setDraft] = useState(initialFlags);
@@ -47,13 +66,42 @@ export function FfsDashboard({
   const [draftMenuOrder, setDraftMenuOrder] = useState(
     initialProviderMenuOrder,
   );
+  const [savedOverrides, setSavedOverrides] = useState(
+    initialHeroBackdropOverrides,
+  );
+  const [draftOverrides, setDraftOverrides] = useState(
+    initialHeroBackdropOverrides,
+  );
+  const [savedExperienceDefaults, setSavedExperienceDefaults] = useState(
+    initialExperienceDefaults,
+  );
+  const [draftExperienceDefaults, setDraftExperienceDefaults] = useState(
+    initialExperienceDefaults,
+  );
+  const [previewSyncToken, setPreviewSyncToken] = useState(0);
 
   const dirty = useMemo(
     () =>
       JSON.stringify(saved) !== JSON.stringify(draft) ||
       JSON.stringify(savedBanner) !== JSON.stringify(draftBanner) ||
-      !providerMenuOrderEquals(savedMenuOrder, draftMenuOrder),
-    [saved, draft, savedBanner, draftBanner, savedMenuOrder, draftMenuOrder],
+      !providerMenuOrderEquals(savedMenuOrder, draftMenuOrder) ||
+      !heroBackdropOverridesEquals(savedOverrides, draftOverrides) ||
+      !experienceDefaultsEquals(
+        savedExperienceDefaults,
+        draftExperienceDefaults,
+      ),
+    [
+      saved,
+      draft,
+      savedBanner,
+      draftBanner,
+      savedMenuOrder,
+      draftMenuOrder,
+      savedOverrides,
+      draftOverrides,
+      savedExperienceDefaults,
+      draftExperienceDefaults,
+    ],
   );
 
   const onChange = useCallback((key: string, value: boolean) => {
@@ -72,10 +120,20 @@ export function FfsDashboard({
     setDraft(saved);
     setDraftBanner(savedBanner);
     setDraftMenuOrder(savedMenuOrder);
-  }, [saved, savedBanner, savedMenuOrder]);
+    setDraftOverrides(savedOverrides);
+    setDraftExperienceDefaults(savedExperienceDefaults);
+    setPreviewSyncToken((token) => token + 1);
+  }, [
+    saved,
+    savedBanner,
+    savedMenuOrder,
+    savedOverrides,
+    savedExperienceDefaults,
+  ]);
 
   const onSave = useCallback(async () => {
     setSaving(true);
+    setPreviewSyncToken((token) => token + 1);
     const payload = applyPlaybackMutualExclusion(draft);
     try {
       const res = await fetch("/api/ffs/flags", {
@@ -85,6 +143,8 @@ export function FfsDashboard({
           flags: payload,
           announcementBanner: draftBanner,
           providerMenuOrder: draftMenuOrder,
+          heroBackdropOverrides: draftOverrides,
+          experienceDefaults: draftExperienceDefaults,
         }),
       });
       if (!res.ok) {
@@ -95,6 +155,8 @@ export function FfsDashboard({
         flags: AdminFlagState;
         announcementBanner: AnnouncementBannerConfig;
         providerMenuOrder: ProviderMenuOrderConfig;
+        heroBackdropOverrides: HeroBackdropOverridesConfig;
+        experienceDefaults: ExperienceDefaultsConfig;
       };
       setSaved(data.flags);
       setDraft(data.flags);
@@ -102,6 +164,11 @@ export function FfsDashboard({
       setDraftBanner(data.announcementBanner);
       setSavedMenuOrder(data.providerMenuOrder);
       setDraftMenuOrder(data.providerMenuOrder);
+      setSavedOverrides(data.heroBackdropOverrides);
+      setDraftOverrides(data.heroBackdropOverrides);
+      setSavedExperienceDefaults(data.experienceDefaults);
+      setDraftExperienceDefaults(data.experienceDefaults);
+      setPreviewSyncToken((token) => token + 1);
       broadcastSiteFlagsUpdated();
       toast.success("Flags saved");
     } catch (error) {
@@ -109,48 +176,113 @@ export function FfsDashboard({
     } finally {
       setSaving(false);
     }
-  }, [draft, draftBanner, draftMenuOrder]);
+  }, [
+    draft,
+    draftBanner,
+    draftMenuOrder,
+    draftOverrides,
+    draftExperienceDefaults,
+  ]);
 
   return (
     <>
-      <div className="mx-auto max-w-5xl space-y-6 pb-24 pt-8">
+      <div className="ffs-admin mx-auto max-w-5xl space-y-10 px-4 pb-24 pt-8">
         <header className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-widest text-primary/80">
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
             Feature flags
           </p>
-          <h1 className="text-2xl font-semibold text-white">
+          <h1 className="text-lg font-medium text-foreground">
             NyumatFlix admin
           </h1>
-          <p className="text-sm text-white/55">
-            Global toggles apply to all users after save (open tabs refresh on
-            focus).
+          <p className="text-xs text-muted-foreground">
+            Saved flags apply the next time a tab focuses the site.
           </p>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <GlobalTogglesPanel flags={draft} onChange={onChange} />
-          <AuthTogglesPanel flags={draft} onChange={onChange} />
+        <SettingsSection
+          title="Experience defaults"
+          description="Site-wide preference defaults for new visitors."
+        >
+          <ExperienceDefaultsPanel
+            config={draftExperienceDefaults}
+            onChange={setDraftExperienceDefaults}
+          />
+        </SettingsSection>
+
+        <Separator />
+
+        <div className="grid gap-10 lg:grid-cols-2">
+          <SettingsSection title="Playback">
+            <GlobalTogglesPanel flags={draft} onChange={onChange} />
+          </SettingsSection>
+          <SettingsSection title="Authentication">
+            <AuthTogglesPanel flags={draft} onChange={onChange} />
+          </SettingsSection>
         </div>
 
-        <PowerFeaturesPanel flags={draft} onChange={onChange} />
-        <AnnouncementBannerPanel
-          enabled={draft["global.announcement_banner"] ?? false}
-          config={draftBanner}
-          onEnabledChange={(enabled) =>
-            onChange("global.announcement_banner", enabled)
-          }
-          onConfigChange={setDraftBanner}
-        />
-        <ProviderMatrixPanel
-          flags={draft}
-          onChange={onChange}
-          onBulkChange={onBulkChange}
-        />
-        <ProviderMenuOrderPanel
-          flags={draft}
-          menuOrder={draftMenuOrder}
-          onMenuOrderChange={setDraftMenuOrder}
-        />
+        <Separator />
+
+        <SettingsSection title="Surfaces">
+          <SurfacesTogglesPanel flags={draft} onChange={onChange} />
+        </SettingsSection>
+
+        <Separator />
+
+        <SettingsSection title="Infrastructure">
+          <PowerFeaturesPanel flags={draft} onChange={onChange} />
+        </SettingsSection>
+
+        <Separator />
+
+        <SettingsSection
+          title="Providers"
+          description="Show or hide providers in the server selector and scrape dispatch."
+        >
+          <ProviderMatrixPanel
+            flags={draft}
+            onChange={onChange}
+            onBulkChange={onBulkChange}
+          />
+        </SettingsSection>
+
+        <Separator />
+
+        <SettingsSection title="Announcement">
+          <AnnouncementBannerPanel
+            enabled={draft["global.announcement_banner"] ?? false}
+            config={draftBanner}
+            onEnabledChange={(enabled) =>
+              onChange("global.announcement_banner", enabled)
+            }
+            onConfigChange={setDraftBanner}
+          />
+        </SettingsSection>
+
+        <Separator />
+
+        <SettingsSection
+          title="Server menu order"
+          description="Drag to reorder how sources appear in the server selector."
+        >
+          <ProviderMenuOrderPanel
+            flags={draft}
+            menuOrder={draftMenuOrder}
+            onMenuOrderChange={setDraftMenuOrder}
+          />
+        </SettingsSection>
+
+        <Separator />
+
+        <SettingsSection
+          title="Index hero pins"
+          description="Pin up to five titles per hub. Each hub has its own hero lineup and backdrop."
+        >
+          <HeroBackdropPanel
+            overrides={draftOverrides}
+            onOverridesChange={setDraftOverrides}
+            previewSyncToken={previewSyncToken}
+          />
+        </SettingsSection>
       </div>
 
       <FfsSaveBar
@@ -169,6 +301,8 @@ export function FfsDashboardFallback() {
       initialFlags={buildDefaultAdminFlagState()}
       initialAnnouncementBanner={DEFAULT_ANNOUNCEMENT_BANNER_CONFIG}
       initialProviderMenuOrder={DEFAULT_PROVIDER_MENU_ORDER}
+      initialHeroBackdropOverrides={DEFAULT_HERO_BACKDROP_OVERRIDES}
+      initialExperienceDefaults={DEFAULT_EXPERIENCE_DEFAULTS}
     />
   );
 }

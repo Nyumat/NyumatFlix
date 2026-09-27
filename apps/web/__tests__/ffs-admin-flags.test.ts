@@ -7,8 +7,14 @@ import {
   buildDefaultAdminFlagState,
 } from "@/lib/flags/flag-catalog";
 import { assertFfsHost, isFfsHost } from "@/lib/ffs/require-ffs-host";
+import {
+  isFfsAdminPath,
+  shouldSkipRouteScrollManagement,
+} from "@/lib/ffs/ffs-host-paths";
 import { DEFAULT_ANNOUNCEMENT_BANNER_CONFIG } from "@/lib/flags/announcement-banner";
 import { DEFAULT_PROVIDER_MENU_ORDER } from "@/lib/flags/provider-menu-order";
+import { DEFAULT_HERO_BACKDROP_OVERRIDES } from "@/lib/flags/hero-backdrop-overrides";
+import { DEFAULT_EXPERIENCE_DEFAULTS } from "@/lib/flags/experience-defaults";
 
 vi.mock("@/lib/flags/flipt-admin", () => ({
   readAdminFlagState: vi.fn(async () => buildDefaultAdminFlagState()),
@@ -16,6 +22,10 @@ vi.mock("@/lib/flags/flipt-admin", () => ({
     async () => DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
   ),
   readProviderMenuOrderConfig: vi.fn(async () => DEFAULT_PROVIDER_MENU_ORDER),
+  readHeroBackdropOverridesConfig: vi.fn(
+    async () => DEFAULT_HERO_BACKDROP_OVERRIDES,
+  ),
+  readExperienceDefaultsConfig: vi.fn(async () => DEFAULT_EXPERIENCE_DEFAULTS),
   writeAdminFlagState: vi.fn(async () => undefined),
 }));
 
@@ -26,6 +36,22 @@ const { readAdminFlagState, writeAdminFlagState } = await import(
 describe("ffs admin flags", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("detects ffs admin paths", () => {
+    expect(isFfsAdminPath("/ffs")).toBe(true);
+    expect(isFfsAdminPath("/ffs/")).toBe(true);
+    expect(isFfsAdminPath("/movies")).toBe(false);
+  });
+
+  it("skips route scroll management on ffs admin surfaces", () => {
+    expect(shouldSkipRouteScrollManagement("/ffs")).toBe(true);
+    expect(shouldSkipRouteScrollManagement("/", "ffs.localhost:3000")).toBe(
+      true,
+    );
+    expect(shouldSkipRouteScrollManagement("/movies", "localhost:3000")).toBe(
+      false,
+    );
   });
 
   it("detects ffs hostnames", () => {
@@ -112,8 +138,12 @@ describe("ffs admin flags", () => {
       }),
     );
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { flags: Record<string, boolean> };
+    const body = (await response.json()) as {
+      flags: Record<string, boolean>;
+      heroBackdropOverrides: { entries: unknown[] };
+    };
     expect(body.flags["global.auth_enabled"]).toBe(true);
+    expect(body.heroBackdropOverrides.entries).toEqual([]);
     expect(readAdminFlagState).toHaveBeenCalledOnce();
   });
 
@@ -139,6 +169,89 @@ describe("ffs admin flags", () => {
 
     expect(response.status).toBe(200);
     expect(writeAdminFlagState).toHaveBeenCalledOnce();
+  });
+
+  it("persists hero backdrop overrides", async () => {
+    const overrides = {
+      version: 1 as const,
+      entries: [
+        {
+          key: "movie:969681",
+          mediaType: "movie" as const,
+          title: "Spider-Man: Brand New Day",
+          tmdbId: 969681,
+          anilistId: null,
+          malId: null,
+          path: "/spidey.jpg",
+          source: "tmdb" as const,
+          label: "TMDB",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    };
+
+    const response = await PATCH(
+      new NextRequest("http://ffs.localhost:3000/api/ffs/flags", {
+        method: "PATCH",
+        body: JSON.stringify({
+          flags: buildDefaultAdminFlagState(),
+          heroBackdropOverrides: overrides,
+        }),
+        headers: {
+          host: "ffs.localhost:3000",
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      heroBackdropOverrides: { entries: Array<{ path: string }> };
+    };
+    expect(body.heroBackdropOverrides.entries[0]?.path).toBe("/spidey.jpg");
+    expect(writeAdminFlagState).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ entries: overrides.entries }),
+      expect.anything(),
+    );
+  });
+
+  it("round-trips experience defaults on patch", async () => {
+    const experienceDefaults = {
+      ...DEFAULT_EXPERIENCE_DEFAULTS,
+      playerEngine: "movi" as const,
+      playbackAudio: "dub" as const,
+    };
+
+    const response = await PATCH(
+      new NextRequest("http://ffs.localhost:3000/api/ffs/flags", {
+        method: "PATCH",
+        body: JSON.stringify({
+          flags: buildDefaultAdminFlagState(),
+          experienceDefaults,
+        }),
+        headers: {
+          host: "ffs.localhost:3000",
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      experienceDefaults: { playerEngine: string; playbackAudio: string };
+    };
+    expect(body.experienceDefaults.playerEngine).toBe("movi");
+    expect(body.experienceDefaults.playbackAudio).toBe("dub");
+    expect(writeAdminFlagState).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ playerEngine: "movi", playbackAudio: "dub" }),
+    );
   });
 
   it("rejects an enabled banner without content", async () => {

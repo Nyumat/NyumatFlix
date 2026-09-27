@@ -7,6 +7,7 @@ import {
 import {
   ensureFlagsSeeded,
   invalidateFlagCache,
+  readAdminFlagStateStrict,
   readAnnouncementBannerConfig,
   readFliptMetadataValue,
   toFliptStorageKey,
@@ -91,6 +92,128 @@ describe("Flipt v2 client", () => {
         enabled: missing.defaultValue,
         type: "BOOLEAN_FLAG_TYPE",
       },
+    });
+  });
+
+  it("retries a create when the namespace revision moved", async () => {
+    const missing = ALL_FLAG_DEFINITIONS[0];
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          resources: ALL_FLAG_DEFINITIONS.slice(1).map(resource),
+          revision: "revision-1",
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            code: 10,
+            message:
+              'expected head revision "revision-1" has changed (now "revision-2")',
+          },
+          { status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          resources: ALL_FLAG_DEFINITIONS.map(resource),
+          revision: "revision-2",
+        }),
+      );
+    globalThis.fetch = fetchMock;
+
+    await ensureFlagsSeeded();
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const posts = fetchMock.mock.calls.filter(
+      ([, init]) => init?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+    expect(JSON.parse(String(posts[0]?.[1]?.body))).toMatchObject({
+      key: toFliptStorageKey(missing.key),
+      revision: "revision-1",
+    });
+  });
+
+  it("shares one seed across overlapping reads", async () => {
+    let releaseList: ((response: Response) => void) | undefined;
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementation((_input, init) => {
+        const method = init?.method ?? "GET";
+        if (method === "POST") {
+          return Promise.resolve(
+            Response.json({ revision: "revision-2" }, { status: 200 }),
+          );
+        }
+        return new Promise<Response>((resolve) => {
+          releaseList = resolve;
+        });
+      });
+    globalThis.fetch = fetchMock;
+
+    const pending = Promise.all([ensureFlagsSeeded(), ensureFlagsSeeded()]);
+    await vi.waitFor(() => {
+      expect(releaseList).toBeTypeOf("function");
+    });
+    releaseList?.(
+      Response.json({
+        resources: ALL_FLAG_DEFINITIONS.slice(1).map(resource),
+        revision: "revision-1",
+      }),
+    );
+    await pending;
+
+    const lists = fetchMock.mock.calls.filter(([, init]) => !init?.method);
+    expect(lists).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
+    ).toHaveLength(1);
+  });
+
+  it("does not hit Flipt again after flags are seeded", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        resources: ALL_FLAG_DEFINITIONS.map(resource),
+        revision: "revision-1",
+      }),
+    );
+    globalThis.fetch = fetchMock;
+
+    await ensureFlagsSeeded();
+    await ensureFlagsSeeded();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("still reads flags when a seed create loses the revision race", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          resources: ALL_FLAG_DEFINITIONS.slice(1).map(resource),
+          revision: "revision-1",
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          { code: 10, message: "expected head revision has changed" },
+          { status: 409 },
+        ),
+      )
+      .mockImplementation(() =>
+        Promise.resolve(
+          Response.json({
+            resources: ALL_FLAG_DEFINITIONS.map(resource),
+            revision: "revision-2",
+          }),
+        ),
+      );
+    globalThis.fetch = fetchMock;
+
+    await expect(readAdminFlagStateStrict()).resolves.toMatchObject({
+      [ALL_FLAG_DEFINITIONS[0].key]: ALL_FLAG_DEFINITIONS[0].defaultValue,
     });
   });
 

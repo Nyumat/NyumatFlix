@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import {
   ANIME_SCRAPE_PROVIDER_ORDER,
   EMBED_PROVIDER_REGISTRY,
@@ -14,11 +13,6 @@ import {
   embedProviderFlagKey,
   tmdbScrapeProviderFlagKey,
 } from "@/lib/flags/flag-catalog";
-import { readAdminFlagState } from "@/lib/flags/flipt-client";
-import {
-  readAnnouncementBannerConfig,
-  readProviderMenuOrderConfig,
-} from "@/lib/flags/flipt-client";
 import {
   DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
   type AnnouncementBannerConfig,
@@ -28,6 +22,12 @@ import {
   DEFAULT_PROVIDER_MENU_ORDER,
   type ProviderMenuOrderConfig,
 } from "@/lib/flags/provider-menu-order";
+import {
+  DEFAULT_EXPERIENCE_DEFAULTS,
+  sanitizeExperienceDefaultsConfig,
+  type ExperienceDefaultsConfig,
+} from "@/lib/flags/experience-defaults";
+import { SITE_FLAGS_CACHE_TAG } from "@/lib/flags/site-flags-cache-tag";
 import { computePolicyGeneration } from "@/lib/flags/policy-generation";
 import type { VideoServer } from "@/lib/stores/video-servers";
 import { videoServers } from "@/lib/stores/video-servers";
@@ -37,8 +37,10 @@ export type SiteFlags = {
   proxyModeOnly: boolean;
   iframeModeOnly: boolean;
   staticHeroBackdrops: boolean;
+  ambientGlowEnabled: boolean;
   signupDisabled: boolean;
   authEnabled: boolean;
+  passkeysEnabled: boolean;
   noAdsModeDefault: boolean;
   /** Choice mode: prefer scrape/proxy without hiding iframe. */
   defaultProxyPlayback: boolean;
@@ -46,6 +48,13 @@ export type SiteFlags = {
   scrapeProxyRequired: boolean;
   lockUserSettings: boolean;
   maintenanceMode: boolean;
+  cardHoverPreviews: boolean;
+  youtubeHoverFallback: boolean;
+  adblockPrompt: boolean;
+  devtoolsTrap: boolean;
+  malSync: boolean;
+  homeTop10: boolean;
+  experienceDefaults: ExperienceDefaultsConfig;
   announcementBanner: AnnouncementBannerConfig & { enabled: boolean };
   /** Resolved on the server; client must not re-read CALLUSPIRATES_API_URL. */
   directScrapeProviderAvailable: boolean;
@@ -74,6 +83,7 @@ export function resolveSiteFlags(
   raw: Record<string, boolean>,
   announcementConfig: AnnouncementBannerConfig = DEFAULT_ANNOUNCEMENT_BANNER_CONFIG,
   providerMenuOrder: ProviderMenuOrderConfig = DEFAULT_PROVIDER_MENU_ORDER,
+  experienceDefaultsConfig: ExperienceDefaultsConfig = DEFAULT_EXPERIENCE_DEFAULTS,
 ): SiteFlags {
   const proxyModeOnly = raw["global.proxy_mode_only"] ?? false;
   const iframeModeOnly = raw["global.iframe_mode_only"] ?? false;
@@ -88,14 +98,25 @@ export function resolveSiteFlags(
     proxyModeOnly,
     iframeModeOnly: proxyModeOnly ? false : iframeModeOnly,
     staticHeroBackdrops,
+    ambientGlowEnabled: raw["global.ambient_glow_enabled"] ?? false,
     signupDisabled: raw["global.signup_disabled"] ?? false,
     authEnabled: raw["global.auth_enabled"] ?? true,
+    passkeysEnabled: raw["global.passkeys_enabled"] ?? false,
     noAdsModeDefault: raw["global.no_ads_mode_default"] ?? false,
     defaultProxyPlayback: raw["global.default_proxy_playback"] ?? false,
     liveTvEnabled: raw["global.live_tv_enabled"] ?? false,
     scrapeProxyRequired: raw["global.scrape_proxy_required"] ?? false,
     lockUserSettings,
     maintenanceMode: raw["global.maintenance_mode"] ?? false,
+    cardHoverPreviews: raw["global.card_hover_previews"] ?? true,
+    youtubeHoverFallback: raw["global.youtube_hover_fallback"] ?? true,
+    adblockPrompt: raw["global.adblock_prompt"] ?? true,
+    devtoolsTrap: raw["global.devtools_trap"] ?? true,
+    malSync: raw["global.mal_sync"] ?? true,
+    homeTop10: raw["global.home_top10"] ?? true,
+    experienceDefaults: sanitizeExperienceDefaultsConfig(
+      experienceDefaultsConfig,
+    ),
     announcementBanner: {
       ...announcementConfig,
       enabled: raw["global.announcement_banner"] ?? false,
@@ -130,29 +151,7 @@ export function resolveSiteFlags(
   };
 }
 
-export const SITE_FLAGS_CACHE_TAG = "nyumatflix:site-flags";
-
-const loadSiteFlags = async (): Promise<SiteFlags> => {
-  const [raw, announcementConfig, menuOrder] = await Promise.all([
-    readAdminFlagState(),
-    readAnnouncementBannerConfig(),
-    readProviderMenuOrderConfig(),
-  ]);
-  return resolveSiteFlags(raw, announcementConfig, menuOrder);
-};
-
-export const getCachedSiteFlags = unstable_cache(
-  loadSiteFlags,
-  ["site-flags"],
-  {
-    revalidate: 30,
-    tags: [SITE_FLAGS_CACHE_TAG],
-  },
-);
-
-export async function getSiteFlags(): Promise<SiteFlags> {
-  return getCachedSiteFlags();
-}
+export { SITE_FLAGS_CACHE_TAG };
 
 export function getDefaultSiteFlags(): SiteFlags {
   return resolveSiteFlags(DEFAULT_FLAG_VALUES);
@@ -162,6 +161,18 @@ export function getPlaybackModePolicy(flags: SiteFlags): PlaybackModePolicy {
   if (flags.proxyModeOnly) return "proxy";
   if (flags.iframeModeOnly) return "iframe";
   return "choice";
+}
+
+export function canOfferEmbedPlayback(input: {
+  flagsReady: boolean;
+  proxyModeOnly: boolean;
+  iframeModeOnly: boolean;
+  noAdsMode: boolean;
+}): boolean {
+  if (!input.flagsReady) return false;
+  if (input.proxyModeOnly) return false;
+  if (input.iframeModeOnly) return true;
+  return !input.noAdsMode;
 }
 
 export function shouldSeedDefaultProxyPlayback(input: {

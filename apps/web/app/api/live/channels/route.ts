@@ -1,7 +1,7 @@
 import { rejectUnlessCapAllowed } from "@/lib/api/cap-route-guard";
 import { NextResponse } from "next/server";
 
-import { getSiteFlags } from "@/lib/flags/site-flags";
+import { getSiteFlags } from "@/lib/flags/site-flags-server";
 import { getLiveChannels } from "@/lib/live/dulo";
 
 export const maxDuration = 90;
