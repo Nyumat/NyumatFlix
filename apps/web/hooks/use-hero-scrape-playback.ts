@@ -27,7 +27,13 @@ import { prefetchMoviScrapePlayer } from "@/lib/scrape/prefetch-scrape-player";
 import { toPlayableManifestFromDirect } from "@/lib/playback/to-playable-manifest";
 import type { HeroScrapeChrome } from "@/components/hero/hero-scrape-types";
 import { flushPlaybackProgress } from "@/lib/playback/progress-flush";
-import { useAnimePlaybackScrape } from "@/hooks/use-anime-playback-scrape";
+import {
+  animeEpisodeKeyFor,
+  useAnimePlaybackScrape,
+} from "@/hooks/use-anime-playback-scrape";
+import type { PlaybackPrefetchHandle } from "@/hooks/use-playback-resolve";
+import { probeCapSession } from "@/lib/cap/client";
+import { resolveAdjacentEpisodeTargets } from "@/lib/playback/adjacent-episodes";
 import { useDirectPlayback } from "@/hooks/use-direct-movie-playback";
 import { useScrape } from "@/hooks/use-scrape";
 import { useServerAvailabilityQuery } from "@/hooks/use-server-availability-query";
@@ -47,7 +53,7 @@ import {
   withManualDirectMenuOption,
 } from "@/lib/providers/anime-playback-chain";
 import { type AnimePlaybackScrapeProviderId } from "@/lib/providers/registry";
-import type { ScrapeProviderId } from "@/lib/scrape/types";
+import type { ScrapeItem, ScrapeProviderId } from "@/lib/scrape/types";
 import { animeScrapeMediaKeyFor } from "@/lib/scrape/anime/types";
 import { buildSourceOverlayItems } from "@/lib/scrape/source-overlay";
 import { resolveNextProviderId } from "@/lib/scrape/next-provider";
@@ -72,6 +78,13 @@ import {
 } from "@/lib/playback/continue-watching-complete";
 import { usePlaybackCompleteActions } from "@/hooks/use-playback-complete-actions";
 import { postWatchProgressIfSignedIn } from "@/lib/watchlist/post-watch-progress";
+
+const NO_SCRAPE_ITEMS: ScrapeItem[] = [];
+
+type SourcePrefetchStep = {
+  key: string;
+  start: () => PlaybackPrefetchHandle;
+};
 
 type UseHeroScrapePlaybackOptions = {
   media: MediaItem;
@@ -99,6 +112,9 @@ export function useHeroScrapePlayback({
     defaultAnilistId,
     animeCoordsStatus,
     playbackTmdbTvId,
+    seasonEpisodes,
+    animeSegmentStart,
+    animeSegmentEnd,
     advanceToNextEpisode,
   } = useEpisodeStore();
   const {
@@ -467,7 +483,35 @@ export function useHeroScrapePlayback({
     mappingConfidence,
   };
 
-  const activeScrape = isAnimeScrapeActive ? animePlaybackScrape : mediaScrape;
+  const rawActiveScrape = isAnimeScrapeActive
+    ? animePlaybackScrape
+    : mediaScrape;
+
+  const episodeSessionKey = [
+    resolvedMediaType,
+    media.id,
+    seasonNumber ?? "",
+    selectedEpisode?.episode_number ?? "",
+  ].join(":");
+  const [episodeSession, setEpisodeSession] = useState({
+    key: episodeSessionKey,
+    generation: 0,
+  });
+  if (episodeSession.key !== episodeSessionKey) {
+    setEpisodeSession({
+      key: episodeSessionKey,
+      generation: episodeSession.generation + 1,
+    });
+  }
+  const playbackGeneration =
+    episodeSession.key === episodeSessionKey
+      ? episodeSession.generation
+      : episodeSession.generation + 1;
+  const playbackGenerationRef = useRef(playbackGeneration);
+  playbackGenerationRef.current = playbackGeneration;
+  const [startedPlaybackGeneration, setStartedPlaybackGeneration] = useState<
+    number | null
+  >(null);
 
   const stopScraping = useCallback(() => {
     mediaScrapeRef.current.stopScraping();
@@ -610,6 +654,36 @@ export function useHeroScrapePlayback({
     const input = buildScrapeInput();
     return input ? scrapeMediaKeyFor(input) : null;
   }, [buildAnimeScrapeInput, buildScrapeInput, isAnimeScrapeActive]);
+
+  const getCurrentEpisodeKey = useCallback((): string | null => {
+    if (isAnimeScrapeActive) {
+      const animeInput = buildAnimeScrapeInput();
+      return animeInput ? animeEpisodeKeyFor(animeInput) : null;
+    }
+
+    const input = buildScrapeInput();
+    return input ? scrapeMediaKeyFor(input) : null;
+  }, [buildAnimeScrapeInput, buildScrapeInput, isAnimeScrapeActive]);
+
+  const currentEpisodeKey = getCurrentEpisodeKey();
+  const activeScrape = useMemo(() => {
+    if (
+      rawActiveScrape.episodeKey === null ||
+      rawActiveScrape.episodeKey === currentEpisodeKey
+    ) {
+      return rawActiveScrape;
+    }
+
+    return {
+      ...rawActiveScrape,
+      status: "scraping" as const,
+      activeProviderId: null,
+      result: null,
+      manifest: null,
+      error: null,
+      items: NO_SCRAPE_ITEMS,
+    };
+  }, [currentEpisodeKey, rawActiveScrape]);
 
   const startScrapingForCurrentMedia = useCallback(() => {
     if (!isScrapeServer(selectedServer)) {
@@ -822,6 +896,141 @@ export function useHeroScrapePlayback({
     selectedEpisode?.episode_number,
   ]);
 
+  const prefetchPlan = useMemo((): SourcePrefetchStep[] => {
+    if (
+      !isScrapeMode ||
+      isDirectMode ||
+      awaitingAnimeCoords ||
+      !flagsReady ||
+      flags.maintenanceMode
+    ) {
+      return [];
+    }
+
+    const adjacentPhase =
+      isPlayingVideo && startedPlaybackGeneration === playbackGeneration;
+    if (isPlayingVideo && !adjacentPhase) {
+      return [];
+    }
+
+    const adjacentTargets = adjacentPhase
+      ? resolveAdjacentEpisodeTargets({
+          seasonEpisodes,
+          episodeNumber: selectedEpisode?.episode_number,
+          relativeEpisodeNumber: isAnimeScrapeActive
+            ? relativeEpisodeNumber
+            : null,
+          animeSegmentStart,
+          animeSegmentEnd,
+        })
+      : [];
+
+    if (isAnimeScrapeActive) {
+      const base = buildAnimePlaybackInput();
+      if (!base) {
+        return [];
+      }
+      const inputs = adjacentPhase
+        ? adjacentTargets.flatMap((target) =>
+            target.relativeEpisodeNumber === null
+              ? []
+              : [
+                  {
+                    ...base,
+                    anime: {
+                      ...base.anime,
+                      episodeNumber: target.relativeEpisodeNumber,
+                    },
+                    tmdb: base.tmdb
+                      ? {
+                          ...base.tmdb,
+                          episodeNumber: target.providerEpisodeNumber,
+                        }
+                      : null,
+                  },
+                ],
+          )
+        : [base];
+      return inputs.map((input) => ({
+        key: `anime|${animeScrapeMediaKeyFor(input.anime)}`,
+        start: () => animePlaybackScrapeRef.current.prefetch(input),
+      }));
+    }
+
+    if (!shouldAllowTmdbOnlyScrape(animePlaybackHoldInput)) {
+      return [];
+    }
+    const base = buildScrapeInput();
+    if (!base) {
+      return [];
+    }
+    const inputs = adjacentPhase
+      ? adjacentTargets.map((target) => ({
+          ...base,
+          episodeNumber: target.providerEpisodeNumber,
+        }))
+      : [base];
+    return inputs.map((input) => ({
+      key: `tmdb|${scrapeMediaKeyFor(input)}`,
+      start: () => mediaScrapeRef.current.prefetch(input),
+    }));
+  }, [
+    animePlaybackHoldInput,
+    animeSegmentEnd,
+    animeSegmentStart,
+    awaitingAnimeCoords,
+    buildAnimePlaybackInput,
+    buildScrapeInput,
+    flags.maintenanceMode,
+    flagsReady,
+    isAnimeScrapeActive,
+    isDirectMode,
+    isPlayingVideo,
+    isScrapeMode,
+    playbackGeneration,
+    relativeEpisodeNumber,
+    seasonEpisodes,
+    selectedEpisode?.episode_number,
+    startedPlaybackGeneration,
+  ]);
+  useEffect(() => {
+    if (!isPlayingVideo) {
+      setStartedPlaybackGeneration(null);
+    }
+  }, [isPlayingVideo]);
+
+  const prefetchPlanRef = useRef(prefetchPlan);
+  prefetchPlanRef.current = prefetchPlan;
+  const prefetchPlanKey = prefetchPlan.map((step) => step.key).join("||");
+
+  useEffect(() => {
+    const steps = prefetchPlanRef.current;
+    if (steps.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    let activeHandle: PlaybackPrefetchHandle | null = null;
+    const runSteps = async () => {
+      if (!(await probeCapSession()) || cancelled) {
+        return;
+      }
+      for (const step of steps) {
+        if (cancelled) {
+          return;
+        }
+        activeHandle = step.start();
+        await activeHandle.done;
+      }
+    };
+    void runSteps();
+
+    return () => {
+      cancelled = true;
+      activeHandle?.cancel();
+    };
+  }, [prefetchPlanKey]);
+
   const serverAvailabilityInput =
     useMemo((): ServerAvailabilityInput | null => {
       const isTv = resolvedMediaType === "tv";
@@ -900,83 +1109,122 @@ export function useHeroScrapePlayback({
     resolveActiveScrapeProviderOrder,
   ]);
 
-  const handleScrapedPlaybackError = useCallback(() => {
-    flushPlaybackProgress();
+  const recoverFromScrapedPlaybackError = useCallback(
+    (failedProviderId: string, playUrl: string) => {
+      const nextProviderId = resolveNextScrapeProviderId();
 
-    if (isDirectMode) {
-      directPlaybackRef.current.tryNextStream();
-      return;
-    }
+      if (isAnimeScrapeActive) {
+        const playbackInput = buildAnimePlaybackInput();
+        if (!playbackInput) {
+          return;
+        }
 
-    const scrape = isAnimeScrapeActive
-      ? animePlaybackScrapeRef.current
-      : mediaScrapeRef.current;
+        if (nextProviderId) {
+          animePlaybackScrapeRef.current.switchToProvider(
+            playbackInput,
+            nextProviderId as AnimePlaybackScrapeProviderId,
+          );
+          return;
+        }
 
-    const failedProviderId = scrape.result?.providerId;
-    if (!failedProviderId) {
-      return;
-    }
+        if (shouldReScrapeSameProviderOnPlaybackError(playUrl)) {
+          animePlaybackScrapeRef.current.resumeScraping(
+            playbackInput,
+            failedProviderId as AnimePlaybackScrapeProviderId,
+          );
+          return;
+        }
 
-    const nextProviderId = resolveNextScrapeProviderId();
-    const playUrl = scrape.result?.playUrl ?? "";
+        animePlaybackScrapeRef.current.retryAllScraping(playbackInput);
+        return;
+      }
 
-    if (isAnimeScrapeActive) {
-      const playbackInput = buildAnimePlaybackInput();
-      if (!playbackInput) {
+      const input = buildScrapeInput();
+      if (!input) {
         return;
       }
 
       if (nextProviderId) {
-        animePlaybackScrapeRef.current.switchToProvider(
-          playbackInput,
-          nextProviderId as AnimePlaybackScrapeProviderId,
+        mediaScrapeRef.current.switchToProvider(
+          input,
+          nextProviderId as ScrapeProviderId,
         );
         return;
       }
 
       if (shouldReScrapeSameProviderOnPlaybackError(playUrl)) {
-        animePlaybackScrapeRef.current.resumeScraping(
-          playbackInput,
-          failedProviderId as AnimePlaybackScrapeProviderId,
+        mediaScrapeRef.current.resumeScraping(
+          input,
+          failedProviderId as ScrapeProviderId,
         );
         return;
       }
 
-      animePlaybackScrapeRef.current.retryAllScraping(playbackInput);
-      return;
-    }
+      mediaScrapeRef.current.retryAllScraping(input);
+    },
+    [
+      buildAnimePlaybackInput,
+      buildScrapeInput,
+      isAnimeScrapeActive,
+      resolveNextScrapeProviderId,
+    ],
+  );
 
+  /** a cached source that never started is retried fresh before failing over. */
+  const recoverCachedStartFailure = useCallback((): boolean => {
+    if (isAnimeScrapeActive) {
+      const playbackInput = buildAnimePlaybackInput();
+      return playbackInput
+        ? animePlaybackScrapeRef.current.recoverCachedStartFailure(
+            playbackInput,
+          )
+        : false;
+    }
     const input = buildScrapeInput();
-    if (!input) {
-      return;
-    }
+    return input
+      ? mediaScrapeRef.current.recoverCachedStartFailure(input)
+      : false;
+  }, [buildAnimePlaybackInput, buildScrapeInput, isAnimeScrapeActive]);
 
-    if (nextProviderId) {
-      mediaScrapeRef.current.switchToProvider(
-        input,
-        nextProviderId as ScrapeProviderId,
+  const handleScrapedPlaybackError = useCallback(
+    (generation: number, started: boolean) => {
+      if (generation !== playbackGenerationRef.current) {
+        return;
+      }
+      flushPlaybackProgress();
+
+      if (isDirectMode) {
+        directPlaybackRef.current.tryNextStream();
+        return;
+      }
+
+      const scrape = isAnimeScrapeActive
+        ? animePlaybackScrapeRef.current
+        : mediaScrapeRef.current;
+
+      const failedProviderId = scrape.result?.providerId;
+      if (!failedProviderId) {
+        return;
+      }
+
+      if (!started && recoverCachedStartFailure()) {
+        return;
+      }
+      scrape.evictCurrentResult();
+      recoverFromScrapedPlaybackError(
+        failedProviderId,
+        scrape.result?.playUrl ?? "",
       );
-      return;
-    }
+    },
+    [
+      isAnimeScrapeActive,
+      isDirectMode,
+      recoverCachedStartFailure,
+      recoverFromScrapedPlaybackError,
+    ],
+  );
 
-    if (shouldReScrapeSameProviderOnPlaybackError(playUrl)) {
-      mediaScrapeRef.current.resumeScraping(
-        input,
-        failedProviderId as ScrapeProviderId,
-      );
-      return;
-    }
-
-    mediaScrapeRef.current.retryAllScraping(input);
-  }, [
-    buildAnimePlaybackInput,
-    buildScrapeInput,
-    isAnimeScrapeActive,
-    isDirectMode,
-    resolveNextScrapeProviderId,
-  ]);
-
-  const handleScrapedPlaybackStallFailover = useCallback(() => {
+  const failoverToNextSource = useCallback(() => {
     flushPlaybackProgress();
 
     if (isDirectMode) {
@@ -1019,9 +1267,36 @@ export function useHeroScrapePlayback({
     resolveNextScrapeProviderId,
   ]);
 
-  const handleDirectPlaybackExhausted = useCallback(() => {
+  const handleScrapedPlaybackStallFailover = useCallback(
+    (generation: number) => {
+      if (generation !== playbackGenerationRef.current) {
+        return;
+      }
+      if (!isDirectMode && recoverCachedStartFailure()) {
+        flushPlaybackProgress();
+        return;
+      }
+      failoverToNextSource();
+    },
+    [failoverToNextSource, isDirectMode, recoverCachedStartFailure],
+  );
+
+  const handleDirectPlaybackExhausted = useCallback((generation: number) => {
+    if (generation !== playbackGenerationRef.current) {
+      return;
+    }
     directPlaybackRef.current.handlePlaybackExhausted();
   }, []);
+
+  const handleMediaReadyChange = useCallback(
+    (generation: number, ready: boolean) => {
+      if (generation !== playbackGenerationRef.current) {
+        return;
+      }
+      setStartedPlaybackGeneration(ready ? generation : null);
+    },
+    [],
+  );
 
   const directPlaybackScrapeItems = useMemo(() => {
     if (!isDirectMode) {
@@ -1271,9 +1546,7 @@ export function useHeroScrapePlayback({
         scrapeItems: directPlaybackScrapeItems ?? [],
         scrapeProviders: scrapeProviderOptions,
         onSelectScrapeProvider: handleSelectScrapeProvider,
-        onFindNextSource: canFindNextDirectStream
-          ? handleScrapedPlaybackStallFailover
-          : null,
+        onFindNextSource: canFindNextDirectStream ? failoverToNextSource : null,
         canFindNextSource: canFindNextDirectStream,
         findNextSourceLabel: "Try different stream",
       };
@@ -1290,9 +1563,7 @@ export function useHeroScrapePlayback({
       scrapeItems: isScrapeMode ? activeScrape.items : [],
       scrapeProviders: scrapeProviderOptions,
       onSelectScrapeProvider: handleSelectScrapeProvider,
-      onFindNextSource: canFindNextSource
-        ? handleScrapedPlaybackStallFailover
-        : null,
+      onFindNextSource: canFindNextSource ? failoverToNextSource : null,
       canFindNextSource,
     };
   }, [
@@ -1306,7 +1577,7 @@ export function useHeroScrapePlayback({
     directPlaybackScrapeItems,
     directPlaybackScrapeStatus,
     canFindNextDirectStream,
-    handleScrapedPlaybackStallFailover,
+    failoverToNextSource,
     handleSelectScrapeProvider,
     isDirectMode,
     isScrapeMode,
@@ -1374,64 +1645,70 @@ export function useHeroScrapePlayback({
     isDirectMode,
   ]);
 
-  const handleScrapePlaybackEnded = useCallback(async () => {
-    if (resolvedMediaType !== "tv") {
-      return false;
-    }
-
-    const progressKey = buildPlaybackProgressKey();
-    if (
-      progressKey &&
-      progressKey.seasonNumber != null &&
-      progressKey.episodeNumber != null
-    ) {
-      await postWatchProgressIfSignedIn({
-        contentId: progressKey.contentId,
-        mediaType: "tv",
-        seasonNumber: progressKey.seasonNumber,
-        episodeNumber: progressKey.episodeNumber,
-        anilistId: progressKey.anilistId,
-        episodeCompleted: true,
-      }).catch((error) => {
-        console.error("Failed to mark episode complete on watchlist", error);
-      });
-    }
-
-    const advanced = await advanceToNextEpisode();
-    if (advanced) {
-      const nextKey = buildPlaybackProgressKey();
+  const handleScrapePlaybackEnded = useCallback(
+    async (generation: number) => {
       if (
-        nextKey &&
-        nextKey.seasonNumber != null &&
-        nextKey.episodeNumber != null
+        resolvedMediaType !== "tv" ||
+        generation !== playbackGenerationRef.current
       ) {
-        void postWatchProgressIfSignedIn({
-          contentId: nextKey.contentId,
+        return false;
+      }
+
+      const progressKey = buildPlaybackProgressKey();
+      if (
+        progressKey &&
+        progressKey.seasonNumber != null &&
+        progressKey.episodeNumber != null
+      ) {
+        await postWatchProgressIfSignedIn({
+          contentId: progressKey.contentId,
           mediaType: "tv",
-          seasonNumber: nextKey.seasonNumber,
-          episodeNumber: nextKey.episodeNumber,
-          anilistId: nextKey.anilistId,
+          seasonNumber: progressKey.seasonNumber,
+          episodeNumber: progressKey.episodeNumber,
+          anilistId: progressKey.anilistId,
+          episodeCompleted: true,
         }).catch((error) => {
-          console.error("Failed to update continue-watching episode", error);
+          console.error("Failed to mark episode complete on watchlist", error);
         });
       }
-    }
-    if (advanced && isPlayingVideo && isScrapeMode) {
-      lastScrapeMediaKeyRef.current = null;
-      startScrapingForCurrentMedia();
-    } else if (!advanced) {
-      await applyPlaybackComplete();
-    }
-    return advanced;
-  }, [
-    advanceToNextEpisode,
-    applyPlaybackComplete,
-    buildPlaybackProgressKey,
-    isPlayingVideo,
-    isScrapeMode,
-    resolvedMediaType,
-    startScrapingForCurrentMedia,
-  ]);
+
+      if (generation !== playbackGenerationRef.current) {
+        return false;
+      }
+
+      const advanced = await advanceToNextEpisode();
+      if (advanced) {
+        const nextKey = buildPlaybackProgressKey();
+        if (
+          nextKey &&
+          nextKey.seasonNumber != null &&
+          nextKey.episodeNumber != null
+        ) {
+          void postWatchProgressIfSignedIn({
+            contentId: nextKey.contentId,
+            mediaType: "tv",
+            seasonNumber: nextKey.seasonNumber,
+            episodeNumber: nextKey.episodeNumber,
+            anilistId: nextKey.anilistId,
+          }).catch((error) => {
+            console.error("Failed to update continue-watching episode", error);
+          });
+        }
+      }
+      if (advanced) {
+        lastScrapeMediaKeyRef.current = null;
+      } else {
+        await applyPlaybackComplete();
+      }
+      return advanced;
+    },
+    [
+      advanceToNextEpisode,
+      applyPlaybackComplete,
+      buildPlaybackProgressKey,
+      resolvedMediaType,
+    ],
+  );
 
   return {
     resolvedMediaType,
@@ -1450,7 +1727,9 @@ export function useHeroScrapePlayback({
     handleScrapedPlaybackError,
     handleScrapedPlaybackStallFailover,
     handleDirectPlaybackExhausted,
+    handleMediaReadyChange,
     handleRetryAllScraping,
     handleScrapePlaybackEnded,
+    playbackGeneration,
   };
 }

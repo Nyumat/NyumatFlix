@@ -10,6 +10,7 @@ const SESSION_SAFETY_WINDOW_MS = CAP_SESSION_CLIENT_SAFETY_WINDOW_MS;
 
 let verifiedUntil = 0;
 let verificationPromise: Promise<void> | null = null;
+let sessionProbePromise: Promise<boolean> | null = null;
 let endpointPromise: Promise<{ endpoint: string; wasmUrl?: string }> | null =
   null;
 
@@ -69,6 +70,27 @@ const createSession = async (): Promise<void> => {
   });
   if (!response.ok) throw new Error("Human verification failed");
   verifiedUntil = Date.now() + SESSION_SAFETY_WINDOW_MS;
+};
+
+/** resolves true only when a session already exists; never solves a challenge. */
+export const probeCapSession = async (): Promise<boolean> => {
+  if (isCapDevBypassEnabled()) return true;
+  if (verifiedUntil > Date.now()) return true;
+  sessionProbePromise ??= fetch("/api/cap/session", {
+    cache: "no-store",
+    credentials: "same-origin",
+  })
+    .then((response) => {
+      if (response.ok) {
+        verifiedUntil = Date.now() + SESSION_SAFETY_WINDOW_MS;
+      }
+      return response.ok;
+    })
+    .catch(() => false)
+    .finally(() => {
+      sessionProbePromise = null;
+    });
+  return sessionProbePromise;
 };
 
 export const ensureCapSession = async (): Promise<void> => {

@@ -65,13 +65,15 @@ type HeroScrapePlayerPanelProps = {
   onSelectEmbedServer: (serverId: string) => void;
   onSelectScrapeProvider?: (providerId: string) => void;
   onRetryAllScraping?: () => void;
-  onFatalError: () => void;
-  onPlaybackStallFailover?: () => void;
-  onDirectPlaybackExhausted?: () => void;
-  onEnded?: () => Promise<boolean>;
+  /** increments on every episode selection; callbacks from older generations are ignored. */
+  playbackGeneration: number;
+  onFatalError: (generation: number, started: boolean) => void;
+  onPlaybackStallFailover?: (generation: number) => void;
+  onDirectPlaybackExhausted?: (generation: number) => void;
+  onEnded?: (generation: number) => Promise<boolean>;
   isDirectMode?: boolean;
   directPlayback?: UseDirectPlaybackReturn;
-  onMediaReadyChange?: (ready: boolean) => void;
+  onMediaReadyChange?: (generation: number, ready: boolean) => void;
   isResolvingEpisode?: boolean;
 };
 
@@ -91,6 +93,7 @@ export function HeroScrapePlayerPanel({
   onSelectEmbedServer,
   onSelectScrapeProvider,
   onRetryAllScraping,
+  playbackGeneration,
   onFatalError,
   onPlaybackStallFailover,
   onDirectPlaybackExhausted,
@@ -152,23 +155,24 @@ export function HeroScrapePlayerPanel({
     scrapeResult,
   ]);
 
-  const playbackSessionKey = useMemo(
-    () => resolvedManifest?.id ?? "idle",
-    [resolvedManifest?.id],
-  );
+  const playbackSessionKey = `${playbackGeneration}:${resolvedManifest?.id ?? "idle"}`;
 
   const onMediaReadyChangeRef = useRef(onMediaReadyChange);
   const onPlaybackStallFailoverRef = useRef(onPlaybackStallFailover);
   const onFatalErrorRef = useRef(onFatalError);
+  const playbackGenerationRef = useRef(playbackGeneration);
+  const mediaReadyRef = useRef(mediaReady);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   onMediaReadyChangeRef.current = onMediaReadyChange;
   onPlaybackStallFailoverRef.current = onPlaybackStallFailover;
   onFatalErrorRef.current = onFatalError;
+  playbackGenerationRef.current = playbackGeneration;
+  mediaReadyRef.current = mediaReady;
 
   useEffect(() => {
     setMediaReady(false);
     setPlaybackStartError(null);
-    onMediaReadyChangeRef.current?.(false);
+    onMediaReadyChangeRef.current?.(playbackGenerationRef.current, false);
   }, [playbackSessionKey]);
 
   const directHasPlayer = Boolean(
@@ -208,6 +212,7 @@ export function HeroScrapePlayerPanel({
       return undefined;
     }
 
+    const generation = playbackGenerationRef.current;
     const timeout = window.setTimeout(() => {
       const container = playerContainerRef.current;
       const moviPlayer = container?.querySelector("movi-player");
@@ -220,7 +225,7 @@ export function HeroScrapePlayerPanel({
       if (isScrapeVideoMakingProgress(container)) {
         return;
       }
-      onPlaybackStallFailoverRef.current?.();
+      onPlaybackStallFailoverRef.current?.(generation);
     }, PLAYBACK_STALL_FAILOVER_MS);
 
     return () => window.clearTimeout(timeout);
@@ -232,18 +237,44 @@ export function HeroScrapePlayerPanel({
       return undefined;
     }
 
+    const generation = playbackGenerationRef.current;
     const timeout = window.setTimeout(() => {
       setPlaybackStartError("Playback didn't start in time.");
-      onFatalErrorRef.current();
+      onFatalErrorRef.current(generation, false);
     }, PLAYBACK_START_TIMEOUT_MS);
 
     return () => window.clearTimeout(timeout);
   }, [hasActivePlayer, isDirectMode, mediaReady, playbackSessionKey]);
 
   const handleMediaReady = useCallback(() => {
+    if (playbackGenerationRef.current !== playbackGeneration) {
+      return;
+    }
     setMediaReady(true);
-    onMediaReadyChange?.(true);
-  }, [onMediaReadyChange]);
+    onMediaReadyChange?.(playbackGeneration, true);
+  }, [onMediaReadyChange, playbackGeneration]);
+
+  const handlePlaybackFatalError = useCallback(() => {
+    if (isDirectMode && onDirectPlaybackExhausted) {
+      onDirectPlaybackExhausted(playbackGeneration);
+      return;
+    }
+    onFatalError(playbackGeneration, mediaReadyRef.current);
+  }, [
+    isDirectMode,
+    onDirectPlaybackExhausted,
+    onFatalError,
+    playbackGeneration,
+  ]);
+
+  const handlePlaybackStallFailover = useCallback(() => {
+    onPlaybackStallFailover?.(playbackGeneration);
+  }, [onPlaybackStallFailover, playbackGeneration]);
+
+  const handlePlaybackEnded = useCallback(
+    () => onEnded?.(playbackGeneration) ?? Promise.resolve(false),
+    [onEnded, playbackGeneration],
+  );
 
   if (!isScrapeServer(selectedServer)) {
     return null;
@@ -282,14 +313,12 @@ export function HeroScrapePlayerPanel({
       ) : null}
 
       {hasActivePlayer && resolvedManifest && progressKey ? (
-        <div ref={playerContainerRef} className="h-full w-full">
-          <PlaybackErrorBoundary
-            onClose={
-              isDirectMode
-                ? (onDirectPlaybackExhausted ?? onFatalError)
-                : onFatalError
-            }
-          >
+        <div
+          key={playbackGeneration}
+          ref={playerContainerRef}
+          className="h-full w-full"
+        >
+          <PlaybackErrorBoundary onClose={handlePlaybackFatalError}>
             <PlaybackShell
               manifest={resolvedManifest}
               title={playbackTitle}
@@ -298,14 +327,14 @@ export function HeroScrapePlayerPanel({
               imdbId={imdbId}
               isTv={isTv}
               className="h-full w-full"
-              onFatalError={
-                isDirectMode
-                  ? (onDirectPlaybackExhausted ?? onFatalError)
-                  : onFatalError
-              }
+              onFatalError={handlePlaybackFatalError}
               onMediaReady={handleMediaReady}
-              onPlaybackStallFailover={onPlaybackStallFailover}
-              onEnded={isTv ? onEnded : undefined}
+              onPlaybackStallFailover={
+                onPlaybackStallFailover
+                  ? handlePlaybackStallFailover
+                  : undefined
+              }
+              onEnded={isTv && onEnded ? handlePlaybackEnded : undefined}
             />
           </PlaybackErrorBoundary>
         </div>

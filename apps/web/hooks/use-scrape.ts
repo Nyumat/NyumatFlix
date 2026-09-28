@@ -79,14 +79,32 @@ export function useScrape(options?: UseScrapeOptions) {
     [],
   );
 
+  const providerOrderFor = useCallback(() => providerOrder, [providerOrder]);
+
   return usePlaybackResolve<ScrapeMediaInput, ScrapeSuccessPayload>({
     mediaKeyFor: scrapeMediaKeyFor,
-    providerOrderFor: () => providerOrder,
+    lookupKeyFor: scrapeLookupKeyFor,
+    subtitleRequestFor: scrapeSubtitleRequestFor,
+    providerOrderFor,
     providerLabels: TMDB_SCRAPE_PROVIDER_LABELS,
     buildScrapeBody,
     onAllProvidersFailed,
     mapResult,
   });
 }
+
+export const scrapeLookupKeyFor = (input: ScrapeMediaInput): string =>
+  [
+    scrapeMediaKeyFor(input),
+    input.preferMultiTrack ? "multi" : "",
+    input.preferredAudioLang ?? "",
+  ].join(":");
+
+export const scrapeSubtitleRequestFor = (input: ScrapeMediaInput) => ({
+  mediaType: input.mediaType,
+  tmdbId: input.tmdbId,
+  seasonNumber: input.seasonNumber,
+  episodeNumber: input.episodeNumber,
+});
 
 export type UseScrapeReturn = ReturnType<typeof useScrape>;

@@ -41,6 +41,8 @@ export type UseDirectPlaybackOptions = {
   onAllStreamsFailed?: (reason: DirectStreamsFailedReason) => void;
 };
 
+const NO_DIRECT_STREAMS: DirectStream[] = [];
+
 function buildMediaKey(input: {
   tmdbId: number;
   mediaType: "movie" | "tv";
@@ -66,6 +68,7 @@ export function useDirectPlayback({
   const [streamsMessage, setStreamsMessage] = useState<string | null>(null);
   const [rankedStreams, setRankedStreams] = useState<DirectStream[]>([]);
   const [streamIndex, setStreamIndex] = useState(0);
+  const [loadedMediaKey, setLoadedMediaKey] = useState<string | null>(null);
 
   const runIdRef = useRef(0);
   const mediaKeyRef = useRef<string | null>(null);
@@ -80,13 +83,23 @@ export function useDirectPlayback({
   onAllStreamsFailedRef.current = onAllStreamsFailed;
   statusRef.current = status;
 
-  const activeStream = rankedStreams[streamIndex] ?? null;
+  const currentMediaKey = buildMediaKey({
+    tmdbId,
+    mediaType,
+    seasonNumber,
+    episodeNumber,
+  });
+  const isCurrentMedia = loadedMediaKey === currentMediaKey;
+  const activeStream = isCurrentMedia
+    ? (rankedStreams[streamIndex] ?? null)
+    : null;
 
   const reset = useCallback(() => {
     runIdRef.current += 1;
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
     mediaKeyRef.current = null;
+    setLoadedMediaKey(null);
     freshRetryRef.current = false;
     freshPlaybackStartedRef.current = false;
     prefetchedStreamRef.current = null;
@@ -223,6 +236,7 @@ export function useDirectPlayback({
       runIdRef.current += 1;
       const runId = runIdRef.current;
       mediaKeyRef.current = mediaKey;
+      setLoadedMediaKey(mediaKey);
       prefetchedStreamRef.current = null;
 
       unsubscribeRef.current?.();
@@ -457,10 +471,10 @@ export function useDirectPlayback({
   );
 
   return {
-    status,
-    error,
-    streamsMessage,
-    rankedStreams,
+    status: isCurrentMedia || status === "idle" ? status : "loading",
+    error: isCurrentMedia ? error : null,
+    streamsMessage: isCurrentMedia ? streamsMessage : null,
+    rankedStreams: isCurrentMedia ? rankedStreams : NO_DIRECT_STREAMS,
     streamIndex,
     activeStream,
     loadStreams,

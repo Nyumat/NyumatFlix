@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { usePlaybackResolve } from "@/hooks/use-playback-resolve";
+import { scrapeSubtitleRequestFor } from "@/hooks/use-scrape";
 import {
   isAnimeScrapeProviderEnabled,
   isTmdbScrapeProviderEnabled,
@@ -17,11 +18,12 @@ import type { AnimeScrapeInput } from "@/lib/scrape/anime/types";
 import { animeScrapeMediaKeyFor } from "@/lib/scrape/anime/types";
 import type { StreamKind } from "@/lib/scrape/stream-url-patterns";
 import { preferredAudioLangForTranslation } from "@/lib/scrape/anime/audio-preference";
-import type {
-  ScrapeAudioVersion,
-  ScrapeMediaInput,
-  ScrapeQuality,
-  ScrapeSubtitle,
+import {
+  scrapeMediaKeyFor,
+  type ScrapeAudioVersion,
+  type ScrapeMediaInput,
+  type ScrapeQuality,
+  type ScrapeSubtitle,
 } from "@/lib/scrape/types";
 import type { ScrapePlaybackPayload } from "@/lib/playback/to-playable-manifest";
 import {
@@ -134,7 +136,10 @@ export function useAnimePlaybackScrape(options?: {
     AnimePlaybackScrapeInput,
     AnimePlaybackScrapeSuccessPayload
   >({
-    mediaKeyFor: (input) => animeScrapeMediaKeyFor(input.anime),
+    mediaKeyFor: animePlaybackMediaKeyFor,
+    episodeKeyFor: animePlaybackEpisodeKeyFor,
+    lookupKeyFor: animePlaybackLookupKeyFor,
+    subtitleRequestFor: animePlaybackSubtitleRequestFor,
     providerOrderFor: resolveProviderOrder,
     providerLabels: ANIME_PLAYBACK_SCRAPE_PROVIDER_LABELS,
     buildScrapeBody,
@@ -142,6 +147,27 @@ export function useAnimePlaybackScrape(options?: {
     mapResult,
   });
 }
+
+const animePlaybackMediaKeyFor = (input: AnimePlaybackScrapeInput): string =>
+  animeScrapeMediaKeyFor(input.anime);
+
+export const animeEpisodeKeyFor = (input: {
+  anilistId: number;
+  episodeNumber: number;
+}): string => `anime:${input.anilistId}:${input.episodeNumber}`;
+
+const animePlaybackEpisodeKeyFor = (input: AnimePlaybackScrapeInput): string =>
+  animeEpisodeKeyFor(input.anime);
+
+const animePlaybackLookupKeyFor = (input: AnimePlaybackScrapeInput): string =>
+  [
+    animeScrapeMediaKeyFor(input.anime),
+    input.anime.query ?? "",
+    input.tmdb ? scrapeMediaKeyFor(input.tmdb) : "",
+  ].join("|");
+
+const animePlaybackSubtitleRequestFor = (input: AnimePlaybackScrapeInput) =>
+  input.tmdb ? scrapeSubtitleRequestFor(input.tmdb) : null;
 
 export type UseAnimePlaybackScrapeReturn = ReturnType<
   typeof useAnimePlaybackScrape

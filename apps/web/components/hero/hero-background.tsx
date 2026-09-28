@@ -33,7 +33,7 @@ import {
   motion,
 } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import "@/components/media/player-surface.css";
 import { logger } from "@/lib/utils";
@@ -133,11 +133,21 @@ export function HeroBackground({
     handleDirectPlaybackExhausted,
     handleRetryAllScraping,
     handleScrapePlaybackEnded,
+    handleMediaReadyChange,
+    playbackGeneration,
     awaitingAnimeCoords,
     scrapeChrome,
   } = scrapePlayback;
 
   const [mediaReady, setMediaReady] = useState(false);
+
+  const handlePanelMediaReadyChange = useCallback(
+    (generation: number, ready: boolean) => {
+      setMediaReady(ready);
+      handleMediaReadyChange(generation, ready);
+    },
+    [handleMediaReadyChange],
+  );
 
   const isPlaybackBuffering = isDirectMode
     ? directPlayback.status === "playing"
@@ -630,6 +640,7 @@ export function HeroBackground({
                         scrapeChrome.onSelectScrapeProvider ?? undefined
                       }
                       onRetryAllScraping={handleRetryAllScraping}
+                      playbackGeneration={playbackGeneration}
                       onFatalError={handleScrapedPlaybackError}
                       onPlaybackStallFailover={
                         handleScrapedPlaybackStallFailover
@@ -639,7 +650,7 @@ export function HeroBackground({
                       isResolvingEpisode={awaitingAnimeCoords}
                       isDirectMode={isDirectMode}
                       directPlayback={directPlayback}
-                      onMediaReadyChange={setMediaReady}
+                      onMediaReadyChange={handlePanelMediaReadyChange}
                     />
                   ) : embedAllowed ? (
                     <HeroEmbedPlayerPanel
