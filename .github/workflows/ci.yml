@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   ci:
@@ -118,9 +119,13 @@ jobs:
   build-push:
     runs-on: ubuntu-latest
     needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository)
     env:
       DOCKER_REPOSITORY: whotypes/nyumatflix
+      DOCKER_PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
     steps:
       - name: Checkout code
@@ -135,7 +140,13 @@ jobs:
         run: bun install --ignore-scripts
 
       - name: Build WASM for Docker image
-        run: bunx turbo build:wasm --filter=@nyumatflix/player
+        run: |
+          if [[ "$DOCKER_PUSH" == "true" ]]; then
+            echo "building image for push"
+          else
+            echo "dry run: building image without pushing to the registry"
+          fi
+          bunx turbo build:wasm --filter=@nyumatflix/player
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -152,7 +163,10 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ env.DOCKER_PUSH == 'true' }}
+          build-args: |
+            TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
+            CAP_API_ENDPOINT=${{ secrets.CAP_API_ENDPOINT }}
           tags: |
             ${{ env.DOCKER_REPOSITORY }}:${{ github.sha }}
             ${{ env.DOCKER_REPOSITORY }}:latest
@@ -162,10 +176,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [ci, build-push]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository)
     concurrency:
-      group: nyumatflix-production
-      cancel-in-progress: false
+      group: ${{ github.event_name == 'pull_request' && format('nyumatflix-pr-{0}', github.event.pull_request.number) || 'nyumatflix-production' }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -177,15 +194,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check deploy inputs
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          [[ -n "$DEPLOY_HOST" ]] || { echo "DEPLOY_HOST is empty" >&2; exit 1; }
+          [[ -n "$DEPLOY_USER" ]] || { echo "DEPLOY_USER is empty" >&2; exit 1; }
+          [[ -n "$DEPLOY_SSH_PRIVATE_KEY" ]] || { echo "DEPLOY_SSH_PRIVATE_KEY is empty" >&2; exit 1; }
+          [[ -n "$PROD_DATABASE_URL" ]] || { echo "PROD_DATABASE_URL is empty" >&2; exit 1; }
+          [[ -n "$DEPLOY_PATH" ]] || { echo "DEPLOY_PATH is empty" >&2; exit 1; }
+          [[ -n "$DEPLOY_PORT" ]] || { echo "DEPLOY_PORT is empty" >&2; exit 1; }
+          required=(
+            scripts/deploy.sh
+            scripts/deploy-lib.sh
+            scripts/reconcile-prod-infra.sh
+            scripts/db-migrate-if-needed.sh
+            scripts/bunny-purge-catalog.sh
+            scripts/infra-health.sh
+          )
+          for script in "${required[@]}"; do
+            [[ -f "$script" ]] || { echo "missing $script" >&2; exit 1; }
+            bash -n "$script"
+          done
+
       - name: Set up Bun
+        if: github.event_name == 'push'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
+        if: github.event_name == 'push'
         run: bun install --ignore-scripts
 
       - name: Sync production database
+        if: github.event_name == 'push'
         env:
           PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: ./scripts/db-migrate-if-needed.sh
@@ -195,9 +239,21 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null
           ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
+      - name: Dry-run deploy
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          ssh -p "$DEPLOY_PORT" -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "printf '%s\n' 'deploy dry run: ssh ok'"
+          echo "would migrate the production database"
+          echo "would sync deploy files to ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
+          echo "would deploy ${DOCKER_IMAGE}"
+          echo "skipped migration, file sync, and container switch"
+
       - name: Sync deploy files
+        if: github.event_name == 'push'
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH/infra' '$DEPLOY_PATH/scripts'"
           rsync -avz -e "ssh -p $DEPLOY_PORT" \
@@ -213,8 +269,11 @@ jobs:
           fi
 
       - name: Deploy latest image
+        if: github.event_name == 'push'
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          COMMIT_MSG=$(printf '%s' "${{ github.event.head_commit.message }}" | head -1 | sed "s/'/'\\\\''/g")
+          COMMIT_MSG=$(printf '%s' "$COMMIT_MESSAGE" | head -1 | sed "s/'/'\\\\''/g")
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" <<EOF
           set -euo pipefail
           export NYUMATFLIX_ROOT="$DEPLOY_PATH"
