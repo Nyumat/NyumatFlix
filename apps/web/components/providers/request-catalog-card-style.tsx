@@ -10,19 +10,22 @@ import type { CatalogCardStyle } from "@/lib/user/user-settings-types";
 
 export async function RequestCatalogCardStyle({
   fallback,
+  locked = false,
   children,
 }: {
   fallback: CatalogCardStyle;
+  locked?: boolean;
   children: ReactNode;
 }) {
   const cookieStore = await cookies();
   const style = resolveCatalogCardStyleSnapshot(
     cookieStore.get(CATALOG_CARD_STYLE_COOKIE)?.value,
     fallback,
+    locked,
   );
 
   return (
-    <CatalogCardStyleProvider initialStyle={style}>
+    <CatalogCardStyleProvider initialStyle={style} locked={locked}>
       {children}
     </CatalogCardStyleProvider>
   );

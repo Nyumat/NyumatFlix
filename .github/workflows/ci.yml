@@ -106,6 +106,10 @@ jobs:
       - name: Type check
         run: bunx turbo typecheck --filter=@nyumatflix/web...
 
+      - name: Prepare anime mappings
+        working-directory: apps/web
+        run: bun run prepare-anime-mappings
+
       - name: Run tests
         env:
           NODE_ENV: test

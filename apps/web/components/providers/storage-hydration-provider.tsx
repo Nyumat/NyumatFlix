@@ -13,8 +13,8 @@ import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { readAmbientGlowClient } from "@/lib/user/ambient-glow-store";
 import {
   persistCatalogCardStyleClient,
-  readCatalogCardStyleClient,
   readCatalogCardStyleFromDocumentCookie,
+  readDeviceCatalogCardStyle,
 } from "@/lib/user/catalog-card-style-store";
 
 export function StorageHydrationProvider() {
@@ -24,7 +24,7 @@ export function StorageHydrationProvider() {
   // restored (cookie/localStorage) before React's first client render. Store
   // module state is created before that script runs on hard navigations.
   useEffect(() => {
-    const persistedStyle = readCatalogCardStyleClient();
+    const persistedStyle = readDeviceCatalogCardStyle();
     const persistedGlow = readAmbientGlowClient();
     const state = useAppSettingsStore.getState();
     const next: {

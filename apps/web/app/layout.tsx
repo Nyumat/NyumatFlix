@@ -35,6 +35,7 @@ import { getShellSiteFlags } from "@/lib/flags/site-flags-server";
 import { RequestCatalogCardStyle } from "@/components/providers/request-catalog-card-style";
 import { StorageHydrationProvider } from "@/components/providers/storage-hydration-provider";
 import { CatalogCardStyleProvider } from "@/lib/catalog-card-presentation";
+import { catalogCardStyleBootstrapScript } from "@/lib/user/catalog-card-style-store";
 import { getCdnOrigin } from "@/lib/cdn";
 
 const manrope = Manrope({
@@ -105,11 +106,16 @@ export default async function RootLayout({
   // no settings / layout flip after hydration.
   const siteFlags = await getShellSiteFlags();
   const defaultCatalogCardStyle = siteFlags.experienceDefaults.catalogCardStyle;
+  const lockCatalogCardStyle =
+    siteFlags.experienceDefaults.lockCatalogCardStyle;
   const defaultAmbientGlow =
     siteFlags.ambientGlowEnabled && siteFlags.experienceDefaults.ambientGlow
       ? "1"
       : "0";
-  const catalogCardStyleBootstrap = `(function(){try{var d=document.documentElement;var m=document.cookie.match(/(?:^|;\\s*)nf-catalog-card-style=([^;]*)/);var v=m&&m[1]?decodeURIComponent(m[1]):null;if(v!=='poster'&&v!=='backdrop'){try{v=localStorage.getItem('nyumatflix:catalog-card-style');}catch(e){v=null;}}if(v!=='poster'&&v!=='backdrop'){v='${defaultCatalogCardStyle}';}d.dataset.catalogCardStyle=v;}catch(e){}})();`;
+  const catalogCardStyleBootstrap = catalogCardStyleBootstrapScript(
+    defaultCatalogCardStyle,
+    lockCatalogCardStyle,
+  );
   const ambientGlowBootstrap = `(function(){try{var d=document.documentElement;var m=document.cookie.match(/(?:^|;\\s*)nf-ambient-glow=([^;]*)/);var v=m&&m[1]?decodeURIComponent(m[1]):null;if(v!=='0'&&v!=='1'){try{v=localStorage.getItem('nyumatflix:ambient-glow');}catch(e){v=null;}}if(v!=='0'&&v!=='1'){v='${defaultAmbientGlow}';}d.dataset.ambientGlow=v;}catch(e){}})();`;
 
   return (
@@ -185,6 +191,7 @@ export default async function RootLayout({
                           fallback={
                             <CatalogCardStyleProvider
                               initialStyle={defaultCatalogCardStyle}
+                              locked={lockCatalogCardStyle}
                             >
                               {children}
                             </CatalogCardStyleProvider>
@@ -192,6 +199,7 @@ export default async function RootLayout({
                         >
                           <RequestCatalogCardStyle
                             fallback={defaultCatalogCardStyle}
+                            locked={lockCatalogCardStyle}
                           >
                             {children}
                           </RequestCatalogCardStyle>

@@ -8,11 +8,17 @@ export const parseCatalogCardStyle = (
 ): CatalogCardStyle | null =>
   value === "poster" || value === "backdrop" ? value : null;
 
-/** Cookie wins over the experience default. localStorage is client-only. */
+/** Cookie is a saved device choice. A lock or a missing cookie uses the experience default. */
 export const resolveCatalogCardStyleSnapshot = (
   cookieValue: string | undefined,
-  fallback: CatalogCardStyle,
-): CatalogCardStyle => parseCatalogCardStyle(cookieValue) ?? fallback;
+  experienceDefault: CatalogCardStyle,
+  locked = false,
+): CatalogCardStyle => {
+  if (locked) {
+    return experienceDefault;
+  }
+  return parseCatalogCardStyle(cookieValue) ?? experienceDefault;
+};
 
 export const readCatalogCardStyleFromCookieHeader = (
   header: string | null | undefined,
@@ -62,35 +68,32 @@ export const readCatalogCardStyleFromDocumentCookie =
     }
   };
 
-/** Client-only: cheapest synchronous read (dataset first, set by blocking script). */
-export const readCatalogCardStyleClient = (): CatalogCardStyle | null => {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return null;
-  }
-
-  const fromDataset = parseCatalogCardStyle(
-    document.documentElement.dataset.catalogCardStyle,
-  );
-  if (fromDataset) {
-    return fromDataset;
-  }
-
+/** Saved device choice only. The paint dataset is not a choice. */
+export const readDeviceCatalogCardStyle = (): CatalogCardStyle | null => {
   const fromCookie = readCatalogCardStyleFromDocumentCookie();
   if (fromCookie) {
     return fromCookie;
   }
 
-  try {
-    const stored = window.localStorage.getItem(CATALOG_CARD_STYLE_STORAGE_KEY);
-    const fromStorage = parseCatalogCardStyle(stored);
-    if (fromStorage) {
-      return fromStorage;
-    }
-  } catch {
-    // Ignore storage access errors (e.g. private mode).
+  if (typeof window === "undefined") {
+    return null;
   }
 
-  return null;
+  try {
+    return parseCatalogCardStyle(
+      window.localStorage.getItem(CATALOG_CARD_STYLE_STORAGE_KEY),
+    );
+  } catch {
+    return null;
+  }
+};
+
+export const catalogCardStyleBootstrapScript = (
+  experienceDefault: CatalogCardStyle,
+  locked: boolean,
+): string => {
+  const fallback = experienceDefault === "poster" ? "poster" : "backdrop";
+  return `(function(){try{var d=document.documentElement;var fallback=${JSON.stringify(fallback)};if(${locked ? "true" : "false"}){d.dataset.catalogCardStyle=fallback;return;}var m=document.cookie.match(/(?:^|;\\s*)${CATALOG_CARD_STYLE_COOKIE}=([^;]*)/);var v=m&&m[1]?decodeURIComponent(m[1]):null;if(v!=='poster'&&v!=='backdrop'){try{v=localStorage.getItem(${JSON.stringify(CATALOG_CARD_STYLE_STORAGE_KEY)});}catch(e){v=null;}}if(v!=='poster'&&v!=='backdrop'){v=fallback;}d.dataset.catalogCardStyle=v;}catch(e){}})();`;
 };
 
 /**

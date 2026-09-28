@@ -11,10 +11,8 @@ import {
   persistAmbientGlowClient,
   readAmbientGlowClient,
 } from "@/lib/user/ambient-glow-store";
-import {
-  persistCatalogCardStyleClient,
-  readCatalogCardStyleClient,
-} from "@/lib/user/catalog-card-style-store";
+import { persistCatalogCardStyleClient } from "@/lib/user/catalog-card-style-store";
+import { DEFAULT_EXPERIENCE_DEFAULTS } from "@/lib/flags/experience-defaults";
 import type { CatalogCardStyle } from "@/lib/user/user-settings-types";
 
 interface AppSettingsState extends PlaybackPreferences {
@@ -56,7 +54,7 @@ export const useAppSettingsStore = create<AppSettingsState>()((set) => ({
   // so first paint already matches (no mid-scroll / settings flip).
   ambientGlow: readAmbientGlowClient() ?? false,
   disableHoverSound: true,
-  catalogCardStyle: readCatalogCardStyleClient() ?? "backdrop",
+  catalogCardStyle: DEFAULT_EXPERIENCE_DEFAULTS.catalogCardStyle,
   setNoAdsMode: (enabled) => set({ noAdsMode: enabled }),
   setDisableHeroTrailers: (enabled) => {
     set({ disableHeroTrailers: enabled });

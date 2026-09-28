@@ -17,9 +17,8 @@ import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
 import { useEmbedServerStore } from "@/lib/stores/embed-server-store";
 import { persistAmbientGlowClient } from "@/lib/user/ambient-glow-store";
 import {
-  parseCatalogCardStyle,
   persistCatalogCardStyleClient,
-  readCatalogCardStyleClient,
+  readDeviceCatalogCardStyle,
 } from "@/lib/user/catalog-card-style-store";
 import { isUserSettingsHydrated } from "@/lib/user/hydrate-user-settings";
 import type { UserSettingsWire } from "@/lib/user/user-settings-types";
@@ -68,7 +67,7 @@ export const applyExperienceFromUserSettings = (
   const stored: StoredExperiencePreferences = {
     ...storedFromUserSettingsWire(settings),
     playerEngine: readStoredPlayerEngine(),
-    catalogCardStyle: settings.catalogCardStyle ?? readCatalogCardStyleClient(),
+    catalogCardStyle: settings.catalogCardStyle ?? readDeviceCatalogCardStyle(),
   };
 
   applyResolvedExperiencePreferences(flags, stored, {
@@ -94,7 +93,7 @@ export function ExperienceSettingsSync() {
 
     const stored: StoredExperiencePreferences = {
       playerEngine: readStoredPlayerEngine(),
-      catalogCardStyle: readCatalogCardStyleClient(),
+      catalogCardStyle: readDeviceCatalogCardStyle(),
     };
 
     applyResolvedExperiencePreferences(flags, stored);
@@ -118,7 +117,7 @@ export function ExperienceSettingsSync() {
 
     const stored: StoredExperiencePreferences = {
       playerEngine: readStoredPlayerEngine(),
-      catalogCardStyle: readCatalogCardStyleClient(),
+      catalogCardStyle: readDeviceCatalogCardStyle(),
     };
 
     applyResolvedExperiencePreferences(flags, stored);

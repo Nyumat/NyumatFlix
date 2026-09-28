@@ -94,6 +94,15 @@ describe("resolveExperiencePreferences", () => {
     expect(resolved.vidnestContentType).toBe("anime");
   });
 
+  it("uses backdrop when the user has not chosen a catalog card style", () => {
+    const resolved = resolveExperiencePreferences(baseFlags, {
+      catalogCardStyle: null,
+    });
+
+    expect(DEFAULT_EXPERIENCE_DEFAULTS.catalogCardStyle).toBe("backdrop");
+    expect(resolved.catalogCardStyle).toBe("backdrop");
+  });
+
   it("prefers saved user values over site defaults", () => {
     const flags = {
       ...baseFlags,

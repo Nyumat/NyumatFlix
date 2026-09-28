@@ -4,7 +4,6 @@ import { NavbarClient } from "@/components/layout/nav/navbar-client";
 import { FooterSection } from "@/components/layout/sections/footer";
 import { AppSettingsSync } from "@/components/providers/app-settings-sync";
 import { ExperienceSettingsSync } from "@/components/providers/experience-settings-sync";
-import { CatalogCardStyleSync } from "@/components/providers/catalog-card-style-sync";
 import { MalReauthProvider } from "@/components/providers/mal-reauth-provider";
 import { GlobalDockProvider } from "@/components/layout/dock/global-dock";
 import { AppChromeDeferred } from "@/components/layout/app-chrome-deferred";
@@ -41,7 +40,6 @@ const AppChromeBody = ({ children }: { children: ReactNode }) => {
       <AppChromeDeferred />
       <AppSettingsSync />
       <ExperienceSettingsSync />
-      <CatalogCardStyleSync />
       <MalReauthProvider />
       <GlobalDockProvider>
         {isManifesto ? null : <NavbarClient />}

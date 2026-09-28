@@ -15,7 +15,7 @@ import {
 } from "@/lib/carousel-layout";
 import { hasBackdropPath, hasPosterPath } from "@/lib/media-poster-path";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
-import { readCatalogCardStyleClient } from "@/lib/user/catalog-card-style-store";
+import { readDeviceCatalogCardStyle } from "@/lib/user/catalog-card-style-store";
 import type { CatalogCardStyle } from "@/lib/user/user-settings-types";
 
 export type { CatalogCardStyle };
@@ -27,26 +27,32 @@ const CatalogCardStyleContext = createContext<CatalogCardStyle | null>(null);
 // the card tree. saved prefs apply after that snapshot commits.
 export function CatalogCardStyleProvider({
   initialStyle,
+  locked = false,
   children,
 }: {
   initialStyle: CatalogCardStyle;
+  locked?: boolean;
   children: ReactNode;
 }) {
   const [style, setStyle] = useState(initialStyle);
 
   useEffect(() => {
-    const preference = readCatalogCardStyleClient();
-    if (preference) {
-      setStyle(preference);
-      if (useAppSettingsStore.getState().catalogCardStyle !== preference) {
-        useAppSettingsStore.setState({ catalogCardStyle: preference });
-      }
+    const publish = (next: CatalogCardStyle) => {
+      setStyle(next);
+      document.documentElement.dataset.catalogCardStyle = next;
+    };
+
+    const device = locked ? null : readDeviceCatalogCardStyle();
+    const next = device ?? initialStyle;
+    publish(next);
+    if (useAppSettingsStore.getState().catalogCardStyle !== next) {
+      useAppSettingsStore.setState({ catalogCardStyle: next });
     }
 
     return useAppSettingsStore.subscribe((state) => {
-      setStyle(state.catalogCardStyle);
+      publish(state.catalogCardStyle);
     });
-  }, []);
+  }, [initialStyle, locked]);
 
   return (
     <CatalogCardStyleContext.Provider value={style}>

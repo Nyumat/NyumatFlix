@@ -13,7 +13,6 @@ import {
   posterCarouselItemClassName,
   wideCarouselItemClassName,
 } from "@/lib/carousel-layout";
-import { getDefaultUserSettingsWire } from "@/lib/server/user-settings";
 
 describe("catalog-card-presentation", () => {
   it("filters poster mode by poster_path only", () => {
@@ -135,9 +134,5 @@ describe("catalog-card-presentation", () => {
       expect(readCardPreviewSource(null)).toBeUndefined();
       expect(readCardPreviewSource("x")).toBeUndefined();
     });
-  });
-
-  it("defaults catalogCardStyle to backdrop in user settings wire", () => {
-    expect(getDefaultUserSettingsWire().catalogCardStyle).toBe("backdrop");
   });
 });
