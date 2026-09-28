@@ -218,7 +218,7 @@ export async function scrapeFetch(
 
   throw lastError instanceof Error
     ? lastError
-    : new Error(`scrapeFetch failed for ${url}`);
+    : new Error(`scrapeFetch failed for ${hostnameOf(url) || "upstream"}`);
 }
 
 async function undiciRequest(

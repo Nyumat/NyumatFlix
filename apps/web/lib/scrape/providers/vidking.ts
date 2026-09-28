@@ -27,6 +27,9 @@ import {
 } from "../vidking-constants";
 import { fetchWingsSeed } from "../wings-api-discover";
 import { type WingsTmdbLookup, resolveWingsTmdbLookup } from "../tmdb-lookup";
+import { anyAbortSignal } from "../abort";
+import { firstOkInBatches, raceFirstOk } from "../race-first";
+import { scrapeNow } from "../stage-timing";
 
 /**
  * VidKing embed server → API endpoint map (VideoPlayer bundle, 2026-08).
@@ -373,95 +376,228 @@ export type WingsdatabaseProbeWinner = {
   referer: string;
 };
 
+export const WINGS_PROBE_CONCURRENCY = 6;
+
+export type WingsdatabaseStreamProbe = (
+  streamUrl: string,
+  referer: string,
+  signal: AbortSignal,
+) => Promise<string | null>;
+
 export const probeFirstWingsdatabaseCandidate = async (
   candidates: VidKingPlayableCandidate[],
   referer: string,
+  options: { signal?: AbortSignal; probe?: WingsdatabaseStreamProbe } = {},
 ): Promise<WingsdatabaseProbeWinner | null> => {
-  const batchSize = 6;
+  const probe = options.probe ?? probeWingsdatabaseStreamReferer;
+  const winner = await firstOkInBatches(
+    candidates,
+    (candidate, signal) => probe(candidate.streamUrl, referer, signal),
+    WINGS_PROBE_CONCURRENCY,
+    { signal: options.signal },
+  );
+  return winner ? { candidate: winner.item, referer: winner.value } : null;
+};
 
-  for (let offset = 0; offset < candidates.length; offset += batchSize) {
-    const batch = candidates.slice(offset, offset + batchSize);
-    const results = await Promise.all(
-      batch.map(async (candidate) => {
-        const winningReferer = await probeWingsdatabaseStreamReferer(
-          candidate.streamUrl,
-          referer,
-        );
-        return winningReferer ? { candidate, referer: winningReferer } : null;
-      }),
-    );
-    const winner = results.find(
-      (entry): entry is WingsdatabaseProbeWinner => entry !== null,
-    );
-    if (winner) {
-      return winner;
-    }
-  }
+export type WingsdatabaseMirrorPayload = {
+  mirror: string;
+  payload: VidKingPayload | null;
+};
 
-  return null;
+export type WingsdatabaseMirrorRace = {
+  winner: WingsdatabaseProbeWinner | null;
+  payloads: WingsdatabaseMirrorPayload[];
+  candidates: VidKingPlayableCandidate[];
+};
+
+/**
+ * probes candidates as each mirror answers instead of waiting for every mirror,
+ * and aborts outstanding mirror requests and probes once one candidate validates.
+ */
+export const raceWingsdatabaseMirrors = async (options: {
+  mirrors: readonly string[];
+  referer: string;
+  fetchPayload: (
+    mirror: string,
+    signal: AbortSignal,
+  ) => Promise<VidKingPayload | null>;
+  probe?: WingsdatabaseStreamProbe;
+  concurrency?: number;
+  signal?: AbortSignal;
+}): Promise<WingsdatabaseMirrorRace> => {
+  const probe = options.probe ?? probeWingsdatabaseStreamReferer;
+  const concurrency = Math.max(
+    1,
+    options.concurrency ?? WINGS_PROBE_CONCURRENCY,
+  );
+  const controller = new AbortController();
+  const signal = options.signal
+    ? anyAbortSignal(controller.signal, options.signal)
+    : controller.signal;
+  const payloads: WingsdatabaseMirrorPayload[] = [];
+  const candidates: VidKingPlayableCandidate[] = [];
+  const seenUrls = new Set<string>();
+  const queue: VidKingPlayableCandidate[] = [];
+
+  const winner = await new Promise<WingsdatabaseProbeWinner | null>(
+    (resolve) => {
+      let settled = false;
+      let pendingMirrors = options.mirrors.length;
+      let activeProbes = 0;
+
+      const finish = (result: WingsdatabaseProbeWinner | null) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve(result);
+      };
+
+      const finishIfExhausted = () => {
+        if (pendingMirrors === 0 && activeProbes === 0 && queue.length === 0) {
+          finish(null);
+        }
+      };
+
+      const pump = () => {
+        while (!settled && activeProbes < concurrency && queue.length > 0) {
+          const candidate = queue.shift();
+          if (!candidate) {
+            break;
+          }
+          activeProbes += 1;
+          void probe(candidate.streamUrl, options.referer, signal)
+            .catch(() => null)
+            .then((winningReferer) => {
+              activeProbes -= 1;
+              if (winningReferer && !signal.aborted) {
+                finish({ candidate, referer: winningReferer });
+                return;
+              }
+              pump();
+              finishIfExhausted();
+            });
+        }
+      };
+
+      if (signal.aborted) {
+        finish(null);
+        return;
+      }
+      signal.addEventListener("abort", () => finish(null), { once: true });
+
+      for (const mirror of options.mirrors) {
+        void options
+          .fetchPayload(mirror, signal)
+          .catch(() => null)
+          .then((payload) => {
+            pendingMirrors -= 1;
+            payloads.push({ mirror, payload });
+            for (const candidate of collectVidKingPlayableCandidates(
+              [{ mirror, payload }],
+              options.mirrors,
+            )) {
+              if (seenUrls.has(candidate.streamUrl)) {
+                continue;
+              }
+              seenUrls.add(candidate.streamUrl);
+              candidates.push(candidate);
+              queue.push(candidate);
+            }
+            pump();
+            finishIfExhausted();
+          });
+      }
+
+      finishIfExhausted();
+    },
+  );
+
+  controller.abort();
+  return { winner, payloads: [...payloads], candidates: [...candidates] };
 };
 
 type WingsdatabaseScrapeSuccess = Extract<ScrapeResult, { ok: true }>;
 
-export const finalizeWingsdatabaseScrape = async (options: {
+const bestWingsdatabaseSubtitles = (
+  payloads: readonly WingsdatabaseMirrorPayload[],
+): ScrapeSubtitle[] => {
+  let best: VidKingSubtitle[] = [];
+  for (const { payload } of payloads) {
+    if ((payload?.subtitles ?? []).length > best.length) {
+      best = payload?.subtitles ?? [];
+    }
+  }
+  return mapVidKingSubtitles(best);
+};
+
+export const scrapeWingsdatabaseMirrors = async (options: {
   providerId: string;
   referer: string;
-  payloads: ReadonlyArray<{
-    mirror: string;
-    payload: VidKingPayload | null;
-  }>;
-  mirrorOrder: readonly string[];
-  mappedSubtitles: ReturnType<typeof mapVidKingSubtitles>;
-  sawSources: boolean;
+  mirrors: readonly string[];
+  fetchPayload: (
+    mirror: string,
+    signal: AbortSignal,
+  ) => Promise<VidKingPayload | null>;
+  input: ScrapeMediaInput;
 }): Promise<ScrapeResult> => {
-  const {
-    providerId,
+  const { providerId, referer, input } = options;
+  const raceStartedAt = scrapeNow();
+  const race = await raceWingsdatabaseMirrors({
+    mirrors: options.mirrors,
     referer,
-    payloads,
-    mirrorOrder,
-    mappedSubtitles,
-    sawSources,
-  } = options;
-  const aggregatedQualities = aggregateWingsdatabaseQualities(payloads);
-  const candidates = collectVidKingPlayableCandidates(payloads, mirrorOrder);
-  let winner = await probeFirstWingsdatabaseCandidate(candidates, referer);
+    fetchPayload: options.fetchPayload,
+    signal: input.signal,
+  });
+  input.timing?.since("mirrors", raceStartedAt);
 
-  if (!winner && sawSources && scrapeProxyUrl()) {
+  const sawSources = race.payloads.some(
+    ({ payload }) => (payload?.sources ?? []).length > 0,
+  );
+  let winner = race.winner;
+
+  if (!winner && sawSources && !input.signal?.aborted && scrapeProxyUrl()) {
     const rotated = await rotateScrapeVpnEgress();
     if (rotated.ok) {
       resetScrapeHostEgressPreferences();
-      winner = await probeFirstWingsdatabaseCandidate(candidates, referer);
+      const retryStartedAt = scrapeNow();
+      winner = await probeFirstWingsdatabaseCandidate(
+        race.candidates,
+        referer,
+        { signal: input.signal },
+      );
+      input.timing?.since("validation", retryStartedAt);
     }
   }
 
-  const buildSuccess = (
-    streamUrl: string,
-    playbackReferer: string,
-    validated: boolean,
-  ): WingsdatabaseScrapeSuccess => ({
+  if (!winner) {
+    return {
+      ok: false,
+      providerId,
+      error: sawSources
+        ? "Wingsdatabase CDN unreachable"
+        : "No HLS sources in wingsdatabase payload",
+    };
+  }
+
+  const mappedSubtitles = bestWingsdatabaseSubtitles(race.payloads);
+  const streamUrl = winner.candidate.streamUrl;
+  const success: WingsdatabaseScrapeSuccess = {
     ok: true,
     providerId,
-    ...(validated ? { validated: true as const } : {}),
+    validated: true,
     streamUrl,
-    referer: playbackReferer,
+    referer: winner.referer,
     qualities: attachSubtitlesToQualities(
-      qualitiesExceptPrimary(aggregatedQualities, streamUrl),
+      qualitiesExceptPrimary(
+        aggregateWingsdatabaseQualities(race.payloads),
+        streamUrl,
+      ),
       mappedSubtitles,
     ),
     subtitles: mappedSubtitles.length > 0 ? mappedSubtitles : undefined,
-  });
-
-  if (winner) {
-    return buildSuccess(winner.candidate.streamUrl, winner.referer, true);
-  }
-
-  return {
-    ok: false,
-    providerId,
-    error: sawSources
-      ? "Wingsdatabase CDN unreachable"
-      : "No HLS sources in wingsdatabase payload",
   };
+  return success;
 };
 
 const probeVidKingReferers = (referer: string, streamUrl: string): string[] => {
@@ -492,18 +628,17 @@ const probeVidKingReferers = (referer: string, streamUrl: string): string[] => {
 export const probeWingsdatabaseStreamReferer = async (
   streamUrl: string,
   referer: string,
+  signal?: AbortSignal,
 ): Promise<string | null> => {
-  const referers = probeVidKingReferers(referer, streamUrl);
-  const results = await Promise.all(
-    referers.map(async (candidateReferer) => {
-      if (await probeVidKingStreamOnce(streamUrl, candidateReferer)) {
-        return candidateReferer;
-      }
-      return null;
-    }),
+  const winner = await raceFirstOk(
+    probeVidKingReferers(referer, streamUrl),
+    async (candidateReferer, probeSignal) =>
+      (await probeVidKingStreamOnce(streamUrl, candidateReferer, probeSignal))
+        ? candidateReferer
+        : null,
+    { signal },
   );
-
-  return results.find((candidate) => candidate !== null) ?? null;
+  return winner?.value ?? null;
 };
 
 export const probeWingsdatabaseStream = async (
@@ -515,6 +650,7 @@ export const probeWingsdatabaseStream = async (
 const probeVidKingStreamOnce = async (
   streamUrl: string,
   referer: string,
+  signal?: AbortSignal,
 ): Promise<boolean> => {
   try {
     const response = await scrapeFetch(streamUrl, {
@@ -526,6 +662,7 @@ const probeVidKingStreamOnce = async (
       },
       timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
       retryAttempts: SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
+      signal,
     });
 
     if (!response.ok) {
@@ -594,6 +731,7 @@ const fetchVidKingPayload = async (
   lookup: WingsTmdbLookup,
   seed: string,
   headers: Record<string, string>,
+  signal: AbortSignal,
 ): Promise<VidKingPayload | null> => {
   const encryptedResponse = await scrapeFetch(
     wingsSourceUrl(endpoint, {
@@ -611,6 +749,7 @@ const fetchVidKingPayload = async (
       timeoutMs: WINGS_SOURCE_FETCH_TIMEOUT_MS,
       curlFallback: false,
       retryAttempts: 1,
+      signal,
     },
   );
 
@@ -652,46 +791,13 @@ export async function scrapeVidKing(
     const seed = seedResult.seed;
     const headers = wingsApiHeaders(seedResult.origin);
 
-    // Hit every embed mirror in parallel, then probe every source URL we get back.
-    let sawSources = false;
-    let bestSubtitles: VidKingSubtitle[] = [];
-    const referer = `${seedResult.origin}/`;
-
-    const payloads = await Promise.all(
-      VIDKING_SOURCE_ENDPOINTS.map(async (mirror) => {
-        try {
-          const payload = await fetchVidKingPayload(
-            mirror,
-            input,
-            lookup,
-            seed,
-            headers,
-          );
-          return { mirror, payload };
-        } catch {
-          return { mirror, payload: null };
-        }
-      }),
-    );
-
-    for (const { payload } of payloads) {
-      if ((payload?.sources ?? []).length > 0) {
-        sawSources = true;
-      }
-      if ((payload?.subtitles ?? []).length > bestSubtitles.length) {
-        bestSubtitles = payload?.subtitles ?? [];
-      }
-    }
-
-    const mappedSubtitles = mapVidKingSubtitles(bestSubtitles);
-
-    return finalizeWingsdatabaseScrape({
+    return scrapeWingsdatabaseMirrors({
       providerId,
-      referer,
-      payloads,
-      mirrorOrder: VIDKING_SOURCE_ENDPOINTS,
-      mappedSubtitles,
-      sawSources,
+      referer: `${seedResult.origin}/`,
+      mirrors: VIDKING_SOURCE_ENDPOINTS,
+      fetchPayload: (mirror, signal) =>
+        fetchVidKingPayload(mirror, input, lookup, seed, headers, signal),
+      input,
     });
   } catch (error) {
     return {

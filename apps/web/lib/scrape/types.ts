@@ -4,6 +4,7 @@ import {
   TMDB_SCRAPE_PROVIDER_ORDER,
   type TmdbScrapeProviderId,
 } from "@/lib/providers/registry";
+import type { ScrapeStageTimer } from "./stage-timing";
 
 export type ScrapeMediaType = "movie" | "tv";
 
@@ -15,6 +16,7 @@ export type ScrapeMediaInput = {
   preferMultiTrack?: boolean;
   preferredAudioLang?: string;
   signal?: AbortSignal;
+  timing?: ScrapeStageTimer;
 };
 
 export const scrapeMediaKeyFor = (input: ScrapeMediaInput): string =>

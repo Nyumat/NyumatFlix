@@ -1,4 +1,9 @@
 import { cancelResponseBody, scrapeFetch } from "./fetch";
+import {
+  createMetadataCache,
+  SCRAPE_METADATA_MAX_ENTRIES,
+  SCRAPE_METADATA_TTL_MS,
+} from "./metadata-cache";
 import type { ScrapeMediaInput } from "./types";
 
 export type WingsTmdbLookup = {
@@ -7,14 +12,19 @@ export type WingsTmdbLookup = {
   imdbId: string;
 };
 
-export const resolveWingsTmdbLookup = async (
-  input: ScrapeMediaInput,
-): Promise<WingsTmdbLookup | null> => {
-  const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
+const tmdbLookupCache = createMetadataCache<WingsTmdbLookup>({
+  ttlMs: SCRAPE_METADATA_TTL_MS,
+  maxEntries: SCRAPE_METADATA_MAX_ENTRIES,
+});
 
+export const clearWingsTmdbLookupCache = (): void => {
+  tmdbLookupCache.clear();
+};
+
+const fetchWingsTmdbLookup = async (
+  input: ScrapeMediaInput,
+  apiKey: string,
+): Promise<WingsTmdbLookup | null> => {
   const path =
     input.mediaType === "movie"
       ? `movie/${input.tmdbId}`
@@ -52,4 +62,21 @@ export const resolveWingsTmdbLookup = async (
     year: date?.slice(0, 4) ?? "",
     imdbId,
   };
+};
+
+/** show-level metadata only, so the key ignores season and episode. */
+export const resolveWingsTmdbLookup = async (
+  input: ScrapeMediaInput,
+): Promise<WingsTmdbLookup | null> => {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  const load = () =>
+    tmdbLookupCache.get(`${input.mediaType}:${input.tmdbId}`, () =>
+      fetchWingsTmdbLookup(input, apiKey),
+    );
+
+  return input.timing ? input.timing.time("metadata", load) : load();
 };

@@ -5,7 +5,7 @@ import { wingsApiHeaders, wingsSourceUrl } from "../vidking-constants";
 import { fetchWingsSeed } from "../wings-api-discover";
 import { WINGS_SOURCE_FETCH_TIMEOUT_MS } from "../vidking-constants";
 import { resolveWingsTmdbLookup } from "../tmdb-lookup";
-import { finalizeWingsdatabaseScrape, mapVidKingSubtitles } from "./vidking";
+import { scrapeWingsdatabaseMirrors } from "./vidking";
 
 /** VidEasy embed mirrors (speedracelight / VideoPlayer 2026-08). */
 const VIDEASY_SOURCE_ENDPOINTS = [
@@ -35,6 +35,7 @@ const fetchVideasyPayload = async (
   lookup: { title: string; year: string; imdbId: string },
   seed: string,
   headers: Record<string, string>,
+  signal: AbortSignal,
 ): Promise<VidKingPayload | null> => {
   const encryptedResponse = await scrapeFetch(
     wingsSourceUrl(endpoint, {
@@ -52,6 +53,7 @@ const fetchVideasyPayload = async (
       timeoutMs: WINGS_SOURCE_FETCH_TIMEOUT_MS,
       curlFallback: false,
       retryAttempts: 1,
+      signal,
     },
   );
 
@@ -96,45 +98,14 @@ export async function scrapeVideasy(
 
     const seed = seedResult.seed;
     const headers = wingsApiHeaders(seedResult.origin);
-    let sawSources = false;
-    let bestSubtitles: NonNullable<VidKingPayload["subtitles"]> = [];
-    const referer = `${seedResult.origin}/`;
 
-    const payloads = await Promise.all(
-      VIDEASY_SOURCE_ENDPOINTS.map(async (mirror) => {
-        try {
-          const payload = await fetchVideasyPayload(
-            mirror,
-            input,
-            lookup,
-            seed,
-            headers,
-          );
-          return { mirror, payload };
-        } catch {
-          return { mirror, payload: null };
-        }
-      }),
-    );
-
-    for (const { payload } of payloads) {
-      if ((payload?.sources ?? []).length > 0) {
-        sawSources = true;
-      }
-      if ((payload?.subtitles ?? []).length > bestSubtitles.length) {
-        bestSubtitles = payload?.subtitles ?? [];
-      }
-    }
-
-    const mappedSubtitles = mapVidKingSubtitles(bestSubtitles);
-
-    return finalizeWingsdatabaseScrape({
+    return scrapeWingsdatabaseMirrors({
       providerId,
-      referer,
-      payloads,
-      mirrorOrder: VIDEASY_SOURCE_ENDPOINTS,
-      mappedSubtitles,
-      sawSources,
+      referer: `${seedResult.origin}/`,
+      mirrors: VIDEASY_SOURCE_ENDPOINTS,
+      fetchPayload: (mirror, signal) =>
+        fetchVideasyPayload(mirror, input, lookup, seed, headers, signal),
+      input,
     });
   } catch (error) {
     return {

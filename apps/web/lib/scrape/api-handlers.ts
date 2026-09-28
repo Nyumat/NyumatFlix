@@ -42,6 +42,12 @@ import { stampDonorSubtitles } from "@/lib/scrape/subtitle-harvest";
 import { isDirectScrapeProviderConfigured } from "@/lib/scrape/calluspirates-config";
 import { preferredAudioLangForTranslation } from "@/lib/scrape/anime/audio-preference";
 import { inferDirectStreamKind } from "@/lib/scrape/providers/direct";
+import {
+  createScrapeStageTimer,
+  scrapeNow,
+  type ScrapeStageTimer,
+} from "@/lib/scrape/stage-timing";
+import { fetchScrapeFallbackSubtitles } from "@/lib/scrape/subtitles";
 
 const tmdbProviderIds = TMDB_SCRAPE_PROVIDER_ORDER as unknown as [
   TmdbScrapeProviderId,
@@ -197,6 +203,7 @@ async function handleTmdbScrapePost(
     );
   }
 
+  const timing = createScrapeStageTimer();
   const result = await scrapeProvider(input.providerId, {
     mediaType: input.mediaType,
     tmdbId: input.tmdbId,
@@ -205,18 +212,27 @@ async function handleTmdbScrapePost(
     preferMultiTrack: input.preferMultiTrack,
     preferredAudioLang: input.preferredAudioLang,
     signal,
+    timing,
   });
 
   if (!result.ok) {
-    return NextResponse.json({
-      ok: false,
-      mediaKind: "tmdb",
-      providerId: result.providerId,
-      providerName:
-        TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
-      error: result.error,
-    });
+    timing.log({ providerId: result.providerId, mediaKind: "tmdb", ok: false });
+    return NextResponse.json(
+      {
+        ok: false,
+        mediaKind: "tmdb",
+        providerId: result.providerId,
+        providerName:
+          TMDB_SCRAPE_PROVIDER_LABELS[
+            result.providerId as TmdbScrapeProviderId
+          ],
+        error: result.error,
+      },
+      { headers: serverTimingHeaders(timing) },
+    );
   }
+
+  const responseStartedAt = scrapeNow();
 
   const playbackToken: ScrapePlaybackToken = {
     url: result.streamUrl,
@@ -278,31 +294,87 @@ async function handleTmdbScrapePost(
     audioVersions: result.audioVersions,
     sealQualities: !playUrl.startsWith("http"),
   });
+  timing.since("response", responseStartedAt);
+  timing.log({ providerId: result.providerId, mediaKind: "tmdb", ok: true });
 
-  return NextResponse.json({
-    ok: true,
-    mediaKind: "tmdb",
-    providerId: result.providerId,
-    providerName:
-      TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
-    playUrl,
-    streamKind,
-    referer: result.referer,
-    subtitles: sealed.subtitles,
-    qualities: sealed.qualities,
-    audioVersions: sealed.audioVersions,
-    nativeAudioTrackCount: result.nativeAudioTrackCount,
-    nativeSubtitleTrackCount: result.nativeSubtitleTrackCount,
-    preferredAudioLang: result.preferredAudioLang,
-    ...(result.providerId === "direct" && result.directPlayback
-      ? {
-          directPlayback: result.directPlayback,
-          directFallbackUrl: result.directFallbackUrl,
-          directStreamName: result.directStreamName,
-          directFileName: result.directFileName,
-        }
-      : {}),
+  return NextResponse.json(
+    {
+      ok: true,
+      mediaKind: "tmdb",
+      providerId: result.providerId,
+      providerName:
+        TMDB_SCRAPE_PROVIDER_LABELS[result.providerId as TmdbScrapeProviderId],
+      playUrl,
+      streamKind,
+      referer: result.referer,
+      subtitles: sealed.subtitles,
+      qualities: sealed.qualities,
+      audioVersions: sealed.audioVersions,
+      nativeAudioTrackCount: result.nativeAudioTrackCount,
+      nativeSubtitleTrackCount: result.nativeSubtitleTrackCount,
+      preferredAudioLang: result.preferredAudioLang,
+      subtitlesDeferred: !result.subtitles?.length,
+      ...(result.providerId === "direct" && result.directPlayback
+        ? {
+            directPlayback: result.directPlayback,
+            directFallbackUrl: result.directFallbackUrl,
+            directStreamName: result.directStreamName,
+            directFileName: result.directFileName,
+          }
+        : {}),
+    },
+    { headers: serverTimingHeaders(timing) },
+  );
+}
+
+const serverTimingHeaders = (
+  timing: ScrapeStageTimer,
+): Record<string, string> => {
+  const header = timing.serverTimingHeader();
+  return header ? { "Server-Timing": header } : {};
+};
+
+const scrapeSubtitlesBodySchema = z.object({
+  mediaType: z.enum(["movie", "tv"]),
+  tmdbId: z.number().int().positive(),
+  seasonNumber: z.number().int().positive().optional(),
+  episodeNumber: z.number().int().positive().optional(),
+});
+
+/** catalog softsubs fetched after a source resolves so they never block startup. */
+export async function handleScrapeSubtitlesPost(request: Request) {
+  if (!(await allowsCapProtectedAccess(request))) {
+    return NextResponse.json(
+      { error: "Human verification required" },
+      { status: 403, headers: { "X-Cap-Required": "1" } },
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = scrapeSubtitlesBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid subtitle request" },
+      { status: 400 },
+    );
+  }
+
+  const subtitles = await fetchScrapeFallbackSubtitles({
+    ...parsed.data,
+    signal: request.signal,
+  }).catch(() => []);
+  const sealed = sealScrapePlaybackCatalog({
+    subtitles: stampDonorSubtitles(subtitles, { source: "Catalog" }),
+    sealQualities: false,
   });
+
+  return NextResponse.json({ ok: true, subtitles: sealed.subtitles ?? [] });
 }
 
 async function handleAnimeScrapePost(

@@ -9,9 +9,8 @@ import { scrapeVidNest } from "./providers/vidnest";
 import { scrapeKisskh } from "./providers/kisskh";
 import { scrapeDirect } from "./providers/direct";
 import { scrapeXPass } from "./providers/xpass";
-import { attachHlsTrackCapabilities } from "./hls-track-capabilities";
 import { probeScrapePlaybackPath } from "./playback-probe";
-import { fetchScrapeFallbackSubtitles } from "./subtitles";
+import { scrapeNow } from "./stage-timing";
 import type { ScrapeMediaInput, ScrapeProviderId, ScrapeResult } from "./types";
 import { SCRAPE_PROVIDER_ORDER } from "./types";
 import { looksLikeStreamUrl, type StreamKind } from "./stream-url-patterns";
@@ -64,12 +63,19 @@ const isDirectScrapeProvider = (
   providerId: ScrapeProviderId,
 ): providerId is "direct" => providerId === "direct";
 
+/**
+ * resolves a validated playable source only. fallback subtitles and hls track
+ * counts are left to the client (`/api/scrape/subtitles`, active engine tracks)
+ * so they never delay startup.
+ */
 export async function scrapeProvider(
   providerId: ScrapeProviderId,
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
   const scraper = await resolveScraper(providerId);
+  const providerStartedAt = scrapeNow();
   const result = await scraper(input);
+  input.timing?.since("provider", providerStartedAt);
 
   if (!result.ok) {
     return result;
@@ -91,6 +97,7 @@ export async function scrapeProvider(
         };
       }
     } else if (!result.validated) {
+      const validationStartedAt = scrapeNow();
       const playProbeOk = await probeScrapePlaybackPath(
         {
           url: next.streamUrl,
@@ -98,7 +105,9 @@ export async function scrapeProvider(
           refresh: next.playbackRefresh,
         },
         streamKind,
+        { signal: input.signal },
       );
+      input.timing?.since("validation", validationStartedAt);
       if (!playProbeOk) {
         return {
           ok: false,
@@ -109,31 +118,12 @@ export async function scrapeProvider(
     }
   }
 
-  if (!next.subtitles?.length) {
-    const fallbackSubtitles = await fetchScrapeFallbackSubtitles(input);
-    if (fallbackSubtitles.length > 0) {
-      next = { ...next, subtitles: fallbackSubtitles };
-    }
-  }
-
   const qualities = attachSubtitlesToQualities(next.qualities, next.subtitles);
   if (qualities !== next.qualities) {
     next = { ...next, qualities };
   }
 
-  const withTrackCounts = await attachHlsTrackCapabilities({
-    streamUrl: next.streamUrl,
-    streamKind,
-    referer: next.referer,
-    nativeAudioTrackCount: next.nativeAudioTrackCount,
-    nativeSubtitleTrackCount: next.nativeSubtitleTrackCount,
-  });
-
-  return {
-    ...next,
-    nativeAudioTrackCount: withTrackCounts.nativeAudioTrackCount,
-    nativeSubtitleTrackCount: withTrackCounts.nativeSubtitleTrackCount,
-  };
+  return next;
 }
 
 export async function scrapeAllProviders(

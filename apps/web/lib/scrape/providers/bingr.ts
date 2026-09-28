@@ -14,6 +14,13 @@ import type {
   ScrapeSubtitle,
 } from "../types";
 import { resolveWingsTmdbLookup } from "../tmdb-lookup";
+import {
+  createMetadataCache,
+  SCRAPE_METADATA_MAX_ENTRIES,
+  SCRAPE_METADATA_TTL_MS,
+} from "../metadata-cache";
+import { raceFirstOk } from "../race-first";
+import { scrapeNow } from "../stage-timing";
 
 const BINGR_ORIGIN = "https://bingr.one";
 const BINGR_API = "https://api.bingr.one/api";
@@ -321,24 +328,29 @@ const detailsPath = (input: ScrapeMediaInput): string => {
   }
 };
 
-const fetchDetails = async (
-  input: ScrapeMediaInput,
-): Promise<BingrDetails | null> => {
-  try {
-    const response = await scrapeFetch(`${BINGR_API}${detailsPath(input)}`, {
-      headers: { ...bingrHeaders },
-      timeoutMs: BINGR_SERVER_TIMEOUT_MS,
-      retryAttempts: 1,
-    });
-    if (!response.ok) {
-      await cancelResponseBody(response);
+const bingrDetailsCache = createMetadataCache<BingrDetails>({
+  ttlMs: SCRAPE_METADATA_TTL_MS,
+  maxEntries: SCRAPE_METADATA_MAX_ENTRIES,
+});
+
+const fetchDetails = (input: ScrapeMediaInput): Promise<BingrDetails | null> =>
+  bingrDetailsCache.get(`${input.mediaType}:${input.tmdbId}`, async () => {
+    try {
+      const response = await scrapeFetch(`${BINGR_API}${detailsPath(input)}`, {
+        headers: { ...bingrHeaders },
+        timeoutMs: BINGR_SERVER_TIMEOUT_MS,
+        retryAttempts: 1,
+        signal: input.signal,
+      });
+      if (!response.ok) {
+        await cancelResponseBody(response);
+        return null;
+      }
+      return (await response.json()) as BingrDetails;
+    } catch {
       return null;
     }
-    return (await response.json()) as BingrDetails;
-  } catch {
-    return null;
-  }
-};
+  });
 
 const postStream = async (
   input: ScrapeMediaInput,
@@ -449,103 +461,180 @@ const resolveBingrCatalogDetails = async (
   };
 };
 
+type BingrSuccess = Extract<ScrapeResult, { ok: true }>;
+
+/** servers raced together; any remaining servers are tried in order afterwards. */
+export const BINGR_RACED_SERVER_COUNT = 2;
+
+const validateBingrSource = async (
+  source: BingrSource,
+  subtitles: ScrapeSubtitle[] | undefined,
+  signal: AbortSignal,
+): Promise<BingrSuccess | null> => {
+  const resolved = resolvePlayable(source);
+  if (!resolved) {
+    return null;
+  }
+
+  const { streamUrl, referer, hls } = resolved;
+
+  if (hls) {
+    const master = await raceWithTimeout(
+      (probeSignal) => probeHlsMaster(streamUrl, referer, probeSignal),
+      BINGR_HLS_PROBE_TIMEOUT_MS + 500,
+      null,
+      { signal },
+    );
+    if (master.timedOut || !master.value) {
+      return null;
+    }
+
+    // Full scrapeProvider validation hangs on some Bingr CDNs (30s × retries).
+    // Probe the first rendition with the same cap, then skip the outer gate.
+    const rendition = master.value.qualities[0];
+    if (rendition) {
+      const child = await raceWithTimeout(
+        (probeSignal) => probeHlsMaster(rendition.url, referer, probeSignal),
+        BINGR_HLS_PROBE_TIMEOUT_MS + 500,
+        null,
+        { signal },
+      );
+      if (child.timedOut || !child.value) {
+        return null;
+      }
+    }
+
+    return {
+      ok: true,
+      providerId: "bingr",
+      validated: true,
+      streamUrl,
+      referer,
+      subtitles,
+      qualities: attachSubtitlesToQualities(
+        master.value.qualities.length > 1 ? master.value.qualities : undefined,
+        subtitles,
+      ),
+    };
+  }
+
+  const mp4 = await raceWithTimeout(
+    (probeSignal) => probeMp4(streamUrl, referer, probeSignal),
+    BINGR_HLS_PROBE_TIMEOUT_MS + 500,
+    false,
+    { signal },
+  );
+  if (mp4.timedOut || !mp4.value) {
+    return null;
+  }
+
+  return {
+    ok: true,
+    providerId: "bingr",
+    validated: true,
+    streamUrl,
+    referer,
+    subtitles,
+  };
+};
+
+const resolveBingrServer = async (
+  input: ScrapeMediaInput,
+  server: BingrServer,
+  details: BingrDetails | null,
+  signal: AbortSignal,
+): Promise<BingrSuccess | null> => {
+  const payloadResult = await raceWithTimeout(
+    (requestSignal) => postStream(input, server, details, requestSignal),
+    BINGR_SERVER_TIMEOUT_MS,
+    null,
+    { signal },
+  );
+  if (payloadResult.timedOut || !payloadResult.value || signal.aborted) {
+    return null;
+  }
+
+  const sources = payloadResult.value.sources?.filter((source) =>
+    Boolean(source.url),
+  );
+  if (!sources?.length) {
+    return null;
+  }
+
+  const subtitles = mapSubtitles(payloadResult.value.subtitles);
+  const validationStartedAt = scrapeNow();
+
+  try {
+    for (const source of rankSourcesHlsFirst(sources)) {
+      if (signal.aborted) {
+        return null;
+      }
+      const success = await validateBingrSource(source, subtitles, signal);
+      if (success) {
+        return success;
+      }
+    }
+    return null;
+  } finally {
+    input.timing?.since("validation", validationStartedAt);
+  }
+};
+
+export const resolveFirstBingrServer = async (
+  servers: readonly BingrServer[],
+  resolveServer: (
+    server: BingrServer,
+    signal: AbortSignal,
+  ) => Promise<BingrSuccess | null>,
+  parentSignal?: AbortSignal,
+): Promise<BingrSuccess | null> => {
+  const raced = await raceFirstOk(
+    servers.slice(0, BINGR_RACED_SERVER_COUNT),
+    resolveServer,
+    { signal: parentSignal },
+  );
+  if (raced) {
+    return raced.value;
+  }
+
+  const signal = parentSignal ?? new AbortController().signal;
+  for (const server of servers.slice(BINGR_RACED_SERVER_COUNT)) {
+    if (signal.aborted) {
+      return null;
+    }
+    const success = await resolveServer(server, signal);
+    if (success) {
+      return success;
+    }
+  }
+
+  return null;
+};
+
 export async function scrapeBingr(
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
   const providerId = "bingr" as const;
 
   try {
+    const metadataStartedAt = scrapeNow();
+    const untimedInput = { ...input, timing: undefined };
     const details = await resolveBingrCatalogDetails(
-      input,
-      await fetchDetails(input),
+      untimedInput,
+      await fetchDetails(untimedInput),
     );
+    input.timing?.since("metadata", metadataStartedAt);
 
-    for (const server of BINGR_SERVERS) {
-      const payloadResult = await raceWithTimeout(
-        (signal) => postStream(input, server, details, signal),
-        BINGR_SERVER_TIMEOUT_MS,
-        null,
-      );
-      if (payloadResult.timedOut || !payloadResult.value) {
-        continue;
-      }
+    const serversStartedAt = scrapeNow();
+    const success = await resolveFirstBingrServer(
+      BINGR_SERVERS,
+      (server, signal) => resolveBingrServer(input, server, details, signal),
+      input.signal,
+    );
+    input.timing?.since("servers", serversStartedAt);
 
-      const sources = payloadResult.value.sources?.filter((source) =>
-        Boolean(source.url),
-      );
-      if (!sources?.length) {
-        continue;
-      }
-
-      const subtitles = mapSubtitles(payloadResult.value.subtitles);
-      const ranked = rankSourcesHlsFirst(sources);
-
-      for (const source of ranked) {
-        const resolved = resolvePlayable(source);
-        if (!resolved) {
-          continue;
-        }
-
-        const { streamUrl, referer, hls } = resolved;
-
-        if (hls) {
-          const master = await raceWithTimeout(
-            (signal) => probeHlsMaster(streamUrl, referer, signal),
-            BINGR_HLS_PROBE_TIMEOUT_MS + 500,
-            null,
-          );
-          if (master.timedOut || !master.value) {
-            continue;
-          }
-
-          // Full scrapeProvider validation hangs on some Bingr CDNs (30s × retries).
-          // Probe the first rendition with the same cap, then skip the outer gate.
-          const rendition = master.value.qualities[0];
-          if (rendition) {
-            const child = await raceWithTimeout(
-              (signal) => probeHlsMaster(rendition.url, referer, signal),
-              BINGR_HLS_PROBE_TIMEOUT_MS + 500,
-              null,
-            );
-            if (child.timedOut || !child.value) {
-              continue;
-            }
-          }
-
-          return {
-            ok: true,
-            providerId,
-            validated: true,
-            streamUrl,
-            referer,
-            subtitles,
-            qualities: attachSubtitlesToQualities(
-              master.value.qualities.length > 1
-                ? master.value.qualities
-                : undefined,
-              subtitles,
-            ),
-          };
-        }
-
-        const mp4 = await raceWithTimeout(
-          (signal) => probeMp4(streamUrl, referer, signal),
-          BINGR_HLS_PROBE_TIMEOUT_MS + 500,
-          false,
-        );
-        if (mp4.timedOut || !mp4.value) {
-          continue;
-        }
-
-        return {
-          ok: true,
-          providerId,
-          validated: true,
-          streamUrl,
-          referer,
-          subtitles,
-        };
-      }
+    if (success) {
+      return success;
     }
 
     return {
