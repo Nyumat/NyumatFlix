@@ -90,13 +90,31 @@ jobs:
           FLIPT_API_TOKEN=${FLIPT_API_TOKEN}
           EOF
 
+      - name: Restore player WASM
+        id: player-wasm
+        uses: actions/cache/restore@v4
+        with:
+          path: packages/player/dist/wasm
+          key: ${{ runner.os }}-player-wasm-${{ hashFiles('packages/player/wasm/**', 'packages/player/docker/**', 'packages/player/compose.yaml') }}
+
       - name: Build WASM and app
         if: github.event_name == 'push'
         env:
           NODE_ENV: production
         run: |
-          bunx turbo build:wasm --filter=@nyumatflix/player
+          if [[ "${{ steps.player-wasm.outputs.cache-hit }}" != "true" ]]; then
+            bunx turbo build:wasm --filter=@nyumatflix/player
+          else
+            echo "player wasm unchanged — using cached packages/player/dist/wasm"
+          fi
           bunx turbo build --filter=@nyumatflix/web...
+
+      - name: Save player WASM
+        if: success() && github.event_name == 'push' && steps.player-wasm.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: packages/player/dist/wasm
+          key: ${{ runner.os }}-player-wasm-${{ hashFiles('packages/player/wasm/**', 'packages/player/docker/**', 'packages/player/compose.yaml') }}
 
       - name: Check formatting
         run: bunx turbo check-format --filter=@nyumatflix/web
@@ -131,22 +149,57 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Restore player WASM
+        id: player-wasm
+        uses: actions/cache/restore@v4
+        with:
+          path: packages/player/dist/wasm
+          key: ${{ runner.os }}-player-wasm-${{ hashFiles('packages/player/wasm/**', 'packages/player/docker/**', 'packages/player/compose.yaml') }}
+
       - name: Set up Bun
+        if: steps.player-wasm.outputs.cache-hit != 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      - name: Restore Turbo cache
+        if: steps.player-wasm.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            ${{ github.workspace }}/.turbo
+          key: ${{ runner.os }}-nyumatflix-${{ hashFiles('bun.lock', 'turbo.json', 'apps/web/next.config.mjs') }}
+          restore-keys: |
+            ${{ runner.os }}-nyumatflix-${{ hashFiles('bun.lock', 'turbo.json', 'apps/web/next.config.mjs') }}-
+            ${{ runner.os }}-nyumatflix-
+
       - name: Install dependencies
+        if: steps.player-wasm.outputs.cache-hit != 'true'
         run: bun install --ignore-scripts
 
-      - name: Build WASM for Docker image
+      - name: Note image publish mode
         run: |
           if [[ "$DOCKER_PUSH" == "true" ]]; then
             echo "building image for push"
           else
             echo "dry run: building image without pushing to the registry"
           fi
-          bunx turbo build:wasm --filter=@nyumatflix/player
+          if [[ "${{ steps.player-wasm.outputs.cache-hit }}" == "true" ]]; then
+            echo "player wasm unchanged — using cached packages/player/dist/wasm"
+          fi
+
+      - name: Build WASM for Docker image
+        if: steps.player-wasm.outputs.cache-hit != 'true'
+        run: bunx turbo build:wasm --filter=@nyumatflix/player
+
+      - name: Save player WASM
+        if: success() && steps.player-wasm.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: packages/player/dist/wasm
+          key: ${{ runner.os }}-player-wasm-${{ hashFiles('packages/player/wasm/**', 'packages/player/docker/**', 'packages/player/compose.yaml') }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
