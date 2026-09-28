@@ -1,5 +1,12 @@
-import { SilkShaderBackground } from "@/components/hero/silk-shader-background";
+"use client";
+
+import { useIndexHeroTransition } from "@/components/catalog/index-hero-transition-context";
+import {
+  HERO_CROSSFADE_DURATION_MS,
+  HERO_CROSSFADE_EASE_CSS,
+} from "@/lib/hero-crossfade";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 export type PageBackdrop = {
   imageUrl: string;
@@ -12,44 +19,86 @@ type AmbientPageBackdropProps = {
 };
 
 export function AmbientPageBackdrop({ backdrop }: AmbientPageBackdropProps) {
-  if (!backdrop?.imageUrl) {
-    return (
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-background"
-        data-page-backdrop="shader"
-      >
-        <SilkShaderBackground className="h-full w-full opacity-70" />
-        <div className="absolute inset-0 bg-linear-to-b from-black/45 via-background/64 to-background" />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-b from-transparent to-background" />
-      </div>
+  const transition = useIndexHeroTransition();
+  const sharedBackdrop = transition?.backdrops[transition.activeIndex];
+  const resolvedBackdrop =
+    transition && sharedBackdrop !== undefined
+      ? sharedBackdrop
+      : (backdrop ?? null);
+  const [visibleBackdrop, setVisibleBackdrop] = useState(
+    resolvedBackdrop ?? null,
+  );
+  const [outgoingBackdrop, setOutgoingBackdrop] = useState<PageBackdrop | null>(
+    null,
+  );
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    if (resolvedBackdrop?.imageUrl === visibleBackdrop?.imageUrl) return;
+    setOutgoingBackdrop(visibleBackdrop);
+    setVisibleBackdrop(resolvedBackdrop);
+    setIsTransitioning(true);
+    const frame = requestAnimationFrame(() => setIsTransitioning(false));
+    const timeout = window.setTimeout(
+      () => setOutgoingBackdrop(null),
+      HERO_CROSSFADE_DURATION_MS,
     );
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [resolvedBackdrop]);
+
+  backdrop = visibleBackdrop;
+  if (!backdrop?.imageUrl) {
+    return null;
   }
 
-  return (
+  const renderBackdrop = (
+    item: PageBackdrop,
+    opacity: "opacity-0" | "opacity-100",
+  ) => (
     <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#050505]"
-      data-page-backdrop="image"
+      key={item.imageUrl}
+      className={`absolute inset-0 motion-reduce:transition-none transition-opacity ${opacity}`}
+      style={{
+        transitionDuration: `${HERO_CROSSFADE_DURATION_MS}ms`,
+        transitionTimingFunction: HERO_CROSSFADE_EASE_CSS,
+      }}
     >
-      <Image
-        src={backdrop.imageUrl}
-        alt=""
-        fill
-        priority={backdrop.priority}
-        sizes="100vw"
-        className="scale-[1.2] object-cover opacity-50 blur-[80px] saturate-100"
-      />
-      <div className="absolute left-0 top-0 hidden h-[40dvh] w-full mix-blend-screen opacity-20 lg:block">
+      <div className="absolute -inset-20">
         <Image
-          src={backdrop.imageUrl}
+          src={item.imageUrl}
           alt=""
           fill
-          priority={backdrop.priority}
+          priority={item.priority}
+          sizes="100vw"
+          className="scale-[1.2] object-cover opacity-50 blur-[80px] saturate-100"
+        />
+      </div>
+      <div className="absolute left-0 top-0 hidden h-[40dvh] w-full mix-blend-screen opacity-20 lg:block">
+        <Image
+          src={item.imageUrl}
+          alt=""
+          fill
+          priority={item.priority}
           sizes="100vw"
           className="scale-[1.2] object-cover blur-[50px] saturate-100 [mask-image:linear-gradient(to_bottom,black_0%,transparent_100%)]"
         />
       </div>
+    </div>
+  );
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-0 hidden overflow-hidden bg-[#050505] lg:block"
+      data-page-backdrop="image"
+    >
+      {outgoingBackdrop
+        ? renderBackdrop(outgoingBackdrop, "opacity-100")
+        : null}
+      {renderBackdrop(backdrop, isTransitioning ? "opacity-0" : "opacity-100")}
     </div>
   );
 }

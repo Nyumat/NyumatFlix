@@ -33,7 +33,7 @@ export default async function ProviderPage(props: ProviderPageProps) {
 
   const searchParams = normalizeRouteSearchParams(rawSearchParams);
   const mediaType = parseMediaType(searchParams.type);
-  const catalog = await getProviderCatalog(id, mediaType);
+  const catalog = await getProviderCatalog(provider, mediaType);
 
   return (
     <ProviderCatalogPage

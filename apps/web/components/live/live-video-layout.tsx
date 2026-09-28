@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Captions, LiveButton, Title, useMediaState } from "@vidstack/react";
 import {
   DefaultKeyboardDisplay,
@@ -17,44 +18,39 @@ const controlsSpacer = (
   <div className="vds-controls-spacer" aria-hidden="true" />
 );
 
-const liveLayoutSlots = {
+const liveControlSlots = {
   seekBackwardButton: null,
   seekForwardButton: null,
   chaptersMenu: null,
   chapterTitle: null,
   captionButton: controlsSpacer,
-  liveButton: <LiveChannelMeta />,
   startDuration: null,
   endTime: null,
   timeSlider: null,
   downloadButton: null,
-  googleCastButton: (
-    <>
-      <LiveShareChannelButton />
-      <LiveGoogleCastButton />
-    </>
-  ),
-  smallLayout: {
-    seekBackwardButton: null,
-    seekForwardButton: null,
-    chaptersMenu: null,
-    chapterTitle: null,
-    captionButton: controlsSpacer,
+} as const;
+
+export function LiveVideoLayout() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  const channelControls = {
     liveButton: <LiveChannelMeta />,
-    startDuration: null,
-    endTime: null,
-    timeSlider: null,
-    downloadButton: null,
     googleCastButton: (
       <>
         <LiveShareChannelButton />
         <LiveGoogleCastButton />
       </>
     ),
-  },
-} as const;
+  };
 
-export function LiveVideoLayout() {
   return (
     <>
       <Captions className="vds-captions" />
@@ -66,7 +62,14 @@ export function LiveVideoLayout() {
       <DefaultVideoLayout
         disableTimeSlider
         icons={defaultLayoutIcons}
-        slots={liveLayoutSlots}
+        slots={{
+          ...liveControlSlots,
+          ...channelControls,
+          smallLayout: {
+            ...liveControlSlots,
+            ...channelControls,
+          },
+        }}
         smallLayoutWhen={false}
       />
     </>
@@ -90,7 +93,7 @@ function LiveChannelMeta() {
         <span className="vds-live-button-text">LIVE</span>
       </LiveButton>
       {title ? (
-        <Title className="vds-chapter-title min-w-0 max-w-[min(38vw,320px)] truncate font-semibold" />
+        <Title className="vds-chapter-title min-w-0 max-w-[min(48vw,480px)] truncate font-semibold" />
       ) : null}
     </div>
   );

@@ -8,7 +8,10 @@ import type {
   PlaybackProgressEntry,
   PlaybackProgressKey,
 } from "@/lib/playback/progress-storage";
-import { progressStorageKey } from "@/lib/playback/progress-storage";
+import {
+  mergePlaybackProgressEntry,
+  progressStorageKey,
+} from "@/lib/playback/progress-storage";
 
 type PlaybackDb = Pick<typeof db, "select" | "insert" | "update">;
 
@@ -161,8 +164,13 @@ const upsertUserPlaybackProgressRow = async (
   const seasonNumber = key.seasonNumber ?? 0;
   const episodeNumber = key.episodeNumber ?? 0;
 
-  const existing = await executor
-    .select({ id: playbackProgress.id })
+  const existingRows = await executor
+    .select({
+      id: playbackProgress.id,
+      watchedSeconds: playbackProgress.watchedSeconds,
+      durationSeconds: playbackProgress.durationSeconds,
+      updatedAt: playbackProgress.updatedAt,
+    })
     .from(playbackProgress)
     .where(
       and(
@@ -175,28 +183,49 @@ const upsertUserPlaybackProgressRow = async (
     )
     .limit(1);
 
-  if (existing.length > 0) {
-    await executor
-      .update(playbackProgress)
-      .set({
-        watchedSeconds: entry.watched,
-        durationSeconds: entry.duration,
-        updatedAt,
-      })
-      .where(eq(playbackProgress.id, existing[0].id));
+  const existing = existingRows[0];
+  if (!existing) {
+    await executor.insert(playbackProgress).values({
+      userId,
+      contentId: key.contentId,
+      mediaType: key.mediaType,
+      seasonNumber,
+      episodeNumber,
+      watchedSeconds: entry.watched,
+      durationSeconds: entry.duration,
+      updatedAt,
+    });
     return;
   }
 
-  await executor.insert(playbackProgress).values({
-    userId,
-    contentId: key.contentId,
-    mediaType: key.mediaType,
-    seasonNumber,
-    episodeNumber,
-    watchedSeconds: entry.watched,
-    durationSeconds: entry.duration,
-    updatedAt,
-  });
+  const existingEntry: PlaybackProgressEntry = {
+    watched: existing.watchedSeconds,
+    duration: existing.durationSeconds,
+    updatedAt: existing.updatedAt.getTime(),
+  };
+
+  const merged = mergePlaybackProgressEntry(
+    existingEntry,
+    entry,
+    updatedAt.getTime(),
+  );
+
+  if (
+    merged.watched === existingEntry.watched &&
+    merged.duration === existingEntry.duration &&
+    merged.updatedAt === existingEntry.updatedAt
+  ) {
+    return;
+  }
+
+  await executor
+    .update(playbackProgress)
+    .set({
+      watchedSeconds: merged.watched,
+      durationSeconds: merged.duration,
+      updatedAt: new Date(merged.updatedAt),
+    })
+    .where(eq(playbackProgress.id, existing.id));
 };
 
 export const dismissWatchlistTitle = async (

@@ -4,16 +4,21 @@ import { getCachedTvShowDetail } from "@/lib/media-detail-cache";
 import { buildTvStructuredData } from "@/lib/seo/structured-data";
 import { generateMediaMetadata } from "@/utils/media-metadata-helpers";
 import { Metadata } from "next";
-
-export const dynamicParams = true;
+import { cacheLife } from "next/cache";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
+async function getPageTvShowDetail(id: string) {
+  "use cache";
+  cacheLife("hours");
+  return getCachedTvShowDetail(id).catch(() => null);
+}
+
 export default async function TvShowDetailPage(props: Props) {
   const { id } = await props.params;
-  const tvShow = await getCachedTvShowDetail(id).catch(() => null);
+  const tvShow = await getPageTvShowDetail(id);
 
   return (
     <>
@@ -27,7 +32,7 @@ export default async function TvShowDetailPage(props: Props) {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { id } = await props.params;
-  const tvShow = await getCachedTvShowDetail(id).catch(() => null);
+  const tvShow = await getPageTvShowDetail(id);
   const base = await generateMediaMetadata({
     media: tvShow,
     mediaType: "tv",

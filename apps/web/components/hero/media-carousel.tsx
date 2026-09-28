@@ -10,7 +10,8 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { Icons } from "@/lib/icons";
-import { buildDetailPlayHref } from "@/lib/playback/detail-autoplay-href";
+import { requestDetailPlay } from "@/lib/playback/detail-autoplay-href";
+import { useMediaCardPrefetch } from "@/hooks/use-media-card-prefetch";
 import { tmdbImage } from "@/tmdb/utils";
 import Fade from "embla-carousel-fade";
 import { Info, Star } from "lucide-react";
@@ -28,6 +29,9 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
     Record<number, boolean>
   >({});
   const router = useRouter();
+  const mobileCurrent = items[currentIndex] ?? items[0];
+  const { prefetch: prefetchMobileCurrent } =
+    useMediaCardPrefetch(mobileCurrent);
 
   const getMediaType = (item: (typeof items)[0]) => {
     return match(item)
@@ -127,16 +131,23 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
           onPosterClick={handlePosterClick}
         />
 
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 hidden md:flex space-x-2 z-10">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 z-10">
           {items.map((_, index) => (
             <button
               key={index}
               onClick={() => handlePosterClick(index)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                currentIndex === index ? "w-4 bg-primary" : "bg-white/50"
+              aria-current={currentIndex === index ? "true" : undefined}
+              className={`relative h-2 overflow-hidden rounded-full transition-[width,background-color] duration-500 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                currentIndex === index
+                  ? "w-8 bg-white/35"
+                  : "w-2 bg-white/50 hover:bg-white/70"
               }`}
               aria-label={`Go to slide ${index + 1}`}
-            />
+            >
+              {currentIndex === index && (
+                <span className="absolute inset-0 origin-left rounded-full bg-white motion-safe:animate-hero-progress motion-reduce:scale-x-100" />
+              )}
+            </button>
           ))}
         </div>
       </div>
@@ -161,7 +172,10 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
               currentItem.overview && currentItem.overview.length > 100;
 
             return (
-              <div className="px-4 w-full">
+              <div
+                key={currentItem.id}
+                className="px-4 w-full animate-in fade-in duration-700"
+              >
                 <div className="flex gap-4">
                   <div className="shrink-0 w-24 sm:w-28 mt-4">
                     <Poster
@@ -241,44 +255,58 @@ export function MediaCarousel({ items }: MediaCarouselProps) {
           })()}
         </div>
 
-        <div className="flex justify-center space-x-2 mt-4">
+        <div className="flex justify-center items-center gap-2 mt-4">
           {items.map((_, index) => (
             <button
               key={index}
               onClick={() => handlePosterClick(index)}
-              className={`h-2 rounded-full transition-all duration-300 ${
+              aria-current={currentIndex === index ? "true" : undefined}
+              className={`relative h-2 overflow-hidden rounded-full transition-[width,background-color] duration-500 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                 currentIndex === index
-                  ? "w-8 bg-white"
+                  ? "w-8 bg-white/35"
                   : "w-2 bg-white/40 hover:bg-white/60"
               }`}
               aria-label={`Go to slide ${index + 1}`}
-            />
+            >
+              {currentIndex === index && (
+                <span className="absolute inset-0 origin-left rounded-full bg-white motion-safe:animate-hero-progress motion-reduce:scale-x-100" />
+              )}
+            </button>
           ))}
         </div>
 
         <div className="flex justify-center gap-3 px-4 mt-4">
-          <Button
-            onClick={() => {
-              const current = items[currentIndex];
-              const href = match(current)
-                .with(
-                  { title: P.string, id: P.number },
-                  (movie) => `/movies/${movie.id}`,
-                )
-                .with(
-                  { name: P.string, id: P.number },
-                  (tvShow) => `/tvshows/${tvShow.id}`,
-                )
-                .otherwise(() => "#");
-              router.push(buildDetailPlayHref(href, { media: current }));
-            }}
-            size="lg"
-            variant="outline"
-            className="bg-white/10 backdrop-blur-xs text-white border-white/30 hover:bg-white/20 flex-1"
+          <span
+            onPointerEnter={prefetchMobileCurrent}
+            onFocus={prefetchMobileCurrent}
+            onTouchStart={prefetchMobileCurrent}
+            className="inline-flex flex-1"
           >
-            <Icons.play className="mr-2 h-4 w-4" />
-            Play
-          </Button>
+            <Button
+              onClick={() => {
+                const current = items[currentIndex];
+                const href = match(current)
+                  .with(
+                    { title: P.string, id: P.number },
+                    (movie) => `/movies/${movie.id}`,
+                  )
+                  .with(
+                    { name: P.string, id: P.number },
+                    (tvShow) => `/tvshows/${tvShow.id}`,
+                  )
+                  .otherwise(() => "#");
+                requestDetailPlay((target) => router.push(target), href, {
+                  media: current,
+                });
+              }}
+              size="lg"
+              variant="outline"
+              className="bg-white/10 backdrop-blur-xs text-white border-white/30 hover:bg-white/20 flex-1"
+            >
+              <Icons.play className="mr-2 h-4 w-4" />
+              Play
+            </Button>
+          </span>
           <Button
             onClick={() => {
               const current = items[currentIndex];

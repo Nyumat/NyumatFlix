@@ -141,7 +141,7 @@ describe("isSeasonChainRelationNode", () => {
 });
 
 describe("isAnilistFranchiseFetchError", () => {
-  it("matches serialized errors by name after unstable_cache", () => {
+  it("matches serialized errors by name after cache serialization", () => {
     const wrapped = new Error("AniList relation fetch returned 429 for 20923");
     wrapped.name = "AnilistFranchiseFetchError";
     expect(isAnilistFranchiseFetchError(wrapped)).toBe(true);

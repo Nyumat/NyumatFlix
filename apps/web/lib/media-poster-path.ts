@@ -7,6 +7,10 @@ export const isRemoteImagePath = (path: string | null | undefined): boolean =>
 export const hasPosterPath = (item: { poster_path?: string | null }): boolean =>
   isNonEmptyPath(item.poster_path);
 
+export const hasBackdropPath = (item: {
+  backdrop_path?: string | null;
+}): boolean => isNonEmptyPath(item.backdrop_path);
+
 export const hasProfilePath = (item: {
   profile_path?: string | null;
 }): boolean => isNonEmptyPath(item.profile_path);

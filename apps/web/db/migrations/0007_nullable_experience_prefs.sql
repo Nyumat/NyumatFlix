@@ -1,0 +1,18 @@
+ALTER TABLE "user_settings" ALTER COLUMN "playbackAudio" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "playbackAudio" DROP DEFAULT;
+ALTER TABLE "user_settings" ALTER COLUMN "playbackQuality" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "playbackQuality" DROP DEFAULT;
+ALTER TABLE "user_settings" ALTER COLUMN "playbackEnglishSubtitles" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "playbackEnglishSubtitles" DROP DEFAULT;
+ALTER TABLE "user_settings" ALTER COLUMN "disableHoverSound" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "disableHoverSound" DROP DEFAULT;
+ALTER TABLE "user_settings" ALTER COLUMN "disableHeroTrailers" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "disableHeroTrailers" DROP DEFAULT;
+ALTER TABLE "user_settings" ALTER COLUMN "ambientGlow" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "ambientGlow" DROP DEFAULT;
+ALTER TABLE "user_settings" ALTER COLUMN "catalogCardStyle" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "catalogCardStyle" DROP DEFAULT;
+ALTER TABLE "user_settings" ALTER COLUMN "vidnestContentType" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "vidnestContentType" DROP DEFAULT;
+ALTER TABLE "user_settings" ALTER COLUMN "vidsrcApi" DROP NOT NULL;
+ALTER TABLE "user_settings" ALTER COLUMN "vidsrcApi" DROP DEFAULT;

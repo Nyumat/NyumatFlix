@@ -56,7 +56,7 @@ export const PersonList: React.FC<PersonListProps> = async ({
         <IndexHeader title={title ?? "People"} description={description} />
       }
     >
-      <div className="grid-list">
+      <div className="grid-list people-grid">
         {peopleWithDeathday.map((person) => (
           <PersonCard key={person.id} {...person} />
         ))}

@@ -31,6 +31,7 @@ import {
 import { TabsProps } from "@radix-ui/react-tabs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getGenreName } from "@/components/content/genre-helpers";
+import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import { MediaImages } from "@/components/media/media-client";
 import {
   MediaBackdrop,
@@ -126,10 +127,7 @@ export const TvHeroItem: React.FC<TvHeroItemProps> = async ({
           {!hideGenre && (
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {genres.map((genre) => (
-                <Link
-                  href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
-                  key={genre.id}
-                >
+                <Link href={buildGenreBrowseUrl(genre, "tv")} key={genre.id}>
                   <Badge
                     variant="secondary"
                     className={cn(
@@ -240,12 +238,18 @@ export const TvEpisodeCard: React.FC<Episode> = ({
           </h3>
         </Link>
 
-        <div
-          className="mb-4 mt-1 line-clamp-6 space-y-2 text-sm leading-relaxed text-muted-foreground"
-          dangerouslySetInnerHTML={{
-            __html: format.content(overview || "<em>No details</em>"),
-          }}
-        />
+        <div className="mb-4 mt-1 line-clamp-6 space-y-2 text-sm leading-relaxed text-muted-foreground">
+          {overview?.trim() ? (
+            overview
+              .split("\n")
+              .filter((section) => section.trim() !== "")
+              .map((section, index) => <p key={index}>{section}</p>)
+          ) : (
+            <p>
+              <em>No details</em>
+            </p>
+          )}
+        </div>
 
         <div className="mt-auto flex items-center gap-2">
           <MediaRating

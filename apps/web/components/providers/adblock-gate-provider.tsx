@@ -63,6 +63,7 @@ export function AdblockGateProvider({ children }: AdblockGateProviderProps) {
   const gateAction = useCallback<GateAction>(
     (action) => {
       if (
+        !flags.adblockPrompt ||
         adBlockDetected ||
         hasDismissedAdblockPrompt() ||
         shouldBypassEmbedAdblockPrompt({

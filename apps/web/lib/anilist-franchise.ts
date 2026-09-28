@@ -17,7 +17,7 @@ import {
   normalizeAnimeTitle,
   stripSeasonSuffix,
 } from "@/lib/scrape/anime/title-match";
-import { unstable_cache } from "next/cache";
+import { applyDataRevalidateCacheLife } from "@/lib/server/route-cache-life";
 import { cache } from "react";
 
 export { stripSeasonSuffix };
@@ -431,7 +431,7 @@ const resolveFranchiseFromMalRelations = async (
 
 /**
  * Multi-season fallbacks only. A 1-id result is indistinguishable from a
- * truncated chain, so we never let unstable_cache store that.
+ * truncated chain, so we never let the cache store that.
  */
 export const pickCachedFranchiseFallback = (
   entryAnilistId: number,
@@ -465,30 +465,28 @@ const resolveMultiSeasonFranchiseFallback = async (
 };
 
 /**
- * Strict walk: any transient AniList failure throws, so unstable_cache never
+ * Strict walk: any transient AniList failure throws, so the cache never
  * stores a chain that was truncated by a rate limit or timeout (that bug
  * hid whole seasons — e.g. AOT showing 3 of 4 seasons — for the full TTL).
  * TMDB/Fribb and MAL relation graphs are complete alternate sources, so
  * those results are safe to cache when AniList 429s.
  */
-const resolveAniListFranchiseCached = unstable_cache(
-  async (entryAnilistId: number) => {
-    try {
-      return await resolveAniListFranchiseUncached(
-        entryAnilistId,
-        fetchRelationMedia,
-      );
-    } catch (error) {
-      if (!isAnilistFranchiseFetchError(error)) throw error;
-      const fallback =
-        await resolveMultiSeasonFranchiseFallback(entryAnilistId);
-      if (fallback) return fallback;
-      throw error;
-    }
-  },
-  ["anilist-franchise-resolve-v4"],
-  { revalidate: 3600 },
-);
+const resolveAniListFranchiseCached = async (entryAnilistId: number) => {
+  "use cache";
+  applyDataRevalidateCacheLife(3600);
+
+  try {
+    return await resolveAniListFranchiseUncached(
+      entryAnilistId,
+      fetchRelationMedia,
+    );
+  } catch (error) {
+    if (!isAnilistFranchiseFetchError(error)) throw error;
+    const fallback = await resolveMultiSeasonFranchiseFallback(entryAnilistId);
+    if (fallback) return fallback;
+    throw error;
+  }
+};
 
 export const resolveAniListFranchise = async (
   entryAnilistId: number,

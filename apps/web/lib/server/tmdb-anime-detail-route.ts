@@ -4,9 +4,6 @@ import {
   parseTmdbAnimeRouteId,
 } from "@/lib/tmdb-anime-route-id";
 import { resolveTmdbMediaToAnilistId } from "@/lib/anime/cross-id-resolver";
-import { getAnilistIdForMedia } from "@/utils/anilist-helpers";
-import { fetchTVShowDetails } from "@/lib/server/tvshow-api";
-import { getCachedMovieDetail } from "@/lib/media-detail-cache";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
@@ -35,26 +32,15 @@ export async function resolveTmdbAnimeDetailRedirects(
   const requestedSeason = parsePositiveInt(requestSearchParams.get("season"));
   const autoplay = requestSearchParams.get("autoplay") === "true";
 
-  let anilistId = await resolveTmdbMediaToAnilistId(
+  // `/anime/tmdb-*` is the deferred-resolution route: unmapped TMDB ids land
+  // here from link-time enrichment, resolve via the cached O(1) chain, and
+  // bounce to canonical or back to TMDB. Live AniList search is
+  // intentionally gone — unmapped stays on TMDB instead of blocking.
+  const anilistId = await resolveTmdbMediaToAnilistId(
     tmdbId,
     mediaType,
     requestedSeason,
   );
-
-  if (!anilistId) {
-    try {
-      const details =
-        mediaType === "movie"
-          ? await getCachedMovieDetail(String(tmdbId))
-          : await fetchTVShowDetails(String(tmdbId));
-
-      if (details) {
-        anilistId = (await getAnilistIdForMedia(details)) ?? null;
-      }
-    } catch {
-      // Ignore errors when TMDB lookup fails
-    }
-  }
 
   // If this resolved to an AniList anime ID, redirect to canonical /anime/[anilistId]
   if (anilistId) {

@@ -41,6 +41,13 @@ const authErrorCopy: Record<string, AuthErrorCopy> = {
     detail:
       "Try signing in again, or use a different email address if the issue continues.",
   },
+  MalAccountLinked: {
+    title: "This MyAnimeList account is already linked",
+    description:
+      "That MyAnimeList profile is connected to a different NyumatFlix account.",
+    detail:
+      "Stay on this account, or sign out and use MyAnimeList if you meant to open the other one.",
+  },
   Configuration: {
     title: "Sign in is unavailable",
     description: "Authentication is not configured correctly right now.",

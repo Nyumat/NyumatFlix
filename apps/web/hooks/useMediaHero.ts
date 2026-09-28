@@ -15,6 +15,8 @@ import type { Episode, MediaItem } from "@/lib/domain/typings";
 import { isTVShow } from "@/lib/domain/typings";
 import { LegacyAnimationControls, useAnimation } from "framer-motion";
 import { stabilizeScrollTop } from "@/components/layout/route-scroll-reset";
+import { hasPlayIntent } from "@/lib/playback/detail-autoplay-href";
+import { usePlayIntentStore } from "@/lib/stores/play-intent-store";
 import { withPageTvApiPath } from "@/lib/tv-detail-catalog";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -197,11 +199,17 @@ export const useMediaHero = ({
     hlsUrl: videasyTrailerHlsUrl,
     status: videasyTrailerStatus,
     handleStreamError: handleVideasyStreamError,
-  } = useVideasyTrailerStream(imdbId, videasyEnabled);
+  } = useVideasyTrailerStream(
+    imdbId ? { kind: "stream", imdbId } : undefined,
+    videasyEnabled,
+  );
 
   const startPlayback = useCallback(() => {
     setIsPlayingTrailer(false);
     setIsPlayingVideo(true);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("nyumatflix:watch-intent"));
+    }
     onPlaybackStart?.();
   }, [onPlaybackStart]);
 
@@ -218,13 +226,23 @@ export const useMediaHero = ({
   );
 
   useLayoutEffect(() => {
-    if (searchParams.get("autoplay") !== "true" || !isWatch) return;
-    const stabilize = stabilizeScrollTop();
-    return () => stabilize.cancel();
-  }, [searchParams, isWatch]);
+    if (!isWatch) return;
+    if (searchParams.get("autoplay") === "true") {
+      const stabilize = stabilizeScrollTop();
+      return () => stabilize.cancel();
+    }
+    if (typeof window !== "undefined" && hasPlayIntent(pathname)) {
+      const stabilize = stabilizeScrollTop();
+      return () => stabilize.cancel();
+    }
+    return;
+  }, [searchParams, pathname, isWatch]);
 
   useEffect(() => {
-    const shouldAutoplay = searchParams.get("autoplay") === "true";
+    const urlAutoplay = searchParams.get("autoplay") === "true";
+    const storeIntent =
+      !urlAutoplay && typeof window !== "undefined" && hasPlayIntent(pathname);
+    const shouldAutoplay = urlAutoplay || storeIntent;
     if (!shouldAutoplay || !isWatch || autoplayHandledRef.current) return;
     if (!watchlistResolved) return;
 
@@ -236,7 +254,9 @@ export const useMediaHero = ({
 
     const stripAutoplayParam = () => {
       autoplayHandledRef.current = true;
+      usePlayIntentStore.getState().consumePlay(pathname);
       const params = new URLSearchParams(searchParams.toString());
+      if (!params.has("autoplay")) return;
       params.delete("autoplay");
       const newSearch = params.toString();
       const nextUrl = `${pathname}${newSearch ? `?${newSearch}` : ""}`;
@@ -247,6 +267,14 @@ export const useMediaHero = ({
       const isTvAutoplay = passedMediaType === "tv" && currentItem;
       const tvLocalCoords: LocalTvWatchCoords | null =
         currentItem && localTvCoords ? localTvCoords : null;
+
+      if (isTvAutoplay && !urlAutoplay && storeIntent) {
+        const pending = usePlayIntentStore.getState().target;
+        if (pending?.kind === "tv" && !pending.eligible) {
+          stripAutoplayParam();
+          return;
+        }
+      }
 
       if (
         isTvAutoplay &&

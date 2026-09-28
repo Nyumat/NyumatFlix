@@ -10,7 +10,11 @@ export type TmdbScrapeProviderId =
   | "vidsrc"
   | "2embed"
   | "vidrock"
-  | "bingr";
+  | "bingr"
+  | "vidlink"
+  | "vidnest"
+  | "kisskh"
+  | "hexa"; // scrape implemented; disabled in TMDB_SCRAPE_PROVIDER_REGISTRY
 
 export type AnimeScrapeProviderId =
   | "anizone"
@@ -24,7 +28,8 @@ export type AnimeScrapeProviderId =
   | "kyren"
   | "anikuro"
   | "animepahe"
-  | "hentaini";
+  | "hentaini"
+  | "animekai"; // scrape implemented; disabled in ANIME_SCRAPE_PROVIDER_REGISTRY
 
 export type EmbedProviderId =
   | "vidsrc"
@@ -92,7 +97,7 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
   provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
-  provider("vidlink", "VidLink", { embed: true }),
+  provider("vidlink", "VidLink", { embed: true, tmdbScrape: true }),
   provider("vidcore", "VidCore", { embed: true }),
   provider("1embed", "1Embed", { embed: true }),
   provider("vidlux", "VidLux", { embed: true }),
@@ -101,7 +106,9 @@ export const EMBED_PROVIDER_REGISTRY: ProviderDefinition[] = [
 ];
 
 /**
- * Provider order from latency bench + reliability audits. VidNest scrape removed.
+ * Provider order from latency bench + reliability audits.
+ * VidNest is late: several resolvers are slow, and tiny MP4 stubs are rejected.
+ * KissKH covers Asian movie/drama catalogs the TMDB-id providers miss.
  * VixSrc is embed-only.
  */
 export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
@@ -113,8 +120,16 @@ export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
     tmdbScrape: true,
     animeEmbed: true,
   }),
+  provider("vidlink", "VidLink", { embed: true, tmdbScrape: true }),
+  // hexa: keep scrapeHexa / hexa-cipher; omit from race until Cap/WASM egress is reliable
   provider("vidrock", "VidRock", { embed: false, tmdbScrape: true }),
   provider("bingr", "Bingr", { embed: false, tmdbScrape: true }),
+  provider("vidnest", "VidNest", {
+    embed: true,
+    tmdbScrape: true,
+    animeEmbed: true,
+  }),
+  provider("kisskh", "KissKH", { embed: false, tmdbScrape: true }),
   provider("2embed", "2Embed", { embed: true, tmdbScrape: true }),
 ];
 
@@ -128,9 +143,11 @@ export const TMDB_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
  * Embed-only (not scraped): hentaini (iframe), animepahe (VidNest animepahe route).
  * Removed from scrape: anikuro (redundant allmanga wrapper), animestream
  * (Indonesian hardsub-only, no English/softsub/dub variants).
+ * Disabled (code kept): animekai — MegaUp mirrors unreachable from current egress.
  */
 export const ANIME_SCRAPE_PROVIDER_REGISTRY: ProviderDefinition[] = [
   provider("kickassanime", "KickAssAnime", { embed: false, animeScrape: true }),
+  // animekai: keep scrapeAnimekai; omit from race until MegaUp mirrors work
   provider("anizone", "AniZone", { embed: false, animeScrape: true }),
   provider("allmanga", "AllManga", { embed: false, animeScrape: true }),
   provider("animeonsen", "AnimeOnsen", { embed: false, animeScrape: true }),

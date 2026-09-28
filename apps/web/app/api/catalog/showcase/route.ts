@@ -1,13 +1,22 @@
 import { catalogCacheHeaders } from "@/lib/http-cache";
 import { fetchCatalogShowcaseRows } from "@/lib/catalog-showcase-fetch";
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
+import { fetchAnimeShowcaseRows } from "@/lib/server/anime-showcase-fetch";
+import { withCanonicalCatalogHrefs } from "@/lib/server/catalog-canonical-hrefs";
+import { prepareCatalogRowItemsForRsc } from "@/lib/server/prepare-catalog-row-items";
 import { TMDB_WATCH_REGION } from "@/lib/constants";
 import { NextResponse } from "next/server";
 
 const MAX_EXCLUDE_IDS = 120;
 
 const parsePageKey = (value: string | null) => {
-  if (value === "movies" || value === "tv") return value;
+  if (
+    value === "movies" ||
+    value === "tv" ||
+    value === "anime-series" ||
+    value === "anime-movie"
+  ) {
+    return value;
+  }
   return null;
 };
 
@@ -29,7 +38,9 @@ export async function GET(request: Request) {
     );
   }
 
-  if (!process.env.TMDB_API_KEY) {
+  const isAnime = pageKey === "anime-series" || pageKey === "anime-movie";
+
+  if (!isAnime && !process.env.TMDB_API_KEY) {
     return NextResponse.json(
       { error: "TMDB API key is not configured" },
       { status: 500 },
@@ -37,21 +48,29 @@ export async function GET(request: Request) {
   }
 
   try {
-    const rows = await fetchCatalogShowcaseRows(
-      pageKey,
-      TMDB_WATCH_REGION,
-      parseExcludeIds(url.searchParams.get("excludeIds")),
+    if (isAnime) {
+      const rows = await fetchAnimeShowcaseRows(
+        pageKey === "anime-movie" ? "movie" : "series",
+      );
+      return NextResponse.json({ rows }, { headers: catalogCacheHeaders() });
+    }
+
+    const enriched = await withCanonicalCatalogHrefs(
+      await fetchCatalogShowcaseRows(
+        pageKey,
+        TMDB_WATCH_REGION,
+        parseExcludeIds(url.searchParams.get("excludeIds")),
+      ),
+      pageKey === "movies" ? "movie" : "tv",
+    );
+    const rows = await Promise.all(
+      enriched.map(async (row) => ({
+        ...row,
+        items: await prepareCatalogRowItemsForRsc(row.items),
+      })),
     );
 
-    return NextResponse.json(
-      {
-        rows: rows.map((row) => ({
-          ...row,
-          items: slimMediaItemsForRsc(row.items),
-        })),
-      },
-      { headers: catalogCacheHeaders() },
-    );
+    return NextResponse.json({ rows }, { headers: catalogCacheHeaders() });
   } catch (error) {
     console.error("Error in catalog showcase API route:", error);
     return NextResponse.json(

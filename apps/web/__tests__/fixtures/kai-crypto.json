@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-09-14T02:43:14.855Z",
+  "cases": [
+    {
+      "plain": "dIG98qei6A",
+      "token": "xQm9tJfLwGhz_0Eq8S_YAHYkwp-qSvLfm50W5X1nyd2NnAcpzTUWyAgck4I",
+      "matchesEncDec": true
+    },
+    {
+      "plain": "c4G-8K8",
+      "token": "xQm9tJfLwGhz_0Eq8S_YAHYkwp-qQPLfm50W5fxnyd2NnNcpzTWEyJU",
+      "matchesEncDec": true
+    },
+    {
+      "plain": "test123",
+      "token": "xQm9tJfLwGhz_0Eq8S_YAHYkwp-q6vLfm50W5eFnyd12nDopajWPyD4",
+      "matchesEncDec": true
+    },
+    {
+      "plain": "J9ThpPPzvEyh238Ry5DV",
+      "token": "xQm9tJfLwGhz_0Eq8S_YAHYkwp-qFvLfm50W5W1nyd3YnMopiTXxyB2Uw8JykK3i5jiF2ayw",
+      "matchesEncDec": true
+    }
+  ]
+}

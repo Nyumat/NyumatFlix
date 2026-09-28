@@ -64,6 +64,20 @@ describe("vdrk catalog subtitles", () => {
     ]);
   });
 
+  it("normalizes .wtt Tym URLs to .vtt", () => {
+    const [track] = parseVdrkCatalogSubtitleEntries([
+      {
+        label: "Slovak",
+        file: "https://cache.vdrk.site/v1/vtt/movie/125988/Slovak.wtt",
+      },
+    ]);
+
+    expect(track?.url).toBe(
+      "https://cache.vdrk.site/v1/vtt/movie/125988/Slovak.vtt",
+    );
+    expect(track?.format).toBe("vtt");
+  });
+
   it("returns empty arrays for invalid payloads", () => {
     expect(parseVdrkCatalogSubtitleEntries(null)).toEqual([]);
     expect(parseVdrkCatalogSubtitleEntries({})).toEqual([]);

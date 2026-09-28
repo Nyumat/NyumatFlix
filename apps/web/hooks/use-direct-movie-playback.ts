@@ -7,6 +7,11 @@ import {
   fetchDirectTvStreams,
 } from "@/lib/direct/client-streams";
 import { mergeDirectStreams } from "@/lib/direct/merge-direct-streams";
+import { decideDirectExhaustion } from "@/lib/direct/playbackFailure";
+import {
+  DIRECT_UNAVAILABLE_MESSAGE,
+  isBrowserDirectNetworkFailure,
+} from "@/lib/direct/upstream-unavailable";
 import { prefetchDirectPlayback } from "@/lib/direct/prefetch-playback";
 import {
   buildDirectMediaKey,
@@ -25,13 +30,15 @@ import {
 } from "@calluspirates/shared";
 import type { DirectPlaybackStatus, DirectStream } from "@nyumatflix/playback";
 
+export type DirectStreamsFailedReason = "unavailable" | "empty" | "playback";
+
 export type UseDirectPlaybackOptions = {
   tmdbId: number;
   mediaType: "movie" | "tv";
   seasonNumber?: number;
   episodeNumber?: number;
   enabled: boolean;
-  onAllStreamsFailed?: () => void;
+  onAllStreamsFailed?: (reason: DirectStreamsFailedReason) => void;
 };
 
 function buildMediaKey(input: {
@@ -65,6 +72,7 @@ export function useDirectPlayback({
   const statusRef = useRef(status);
   const rankedStreamsRef = useRef(rankedStreams);
   const freshRetryRef = useRef(false);
+  const freshPlaybackStartedRef = useRef(false);
   rankedStreamsRef.current = rankedStreams;
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const prefetchedStreamRef = useRef<string | null>(null);
@@ -80,6 +88,7 @@ export function useDirectPlayback({
     unsubscribeRef.current = null;
     mediaKeyRef.current = null;
     freshRetryRef.current = false;
+    freshPlaybackStartedRef.current = false;
     prefetchedStreamRef.current = null;
     setStatus("idle");
     setError(null);
@@ -126,6 +135,9 @@ export function useDirectPlayback({
         canStartPlayback &&
         (options?.forcePlaying || statusRef.current === "loading")
       ) {
+        if (freshRetryRef.current) {
+          freshPlaybackStartedRef.current = true;
+        }
         setStatus("playing");
         if (bestIndex >= 0) {
           setStreamIndex(bestIndex);
@@ -259,7 +271,7 @@ export function useDirectPlayback({
               }
               setStatus("error");
               setError(payload.message ?? "No streams found");
-              onAllStreamsFailedRef.current?.();
+              onAllStreamsFailedRef.current?.("empty");
               return;
             }
             applyRankedStreams(ranked, { forcePlaying: true });
@@ -272,9 +284,14 @@ export function useDirectPlayback({
             if (statusRef.current === "playing") {
               return;
             }
+            const unavailable =
+              message === DIRECT_UNAVAILABLE_MESSAGE ||
+              isBrowserDirectNetworkFailure(new Error(message));
             setStatus("error");
-            setError(message);
-            onAllStreamsFailedRef.current?.();
+            setError(unavailable ? DIRECT_UNAVAILABLE_MESSAGE : message);
+            onAllStreamsFailedRef.current?.(
+              unavailable ? "unavailable" : "empty",
+            );
           },
         },
       );
@@ -398,20 +415,29 @@ export function useDirectPlayback({
   }, [maybePrefetch, refreshMoreStreamsInBackground]);
 
   const handlePlaybackExhausted = useCallback(() => {
-    if (!freshRetryRef.current) {
+    const decision = decideDirectExhaustion({
+      freshRetryStarted: freshRetryRef.current,
+      freshPlaybackStarted: freshPlaybackStartedRef.current,
+    });
+    if (decision === "wait") {
+      return;
+    }
+    if (decision === "reload") {
       freshRetryRef.current = true;
+      freshPlaybackStartedRef.current = false;
       mediaKeyRef.current = null;
       void loadStreams({ fresh: true });
       return;
     }
     setStatus("error");
     setError("All direct streams failed playback");
-    onAllStreamsFailedRef.current?.();
+    onAllStreamsFailedRef.current?.("playback");
   }, [loadStreams]);
 
   const retryAll = useCallback(() => {
     mediaKeyRef.current = null;
     freshRetryRef.current = false;
+    freshPlaybackStartedRef.current = false;
     void loadStreams({ fresh: true });
   }, [loadStreams]);
 
@@ -450,7 +476,7 @@ export type UseDirectPlaybackReturn = ReturnType<typeof useDirectPlayback>;
 export type UseDirectMoviePlaybackOptions = {
   tmdbId: number;
   enabled: boolean;
-  onAllStreamsFailed?: () => void;
+  onAllStreamsFailed?: (reason: DirectStreamsFailedReason) => void;
 };
 
 export function useDirectMoviePlayback({

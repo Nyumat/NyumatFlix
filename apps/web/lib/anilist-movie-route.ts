@@ -4,6 +4,14 @@ import { getCachedAnilistTvMedia } from "@/lib/anilist-tv-detail";
 import { fetchIdsMoeMappingByAniListId } from "@/lib/ids-moe";
 import { getTmdbIdFromFribb } from "@/lib/fribb-mapping";
 
+/** Local Fribb movie mapping. Used on the detail redirect hot path. */
+export const resolveAnilistMovieTmdbRouteFromFribb = async (
+  anilistId: number,
+): Promise<number | null> => {
+  const fribbMapping = await getTmdbIdFromFribb(anilistId, "MOVIE");
+  return fribbMapping?.type === "movie" ? fribbMapping.id : null;
+};
+
 export const resolveAnilistMovieTmdbRoute = async (
   anilistId: number,
 ): Promise<number | null> => {
@@ -12,9 +20,9 @@ export const resolveAnilistMovieTmdbRoute = async (
     return null;
   }
 
-  const fribbMapping = await getTmdbIdFromFribb(anilistId, "MOVIE");
-  if (fribbMapping?.type === "movie") {
-    return fribbMapping.id;
+  const fribbMovieId = await resolveAnilistMovieTmdbRouteFromFribb(anilistId);
+  if (fribbMovieId) {
+    return fribbMovieId;
   }
 
   const idsMoeMapping = await fetchIdsMoeMappingByAniListId(anilistId);

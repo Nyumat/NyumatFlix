@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   animeSeasonNumberForEpisode,
+  buildEpisodesFromMappingSegments,
   buildUnknownEpisodeCountSegment,
   episodeListPresentation,
   findSegmentForEpisode,
@@ -90,6 +91,38 @@ describe("tmdb-anilist-map", () => {
     });
   });
 
+  it("clamps open-ended segments to the TMDB episode ceiling", () => {
+    const segmentsWithOpenTail = [
+      { startEpisode: 1, endEpisode: 12, anilistMediaId: 100 },
+      { startEpisode: 13, endEpisode: 24, anilistMediaId: 200 },
+      {
+        startEpisode: 25,
+        endEpisode: Number.MAX_SAFE_INTEGER,
+        anilistMediaId: 300,
+      },
+    ];
+
+    const episodes = buildEpisodesFromMappingSegments(segmentsWithOpenTail, {
+      maxEpisodeNumber: 30,
+    });
+
+    expect(episodes).toHaveLength(30);
+    expect(episodes[episodes.length - 1]?.episode_number).toBe(30);
+    expect(episodes[episodes.length - 1]?.sourceEpisodeNumber).toBe(6);
+  });
+
+  it("caps runaway episode lists even without a TMDB ceiling", () => {
+    const episodes = buildEpisodesFromMappingSegments([
+      {
+        startEpisode: 1,
+        endEpisode: Number.MAX_SAFE_INTEGER,
+        anilistMediaId: 300,
+      },
+    ]);
+
+    expect(episodes.length).toBeLessThanOrEqual(10_000);
+  });
+
   it("keeps the TMDB season picker when a split-cour season sits among multiple seasons", () => {
     expect(
       episodeListPresentation({ tmdbSeasonCount: 4, segmentCount: 2 }),
@@ -119,5 +152,20 @@ describe("tmdb-anilist-map", () => {
     expect(
       formatCourSelectLabel(segments[1], 1, { besideTmdbSeasons: false }),
     ).toBe("Season 2");
+  });
+
+  it("omits the episode count for open-ended cour segments", () => {
+    const openEnded = {
+      startEpisode: 49,
+      endEpisode: Number.MAX_SAFE_INTEGER,
+      anilistMediaId: 300,
+    };
+
+    expect(
+      formatCourSelectLabel(openEnded, 4, { besideTmdbSeasons: true }),
+    ).toBe("Part 5");
+    expect(
+      formatCourSelectLabel(openEnded, 4, { besideTmdbSeasons: false }),
+    ).toBe("Season 5");
   });
 });

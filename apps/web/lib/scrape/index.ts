@@ -4,6 +4,9 @@ import { scrapeVidKing } from "./providers/vidking";
 import { scrapeVidSrc } from "./providers/vidsrc";
 import { scrapeVidrock } from "./providers/vidrock";
 import { scrapeBingr } from "./providers/bingr";
+import { scrapeVidlink } from "./providers/vidlink";
+import { scrapeVidNest } from "./providers/vidnest";
+import { scrapeKisskh } from "./providers/kisskh";
 import { scrapeDirect } from "./providers/direct";
 import { scrapeXPass } from "./providers/xpass";
 import { attachHlsTrackCapabilities } from "./hls-track-capabilities";
@@ -17,10 +20,9 @@ import {
   isVidnestClientOnlyCdn,
 } from "./vidnest-shared";
 
-const SCRAPERS: Record<
-  ScrapeProviderId,
-  (input: ScrapeMediaInput) => Promise<ScrapeResult>
-> = {
+type TmdbScraper = (input: ScrapeMediaInput) => Promise<ScrapeResult>;
+
+const SCRAPERS: Record<Exclude<ScrapeProviderId, "hexa">, TmdbScraper> = {
   direct: scrapeDirect,
   videasy: scrapeVideasy,
   vidking: scrapeVidKing,
@@ -28,6 +30,19 @@ const SCRAPERS: Record<
   "2embed": scrapeXPass,
   vidrock: scrapeVidrock,
   bingr: scrapeBingr,
+  vidlink: scrapeVidlink,
+  vidnest: scrapeVidNest,
+  kisskh: scrapeKisskh,
+};
+
+const resolveScraper = async (
+  providerId: ScrapeProviderId,
+): Promise<TmdbScraper> => {
+  if (providerId === "hexa") {
+    const { scrapeHexa } = await import("./providers/hexa");
+    return scrapeHexa;
+  }
+  return SCRAPERS[providerId];
 };
 
 const inferTmdbStreamKind = (streamUrl: string): StreamKind => {
@@ -53,7 +68,7 @@ export async function scrapeProvider(
   providerId: ScrapeProviderId,
   input: ScrapeMediaInput,
 ): Promise<ScrapeResult> {
-  const scraper = SCRAPERS[providerId];
+  const scraper = await resolveScraper(providerId);
   const result = await scraper(input);
 
   if (!result.ok) {

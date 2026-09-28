@@ -22,7 +22,7 @@ export default async function WatchlistPage() {
     redirect(loginHref("/watchlist"));
   }
 
-  const watchlistItems = await getUserWatchlist(session.user.id);
+  const watchlistItems = await getUserWatchlist();
 
   return (
     <div className="flex min-h-dvh w-full flex-col">

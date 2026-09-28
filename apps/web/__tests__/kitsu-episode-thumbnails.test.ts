@@ -31,6 +31,23 @@ describe("kitsu episode thumbnails", () => {
     });
   });
 
+  it("returns null when no canonical title matches exactly", () => {
+    const results = [
+      { id: 3541, canonicalTitle: "Koihime†Musou" },
+      {
+        id: 6663,
+        canonicalTitle: "Mahou Shoujo Lyrical Nanoha: Lyrical Toy Box",
+      },
+    ];
+
+    expect(
+      pickKitsuAnimeFromSearch(results, {
+        romaji: "Eroge! H mo Game mo Kaihatsu Zanmai",
+        english: "Eroge! Sex and Gamedev",
+      }),
+    ).toBeNull();
+  });
+
   it("builds episode-number keyed thumbnail maps", () => {
     expect(
       buildKitsuEpisodeThumbnailMap([

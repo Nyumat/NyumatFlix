@@ -1,10 +1,7 @@
 import type { NextRequest } from "next/server";
+import { isFfsHost } from "@/lib/ffs/ffs-host-paths";
 
-export function isFfsHost(host: string | null): boolean {
-  if (!host) return false;
-  const hostname = host.split(":")[0]?.toLowerCase() ?? "";
-  return hostname.startsWith("ffs.");
-}
+export { isFfsHost } from "@/lib/ffs/ffs-host-paths";
 
 export function assertFfsHost(request: NextRequest): boolean {
   if (

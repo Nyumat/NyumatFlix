@@ -58,6 +58,8 @@ const runWithOptionalLock = (lockName: string, task: () => void): void => {
   task();
 };
 
+export const PLAYBACK_REWIND_TOLERANCE_SECONDS = 60;
+
 export const mergePlaybackProgressEntry = (
   current: PlaybackProgressEntry | undefined,
   incoming: Omit<PlaybackProgressEntry, "updatedAt">,
@@ -67,15 +69,18 @@ export const mergePlaybackProgressEntry = (
     return { ...incoming, updatedAt };
   }
 
-  if (updatedAt >= current.updatedAt) {
+  const isRewind =
+    incoming.watched < current.watched - PLAYBACK_REWIND_TOLERANCE_SECONDS;
+
+  if (updatedAt >= current.updatedAt && isRewind) {
     return { ...incoming, updatedAt };
   }
 
-  if (incoming.watched > current.watched) {
+  if (updatedAt >= current.updatedAt || incoming.watched > current.watched) {
     return {
-      watched: incoming.watched,
+      watched: Math.max(incoming.watched, current.watched),
       duration: Math.max(current.duration, incoming.duration),
-      updatedAt: current.updatedAt,
+      updatedAt: Math.max(current.updatedAt, updatedAt),
     };
   }
 

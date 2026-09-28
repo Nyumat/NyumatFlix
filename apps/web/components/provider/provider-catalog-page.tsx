@@ -5,69 +5,19 @@ import { PageContainer } from "@/components/layout/page-container";
 import { ProviderLogoMark } from "@/components/provider/provider-logo-mark";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { cn } from "@/lib/utils";
-import type { WatchProviderBrand } from "@/lib/watch-providers";
 import {
-  getTodayIsoDateUtc,
-  filterReleasedMovies,
-  filterReleasedTvShows,
-} from "@/lib/released-media";
-import { TMDB_WATCH_REGION } from "@/lib/constants";
-import { slimMediaItemsForRsc } from "@/lib/cards/catalog-dto";
-import type { MediaItem } from "@/lib/domain/typings";
-import { tmdb } from "@/tmdb/api";
+  getProviderDiscoverQueryParams,
+  type WatchProviderBrand,
+} from "@/lib/watch-providers";
+import {
+  getProviderCatalog,
+  type ProviderCatalogData,
+  type ProviderMediaType,
+} from "@/lib/server/provider-catalog-data";
 import Link from "next/link";
 
-type ProviderMediaType = "movie" | "tv";
-
-export type ProviderCatalogData = {
-  items: MediaItem[];
-  currentPage: number;
-  totalPages: number;
-};
-
-export async function getProviderCatalog(
-  providerId: number,
-  mediaType: ProviderMediaType,
-): Promise<ProviderCatalogData> {
-  const provider = String(providerId);
-  const today = getTodayIsoDateUtc();
-
-  if (mediaType === "movie") {
-    const response = await tmdb.discover.movie({
-      watch_region: TMDB_WATCH_REGION,
-      with_watch_providers: provider,
-      page: "1",
-      sort_by: "popularity.desc",
-      "primary_release_date.lte": today,
-    });
-    const movies = filterReleasedMovies(response.results ?? []);
-
-    return {
-      items: slimMediaItemsForRsc(
-        movies.map((movie) => ({ ...movie, media_type: "movie" as const })),
-      ),
-      currentPage: response.page,
-      totalPages: response.total_pages,
-    };
-  }
-
-  const response = await tmdb.discover.tv({
-    watch_region: TMDB_WATCH_REGION,
-    with_watch_providers: provider,
-    page: "1",
-    sort_by: "popularity.desc",
-    "first_air_date.lte": today,
-  });
-  const shows = filterReleasedTvShows(response.results ?? []);
-
-  return {
-    items: slimMediaItemsForRsc(
-      shows.map((show) => ({ ...show, media_type: "tv" as const })),
-    ),
-    currentPage: response.page,
-    totalPages: response.total_pages,
-  };
-}
+export type { ProviderCatalogData };
+export { getProviderCatalog };
 
 const providerTypeHref = (providerId: number, mediaType: ProviderMediaType) =>
   `/providers/${providerId}?type=${mediaType}`;
@@ -152,9 +102,7 @@ export function ProviderCatalogPage({
                   initialItems={catalog.items}
                   initialPage={catalog.currentPage}
                   totalPages={catalog.totalPages}
-                  queryParams={{
-                    with_watch_providers: String(provider.id),
-                  }}
+                  queryParams={getProviderDiscoverQueryParams(provider)}
                   showViewModeControls={false}
                 />
               ) : (

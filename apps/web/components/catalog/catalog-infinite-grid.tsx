@@ -2,9 +2,11 @@
 
 import { fetchCatalogNextPage } from "@/app/actions/fetch-catalog-next-page";
 import { MediaContentGrid } from "@/components/content/media-content-grid";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
-import { filterWithPosterPath } from "@/lib/media-poster-path";
+import {
+  filterCatalogCardArt,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
 import { useScrollFetchLock } from "@/hooks/use-scroll-fetch-lock";
 import type { MediaItem } from "@/lib/domain/typings";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -56,8 +58,12 @@ const CatalogInfiniteGridBody = ({
   queryParams,
   showViewModeControls = true,
 }: CatalogInfiniteGridProps) => {
+  const catalogCardStyle = useCatalogCardStyle();
+  const filterArt = (list: MediaItem[]) =>
+    filterCatalogCardArt(list, catalogCardStyle);
+
   const [store, setStore] = useState<CatalogEntityStore>(() =>
-    buildCatalogEntityStore(filterWithPosterPath(initialItems), mediaType),
+    buildCatalogEntityStore(filterArt(initialItems), mediaType),
   );
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [isLoading, setIsLoading] = useState(false);
@@ -91,9 +97,7 @@ const CatalogInfiniteGridBody = ({
         return;
       }
 
-      const raw = filterWithPosterPath(
-        (data.results ?? []) as unknown as MediaItem[],
-      );
+      const raw = filterArt((data.results ?? []) as unknown as MediaItem[]);
 
       setStore((prev) => {
         const nextMap = new Map(prev.entityMap);
@@ -138,7 +142,7 @@ const CatalogInfiniteGridBody = ({
           void fetchNextPage();
         }
       },
-      { rootMargin: "200px" },
+      { rootMargin: "600px" },
     );
 
     const node = sentinelRef.current;
@@ -162,16 +166,13 @@ const CatalogInfiniteGridBody = ({
         hideViewModeControlsOnMobile
         gridColumns="auto"
         showDock={false}
+        trailingGridSkeletonCount={
+          isLoading && currentPage < totalPages ? 8 : 0
+        }
       />
 
       {currentPage < totalPages ? (
         <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
-      ) : null}
-
-      {isLoading ? (
-        <div className="flex justify-center py-6">
-          <LoadingSpinner text="Loading more..." />
-        </div>
       ) : null}
 
       {currentPage >= totalPages && items.length > 0 ? (

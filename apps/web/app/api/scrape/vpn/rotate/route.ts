@@ -7,8 +7,6 @@ import {
   rotateScrapeVpnEgress,
 } from "@/lib/scrape/vpn-rotate";
 
-export const dynamic = "force-dynamic";
-
 const rotateBodySchema = z.object({
   countries: z.array(z.string().min(1)).optional(),
 });

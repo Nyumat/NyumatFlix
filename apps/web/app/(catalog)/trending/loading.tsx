@@ -1,5 +1,5 @@
-import { TrendingHubLoading } from "@/components/layout/page-loading/trending-hub-loading";
+import { TrendingIndexHubLoading } from "@/components/layout/page-loading/catalog-hub-loading";
 
 export default function TrendingLoading() {
-  return <TrendingHubLoading />;
+  return <TrendingIndexHubLoading />;
 }

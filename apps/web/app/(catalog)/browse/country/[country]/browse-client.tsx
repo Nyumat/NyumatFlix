@@ -70,7 +70,7 @@ export default function BrowseCountryClient({
           void fetchNextPage();
         }
       },
-      { rootMargin: "200px" },
+      { rootMargin: "600px" },
     );
 
     const node = sentinelRef.current;

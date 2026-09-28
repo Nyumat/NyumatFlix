@@ -1,7 +1,5 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
-
 import {
   getAniBridgeMappings,
   resolveAniBridgePlaybackCoords,
@@ -11,6 +9,7 @@ import {
   resolveAnilistSeasonChainForTmdbShow,
 } from "@/lib/anilist-franchise";
 import { isPlaceholderEpisodeName } from "@/lib/anime/episode-thumbnail-url";
+import { applyDataRevalidateCacheLife } from "@/lib/server/route-cache-life";
 
 const KITSU_API = "https://kitsu.io/api/edge";
 const KITSU_FETCH_TIMEOUT_MS = 12_000;
@@ -93,7 +92,10 @@ export const pickKitsuAnimeFromSearch = (
     if (exact) return exact;
   }
 
-  return results[0] ?? null;
+  // Never fall back to the first search hit: fuzzy Kitsu results can belong
+  // to an unrelated show (e.g. "Koihime Musou" for "Eroge! H mo Game mo
+  // Kaihatsu Zanmai"), which grafts the wrong episode titles onto the page.
+  return null;
 };
 
 const searchKitsuAnime = async (
@@ -296,23 +298,29 @@ const loadKitsuFirstEpisodeThumbnail = async (
   return firstWithThumb?.thumbnailUrl ?? null;
 };
 
-export const getKitsuCoverImageForAnilist = unstable_cache(
-  loadKitsuCoverImage,
-  ["kitsu-cover-image-v1"],
-  { revalidate: 60 * 60 * 24 },
-);
+export async function getKitsuCoverImageForAnilist(
+  anilistId: number,
+): Promise<string | null> {
+  "use cache";
+  applyDataRevalidateCacheLife(60 * 60 * 24);
+  return loadKitsuCoverImage(anilistId);
+}
 
-export const getKitsuFirstEpisodeThumbnailForAnilist = unstable_cache(
-  loadKitsuFirstEpisodeThumbnail,
-  ["kitsu-first-episode-thumbnail-v1"],
-  { revalidate: 60 * 60 * 24 },
-);
+export async function getKitsuFirstEpisodeThumbnailForAnilist(
+  anilistId: number,
+): Promise<string | null> {
+  "use cache";
+  applyDataRevalidateCacheLife(60 * 60 * 24);
+  return loadKitsuFirstEpisodeThumbnail(anilistId);
+}
 
-export const getKitsuEpisodeAssets = unstable_cache(
-  loadKitsuEpisodeAssets,
-  ["kitsu-episode-assets-v1"],
-  { revalidate: 60 * 60 * 24 },
-);
+export async function getKitsuEpisodeAssets(
+  anilistId: number,
+): Promise<KitsuEpisodeAssets> {
+  "use cache";
+  applyDataRevalidateCacheLife(60 * 60 * 24);
+  return loadKitsuEpisodeAssets(anilistId);
+}
 
 export const getKitsuEpisodeThumbnails = async (
   anilistId: number,

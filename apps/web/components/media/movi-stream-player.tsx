@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { AmbientGlowLayer } from "@/components/media/ambient-glow-layer";
+import { PlayerSurface } from "@/components/media/player-surface";
 import { useMoviPlaybackTrackPreferences } from "@/hooks/use-movi-playback-track-preferences";
 import { usePlaybackProgress } from "@/hooks/use-playback-progress";
 import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
@@ -20,11 +22,20 @@ import {
 } from "@/lib/player/player-playback-ready";
 import { pickMoviTrackPrefs } from "@nyumatflix/playback";
 import { createMediaReadyHandler } from "@/lib/playback/media-ready";
-import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
+import {
+  progressStorageKey,
+  type PlaybackProgressKey,
+} from "@/lib/playback/progress-storage";
+import {
+  readLivePlayhead,
+  rememberLivePlayhead,
+  sourceSwitchStartPosition,
+} from "@/lib/playback/source-switch-resume";
 import {
   registerPlaybackProgressFlush,
   unregisterPlaybackProgressFlush,
 } from "@/lib/playback/progress-flush";
+import { cn } from "@/lib/utils";
 
 type MoviStreamPlayerProps = {
   src: string;
@@ -75,6 +86,10 @@ function MoviStreamPlayerInstance({
 }: MoviStreamPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<MoviPlayerElement | null>(null);
+  const getVideoElement = useCallback(() => {
+    const host = playerRef.current;
+    return host ? getMoviVideoElement(host) : null;
+  }, []);
   const [player, setPlayer] = useState<MoviPlayerElement | null>(null);
   const onErrorRef = useRef(onError);
   const onMediaReadyRef = useRef(onMediaReady);
@@ -90,6 +105,9 @@ function MoviStreamPlayerInstance({
   const playbackEnglishSubtitles = useAppSettingsStore(
     (state) => state.playbackEnglishSubtitles,
   );
+  const playheadKey = progressStorageKey(progressKey);
+  const playheadKeyRef = useRef(playheadKey);
+  playheadKeyRef.current = playheadKey;
   const resumeTimeRef = useRef(resumeTime);
   const persistRef = useRef(persist);
   const persistImmediateRef = useRef(persistImmediate);
@@ -238,6 +256,7 @@ function MoviStreamPlayerInstance({
           }
           if (currentTime > 0) {
             markMediaReady();
+            rememberLivePlayhead(playheadKeyRef.current, currentTime);
           }
           persistRef.current(currentTime, el.duration);
         });
@@ -246,7 +265,10 @@ function MoviStreamPlayerInstance({
           if (video && isMoviVideoPlaybackReady(video)) {
             markMediaReady();
           }
-          const resumeAt = resumeTimeRef.current;
+          const resumeAt = sourceSwitchStartPosition(
+            resumeTimeRef.current,
+            readLivePlayhead(playheadKeyRef.current),
+          );
           if (resumedRef.current || resumeAt <= 0) {
             return;
           }
@@ -315,7 +337,12 @@ function MoviStreamPlayerInstance({
     return () => unregisterPlaybackProgressFlush(flush);
   }, [src, progressKey]);
 
-  return <div ref={containerRef} className={className ?? "h-full w-full"} />;
+  return (
+    <div className={cn("relative h-full w-full", className)}>
+      <AmbientGlowLayer getVideo={getVideoElement} />
+      <PlayerSurface ref={containerRef} />
+    </div>
+  );
 }
 
 export function MoviStreamPlayer(props: MoviStreamPlayerProps) {

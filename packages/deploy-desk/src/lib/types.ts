@@ -18,6 +18,11 @@ export type ServiceRow = {
   image: string;
 };
 
+export type GitChange = {
+  mark: string;
+  path: string;
+};
+
 export type GitMeta = {
   branch: string;
   sha: string;
@@ -27,6 +32,7 @@ export type GitMeta = {
   dirty: boolean;
   diffStat: string;
   changedFiles: number;
+  changes: GitChange[];
   fingerprint: string;
 };
 
@@ -35,7 +41,13 @@ export type JobKind =
   | "rollback"
   | "preview-build"
   | "preview-start"
-  | "preview-stop";
+  | "preview-stop"
+  | "migrate"
+  | "sync-env"
+  | "restart"
+  | "infra-status";
+
+export type ProdOp = "migrate" | "sync-env" | "restart" | "infra-status";
 
 export type JobStatus = "queued" | "running" | "succeeded" | "failed";
 

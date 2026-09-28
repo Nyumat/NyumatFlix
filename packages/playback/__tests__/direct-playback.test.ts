@@ -82,7 +82,7 @@ describe("direct-playback", () => {
     }
   });
 
-  it("prefers client movi decode for lighter extended mkv when WebCodecs is available", () => {
+  it("prefers vidstack transcode for lighter extended mkv by default", () => {
     const previous = globalThis.VideoDecoder;
     // @ts-expect-error test shim
     globalThis.VideoDecoder = class VideoDecoder {};
@@ -92,6 +92,19 @@ describe("direct-playback", () => {
           "extended",
           "/api/direct/transcode/playlist?u=upstream",
           "/api/direct/media?u=https%3A%2F%2Fcdn%2Fshow.1080p.WEB-DL.x265.mkv",
+        ),
+      ).toBe("vidstack-hls");
+      expect(
+        selectDirectPlaybackEngine(
+          "extended",
+          "/api/direct/transcode/playlist?u=upstream",
+          "/api/direct/media?u=https%3A%2F%2Fcdn%2Fshow.1080p.WEB-DL.x265.mkv",
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { userPlayerEngine: "movi" },
         ),
       ).toBe("movi");
     } finally {

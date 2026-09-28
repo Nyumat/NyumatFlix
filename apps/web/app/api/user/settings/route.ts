@@ -1,10 +1,15 @@
 import { auth } from "@/auth";
+import { isAmbientGlowEnabled } from "@/lib/flags/ambient-glow-enabled";
+import { getSiteFlags } from "@/lib/flags/site-flags-server";
 import {
   getDefaultUserSettingsWire,
   getUserSettings,
   upsertUserSettings,
 } from "@/lib/server/user-settings";
-import type { UserSettingsPatch } from "@/lib/user/user-settings-types";
+import type {
+  UserSettingsPatch,
+  UserSettingsWire,
+} from "@/lib/user/user-settings-types";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -15,6 +20,8 @@ const patchSchema = z
     playbackEnglishSubtitles: z.boolean().optional(),
     disableHoverSound: z.boolean().optional(),
     disableHeroTrailers: z.boolean().optional(),
+    ambientGlow: z.boolean().optional(),
+    catalogCardStyle: z.enum(["poster", "backdrop"]).optional(),
     selectedServerId: z.string().nullable().optional(),
     userSelectedPlaybackServer: z.boolean().optional(),
     policyGenerationAtChoice: z.string().nullable().optional(),
@@ -28,14 +35,29 @@ const patchSchema = z
     message: "At least one field is required",
   });
 
+const maskAmbientGlowWhenDisabled = async (
+  settings: UserSettingsWire,
+): Promise<UserSettingsWire> => {
+  const flags = await getSiteFlags();
+  if (!isAmbientGlowEnabled(flags)) {
+    return { ...settings, ambientGlow: false };
+  }
+  return settings;
+};
+
 export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ settings: getDefaultUserSettingsWire() });
+      const settings = await maskAmbientGlowWhenDisabled(
+        getDefaultUserSettingsWire(),
+      );
+      return NextResponse.json({ settings });
     }
 
-    const settings = await getUserSettings(session.user.id);
+    const settings = await maskAmbientGlowWhenDisabled(
+      await getUserSettings(session.user.id),
+    );
     return NextResponse.json({ settings });
   } catch (error) {
     console.error("Error loading user settings:", error);
@@ -55,7 +77,13 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
     const validated = patchSchema.parse(body) as UserSettingsPatch;
-    const settings = await upsertUserSettings(session.user.id, validated);
+    const flags = await getSiteFlags();
+    const patch = isAmbientGlowEnabled(flags)
+      ? validated
+      : (({ ambientGlow: _ignored, ...rest }) => rest)(validated);
+    const settings = await maskAmbientGlowWhenDisabled(
+      await upsertUserSettings(session.user.id, patch),
+    );
     return NextResponse.json({ settings });
   } catch (error) {
     if (error instanceof z.ZodError) {

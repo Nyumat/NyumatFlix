@@ -60,15 +60,13 @@ export function SortableProviderList({
     <div className="space-y-2">
       {sectionLabel ? (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
-            {sectionLabel}
-          </p>
+          <p className="text-xs font-medium text-foreground">{sectionLabel}</p>
           {sectionHint ? (
-            <p className="text-[11px] text-white/45">{sectionHint}</p>
+            <p className="text-[11px] text-muted-foreground">{sectionHint}</p>
           ) : null}
         </div>
       ) : null}
-      <ul className="space-y-1">
+      <ul className="divide-y divide-border rounded-md border border-border">
         {items.map((item, index) => (
           <li
             key={item.id}
@@ -99,24 +97,22 @@ export function SortableProviderList({
               setDropTargetId(null);
             }}
             className={cn(
-              "flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2 py-2 transition-colors",
+              "flex items-center gap-2 px-2 py-1.5 transition-colors duration-150 motion-reduce:transition-none hover:bg-muted/40",
               !item.enabled && "opacity-50",
-              draggingId === item.id && "opacity-40",
+              draggingId === item.id && "bg-muted/60 shadow-sm",
               dropTargetId === item.id &&
                 draggingId !== item.id &&
-                "border-primary/50 bg-primary/10",
+                "bg-muted/30",
             )}
           >
             <GripVertical
-              className="size-4 shrink-0 cursor-grab text-white/35 active:cursor-grabbing"
+              className="size-3.5 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing"
               aria-hidden
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">
-                {item.label}
-              </p>
+              <p className="truncate text-sm text-foreground">{item.label}</p>
               {item.hint ? (
-                <p className="truncate text-[11px] text-white/45">
+                <p className="truncate font-mono text-[11px] text-muted-foreground">
                   {item.hint}
                 </p>
               ) : null}
@@ -127,7 +123,7 @@ export function SortableProviderList({
                 aria-label={`Move ${item.label} up`}
                 disabled={index === 0}
                 onClick={() => handleMove(index, index - 1)}
-                className="rounded p-0.5 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-30"
+                className="rounded p-0.5 text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground disabled:opacity-30 motion-reduce:transition-none"
               >
                 <ChevronUp className="size-3.5" />
               </button>
@@ -136,7 +132,7 @@ export function SortableProviderList({
                 aria-label={`Move ${item.label} down`}
                 disabled={index === items.length - 1}
                 onClick={() => handleMove(index, index + 1)}
-                className="rounded p-0.5 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-30"
+                className="rounded p-0.5 text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground disabled:opacity-30 motion-reduce:transition-none"
               >
                 <ChevronDown className="size-3.5" />
               </button>

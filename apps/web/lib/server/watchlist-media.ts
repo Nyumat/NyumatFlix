@@ -9,6 +9,7 @@ import {
 import { MediaItemSchema, type MediaItem } from "@/lib/domain/typings";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { runInChunks } from "@/lib/server/chunked-parallel";
+import { enrichLocalizedCatalogBackdrops } from "@/lib/server/enrich-catalog-backdrops";
 import { shouldPreferAnilistWatchlistMedia } from "@/lib/watchlist/anilist-watchlist-id";
 import { isAnime } from "@/utils/anilist-helpers";
 import { tmdb } from "@/tmdb/api";
@@ -172,6 +173,27 @@ async function attachSourceAnilistIdForTmdbTvItem(
   return item;
 }
 
+async function withLocalizedWatchlistBackdrop(
+  item: WatchlistMediaItem,
+  tmdbId: number,
+): Promise<WatchlistMediaItem> {
+  const [enriched] = await enrichLocalizedCatalogBackdrops([
+    {
+      id: tmdbId,
+      media_type: item.media_type,
+      backdrop_path: item.backdrop_path,
+    },
+  ]);
+  if (
+    !enriched?.backdrop_path ||
+    enriched.backdrop_path === item.backdrop_path
+  ) {
+    return item;
+  }
+
+  return { ...item, backdrop_path: enriched.backdrop_path };
+}
+
 function parseTmdbWatchlistMediaItem(
   data: unknown,
   item: WatchlistItem,
@@ -251,16 +273,19 @@ async function fetchTvWatchlistMediaDetail(
         });
         const mappedItem = parseTmdbWatchlistMediaItem(mappedTmdbData, item);
         if (mappedItem) {
-          return {
-            ...anilistItem,
-            poster_path: mappedItem.poster_path ?? anilistItem.poster_path,
-            backdrop_path:
-              mappedItem.backdrop_path ?? anilistItem.backdrop_path,
-            vote_average:
-              mappedItem.vote_average > 0
-                ? mappedItem.vote_average
-                : anilistItem.vote_average,
-          };
+          return withLocalizedWatchlistBackdrop(
+            {
+              ...anilistItem,
+              poster_path: mappedItem.poster_path ?? anilistItem.poster_path,
+              backdrop_path:
+                mappedItem.backdrop_path ?? anilistItem.backdrop_path,
+              vote_average:
+                mappedItem.vote_average > 0
+                  ? mappedItem.vote_average
+                  : anilistItem.vote_average,
+            },
+            mappedTmdbId,
+          );
         }
       } catch {
         // Fall back to pure AniList metadata below.
@@ -273,7 +298,10 @@ async function fetchTvWatchlistMediaDetail(
   if (tmdbData) {
     const parsed = parseTmdbWatchlistMediaItem(tmdbData, item);
     if (parsed) {
-      return attachSourceAnilistIdForTmdbTvItem(parsed);
+      return withLocalizedWatchlistBackdrop(
+        await attachSourceAnilistIdForTmdbTvItem(parsed),
+        item.contentId,
+      );
     }
   }
 
@@ -294,7 +322,7 @@ const fetchWatchlistMediaDetail = cache(
       const data = await tmdb.movie.detail({ id: String(item.contentId) });
       const parsed = parseTmdbWatchlistMediaItem(data, item);
       if (parsed) {
-        return parsed;
+        return withLocalizedWatchlistBackdrop(parsed, item.contentId);
       }
     } catch (error) {
       console.error(

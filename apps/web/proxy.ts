@@ -2,6 +2,10 @@ import { isFfsHostAllowedPath } from "@/lib/ffs/ffs-host-paths";
 import { isFfsHost } from "@/lib/ffs/require-ffs-host";
 import { apiRequestGuardResponse } from "@/lib/api/request-guard";
 import { DEFAULT_FLAG_VALUES } from "@/lib/flags/flag-catalog";
+import {
+  arePasskeysEnabledFromRaw,
+  isPasskeyAuthPath,
+} from "@/lib/passkeys/passkeys-enabled";
 import { resolveSiteFlags } from "@/lib/flags/site-flags";
 import {
   getCachedRawFlagsSync,
@@ -34,7 +38,7 @@ const LEGACY_MOVIE_DETAIL_TAB_SEGMENTS = new Set([
   "similar",
 ]);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const apiGuardResponse = apiRequestGuardResponse(request);
@@ -56,12 +60,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (!getCachedRawFlagsSync()) {
-    void readAdminFlagState().catch(() => undefined);
+  let rawFlags = getCachedRawFlagsSync();
+  if (!rawFlags) {
+    if (pathname.startsWith("/live")) {
+      rawFlags = await readAdminFlagState().catch(() => null);
+    } else {
+      void readAdminFlagState().catch(() => undefined);
+    }
   }
 
-  const rawFlags = getCachedRawFlagsSync() ?? DEFAULT_FLAG_VALUES;
+  rawFlags = rawFlags ?? DEFAULT_FLAG_VALUES;
   const siteFlags = resolveSiteFlags(rawFlags);
+  const passkeysEnabled = arePasskeysEnabledFromRaw(rawFlags);
+
+  if (!passkeysEnabled && isPasskeyAuthPath(pathname)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   if (
     !ffsHost &&

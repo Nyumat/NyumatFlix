@@ -34,7 +34,7 @@ export function MalLoginButton({
         onClick={handleSignIn}
         disabled={loading}
         aria-label="Continue with MyAnimeList"
-        className="group relative flex h-12 w-full items-center justify-center rounded-xl border border-white/12 bg-white/5 px-6 py-2 transition-all duration-200 hover:border-[#2e51a2]/60 hover:bg-[#2e51a2]/15 active:scale-[0.99] disabled:opacity-60"
+        className="group relative flex h-10 w-full items-center justify-center rounded-lg border border-white/12 bg-white/5 px-6 py-2 transition-all duration-200 hover:border-[#2e51a2]/60 hover:bg-[#2e51a2]/15 active:scale-[0.99] disabled:opacity-60"
       >
         {loading ? (
           <Loader2 className="size-5 animate-spin text-zinc-400" />

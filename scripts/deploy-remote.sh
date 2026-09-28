@@ -20,6 +20,7 @@ export DOCKER_IMAGE="${DOCKER_IMAGE:-$DOCKER_REPO:$DEPLOY_SHA}"
 echo "==> NyumatFlix remote deploy (${SSH_HOST}) ${DEPLOY_SHORT_SHA}"
 
 "$ROOT/scripts/deploy.sh" bp
+ENV_FILE="$ROOT/.env.prod" "$ROOT/scripts/db-migrate-if-needed.sh"
 "$ROOT/scripts/sync-prod-env.sh" push
 
 ssh "$SSH_HOST" "$(cat <<EOF

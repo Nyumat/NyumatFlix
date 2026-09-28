@@ -11,15 +11,25 @@ export type GlobalFlagKey =
   | "global.proxy_mode_only"
   | "global.iframe_mode_only"
   | "global.static_hero_backdrops"
+  | "global.ambient_glow_enabled"
   | "global.signup_disabled"
   | "global.auth_enabled"
+  | "global.passkeys_enabled"
   | "global.no_ads_mode_default"
   | "global.default_proxy_playback"
   | "global.live_tv_enabled"
   | "global.scrape_proxy_required"
   | "global.lock_user_settings"
   | "global.announcement_banner"
-  | "global.maintenance_mode";
+  | "global.hero_backdrop_overrides"
+  | "global.maintenance_mode"
+  | "global.card_hover_previews"
+  | "global.youtube_hover_fallback"
+  | "global.adblock_prompt"
+  | "global.devtools_trap"
+  | "global.mal_sync"
+  | "global.home_top10"
+  | "global.experience_defaults";
 
 export type ProviderFlagKind = "embed" | "scrape.tmdb" | "scrape.anime";
 
@@ -28,9 +38,14 @@ export type FlagDefinition = {
   defaultValue: boolean;
   label: string;
   description?: string;
-  section: "playback" | "auth" | "power" | "providers";
+  section: "playback" | "auth" | "power" | "surfaces" | "providers";
   providerKind?: ProviderFlagKind;
   providerId?: string;
+  /**
+   * Pure metadata carrier (holds JSON in Flipt metadata, configured by a
+   * dedicated panel). Hidden from the generic toggle lists.
+   */
+  metadataOnly?: boolean;
 };
 
 export const GLOBAL_FLAG_DEFINITIONS: FlagDefinition[] = [
@@ -72,6 +87,14 @@ export const GLOBAL_FLAG_DEFINITIONS: FlagDefinition[] = [
     section: "playback",
   },
   {
+    key: "global.ambient_glow_enabled",
+    defaultValue: false,
+    label: "Ambient glow",
+    description:
+      "Allow the player ambient glow effect and the user setting to enable it.",
+    section: "playback",
+  },
+  {
     key: "global.live_tv_enabled",
     defaultValue: false,
     label: "Live TV",
@@ -90,6 +113,14 @@ export const GLOBAL_FLAG_DEFINITIONS: FlagDefinition[] = [
     defaultValue: false,
     label: "Disable signup",
     description: "Block new magic-link accounts",
+    section: "auth",
+  },
+  {
+    key: "global.passkeys_enabled",
+    defaultValue: false,
+    label: "Passkeys",
+    description:
+      "Enable passkey sign-in, enrollment, management, and WebAuthn endpoints.",
     section: "auth",
   },
   {
@@ -114,6 +145,14 @@ export const GLOBAL_FLAG_DEFINITIONS: FlagDefinition[] = [
     section: "power",
   },
   {
+    key: "global.hero_backdrop_overrides",
+    defaultValue: true,
+    label: "Hero backdrop overrides",
+    description: "Metadata carrier for per-title hero backdrop overrides",
+    section: "power",
+    metadataOnly: true,
+  },
+  {
     key: "global.maintenance_mode",
     defaultValue: false,
     label: "Maintenance mode",
@@ -121,11 +160,62 @@ export const GLOBAL_FLAG_DEFINITIONS: FlagDefinition[] = [
     section: "power",
   },
   {
+    key: "global.card_hover_previews",
+    defaultValue: true,
+    label: "Card hover previews",
+    description: "Trailer previews on catalog cards (desktop backdrop mode)",
+    section: "surfaces",
+  },
+  {
+    key: "global.youtube_hover_fallback",
+    defaultValue: true,
+    label: "YouTube hover fallback",
+    description: "Use YouTube when Videasy trailer stream is unavailable",
+    section: "surfaces",
+  },
+  {
+    key: "global.adblock_prompt",
+    defaultValue: true,
+    label: "Adblock prompt",
+    description: "Show adblock recommendation on embed playback",
+    section: "surfaces",
+  },
+  {
+    key: "global.devtools_trap",
+    defaultValue: true,
+    label: "Devtools trap",
+    description: "Block fetches when browser devtools are open (production)",
+    section: "surfaces",
+  },
+  {
+    key: "global.mal_sync",
+    defaultValue: true,
+    label: "MAL sync",
+    description: "MyAnimeList connect, sync, and list controls",
+    section: "surfaces",
+  },
+  {
+    key: "global.home_top10",
+    defaultValue: true,
+    label: "Home Top 10",
+    description: "Top 10 Today row on the home hub",
+    section: "surfaces",
+  },
+  {
+    key: "global.experience_defaults",
+    defaultValue: true,
+    label: "Experience defaults",
+    description: "Metadata carrier for site-wide preference defaults",
+    section: "power",
+    metadataOnly: true,
+  },
+  {
     key: "global.provider_menu_order",
     defaultValue: true,
     label: "Provider menu order",
     description: "Metadata carrier for server menu ordering",
     section: "power",
+    metadataOnly: true,
   },
 ];
 
@@ -166,6 +256,9 @@ export const ALL_FLAG_DEFINITIONS: FlagDefinition[] = [
 ];
 
 export const ALL_FLAG_KEYS = ALL_FLAG_DEFINITIONS.map((d) => d.key);
+
+export const PASSKEYS_FLAG_KEY = "global.passkeys_enabled";
+export const AMBIENT_GLOW_FLAG_KEY = "global.ambient_glow_enabled";
 
 export const DEFAULT_FLAG_VALUES: Record<string, boolean> = Object.fromEntries(
   ALL_FLAG_DEFINITIONS.map((d) => [d.key, d.defaultValue]),

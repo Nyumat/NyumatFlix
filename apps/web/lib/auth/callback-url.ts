@@ -5,6 +5,12 @@ const isAuthRoutePath = (value: string): boolean =>
   value.startsWith("/login/") ||
   value.startsWith("/login?");
 
+const hasControlCharacter = (value: string): boolean =>
+  [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  });
+
 export function safeAuthCallbackPath(
   raw: string | null | undefined,
   fallback = DEFAULT_CALLBACK_PATH,
@@ -17,7 +23,11 @@ export function safeAuthCallbackPath(
   if (!value.startsWith("/") || value.startsWith("//")) {
     return fallback;
   }
-  if (value.includes("://") || value.includes("\\")) {
+  if (
+    value.includes("://") ||
+    value.includes("\\") ||
+    hasControlCharacter(value)
+  ) {
     return fallback;
   }
   if (isAuthRoutePath(value)) {

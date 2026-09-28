@@ -27,9 +27,9 @@ import type {
 } from "@/lib/domain/typings";
 import { overlayKnownTmdbZeroSeasonSpecials } from "@/lib/anime/tmdb-zero-season-overlay";
 import { getKnownTmdbZeroSeasonSpecialRef } from "@/lib/anime/special-sequel-appendix";
+import { applyDataRevalidateCacheLife } from "@/lib/server/route-cache-life";
 import { tmdb } from "@/tmdb/api";
 import type { TvShowWithMediaType } from "@/tmdb/models";
-import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { mergeTmdbEpisodesIntoSeason } from "@/lib/anilist-tv-episode-merge";
 
@@ -98,11 +98,13 @@ const resolveAnilistTmdbTvIdUncached = async (
   return findScoredTmdbTvId(media);
 };
 
-const getCachedAnilistTmdbTvId = unstable_cache(
-  resolveAnilistTmdbTvIdUncached,
-  ["anilist-tv-tmdb-enrich-id"],
-  { revalidate: ENRICH_REVALIDATE_SECONDS },
-);
+const getCachedAnilistTmdbTvId = async (
+  anilistId: number,
+): Promise<number | null> => {
+  "use cache";
+  applyDataRevalidateCacheLife(ENRICH_REVALIDATE_SECONDS);
+  return resolveAnilistTmdbTvIdUncached(anilistId);
+};
 
 export const resolveAnilistTmdbTvIdForEnrichment = getCachedAnilistTmdbTvId;
 

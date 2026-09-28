@@ -5,8 +5,6 @@ import { buildTvStructuredData } from "@/lib/seo/structured-data";
 import { generateMediaMetadata } from "@/utils/media-metadata-helpers";
 import { Metadata } from "next";
 
-export const dynamicParams = true;
-
 type Props = {
   params: Promise<{ id: string }>;
 };

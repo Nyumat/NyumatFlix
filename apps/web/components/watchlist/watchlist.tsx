@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ContentCard } from "@/components/content/content-card";
+import { useCatalogCardStyle } from "@/lib/catalog-card-presentation";
 import { loginHref } from "@/lib/auth/callback-url";
 import { cn } from "@/lib/utils";
 import { formatCountdown } from "@/lib/utils/countdown";
@@ -45,7 +47,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -638,7 +639,7 @@ export function WatchlistSection({
           <span>{emptyDescription || "No titles in this section yet."}</span>
         </div>
       ) : (
-        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))]">
+        <div className="grid-list">
           {items.map((item) => {
             const malEntry = malIndex?.get(
               malListIndexKey(
@@ -683,6 +684,8 @@ function WatchlistBannerCard({
   onStatusChange: (itemId: string, newStatus: WatchlistStatus) => void;
   onRemoveItem: (itemId: string) => void;
 }) {
+  const catalogCardStyle = useCatalogCardStyle();
+  const isPosterStyle = catalogCardStyle === "poster";
   const title = getTitle(item);
   const isUnavailable =
     Boolean(item.isUnavailable) ||
@@ -702,7 +705,7 @@ function WatchlistBannerCard({
   const [isManageOpen, setIsManageOpen] = useState(false);
 
   return (
-    <motion.article
+    <article
       draggable
       onDragStartCapture={(event) => {
         event.dataTransfer.effectAllowed = "move";
@@ -715,135 +718,57 @@ function WatchlistBannerCard({
           item.watchlistItem.status,
         );
       }}
-      whileHover={{ y: -2 }}
-      transition={{ duration: 0.18, ease: "easeOut" }}
-      className={cn(
-        "group relative min-h-44 cursor-grab overflow-hidden rounded-lg border shadow-lg transition-colors active:cursor-grabbing",
-        isUnavailable
-          ? "border-amber-500/25 bg-amber-950/20 shadow-amber-950/20 hover:border-amber-500/45"
-          : "border-white/12 bg-black/30 shadow-black/20 hover:border-white/25",
-      )}
+      className="group relative cursor-grab active:cursor-grabbing"
     >
-      {image ? (
-        <Image
-          src={image}
-          alt=""
-          fill
-          sizes="(max-width: 768px) 100vw, 50vw"
-          className="object-cover opacity-80 transition duration-300 group-hover:scale-[1.025] group-hover:opacity-90"
-        />
-      ) : null}
-      <div
-        className={cn(
-          "absolute inset-0",
-          isUnavailable
-            ? "bg-linear-to-br from-amber-950/30 via-black/70 to-black/90"
-            : "bg-linear-to-r from-black/70 via-black/30 to-black/5",
-        )}
-      />
-      <div className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-black/10" />
-
-      {!isUnavailable ? (
-        <Link
-          href={href}
-          draggable={false}
-          className="absolute inset-0 z-10"
-          aria-label={title}
-        />
-      ) : null}
-
-      <div className="pointer-events-none relative z-20 flex min-h-44 flex-col justify-between p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div
-            className={cn(
-              "min-w-0 rounded-md border px-3 py-2 shadow-lg backdrop-blur-[2px]",
-              isUnavailable
-                ? "border-amber-500/30 bg-amber-950/40 shadow-black/30"
-                : "border-white/10 bg-black/25 shadow-black/15",
-            )}
-          >
-            <div className="flex items-center gap-1.5">
-              {isUnavailable ? (
-                <AlertTriangle className="size-4 shrink-0 text-amber-400" />
-              ) : null}
-              <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-white drop-shadow">
-                {title}
-              </h3>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-medium text-zinc-200">
-              <span
-                className={cn(
-                  "rounded px-2 py-0.5",
-                  isUnavailable
-                    ? "border border-amber-500/30 bg-amber-500/20 text-amber-200 capitalize"
-                    : "bg-white/15",
-                )}
-              >
-                {isUnavailable ? "Unavailable" : getMediaLabel(item)}
-              </span>
-              {isUnavailable ? (
-                <span className="text-zinc-400">
-                  ID: {item.watchlistItem.contentId}
-                </span>
-              ) : null}
-              {year && !isUnavailable && (
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {year}
-                </span>
-              )}
-              {item.vote_average > 0 && !isUnavailable && (
-                <span className="inline-flex items-center gap-1 text-zinc-200">
-                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  {item.vote_average.toFixed(1)}
-                </span>
-              )}
-            </div>
+      {isUnavailable ? (
+        <div
+          className={cn(
+            "relative flex flex-col justify-end overflow-hidden rounded-lg border border-amber-500/25 bg-amber-950/20 p-3",
+            isPosterStyle ? "aspect-2/3" : "aspect-video",
+          )}
+        >
+          <div className="flex items-center gap-1.5">
+            <AlertTriangle className="size-4 shrink-0 text-amber-400" />
+            <h3 className="line-clamp-2 text-sm font-medium leading-snug text-white">
+              {title}
+            </h3>
           </div>
-
-          <div className="pointer-events-auto relative z-30 flex shrink-0 items-center gap-1.5">
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setIsManageOpen(true);
-              }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
-              className={cn(
-                "size-8 rounded-md border shadow-lg backdrop-blur-md transition-opacity",
-                isUnavailable
-                  ? "border-white/20 bg-black/50 text-zinc-100 hover:bg-black/70"
-                  : "border-white/20 bg-black/40 text-zinc-300 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-black/55 hover:text-white",
-              )}
-              title="Manage title"
-              aria-label="Manage title"
-            >
-              <MoreVertical className="size-3.5" />
-            </Button>
-          </div>
+          <p className="mt-1 text-xs text-amber-200/80">
+            ID: {item.watchlistItem.contentId}
+          </p>
         </div>
+      ) : (
+        <ContentCard item={item} isMobile={false} href={href} />
+      )}
 
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            {mediaType === "tv" && item.id && !isUnavailable ? (
-              <EpisodeIndicator
-                contentId={item.id}
-                mediaType="tv"
-                episodeInfo={episodeInfo || null}
-              />
-            ) : isUnavailable ? (
-              <span className="text-xs text-amber-200/80">
-                Media details unavailable
-              </span>
-            ) : null}
-          </div>
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setIsManageOpen(true);
+        }}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        className="absolute top-2 left-2 z-50 size-8 rounded-full border border-white/15 bg-black/55 text-white opacity-100 shadow-lg backdrop-blur-md hover:bg-black/70 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+        title="Manage title"
+        aria-label="Manage title"
+      >
+        <MoreVertical className="size-3.5" />
+      </Button>
+
+      {mediaType === "tv" && item.id && !isUnavailable ? (
+        <div className="pointer-events-none pt-1.5">
+          <EpisodeIndicator
+            contentId={item.id}
+            mediaType="tv"
+            episodeInfo={episodeInfo || null}
+          />
         </div>
-      </div>
+      ) : null}
 
       <ManageWatchlistItemDialog
         open={isManageOpen}
@@ -861,7 +786,7 @@ function WatchlistBannerCard({
         onStatusChange={onStatusChange}
         onRemoveItem={onRemoveItem}
       />
-    </motion.article>
+    </article>
   );
 }
 

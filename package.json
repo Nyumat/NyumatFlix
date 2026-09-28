@@ -43,11 +43,18 @@
     "deploy:plain": "./scripts/deploy-remote.sh",
     "prepare-movi-player": "node apps/web/scripts/prepare-movi-player.mjs",
     "deploy:env": "./scripts/sync-prod-env.sh push",
+    "db:migrate:prod": "ENV_FILE=.env.prod ./scripts/db-migrate-if-needed.sh",
     "rotate": "bun scripts/rotate-vpn.mts"
   },
   "devDependencies": {
     "husky": "^9.1.6",
     "playwright": "^1.62.1",
     "turbo": "^2.5.4"
+  },
+  "overrides": {
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
   }
 }

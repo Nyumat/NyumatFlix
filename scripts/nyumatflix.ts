@@ -47,8 +47,6 @@ const c = {
   magenta: "\x1b[35m",
 };
 
-const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
 const shellQuote = (value: string): string =>
   `'${value.replace(/'/g, `'\\''`)}'`;
 
@@ -69,10 +67,30 @@ const runLocal = (
   };
 };
 
+/** Run a command with its output wired straight to this terminal. */
+const runStreaming = async (
+  command: string,
+  args: string[],
+  env: Record<string, string> = {},
+): Promise<{ ok: boolean }> => {
+  const proc = Bun.spawn([command, ...args], {
+    cwd: ROOT,
+    env: { ...process.env, ...env },
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  const code = await proc.exited;
+  return { ok: code === 0 };
+};
+
 const ssh = (
   remoteCommand: string,
 ): { ok: boolean; stdout: string; stderr: string } =>
   runLocal("ssh", [SSH_HOST, remoteCommand]);
+
+const sshStreaming = (remoteCommand: string): Promise<{ ok: boolean }> =>
+  runStreaming("ssh", [SSH_HOST, remoteCommand]);
 
 const gitMeta = (): {
   sha: string;
@@ -210,19 +228,12 @@ const fetchServices = async (): Promise<ServiceRow[]> => {
 
 const runStep = async (
   label: string,
-  action: () => Promise<{ ok: boolean; stderr: string }>,
+  action: () => Promise<{ ok: boolean }>,
 ): Promise<void> => {
-  let frame = 0;
-  const timer = setInterval(() => {
-    process.stdout.write(
-      `\r${c.cyan}${frames[frame % frames.length]}${c.reset} ${label}`,
-    );
-    frame += 1;
-  }, 80);
+  process.stdout.write(`${c.cyan}▶${c.reset} ${label}\n`);
 
   const result = await action();
-  clearInterval(timer);
-  process.stdout.write("\r");
+  process.stdout.write("\n");
 
   if (result.ok) {
     console.log(`${c.green}✓${c.reset} ${label}`);
@@ -230,9 +241,6 @@ const runStep = async (
   }
 
   console.log(`${c.red}✗${c.reset} ${label}`);
-  if (result.stderr.trim()) {
-    console.log(`${c.dim}${result.stderr.trim()}${c.reset}`);
-  }
   process.exit(1);
 };
 
@@ -272,16 +280,14 @@ const printDeployLine = (
   );
 };
 
-const remoteServe = (
+const remoteServeCommand = (
   entry: Pick<DeployEntry, "sha" | "shortSha" | "message" | "author" | "image">,
   source: string,
-) => {
+): string => {
   const message = shellQuote(entry.message);
   const author = shellQuote(entry.author);
   const image = entry.image || `${DOCKER_REPO}:${entry.sha}`;
-  return ssh(
-    `set -euo pipefail; cd ~/${REMOTE_APP_DIR}; export NYUMATFLIX_ROOT=~/${REMOTE_APP_DIR}; export DOCKER_IMAGE=${shellQuote(image)}; export DEPLOY_SHA=${shellQuote(entry.sha)}; export DEPLOY_SHORT_SHA=${shellQuote(entry.shortSha)}; export DEPLOY_MESSAGE=${message}; export DEPLOY_AUTHOR=${author}; export DEPLOY_SOURCE=${shellQuote(source)}; ./scripts/deploy.sh serve`,
-  );
+  return `set -euo pipefail; cd ~/${REMOTE_APP_DIR}; export NYUMATFLIX_ROOT=~/${REMOTE_APP_DIR}; export DOCKER_IMAGE=${shellQuote(image)}; export DEPLOY_SHA=${shellQuote(entry.sha)}; export DEPLOY_SHORT_SHA=${shellQuote(entry.shortSha)}; export DEPLOY_MESSAGE=${message}; export DEPLOY_AUTHOR=${author}; export DEPLOY_SOURCE=${shellQuote(source)}; ./scripts/deploy.sh serve`;
 };
 
 const cmdStatus = async () => {
@@ -390,6 +396,7 @@ const cmdDeploy = async (options: { fast?: boolean } = {}) => {
   console.log(`${c.bold}steps${c.reset}`);
   for (const step of [
     fast ? "build & push (fast)" : "build & push",
+    "migrate prod db",
     "sync prod",
     "roll container",
   ]) {
@@ -417,27 +424,34 @@ const cmdDeploy = async (options: { fast?: boolean } = {}) => {
     env.SKIP_SCRAPE_STACK = "1";
   }
 
-  await runStep("build & push", async () => {
-    const result = runLocal(`${ROOT}/scripts/deploy.sh`, ["bp"], env);
-    return { ok: result.ok, stderr: result.stderr || result.stdout };
-  });
+  await runStep("build & push", () =>
+    runStreaming(`${ROOT}/scripts/deploy.sh`, ["bp"], env),
+  );
 
-  await runStep("sync prod", async () => {
-    const result = runLocal(`${ROOT}/scripts/sync-prod-env.sh`, ["push"]);
-    return { ok: result.ok, stderr: result.stderr || result.stdout };
-  });
+  await runStep("migrate prod db", () =>
+    runStreaming(`${ROOT}/scripts/db-migrate-if-needed.sh`, [], {
+      ENV_FILE: `${ROOT}/.env.prod`,
+    }),
+  );
 
-  await runStep("roll container", async () => {
-    const message = shellQuote(deploy.message);
-    const author = shellQuote(deploy.author);
-    const result = ssh(
-      `set -euo pipefail; cd ~/${REMOTE_APP_DIR}; export NYUMATFLIX_ROOT=~/${REMOTE_APP_DIR}; export DOCKER_IMAGE=${shellQuote(env.DOCKER_IMAGE)}; export DEPLOY_SHA=${shellQuote(deploy.sha)}; export DEPLOY_SHORT_SHA=${shellQuote(deploy.shortSha)}; export DEPLOY_MESSAGE=${message}; export DEPLOY_AUTHOR=${author}; export DEPLOY_SOURCE=${shellQuote(deploy.source)}; ./scripts/deploy.sh serve`,
-    );
-    if (result.ok) {
-      process.stdout.write(result.stdout);
-    }
-    return { ok: result.ok, stderr: result.stderr || result.stdout };
-  });
+  await runStep("sync prod", () =>
+    runStreaming(`${ROOT}/scripts/sync-prod-env.sh`, ["push"]),
+  );
+
+  await runStep("roll container", () =>
+    sshStreaming(
+      remoteServeCommand(
+        {
+          sha: deploy.sha,
+          shortSha: deploy.shortSha,
+          message: deploy.message,
+          author: deploy.author,
+          image: env.DOCKER_IMAGE,
+        },
+        deploy.source,
+      ),
+    ),
+  );
 
   console.log("");
   console.log(
@@ -529,13 +543,9 @@ const cmdRollback = async (targetArg?: string) => {
   }
 
   console.log("");
-  await runStep("roll container", async () => {
-    const result = remoteServe(target, "rollback");
-    if (result.ok) {
-      process.stdout.write(result.stdout);
-    }
-    return { ok: result.ok, stderr: result.stderr || result.stdout };
-  });
+  await runStep("roll container", () =>
+    sshStreaming(remoteServeCommand(target, "rollback")),
+  );
 
   console.log("");
   console.log(

@@ -10,6 +10,7 @@ import { overlayKnownTmdbZeroSeasonSpecials } from "@/lib/anime/tmdb-zero-season
 import { mergeTmdbEpisodesIntoSeason } from "@/lib/anilist-tv-episode-merge";
 import { hasFribbSplitCourForTmdbSeason } from "@/lib/anime/split-cour-appendix";
 import { getSeasonIndexEntry } from "@/lib/anime/season-index";
+import { getAnilistIdFromTmdbLookup } from "@/lib/anime/tmdb-anilist-lookup-server";
 import { buildEpisodesFromMappingSegments } from "@/lib/anime/tmdb-anilist-map";
 import {
   collectEpisodeNumbers,
@@ -24,6 +25,19 @@ import { buildAniListTvMediaStubFromTmdb } from "@/lib/anilist-tv-stub";
 import type { Episode, SeasonDetails } from "@/lib/domain/typings";
 import { getFribbAnimeList } from "@/lib/fribb-mapping";
 import { getAniListTitle, type AniListMedia } from "@/lib/anilist-shared";
+
+const maxTmdbEpisodeNumber = (episodes: readonly Episode[]): number | null => {
+  let max = 0;
+  for (const episode of episodes) {
+    if (
+      typeof episode.episode_number === "number" &&
+      episode.episode_number > max
+    ) {
+      max = episode.episode_number;
+    }
+  }
+  return max > 0 ? max : episodes.length || null;
+};
 
 const buildEpisodesFromMedia = (media: SeasonEpisodeSource): Episode[] => {
   const tvMedia = media as AniListTvMedia;
@@ -65,6 +79,7 @@ const buildEpisodesFromSeasonIndex = async (
 
   return buildEpisodesFromMappingSegments(indexed.segments, {
     runtime: baseSeason.episodes[0]?.runtime ?? null,
+    maxEpisodeNumber: maxTmdbEpisodeNumber(baseSeason.episodes),
   });
 };
 
@@ -92,6 +107,21 @@ export const fetchTmdbSplitCourMergedSeasonDetails = async (
   tmdbShowId: number,
   seasonNumber: number,
 ): Promise<SeasonDetails | null> => {
+  // Skip the Fribb graph (5.6MB parse) for seasons no mapping knows about.
+  // The O(1) lookup also gates non-anime shows without any file I/O beyond
+  // the 130KB precomputed artifact.
+  const lookupHit = await getAnilistIdFromTmdbLookup(
+    tmdbShowId,
+    seasonNumber,
+  ).catch(() => null);
+  if (!lookupHit) {
+    const seasonIndexEntry = await getSeasonIndexEntry({
+      tmdbShowId,
+      seasonNumber,
+    }).catch(() => null);
+    if (!seasonIndexEntry) return null;
+  }
+
   const fribbRows = await getFribbAnimeList();
   if (!hasFribbSplitCourForTmdbSeason(fribbRows, tmdbShowId, seasonNumber)) {
     return null;

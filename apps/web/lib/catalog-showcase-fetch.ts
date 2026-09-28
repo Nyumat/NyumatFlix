@@ -6,6 +6,7 @@ import {
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
 import { makeEntityKey } from "@/lib/catalog-page-dedupe";
+import { filterFamilySafeCatalogShowcaseItems } from "@/lib/catalog-showcase-family-safe";
 import { filterWithPosterPath } from "@/lib/media-poster-path";
 import { tmdb } from "@/tmdb/api";
 import type { MediaItem } from "@/lib/domain/typings";
@@ -13,6 +14,14 @@ import type { MediaItem } from "@/lib/domain/typings";
 const MIN_PER_ROW = 20;
 const CANDIDATE_POOL_SIZE = MIN_PER_ROW * 3;
 const MAX_FETCH_PAGES = 4;
+
+/** Animation rows reuse popular titles from other genres; skip global dedupe so the row stays populated. */
+const SHOWCASE_ROWS_WITHOUT_CROSS_ROW_DEDUPE = new Set([
+  "showcase-animation",
+  "showcase-tv-animation",
+]);
+
+type DiscoverExtra = Record<string, string>;
 
 type ShowcaseDef = {
   id: string;
@@ -22,329 +31,111 @@ type ShowcaseDef = {
     region: string,
     page: string,
     latestReleaseDate: string,
+    discoverExtra?: DiscoverExtra,
   ) => Promise<{ results: Array<Record<string, unknown>> }>;
   mapItem: (raw: Record<string, unknown>) => MediaItem;
 };
 
+const movieGenre = (
+  id: string,
+  title: string,
+  genreId: string,
+  voteCount: string,
+): ShowcaseDef => ({
+  id,
+  title,
+  href: buildCatalogCtaUrl("movie", {
+    view: "discover",
+    mode: "results",
+    extra: { with_genres: genreId },
+  }),
+  fetchPage: (region, page, latestReleaseDate, discoverExtra = {}) =>
+    tmdb.discover.movie({
+      watch_region: region,
+      page,
+      sort_by: "popularity.desc",
+      with_genres: genreId,
+      "vote_count.gte": voteCount,
+      "primary_release_date.lte": latestReleaseDate,
+      include_adult: false,
+      ...discoverExtra,
+    }),
+  mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
+});
+
+const tvGenre = (
+  id: string,
+  title: string,
+  genreId: string,
+  voteCount: string,
+): ShowcaseDef => ({
+  id,
+  title,
+  href: buildCatalogCtaUrl("tv", {
+    view: "discover",
+    mode: "results",
+    extra: { with_genres: genreId },
+  }),
+  fetchPage: (region, page, latestReleaseDate, discoverExtra = {}) =>
+    tmdb.discover.tv({
+      watch_region: region,
+      page,
+      sort_by: "popularity.desc",
+      with_genres: genreId,
+      "vote_count.gte": voteCount,
+      "first_air_date.lte": latestReleaseDate,
+      include_adult: false,
+      ...discoverExtra,
+    }),
+  mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
+});
+
 const movieShowcase: ShowcaseDef[] = [
-  {
-    id: "showcase-action",
-    title: "Action",
-    href: buildCatalogCtaUrl("movie", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "28" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.movie({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "28",
-        "vote_count.gte": "50",
-        "primary_release_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-comedy",
-    title: "Comedy",
-    href: buildCatalogCtaUrl("movie", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "35" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.movie({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "35",
-        "vote_count.gte": "50",
-        "primary_release_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-scifi",
-    title: "Sci-Fi & Fantasy",
-    href: buildCatalogCtaUrl("movie", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "878" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.movie({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "878",
-        "vote_count.gte": "40",
-        "primary_release_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-drama",
-    title: "Drama",
-    href: buildCatalogCtaUrl("movie", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "18" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.movie({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "18",
-        "vote_count.gte": "80",
-        "primary_release_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-thriller",
-    title: "Thriller",
-    href: buildCatalogCtaUrl("movie", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "53" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.movie({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "53",
-        "vote_count.gte": "40",
-        "primary_release_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-horror",
-    title: "Horror",
-    href: buildCatalogCtaUrl("movie", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "27" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.movie({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "27",
-        "vote_count.gte": "40",
-        "primary_release_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-crime",
-    title: "Crime stories",
-    href: buildCatalogCtaUrl("movie", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "80" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.movie({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "80",
-        "vote_count.gte": "40",
-        "primary_release_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-animation",
-    title: "Animation",
-    href: buildCatalogCtaUrl("movie", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "16" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.movie({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "16",
-        "vote_count.gte": "40",
-        "primary_release_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "movie" as const }) as MediaItem,
-  },
+  movieGenre("showcase-action", "Action", "28", "50"),
+  movieGenre("showcase-adventure", "Adventure", "12", "50"),
+  movieGenre("showcase-animation", "Animation", "16", "40"),
+  movieGenre("showcase-comedy", "Comedy", "35", "50"),
+  movieGenre("showcase-crime", "Crime", "80", "50"),
+  movieGenre("showcase-documentary", "Documentary", "99", "30"),
+  movieGenre("showcase-drama", "Drama", "18", "80"),
+  movieGenre("showcase-family", "Family", "10751", "40"),
+  movieGenre("showcase-fantasy", "Fantasy", "14", "40"),
+  movieGenre("showcase-history", "History", "36", "30"),
+  movieGenre("showcase-horror", "Horror", "27", "40"),
+  movieGenre("showcase-music", "Music", "10402", "25"),
+  movieGenre("showcase-mystery", "Mystery", "9648", "40"),
+  movieGenre("showcase-romance", "Romance", "10749", "40"),
+  movieGenre("showcase-scifi", "Science Fiction", "878", "40"),
+  movieGenre("showcase-thriller", "Thriller", "53", "40"),
+  movieGenre("showcase-war", "War", "10752", "30"),
+  movieGenre("showcase-western", "Western", "37", "25"),
 ];
 
 const tvShowcase: ShowcaseDef[] = [
-  {
-    id: "showcase-tv-drama",
-    title: "Drama",
-    href: buildCatalogCtaUrl("tv", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "18" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.tv({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "18",
-        "vote_count.gte": "25",
-        "first_air_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-tv-comedy",
-    title: "Comedy",
-    href: buildCatalogCtaUrl("tv", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "35" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.tv({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "35",
-        "vote_count.gte": "25",
-        "first_air_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-tv-scifi",
-    title: "Sci-Fi & Fantasy",
-    href: buildCatalogCtaUrl("tv", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "10765" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.tv({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "10765",
-        "vote_count.gte": "20",
-        "first_air_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-tv-action",
-    title: "Action & adventure",
-    href: buildCatalogCtaUrl("tv", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "10759" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.tv({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "10759",
-        "vote_count.gte": "20",
-        "first_air_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-tv-crime",
-    title: "Crime",
-    href: buildCatalogCtaUrl("tv", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "80" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.tv({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "80",
-        "vote_count.gte": "20",
-        "first_air_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-tv-mystery",
-    title: "Mystery",
-    href: buildCatalogCtaUrl("tv", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "9648" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.tv({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "9648",
-        "vote_count.gte": "15",
-        "first_air_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-tv-animation",
-    title: "Animation",
-    href: buildCatalogCtaUrl("tv", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "16" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.tv({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "16",
-        "vote_count.gte": "15",
-        "first_air_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
-  },
-  {
-    id: "showcase-tv-documentary",
-    title: "Documentary",
-    href: buildCatalogCtaUrl("tv", {
-      view: "discover",
-      mode: "results",
-      extra: { with_genres: "99" },
-    }),
-    fetchPage: (region, page, latestReleaseDate) =>
-      tmdb.discover.tv({
-        watch_region: region,
-        page,
-        sort_by: "popularity.desc",
-        with_genres: "99",
-        "vote_count.gte": "10",
-        "first_air_date.lte": latestReleaseDate,
-      }),
-    mapItem: (raw) => ({ ...raw, media_type: "tv" as const }) as MediaItem,
-  },
+  tvGenre("showcase-tv-action", "Action & Adventure", "10759", "20"),
+  tvGenre("showcase-tv-animation", "Animation", "16", "15"),
+  tvGenre("showcase-tv-comedy", "Comedy", "35", "25"),
+  tvGenre("showcase-tv-crime", "Crime", "80", "20"),
+  tvGenre("showcase-tv-documentary", "Documentary", "99", "10"),
+  tvGenre("showcase-tv-drama", "Drama", "18", "25"),
+  tvGenre("showcase-tv-family", "Family", "10751", "15"),
+  tvGenre("showcase-tv-kids", "Kids", "10762", "15"),
+  tvGenre("showcase-tv-mystery", "Mystery", "9648", "15"),
+  tvGenre("showcase-tv-reality", "Reality", "10764", "20"),
+  tvGenre("showcase-tv-scifi", "Sci-Fi & Fantasy", "10765", "20"),
+  tvGenre("showcase-tv-war", "War & Politics", "10768", "15"),
+  tvGenre("showcase-tv-western", "Western", "37", "10"),
 ];
 
-export const fetchCatalogShowcaseRows = async (
-  pageKey: "movies" | "tv",
+const fetchShowcaseRowsForDefs = async (
+  defs: ShowcaseDef[],
+  mediaType: "movie" | "tv",
   region: string,
   excludeIds: number[],
+  discoverExtra: DiscoverExtra = {},
 ): Promise<
   Array<{ rowId: string; title: string; href: string; items: MediaItem[] }>
 > => {
-  const mediaType = pageKey === "movies" ? "movie" : "tv";
-  const defs = pageKey === "movies" ? movieShowcase : tvShowcase;
   const latestReleaseDate = getTodayIsoDateUtc();
   const globalSeen = new Set<string>(
     excludeIds.map((id) => makeEntityKey(id, mediaType)),
@@ -364,6 +155,7 @@ export const fetchCatalogShowcaseRows = async (
           region,
           String(pageNum),
           latestReleaseDate,
+          discoverExtra,
         );
         const base = raw.results.map((r) => def.mapItem(r));
         const released =
@@ -371,8 +163,14 @@ export const fetchCatalogShowcaseRows = async (
             ? filterReleasedMovies(base)
             : filterReleasedTvShows(base);
         const withPoster = filterWithPosterPath(released);
+        const familySafe = filterFamilySafeCatalogShowcaseItems(
+          withPoster.map((item) => ({
+            ...item,
+            media_type: mediaType,
+          })),
+        );
 
-        for (const item of withPoster) {
+        for (const item of familySafe) {
           picked.push(item);
           if (picked.length >= CANDIDATE_POOL_SIZE) break;
         }
@@ -392,10 +190,18 @@ export const fetchCatalogShowcaseRows = async (
 
   for (const { def, picked } of rowsWithItems) {
     const deduped: MediaItem[] = [];
+    const rowSeen = new Set<number>();
+    const skipCrossRowDedupe = SHOWCASE_ROWS_WITHOUT_CROSS_ROW_DEDUPE.has(
+      def.id,
+    );
 
     for (const item of picked) {
+      if (rowSeen.has(item.id)) continue;
+
       const key = makeEntityKey(item.id, mediaType);
-      if (globalSeen.has(key)) continue;
+      if (!skipCrossRowDedupe && globalSeen.has(key)) continue;
+
+      rowSeen.add(item.id);
       globalSeen.add(key);
       deduped.push(item);
       if (deduped.length >= MIN_PER_ROW) break;
@@ -412,4 +218,35 @@ export const fetchCatalogShowcaseRows = async (
   }
 
   return out;
+};
+
+export const fetchCatalogShowcaseRows = async (
+  pageKey: "movies" | "tv",
+  region: string,
+  excludeIds: number[],
+): Promise<
+  Array<{ rowId: string; title: string; href: string; items: MediaItem[] }>
+> => {
+  const mediaType = pageKey === "movies" ? "movie" : "tv";
+  const defs = pageKey === "movies" ? movieShowcase : tvShowcase;
+  return fetchShowcaseRowsForDefs(defs, mediaType, region, excludeIds);
+};
+
+export const fetchProviderCatalogShowcaseRows = async (
+  pageKey: "movies" | "tv",
+  region: string,
+  discoverExtra: DiscoverExtra,
+  excludeIds: number[],
+): Promise<
+  Array<{ rowId: string; title: string; href: string; items: MediaItem[] }>
+> => {
+  const mediaType = pageKey === "movies" ? "movie" : "tv";
+  const defs = pageKey === "movies" ? movieShowcase : tvShowcase;
+  return fetchShowcaseRowsForDefs(
+    defs,
+    mediaType,
+    region,
+    excludeIds,
+    discoverExtra,
+  );
 };

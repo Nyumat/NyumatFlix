@@ -11,7 +11,10 @@ import {
 import MediaShowcaseCard from "@/components/media/media-client";
 import { useOptionalGlobalDock } from "@/components/layout/dock/global-dock";
 import useMedia from "@/hooks/useMedia";
-import { hasPosterPath } from "@/lib/media-poster-path";
+import {
+  hasCatalogCardArt,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
 import { useViewModeStore } from "@/lib/stores/view-mode-store";
 import type { MediaItem } from "@/lib/domain/typings";
 import { useEffect } from "react";
@@ -26,7 +29,7 @@ function ListViewCard(props: {
     <HorizontalCard
       item={{ ...item, media_type: type }}
       testIdPrefix="media-content-card"
-      overviewLines="hidden sm:block line-clamp-2 md:line-clamp-3"
+      overviewLines="hidden sm:block"
     />
   );
 }
@@ -56,6 +59,7 @@ interface MediaContentGridProps {
   watchlistItemsMap?: Map<number, WatchlistItem>;
   onStatusChange?: (itemId: string, newStatus: WatchlistStatus) => void;
   episodeInfoMap?: Map<number, EpisodeInfo | null>;
+  trailingGridSkeletonCount?: number;
 }
 
 export function MediaContentGrid({
@@ -76,6 +80,7 @@ export function MediaContentGrid({
   watchlistItemsMap,
   onStatusChange,
   episodeInfoMap,
+  trailingGridSkeletonCount = 0,
 }: MediaContentGridProps) {
   const {
     viewMode: storedViewMode,
@@ -85,6 +90,7 @@ export function MediaContentGrid({
 
   const globalDock = useOptionalGlobalDock();
   const isMobile = useMedia("(max-width: 768px)", false);
+  const catalogCardStyle = useCatalogCardStyle();
   const shouldUseDock = showDock && Boolean(globalDock);
 
   const effectiveViewMode = shouldUseDock
@@ -106,7 +112,10 @@ export function MediaContentGrid({
 
   const validItems = items.filter(
     (item) =>
-      item && item.id !== null && item.id !== undefined && hasPosterPath(item),
+      item &&
+      item.id !== null &&
+      item.id !== undefined &&
+      hasCatalogCardArt(item, catalogCardStyle),
   );
 
   const seenMediaKeys = new Set<string>();
@@ -220,6 +229,7 @@ export function MediaContentGrid({
         data-testid={testId ? `${testId}-grid` : "media-content-grid"}
         itemsPerRow={itemsPerRow}
         gridMinItemWidth={gridMinItemWidth}
+        trailingGridSkeletonCount={trailingGridSkeletonCount}
       />
     </div>
   );

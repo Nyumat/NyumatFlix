@@ -29,7 +29,7 @@ export function PersonCardPresenter({
       href={href || `/person/${id}`}
       key={id}
       className="w-full"
-      prefetch={false}
+      prefetch={true}
       onPointerEnter={() => playHoverSound?.()}
     >
       <MediaCard.Root>

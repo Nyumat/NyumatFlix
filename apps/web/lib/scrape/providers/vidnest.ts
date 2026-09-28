@@ -1,4 +1,4 @@
-import { scrapeFetchText } from "../fetch";
+import { cancelResponseBody, scrapeFetch, scrapeFetchText } from "../fetch";
 import { attachSubtitlesToQualities, dedupeSubtitles } from "../linked-config";
 import {
   SCRAPE_PLAY_PROBE_RETRY_ATTEMPTS,
@@ -25,6 +25,30 @@ const VIDNEST_REFERER = "https://vidnest.fun/";
 export const VIDNEST_PLAYABLE_CANDIDATE_LIMIT = 4;
 export const VIDNEST_PLAYABLE_CANDIDATE_BATCH = 2;
 export const VIDNEST_EXTRA_QUALITIES = 3;
+/** Feature-length MP4s are far larger. MovieBox stubs for missing titles are ~1MB. */
+export const VIDNEST_MIN_MP4_BYTES = 8 * 1024 * 1024;
+
+export const readVidnestContentLength = (headers: {
+  get(name: string): string | null;
+}): number | null => {
+  const range = headers.get("content-range");
+  const total = range?.match(/\/(\d+)\s*$/)?.[1];
+  if (total) {
+    const parsed = Number.parseInt(total, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  const length = headers.get("content-length");
+  if (!length) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(length, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+export const isUndersizedVidnestMp4 = (bytes: number | null): boolean =>
+  bytes !== null && bytes < VIDNEST_MIN_MP4_BYTES;
 
 const VIDNEST_SCRAPE_RESOLVERS = [
   "movies5f",
@@ -137,9 +161,37 @@ const fetchResolverCandidates = async (
   });
 };
 
+const readMp4ByteLength = async (streamUrl: string): Promise<number | null> => {
+  try {
+    const response = await scrapeFetch(streamUrl, {
+      headers: {
+        Referer: refererForVidnestStream(streamUrl) || VIDNEST_REFERER,
+        Range: "bytes=0-0",
+      },
+      timeoutMs: SCRAPE_PLAY_PROBE_TIMEOUT_MS,
+      retryAttempts: 1,
+    });
+    const length = readVidnestContentLength(response.headers);
+    await cancelResponseBody(response);
+    return length;
+  } catch {
+    return null;
+  }
+};
+
 const probeVidnestCandidate = async (
   candidate: RankedVidnestCandidate,
 ): Promise<true | null> => {
+  if (
+    vidnestStreamKind(candidate.streamUrl) === "mp4" &&
+    !isVidnestClientOnlyCdn(candidate.streamUrl)
+  ) {
+    const bytes = await readMp4ByteLength(candidate.streamUrl);
+    if (isUndersizedVidnestMp4(bytes)) {
+      return null;
+    }
+  }
+
   if (
     isVidnestClientOnlyCdn(candidate.streamUrl) &&
     isFreshVidnestSignedUrl(candidate.streamUrl)

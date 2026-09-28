@@ -1,4 +1,5 @@
 import { PersonScrollReset } from "@/components/person/person-scroll-reset";
+import { Suspense } from "react";
 
 export default function PersonLayout({
   children,
@@ -7,7 +8,9 @@ export default function PersonLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <PersonScrollReset />
+      <Suspense fallback={null}>
+        <PersonScrollReset />
+      </Suspense>
       {children}
     </div>
   );

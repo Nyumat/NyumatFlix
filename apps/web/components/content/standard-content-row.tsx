@@ -8,12 +8,17 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { CatalogCarouselTileSkeleton } from "@/components/catalog/catalog-card-skeletons";
 import useMedia from "@/hooks/useMedia";
+import { cancelAllCardHoverPreviews } from "@/lib/card-hover-preview-coordinator";
 import { getHref } from "@/lib/cards/selectors";
+import {
+  carouselItemClassName,
+  filterCatalogCardArt,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
 import { MediaItem } from "@/lib/domain/typings";
 import { useEffect, useRef, useState } from "react";
-import { hasPosterPath } from "@/lib/media-poster-path";
 import { cn } from "@/lib/utils";
 import { ContentCard } from "./content-card";
 import { ContentRowHeader } from "./content-row-header";
@@ -42,6 +47,7 @@ export function StandardContentRow({
   bleed = false,
 }: StandardContentRowProps) {
   const isMobile = useMedia("(max-width: 768px)", false);
+  const catalogCardStyle = useCatalogCardStyle();
   const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
   const [api, setApi] = useState<CarouselApi>();
@@ -63,6 +69,7 @@ export function StandardContentRow({
     if (!api || !hasMoreItems) return;
 
     const handleScroll = () => {
+      cancelAllCardHoverPreviews();
       const scrollProgress = api.scrollProgress();
       lastScrollProgressRef.current = scrollProgress;
 
@@ -87,9 +94,9 @@ export function StandardContentRow({
       setLoading(true);
       try {
         const newItems = await onLoadMore();
-        const withPosters = newItems?.filter(hasPosterPath) ?? [];
-        if (withPosters.length > 0) {
-          setItems((prev) => [...prev, ...withPosters]);
+        const withArt = filterCatalogCardArt(newItems ?? [], catalogCardStyle);
+        if (withArt.length > 0) {
+          setItems((prev) => [...prev, ...withArt]);
         }
       } catch (error) {
         console.error("Error loading more items:", error);
@@ -98,12 +105,6 @@ export function StandardContentRow({
       }
     }
   };
-
-  const LoadingComponent = () => (
-    <div className="flex items-center justify-center min-h-[150px] w-full">
-      <LoadingSpinner size="lg" />
-    </div>
-  );
 
   return (
     <section className={cn(bleed && "index-bleed")}>
@@ -124,25 +125,35 @@ export function StandardContentRow({
             viewportClassName={bleed ? "index-rail-padding" : "md:mx-0"}
             className="-ml-3 lg:-ml-4"
           >
-            {items.filter(hasPosterPath).map((item, index) => (
-              <CarouselItem
-                key={`${item.id}-${index}`}
-                className="pl-3 basis-[46%] sm:basis-[31%] md:basis-[24%] lg:pl-4 lg:basis-[11rem] xl:basis-[12rem] 2xl:basis-[13rem]"
-              >
-                <ContentCard
-                  item={item}
-                  isMobile={!!isMobile}
-                  rating={getContentRating(item)}
-                  href={getHref(item)}
-                />
-              </CarouselItem>
-            ))}
-
-            {hasMoreItems && loading && (
-              <CarouselItem className="flex items-center justify-center pl-3 basis-[46%] sm:basis-[31%] md:basis-[24%] lg:pl-4 lg:basis-[11rem] xl:basis-[12rem] 2xl:basis-[13rem]">
-                <LoadingComponent />
-              </CarouselItem>
+            {filterCatalogCardArt(items, catalogCardStyle).map(
+              (item, index) => (
+                <CarouselItem
+                  key={`${item.id}-${index}`}
+                  className={carouselItemClassName(catalogCardStyle)}
+                >
+                  <ContentCard
+                    item={item}
+                    isMobile={!!isMobile}
+                    rating={getContentRating(item)}
+                    href={getHref(item)}
+                  />
+                </CarouselItem>
+              ),
             )}
+
+            {hasMoreItems && loading ? (
+              <>
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <CarouselItem
+                    key={`loading-${index}`}
+                    className={carouselItemClassName(catalogCardStyle)}
+                    aria-hidden
+                  >
+                    <CatalogCarouselTileSkeleton style={catalogCardStyle} />
+                  </CarouselItem>
+                ))}
+              </>
+            ) : null}
           </CarouselContent>
 
           <CarouselPrevious

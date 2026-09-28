@@ -73,8 +73,7 @@ export function HorizontalCard({
     playHoverSound?.();
   };
   const resolvedOverviewLines =
-    overviewLines ??
-    (isCompact ? "line-clamp-2" : "line-clamp-2 md:line-clamp-3");
+    overviewLines ?? (isCompact ? "line-clamp-2" : undefined);
 
   return (
     <Card
@@ -172,18 +171,20 @@ export function HorizontalCard({
         </div>
         <div
           className={cn(
-            "flex min-w-0 flex-1 flex-col justify-center",
-            isCompact ? "gap-2 py-0.5" : "space-y-3 py-2",
+            "flex min-w-0 flex-1 flex-col",
+            isCompact
+              ? "justify-center gap-2 py-0.5"
+              : "justify-start gap-3 py-1",
           )}
         >
-          <div className={isCompact ? "space-y-1.5" : "space-y-1"}>
+          <div className={isCompact ? "space-y-1.5" : "space-y-2"}>
             <MediaLogo
               logo={item.logo}
               title={title}
               align="left"
               className={cn(
                 "max-w-full",
-                isCompact ? "mb-0 max-w-[280px]" : "mb-1 max-w-[240px]",
+                isCompact ? "mb-0 max-w-[280px]" : "mb-0",
               )}
               fallbackClassName={cn(
                 "line-clamp-2 font-semibold leading-snug tracking-tight text-foreground transition-colors duration-300 group-hover:text-primary",
@@ -198,10 +199,8 @@ export function HorizontalCard({
           {item.overview ? (
             <p
               className={cn(
-                "max-w-none font-normal leading-relaxed text-muted-foreground/85",
-                isCompact
-                  ? "text-xs"
-                  : "max-w-2xl text-sm text-muted-foreground/90",
+                "min-w-0 max-w-none font-normal leading-relaxed text-muted-foreground/90",
+                isCompact ? "text-xs" : "text-sm sm:text-base",
                 resolvedOverviewLines,
               )}
             >

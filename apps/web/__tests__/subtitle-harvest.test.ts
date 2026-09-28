@@ -107,4 +107,30 @@ describe("subtitle harvest", () => {
     expect(payload.qualities?.[0]?.subtitles).toHaveLength(2);
     expect(payload.qualities?.[0]?.subtitles?.[1]?.source).toBe("AniKuro");
   });
+
+  it("treats bogus .wtt Tym URLs as VTT", () => {
+    expect(
+      isVttSubtitle({
+        lang: "Slovak",
+        url: "https://sub.1x2.space/subtitle/tv/125988/1/1/Slovak - Slovak.wtt",
+        format: "vtt",
+      }),
+    ).toBe(true);
+    expect(
+      isVttSubtitle({
+        lang: "Slovak",
+        url: "https://sub.1x2.space/subtitle/tv/125988/1/1/Slovak - Slovak.wtt",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not treat mismatched vtt formats as VTT", () => {
+    expect(
+      isVttSubtitle({
+        lang: "English",
+        url: "https://cdn.example/en.srt",
+        format: "vtt",
+      }),
+    ).toBe(false);
+  });
 });

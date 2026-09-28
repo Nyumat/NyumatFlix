@@ -32,3 +32,26 @@ export const configureScrapeDashInstance = (dash: DashSettingsPlayer): void => {
     },
   });
 };
+
+export const loadDashjsLibrary = () =>
+  import("dashjs").then((module) => ({ default: module.MediaPlayer }));
+
+/** Vidstack dash.js settings accepted by the DASH provider adapter. */
+export type VidstackDashProvider = {
+  config: unknown;
+  library: unknown;
+  onInstance: (callback: (dash: DashSettingsPlayer) => void) => unknown;
+};
+
+/**
+ * Attach the scrape VOD dash.js config to a Vidstack DASH provider. Keeps
+ * dash.js console noise (e.g. the benign teardown-time
+ * "getAllBufferRanges exception") off the console in every Vidstack engine.
+ */
+export const configureVidstackDashProvider = (
+  provider: VidstackDashProvider,
+): void => {
+  provider.config = SCRAPE_VOD_DASH_CONFIG;
+  provider.library = loadDashjsLibrary;
+  provider.onInstance(configureScrapeDashInstance);
+};

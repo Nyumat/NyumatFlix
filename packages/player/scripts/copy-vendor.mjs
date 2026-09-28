@@ -22,14 +22,63 @@ if (!fs.existsSync(source)) {
 }
 
 const code = fs.readFileSync(source, "utf8");
+const compatCode = fs.existsSync(compatSource)
+  ? fs.readFileSync(compatSource, "utf8")
+  : null;
 fs.mkdirSync(targetDir, { recursive: true });
 fs.writeFileSync(target, code);
 
-if (fs.existsSync(compatSource)) {
-  fs.writeFileSync(compatTarget, fs.readFileSync(compatSource, "utf8"));
+if (compatCode) {
+  fs.writeFileSync(compatTarget, compatCode);
   console.log(
     `[copy-vendor] wrote ${path.relative(repoRoot, compatTarget)}`,
   );
+}
+
+const keptJs = new Set(["element.js", "compat.js"]);
+
+function chunkImports(sourceCode) {
+  const files = [];
+  const pattern = /(?:import\(|from\s+)["'](\.\/[^"']+\.js)["']/g;
+  for (const match of sourceCode.matchAll(pattern)) {
+    files.push(match[1].slice(2));
+  }
+  return files;
+}
+
+const bundledChunks = new Set();
+const pending = [code, ...(compatCode ? [compatCode] : [])];
+while (pending.length > 0) {
+  const sourceCode = pending.pop();
+  if (!sourceCode) continue;
+  for (const file of chunkImports(sourceCode)) {
+    if (keptJs.has(file) || bundledChunks.has(file)) continue;
+    const from = path.join(playerRoot, "dist", file);
+    if (!fs.existsSync(from)) {
+      console.error(`[copy-vendor] missing dist/${file}`);
+      process.exit(1);
+    }
+    bundledChunks.add(file);
+    pending.push(fs.readFileSync(from, "utf8"));
+  }
+}
+
+for (const file of bundledChunks) {
+  fs.copyFileSync(
+    path.join(playerRoot, "dist", file),
+    path.join(targetDir, file),
+  );
+  console.log(
+    `[copy-vendor] wrote ${path.relative(repoRoot, path.join(targetDir, file))}`,
+  );
+}
+
+for (const entry of fs.readdirSync(targetDir)) {
+  if (!entry.endsWith(".js") || keptJs.has(entry) || bundledChunks.has(entry)) {
+    continue;
+  }
+  fs.unlinkSync(path.join(targetDir, entry));
+  console.log(`[copy-vendor] removed stale ${entry}`);
 }
 
 const wasmDir = path.join(playerRoot, "dist/wasm");

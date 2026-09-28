@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 type FfsSaveBarProps = {
@@ -19,15 +20,22 @@ export function FfsSaveBar({
   if (!dirty && !saving) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/90 px-4 py-3 backdrop-blur-md">
+    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background px-4 py-3">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-        <p className="text-sm text-white/70">Unsaved changes</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">Unsaved changes</p>
+          {saving ? (
+            <Badge variant="outline" className="text-[11px]">
+              Saving
+            </Badge>
+          ) : null}
+        </div>
         <div className="flex gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="border-white/15 bg-transparent"
+            className="h-8 border-border bg-transparent shadow-none"
             disabled={saving}
             onClick={onReset}
           >
@@ -37,11 +45,12 @@ export function FfsSaveBar({
             type="button"
             size="sm"
             disabled={saving || !dirty}
+            className="h-8 bg-foreground text-background shadow-none hover:bg-foreground/90"
             onClick={onSave}
           >
             {saving ? (
               <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <Loader2 className="mr-2 size-3.5 animate-spin" />
                 Saving…
               </>
             ) : (

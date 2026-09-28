@@ -46,11 +46,9 @@ describe("buildSourceOverlayItems", () => {
 
     const embedItems = items.filter((item) => item.kind === "embed");
     expect(embedItems.map((item) => item.id)).toEqual([
-      "vidnest",
       "vidfast",
       "vidsrc-mirror",
       "hentaini",
-      "vidlink",
       "vidcore",
       "1embed",
       "vidlux",

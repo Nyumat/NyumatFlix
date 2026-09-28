@@ -18,6 +18,7 @@ import {
   fetchTmdbTvShowShell,
   hydrateMissingAniListTvMedia,
   resolveAniListFranchiseWithTmdbFallback,
+  resolveFribbBackedFranchise,
 } from "@/lib/anilist-tv-fallback";
 import { buildAniListTvMediaStubFromTmdb } from "@/lib/anilist-tv-stub";
 import {
@@ -422,6 +423,23 @@ const buildEpisodes = (media: AniListTvMedia): Episode[] => {
     sourceAnilistId: media.id,
     sourceEpisodeNumber: episodeNumber,
   }));
+};
+
+const maxTmdbEpisodeNumber = (
+  episodes: readonly Episode[] | undefined,
+): number | null => {
+  if (!episodes?.length) return null;
+
+  let max = 0;
+  for (const episode of episodes) {
+    if (
+      typeof episode.episode_number === "number" &&
+      episode.episode_number > max
+    ) {
+      max = episode.episode_number;
+    }
+  }
+  return max > 0 ? max : episodes.length;
 };
 
 const buildEpisodesForSeasonSource = (media: SeasonEpisodeSource): Episode[] =>
@@ -1113,10 +1131,11 @@ export const getCachedAnilistTvAboveFoldDetail = async (
   }
 };
 
-export const getCachedAnilistTvShowDetail = async (
+const loadCachedAnilistTvShowDetail = async (
   routeId: string,
-  options?: AnilistRouteResolveOptions,
+  acceptBareNumeric: boolean,
 ) => {
+  const options = { acceptBareNumeric };
   const fribbFirst = await tryBuildEnrichedFromFribb(routeId, options);
   if (fribbFirst) {
     return fribbFirst;
@@ -1133,6 +1152,17 @@ export const getCachedAnilistTvShowDetail = async (
     return resolved ? await buildEnrichedAnilistTvShowDetails(resolved) : null;
   }
 };
+
+const getCachedAnilistTvShowDetailCached = cache(loadCachedAnilistTvShowDetail);
+
+export const getCachedAnilistTvShowDetail = (
+  routeId: string,
+  options?: AnilistRouteResolveOptions,
+) =>
+  getCachedAnilistTvShowDetailCached(
+    routeId,
+    options?.acceptBareNumeric ?? true,
+  );
 
 const fetchMappedTmdbSeasonDetails = async (
   tmdbShowId: number,
@@ -1221,11 +1251,19 @@ export const getCachedAnilistTvSeasonDetails = async (
     fribbRows,
   );
   let episodes: Episode[];
+  let tmdbSeasonEnrichment: SeasonDetails | null = null;
   if (shouldMerge && tmdbShowId) {
-    const indexed = await getSeasonIndexEntry({
-      tmdbShowId,
-      seasonNumber,
-    });
+    // The bundled season index encodes open-ended AniBridge ranges with
+    // `endEpisode = Number.MAX_SAFE_INTEGER`. Clamp against the real TMDB
+    // episode count so an in-progress final cour can't loop for billions.
+    const [indexed, tmdbSeason] = await Promise.all([
+      getSeasonIndexEntry({
+        tmdbShowId,
+        seasonNumber,
+      }),
+      fetchTmdbSeasonShell(tmdbShowId, seasonNumber).catch(() => null),
+    ]);
+    tmdbSeasonEnrichment = tmdbSeason;
     if (indexed?.segments.length) {
       const runtime =
         typeof media.duration === "number" && media.duration > 0
@@ -1233,6 +1271,7 @@ export const getCachedAnilistTvSeasonDetails = async (
           : null;
       episodes = buildEpisodesFromMappingSegments(indexed.segments, {
         runtime,
+        maxEpisodeNumber: maxTmdbEpisodeNumber(tmdbSeason?.episodes),
       });
     } else {
       episodes = buildMergedEpisodesForTmdbSeason({
@@ -1260,6 +1299,13 @@ export const getCachedAnilistTvSeasonDetails = async (
     resolved,
     {
       preserveSplitCourAppendix: shouldMerge,
+      tmdbContext:
+        tmdbSeasonEnrichment && tmdbShowId
+          ? {
+              tmdbId: tmdbShowId,
+              tmdbSeasons: { [seasonNumber]: tmdbSeasonEnrichment },
+            }
+          : undefined,
     },
   );
 
@@ -1462,3 +1508,21 @@ export const resolveCanonicalAnilistRoute = async (
     season: resolved.franchise.entrySeasonNumber,
   };
 };
+
+/** Franchise root from bundled Fribb/AniBridge only — no live AniList. */
+export const resolveCanonicalAnilistRouteFromFribb = cache(
+  async (entryRouteId: string, acceptBareNumeric = true) => {
+    const anilistId = resolveAnilistIdForRoute(entryRouteId, {
+      acceptBareNumeric,
+    });
+    if (!anilistId) return null;
+
+    const franchise = await resolveFribbBackedFranchise(anilistId);
+    if (!franchise) return null;
+
+    return {
+      slug: toAnilistTvRouteSlug(franchise.rootAnilistId),
+      season: franchise.entrySeasonNumber,
+    };
+  },
+);

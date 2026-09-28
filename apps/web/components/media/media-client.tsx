@@ -3,6 +3,8 @@
 import type { EpisodeInfo } from "@/lib/domain/episodes";
 import type { WatchlistItem, WatchlistStatus } from "@/lib/domain/watchlist";
 import { PosterCard } from "@/components/cards/poster-card";
+import { BackdropCard } from "@/components/cards/backdrop-card";
+import { useCatalogCardStyle } from "@/lib/catalog-card-presentation";
 import { Icons as LibIcons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -546,6 +548,10 @@ const WATCHLIST_STATUSES: readonly WatchlistStatus[] = [
 ];
 
 export const MinimalMediaCard = ({ item }: { item: MediaItem }) => {
+  const catalogCardStyle = useCatalogCardStyle();
+  if (catalogCardStyle === "backdrop") {
+    return <BackdropCard item={item} />;
+  }
   return <PosterCard item={item} minimal />;
 };
 
@@ -559,6 +565,7 @@ export const MediaShowcaseCard = ({
   episodeInfo,
 }: MediaCardProps) => {
   const isMobile = !!useMedia("(max-width: 768px)", false);
+  const catalogCardStyle = useCatalogCardStyle();
   if (item.id === undefined) return <div>No content ID found</div>;
   const title = getTitle(item);
   const posterPath = item.poster_path ?? undefined;
@@ -629,6 +636,52 @@ export const MediaShowcaseCard = ({
   }
 
   const isWatchlistCard = Boolean(watchlistItem);
+
+  if (catalogCardStyle === "backdrop") {
+    return (
+      <div className="flex flex-col gap-3">
+        <BackdropCard item={item} isMobile={isMobile} href={href} />
+        {watchlistItem && onStatusChange ? (
+          <ToggleGroup
+            type="single"
+            value={watchlistItem.status}
+            onValueChange={handleStatusChange}
+            className="w-full justify-between rounded-full bg-black/40 p-1 shadow-lg backdrop-blur-xl"
+          >
+            {(
+              [
+                { value: "watching", label: "Watching" },
+                { value: "plan_to_watch", label: "Plan" },
+                { value: "on_hold", label: "Hold" },
+                { value: "dropped", label: "Dropped" },
+                { value: "completed", label: "Done" },
+              ] as const
+            ).map(({ value, label }) => (
+              <ToggleGroupItem
+                key={value}
+                value={value}
+                size="sm"
+                className={cn(
+                  "h-7 flex-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                  watchlistItem.status === value &&
+                    "bg-primary text-primary-foreground shadow-lg",
+                )}
+              >
+                {label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        ) : null}
+        {type === "tv" && item.id && !isExternalHref ? (
+          <EpisodeIndicator
+            contentId={item.id}
+            mediaType="tv"
+            episodeInfo={episodeInfo || null}
+          />
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <Card

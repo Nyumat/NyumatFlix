@@ -1,4 +1,4 @@
-import { getCachedSiteFlags } from "@/lib/flags/site-flags";
+import { getCachedSiteFlags } from "@/lib/flags/site-flags-server";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -6,7 +6,7 @@ export async function GET() {
     const flags = await getCachedSiteFlags();
     return NextResponse.json(flags, {
       headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (error) {

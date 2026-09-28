@@ -5,20 +5,18 @@ import { db, watchlist } from "@/db";
 import type { WatchlistItem } from "@/lib/domain/watchlist";
 import { and, eq } from "drizzle-orm";
 
-export async function getUserWatchlist(
-  userId?: string,
-): Promise<WatchlistItem[]> {
-  const resolvedUserId =
-    userId ?? (await auth().then((session) => session?.user?.id ?? undefined));
+export async function getUserWatchlist(): Promise<WatchlistItem[]> {
+  const session = await auth();
+  const userId = session?.user?.id;
 
-  if (!resolvedUserId) {
+  if (!userId) {
     return [];
   }
 
   const items = await db
     .select()
     .from(watchlist)
-    .where(eq(watchlist.userId, resolvedUserId))
+    .where(eq(watchlist.userId, userId))
     .orderBy(watchlist.updatedAt);
 
   return items as WatchlistItem[];

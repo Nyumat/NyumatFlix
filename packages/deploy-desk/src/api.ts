@@ -4,14 +4,16 @@ import { streamSSE } from "hono/streaming";
 import { apiPort, deskPort, productionUrl, sshHost } from "./lib/config";
 import { startDeploy, startRollback } from "./lib/deploy";
 import { getGitMeta } from "./lib/git";
-import { getJob, getJobs } from "./lib/jobs";
+import { abortJob, getJob, getJobs } from "./lib/jobs";
 import {
   buildPreview,
   refreshPreview,
   startPreview,
   stopPreview,
 } from "./lib/preview";
+import { prodOps } from "./lib/ops";
 import { fetchHistory, fetchLive, fetchServices } from "./lib/remote";
+import type { ProdOp } from "./lib/types";
 
 const defaults = {
   getGitMeta,
@@ -26,6 +28,8 @@ const defaults = {
   fetchServices,
   startDeploy,
   startRollback,
+  abortJob,
+  prodOps,
 };
 export function createApp(overrides: Partial<typeof defaults> = {}) {
   const deps = { ...defaults, ...overrides };
@@ -214,6 +218,49 @@ export function createApp(overrides: Partial<typeof defaults> = {}) {
         {
           error:
             error instanceof Error ? error.message : "Rollback could not start",
+        },
+        409,
+      );
+    }
+  });
+  app.post("/api/ops/:name", async (c) => {
+    const name = c.req.param("name") as ProdOp;
+    if (!Object.hasOwn(deps.prodOps, name))
+      return c.json({ error: "Unknown operation" }, 404);
+    const body: unknown = await c.req.json().catch(() => null);
+    const needsConfirm = name !== "infra-status";
+    if (
+      needsConfirm &&
+      (!body ||
+        typeof body !== "object" ||
+        !("confirmed" in body) ||
+        body.confirmed !== true)
+    )
+      return c.json({ error: "Confirm the operation first" }, 400);
+    try {
+      return c.json({ job: await deps.prodOps[name]() }, 202);
+    } catch (error) {
+      return c.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Operation could not start",
+        },
+        409,
+      );
+    }
+  });
+  app.post("/api/jobs/:id/abort", async (c) => {
+    const id = c.req.param("id");
+    try {
+      const job = deps.abortJob(id);
+      const { logs: _logs, ...summary } = job;
+      return c.json({ job: summary }, 202);
+    } catch (error) {
+      return c.json(
+        {
+          error: error instanceof Error ? error.message : "Could not abort job",
         },
         409,
       );

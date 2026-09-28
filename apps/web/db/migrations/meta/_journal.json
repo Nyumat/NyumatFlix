@@ -15,6 +15,48 @@
       "when": 1766500000000,
       "tag": "0001_storage_model",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789350456742,
+      "tag": "0002_catalog_card_style",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789386899184,
+      "tag": "0003_moaning_captain_stacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789637109907,
+      "tag": "0004_ambient_glow",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789640000000,
+      "tag": "0005_passkey_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789641000000,
+      "tag": "0006_webauthn_user_handles",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789642000000,
+      "tag": "0007_nullable_experience_prefs",
+      "breakpoints": true
     }
   ]
 }

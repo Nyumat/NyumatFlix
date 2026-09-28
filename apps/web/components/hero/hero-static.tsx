@@ -293,11 +293,13 @@ export function StaticHero({
       logo={logo}
       hideTitle={hideTitle}
       overlayClassName={
-        isWatchlistPage || isSettingsPage || isHistoryPage
-          ? "bg-black/90"
-          : isCatalogPage
-            ? "bg-black/80"
-            : undefined
+        isSettingsPage
+          ? "bg-black/45"
+          : isWatchlistPage || isHistoryPage
+            ? "bg-black/90"
+            : isCatalogPage
+              ? "bg-black/80"
+              : undefined
       }
     />
   );

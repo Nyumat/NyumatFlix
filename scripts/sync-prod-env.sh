@@ -34,6 +34,10 @@ push_env() {
   rsync -avz \
     "$ROOT/scripts/crowdsec/" \
     "${SSH_HOST}:~/${REMOTE_DIR}/scripts/crowdsec/"
+  ssh "$SSH_HOST" "mkdir -p \"\$HOME/${REMOTE_DIR}/scripts/gluetun\""
+  rsync -avz \
+    "$ROOT/scripts/gluetun/defaults.env" \
+    "${SSH_HOST}:~/${REMOTE_DIR}/scripts/gluetun/"
   rsync -avz \
     "$MANAGED_KEYS_FILE" \
     "$ROOT/scripts/reconcile-prod-infra.sh" \
@@ -54,12 +58,14 @@ push_env() {
     "$ROOT/scripts/nginx-crowdsec-bouncer.conf" \
     "$ROOT/scripts/deploy.sh" \
     "$ROOT/scripts/deploy-lib.sh" \
+    "$ROOT/scripts/verify-scrape-route.sh" \
+    "$ROOT/scripts/bunny-purge-catalog.sh" \
     "${SSH_HOST}:~/${REMOTE_DIR}/scripts/"
   if [[ -d "$ROOT/flipt" ]]; then
     rsync -avz "$ROOT/flipt/" "${SSH_HOST}:~/${REMOTE_DIR}/flipt/"
   fi
 
-  ssh "$SSH_HOST" "chmod +x \"\$HOME/${REMOTE_DIR}/scripts/deploy.sh\" \"\$HOME/${REMOTE_DIR}/scripts/deploy-lib.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-prod-infra.sh\" \"\$HOME/${REMOTE_DIR}/scripts/infra-health.sh\" \"\$HOME/${REMOTE_DIR}/scripts/nyumatflix-infra-watchdog.sh\" \"\$HOME/${REMOTE_DIR}/scripts/install-prod-watchdogs.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-cap.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-crowdsec.sh\" \"\$HOME/${REMOTE_DIR}/scripts/lock-cap-cors.sh\" \"\$HOME/${REMOTE_DIR}/scripts/update-cap-key-cors.sh\""
+  ssh "$SSH_HOST" "chmod +x \"\$HOME/${REMOTE_DIR}/scripts/deploy.sh\" \"\$HOME/${REMOTE_DIR}/scripts/deploy-lib.sh\" \"\$HOME/${REMOTE_DIR}/scripts/verify-scrape-route.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-prod-infra.sh\" \"\$HOME/${REMOTE_DIR}/scripts/infra-health.sh\" \"\$HOME/${REMOTE_DIR}/scripts/nyumatflix-infra-watchdog.sh\" \"\$HOME/${REMOTE_DIR}/scripts/install-prod-watchdogs.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-cap.sh\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-crowdsec.sh\" \"\$HOME/${REMOTE_DIR}/scripts/lock-cap-cors.sh\" \"\$HOME/${REMOTE_DIR}/scripts/update-cap-key-cors.sh\""
   ssh "$SSH_HOST" "NYUMATFLIX_ROOT=\"\$HOME/${REMOTE_DIR}\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-prod-infra.sh\" ensure"
   ssh "$SSH_HOST" "CAP_ENV_FILE=\"\$HOME/${REMOTE_DIR}/.env\" \"\$HOME/${REMOTE_DIR}/scripts/reconcile-cap.sh\" ensure"
   ssh "$SSH_HOST" "sudo NYUMATFLIX_ROOT=\"\$HOME/${REMOTE_DIR}\" \"\$HOME/${REMOTE_DIR}/scripts/install-prod-watchdogs.sh\" || true"

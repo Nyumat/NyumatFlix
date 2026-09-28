@@ -1,47 +1,54 @@
 "use client";
 
-import type { VideasyTrailerStreamStatus } from "@/hooks/use-videasy-trailer-stream";
-import { useMediaVideosQuery } from "@/hooks/use-media-videos-query";
 import type { useHeroScrapePlayback } from "@/hooks/use-hero-scrape-playback";
-import { useVidsrcProgress } from "@/hooks/use-vidsrc-progress";
-import {
-  extractVideoRowsFromMediaVideos,
-  selectPrimaryTrailerVideo,
-  type TrailerPickRow,
-} from "@/lib/select-primary-trailer-video";
-import { useEpisodeStore } from "@/lib/stores/episode-store";
-import { useRootTrailerAudioStore } from "@/lib/stores/root-trailer-audio-store";
-import { isScrapeServer, useServerStore } from "@/lib/stores/server-store";
+import { useMediaVideosQuery } from "@/hooks/use-media-videos-query";
+import { PLAYER_ENGINE_CHANGE_EVENT } from "@/hooks/use-movi-preview";
 import { useValidatedHeroBackdrop } from "@/hooks/use-validated-hero-backdrop";
+import type { VideasyTrailerStreamStatus } from "@/hooks/use-videasy-trailer-stream";
+import { useVidsrcProgress } from "@/hooks/use-vidsrc-progress";
+import type { MediaItem } from "@/lib/domain/typings";
 import {
   heroBackgroundImageUrl,
   resolveHeroBackgroundImage,
 } from "@/lib/hero-background-image";
 import { readIntroDbImdbId } from "@/lib/playback/introdb";
-import type { MediaItem } from "@/lib/domain/typings";
+import {
+  extractVideoRowsFromMediaVideos,
+  selectPrimaryTrailerVideo,
+  type TrailerPickRow,
+} from "@/lib/select-primary-trailer-video";
+import {
+  useFeatureFlags,
+  useFeatureFlagsReady,
+} from "@/components/providers/feature-flags-provider";
+import { canOfferEmbedPlayback } from "@/lib/flags/site-flags";
+import { useAppSettingsStore } from "@/lib/stores/app-settings-store";
+import { useEpisodeStore } from "@/lib/stores/episode-store";
+import { useRootTrailerAudioStore } from "@/lib/stores/root-trailer-audio-store";
+import { isScrapeServer, useServerStore } from "@/lib/stores/server-store";
+import { tmdbImage } from "@/tmdb/utils";
 import {
   AnimatePresence,
   type LegacyAnimationControls,
   motion,
 } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { PLAYER_ENGINE_CHANGE_EVENT } from "@/hooks/use-movi-preview";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { tmdbImage } from "@/tmdb/utils";
-import { cn } from "@/lib/utils";
+
+import "@/components/media/player-surface.css";
 import { logger } from "@/lib/utils";
 import { AmbientVideoBackdrop } from "./ambient-video-backdrop";
+import { HERO_MEDIA_TRANSITION } from "./hero-overlay";
 import {
   HeroEmbedPlayerPanel,
   HeroPlaybackShell,
   HeroScrapePlayerPanel,
 } from "./hero-scrape-player-panel";
-import { HERO_MEDIA_TRANSITION } from "./hero-overlay";
+import { VideasyStreamVideo } from "./videasy-stream-video";
 import {
   HERO_YOUTUBE_CHROMELESS_BASE,
   type YouTubePlayer,
 } from "./youtube-types";
-import { VideasyStreamVideo } from "./videasy-stream-video";
 
 export type HeroScrapePlaybackState = ReturnType<typeof useHeroScrapePlayback>;
 
@@ -102,6 +109,15 @@ export function HeroBackground({
   );
   const { selectedServer, vidnestContentType, animePreference } =
     useServerStore();
+  const flags = useFeatureFlags();
+  const flagsReady = useFeatureFlagsReady();
+  const noAdsMode = useAppSettingsStore((state) => state.noAdsMode);
+  const embedAllowed = canOfferEmbedPlayback({
+    flagsReady,
+    proxyModeOnly: flags.proxyModeOnly,
+    iframeModeOnly: flags.iframeModeOnly,
+    noAdsMode,
+  });
 
   const {
     resolvedMediaType,
@@ -527,11 +543,11 @@ export function HeroBackground({
             >
               <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full">
                 {selectedTrailer?.key ? (
-                  <div className="relative h-full w-full rounded-lg border border-border/20 bg-black shadow-2xl">
+                  <div className="relative h-full w-full overflow-hidden rounded-[1.35rem] bg-transparent">
                     <div
                       id="trailer-player"
                       key={selectedTrailer.key}
-                      className="h-full w-full overflow-hidden rounded-lg"
+                      className="nyumat-player-surface h-full w-full overflow-hidden"
                     />
                     {canSwitchTrailers ? (
                       <div className="absolute right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
@@ -555,7 +571,7 @@ export function HeroBackground({
                     ) : null}
                   </div>
                 ) : hasVideasySource ? (
-                  <div className="relative h-full w-full overflow-hidden rounded-lg border border-border/20 bg-black shadow-2xl">
+                  <div className="relative h-full w-full overflow-hidden rounded-[1.35rem] bg-transparent">
                     <VideasyStreamVideo
                       mp4Url={videasyTrailerUrl}
                       hlsUrl={videasyTrailerHlsUrl}
@@ -563,11 +579,11 @@ export function HeroBackground({
                       isMuted={peekTrailerActive}
                       onEnded={onTrailerEnded}
                       onError={onVideasyStreamError}
-                      className="h-full w-full object-contain"
+                      className="nyumat-player-surface h-full w-full object-contain"
                     />
                   </div>
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center rounded-lg border border-border/20 bg-black text-sm text-muted-foreground shadow-2xl">
+                  <div className="flex h-full w-full items-center justify-center rounded-[1.35rem] bg-transparent text-sm text-muted-foreground">
                     Loading trailer...
                   </div>
                 )}
@@ -582,7 +598,7 @@ export function HeroBackground({
               className="w-full absolute z-30 px-4 sm:px-6 lg:px-8"
               style={{ top: "5rem", height: "calc(100% - 15rem)" }}
             >
-              <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full relative overflow-hidden">
+              <div className="md:max-w-7xl lg:max-w-8xl mx-auto h-full relative overflow-visible">
                 <HeroPlaybackShell
                   selectedServer={selectedServer}
                   scrapeStatus={activeScrape.status}
@@ -625,12 +641,12 @@ export function HeroBackground({
                       directPlayback={directPlayback}
                       onMediaReadyChange={setMediaReady}
                     />
-                  ) : (
+                  ) : embedAllowed ? (
                     <HeroEmbedPlayerPanel
                       videoSrc={embedVideoSrc}
                       iframeKey={embedIframeKey}
                     />
-                  )}
+                  ) : null}
                 </HeroPlaybackShell>
               </div>
             </motion.div>

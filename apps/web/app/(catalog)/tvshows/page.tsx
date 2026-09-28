@@ -1,12 +1,15 @@
 import { IndexPage } from "@/components/catalog/index-page";
-import { CatalogDiscoverHubLoading } from "@/components/layout/page-loading/catalog-hub-loading";
+import { IndexFeatureHeroFallback } from "@/components/catalog/index-feature-hero-fallback";
 import { CatalogResultsLoading } from "@/components/layout/page-loading/catalog-results-loading";
 import {
   TvDiscoverContent,
-  getTvHubFeature,
+  TvDiscoverHubSections,
   TvListCatalogSection,
 } from "@/components/tv/tv-catalog-sections";
+import { TvHubFeatureHero } from "@/components/tv/tv-hub-feature-hero";
 import { pages } from "@/config/pages";
+import { getTvHubFeature } from "@/lib/server/catalog-hub-feature";
+import { resolveHubIndexPageBackdrops } from "@/lib/server/hub-index-page";
 import { getCatalogLayoutState } from "@/lib/catalog-page-state";
 import { parseTvView, stripCatalogUiParams } from "@/lib/catalog-query";
 import { getTvCatalogListCopy } from "@/lib/catalog-list-copy";
@@ -15,8 +18,6 @@ import { normalizeRouteSearchParams } from "@/lib/utils";
 import { buildCatalogMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 import { Suspense } from "react";
-
-export const revalidate = 3600;
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -54,22 +55,37 @@ export default async function TvShowsCatalogPage(props: PageProps) {
     getDiscoverCatalogCopy(sp, "tv") ?? getTvCatalogListCopy(view);
   const catalogQueryParams = toCatalogQueryParams(sp);
   const indexHref = Object.keys(sp).length > 0 ? pages.tv.root.link : undefined;
-  const hubFeature = layoutState.isHubLayout ? await getTvHubFeature() : null;
-  const backdrop = hubFeature?.backdrop ?? null;
 
   if (view === "discover") {
+    const hubFeature = layoutState.isHubLayout ? await getTvHubFeature() : null;
+    const hubBackdrops = layoutState.isHubLayout
+      ? resolveHubIndexPageBackdrops(hubFeature, "tv")
+      : null;
+
     return (
-      <IndexPage backdrop={backdrop}>
-        <Suspense fallback={<CatalogDiscoverHubLoading />}>
-          <TvDiscoverContent
-            searchParams={sp}
-            title={title}
-            description={description ?? ""}
-            catalogQueryParams={catalogQueryParams}
-            indexHref={indexHref}
-            feature={hubFeature?.item ?? null}
-          />
-        </Suspense>
+      <IndexPage
+        background={layoutState.isHubLayout ? "hub" : "shader"}
+        backdrop={hubBackdrops?.backdrop ?? null}
+        heroBackdrops={hubBackdrops?.heroBackdrops}
+      >
+        {layoutState.isHubLayout ? (
+          <>
+            <Suspense fallback={<IndexFeatureHeroFallback />}>
+              <TvHubFeatureHero />
+            </Suspense>
+            <TvDiscoverHubSections searchParams={sp} />
+          </>
+        ) : (
+          <Suspense fallback={<CatalogResultsLoading />}>
+            <TvDiscoverContent
+              searchParams={sp}
+              title={title}
+              description={description ?? ""}
+              catalogQueryParams={catalogQueryParams}
+              indexHref={indexHref}
+            />
+          </Suspense>
+        )}
       </IndexPage>
     );
   }

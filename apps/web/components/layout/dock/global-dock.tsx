@@ -1,9 +1,17 @@
 "use client";
 
 import type { ViewMode } from "@/components/content-grid";
-import { ViewModeCompactDock } from "@/components/layout/dock/compact-dock";
 import { usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
 import { createContext, useContext, useState } from "react";
+
+const ViewModeCompactDock = dynamic(
+  () =>
+    import("@/components/layout/dock/compact-dock").then(
+      (module) => module.ViewModeCompactDock,
+    ),
+  { ssr: false },
+);
 
 interface GlobalDockContextType {
   viewMode: ViewMode;

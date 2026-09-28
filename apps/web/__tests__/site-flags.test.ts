@@ -5,6 +5,7 @@ import {
   filterAnimeScrapeProviderIds,
   filterEmbedProviderIds,
   filterTmdbScrapeProviderIds,
+  canOfferEmbedPlayback,
   getDefaultSiteFlags,
   getPlaybackModePolicy,
   resolveSiteFlags,
@@ -140,5 +141,40 @@ describe("site-flags", () => {
         selectedServerIsScrape: false,
       }),
     ).toBe(false);
+  });
+
+  it("hides embeds until flags are ready and while proxy is locked", () => {
+    expect(
+      canOfferEmbedPlayback({
+        flagsReady: false,
+        proxyModeOnly: false,
+        iframeModeOnly: false,
+        noAdsMode: false,
+      }),
+    ).toBe(false);
+    expect(
+      canOfferEmbedPlayback({
+        flagsReady: true,
+        proxyModeOnly: true,
+        iframeModeOnly: false,
+        noAdsMode: false,
+      }),
+    ).toBe(false);
+    expect(
+      canOfferEmbedPlayback({
+        flagsReady: true,
+        proxyModeOnly: false,
+        iframeModeOnly: false,
+        noAdsMode: false,
+      }),
+    ).toBe(true);
+    expect(
+      canOfferEmbedPlayback({
+        flagsReady: true,
+        proxyModeOnly: false,
+        iframeModeOnly: true,
+        noAdsMode: true,
+      }),
+    ).toBe(true);
   });
 });

@@ -36,7 +36,7 @@ export function DetailHeroListRow({
 
   const watchlistItem = watchlistItemProp ?? watchlistItemFetched;
 
-  const malStatusQuery = useMalSyncStatus();
+  const malStatusQuery = useMalSyncStatus({ deferUntilIdleOrMenu: true });
   const malConnected = malStatusQuery.data?.connected === true;
   const showMalControls =
     malConnected && mediaType === "tv" && (hasAnilistId || isAnimeCatalog);

@@ -1,4 +1,13 @@
+"use client";
+
+import { CatalogGridSkeleton } from "@/components/catalog/catalog-card-skeletons";
+import { CatalogPosterRowFallback } from "@/components/catalog/catalog-poster-row-fallback";
+import { HeroContentSkeleton } from "@/components/hero/hero-content-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  carouselItemClassName,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
 import { cn } from "@/lib/utils";
 
 type RowFallbackProps = {
@@ -14,93 +23,109 @@ export const CatalogGridFallback = () => (
         <Skeleton className="h-8 w-10 rounded-md" />
       </div>
     </div>
-    <div className="grid-list">
-      {Array.from({ length: 10 }).map((_, index) => (
-        <div key={index} className="min-w-0">
-          <Skeleton className="aspect-poster w-full rounded-[28px]" />
-        </div>
-      ))}
-    </div>
+    <CatalogGridSkeleton count={10} />
   </div>
 );
 
+/** Poster carousel row — matches {@link StandardContentRow} layout. */
 export const CatalogRowFallback = ({
   bleed = false,
-}: RowFallbackProps = {}) => (
-  <div className={cn("space-y-4", bleed && "index-bleed")} aria-hidden>
-    <div
-      className={cn(
-        "flex items-baseline justify-between gap-3",
-        bleed ? "index-rail-padding" : "px-1",
-      )}
-    >
-      <Skeleton className={cn("rounded-lg", bleed ? "h-8 w-64" : "h-6 w-40")} />
-      <Skeleton className="h-4 w-14 shrink-0 rounded-md" />
-    </div>
-    <div
-      className={cn(
-        "flex overflow-hidden",
-        bleed ? "index-rail-padding gap-3 lg:gap-4" : "gap-4",
-      )}
-    >
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Skeleton
-          key={index}
-          className={cn(
-            "aspect-poster w-[46%] shrink-0 rounded-[28px] sm:w-[31%] md:w-[24%] lg:w-44 xl:w-48 2xl:w-52",
-          )}
-        />
-      ))}
-    </div>
-  </div>
-);
+}: RowFallbackProps = {}) => <CatalogPosterRowFallback bleed={bleed} />;
 
-export const RecentlyWatchedRowFallback = ({
-  bleed = false,
-}: RowFallbackProps = {}) => (
-  <section
-    aria-label="Continue watching"
-    className={cn(bleed && "index-bleed")}
-    aria-hidden
-  >
-    <div
-      className={cn(
-        "mb-4 flex items-baseline justify-between gap-3",
-        bleed ? "index-rail-padding" : "px-1",
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        <Skeleton
-          className={cn("rounded-lg", bleed ? "h-8 w-64" : "h-6 w-44")}
-        />
-      </div>
-      <Skeleton className="ml-auto h-4 w-16 shrink-0 rounded-md" />
+export { CatalogRankedRowFallback } from "@/components/catalog/catalog-ranked-row-fallback";
+
+export const HomeProviderRailFallback = () => (
+  <section className="index-bleed space-y-4" aria-hidden>
+    <div className="index-rail-padding">
+      <Skeleton className="h-7 w-44 rounded-lg" />
     </div>
-    <div
-      className={cn(
-        "-ml-3 flex overflow-hidden lg:-ml-4",
-        bleed && "index-rail-padding",
-      )}
-    >
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          className="basis-[82%] shrink-0 pl-3 sm:basis-[58%] md:basis-[42%] lg:basis-[26rem] lg:pl-4 xl:basis-[28rem] 2xl:basis-[30rem]"
-        >
-          <div className="relative overflow-hidden rounded-xs">
-            <Skeleton className="aspect-video w-full rounded-xs" />
+    <div className="index-rail-padding scroll-px-6 lg:scroll-px-16">
+      <div className="scrollbar-hide overflow-x-hidden">
+        <div className="flex w-max snap-x snap-mandatory gap-5 pb-1 lg:gap-6">
+          {Array.from({ length: 8 }).map((_, index) => (
             <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-pink-500/15"
+              key={index}
+              className="w-[5.75rem] shrink-0 snap-start lg:w-[6.75rem]"
             >
-              <div className="h-full w-[6%] bg-pink-500/40" />
+              <Skeleton className="mx-auto aspect-square w-20 rounded-2xl lg:w-24" />
+              <Skeleton className="mx-auto mt-2.5 h-5 w-16 rounded-md" />
             </div>
-          </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   </section>
 );
+
+export const CatalogShowcaseRowFallback = ({
+  bleed = false,
+}: RowFallbackProps = {}) => <CatalogPosterRowFallback bleed={bleed} />;
+
+export const RecentlyWatchedRowFallback = ({
+  bleed = false,
+}: RowFallbackProps = {}) => {
+  const catalogCardStyle = useCatalogCardStyle();
+  const isPoster = catalogCardStyle === "poster";
+  const skeletonClassName =
+    catalogCardStyle === "poster"
+      ? "aspect-poster w-full rounded-[28px]"
+      : "aspect-video w-full rounded-lg";
+  return (
+    <section
+      aria-label="Continue watching"
+      className={cn(bleed && "index-bleed")}
+      aria-hidden
+    >
+      <div
+        className={cn(
+          "mb-4 flex items-baseline justify-between gap-3",
+          bleed ? "index-rail-padding" : "px-1",
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <Skeleton
+            className={cn("rounded-lg", bleed ? "h-8 w-64" : "h-6 w-44")}
+          />
+        </div>
+        <Skeleton className="ml-auto h-4 w-16 shrink-0 rounded-md" />
+      </div>
+      <div
+        className={cn(
+          "-ml-3 flex overflow-hidden lg:-ml-4",
+          bleed && "index-rail-padding",
+        )}
+      >
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              "flex flex-col gap-2",
+              carouselItemClassName(catalogCardStyle),
+            )}
+          >
+            <div className="relative overflow-hidden rounded-lg">
+              <Skeleton className={skeletonClassName} />
+              {isPoster ? null : (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-white/15"
+                >
+                  <div className="h-full w-[6%] rounded-r-full bg-pink-500/45" />
+                </div>
+              )}
+            </div>
+            {isPoster ? null : (
+              <div className="min-w-0 space-y-1 px-0.5">
+                <Skeleton className="h-4 w-4/5 rounded-md" />
+                <Skeleton className="h-3 w-1/2 rounded-md" />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
 
 export const CatalogHeroPairFallback = () => (
   <div className="grid gap-4 md:grid-cols-2" aria-hidden>
@@ -110,9 +135,8 @@ export const CatalogHeroPairFallback = () => (
         className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-card/30 shadow-xl backdrop-blur-md"
       >
         <Skeleton className="h-index-feature w-full rounded-none" />
-        <div className="absolute inset-x-0 bottom-0 space-y-2 bg-linear-to-t from-black/80 to-transparent p-4">
-          <Skeleton className="h-5 w-24 rounded-full" />
-          <Skeleton className="h-7 w-2/3 max-w-xs rounded-lg" />
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent p-4">
+          <HeroContentSkeleton variant="spotlight" />
         </div>
       </div>
     ))}
@@ -125,22 +149,8 @@ export const CatalogSpotlightFallback = () => (
     aria-hidden
   >
     <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/90 via-background/40 to-background/20" />
-    <div className="relative flex h-index-spotlight flex-col items-center justify-end gap-4 px-4 pb-8 pt-16 text-center md:gap-5 md:px-8 md:pb-10">
-      <Skeleton className="h-6 w-28 rounded-full" />
-      <Skeleton className="h-10 w-[min(70%,20rem)] rounded-lg md:h-12" />
-      <div className="flex flex-wrap justify-center gap-2">
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-6 w-20 rounded-full" />
-        <Skeleton className="h-6 w-14 rounded-full" />
-      </div>
-      <div className="w-full max-w-xl space-y-2">
-        <Skeleton className="mx-auto h-4 w-full rounded-md" />
-        <Skeleton className="mx-auto h-4 w-4/5 rounded-md" />
-      </div>
-      <div className="flex items-center justify-center gap-3 pt-1">
-        <Skeleton className="h-10 w-24 rounded-full" />
-        <Skeleton className="h-10 w-28 rounded-full" />
-      </div>
+    <div className="relative flex h-index-spotlight flex-col items-center justify-end px-4 pb-8 pt-16 md:px-8 md:pb-10">
+      <HeroContentSkeleton variant="spotlight" align="center" />
     </div>
   </div>
 );
@@ -189,19 +199,8 @@ export const TrendingSpotlightFallback = () => (
     <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-background/95 via-background/55 to-background/25" />
     <div className="relative flex min-h-[min(22rem,70vw)] flex-col gap-8 p-4 sm:p-6 md:min-h-80 md:flex-row md:items-stretch md:gap-8 md:p-8">
       <Skeleton className="aspect-poster w-full max-w-[11rem] shrink-0 rounded-2xl md:w-44 lg:w-48" />
-      <div className="flex flex-1 flex-col justify-center gap-4">
-        <Skeleton className="h-5 w-24 rounded-full" />
-        <Skeleton className="h-10 w-3/4 max-w-sm rounded-lg" />
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-6 w-16 rounded-full" />
-          <Skeleton className="h-6 w-20 rounded-full" />
-        </div>
-        <Skeleton className="h-4 w-full max-w-md rounded-md" />
-        <Skeleton className="h-4 w-5/6 max-w-sm rounded-md" />
-        <div className="flex gap-3 pt-1">
-          <Skeleton className="h-10 w-24 rounded-full" />
-          <Skeleton className="h-10 w-32 rounded-full" />
-        </div>
+      <div className="flex flex-1 flex-col justify-center">
+        <HeroContentSkeleton variant="spotlight" />
       </div>
     </div>
   </div>

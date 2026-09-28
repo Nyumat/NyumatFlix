@@ -10,7 +10,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import type { NavbarSearchClientProps } from "@/components/search/search";
-import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import {
+  useFeatureFlags,
+  useFeatureFlagsReady,
+} from "@/components/providers/feature-flags-provider";
 import { type NavItem } from "@/config/site";
 import { getNavigationItems } from "@/lib/navigation";
 import { useWatchlistSummary } from "@/hooks/useWatchlistSummary";
@@ -81,6 +84,7 @@ export const NavbarMobileNavigation = ({
   triggerClassName,
 }: NavbarMobileNavigationProps) => {
   const { liveTvEnabled, authEnabled } = useFeatureFlags();
+  const flagsReady = useFeatureFlagsReady();
   const navigationItems = getNavigationItems(liveTvEnabled);
   const [open, setOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -242,7 +246,7 @@ export const NavbarMobileNavigation = ({
                 <LogOut className="size-4" />
                 Sign out
               </button>
-            ) : authEnabled ? (
+            ) : flagsReady && authEnabled ? (
               <Button asChild variant="chrome" className="w-full gap-2">
                 <Link href={loginHref(pathname)} onClick={handleLinkClick}>
                   Sign in
@@ -322,7 +326,7 @@ const LoggedInProfileCard = ({
         <List className="size-4 text-primary" />
         My Watchlist
         {!isWatchlistLoading && watchlistSummary ? (
-          <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-xs text-white/70">
+          <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-xs text-white/70">
             {watchlistSummary.total}
           </span>
         ) : null}
@@ -376,16 +380,17 @@ const MobileBrowseRoot = ({
   activeTitle?: string;
   onNavigate: () => void;
 }) => {
-  const isTrending = (title: string) => title.toLowerCase() === "trending";
+  const isWide = (title: string) =>
+    ["collections", "trending"].includes(title.toLowerCase());
 
   return (
     <div className="grid grid-cols-2 gap-2">
       {items.map((item) => {
         const Icon = getNavIcon(item);
         const isActive = item.title === activeTitle;
-        const trendingItem = isTrending(item.title);
+        const wideItem = isWide(item.title);
 
-        if (trendingItem) {
+        if (wideItem) {
           return (
             <Link
               key={item.title}
@@ -401,7 +406,12 @@ const MobileBrowseRoot = ({
             >
               <div className="flex items-center gap-2.5">
                 <Icon
-                  className="size-5 shrink-0 text-amber-400"
+                  className={cn(
+                    "size-5 shrink-0",
+                    item.title === "Trending"
+                      ? "text-amber-400"
+                      : "text-white/70",
+                  )}
                   strokeWidth={1.75}
                 />
                 <span

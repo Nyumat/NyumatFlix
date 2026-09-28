@@ -284,12 +284,23 @@ export function LiveTvPage({
   };
 
   return (
-    <div className="site-container space-y-8 md:space-y-10">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-          Live Television
-        </h1>
-      </header>
+    <div className="space-y-4 md:space-y-5">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+            Live TV
+          </h1>
+          {playableGuide.channels.length > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <span className="relative flex size-1.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-60" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-destructive" />
+              </span>
+              {playableGuide.channels.length} channels
+            </span>
+          ) : null}
+        </div>
+      </div>
 
       {loadingGuide ? (
         <LiveGuideLoadingState />
@@ -299,6 +310,7 @@ export function LiveTvPage({
         <LiveTvPlayer
           categories={playableGuide.categories}
           channels={filteredChannels}
+          channelCount={playableGuide.channels.length}
           loadingMoreChannels={loadingMoreChannels}
           onCategoryChange={setCategory}
           onRefresh={refreshGuide}
@@ -319,9 +331,15 @@ export function LiveTvPage({
 
 function LiveGuideLoadingState() {
   return (
-    <div className="overflow-hidden rounded-[8px] border border-border bg-card/40 shadow-2xl shadow-black/35 backdrop-blur-md">
-      <div className="flex aspect-video items-center justify-center bg-black text-sm text-muted-foreground">
-        Loading live channels...
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-card/30 shadow-xl shadow-black/20 backdrop-blur-md">
+      <div className="border-b border-white/10 bg-black/30 px-4 py-3 md:px-5">
+        <div className="h-4 w-36 animate-pulse rounded-md bg-white/10" />
+      </div>
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-stretch">
+        <div className="flex aspect-video items-center justify-center self-start bg-black text-sm text-muted-foreground">
+          Loading live channels...
+        </div>
+        <div className="hidden h-0 min-h-full border-l border-white/10 bg-black/30 lg:block" />
       </div>
     </div>
   );
@@ -335,7 +353,7 @@ function LiveGuideErrorState({
   retrying: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-[8px] border border-border bg-card/40 p-8 text-center shadow-2xl shadow-black/35 backdrop-blur-md">
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-card/30 p-8 text-center shadow-xl shadow-black/20 backdrop-blur-md">
       <p className="text-sm text-muted-foreground">
         Live channels are taking longer than usual to load.
       </p>

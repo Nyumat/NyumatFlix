@@ -62,7 +62,9 @@ export const TrendList: React.FC<TrendListProps> = async ({
         <IndexHeader title={title ?? "Trending"} description={description} />
       }
     >
-      <div className="grid-list">
+      <div
+        className={type === "people" ? "grid-list people-grid" : "grid-list"}
+      >
         {trendsWithDeathday.map((item) =>
           item.media_type === "tv" ? (
             <TvCard key={item.id} {...item} />

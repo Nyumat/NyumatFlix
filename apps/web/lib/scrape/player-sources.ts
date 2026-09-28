@@ -9,6 +9,8 @@ import { vidstackCaptionMenuValue } from "@/lib/playback/vidstack-caption-menu";
 import {
   buildScrapePlayUrl,
   extractScrapePlaybackRefreshFromPlayUrl,
+  isScrapePlayProxyUrl,
+  relativeScrapePlayUrl,
 } from "./playback";
 import type {
   ScrapeAudioVersion,
@@ -115,7 +117,10 @@ export const buildScrapeSubtitleTracks = (
 
   const seenUrls = new Set<string>();
   const tracks = subtitles.flatMap((track) => {
-    if (!track.url.startsWith("http") || seenUrls.has(track.url)) {
+    if (
+      (!track.url.startsWith("http") && !isScrapePlayProxyUrl(track.url)) ||
+      seenUrls.has(track.url)
+    ) {
       return [];
     }
 
@@ -133,11 +138,13 @@ export const buildScrapeSubtitleTracks = (
     return [
       {
         id: buildScrapeSubtitleTrackId(track, track.url),
-        src: buildScrapePlayUrl({
-          url: track.url,
-          referer: trackReferer,
-          subtitleFormat: track.format === "ass" ? "ass" : undefined,
-        }),
+        src: isScrapePlayProxyUrl(track.url)
+          ? relativeScrapePlayUrl(track.url)
+          : buildScrapePlayUrl({
+              url: track.url,
+              referer: trackReferer,
+              subtitleFormat: track.format === "ass" ? "ass" : undefined,
+            }),
         lang: track.lang,
         label: formatScrapeSubtitleLabel(track.lang, track.url, track.source),
         type:
@@ -243,18 +250,23 @@ export const buildScrapePlayerSrc = (
   const refresh = extractScrapePlaybackRefreshFromPlayUrl(playUrl);
   const seen = new Set<string>();
   const renditions = [...qualities]
-    .filter((quality) => quality.url.startsWith("http"))
+    .filter(
+      (quality) =>
+        quality.url.startsWith("http") || isScrapePlayProxyUrl(quality.url),
+    )
     .map((quality) => {
       const dimensions = dimensionsForQuality(quality);
       if (!dimensions) {
         return null;
       }
 
-      const proxied = buildScrapePlayUrl({
-        url: quality.url,
-        referer,
-        refresh,
-      });
+      const proxied = isScrapePlayProxyUrl(quality.url)
+        ? relativeScrapePlayUrl(quality.url)
+        : buildScrapePlayUrl({
+            url: quality.url,
+            referer,
+            refresh,
+          });
       if (seen.has(proxied)) {
         return null;
       }
@@ -275,11 +287,13 @@ export const buildScrapePlayerSrc = (
 
   if (!seen.has(playUrl)) {
     const primaryQuality = qualities.find((quality) => {
-      const proxied = buildScrapePlayUrl({
-        url: quality.url,
-        referer,
-        refresh,
-      });
+      const proxied = isScrapePlayProxyUrl(quality.url)
+        ? relativeScrapePlayUrl(quality.url)
+        : buildScrapePlayUrl({
+            url: quality.url,
+            referer,
+            refresh,
+          });
       return proxied === playUrl;
     });
     const dimensions = primaryQuality
@@ -347,6 +361,9 @@ export const buildScrapeQualityPlayOptions = (
   const seen = new Set<string>();
 
   const resolvePlayUrl = (quality: ScrapeQuality) => {
+    if (isScrapePlayProxyUrl(quality.url)) {
+      return relativeScrapePlayUrl(quality.url);
+    }
     if (directPlayback) {
       return quality.url;
     }
@@ -367,7 +384,10 @@ export const buildScrapeQualityPlayOptions = (
   };
 
   const sorted = [...(qualities ?? [])]
-    .filter((quality) => quality.url.startsWith("http"))
+    .filter(
+      (quality) =>
+        quality.url.startsWith("http") || isScrapePlayProxyUrl(quality.url),
+    )
     .sort((left, right) => qualityHeight(right) - qualityHeight(left));
 
   const primaryMatch = sorted.find((quality) => {

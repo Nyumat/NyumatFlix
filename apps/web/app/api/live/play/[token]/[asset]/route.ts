@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getSiteFlags } from "@/lib/flags/site-flags";
+import { getSiteFlags } from "@/lib/flags/site-flags-server";
 import {
   decodeLiveStreamToken,
   isAllowedLiveStreamUrl,

@@ -20,6 +20,9 @@ export const scrapePreferProxyHostname = (hostname: string): boolean => {
     hostname === "www.vidsrc.wtf" ||
     hostname === "api.vidsrc.wtf" ||
     hostname === "viduki.net" ||
-    hostname === "www.viduki.net"
+    hostname === "www.viduki.net" ||
+    hostname === "cap.hexa.su" ||
+    hostname === "theemoviedb.hexa.su" ||
+    hostname === "hexa.su"
   );
 };

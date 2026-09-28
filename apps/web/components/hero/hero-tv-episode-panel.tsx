@@ -349,6 +349,13 @@ export function HeroTvEpisodePanel({
         : 0,
     [animeSegments],
   );
+  // Only append the segment suffix once the map resolves: the server hydrates
+  // `tvSeasonRoute(tvId, season)` plain, and a premature `[..., 0]` key would
+  // force a duplicate season fetch on every mount.
+  const seasonQueryKey =
+    requiredMaxEpisode > 0
+      ? [...queryKeys.tvSeasonRoute(tvId, selectedSeason), requiredMaxEpisode]
+      : queryKeys.tvSeasonRoute(tvId, selectedSeason);
   const loadedMaxEpisode = useMemo(
     () => maxLoadedEpisodeNumber(loadedSeasonDetails[selectedSeason]?.episodes),
     [loadedSeasonDetails, selectedSeason],
@@ -359,10 +366,7 @@ export function HeroTvEpisodePanel({
     (loadedMaxEpisode === 0 || loadedMaxEpisode < requiredMaxEpisode);
 
   const selectedSeasonQuery = useQuery({
-    queryKey: [
-      ...queryKeys.tvSeasonRoute(tvId, selectedSeason),
-      requiredMaxEpisode,
-    ],
+    queryKey: seasonQueryKey,
     queryFn: async () => {
       const seasonDetail = await fetchSeasonDetails(tvId, selectedSeason);
       if (!seasonDetail?.episodes?.length) {
@@ -375,6 +379,7 @@ export function HeroTvEpisodePanel({
       seasonNumbers.includes(selectedSeason) &&
       (!selectedSeasonHasEpisodes || seasonEpisodeListIncomplete),
     staleTime: queryStaleTime(60 * 60 * 1000),
+    refetchOnMount: false,
     retry: 2,
   });
 
@@ -811,19 +816,6 @@ export function HeroTvEpisodePanel({
     ],
   );
 
-  const isRowSelected = useCallback(
-    (episode: Episode, episodeSeason: number) =>
-      tvShowId === tvId &&
-      storeSeason === episodeSeason &&
-      selectedEpisode?.id === episode.id,
-    [selectedEpisode?.id, storeSeason, tvId, tvShowId],
-  );
-
-  const selectedEpisodeForShow =
-    tvShowId === tvId && storeSeason ? selectedEpisode : null;
-  const selectedSeasonForShow =
-    selectedEpisodeForShow && storeSeason ? storeSeason : null;
-
   if (seasonNumbers.length === 0) {
     return null;
   }
@@ -963,38 +955,7 @@ export function HeroTvEpisodePanel({
         </p>
       ) : null}
 
-      {selectedEpisodeForShow && selectedSeasonForShow ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-primary/35 bg-primary/10 p-3 ring-1 ring-primary/10 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-primary">
-              Selected episode
-            </p>
-            <p className="truncate text-sm font-semibold text-foreground sm:text-base">
-              S{selectedSeasonForShow}E{selectedEpisodeForShow.episode_number} ·{" "}
-              {selectedEpisodeForShow.name || "Untitled episode"}
-            </p>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() =>
-              handleEpisodeClick(
-                selectedEpisodeForShow,
-                selectedSeasonForShow,
-                {
-                  play: true,
-                },
-              )
-            }
-            className="h-10 shrink-0 rounded-full px-4"
-          >
-            <Play className="mr-2 size-4 fill-current" aria-hidden />
-            Play selected
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="space-y-3 pb-1 pt-0.5">
+      <div className="max-h-[36rem] space-y-3 overflow-y-auto overscroll-contain pb-1 pr-1 pt-0.5 [scrollbar-gutter:stable]">
         {showSeasonEpisodeSkeleton ? (
           Array.from({ length: 4 }).map((_, index) => (
             <div
@@ -1012,7 +973,6 @@ export function HeroTvEpisodePanel({
           </p>
         ) : (
           displayedList.map(({ episode, seasonNumber: epSeason }) => {
-            const active = isRowSelected(episode, epSeason);
             const animeDisplay =
               splitCour && epSeason === selectedSeason
                 ? toAnimeDisplayCoords(animeSegments, episode.episode_number)
@@ -1043,15 +1003,14 @@ export function HeroTvEpisodePanel({
                 className={cn(
                   "group flex w-full flex-col gap-3 rounded-xl border p-3 transition-colors sm:flex-row sm:items-center sm:gap-5 sm:p-4",
                   "border-border/80 bg-card/35 hover:border-primary/35 hover:bg-card/70",
-                  active &&
-                    "border-primary/70 bg-primary/10 ring-1 ring-primary/25",
                 )}
               >
                 <button
                   type="button"
-                  onClick={() => handleEpisodeClick(episode, epSeason)}
-                  aria-current={active ? "true" : undefined}
-                  aria-label={`Select ${displayName}`}
+                  onClick={() =>
+                    handleEpisodeClick(episode, epSeason, { play: true })
+                  }
+                  aria-label={`Play ${displayName}`}
                   className="flex min-w-0 flex-1 gap-4 text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-5"
                 >
                   <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border sm:h-24 sm:w-44">
@@ -1074,6 +1033,14 @@ export function HeroTvEpisodePanel({
                     <span className="absolute bottom-2 left-2 flex h-7 min-w-7 items-center justify-center rounded-md bg-background/85 px-2 text-sm font-semibold text-foreground ring-1 ring-border backdrop-blur">
                       {badgeEpisodeNumber}
                     </span>
+                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                      <span className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
+                        <Play
+                          className="ml-0.5 size-4 fill-current"
+                          aria-hidden
+                        />
+                      </span>
+                    </span>
                   </div>
                   <div className="min-w-0 flex-1 self-center">
                     <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2">
@@ -1085,16 +1052,10 @@ export function HeroTvEpisodePanel({
                           {seasonHeading}
                         </p>
                       ) : null}
-                      {active ? (
-                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
-                          Selected
-                        </span>
-                      ) : null}
                     </div>
                     <p
                       className={cn(
                         "line-clamp-2 text-base font-semibold leading-snug text-foreground sm:text-lg",
-                        active && "text-primary",
                       )}
                     >
                       {displayName}
@@ -1124,23 +1085,6 @@ export function HeroTvEpisodePanel({
                     ) : null}
                   </div>
                 </button>
-                <Button
-                  type="button"
-                  variant={active ? "default" : "outline"}
-                  size="sm"
-                  onClick={() =>
-                    handleEpisodeClick(episode, epSeason, { play: true })
-                  }
-                  aria-label={`Play ${displayName}`}
-                  className={cn(
-                    "h-10 shrink-0 rounded-full px-4",
-                    !active &&
-                      "border-white/15 bg-white/5 text-foreground hover:bg-white/10",
-                  )}
-                >
-                  <Play className="mr-2 size-4 fill-current" aria-hidden />
-                  Play
-                </Button>
               </div>
             );
           })

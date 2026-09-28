@@ -116,10 +116,10 @@ export function isMoviPlayerMakingProgress(player: MoviHostElement): boolean {
   const video = getMoviVideoElement(player);
   if (video) {
     if (hasDecodedVideoFrame(video)) {
-      if (video.readyState >= HAVE_CURRENT_DATA && !video.paused) {
-        lastObservedTime.set(player, video.currentTime);
-        return true;
-      }
+      // Require currentTime advancement — a decoded first frame with
+      // readyState >= 2 and !paused can sit frozen forever (e.g. wedged
+      // segment fetch), and the old readyState shortcut treated that as
+      // progress, resetting the stall watchdog indefinitely.
       const previous = lastObservedTime.get(player) ?? -1;
       if (video.currentTime > previous + 0.01) {
         lastObservedTime.set(player, video.currentTime);

@@ -6,9 +6,17 @@ const ONSEN_ORIGIN = "https://www.animeonsen.xyz";
 const ONSEN_AUTH = "https://auth.animeonsen.xyz/oauth/token";
 const ONSEN_API = "https://api.animeonsen.xyz/v4";
 
-const ONSEN_CLIENT_ID = "f296be26-28b5-4358-b5a1-6259575e23b7";
-const ONSEN_CLIENT_SECRET =
-  "349038c4157d0480784753841217270c3c5b35f4281eaee029de21cb04084235";
+const getOnsenCredentials = (): {
+  clientId: string;
+  clientSecret: string;
+} | null => {
+  const clientId = process.env.ANIMEONSEN_CLIENT_ID;
+  const clientSecret = process.env.ANIMEONSEN_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    return null;
+  }
+  return { clientId, clientSecret };
+};
 
 type OnsenTokenResponse = { access_token?: string };
 type OnsenSearchResponse = {
@@ -80,9 +88,14 @@ const getOnsenToken = async (): Promise<string | null> => {
     return cachedToken.value;
   }
 
+  const credentials = getOnsenCredentials();
+  if (!credentials) {
+    return null;
+  }
+
   const body = new URLSearchParams({
-    client_id: ONSEN_CLIENT_ID,
-    client_secret: ONSEN_CLIENT_SECRET,
+    client_id: credentials.clientId,
+    client_secret: credentials.clientSecret,
     grant_type: "client_credentials",
   });
 

@@ -125,6 +125,23 @@ export interface SubtitleSourceEntry {
 export const getExternalSubtitleId = (track: SubtitleSourceEntry): string =>
   track.id ?? track.url;
 
+/** Keep the user's external subtitle selection when sidecar lists refresh. */
+export const mergeExternalSubtitleActiveId = (
+  previousId: string,
+  tracks: SubtitleSourceEntry[],
+): string => {
+  const previousStillPresent =
+    previousId.length > 0 &&
+    tracks.some((track) => getExternalSubtitleId(track) === previousId);
+  if (previousStillPresent) {
+    return previousId;
+  }
+  if (previousId.length > 0) {
+    return "";
+  }
+  return previousId;
+};
+
 export interface CacheConfig {
   type: "lru";
   maxSizeMB: number;
@@ -211,6 +228,13 @@ export interface PlayerConfig {
   frameRate?: number; // Override frame rate (fps) - 0 = auto
   headers?: Record<string, string>; // Custom HTTP headers for media network requests — adaptive manifest + segments (HLS/DASH) and progressive downloads alike (e.g. auth tokens, signed cookies)
   hls?: HlsJsConfigPatch;
+  /**
+   * Prefer hls.js over Shaka for HLS (.m3u8) playback: try HLSPlayerWrapper
+   * first, fall back to Shaka on failure. Default false (Shaka first, hls.js
+   * as fallback). Scrape playback sets this — hls.js recovers faster from
+   * the flaky proxied segments those sources serve.
+   */
+  preferHlsJs?: boolean;
   audioOnly?: boolean; // Audio-only mode: skip video decode (CPU) and, for adaptive streams, fetch only audio renditions (bandwidth). UI shows album art / strip.
   drm?: boolean; // Enable DRM mode for HLS (native video element, no canvas)
   licenseUrl?: string; // Widevine/FairPlay license server URL

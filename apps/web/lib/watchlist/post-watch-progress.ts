@@ -21,6 +21,7 @@ export async function postWatchProgressIfSignedIn(
 
   await fetch("/api/watchlist/progress", {
     method: "POST",
+    keepalive: true,
     headers: {
       "Content-Type": "application/json",
     },

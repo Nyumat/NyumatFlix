@@ -1,6 +1,9 @@
 "use client";
 
-import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import {
+  useFeatureFlags,
+  useFeatureFlagsReady,
+} from "@/components/providers/feature-flags-provider";
 import { SiteNav } from "@/components/layout/site-nav";
 import { SiteNavDesktop } from "@/components/layout/site-nav-desktop";
 import { AnniversaryBanner } from "@/components/layout/anniversary-banner";
@@ -26,10 +29,8 @@ import { NavbarAuthSlot } from "./navbar-auth-slot";
 import { NavbarMobileNavigation } from "./navbar-mobile-navigation";
 import { UserAvatar } from "./user-avatar";
 
-const SearchDialog = dynamic(
-  () =>
-    import("@/components/search/search").then((module) => module.SearchDialog),
-  { ssr: false },
+const SearchDialog = dynamic(() =>
+  import("@/components/search/search").then((module) => module.SearchDialog),
 );
 
 const NavbarSearchClient = dynamic(
@@ -61,9 +62,6 @@ const getDetailRouteConfig = (pathname: string) =>
 const isAuthRoute = (pathname: string) =>
   pathname === "/login" || pathname.startsWith("/login/");
 
-const detailNavbarActionButtonClassName =
-  "border-white/25 bg-black/35 text-white shadow-lg shadow-black/35 ring-white/20 hover:border-white/35 hover:bg-black/45 hover:ring-white/30";
-
 export const NavbarClient = () => {
   const { data: sessionData } = useSession();
   const session = sessionData ?? null;
@@ -93,7 +91,7 @@ export const NavbarClient = () => {
     isCatalogRoute(pathname) || onAuthRoute || isSettingsRoute;
   const headerPositionClassName = isTransparentHeaderRoute
     ? "absolute"
-    : "relative md:sticky";
+    : "relative";
 
   useSearchDialogShortcut(setIsSearchOpen);
 
@@ -115,6 +113,12 @@ export const NavbarClient = () => {
         "top-0 z-50 w-full bg-transparent",
       )}
     >
+      {isCatalogRoute(pathname) ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-24 bg-linear-to-b from-black/70 via-black/30 to-transparent"
+        />
+      ) : null}
       {!onAuthRoute && <AnniversaryBanner />}
       <div className="site-container flex min-h-16 items-center gap-2 md:min-h-20 lg:gap-3">
         {!onAuthRoute ? (
@@ -193,6 +197,7 @@ const DetailPageActions = ({
   const router = useRouter();
   const pathname = usePathname();
   const { authEnabled } = useFeatureFlags();
+  const flagsReady = useFeatureFlagsReady();
   const { status } = useSession();
 
   const handleBack = () => {
@@ -215,11 +220,7 @@ const DetailPageActions = ({
         <Button
           variant="ghost"
           size="icon"
-          className={cn(
-            navbarActionButtonClassName,
-            detailNavbarActionButtonClassName,
-            "shrink-0",
-          )}
+          className={cn(navbarActionButtonClassName, "shrink-0")}
           aria-label="Go back"
           onClick={handleBack}
         >
@@ -228,20 +229,12 @@ const DetailPageActions = ({
 
         <div className="ml-auto flex items-center gap-3">
           <Suspense fallback={null}>
-            <SiteNavDesktop
-              triggerClassName={cn(
-                navbarActionButtonClassName,
-                detailNavbarActionButtonClassName,
-              )}
-            />
+            <SiteNavDesktop triggerClassName={navbarActionButtonClassName} />
           </Suspense>
           <Button
             variant="ghost"
             size="icon"
-            className={cn(
-              navbarActionButtonClassName,
-              detailNavbarActionButtonClassName,
-            )}
+            className={navbarActionButtonClassName}
             aria-label="Search"
             onClick={() => setIsSearchOpen(true)}
           >
@@ -252,37 +245,27 @@ const DetailPageActions = ({
           </Suspense>
 
           <div className={cn("flex shrink-0", navMobileMenuClassName)}>
-            <NavbarMobileNavigation
-              session={session}
-              triggerClassName={detailNavbarActionButtonClassName}
-            >
+            <NavbarMobileNavigation session={session}>
               <NavbarSearchClient />
             </NavbarMobileNavigation>
           </div>
 
           {session ? (
-            <UserAvatar
-              session={session}
-              triggerClassName={detailNavbarActionButtonClassName}
-            />
-          ) : status === "loading" && authEnabled ? (
+            <UserAvatar session={session} />
+          ) : status === "loading" && flagsReady && authEnabled ? (
             <div
               className={cn(
                 navbarActionButtonClassName,
-                detailNavbarActionButtonClassName,
                 "inline-flex size-9 shrink-0 animate-pulse rounded-md bg-muted/40",
               )}
               aria-hidden
             />
-          ) : authEnabled ? (
+          ) : flagsReady && authEnabled ? (
             <Button
               asChild
               variant="ghost"
               size="icon"
-              className={cn(
-                navbarActionButtonClassName,
-                detailNavbarActionButtonClassName,
-              )}
+              className={navbarActionButtonClassName}
             >
               <Link href={loginHref(pathname)} aria-label="Sign in">
                 <UserRound

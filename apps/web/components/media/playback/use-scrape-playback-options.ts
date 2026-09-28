@@ -15,6 +15,8 @@ import type { PlaybackProgressKey } from "@/lib/playback/progress-storage";
 import {
   buildScrapePlayUrl,
   extractScrapePlaybackRefreshFromPlayUrl,
+  isScrapePlayProxyUrl,
+  relativeScrapePlayUrl,
 } from "@/lib/scrape/playback";
 import type { ScrapeStreamKind } from "@/lib/scrape/stream-kind";
 import type {
@@ -172,6 +174,9 @@ export const useScrapePlaybackOptions = (
   const variantPlayUrl = useMemo(() => {
     if (!variantRawUrl) {
       return null;
+    }
+    if (isScrapePlayProxyUrl(variantRawUrl)) {
+      return relativeScrapePlayUrl(variantRawUrl);
     }
     const refresh = extractScrapePlaybackRefreshFromPlayUrl(playUrl);
     return buildScrapePlayUrl({

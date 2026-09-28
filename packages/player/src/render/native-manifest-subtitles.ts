@@ -82,6 +82,31 @@ export function resolveNativeExternalTextTrack(
   return null;
 }
 
+export function resolveNativeExternalTextTrackBySubtitleId(
+  video: HTMLVideoElement,
+  subtitleId: string,
+): TextTrack | null {
+  const trackEl = video.querySelector(
+    `track[data-subtitle-id="${CSS.escape(subtitleId)}"]`,
+  ) as HTMLTrackElement | null;
+  const track = trackEl?.track ?? null;
+  if (track && isRenderableTextTrack(track)) {
+    return track;
+  }
+  return null;
+}
+
+export function nativeExternalTextTrackExists(
+  video: HTMLVideoElement,
+  subtitleId: string,
+): boolean {
+  return (
+    video.querySelector(
+      `track[data-subtitle-id="${CSS.escape(subtitleId)}"]`,
+    ) != null
+  );
+}
+
 export type NativeSubtitleCueSnapshot = {
   text: string;
   key: string;

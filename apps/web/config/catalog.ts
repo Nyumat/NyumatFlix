@@ -2,6 +2,7 @@ export const availableParams = [
   "with_genres",
   "with_original_language",
   "with_watch_providers",
+  "with_watch_monetization_types",
   "with_companies",
   "with_networks",
   "primary_release_date.gte",

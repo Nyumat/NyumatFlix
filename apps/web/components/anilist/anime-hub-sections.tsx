@@ -1,20 +1,27 @@
-import { AnimeHero } from "@/components/anilist/anime-hero";
+import {
+  IndexFeatureHero,
+  type IndexFeatureHeroItem,
+} from "@/components/catalog/index-feature-hero";
 import { ContentRow } from "@/components/content/content-row";
 import type { PageBackdrop } from "@/components/hero/ambient-page-backdrop";
 import { ContentReveal } from "@/components/layout/page-loading/content-reveal";
+import { buildHeroBackdropFromItem } from "@/lib/hero-hub-backdrops";
+import {
+  mergeFeaturedHeroItems,
+  selectFeaturedEntriesForHub,
+} from "@/lib/flags/hero-featured-items";
+import { hydrateFeaturedHubEntries } from "@/lib/flags/hero-featured-hydration";
+import { getHeroBackdropOverrides } from "@/lib/flags/hero-backdrop-overrides-server";
+import type { CatalogHubFeature } from "@/lib/server/catalog-hub-feature";
 import { TrendCarousel } from "@/components/trend/trend-client";
+import { enrichAnimeHubFeatureTmdbImages } from "@/lib/anilist-tmdb";
 import type { MediaItem } from "@/lib/domain/typings";
 import {
-  ANIME_HUB_GENRES,
-  enrichAnimeHubAdultRow,
   enrichAnimeHubStandardRow,
   enrichAnimeHubTrendingRow,
   fetchAnimeHubAiringRaw,
-  fetchAnimeHubGenreBatch0Raw,
-  fetchAnimeHubGenreBatch4Raw,
-  fetchAnimeHubGenreBatch8Raw,
-  fetchAnimeHubHentaiRaw,
   fetchAnimeHubMoviesRaw,
+  fetchAnimeHubPastYearPopularRaw,
   fetchAnimeHubPopularRaw,
   fetchAnimeHubSeasonPopularRaw,
   fetchAnimeHubTopRatedRaw,
@@ -25,37 +32,69 @@ import {
 import {
   ANIME_HUB_MIN_VISIBLE_ROW,
   ANIME_HUB_ROW_CAROUSEL,
-  ANIME_HUB_ROW_GENRE,
   ANIME_HUB_ROW_RANKED,
   pickHubCarouselItems,
 } from "@/lib/server/anime-hub-layout";
 import type { TvShowWithMediaType } from "@/tmdb/models";
-import { tmdbImage } from "@/tmdb/utils";
 import { cache } from "react";
 
 const asTvItems = (items: MediaItem[]) =>
   items as unknown as TvShowWithMediaType[];
 
-const getString = (value: unknown) => (typeof value === "string" ? value : "");
+const pickAnimeMainstreamFeatured = (items: MediaItem[]) => {
+  const withArt = items.filter(
+    (item) => Boolean(item.backdrop_path) || Boolean(item.poster_path),
+  );
+  if (withArt.length === 0) return null;
 
-const getAnimeHubFeature = cache(async () => {
-  const raw = await fetchAnimeHubTrendingRaw();
-  const items = await enrichAnimeHubTrendingRow(raw);
-  return items.find((item) => Boolean(item.backdrop_path)) ?? items[0] ?? null;
-});
+  return withArt.reduce((best, item) => {
+    const bestScore = best.popularity ?? 0;
+    const itemScore = item.popularity ?? 0;
+    return itemScore > bestScore ? item : best;
+  });
+};
+
+export const getAnimeHubFeature = cache(
+  async (): Promise<CatalogHubFeature | null> => {
+    const raw = await fetchAnimeHubPastYearPopularRaw();
+    const items = await enrichAnimeHubTrendingRow(raw);
+    const picked = pickAnimeMainstreamFeatured(items) ?? items[0] ?? null;
+    const overrides = await getHeroBackdropOverrides();
+    const pinnedEntries = selectFeaturedEntriesForHub(overrides, "anime");
+
+    const automaticCandidates = picked
+      ? [picked, ...items.filter((item) => item.id !== picked.id)].slice(0, 5)
+      : [];
+    const [pinnedItems, enrichedAutomatic] = await Promise.all([
+      hydrateFeaturedHubEntries(pinnedEntries, overrides),
+      Promise.all(
+        automaticCandidates.map((item) =>
+          enrichAnimeHubFeatureTmdbImages(item),
+        ),
+      ),
+    ]);
+    const automaticItems = enrichedAutomatic as IndexFeatureHeroItem[];
+
+    if (pinnedItems.length === 0 && automaticItems.length === 0) {
+      return null;
+    }
+
+    const heroItems = mergeFeaturedHeroItems(pinnedItems, automaticItems);
+    const item = heroItems[0];
+    if (!item) {
+      return null;
+    }
+
+    return {
+      item,
+      items: heroItems,
+      backdrop: buildHeroBackdropFromItem(item, "tv", true),
+    };
+  },
+);
 
 export async function getAnimeHubAmbientBackdrop(): Promise<PageBackdrop | null> {
-  const featured = await getAnimeHubFeature();
-  const backdropPath = featured?.backdrop_path ?? featured?.poster_path;
-
-  if (!backdropPath || !featured) return null;
-
-  return {
-    imageUrl: tmdbImage.backdrop(backdropPath, "w1280"),
-    alt:
-      getString(featured.title) || getString(featured.name) || "Featured anime",
-    priority: true,
-  };
+  return (await getAnimeHubFeature())?.backdrop ?? null;
 }
 
 type HubTrendCarouselProps = {
@@ -89,45 +128,22 @@ const HubTrendCarousel = ({
   );
 };
 
-const AnimeHubGenreSlice = async (startIndex: number) => {
-  const fetchers = {
-    0: fetchAnimeHubGenreBatch0Raw,
-    4: fetchAnimeHubGenreBatch4Raw,
-    8: fetchAnimeHubGenreBatch8Raw,
-  } as const;
-
-  const genreRaws = await fetchers[startIndex]();
-  const links = getAnimeHubLinks();
-  const enriched = await Promise.all(
-    genreRaws.map((raw) => enrichAnimeHubStandardRow(raw)),
-  );
-
-  return (
-    <>
-      {ANIME_HUB_GENRES.slice(startIndex, startIndex + genreRaws.length).map(
-        (genre, index) => (
-          <HubTrendCarousel
-            key={genre}
-            title={genre}
-            href={links.genre(genre)}
-            items={enriched[index] ?? []}
-            count={ANIME_HUB_ROW_GENRE}
-          />
-        ),
-      )}
-    </>
-  );
-};
-
 export async function AnimeHubHero() {
-  const item = await getAnimeHubFeature();
-  if (!item) {
+  const feature = await getAnimeHubFeature();
+  if (!feature) {
     return null;
   }
 
   return (
     <ContentReveal>
-      <AnimeHero items={[item]} label="Trending" priority count={1} />
+      <IndexFeatureHero
+        variant="anime"
+        item={feature.item}
+        items={feature.items}
+        mediaType={feature.item.media_type === "movie" ? "movie" : "tv"}
+        label="Trending"
+        priority
+      />
     </ContentReveal>
   );
 }
@@ -205,31 +221,4 @@ export async function AnimeHubMoviesCarousel() {
   const links = getAnimeHubLinks();
 
   return <HubTrendCarousel title="Movies" href={links.movies} items={items} />;
-}
-
-export async function AnimeHubGenreRowsPart1() {
-  return AnimeHubGenreSlice(0);
-}
-
-export async function AnimeHubGenreRowsPart2() {
-  return AnimeHubGenreSlice(4);
-}
-
-export async function AnimeHubGenreRowsPart3() {
-  return AnimeHubGenreSlice(8);
-}
-
-export async function AnimeHubHentaiCarousel() {
-  const raw = await fetchAnimeHubHentaiRaw();
-  const items = await enrichAnimeHubAdultRow(raw);
-  const links = getAnimeHubLinks();
-
-  return (
-    <HubTrendCarousel
-      title="Hentai"
-      href={links.hentai}
-      items={items}
-      count={ANIME_HUB_ROW_GENRE}
-    />
-  );
 }

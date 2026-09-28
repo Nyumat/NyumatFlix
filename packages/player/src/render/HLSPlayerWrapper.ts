@@ -22,6 +22,18 @@ import { applyNativeManifestTextTrackSelection } from "./native-manifest-subtitl
 
 const TAG = "HLSPlayerWrapper";
 
+// Scrape/VOD recovery tuning — mirrors apps/web/lib/scrape/hls-quality.ts
+// (PLAYING_FRAG_LOADING_TIMEOUT_MS / MAX_RETRY, stall grace + cooldown).
+const PLAYING_FRAG_LOADING_TIMEOUT_MS = 45_000;
+const PLAYING_FRAG_LOADING_MAX_RETRY = 2;
+const STALL_RECOVERY_STARTUP_GRACE_MS = 5_000;
+const STALL_RECOVERY_COOLDOWN_MS = 2_000;
+const SCRAPE_STALL_RECOVERY_DETAILS = new Set([
+  "bufferStalledError",
+  "bufferSeekOverHole",
+  "bufferNudgeOnStall",
+]);
+
 export type HlsAudioRenditionLike = {
   id?: number;
   name?: string;
@@ -444,8 +456,57 @@ export class HLSPlayerWrapper extends EventEmitter<PlayerEventMap> {
       let mediaRetries = 0;
       const MAX_NETWORK_RETRIES = 3;
       const MAX_MEDIA_RETRIES = 2;
+      let manifestLoadedAt = 0;
+      let lastStallRecoveryAt = 0;
+      let tightenedLoading = false;
+
+      this.hls!.on(Hls.Events.MANIFEST_PARSED, () => {
+        manifestLoadedAt = Date.now();
+      });
+
+      this.hls!.on(Hls.Events.FRAG_LOADED, () => {
+        networkRetries = 0;
+        mediaRetries = 0;
+        if (tightenedLoading) {
+          return;
+        }
+        tightenedLoading = true;
+        // Post-first-fragment: switch from the lenient startup budget
+        // (fragLoadingTimeOut 60s / maxRetry 6) to playing values so a
+        // wedged fragment fails over instead of hanging.
+        this.hls!.config.fragLoadingTimeOut = PLAYING_FRAG_LOADING_TIMEOUT_MS;
+        this.hls!.config.fragLoadingMaxRetry = PLAYING_FRAG_LOADING_MAX_RETRY;
+        Logger.info(
+          TAG,
+          `Tightened frag loading budget to ${PLAYING_FRAG_LOADING_TIMEOUT_MS}ms/2 retries`,
+        );
+      });
 
       this.hls!.on(Hls.Events.ERROR, (_event, data) => {
+        if (
+          !data.fatal &&
+          data.details &&
+          SCRAPE_STALL_RECOVERY_DETAILS.has(data.details)
+        ) {
+          const now = Date.now();
+          if (now - manifestLoadedAt < STALL_RECOVERY_STARTUP_GRACE_MS) {
+            return;
+          }
+          if (now - lastStallRecoveryAt < STALL_RECOVERY_COOLDOWN_MS) {
+            return;
+          }
+          lastStallRecoveryAt = now;
+          const resumeAt = this.videoElement.currentTime;
+          Logger.info(
+            TAG,
+            `Stall recovery: startLoad at ${resumeAt.toFixed(1)}s (${data.details})`,
+          );
+          this.hls!.startLoad(
+            Number.isFinite(resumeAt) ? resumeAt : -1,
+          );
+          return;
+        }
+
         if (data.fatal) {
           Logger.error(TAG, `HLS Fatal Error: ${data.details} (response: ${data.response?.code})`);
 

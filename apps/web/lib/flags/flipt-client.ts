@@ -14,6 +14,16 @@ import {
   sanitizeProviderMenuOrderConfig,
   type ProviderMenuOrderConfig,
 } from "@/lib/flags/provider-menu-order";
+import {
+  DEFAULT_EXPERIENCE_DEFAULTS,
+  sanitizeExperienceDefaultsConfig,
+  type ExperienceDefaultsConfig,
+} from "@/lib/flags/experience-defaults";
+import {
+  DEFAULT_HERO_BACKDROP_OVERRIDES,
+  sanitizeHeroBackdropOverridesConfig,
+  type HeroBackdropOverridesConfig,
+} from "@/lib/flags/hero-backdrop-overrides";
 
 export const FLIPT_URL =
   process.env.FLIPT_URL?.replace(/\/$/, "") ??
@@ -27,6 +37,8 @@ export const FLIPT_API_TOKEN = process.env.FLIPT_API_TOKEN ?? "";
 const FLAG_TYPE_URL = "flipt.core.Flag";
 const ANNOUNCEMENT_FLAG_KEY = "global.announcement_banner";
 const PROVIDER_MENU_ORDER_FLAG_KEY = "global.provider_menu_order";
+const HERO_BACKDROP_OVERRIDES_FLAG_KEY = "global.hero_backdrop_overrides";
+const EXPERIENCE_DEFAULTS_FLAG_KEY = "global.experience_defaults";
 
 export function readFliptMetadataValue(
   metadata: Record<string, unknown> | undefined,
@@ -69,7 +81,26 @@ if (FLAG_DEFINITIONS_BY_STORAGE_KEY.size !== ALL_FLAG_DEFINITIONS.length) {
 
 let lastKnownFlagState: AdminFlagState | null = null;
 let failureCacheExpiresAt = 0;
+let flagsSeeded = false;
+let seedBlockedUntil = 0;
+let seedInFlight: Promise<void> | null = null;
+let readInFlight: Promise<AdminFlagState> | null = null;
+let flagStateGeneration = 0;
 const FAILURE_CACHE_TTL_MS = 5000;
+const SEED_ATTEMPTS = 3;
+
+class FliptRequestError extends Error {
+  readonly status: number;
+
+  constructor(prefix: string, status: number, body: string) {
+    super(`${prefix}: ${status} ${body}`);
+    this.name = "FliptRequestError";
+    this.status = status;
+  }
+}
+
+const isRevisionConflict = (error: unknown): error is FliptRequestError =>
+  error instanceof FliptRequestError && error.status === 409;
 
 let fliptUnavailableLogged = false;
 
@@ -161,6 +192,11 @@ function authHeaders(): HeadersInit {
 
 export function invalidateFlagCache(): void {
   lastKnownFlagState = null;
+  flagsSeeded = false;
+  seedBlockedUntil = 0;
+  seedInFlight = null;
+  readInFlight = null;
+  flagStateGeneration += 1;
 }
 
 export function getCachedRawFlagsSync(): AdminFlagState | null {
@@ -184,9 +220,12 @@ function flagsResourcePath(): string {
   return `/api/v2/environments/${encodeURIComponent(FLIPT_ENVIRONMENT)}/namespaces/${encodeURIComponent(FLIPT_NAMESPACE)}/resources`;
 }
 
-async function responseError(prefix: string, res: Response): Promise<Error> {
+async function responseError(
+  prefix: string,
+  res: Response,
+): Promise<FliptRequestError> {
   const text = await res.text().catch(() => "");
-  return new Error(`${prefix}: ${res.status} ${text}`);
+  return new FliptRequestError(prefix, res.status, text);
 }
 
 async function listFlags(): Promise<FliptResourceList<FliptFlag>> {
@@ -274,17 +313,102 @@ async function mutateFlag(
   return body.revision ?? revision;
 }
 
-export async function ensureFlagsSeeded(): Promise<void> {
-  const listed = await listFlags();
-  const existingKeys = new Set(
-    (listed.resources ?? []).map((resource) => resource.key),
-  );
-  let revision = listed.revision;
+async function seedMissingFlags(): Promise<void> {
+  let lastConflict: FliptRequestError | null = null;
 
-  for (const def of ALL_FLAG_DEFINITIONS) {
-    if (existingKeys.has(toFliptStorageKey(def.key))) continue;
-    revision = await mutateFlag("POST", def, def.defaultValue, revision);
+  for (let attempt = 0; attempt < SEED_ATTEMPTS; attempt += 1) {
+    const listed = await listFlags();
+    const existingKeys = new Set(
+      (listed.resources ?? []).map((resource) => resource.key),
+    );
+    const missing = ALL_FLAG_DEFINITIONS.filter(
+      (def) => !existingKeys.has(toFliptStorageKey(def.key)),
+    );
+    if (missing.length === 0) {
+      flagsSeeded = true;
+      return;
+    }
+
+    let revision = listed.revision;
+    try {
+      for (const def of missing) {
+        revision = await mutateFlag("POST", def, def.defaultValue, revision);
+      }
+      flagsSeeded = true;
+      return;
+    } catch (error) {
+      if (!isRevisionConflict(error)) {
+        throw error;
+      }
+      lastConflict = error;
+    }
   }
+
+  seedBlockedUntil = Date.now() + FAILURE_CACHE_TTL_MS;
+  throw (
+    lastConflict ?? new FliptRequestError("Flipt flag seed failed", 409, "")
+  );
+}
+
+export async function ensureFlagsSeeded(): Promise<void> {
+  if (flagsSeeded || Date.now() < seedBlockedUntil) {
+    return;
+  }
+
+  if (!seedInFlight) {
+    let pending: Promise<void>;
+    pending = seedMissingFlags().finally(() => {
+      if (seedInFlight === pending) {
+        seedInFlight = null;
+      }
+    });
+    seedInFlight = pending;
+  }
+
+  return seedInFlight;
+}
+
+async function loadAdminFlagState(generation: number): Promise<AdminFlagState> {
+  try {
+    await ensureFlagsSeeded();
+  } catch (error) {
+    if (!isRevisionConflict(error)) {
+      throw error;
+    }
+    console.warn(
+      "[flipt] flag seed revision changed; using the current flag list",
+    );
+  }
+
+  const listed = await listFlags();
+  const state: AdminFlagState = { ...DEFAULT_FLAG_VALUES };
+  for (const resource of listed.resources ?? []) {
+    const flag = resource.payload;
+    const def = FLAG_DEFINITIONS_BY_STORAGE_KEY.get(resource.key);
+    if (def) {
+      state[def.key] = flag.enabled;
+    }
+  }
+  clearFailureCooldown();
+  if (generation === flagStateGeneration) {
+    lastKnownFlagState = state;
+  }
+  return state;
+}
+
+async function readAdminFlagStateFromFlipt(): Promise<AdminFlagState> {
+  if (!readInFlight) {
+    const generation = flagStateGeneration;
+    let pending: Promise<AdminFlagState>;
+    pending = loadAdminFlagState(generation).finally(() => {
+      if (readInFlight === pending) {
+        readInFlight = null;
+      }
+    });
+    readInFlight = pending;
+  }
+
+  return readInFlight;
 }
 
 export async function readAdminFlagState(): Promise<AdminFlagState> {
@@ -294,30 +418,25 @@ export async function readAdminFlagState(): Promise<AdminFlagState> {
   }
 
   try {
-    await ensureFlagsSeeded();
-    const listed = await listFlags();
-    const state: AdminFlagState = { ...DEFAULT_FLAG_VALUES };
-    for (const resource of listed.resources ?? []) {
-      const flag = resource.payload;
-      const def = FLAG_DEFINITIONS_BY_STORAGE_KEY.get(resource.key);
-      if (def) {
-        state[def.key] = flag.enabled;
-      }
-    }
-    clearFailureCooldown();
-    lastKnownFlagState = state;
-    return state;
+    return await readAdminFlagStateFromFlipt();
   } catch (error) {
     enterFailureCooldown(now, error);
     return lastKnownFlagState ?? { ...DEFAULT_FLAG_VALUES };
   }
 }
 
+export async function readAdminFlagStateStrict(): Promise<AdminFlagState> {
+  return readAdminFlagStateFromFlipt();
+}
+
 export async function writeAdminFlagState(
   state: AdminFlagState,
   announcementBanner?: AnnouncementBannerConfig,
   providerMenuOrder?: ProviderMenuOrderConfig,
+  heroBackdropOverrides?: HeroBackdropOverridesConfig,
+  experienceDefaults?: ExperienceDefaultsConfig,
 ): Promise<void> {
+  flagStateGeneration += 1;
   const listed = await listFlags();
   const existing = new Map(
     (listed.resources ?? []).map((resource) => [
@@ -328,41 +447,49 @@ export async function writeAdminFlagState(
   await hydrateFlagMetadata(existing, [
     toFliptStorageKey(ANNOUNCEMENT_FLAG_KEY),
     toFliptStorageKey(PROVIDER_MENU_ORDER_FLAG_KEY),
+    toFliptStorageKey(HERO_BACKDROP_OVERRIDES_FLAG_KEY),
+    toFliptStorageKey(EXPERIENCE_DEFAULTS_FLAG_KEY),
   ]);
   let revision = listed.revision;
 
   for (const def of ALL_FLAG_DEFINITIONS) {
     const enabled = state[def.key] ?? def.defaultValue;
     const current = existing.get(toFliptStorageKey(def.key));
-    const isAnnouncement = def.key === ANNOUNCEMENT_FLAG_KEY;
-    const isMenuOrder = def.key === PROVIDER_MENU_ORDER_FLAG_KEY;
-    const bannerConfig =
-      isAnnouncement && announcementBanner
+
+    const metadataKey =
+      def.key === ANNOUNCEMENT_FLAG_KEY
+        ? "announcementBanner"
+        : def.key === PROVIDER_MENU_ORDER_FLAG_KEY
+          ? "providerMenuOrder"
+          : def.key === HERO_BACKDROP_OVERRIDES_FLAG_KEY
+            ? "heroBackdropOverrides"
+            : def.key === EXPERIENCE_DEFAULTS_FLAG_KEY
+              ? "experienceDefaults"
+              : null;
+
+    const configValue =
+      metadataKey === "announcementBanner" && announcementBanner
         ? sanitizeAnnouncementBannerConfig(announcementBanner)
-        : undefined;
-    const menuOrderConfig =
-      isMenuOrder && providerMenuOrder
-        ? sanitizeProviderMenuOrderConfig(providerMenuOrder)
-        : undefined;
-    const metadata = bannerConfig
-      ? withJsonMetadata(current?.metadata, "announcementBanner", bannerConfig)
-      : menuOrderConfig
-        ? withJsonMetadata(
-            current?.metadata,
-            "providerMenuOrder",
-            menuOrderConfig,
-          )
+        : metadataKey === "providerMenuOrder" && providerMenuOrder
+          ? sanitizeProviderMenuOrderConfig(providerMenuOrder)
+          : metadataKey === "heroBackdropOverrides" && heroBackdropOverrides
+            ? sanitizeHeroBackdropOverridesConfig(heroBackdropOverrides)
+            : metadataKey === "experienceDefaults" && experienceDefaults
+              ? sanitizeExperienceDefaultsConfig(experienceDefaults)
+              : undefined;
+
+    const metadata =
+      metadataKey && configValue !== undefined
+        ? withJsonMetadata(current?.metadata, metadataKey, configValue)
         : undefined;
     const configChanged = Boolean(
-      (bannerConfig &&
+      metadataKey &&
+        configValue !== undefined &&
         JSON.stringify(
-          readFliptMetadataValue(current?.metadata, "announcementBanner"),
-        ) !== JSON.stringify(bannerConfig)) ||
-        (menuOrderConfig &&
-          JSON.stringify(
-            readFliptMetadataValue(current?.metadata, "providerMenuOrder"),
-          ) !== JSON.stringify(menuOrderConfig)),
+          readFliptMetadataValue(current?.metadata, metadataKey),
+        ) !== JSON.stringify(configValue),
     );
+
     if (!current) {
       revision = await mutateFlag(
         "POST",
@@ -384,7 +511,9 @@ export async function writeAdminFlagState(
     }
   }
 
-  invalidateFlagCache();
+  lastKnownFlagState = { ...state };
+  flagsSeeded = true;
+  clearFailureCooldown();
 }
 
 export async function readAnnouncementBannerConfig(): Promise<AnnouncementBannerConfig> {
@@ -420,6 +549,42 @@ export async function readProviderMenuOrderConfig(): Promise<ProviderMenuOrderCo
   } catch (error) {
     enterFailureCooldown(now, error);
     return { ...DEFAULT_PROVIDER_MENU_ORDER };
+  }
+}
+
+export async function readExperienceDefaultsConfig(): Promise<ExperienceDefaultsConfig> {
+  const now = Date.now();
+  if (failureCacheExpiresAt > now) {
+    return { ...DEFAULT_EXPERIENCE_DEFAULTS };
+  }
+
+  try {
+    const flag = await getFlag(toFliptStorageKey(EXPERIENCE_DEFAULTS_FLAG_KEY));
+    return sanitizeExperienceDefaultsConfig(
+      readFliptMetadataValue(flag?.metadata, "experienceDefaults"),
+    );
+  } catch (error) {
+    enterFailureCooldown(now, error);
+    return { ...DEFAULT_EXPERIENCE_DEFAULTS };
+  }
+}
+
+export async function readHeroBackdropOverridesConfig(): Promise<HeroBackdropOverridesConfig> {
+  const now = Date.now();
+  if (failureCacheExpiresAt > now) {
+    return { ...DEFAULT_HERO_BACKDROP_OVERRIDES };
+  }
+
+  try {
+    const overridesFlag = await getFlag(
+      toFliptStorageKey(HERO_BACKDROP_OVERRIDES_FLAG_KEY),
+    );
+    return sanitizeHeroBackdropOverridesConfig(
+      readFliptMetadataValue(overridesFlag?.metadata, "heroBackdropOverrides"),
+    );
+  } catch (error) {
+    enterFailureCooldown(now, error);
+    return { ...DEFAULT_HERO_BACKDROP_OVERRIDES };
   }
 }
 

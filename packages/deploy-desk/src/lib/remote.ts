@@ -109,6 +109,16 @@ export const fetchServices = async (): Promise<ServiceRow[]> => {
     });
 };
 
+export const runRemoteScript = (
+  script: string,
+  args: string[],
+  onLine: (line: string) => void,
+) =>
+  ssh(
+    `set -euo pipefail; cd ~/${remoteAppDir}; export NYUMATFLIX_ROOT=~/${remoteAppDir}; ./scripts/${script} ${args.map(shellQuote).join(" ")}`,
+    onLine,
+  );
+
 export const remoteServe = async (
   entry: Pick<DeployEntry, "sha" | "shortSha" | "message" | "author" | "image">,
   source: "local" | "rollback",

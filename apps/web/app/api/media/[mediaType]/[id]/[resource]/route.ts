@@ -19,6 +19,7 @@ import {
 } from "@/lib/media-detail-cache";
 import { getCachedMediaAboveFoldDetail } from "@/lib/media-above-fold-server";
 import { extractVideoRowsFromMediaVideos } from "@/lib/select-primary-trailer-video";
+import { enrichLocalizedCatalogBackdrops } from "@/lib/server/enrich-catalog-backdrops";
 import { tmdb } from "@/tmdb/api";
 import { NextResponse } from "next/server";
 
@@ -46,6 +47,29 @@ const resources = new Set<Resource>([
   "recommendations",
   "similar",
 ]);
+
+const localizeCardPage = async <
+  T extends {
+    results?: Array<{ id: number; backdrop_path?: string | null }> | null;
+  },
+>(
+  page: T,
+  mediaType: MediaType,
+): Promise<T> => {
+  const results = page.results ?? [];
+  if (results.length === 0) {
+    return page;
+  }
+
+  const enriched = await enrichLocalizedCatalogBackdrops(
+    results.map((item) => ({
+      ...item,
+      media_type: mediaType,
+    })),
+  );
+
+  return { ...page, results: enriched };
+};
 
 const jsonCached = (data: unknown, resource: Resource, init?: ResponseInit) =>
   NextResponse.json(data, {
@@ -205,10 +229,17 @@ export async function GET(
           "reviews",
         );
       case "recommendations":
+        if (isAnilistTv) {
+          return jsonCached(
+            await getCachedAnilistTvRecommendations(id, anilistResolveOptions),
+            "recommendations",
+          );
+        }
         return jsonCached(
-          isAnilistTv
-            ? await getCachedAnilistTvRecommendations(id, anilistResolveOptions)
-            : await mediaApi.recommendations({ id: tmdbLookupId, page }),
+          await localizeCardPage(
+            await mediaApi.recommendations({ id: tmdbLookupId, page }),
+            typedMediaType,
+          ),
           "recommendations",
         );
       case "similar":
@@ -219,7 +250,10 @@ export async function GET(
           );
         }
         return jsonCached(
-          await mediaApi.similar({ id: tmdbLookupId, page }),
+          await localizeCardPage(
+            await mediaApi.similar({ id: tmdbLookupId, page }),
+            typedMediaType,
+          ),
           "similar",
         );
     }

@@ -10,6 +10,7 @@ import {
 import {
   buildScrapePlayUrl,
   convertAssToVtt,
+  convertSrtToVtt,
   decodeScrapePlaybackToken,
 } from "@/lib/scrape/playback";
 
@@ -111,10 +112,33 @@ describe("scrape subtitles", () => {
     expect(vtt).toBe("WEBVTT\n\n00:00:01.200 --> 00:00:03.450\nHello\nworld\n");
   });
 
+  it("converts SubRip captions to WebVTT for native <track> playback", () => {
+    const vtt = convertSrtToVtt(
+      "1\r\n00:00:00,500 --> 00:00:03,000\r\nHello\r\n\r\n2\r\n00:00:03,500 --> 00:00:06,500\r\nWorld\r\n",
+    );
+
+    expect(vtt).toBe(
+      "WEBVTT\n\n00:00:00.500 --> 00:00:03.000\nHello\n\n00:00:03.500 --> 00:00:06.500\nWorld\n",
+    );
+  });
+
   it("serves ASS subtitle URLs through the VTT caption endpoint", () => {
     expect(
       buildScrapePlayUrl({
         url: "https://cdn.example/subtitles.ass?token=x",
+      }),
+    ).toMatch(/\/captions\.vtt$/);
+  });
+
+  it("serves bogus .wtt Tym URLs through the VTT caption endpoint", () => {
+    expect(
+      buildScrapePlayUrl({
+        url: "https://sub.1x2.space/subtitle/tv/125988/1/1/Slovak - Slovak.wtt",
+      }),
+    ).toMatch(/\/captions\.vtt$/);
+    expect(
+      buildScrapePlayUrl({
+        url: "https://sub.1x2.space/subtitle/tv/125988/1/1/Slovak.wtt?token=x",
       }),
     ).toMatch(/\/captions\.vtt$/);
   });

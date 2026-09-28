@@ -17,6 +17,8 @@ const rowToWire = (
   playbackEnglishSubtitles: row.playbackEnglishSubtitles,
   disableHoverSound: row.disableHoverSound,
   disableHeroTrailers: row.disableHeroTrailers,
+  ambientGlow: row.ambientGlow,
+  catalogCardStyle: row.catalogCardStyle,
   selectedServerId: row.selectedServerId,
   userSelectedPlaybackServer: row.userSelectedPlaybackServer,
   policyGenerationAtChoice: row.policyGenerationAtChoice,
@@ -27,17 +29,18 @@ const rowToWire = (
 });
 
 export const getDefaultUserSettingsWire = (): UserSettingsWire => ({
-  playbackAudio: DEFAULT_PLAYBACK_PREFERENCES.playbackAudio,
-  playbackQuality: DEFAULT_PLAYBACK_PREFERENCES.playbackQuality,
-  playbackEnglishSubtitles:
-    DEFAULT_PLAYBACK_PREFERENCES.playbackEnglishSubtitles,
-  disableHoverSound: false,
-  disableHeroTrailers: false,
+  playbackAudio: null,
+  playbackQuality: null,
+  playbackEnglishSubtitles: null,
+  disableHoverSound: null,
+  disableHeroTrailers: null,
+  ambientGlow: null,
+  catalogCardStyle: null,
   selectedServerId: null,
   userSelectedPlaybackServer: false,
   policyGenerationAtChoice: null,
-  vidnestContentType: "tv",
-  vidsrcApi: "1",
+  vidnestContentType: null,
+  vidsrcApi: null,
   subtitleAppearance: null,
 });
 
@@ -75,25 +78,53 @@ export const upsertUserSettings = async (
       .insert(userSettings)
       .values({
         userId,
-        playbackAudio: patch.playbackAudio ?? defaults.playbackAudio,
-        playbackQuality: patch.playbackQuality ?? defaults.playbackQuality,
+        playbackAudio:
+          patch.playbackAudio !== undefined
+            ? patch.playbackAudio
+            : defaults.playbackAudio,
+        playbackQuality:
+          patch.playbackQuality !== undefined
+            ? patch.playbackQuality
+            : defaults.playbackQuality,
         playbackEnglishSubtitles:
-          patch.playbackEnglishSubtitles ?? defaults.playbackEnglishSubtitles,
+          patch.playbackEnglishSubtitles !== undefined
+            ? patch.playbackEnglishSubtitles
+            : defaults.playbackEnglishSubtitles,
         disableHoverSound:
-          patch.disableHoverSound ?? defaults.disableHoverSound,
+          patch.disableHoverSound !== undefined
+            ? patch.disableHoverSound
+            : defaults.disableHoverSound,
         disableHeroTrailers:
-          patch.disableHeroTrailers ?? defaults.disableHeroTrailers,
-        selectedServerId: patch.selectedServerId ?? defaults.selectedServerId,
+          patch.disableHeroTrailers !== undefined
+            ? patch.disableHeroTrailers
+            : defaults.disableHeroTrailers,
+        ambientGlow:
+          patch.ambientGlow !== undefined
+            ? patch.ambientGlow
+            : defaults.ambientGlow,
+        catalogCardStyle:
+          patch.catalogCardStyle !== undefined
+            ? patch.catalogCardStyle
+            : defaults.catalogCardStyle,
+        selectedServerId:
+          patch.selectedServerId !== undefined
+            ? patch.selectedServerId
+            : defaults.selectedServerId,
         userSelectedPlaybackServer:
           patch.userSelectedPlaybackServer ??
           defaults.userSelectedPlaybackServer,
         policyGenerationAtChoice:
           patch.policyGenerationAtChoice ?? defaults.policyGenerationAtChoice,
         vidnestContentType:
-          patch.vidnestContentType ?? defaults.vidnestContentType,
-        vidsrcApi: patch.vidsrcApi ?? defaults.vidsrcApi,
+          patch.vidnestContentType !== undefined
+            ? patch.vidnestContentType
+            : defaults.vidnestContentType,
+        vidsrcApi:
+          patch.vidsrcApi !== undefined ? patch.vidsrcApi : defaults.vidsrcApi,
         subtitleAppearance:
-          patch.subtitleAppearance ?? defaults.subtitleAppearance,
+          patch.subtitleAppearance !== undefined
+            ? patch.subtitleAppearance
+            : defaults.subtitleAppearance,
         updatedAt: now,
       })
       .returning();

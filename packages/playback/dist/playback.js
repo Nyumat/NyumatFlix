@@ -169,7 +169,43 @@ const engineLabel = (engine, sourceUrl) => {
     return "Direct";
 };
 export const playbackEngineLabel = engineLabel;
-function buildEngineCandidates(stream) {
+function shouldTryMoviBeforeVidstack(stream, options) {
+    if (stream.playbackHint === "hls-first" || isHeavyBrowserDecode(stream)) {
+        return false;
+    }
+    if (!canUseMoviEngine(stream)) {
+        return false;
+    }
+    if (stream.playbackHint === "movi-first") {
+        return true;
+    }
+    if (options?.userPlayerEngine !== "movi") {
+        return false;
+    }
+    if (prefersMoviFirstEngine(stream)) {
+        return true;
+    }
+    return (stream.playback === "extended" &&
+        Boolean(stream.fallbackUrl) &&
+        supportsWebCodecs());
+}
+function appendTranscodeAndMovi(stream, add, options) {
+    const addMoviEngine = () => {
+        if (canUseMoviEngine(stream)) {
+            add("movi");
+        }
+    };
+    const addTranscode = () => addVidstackTranscodeCandidates(stream, add);
+    if (shouldTryMoviBeforeVidstack(stream, options)) {
+        addMoviEngine();
+        addTranscode();
+    }
+    else {
+        addTranscode();
+        addMoviEngine();
+    }
+}
+function buildEngineCandidates(stream, options) {
     const candidates = [];
     const add = (engine) => {
         if (!candidates.includes(engine))
@@ -186,10 +222,18 @@ function buildEngineCandidates(stream) {
     }
     if (stream.playback === "direct") {
         if (looksLikeMultiTrackStream(stream)) {
-            addMovi();
-            add("vidstack-direct");
-            if (stream.fallbackUrl)
-                add("vidstack-hls");
+            if (shouldTryMoviBeforeVidstack(stream, options)) {
+                addMovi();
+                add("vidstack-direct");
+                if (stream.fallbackUrl)
+                    add("vidstack-hls");
+            }
+            else {
+                add("vidstack-direct");
+                if (stream.fallbackUrl)
+                    add("vidstack-hls");
+                addMovi();
+            }
             return candidates;
         }
         add("vidstack-direct");
@@ -198,21 +242,8 @@ function buildEngineCandidates(stream) {
         return candidates;
     }
     if (stream.playback === "extended") {
-        if (prefersMoviFirstEngine(stream)) {
-            addMovi();
-            addVidstackTranscodeCandidates(stream, add);
-            return candidates;
-        }
         if (stream.fallbackUrl) {
-            if (stream.playbackHint !== "hls-first" &&
-                supportsWebCodecs() &&
-                canUseMoviEngine(stream)) {
-                addMovi();
-                addVidstackTranscodeCandidates(stream, add);
-                return candidates;
-            }
-            addVidstackTranscodeCandidates(stream, add);
-            addMovi();
+            appendTranscodeAndMovi(stream, add, options);
             return candidates;
         }
         addMovi();
@@ -237,19 +268,20 @@ function buildEngineCandidates(stream) {
 export function supportsWebCodecs() {
     return typeof VideoDecoder !== "undefined";
 }
-export function selectInitialEngine(stream) {
-    return buildEngineCandidates(stream)[0] ?? null;
+export function selectInitialEngine(stream, options) {
+    return buildEngineCandidates(stream, options)[0] ?? null;
 }
 export function isStreamPlayable(stream) {
     return Boolean(stream.url) && selectInitialEngine(stream) !== null;
 }
-export function nextFallbackEngine(stream, current, tried) {
+export function nextFallbackEngine(stream, current, tried, options) {
     if (current === "movi" && shouldRetainMoviEngine(stream)) {
         return null;
     }
     const excluded = new Set(tried);
     excluded.add(current);
-    return buildEngineCandidates(stream).find((c) => !excluded.has(c)) ?? null;
+    return (buildEngineCandidates(stream, options).find((c) => !excluded.has(c)) ??
+        null);
 }
 export function engineSourceUrl(stream, engine) {
     if (engine === "vidstack-hls") {
@@ -284,8 +316,8 @@ export function openDownloadUrl(stream) {
         : `${window.location.origin}${stream.url}`;
     return path;
 }
-export function playbackEngineCandidates(stream) {
-    return buildEngineCandidates(stream);
+export function playbackEngineCandidates(stream, options) {
+    return buildEngineCandidates(stream, options);
 }
 export function toDirectStream(input) {
     return {

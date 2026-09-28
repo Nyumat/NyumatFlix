@@ -14,7 +14,7 @@ import {
 import { postWatchProgressIfSignedIn } from "@/lib/watchlist/post-watch-progress";
 import { logger } from "@/lib/utils";
 
-const SAVE_INTERVAL_MS = 5_000;
+const SAVE_INTERVAL_MS = 1_000;
 const WATCHLIST_SYNC_INTERVAL_MS = 30_000;
 
 export function usePlaybackProgress(key: PlaybackProgressKey) {
@@ -101,18 +101,17 @@ export function usePlaybackProgress(key: PlaybackProgressKey) {
       lastSavedAtRef.current = 0;
       persist(watched, duration);
 
-      if (key.mediaType === "movie") {
-        const clamped = clampPlaybackProgress(watched, duration);
-        if (clamped) {
-          void syncWatchlist(clamped.watched, clamped.duration).catch(
-            (error) => {
-              logger.error("Failed to sync movie progress to watchlist", error);
-            },
-          );
-        }
+      const clamped = clampPlaybackProgress(watched, duration);
+      if (
+        clamped &&
+        shouldPersistPlaybackProgress(clamped.watched, clamped.duration)
+      ) {
+        void syncWatchlist(clamped.watched, clamped.duration).catch((error) => {
+          logger.error("Failed to sync immediate progress to watchlist", error);
+        });
       }
     },
-    [key.mediaType, persist, syncWatchlist],
+    [persist, syncWatchlist],
   );
 
   return useMemo(

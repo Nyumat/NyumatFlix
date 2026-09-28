@@ -13,6 +13,8 @@ type ActivateEvent = MouseEvent | KeyboardEvent;
 const isModifiedActivate = (event: ActivateEvent) =>
   event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
 
+const ENABLE_MEDIA_PEEK = false;
+
 export const useOpenMediaPeek = () => {
   const openPeek = useMediaPeekStore((state) => state.openPeek);
   const router = useRouter();
@@ -33,12 +35,15 @@ export const useOpenMediaPeek = () => {
         return;
       }
 
-      const target = resolveMediaPeekTarget(item, href);
-      if (!target) return;
-
       event.preventDefault();
       event.stopPropagation();
-      openPeek(target);
+      if (ENABLE_MEDIA_PEEK) {
+        const target = resolveMediaPeekTarget(item, href);
+        if (!target) return;
+        openPeek(target);
+      } else {
+        router.push(href);
+      }
     },
     [openPeek, router],
   );

@@ -193,7 +193,7 @@ export const MediaCastCard: React.FC<MediaCastCardProps> = ({
   }
 
   return (
-    <Link href={personHref} prefetch={false}>
+    <Link href={personHref} prefetch={true}>
       {card}
     </Link>
   );
@@ -225,7 +225,7 @@ export const MediaCrewCard: React.FC<Crew> = ({
   }
 
   return (
-    <Link href={personHref} prefetch={false}>
+    <Link href={personHref} prefetch={true}>
       {card}
     </Link>
   );

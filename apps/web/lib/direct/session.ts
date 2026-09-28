@@ -1,3 +1,8 @@
+import {
+  DirectUnavailableError,
+  isDirectUnavailableHttpFailure,
+} from "@/lib/direct/upstream-unavailable";
+
 export type DirectPlaybackSession = {
   apiBase: string;
   token: string;
@@ -22,9 +27,10 @@ export async function ensureDirectSession(): Promise<DirectPlaybackSession> {
     .then(async (response) => {
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
-        throw new Error(
-          `Direct session ${response.status}${detail ? `: ${detail.slice(0, 120)}` : ""}`,
-        );
+        if (isDirectUnavailableHttpFailure(response.status, detail)) {
+          throw new DirectUnavailableError();
+        }
+        throw new Error(`Direct session ${response.status}`);
       }
       const payload = (await response.json()) as {
         apiBase?: unknown;

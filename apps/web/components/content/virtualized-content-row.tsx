@@ -1,8 +1,11 @@
 "use client";
 
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { CatalogGridTileSkeleton } from "@/components/catalog/catalog-card-skeletons";
 import { getHref } from "@/lib/cards/selectors";
-import { hasPosterPath } from "@/lib/media-poster-path";
+import {
+  filterCatalogCardArt,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
 import { cn } from "@/lib/utils";
 import { type MediaItem } from "@/lib/domain/typings";
 import { useEffect, useState } from "react";
@@ -26,6 +29,7 @@ export function VirtualizedContentRow({
   hasMoreItems = false,
   bleed = false,
 }: VirtualizedContentRowProps) {
+  const catalogCardStyle = useCatalogCardStyle();
   const [items, setItems] = useState<MediaItem[]>(initialItems);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -47,7 +51,7 @@ export function VirtualizedContentRow({
 
       <div className="relative">
         <div className={cn("grid-list", bleed && "index-rail-padding")}>
-          {items.filter(hasPosterPath).map((item, index) => (
+          {filterCatalogCardArt(items, catalogCardStyle).map((item, index) => (
             <div key={`${item.id}-${index}`} className="min-w-0">
               <ContentCard
                 item={item}
@@ -57,22 +61,30 @@ export function VirtualizedContentRow({
               />
             </div>
           ))}
+          {isLoadingMore
+            ? Array.from({ length: 8 }).map((_, index) => (
+                <div key={`loading-${index}`} className="min-w-0" aria-hidden>
+                  <CatalogGridTileSkeleton style={catalogCardStyle} />
+                </div>
+              ))
+            : null}
         </div>
 
         {hasMoreItems && (
           <div className="flex justify-center mt-8">
-            {isLoadingMore ? (
-              <LoadingSpinner size="lg" />
-            ) : (
+            {!isLoadingMore ? (
               <button
                 onClick={async () => {
                   if (!onLoadMore || isLoadingMore) return;
                   setIsLoadingMore(true);
                   try {
                     const more = await onLoadMore();
-                    const withPosters = more?.filter(hasPosterPath) ?? [];
-                    if (withPosters.length > 0) {
-                      setItems((prev) => [...prev, ...withPosters]);
+                    const withArt = filterCatalogCardArt(
+                      more ?? [],
+                      catalogCardStyle,
+                    );
+                    if (withArt.length > 0) {
+                      setItems((prev) => [...prev, ...withArt]);
                     }
                   } catch (error) {
                     console.error("Error loading more items:", error);
@@ -84,7 +96,7 @@ export function VirtualizedContentRow({
               >
                 Load More
               </button>
-            )}
+            ) : null}
           </div>
         )}
       </div>

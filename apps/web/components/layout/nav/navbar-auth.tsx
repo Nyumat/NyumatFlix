@@ -1,6 +1,9 @@
 "use client";
 
-import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
+import {
+  useFeatureFlags,
+  useFeatureFlagsReady,
+} from "@/components/providers/feature-flags-provider";
 import { LogIn, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Session } from "next-auth";
@@ -26,10 +29,11 @@ export const NavbarAuth = ({
   onMobileLinkClick,
 }: NavbarAuthProps) => {
   const { authEnabled } = useFeatureFlags();
+  const flagsReady = useFeatureFlagsReady();
   const pathname = usePathname();
   const signInHref = loginHref(pathname);
 
-  if (!authEnabled && !session) {
+  if (!session && (!flagsReady || !authEnabled)) {
     return null;
   }
 

@@ -39,7 +39,7 @@ const runEnsureEnv = (
   webDir: string,
   env: Record<string, string | undefined> = {},
 ) =>
-  spawnSync("node", [scriptPath], {
+  spawnSync(process.execPath, [scriptPath], {
     cwd: webDir,
     env: { ...process.env, ...env },
     encoding: "utf8",

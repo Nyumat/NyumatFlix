@@ -71,12 +71,30 @@ player_wasm_path() {
   printf '%s/packages/player/dist/wasm/movi.js' "$ROOT"
 }
 
+player_vendor_dir() {
+  printf '%s/apps/web/public/vendor/player' "$ROOT"
+}
+
 player_vendor_element_path() {
-  printf '%s/apps/web/public/vendor/player/element.js' "$ROOT"
+  printf '%s/element.js' "$(player_vendor_dir)"
+}
+
+player_vendor_chunks_ready() {
+  local vendor source rel imports
+  vendor="$(player_vendor_dir)"
+  [[ -f "$vendor/element.js" ]] || return 1
+  for source in "$vendor/element.js" "$vendor/compat.js"; do
+    [[ -f "$source" ]] || continue
+    imports="$(grep -oE '\./[^[:space:]"'"'"']+\.js' "$source" | sed 's|^\./||' | sort -u || true)"
+    while IFS= read -r rel; do
+      [[ -n "$rel" ]] || continue
+      [[ -f "$vendor/$rel" ]] || return 1
+    done <<< "$imports"
+  done
 }
 
 player_artifacts_ready() {
-  [[ -f "$(player_wasm_path)" && -f "$(player_vendor_element_path)" ]]
+  [[ -f "$(player_wasm_path)" ]] && player_vendor_chunks_ready
 }
 
 maybe_build_player_artifacts() {
@@ -87,7 +105,8 @@ maybe_build_player_artifacts() {
   fi
 
   if player_artifacts_ready; then
-    echo "player artifacts present — skipping wasm/player rebuild"
+    echo "player wasm present — publishing vendor chunks, skipping wasm rebuild"
+    node "$ROOT/packages/player/scripts/copy-vendor.mjs"
     return
   fi
 
@@ -96,23 +115,27 @@ maybe_build_player_artifacts() {
     bunx turbo build:wasm --filter=@nyumatflix/player
   fi
 
-  if [[ ! -f "$(player_vendor_element_path)" ]]; then
-    echo "vendor player missing — building @nyumatflix/player"
-    bunx turbo build --filter=@nyumatflix/player
+  if [[ -f "$ROOT/packages/player/dist/element.js" ]]; then
+    echo "vendor player chunks missing — copying from player dist"
+    node "$ROOT/packages/player/scripts/copy-vendor.mjs"
+    if player_artifacts_ready; then
+      return
+    fi
   fi
+
+  echo "vendor player missing — building @nyumatflix/player"
+  bunx turbo build --filter=@nyumatflix/player
 }
 
 copy_player_artifacts_into() {
   local dest="$1"
 
-  if [[ -f "$(player_wasm_path)" ]]; then
+  if [[ -d "$ROOT/packages/player/dist" ]]; then
     mkdir -p "$dest/packages/player/dist/wasm"
-    cp "$(player_wasm_path)" "$dest/packages/player/dist/wasm/movi.js"
-  fi
-
-  if [[ -f "$ROOT/packages/player/dist/element.js" ]]; then
-    mkdir -p "$dest/packages/player/dist"
-    cp "$ROOT/packages/player/dist/element.js" "$dest/packages/player/dist/element.js"
+    find "$ROOT/packages/player/dist" -maxdepth 1 -type f -name '*.js' -exec cp {} "$dest/packages/player/dist/" \;
+    if [[ -f "$(player_wasm_path)" ]]; then
+      cp "$(player_wasm_path)" "$dest/packages/player/dist/wasm/movi.js"
+    fi
   fi
 
   if [[ -d "$ROOT/apps/web/public/vendor/player" ]]; then
@@ -151,7 +174,7 @@ build_image() {
     --build-arg CAP_API_ENDPOINT="${CAP_API_ENDPOINT:-}" \
     --build-arg SKIP_PLAYER_BUILD="$skip_player_build" \
     --cache-from "$DOCKER_REPO:latest" \
-    "$@" "$build_context"
+    "$@" "$build_context" < /dev/null
 }
 
 build_push() {
@@ -180,7 +203,7 @@ build_push() {
     skip_player_build=1
   fi
 
-  docker pull "$DOCKER_REPO:latest" >/dev/null 2>&1 || true
+  docker pull "$DOCKER_REPO:latest" < /dev/null >/dev/null 2>&1 || true
 
   local build_context=""
   local cleanup_context=0
@@ -200,9 +223,9 @@ build_push() {
     rm -rf "$build_context"
   fi
 
-  docker push "$DOCKER_IMAGE"
+  docker push "$DOCKER_IMAGE" < /dev/null
   if [[ -n "${DEPLOY_SHA:-}" && "$DOCKER_IMAGE" != "$DOCKER_REPO:latest" ]]; then
-    docker push "$DOCKER_REPO:latest"
+    docker push "$DOCKER_REPO:latest" < /dev/null
   fi
   echo "pushed $DOCKER_IMAGE"
 }
@@ -267,7 +290,14 @@ preview_serve() {
   while ((SECONDS < deadline)); do
     health="$(docker container inspect "$PREVIEW_CONTAINER" --format '{{.State.Health.Status}}')"
     if [[ "$health" == "healthy" ]]; then
-      echo "preview ready at http://127.0.0.1:$PREVIEW_PORT"; return 0
+      if ! verify_scrape_api_route "$PREVIEW_CONTAINER" 8080; then
+        docker logs --tail 60 "$PREVIEW_CONTAINER" >&2
+        preview_stop
+        echo "preview failed scrape route verification" >&2
+        return 1
+      fi
+      echo "preview ready at http://127.0.0.1:$PREVIEW_PORT"
+      return 0
     fi
     [[ "$health" == "unhealthy" ]] && break
     sleep 2
@@ -425,6 +455,13 @@ serve() {
     exit 1
   fi
 
+  if ! verify_scrape_api_route "$candidate" "${CONTAINER_APP_PORT}"; then
+    echo "candidate failed scrape route verification" >&2
+    sudo docker logs --tail 100 "$candidate" >&2
+    sudo docker rm -f "$candidate" >/dev/null
+    exit 1
+  fi
+
   local warm_script="$ROOT/apps/web/scripts/warm-isr.mjs"
   if [[ -f "$warm_script" ]]; then
     echo "warming ISR routes on 127.0.0.1:${target_port}"
@@ -461,6 +498,17 @@ serve() {
     echo "candidate failed its post-switch health check; upstream rolled back" >&2
     exit 1
   fi
+
+  if ! verify_scrape_api_route "" "" "http://127.0.0.1:${target_port}"; then
+    if [[ -s "$upstream_backup" ]]; then
+      sudo cp "$upstream_backup" "$NGINX_UPSTREAM_FILE"
+      sudo nginx -t && sudo systemctl reload nginx
+    fi
+    rm -f "$upstream_backup"
+    sudo docker rm -f "$candidate" >/dev/null
+    echo "candidate failed its post-switch scrape route check; upstream rolled back" >&2
+    exit 1
+  fi
   rm -f "$upstream_backup"
 
   if sudo docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
@@ -477,6 +525,15 @@ serve() {
 
   DEPLOY_TARGET_PORT="$target_port"
   record_deployment
+
+  if [[ -f "$ROOT/scripts/bunny-purge-catalog.sh" ]]; then
+    export_env_keys_from_file "$ENV_FILE" \
+      BUNNY_API_KEY \
+      BUNNY_PULL_ZONE_ID \
+      BUNNY_PURGE_MODE \
+      BUNNY_PURGE_PATHS
+    bash "$ROOT/scripts/bunny-purge-catalog.sh"
+  fi
 
   echo "running $CONTAINER_NAME from $DOCKER_IMAGE (127.0.0.1:${target_port}->:${CONTAINER_APP_PORT})"
   echo "deploy ${DEPLOY_SHORT_SHA:-unknown} ${DEPLOY_MESSAGE:-}"
@@ -500,10 +557,11 @@ stop_container() {
   acquire_deploy_lock
   sudo docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
   sudo docker rm -f "${CONTAINER_NAME}-next" 2>/dev/null || true
-  local previous
+  local previous ids
+  ids="$(sudo docker ps -aq --filter "name=^/${CONTAINER_NAME}-previous-" || true)"
   while IFS= read -r previous; do
     [[ -n "$previous" ]] && sudo docker rm -f "$previous" >/dev/null
-  done < <(sudo docker ps -aq --filter "name=^/${CONTAINER_NAME}-previous-")
+  done <<< "$ids"
   echo "stopped $CONTAINER_NAME"
 }
 

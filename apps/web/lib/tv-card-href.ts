@@ -11,11 +11,20 @@ export const resolveTvCardHref = (
     id: number;
     href?: string | null;
     poster_path?: string | null;
+    sourceAnilistId?: number | null;
   },
   catalog?: TvDetailCatalog | null,
 ): string => {
   if (typeof show.href === "string" && show.href.trim().length > 0) {
     return normalizeAnilistAnimeDetailHref(show.href);
+  }
+
+  if (
+    typeof show.sourceAnilistId === "number" &&
+    Number.isInteger(show.sourceAnilistId) &&
+    show.sourceAnilistId > 0
+  ) {
+    return buildAnilistTvDetailHref(show.sourceAnilistId);
   }
 
   if (isRemoteImagePath(show.poster_path)) {

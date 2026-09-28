@@ -2,9 +2,11 @@
 
 import { fetchAnimeNextPage } from "@/app/actions/fetch-anime-next-page";
 import { MediaContentGrid } from "@/components/content/media-content-grid";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { AniListSearchParams } from "@/lib/anilist-shared";
-import { filterWithPosterPath } from "@/lib/media-poster-path";
+import {
+  filterCatalogCardArt,
+  useCatalogCardStyle,
+} from "@/lib/catalog-card-presentation";
 import { useScrollFetchLock } from "@/hooks/use-scroll-fetch-lock";
 import type { MediaItem } from "@/lib/domain/typings";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -55,8 +57,12 @@ const AnimeInfiniteGridBody = ({
   initialHasNextPage,
   params,
 }: AnimeInfiniteGridProps) => {
+  const catalogCardStyle = useCatalogCardStyle();
+  const filterArt = (list: MediaItem[]) =>
+    filterCatalogCardArt(list, catalogCardStyle);
+
   const [store, setStore] = useState<AnimeEntityStore>(() =>
-    buildAnimeEntityStore(filterWithPosterPath(initialItems)),
+    buildAnimeEntityStore(filterArt(initialItems)),
   );
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [hasNextPage, setHasNextPage] = useState(initialHasNextPage);
@@ -90,7 +96,7 @@ const AnimeInfiniteGridBody = ({
         return;
       }
 
-      const raw = filterWithPosterPath(data.results ?? []);
+      const raw = filterArt(data.results ?? []);
 
       setStore((prev) => {
         const nextMap = new Map(prev.entityMap);
@@ -130,7 +136,7 @@ const AnimeInfiniteGridBody = ({
           void fetchNextPage();
         }
       },
-      { rootMargin: "200px" },
+      { rootMargin: "600px" },
     );
 
     const node = sentinelRef.current;
@@ -148,16 +154,11 @@ const AnimeInfiniteGridBody = ({
         showViewModeControls
         gridColumns="auto"
         showDock={false}
+        trailingGridSkeletonCount={isLoading && hasNextPage ? 8 : 0}
       />
 
       {hasNextPage ? (
         <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
-      ) : null}
-
-      {isLoading ? (
-        <div className="flex justify-center py-6">
-          <LoadingSpinner text="Loading more..." />
-        </div>
       ) : null}
 
       {!hasNextPage && items.length > 0 ? (

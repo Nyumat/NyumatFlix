@@ -1,5 +1,11 @@
 import { mergeDirectStreams } from "@/lib/direct/merge-direct-streams";
 import { collectDirectStreamsClient } from "@/lib/direct/collect-direct-streams-client";
+import {
+  DIRECT_UNAVAILABLE_MESSAGE,
+  DirectUnavailableError,
+  isBrowserDirectNetworkFailure,
+  isDirectUnavailableHttpFailure,
+} from "@/lib/direct/upstream-unavailable";
 import type { DirectPlaybackTarget } from "@/lib/direct/client-streams";
 import { directDiscoveryEventPath } from "@/lib/direct/discovery-paths";
 import { ensureDirectSession } from "@/lib/direct/session";
@@ -143,6 +149,10 @@ async function readSseResponse(
     return;
   }
   if (!response.ok || !response.body) {
+    const detail = response.ok ? "" : await response.text().catch(() => "");
+    if (isDirectUnavailableHttpFailure(response.status, detail)) {
+      throw new DirectUnavailableError();
+    }
     throw new Error(`Stream discovery ${response.status || "failed"}`);
   }
   const contentType = response.headers.get("content-type") ?? "";
@@ -298,6 +308,13 @@ export function subscribeProgressiveDirectStreams(
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
+        if (
+          error instanceof DirectUnavailableError ||
+          isBrowserDirectNetworkFailure(error)
+        ) {
+          finishError(DIRECT_UNAVAILABLE_MESSAGE);
+          return;
+        }
       }
 
       if (finished || abort.signal.aborted) {
@@ -350,9 +367,12 @@ export function subscribeProgressiveDirectStreams(
         return;
       }
       finishError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load direct streams",
+        error instanceof DirectUnavailableError ||
+          isBrowserDirectNetworkFailure(error)
+          ? DIRECT_UNAVAILABLE_MESSAGE
+          : error instanceof Error
+            ? error.message
+            : "Failed to load direct streams",
       );
     }
   };

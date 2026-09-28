@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { rewriteStreamsResponse } from "@/lib/direct/client-streams";
 import { discoverTvStreamsUpstream } from "@/lib/direct/discover-streams-upstream";
 import { mintCalluspiratesClientSession } from "@/lib/direct/server-session";
+import { directUpstreamErrorBody } from "@/lib/direct/upstream-unavailable";
 import {
   getCalluspiratesApiUrl,
   isDirectScrapeProviderConfigured,
@@ -74,8 +75,7 @@ export async function GET(request: Request, context: RouteContext) {
       ),
     );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Upstream fetch failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    const failure = directUpstreamErrorBody(error);
+    return NextResponse.json(failure.body, { status: failure.status });
   }
 }

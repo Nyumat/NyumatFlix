@@ -24,6 +24,12 @@ export const getGitMeta = (): GitMeta => {
     .filter(Boolean);
   for (const file of untracked)
     fingerprint.update(file).update(git("hash-object", "--", file));
+  const changes = status
+    ? status.split("\n").map((line) => ({
+        mark: line.slice(0, 2).trimEnd() || "??",
+        path: line.slice(3),
+      }))
+    : [];
   return {
     branch: git("branch", "--show-current") || "detached HEAD",
     sha: git("rev-parse", "HEAD"),
@@ -32,7 +38,8 @@ export const getGitMeta = (): GitMeta => {
     author: git("log", "-1", "--pretty=format:%an"),
     dirty: status.length > 0,
     diffStat,
-    changedFiles: status ? status.split("\n").length : 0,
+    changedFiles: changes.length,
+    changes,
     fingerprint: fingerprint.digest("hex"),
   };
 };

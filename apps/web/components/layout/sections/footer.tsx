@@ -2,8 +2,7 @@
 
 import { useFeatureFlags } from "@/components/providers/feature-flags-provider";
 import { getFooterLinks } from "@/lib/navigation";
-import { GithubIcon } from "@/components/icons/github-icon";
-import { Cannabis, Globe, Heart } from "lucide-react";
+import { Cannabis, Heart } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 
@@ -18,7 +17,7 @@ export const FooterSection = () => {
       aria-label="Site footer"
     >
       <div className="container mx-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between lg:gap-3">
+        <div className="hidden sm:flex sm:items-center sm:justify-between lg:gap-3">
           <BrandLogo placement="footer" />
 
           <div className="flex flex-wrap items-center justify-start gap-3 sm:justify-end sm:gap-4 lg:gap-5">
@@ -39,66 +38,44 @@ export const FooterSection = () => {
                 ))}
               </ul>
             </nav>
-
-            <div
-              className="flex space-x-3"
-              role="list"
-              aria-label="Social media links"
-            >
-              <Link
-                href="https://github.com/Nyumat/NyumatFlix"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted transition-all duration-200 hover:bg-accent group"
-                aria-label="NyumatFlix GitHub repository"
-                title="NyumatFlix GitHub repository"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <GithubIcon className="h-5 w-5 fill-foreground transition-transform duration-200 group-hover:scale-110" />
-              </Link>
-              <Link
-                href="https://nyuma.dev"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted transition-all duration-200 hover:bg-accent group"
-                aria-label="Creator's website"
-                title="Creator's website"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Globe className="h-4 w-4 fill-white transition-transform duration-200 group-hover:scale-110 dark:fill-black" />
-              </Link>
-            </div>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col items-start gap-2 border-t border-border/40 pt-4 sm:gap-2.5 lg:mt-3 lg:flex-row lg:items-center lg:justify-between lg:gap-3 lg:pt-3">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Made with{" "}
-            <Cannabis className="inline-block w-4 h-4 text-green-500 mb-1" />{" "}
-            and <Heart className="inline-block w-4 h-4 text-red-500 mb-1" /> for
-            you and me.
-          </p>
-          <p className="text-xs leading-relaxed text-muted-foreground lg:max-w-xl lg:shrink-0 lg:text-right">
-            Just another{" "}
-            <a
-              href="https://www.themoviedb.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground underline underline-offset-4 hover:text-primary"
-            >
-              {" "}
-              TMDB{" "}
-            </a>{" "}
-            and{" "}
-            <a
-              href="https://anilist.co"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground underline underline-offset-4 hover:text-primary"
-            >
-              {" "}
-              AniList{" "}
-            </a>{" "}
-            wrapper.
-          </p>
+        <div className="flex flex-row items-center gap-3 sm:mt-4 sm:flex-col sm:items-start sm:gap-2.5 sm:border-t sm:border-border/40 sm:pt-4 lg:mt-3 lg:flex-row lg:items-center lg:justify-between lg:gap-3 lg:pt-3">
+          <div className="shrink-0 sm:hidden">
+            <BrandLogo placement="footer" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Made with{" "}
+              <Cannabis className="inline-block w-4 h-4 text-green-500 mb-1" />{" "}
+              and <Heart className="inline-block w-4 h-4 text-red-500 mb-1" />{" "}
+              for you and me.
+            </p>
+            <p className="text-xs leading-relaxed text-muted-foreground lg:max-w-xl lg:shrink-0 lg:text-right">
+              Just another{" "}
+              <a
+                href="https://www.themoviedb.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground underline underline-offset-4 hover:text-primary"
+              >
+                {" "}
+                TMDB{" "}
+              </a>{" "}
+              and{" "}
+              <a
+                href="https://anilist.co"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground underline underline-offset-4 hover:text-primary"
+              >
+                {" "}
+                AniList{" "}
+              </a>{" "}
+              wrapper.
+            </p>
+          </div>
         </div>
       </div>
     </footer>

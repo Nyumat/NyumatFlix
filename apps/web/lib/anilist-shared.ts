@@ -102,6 +102,10 @@ export type AniListMedia = {
     day?: number | null;
   } | null;
   siteUrl?: string | null;
+  trailer?: {
+    id?: string | null;
+    site?: string | null;
+  } | null;
   tmdbFallback?: {
     id: number;
     type: "movie" | "tv";
@@ -209,6 +213,17 @@ export const getAniListYear = (item: AniListMedia) =>
 export const getAniListPoster = (item: AniListMedia) =>
   item.coverImage?.extraLarge || item.coverImage?.large || undefined;
 
+/** YouTube trailer video id, when AniList lists a YouTube-hosted trailer. */
+export const getAniListYoutubeTrailerKey = (
+  item: AniListMedia,
+): string | undefined => {
+  const site = item.trailer?.site?.trim().toLowerCase();
+  const key = item.trailer?.id?.trim();
+  if (!key) return undefined;
+  if (site && site !== "youtube") return undefined;
+  return key;
+};
+
 export const cleanAniListDescription = (value: string | null | undefined) =>
   value
     ?.replace(/<br\s*\/?>/gi, " ")
@@ -250,6 +265,7 @@ export const mapAniListMediaToMediaItem = (item: AniListMedia): MediaItem => {
     media_type: item.format === "MOVIE" ? "movie" : "tv",
     href,
     tmdbFallback: item.tmdbFallback,
+    youtube_trailer_key: getAniListYoutubeTrailerKey(item),
   } as MediaItem & { tmdbFallback?: { id: number; type: "movie" | "tv" } };
 };
 

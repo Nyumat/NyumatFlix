@@ -1,16 +1,23 @@
 "use client";
 
 import { AnnouncementBannerSurface } from "@/components/layout/announcement-banner-surface";
-import { FfsToggleRow } from "@/components/ffs/ffs-toggle-row";
+import { SettingsCheckboxRow } from "@/components/ffs/settings";
+import { Badge } from "@/components/ui/badge";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ANNOUNCEMENT_ICON_NAMES,
   type AnnouncementBannerConfig,
@@ -19,7 +26,8 @@ import {
   announcementBannerConfigToJsx,
   parseAnnouncementBannerJsx,
 } from "@/lib/flags/announcement-banner-jsx";
-import { Check, Code2, Eye, Monitor, TriangleAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ChevronDown, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -28,6 +36,9 @@ type Props = {
   onEnabledChange: (enabled: boolean) => void;
   onConfigChange: (config: AnnouncementBannerConfig) => void;
 };
+
+const compactInputClass =
+  "h-8 border-border bg-transparent text-sm shadow-none";
 
 export function AnnouncementBannerPanel({
   enabled,
@@ -39,6 +50,7 @@ export function AnnouncementBannerPanel({
     announcementBannerConfigToJsx(config),
   );
   const [sourceError, setSourceError] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const sourceHasFocus = useRef(false);
 
   useEffect(() => {
@@ -78,268 +90,213 @@ export function AnnouncementBannerPanel({
   };
 
   return (
-    <Card className="overflow-hidden border-white/10 bg-black/40">
-      <CardHeader className="border-b border-white/10 pb-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="max-w-2xl space-y-1.5">
-            <CardTitle className="text-xl">Announcement editor</CardTitle>
-            <CardDescription className="max-w-[68ch] leading-relaxed">
-              Design the exact banner visitors will see. Fields and JSX stay in
-              sync instantly; changes go live only after you save.
-            </CardDescription>
-          </div>
-          <div
-            className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70"
-            aria-live="polite"
-          >
-            <span
-              className={`size-2 rounded-full ${enabled ? "bg-emerald-400" : "bg-white/25"}`}
-              aria-hidden
-            />
-            {enabled ? "Published after save" : "Hidden on site"}
-          </div>
-        </div>
-      </CardHeader>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-xs text-muted-foreground">
+          Changes go live only after you save.
+        </p>
+        <Badge variant="outline" className="text-[11px]" aria-live="polite">
+          {enabled ? "Enabled" : "Hidden"}
+        </Badge>
+      </div>
 
-      <CardContent className="space-y-8 p-0">
-        <section
-          aria-labelledby="banner-preview-heading"
-          className="space-y-3 p-6 pb-0"
+      <section aria-labelledby="banner-preview-heading" className="space-y-2">
+        <h4
+          id="banner-preview-heading"
+          className="text-xs font-medium text-foreground"
         >
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Eye className="size-4 text-white/55" aria-hidden />
-              <h4
-                id="banner-preview-heading"
-                className="text-sm font-semibold text-white"
-              >
-                Live site preview
-              </h4>
-            </div>
-            <span className="inline-flex items-center gap-1.5 text-xs text-white/45">
-              <Monitor className="size-3.5" aria-hidden />
-              Responsive canvas
-            </span>
-          </div>
+          Preview
+        </h4>
+        <div className="overflow-hidden rounded-md border border-border">
+          <AnnouncementBannerSurface config={config} preview />
+        </div>
+      </section>
 
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#070708] shadow-[0_18px_50px_rgba(0,0,0,0.26)]">
-            <div
-              className="flex h-9 items-center gap-1.5 border-b border-white/8 px-4"
-              aria-hidden
-            >
-              <span className="size-2 rounded-full bg-white/15" />
-              <span className="size-2 rounded-full bg-white/10" />
-              <span className="size-2 rounded-full bg-white/10" />
-              <span className="ml-3 text-[11px] font-medium text-white/30">
-                nyumatflix.com
-              </span>
-            </div>
-            <AnnouncementBannerSurface config={config} preview />
-            <div
-              className="flex h-16 items-center justify-between px-6 text-white/20"
-              aria-hidden
-            >
-              <div className="h-2.5 w-24 rounded bg-current" />
-              <div className="flex gap-2">
-                <div className="size-8 rounded-lg border border-current" />
-                <div className="size-8 rounded-lg border border-current" />
-                <div className="size-8 rounded-lg border border-current" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="grid border-t border-white/10 lg:grid-cols-[minmax(0,0.9fr)_minmax(28rem,1.1fr)]">
-          <section
-            aria-labelledby="banner-fields-heading"
-            className="space-y-6 p-6 lg:border-r lg:border-white/10"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h4
-                  id="banner-fields-heading"
-                  className="text-sm font-semibold text-white"
-                >
-                  Properties
-                </h4>
-                <p className="mt-1 text-xs leading-relaxed text-white/45">
-                  Edit visually, with safe validation.
-                </p>
-              </div>
-            </div>
-
-            <FfsToggleRow
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-4">
+          <h4 className="text-xs font-medium text-foreground">Content</h4>
+          <div className="divide-y divide-border">
+            <SettingsCheckboxRow
+              id="announcement-banner-enabled"
               label="Show banner"
               description="Publish this announcement site-wide"
-              enabled={enabled}
-              onToggle={onEnabledChange}
+              checked={enabled}
+              onCheckedChange={onEnabledChange}
             />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <BannerField
+            <BannerField
+              id="announcement-banner-title"
+              label="Title"
+              className="py-3"
+            >
+              <Input
                 id="announcement-banner-title"
-                label="Title"
-                className="sm:col-span-2"
-              >
-                <Input
-                  id="announcement-banner-title"
-                  value={config.title}
-                  maxLength={100}
-                  placeholder="A short headline"
-                  onChange={(event) => update("title", event.target.value)}
-                />
-              </BannerField>
-              <BannerField
+                value={config.title}
+                maxLength={100}
+                placeholder="A short headline"
+                className={compactInputClass}
+                onChange={(event) => update("title", event.target.value)}
+              />
+            </BannerField>
+            <BannerField
+              id="announcement-banner-message"
+              label="Message"
+              className="py-3"
+            >
+              <Textarea
                 id="announcement-banner-message"
-                label="Message"
-                className="sm:col-span-2"
-              >
-                <Input
-                  id="announcement-banner-message"
-                  value={config.message}
-                  maxLength={280}
-                  placeholder="Add supporting context"
-                  onChange={(event) => update("message", event.target.value)}
-                />
-              </BannerField>
-              <BannerField id="announcement-banner-icon" label="Lucide icon">
-                <select
-                  id="announcement-banner-icon"
-                  value={config.icon}
-                  onChange={(event) =>
-                    update(
-                      "icon",
-                      event.target.value as AnnouncementBannerConfig["icon"],
-                    )
-                  }
-                  className="flex h-10 w-full rounded-md border border-white/25 bg-black/30 px-3 py-2 text-sm text-white shadow-md outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="" className="bg-zinc-950">
-                    None
-                  </option>
-                  {ANNOUNCEMENT_ICON_NAMES.map((icon) => (
-                    <option key={icon} value={icon} className="bg-zinc-950">
-                      {icon}
-                    </option>
-                  ))}
-                </select>
-              </BannerField>
-              <BannerField id="announcement-banner-id" label="Release ID">
-                <Input
-                  id="announcement-banner-id"
-                  value={config.id}
-                  maxLength={64}
-                  onChange={(event) => update("id", event.target.value)}
-                />
-              </BannerField>
-              <BannerField
+                value={config.message}
+                maxLength={280}
+                placeholder="Add supporting context"
+                rows={3}
+                className="min-h-18 text-sm"
+                onChange={(event) => update("message", event.target.value)}
+              />
+            </BannerField>
+            <BannerField
+              id="announcement-banner-link-label"
+              label="Action label"
+              className="py-3"
+            >
+              <Input
                 id="announcement-banner-link-label"
-                label="Action label"
-              >
-                <Input
-                  id="announcement-banner-link-label"
-                  value={config.linkLabel}
-                  maxLength={40}
-                  placeholder="Optional"
-                  onChange={(event) => update("linkLabel", event.target.value)}
-                />
-              </BannerField>
-              <BannerField id="announcement-banner-link-url" label="Action URL">
-                <Input
-                  id="announcement-banner-link-url"
-                  value={config.linkUrl}
-                  maxLength={500}
-                  placeholder="/updates or https://…"
-                  onChange={(event) => update("linkUrl", event.target.value)}
-                />
-              </BannerField>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/45">
-                Color
-              </p>
-              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                <ColorField
-                  label="Background"
-                  value={config.backgroundColor}
-                  onChange={(value) => update("backgroundColor", value)}
-                />
-                <ColorField
-                  label="Text"
-                  value={config.textColor}
-                  onChange={(value) => update("textColor", value)}
-                />
-                <ColorField
-                  label="Accent"
-                  value={config.accentColor}
-                  onChange={(value) => update("accentColor", value)}
-                />
-              </div>
-            </div>
-
-            <FfsToggleRow
+                value={config.linkLabel}
+                maxLength={40}
+                placeholder="Optional"
+                className={compactInputClass}
+                onChange={(event) => update("linkLabel", event.target.value)}
+              />
+            </BannerField>
+            <BannerField
+              id="announcement-banner-link-url"
+              label="Action URL"
+              className="py-3"
+            >
+              <Input
+                id="announcement-banner-link-url"
+                value={config.linkUrl}
+                maxLength={500}
+                placeholder="/updates or https://…"
+                className={cn(compactInputClass, "font-mono")}
+                onChange={(event) => update("linkUrl", event.target.value)}
+              />
+            </BannerField>
+            <SettingsCheckboxRow
+              id="announcement-banner-dismissible"
               label="Dismissible"
               description="Allow visitors to close this release"
-              enabled={config.dismissible}
-              onToggle={(value) => update("dismissible", value)}
+              checked={config.dismissible}
+              onCheckedChange={(value) => update("dismissible", value)}
             />
-          </section>
+          </div>
+        </div>
 
-          <section
-            aria-labelledby="banner-source-heading"
-            className="flex min-h-[38rem] flex-col bg-black/20 p-6"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Code2 className="size-4 text-white/55" aria-hidden />
-                  <h4
-                    id="banner-source-heading"
-                    className="text-sm font-semibold text-white"
-                  >
-                    JSX source
-                  </h4>
-                </div>
-                <p className="mt-1.5 max-w-[58ch] text-xs leading-relaxed text-white/45">
-                  Edit every rendered prop directly. This component is parsed,
-                  validated, and never executed.
-                </p>
-              </div>
+        <div className="space-y-4">
+          <h4 className="text-xs font-medium text-foreground">Appearance</h4>
+          <div className="space-y-4">
+            <BannerField id="announcement-banner-icon" label="Icon">
+              <Select
+                value={config.icon || "none"}
+                onValueChange={(value) =>
+                  update(
+                    "icon",
+                    value === "none"
+                      ? ""
+                      : (value as AnnouncementBannerConfig["icon"]),
+                  )
+                }
+              >
+                <SelectTrigger className={cn(compactInputClass, "h-8")}>
+                  <SelectValue placeholder="Select icon" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {ANNOUNCEMENT_ICON_NAMES.map((icon) => (
+                    <SelectItem key={icon} value={icon}>
+                      {icon}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </BannerField>
+            <ColorField
+              label="Background"
+              value={config.backgroundColor}
+              onChange={(value) => update("backgroundColor", value)}
+            />
+            <ColorField
+              label="Text"
+              value={config.textColor}
+              onChange={(value) => update("textColor", value)}
+            />
+            <ColorField
+              label="Accent"
+              value={config.accentColor}
+              onChange={(value) => update("accentColor", value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-left text-sm text-foreground transition-colors duration-150 hover:bg-muted/40 motion-reduce:transition-none">
+          <span>Advanced</span>
+          <ChevronDown
+            className={cn(
+              "size-4 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none",
+              advancedOpen && "rotate-180",
+            )}
+            aria-hidden
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-4 pt-4">
+          <BannerField id="announcement-banner-id" label="Release ID">
+            <Input
+              id="announcement-banner-id"
+              value={config.id}
+              maxLength={64}
+              className={cn(compactInputClass, "font-mono")}
+              onChange={(event) => update("id", event.target.value)}
+            />
+          </BannerField>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="announcement-banner-jsx">JSX source</Label>
               <SourceStatus error={sourceError} />
             </div>
-
-            <div className="relative mt-5 min-h-0 flex-1">
-              <textarea
-                aria-label="Announcement banner JSX"
-                value={source}
-                onFocus={() => {
-                  sourceHasFocus.current = true;
-                }}
-                onBlur={finishSourceEditing}
-                onChange={(event) => updateSource(event.target.value)}
-                spellCheck={false}
-                className="h-full min-h-[30rem] w-full resize-y rounded-xl border border-white/10 bg-[#08090b] p-4 font-mono text-[13px] leading-6 text-sky-100 shadow-inner outline-hidden transition focus:border-sky-400/45 focus:ring-2 focus:ring-sky-400/15"
-              />
-            </div>
-          </section>
-        </div>
-      </CardContent>
-    </Card>
+            <Textarea
+              id="announcement-banner-jsx"
+              aria-label="Announcement banner JSX"
+              value={source}
+              onFocus={() => {
+                sourceHasFocus.current = true;
+              }}
+              onBlur={finishSourceEditing}
+              onChange={(event) => updateSource(event.target.value)}
+              spellCheck={false}
+              rows={12}
+              className="min-h-64 font-mono text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Parsed and validated. Never executed.
+            </p>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }
 
 function SourceStatus({ error }: { error: string | null }) {
   return error ? (
-    <span className="inline-flex max-w-xs items-center gap-1.5 rounded-lg bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-300">
-      <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-      {error}
-    </span>
+    <Badge variant="outline" className="gap-1 text-[11px] text-destructive">
+      <TriangleAlert className="size-3" aria-hidden />
+      Error
+    </Badge>
   ) : (
-    <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-300">
-      <Check className="size-3.5" aria-hidden />
-      Valid JSX
-    </span>
+    <Badge variant="outline" className="text-[11px]">
+      Valid
+    </Badge>
   );
 }
 
@@ -355,8 +312,10 @@ function BannerField({
   className?: string;
 }) {
   return (
-    <div className={`space-y-2 ${className ?? ""}`}>
-      <Label htmlFor={id}>{label}</Label>
+    <div className={cn("space-y-2", className)}>
+      <Label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </Label>
       {children}
     </div>
   );
@@ -380,14 +339,14 @@ function ColorField({
           type="color"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-12 shrink-0 p-1"
+          className="h-8 w-10 shrink-0 border-border bg-transparent p-1 shadow-none"
         />
         <Input
           aria-label={`${label} hex color`}
           value={value}
           maxLength={7}
           onChange={(event) => onChange(event.target.value)}
-          className="font-mono text-xs"
+          className={cn(compactInputClass, "font-mono")}
         />
       </div>
     </BannerField>

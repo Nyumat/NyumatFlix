@@ -4,8 +4,16 @@ import { resolveHlsPlaylistUrl } from "./hls-url";
 import { looksLikeHlsStreamUrl } from "./stream-url-patterns";
 import { normalizeVidKingAssetHost } from "./vidking-cdn-url";
 import { anyAbortSignal } from "./abort";
+import type {
+  ScrapeAudioVersion,
+  ScrapeQuality,
+  ScrapeSubtitle,
+} from "./types";
+import { bytesToBase64Url, hmacSha256 } from "./playback-mac";
 
 const MAX_ENCODED_URL_LENGTH = 8192;
+const PLAYBACK_TOKEN_SEPARATOR = "~";
+const PLAYBACK_TOKEN_TTL_SECONDS = 6 * 60 * 60;
 
 export type ScrapePlaybackToken = {
   url: string;
@@ -30,18 +38,146 @@ const decodeBase64Url = (token: string) => {
   );
 };
 
-export const encodeScrapePlaybackToken = (payload: ScrapePlaybackToken) =>
-  encodeBase64Url(JSON.stringify(payload));
+type SignedScrapePlaybackToken = ScrapePlaybackToken & { exp?: number };
 
-export const decodeScrapePlaybackToken = (
+const playbackTokenSecret = (): string | null => {
+  const secret = process.env.AUTH_SECRET?.trim();
+  return secret ? secret : null;
+};
+
+const playbackTokenBody = (token: string): string => {
+  const separator = token.lastIndexOf(PLAYBACK_TOKEN_SEPARATOR);
+  if (separator <= 0) {
+    return token;
+  }
+  return token.slice(0, separator);
+};
+
+const signaturesMatch = (left: string, right: string): boolean => {
+  if (left.length !== right.length || left.length === 0) {
+    return false;
+  }
+  let mismatch = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return mismatch === 0;
+};
+
+const isPrivateIPv4 = (
+  first: number,
+  second: number,
+  third: number,
+): boolean => {
+  if (first === 10 || first === 127 || first === 0) {
+    return true;
+  }
+  if (first === 169 && second === 254) {
+    return true;
+  }
+  if (first === 172 && second >= 16 && second <= 31) {
+    return true;
+  }
+  if (first === 192 && second === 168) {
+    return true;
+  }
+  return first === 255 && second === 255 && third === 255;
+};
+
+const parseDottedIPv4 = (
+  host: string,
+): [number, number, number, number] | null => {
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!match) {
+    return null;
+  }
+  const parts = [match[1], match[2], match[3], match[4]].map((part) =>
+    Number(part),
+  );
+  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return null;
+  }
+  const [first, second, third, fourth] = parts;
+  if (
+    first === undefined ||
+    second === undefined ||
+    third === undefined ||
+    fourth === undefined
+  ) {
+    return null;
+  }
+  return [first, second, third, fourth];
+};
+
+const isPrivateIPv6 = (host: string): boolean => {
+  const normalized = host.toLowerCase();
+  return (
+    normalized === "::" ||
+    normalized === "::1" ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd")
+  );
+};
+
+export const isBlockedPlaybackTarget = (value: string): boolean => {
+  let hostname: string;
+  try {
+    hostname = new URL(value).hostname.toLowerCase();
+  } catch {
+    return true;
+  }
+  if (hostname.startsWith("[") && hostname.endsWith("]")) {
+    hostname = hostname.slice(1, -1);
+  }
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    hostname === "metadata.google.internal" ||
+    hostname === "metadata"
+  ) {
+    return true;
+  }
+
+  const dotted = parseDottedIPv4(hostname);
+  if (dotted) {
+    return isPrivateIPv4(dotted[0], dotted[1], dotted[2]);
+  }
+
+  if (/^\d+$/.test(hostname)) {
+    const numeric = Number(hostname);
+    if (
+      Number.isSafeInteger(numeric) &&
+      numeric >= 0 &&
+      numeric <= 0xffffffff
+    ) {
+      return isPrivateIPv4(
+        (numeric >>> 24) & 255,
+        (numeric >>> 16) & 255,
+        (numeric >>> 8) & 255,
+      );
+    }
+  }
+
+  if (hostname.includes(":")) {
+    return isPrivateIPv6(hostname);
+  }
+
+  return false;
+};
+
+const readScrapePlaybackPayload = (
   token: string,
-): ScrapePlaybackToken | null => {
+): SignedScrapePlaybackToken | null => {
   if (!token || token.length > MAX_ENCODED_URL_LENGTH) {
     return null;
   }
 
   try {
-    const decoded = JSON.parse(decodeBase64Url(token)) as ScrapePlaybackToken;
+    const decoded = JSON.parse(
+      decodeBase64Url(playbackTokenBody(token)),
+    ) as SignedScrapePlaybackToken;
 
     if (!decoded.url || typeof decoded.url !== "string") {
       return null;
@@ -58,10 +194,91 @@ export const decodeScrapePlaybackToken = (
   }
 };
 
+export const encodeScrapePlaybackToken = (payload: ScrapePlaybackToken) => {
+  const secret = playbackTokenSecret();
+  if (!secret) {
+    throw new Error("AUTH_SECRET is not configured");
+  }
+
+  const body = encodeBase64Url(
+    JSON.stringify({
+      ...payload,
+      exp: Math.floor(Date.now() / 1000) + PLAYBACK_TOKEN_TTL_SECONDS,
+    }),
+  );
+  const signature = bytesToBase64Url(hmacSha256(secret, body));
+  return `${body}${PLAYBACK_TOKEN_SEPARATOR}${signature}`;
+};
+
+export const decodeScrapePlaybackToken = (
+  token: string,
+): ScrapePlaybackToken | null => {
+  const secret = playbackTokenSecret();
+  const separator = token.lastIndexOf(PLAYBACK_TOKEN_SEPARATOR);
+  if (!secret || separator <= 0) {
+    return null;
+  }
+
+  const body = token.slice(0, separator);
+  const signature = token.slice(separator + 1);
+  if (!signaturesMatch(signature, bytesToBase64Url(hmacSha256(secret, body)))) {
+    return null;
+  }
+
+  const decoded = readScrapePlaybackPayload(token);
+  if (!decoded || typeof decoded.exp !== "number") {
+    return null;
+  }
+  if (decoded.exp < Math.floor(Date.now() / 1000)) {
+    return null;
+  }
+  if (isBlockedPlaybackTarget(decoded.url)) {
+    return null;
+  }
+
+  const payload: ScrapePlaybackToken = { url: decoded.url };
+  if (decoded.referer) {
+    payload.referer = decoded.referer;
+  }
+  if (decoded.refresh) {
+    payload.refresh = decoded.refresh;
+  }
+  if (decoded.cookies) {
+    payload.cookies = decoded.cookies;
+  }
+  if (decoded.subtitleFormat) {
+    payload.subtitleFormat = decoded.subtitleFormat;
+  }
+  return payload;
+};
+
+export const isScrapePlayProxyUrl = (value: string): boolean => {
+  if (value.startsWith("/api/scrape/play/")) {
+    return true;
+  }
+  try {
+    return new URL(value).pathname.startsWith("/api/scrape/play/");
+  } catch {
+    return false;
+  }
+};
+
+export const relativeScrapePlayUrl = (value: string): string => {
+  if (value.startsWith("/api/scrape/play/")) {
+    return value;
+  }
+  const parsed = new URL(value);
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+};
+
 const DISGUISED_HLS_SEGMENT =
   /\.(?:html|htm|jpg|jpeg|js|css|txt|png|webp|ico|pict)(?:[?#].*)?$/i;
 
 const MPEG_TS_CONTENT_TYPE = "video/mp2t";
+
+/** Upstream catalogs (sub1x2) typo `.vtt` as `.wtt` — normalize before checks. */
+export const normalizeSubtitleUrl = (url: string): string =>
+  url.replace(/\.wtt(?=[?#]|$)/i, ".vtt");
 
 const suffixForUrl = (
   url: string,
@@ -95,7 +312,7 @@ const suffixForUrl = (
     return "asset.json";
   }
 
-  if (/\.vtt(?:[?#].*)?$/i.test(url)) {
+  if (/\.vtt(?:[?#].*)?$/i.test(normalizeSubtitleUrl(url))) {
     return "captions.vtt";
   }
 
@@ -122,7 +339,7 @@ export const isDisguisedHlsSegment = (url: string) =>
   DISGUISED_HLS_SEGMENT.test(url);
 
 const PLAY_MEDIA_BYTES_ASSET = /^(?:segment\.ts|asset\.mp4)$/i;
-const PLAY_CAPTION_ASSET = /^captions\.(?:vtt|srt)$/i;
+const PLAY_CAPTION_ASSET = /^captions\.(?:vtt|srt|wtt)$/i;
 
 export const CACHE_CONTROL_PLAY_MEDIA = "private, max-age=3600";
 export const CACHE_CONTROL_PLAY_MANIFEST = "no-store";
@@ -147,7 +364,18 @@ export const isProxiedPlayCaption = (
   if (asset && PLAY_CAPTION_ASSET.test(asset)) {
     return true;
   }
-  return /\.(?:vtt|srt|ass)(?:[?#].*)?$/i.test(upstreamUrl);
+  return /\.(?:vtt|srt|ass|wtt)(?:[?#].*)?$/i.test(upstreamUrl);
+};
+
+/** SRT arrives as `captions.srt` (or `?format=srt`) and must be converted to VTT. */
+export const isProxiedPlaySrtCaption = (
+  upstreamUrl: string,
+  asset?: string,
+): boolean => {
+  if (asset === "captions.srt") {
+    return true;
+  }
+  return /(?:\.srt(?:[?#]|$)|\bformat=srt\b)/i.test(upstreamUrl);
 };
 
 export const shouldFollowPlayClientAbort = (
@@ -184,17 +412,20 @@ export const playUpstreamAbortSignal = (
 export const contentTypeForProxiedAsset = (
   upstreamUrl: string,
   upstreamContentType: string | null,
+  asset?: string,
 ): string | undefined => {
   if (isDisguisedHlsSegment(upstreamUrl)) {
     return MPEG_TS_CONTENT_TYPE;
   }
 
-  if (/\.vtt(?:[?#].*)?$/i.test(upstreamUrl)) {
+  if (isProxiedPlaySrtCaption(upstreamUrl, asset)) {
+    // Browsers cannot parse SRT into a native <track>; the proxy converts it
+    // to WebVTT (see convertSrtToVtt), so advertise the converted type.
     return "text/vtt";
   }
 
-  if (/\.srt(?:[?#].*)?$/i.test(upstreamUrl)) {
-    return "application/x-subrip";
+  if (/\.vtt(?:[?#].*)?$/i.test(normalizeSubtitleUrl(upstreamUrl))) {
+    return "text/vtt";
   }
 
   if (/\.ass(?:[?#].*)?$/i.test(upstreamUrl)) {
@@ -233,6 +464,29 @@ export const convertAssToVtt = (ass: string): string => {
     return text ? [`${start} --> ${end}\n${text}`] : [];
   });
   return `WEBVTT\n\n${cues.join("\n\n")}\n`;
+};
+
+/**
+ * Native `<track>` only understands WebVTT, but several scrape providers serve
+ * SubRip. Convert SRT to WebVTT so the sidecar loads in the player's native
+ * presentation path: drop the optional cue-index line and swap the decimal
+ * comma in timestamps for a dot.
+ */
+export const convertSrtToVtt = (srt: string): string => {
+  const lines = srt.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const out: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const nextLine = lines[index + 1] ?? "";
+    const isIndexLine = /^\s*\d+\s*$/.test(line) && /-->/.test(nextLine);
+    if (isIndexLine) {
+      continue;
+    }
+    out.push(line.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2"));
+  }
+
+  return `WEBVTT\n\n${out.join("\n").trim()}\n`;
 };
 
 const KAA_SEGMENT_HOST_PATTERN =
@@ -288,6 +542,96 @@ export const buildScrapePlayUrl = (payload: ScrapePlaybackToken) =>
     payload.subtitleFormat,
   )}`;
 
+const sealHttpAssetUrl = (
+  url: string,
+  options: Omit<ScrapePlaybackToken, "url">,
+): string | null => {
+  if (isScrapePlayProxyUrl(url)) {
+    return relativeScrapePlayUrl(url);
+  }
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return url;
+  }
+  if (isBlockedPlaybackTarget(url)) {
+    return null;
+  }
+  return buildScrapePlayUrl({ url, ...options });
+};
+
+const sealSubtitles = (
+  subtitles: ScrapeSubtitle[] | undefined,
+  referer: string | undefined,
+): ScrapeSubtitle[] | undefined =>
+  subtitles?.flatMap((track) => {
+    const url = sealHttpAssetUrl(track.url, {
+      referer: track.referer ?? referer,
+      subtitleFormat: track.format === "ass" ? "ass" : undefined,
+    });
+    return url ? [{ ...track, url }] : [];
+  });
+
+export const sealScrapePlaybackCatalog = (input: {
+  referer?: string;
+  refresh?: ScrapePlaybackRefresh;
+  subtitles?: ScrapeSubtitle[];
+  qualities?: ScrapeQuality[];
+  audioVersions?: ScrapeAudioVersion[];
+  sealQualities: boolean;
+}): {
+  subtitles?: ScrapeSubtitle[];
+  qualities?: ScrapeQuality[];
+  audioVersions?: ScrapeAudioVersion[];
+} => {
+  const subtitles = sealSubtitles(input.subtitles, input.referer);
+  const qualities = input.qualities?.flatMap((quality) => {
+    const url = input.sealQualities
+      ? sealHttpAssetUrl(quality.url, {
+          referer: quality.referer ?? input.referer,
+          refresh: input.refresh,
+        })
+      : quality.url;
+    if (!url) {
+      return [];
+    }
+    return [
+      {
+        ...quality,
+        url,
+        subtitles: sealSubtitles(
+          quality.subtitles,
+          quality.referer ?? input.referer,
+        ),
+      },
+    ];
+  });
+  const audioVersions = input.audioVersions?.flatMap((version) => {
+    const url = sealHttpAssetUrl(version.url, {
+      referer: input.referer,
+      refresh: input.refresh,
+    });
+    if (!url) {
+      return [];
+    }
+    const hardSubs = version.hardSubs?.flatMap((track) => {
+      const trackUrl = sealHttpAssetUrl(track.url, {
+        referer: input.referer,
+        refresh: input.refresh,
+      });
+      return trackUrl ? [{ ...track, url: trackUrl }] : [];
+    });
+    return [
+      {
+        ...version,
+        url,
+        hardSubs,
+        subtitles: sealSubtitles(version.subtitles, input.referer),
+      },
+    ];
+  });
+
+  return { subtitles, qualities, audioVersions };
+};
+
 const absolutizePlayUrl = (playUrl: string, baseUrl: string | undefined) => {
   if (!baseUrl) {
     return playUrl;
@@ -317,7 +661,7 @@ export const extractScrapePlaybackRefreshFromPlayUrl = (
     return undefined;
   }
 
-  return decodeScrapePlaybackToken(token)?.refresh;
+  return readScrapePlaybackPayload(token)?.refresh;
 };
 
 const resolvePlaylistLine = (line: string, manifestUrl: string) => {

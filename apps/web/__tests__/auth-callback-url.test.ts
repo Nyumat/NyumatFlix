@@ -18,6 +18,8 @@ describe("safeAuthCallbackPath", () => {
     expect(safeAuthCallbackPath("https://evil.example")).toBe("/");
     expect(safeAuthCallbackPath("//evil.example")).toBe("/");
     expect(safeAuthCallbackPath("/\\evil.example")).toBe("/");
+    expect(safeAuthCallbackPath("/\nevil.example")).toBe("/");
+    expect(safeAuthCallbackPath("/\t/evil.example")).toBe("/");
     expect(safeAuthCallbackPath("login")).toBe("/");
   });
 

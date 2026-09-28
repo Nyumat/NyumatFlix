@@ -75,6 +75,14 @@ export const queryKeys = {
   movieCollection: (collectionId: number) =>
     [...queryKeys.media(), "collection", collectionId] as const,
 
+  recentlyWatchedEnrichment: (mediaType: "movie" | "tv", contentId: number) =>
+    [
+      ...queryKeys.media(),
+      "recently-watched-enrichment",
+      mediaType,
+      contentId,
+    ] as const,
+
   watchlist: () => [...queryKeys.all, "watchlist"] as const,
   watchlistSummary: () => [...queryKeys.watchlist(), "summary"] as const,
   personalizedHome: () =>

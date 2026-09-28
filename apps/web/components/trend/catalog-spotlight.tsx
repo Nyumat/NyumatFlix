@@ -8,6 +8,7 @@ import { MediaLogo, MediaPoster } from "@/components/media/media-display";
 import { mediaMetaBadgeClass } from "@/components/media/media-shared";
 import { Badge } from "@/components/ui/badge";
 import { pages } from "@/config/pages";
+import { buildGenreBrowseUrl } from "@/lib/genre-routes";
 import { cn } from "@/lib/utils";
 import { tmdb, type WithImages } from "@/tmdb/api";
 import { tmdbImage } from "@/tmdb/utils";
@@ -163,10 +164,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
 
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {genres.slice(0, 4).map((genre) => (
-                <Link
-                  href={`${pages.movie.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
-                  key={genre.id}
-                >
+                <Link href={buildGenreBrowseUrl(genre, "movie")} key={genre.id}>
                   <Badge
                     variant="secondary"
                     className={cn(
@@ -288,10 +286,7 @@ export const CatalogSpotlight: React.FC<CatalogSpotlightProps> = async ({
 
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
             {genres.slice(0, 4).map((genre) => (
-              <Link
-                href={`${pages.tv.catalog.link}?view=discover&with_genres=${genre.id}&mode=results`}
-                key={genre.id}
-              >
+              <Link href={buildGenreBrowseUrl(genre, "tv")} key={genre.id}>
                 <Badge
                   variant="secondary"
                   className={cn(mediaMetaBadgeClass, "select-none font-medium")}

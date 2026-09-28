@@ -1,4 +1,5 @@
 import {
+  buildCdnImageSrcSet,
   isImageProxyEnabled,
   optimizeRemoteImageUrl,
   optimizeSiteAssetImageUrl,
@@ -30,6 +31,16 @@ describe("optimizeRemoteImageUrl", () => {
     );
   });
 
+  it("adds resize parameters when width is provided", () => {
+    vi.stubEnv("NEXT_PUBLIC_CDN_ORIGIN", "https://cdn.nyumatflix.com");
+    vi.stubEnv("NODE_ENV", "production");
+
+    const remote = "https://image.tmdb.org/t/p/original/backdrop.jpg";
+    expect(optimizeRemoteImageUrl(remote, { width: 780 })).toBe(
+      `https://cdn.nyumatflix.com/img/insecure/rs:fit:780:0/plain/${encodeURIComponent(remote)}@avif`,
+    );
+  });
+
   it("supports webp output when requested", () => {
     vi.stubEnv("NEXT_PUBLIC_CDN_ORIGIN", "https://cdn.nyumatflix.com");
     vi.stubEnv("NODE_ENV", "production");
@@ -51,8 +62,22 @@ describe("optimizeRemoteImageUrl", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://nyumatflix.com");
     vi.stubEnv("NODE_ENV", "production");
 
-    expect(optimizeSiteAssetImageUrl("/movie-banner.webp")).toBe(
-      `https://cdn.nyumatflix.com/img/insecure/plain/${encodeURIComponent("https://nyumatflix.com/movie-banner.webp")}@avif`,
+    expect(
+      optimizeSiteAssetImageUrl("/movie-banner.webp", { width: 1920 }),
+    ).toBe(
+      `https://cdn.nyumatflix.com/img/insecure/rs:fit:1920:0/plain/${encodeURIComponent("https://nyumatflix.com/movie-banner.webp")}@avif`,
     );
+  });
+
+  it("builds responsive srcset descriptors", () => {
+    vi.stubEnv("NEXT_PUBLIC_CDN_ORIGIN", "https://cdn.nyumatflix.com");
+    vi.stubEnv("NODE_ENV", "production");
+
+    const remote = "https://image.tmdb.org/t/p/original/poster.jpg";
+    const srcSet = buildCdnImageSrcSet(remote, [185, 342]);
+    expect(srcSet).toContain("185w");
+    expect(srcSet).toContain("342w");
+    expect(srcSet).toContain("rs:fit:185:0");
+    expect(srcSet).toContain("rs:fit:342:0");
   });
 });

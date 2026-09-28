@@ -139,7 +139,7 @@ describe("collectRecentlyWatchedStubs", () => {
 
   it("builds item hrefs and titles", () => {
     expect(buildRecentlyWatchedHref("movie", 1)).toBe("/movies/1");
-    expect(buildRecentlyWatchedHref("tv", 2, 3)).toBe("/tvshows/2?season=3");
+    expect(buildRecentlyWatchedHref("tv", 2)).toBe("/tvshows/2");
 
     const item = toRecentlyWatchedItem(
       {
@@ -153,13 +153,13 @@ describe("collectRecentlyWatchedStubs", () => {
       { title: "Game of Thrones", backdropPath: "/b.jpg", year: "2011" },
     );
 
-    expect(item.href).toBe("/tvshows/1399?season=1");
+    expect(item.href).toBe("/tvshows/1399");
     expect(item.title).toBe("Game of Thrones");
     expect(item.year).toBe("2011");
     expect(item.isAnime).toBe(false);
   });
 
-  it("links anime continue-watching items to /anime", () => {
+  it("links anime continue-watching items to /anime when an AniList id is verified", () => {
     const item = toRecentlyWatchedItem(
       {
         mediaType: "tv",
@@ -169,10 +169,26 @@ describe("collectRecentlyWatchedStubs", () => {
         progressRatio: 0.4,
         updatedAt: 1,
       },
-      { title: "Sword Art Online", isAnime: true },
+      { title: "Sword Art Online", isAnime: true, anilistId: 11757 },
     );
 
-    expect(item.href).toBe("/anime/anilist-11757?season=2");
+    expect(item.href).toBe("/anime/anilist-11757");
+    expect(item.isAnime).toBe(true);
+  });
+
+  it("keeps unmapped anime continue-watching items on the TMDB route", () => {
+    const item = toRecentlyWatchedItem(
+      {
+        mediaType: "tv",
+        contentId: 95897,
+        seasonNumber: 1,
+        progressRatio: 0.4,
+        updatedAt: 1,
+      },
+      { title: "Overflow", isAnime: true, anilistId: null },
+    );
+
+    expect(item.href).toBe("/tvshows/95897");
     expect(item.isAnime).toBe(true);
   });
 

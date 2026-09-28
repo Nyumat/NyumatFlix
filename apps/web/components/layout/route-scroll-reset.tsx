@@ -17,6 +17,7 @@ import {
   revealCarouselItem,
   restorePageCarouselScrolls,
 } from "@/components/ui/carousel";
+import { shouldSkipRouteScrollManagement } from "@/lib/ffs/ffs-host-paths";
 
 export const scrollToTop = () => {
   const html = document.documentElement;
@@ -116,6 +117,15 @@ export const RouteScrollReset = () => {
       const nextUrl = new URL(anchor.href, window.location.href);
       if (nextUrl.origin !== window.location.origin) return;
       if (
+        shouldSkipRouteScrollManagement(
+          window.location.pathname,
+          window.location.host,
+        ) ||
+        shouldSkipRouteScrollManagement(nextUrl.pathname, window.location.host)
+      ) {
+        return;
+      }
+      if (
         nextUrl.pathname === window.location.pathname &&
         nextUrl.search === window.location.search
       ) {
@@ -150,6 +160,13 @@ export const RouteScrollReset = () => {
 
   useLayoutEffect(() => {
     cancelActiveStabilize();
+
+    if (
+      shouldSkipRouteScrollManagement(pathname, window.location.host) ||
+      document.documentElement.classList.contains("ffs-admin-root")
+    ) {
+      return;
+    }
 
     const currentUrl = getRelativeUrl();
     commitNavigationEntry(currentUrl);

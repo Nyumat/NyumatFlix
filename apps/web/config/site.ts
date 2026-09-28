@@ -44,6 +44,11 @@ const trending: NavItem = {
   href: pages.trending.root.link,
 };
 
+const collections: NavItem = {
+  title: "Collections",
+  href: pages.collection.root.link,
+};
+
 const anime: NavItem = {
   title: "Anime",
   href: pages.anime.root.link,
@@ -54,7 +59,14 @@ const liveTv: NavItem = {
   href: "/live",
 };
 
-const navigationItems = [movies, tvShows, anime, people, trending] as NavItem[];
+const navigationItems = [
+  movies,
+  tvShows,
+  anime,
+  people,
+  collections,
+  trending,
+] as NavItem[];
 
 export const navigation = {
   items: navigationItems,

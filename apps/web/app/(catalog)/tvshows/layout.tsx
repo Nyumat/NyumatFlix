@@ -6,7 +6,7 @@ export default function TVShowPageLayout({
   children: React.ReactNode;
 }) {
   return (
-    <PageContainer>
+    <PageContainer className="bg-transparent">
       <main>{children}</main>
     </PageContainer>
   );

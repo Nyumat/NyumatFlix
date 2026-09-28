@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { CheckboxGroup } from "@/components/ffs/settings";
 import { Input } from "@/components/ui/input";
-import { FfsToggleRow } from "@/components/ffs/ffs-toggle-row";
 import { PROVIDER_FLAG_DEFINITIONS } from "@/lib/flags/flag-catalog";
 import type { AdminFlagState } from "@/lib/flags/flag-catalog";
 import { useMemo, useState } from "react";
@@ -54,73 +46,46 @@ export function ProviderMatrixPanel({
   }, [query]);
 
   return (
-    <Card className="border-white/10 bg-black/40">
-      <CardHeader>
-        <CardTitle className="text-lg">Provider matrix</CardTitle>
-        <CardDescription>
-          Show or hide providers in the server selector and scrape dispatch.
-        </CardDescription>
-        <Input
-          placeholder="Search providers…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="mt-2 max-w-md border-white/15 bg-black/30"
-        />
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {filteredSections.map((section) => (
-          <div key={section.kind} className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-white/90">
-                {section.title}
-                <span className="ml-2 font-normal text-white/45">
-                  ({section.defs.length})
-                </span>
-              </h3>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 border-white/15 bg-transparent text-xs"
-                  onClick={() =>
-                    onBulkChange(
-                      section.defs.map((d) => d.key),
-                      true,
-                    )
-                  }
-                >
-                  Enable all
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 border-white/15 bg-transparent text-xs"
-                  onClick={() =>
-                    onBulkChange(
-                      section.defs.map((d) => d.key),
-                      false,
-                    )
-                  }
-                >
-                  Disable all
-                </Button>
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {section.defs.map((def) => (
-                <FfsToggleRow
-                  key={def.key}
-                  label={`${def.label} (${def.providerId})`}
-                  enabled={flags[def.key] ?? def.defaultValue}
-                  onToggle={(v) => onChange(def.key, v)}
-                />
-              ))}
-            </div>
+    <div className="space-y-8">
+      <Input
+        placeholder="Search providers…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="h-8 max-w-md border-border bg-transparent text-sm shadow-none"
+      />
+      {filteredSections.map((section) => (
+        <div key={section.kind} className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-medium text-foreground">
+              {section.title}
+              <span className="ml-2 font-normal text-muted-foreground">
+                ({section.defs.length})
+              </span>
+            </h3>
           </div>
-        ))}
-      </CardContent>
-    </Card>
+          <CheckboxGroup
+            items={section.defs.map((def) => ({
+              id: def.key,
+              label: def.label,
+              hint: def.providerId,
+              checked: flags[def.key] ?? def.defaultValue,
+              onCheckedChange: (value) => onChange(def.key, value),
+            }))}
+            onEnableAll={() =>
+              onBulkChange(
+                section.defs.map((d) => d.key),
+                true,
+              )
+            }
+            onDisableAll={() =>
+              onBulkChange(
+                section.defs.map((d) => d.key),
+                false,
+              )
+            }
+          />
+        </div>
+      ))}
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
 import {
   ANILIST_ENDPOINT,
   requiresAdultAniListContent,
@@ -14,6 +13,7 @@ import {
   runCatalogEffect,
   type CatalogProviderError,
 } from "@/lib/server/catalog-effect";
+import { applyDataRevalidateCacheLife } from "@/lib/server/route-cache-life";
 import { Effect } from "effect";
 
 // Pure helpers, constants, and types stay client-safe in `./anilist-shared`.
@@ -116,6 +116,10 @@ const ANILIST_PAGE_QUERY = `
           day
         }
         siteUrl
+        trailer {
+          id
+          site
+        }
       }
     }
   }
@@ -240,10 +244,12 @@ const fetchAniListPageUncached = (options: {
   params: AniListSearchParams;
 }): Promise<AniListPage> => runCatalogEffect(fetchAniListPageEffect(options));
 
-const getCachedAniListPage = unstable_cache(
-  fetchAniListPageUncached,
-  ["anilist-page"],
-  { revalidate: ANILIST_REVALIDATE_SECONDS },
-);
-
-export const fetchAniListPage = getCachedAniListPage;
+export async function fetchAniListPage(options: {
+  page?: number;
+  perPage?: number;
+  params: AniListSearchParams;
+}): Promise<AniListPage> {
+  "use cache";
+  applyDataRevalidateCacheLife(ANILIST_REVALIDATE_SECONDS);
+  return fetchAniListPageUncached(options);
+}

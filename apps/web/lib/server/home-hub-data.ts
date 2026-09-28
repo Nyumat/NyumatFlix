@@ -6,8 +6,21 @@ import {
   filterReleasedTvShows,
   getTodayIsoDateUtc,
 } from "@/lib/released-media";
+import {
+  type CatalogMediaCard,
+  type CatalogMovieCard,
+  type CatalogTvCard,
+  toCatalogMovieCard,
+  toCatalogTvCard,
+} from "@/lib/cards/catalog-dto";
+import {
+  getSnapshotPopularMovies,
+  getSnapshotPopularTv,
+  getSnapshotTop10,
+  getSnapshotTrendingMovies,
+  getSnapshotTrendingTv,
+} from "@/lib/server/hub-snapshots";
 import { tmdb } from "@/tmdb/api";
-import type { Movie, TvShow } from "@/tmdb/models";
 import { cache } from "react";
 
 const dedupeById = <T extends { id: number }>(items: T[]): T[] => {
@@ -35,11 +48,13 @@ function getDiscoverBases() {
   };
 }
 
-export type HomeMovieItem = Movie & { media_type: "movie" };
-export type HomeTvItem = TvShow & { media_type: "tv" };
-
 export const getHomeTrendingMovies = cache(
-  async (): Promise<HomeMovieItem[]> => {
+  async (): Promise<CatalogMovieCard[]> => {
+    const snapshot = getSnapshotTrendingMovies();
+    if (snapshot) {
+      return snapshot.filter((item) => item.media_type === "movie");
+    }
+
     const { movie: baseMovieDiscover } = getDiscoverBases();
     const { results: moviesRaw } = await tmdb.discover.movie({
       ...baseMovieDiscover,
@@ -47,15 +62,19 @@ export const getHomeTrendingMovies = cache(
       sort_by: "popularity.desc",
     });
 
-    return filterReleasedMovies(moviesRaw).map((movie) => ({
-      ...movie,
-      media_type: "movie" as const,
-    }));
+    return filterReleasedMovies(moviesRaw).map((movie) =>
+      toCatalogMovieCard({ ...movie, media_type: "movie" }),
+    );
   },
 );
 
 export const getHomePopularMovies = cache(
-  async (): Promise<HomeMovieItem[]> => {
+  async (): Promise<CatalogMovieCard[]> => {
+    const snapshot = getSnapshotPopularMovies();
+    if (snapshot) {
+      return snapshot.filter((item) => item.media_type === "movie");
+    }
+
     const { movie: baseMovieDiscover } = getDiscoverBases();
     const [trendingMovies, popularMoviePage] = await Promise.all([
       getHomeTrendingMovies(),
@@ -74,14 +93,16 @@ export const getHomePopularMovies = cache(
 
     return popularMoviesDeduped
       .filter((pm) => !trendingMovieIds.has(pm.id))
-      .map((movie) => ({
-        ...movie,
-        media_type: "movie" as const,
-      }));
+      .map((movie) => toCatalogMovieCard({ ...movie, media_type: "movie" }));
   },
 );
 
-export const getHomeTrendingTv = cache(async (): Promise<HomeTvItem[]> => {
+export const getHomeTrendingTv = cache(async (): Promise<CatalogTvCard[]> => {
+  const snapshot = getSnapshotTrendingTv();
+  if (snapshot) {
+    return snapshot.filter((item) => item.media_type === "tv");
+  }
+
   const { tv: baseTvDiscover } = getDiscoverBases();
   const { results: tvShowsRaw } = await tmdb.discover.tv({
     ...baseTvDiscover,
@@ -89,13 +110,17 @@ export const getHomeTrendingTv = cache(async (): Promise<HomeTvItem[]> => {
     sort_by: "popularity.desc",
   });
 
-  return filterReleasedTvShows(tvShowsRaw).map((show) => ({
-    ...show,
-    media_type: "tv" as const,
-  }));
+  return filterReleasedTvShows(tvShowsRaw).map((show) =>
+    toCatalogTvCard({ ...show, media_type: "tv" }),
+  );
 });
 
-export const getHomePopularTv = cache(async (): Promise<HomeTvItem[]> => {
+export const getHomePopularTv = cache(async (): Promise<CatalogTvCard[]> => {
+  const snapshot = getSnapshotPopularTv();
+  if (snapshot) {
+    return snapshot.filter((item) => item.media_type === "tv");
+  }
+
   const { tv: baseTvDiscover } = getDiscoverBases();
   const [trendingTv, popularTvPage] = await Promise.all([
     getHomeTrendingTv(),
@@ -112,19 +137,35 @@ export const getHomePopularTv = cache(async (): Promise<HomeTvItem[]> => {
 
   return popularTvDeduped
     .filter((pt) => !trendingTvIds.has(pt.id))
-    .map((show) => ({
-      ...show,
-      media_type: "tv" as const,
-    }));
+    .map((show) => toCatalogTvCard({ ...show, media_type: "tv" }));
 });
 
-export type HomeHubCard = HomeMovieItem | HomeTvItem;
+export type HomeHubCard = CatalogMediaCard;
+
+export const getHomeTop10Today = cache(async (): Promise<HomeHubCard[]> => {
+  const snapshot = getSnapshotTop10();
+  if (snapshot) {
+    return snapshot;
+  }
+
+  const { results } = await tmdb.trending.all({ time: "day" });
+  const results_ = results ?? [];
+
+  return results_
+    .filter((item) => item.media_type === "movie" || item.media_type === "tv")
+    .slice(0, 10)
+    .map((item) =>
+      item.media_type === "tv"
+        ? toCatalogTvCard(item)
+        : toCatalogMovieCard(item),
+    );
+});
 
 export type HomeHubData = {
-  trendingMovies: HomeMovieItem[];
-  popularMovies: HomeMovieItem[];
-  trendingTv: HomeTvItem[];
-  popularTv: HomeTvItem[];
+  trendingMovies: CatalogMovieCard[];
+  popularMovies: CatalogMovieCard[];
+  trendingTv: CatalogTvCard[];
+  popularTv: CatalogTvCard[];
 };
 
 /**

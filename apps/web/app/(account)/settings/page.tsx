@@ -16,7 +16,10 @@ export default async function SettingsPage() {
   return (
     <div className="flex min-h-dvh w-full flex-col">
       <StaticHero imageUrl="/movie-banner.webp" title="" route="" />
-      <ContentContainer className="z-10 flex w-full flex-1 flex-col items-center">
+      <ContentContainer
+        topSpacing={false}
+        className="z-10 flex w-full flex-1 flex-col items-center"
+      >
         <Suspense fallback={null}>
           <SettingsClient session={session} />
         </Suspense>

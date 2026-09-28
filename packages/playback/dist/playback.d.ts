@@ -1,6 +1,9 @@
 /** Mirrors calluspirates/web/src/lib/playback.ts */
 import type { DirectStream } from "./types";
 export type DirectPlaybackEngine = "movi" | "vidstack-hls" | "vidstack-direct";
+export type DirectEngineSelectionOptions = {
+    userPlayerEngine?: "vidstack" | "movi";
+};
 type StreamNameFields = {
     name: string;
     fileName?: string;
@@ -39,13 +42,13 @@ export declare function isFastStartDirectStream(stream: DirectStream | null | un
 export declare function isDirectProgressiveTranscodePath(path: string): boolean;
 export declare const playbackEngineLabel: (engine: DirectPlaybackEngine, sourceUrl?: string) => string;
 export declare function supportsWebCodecs(): boolean;
-export declare function selectInitialEngine(stream: DirectStream): DirectPlaybackEngine | null;
+export declare function selectInitialEngine(stream: DirectStream, options?: DirectEngineSelectionOptions): DirectPlaybackEngine | null;
 export declare function isStreamPlayable(stream: DirectStream): boolean;
-export declare function nextFallbackEngine(stream: DirectStream, current: DirectPlaybackEngine, tried?: ReadonlySet<DirectPlaybackEngine>): DirectPlaybackEngine | null;
+export declare function nextFallbackEngine(stream: DirectStream, current: DirectPlaybackEngine, tried?: ReadonlySet<DirectPlaybackEngine>, options?: DirectEngineSelectionOptions): DirectPlaybackEngine | null;
 export declare function engineSourceUrl(stream: DirectStream, engine: DirectPlaybackEngine): string;
 export declare function engineStreamKind(engine: DirectPlaybackEngine, sourceUrl?: string): "hls" | "mp4";
 export declare function openDownloadUrl(stream: DirectStream): string;
-export declare function playbackEngineCandidates(stream: DirectStream): DirectPlaybackEngine[];
+export declare function playbackEngineCandidates(stream: DirectStream, options?: DirectEngineSelectionOptions): DirectPlaybackEngine[];
 export declare function toDirectStream(input: {
     url: string;
     fallbackUrl?: string;

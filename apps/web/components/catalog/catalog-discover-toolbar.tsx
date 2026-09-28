@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { languages } from "@/lib/languages";
 import { useViewModeStore } from "@/lib/stores/view-mode-store";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { Genre, WatchProvider } from "@/tmdb/models";
 import { Grid2X2, List, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,7 +16,6 @@ type CatalogDiscoverToolbarProps = {
   genres: Genre[];
   providers: WatchProvider[];
   serverDiscoverFilters: Record<string, string>;
-  resultCount: number;
 };
 
 const parseGenreIds = (value: string): number[] =>
@@ -24,14 +23,6 @@ const parseGenreIds = (value: string): number[] =>
     .split(/[|,]/)
     .map((part) => Number.parseInt(part.trim(), 10))
     .filter((n) => !Number.isNaN(n));
-
-const formatResultsCount = (count: number, mediaType: "movie" | "tv") => {
-  const label =
-    mediaType === "movie"
-      ? pluralize(count, "movie", "movies")
-      : pluralize(count, "TV show", "TV shows");
-  return `${count.toLocaleString()} ${label} found`;
-};
 
 type FilterChip = {
   id: string;
@@ -75,7 +66,6 @@ export const CatalogDiscoverToolbar = ({
   genres,
   providers,
   serverDiscoverFilters,
-  resultCount,
 }: CatalogDiscoverToolbarProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -293,16 +283,9 @@ export const CatalogDiscoverToolbar = ({
             serverDiscoverFilters={serverDiscoverFilters}
             triggerClassName="h-11 w-full px-3 md:h-9 md:w-auto md:px-4"
           />
-          <p className="hidden text-sm text-foreground/70 md:block">
-            {formatResultsCount(resultCount, mediaType)}
-          </p>
         </div>
         <MobileViewModeToggle />
       </div>
-
-      <p className="text-sm font-medium text-foreground/75 md:hidden">
-        {formatResultsCount(resultCount, mediaType)}
-      </p>
 
       {activeFilterChips.length > 0 ? (
         <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">

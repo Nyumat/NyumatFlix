@@ -1,32 +1,35 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  Activity,
+  AlertTriangle,
   ArrowDownToLine,
   ArrowUpRight,
   Box,
-  Check,
   ChevronRight,
-  Circle,
-  Clock,
+  Copy,
+  Database,
   ExternalLink,
   GitBranch,
-  GitCommitHorizontal,
   History,
   LayoutDashboard,
   LoaderCircle,
+  OctagonX,
   Play,
   RefreshCw,
   Rocket,
   RotateCcw,
-  ShieldCheck,
+  RotateCw,
   Square,
   Terminal,
+  Upload,
   X,
 } from "lucide-react";
 import type {
@@ -35,6 +38,7 @@ import type {
   Job,
   LiveDeploy,
   PreviewState,
+  ProdOp,
   ServiceRow,
 } from "./lib/types";
 import "./styles.css";
@@ -49,29 +53,73 @@ type Status = {
 };
 type JobSummary = Omit<Job, "logs">;
 type HistoryPage = { entries: DeployEntry[]; nextOffset: number | null };
-type Page = "Overview" | "Deploy" | "History" | "Preview";
-const pages: { name: Page; icon: typeof Box }[] = [
-  { name: "Overview", icon: LayoutDashboard },
-  { name: "Deploy", icon: Rocket },
-  { name: "History", icon: History },
-  { name: "Preview", icon: Box },
+type Page = "overview" | "deploy" | "history" | "preview";
+
+const pages: { id: Page; icon: typeof Box; label: string }[] = [
+  { id: "overview", icon: LayoutDashboard, label: "Overview" },
+  { id: "deploy", icon: Rocket, label: "Deploy" },
+  { id: "history", icon: History, label: "History" },
+  { id: "preview", icon: Box, label: "Preview" },
 ];
+
+const pageLabel = (id: Page) =>
+  pages.find((page) => page.id === id)?.label ?? id;
+
+const prodTasks: {
+  id: ProdOp;
+  label: string;
+  hint: string;
+  icon: typeof Database;
+  confirm?: string;
+}[] = [
+  {
+    id: "migrate",
+    label: "Migrate DB",
+    hint: "Apply pending Drizzle migrations",
+    icon: Database,
+    confirm: "Run production database migrations?",
+  },
+  {
+    id: "sync-env",
+    label: "Sync env",
+    hint: "Push .env.prod and scripts to the server",
+    icon: Upload,
+    confirm: "Sync production environment files?",
+  },
+  {
+    id: "restart",
+    label: "Restart app",
+    hint: "Re-roll the live container, no rebuild",
+    icon: RotateCw,
+    confirm: "Restart the live app container?",
+  },
+  {
+    id: "infra-status",
+    label: "Infra check",
+    hint: "Run infrastructure health checks",
+    icon: Activity,
+  },
+];
+
 const running = (job?: JobSummary) =>
   job?.status === "running" || job?.status === "queued";
+
 const healthy = (status: string) =>
   !/unhealthy|exited|dead|restarting/i.test(status) &&
   /healthy|^up\b/i.test(status);
+
 function relative(iso?: string) {
   if (!iso || !Number.isFinite(Date.parse(iso))) return "—";
   const minutes = Math.max(
     0,
     Math.floor((Date.now() - Date.parse(iso)) / 60_000),
   );
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return minutes + "m ago";
-  if (minutes < 1440) return Math.floor(minutes / 60) + "h ago";
-  return Math.floor(minutes / 1440) + "d ago";
+  if (minutes < 1) return "now";
+  if (minutes < 60) return minutes + "m";
+  if (minutes < 1440) return Math.floor(minutes / 60) + "h";
+  return Math.floor(minutes / 1440) + "d";
 }
+
 function duration(ms?: number) {
   if (ms === undefined) return "—";
   const seconds = Math.floor(ms / 1000);
@@ -79,6 +127,16 @@ function duration(ms?: number) {
     ? seconds + "s"
     : Math.floor(seconds / 60) + "m " + (seconds % 60) + "s";
 }
+
+function normalizeGit(meta: GitMeta): GitMeta {
+  const changes = meta.changes ?? [];
+  return {
+    ...meta,
+    changes,
+    changedFiles: meta.changedFiles ?? changes.length,
+  };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -89,31 +147,89 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(data.error ?? "Request failed (" + response.status + ")");
   return data as T;
 }
-function Badge({
+
+function Accordion({
+  title,
+  meta,
+  open,
+  onToggle,
   children,
-  tone = "",
 }: {
+  title: string;
+  meta?: ReactNode;
+  open: boolean;
+  onToggle: () => void;
   children: ReactNode;
-  tone?: string;
 }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!innerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      if (open && innerRef.current) setHeight(innerRef.current.scrollHeight);
+    });
+    observer.observe(innerRef.current);
+    if (open) setHeight(innerRef.current.scrollHeight);
+    return () => observer.disconnect();
+  }, [open, children]);
+
   return (
-    <span className={"badge " + tone}>
-      <span className="dot" />
-      {children}
-    </span>
+    <section className="accordion">
+      <button
+        type="button"
+        className="accordion-trigger"
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        <ChevronRight
+          size={14}
+          className={"accordion-chevron" + (open ? " open" : "")}
+        />
+        {title}
+        {meta && <span className="accordion-meta">{meta}</span>}
+      </button>
+      <div
+        className={"accordion-body" + (open ? " open" : " closed")}
+        style={{ maxHeight: open ? (height ?? 2000) : 0 }}
+      >
+        <div ref={innerRef} className="accordion-inner">
+          {children}
+        </div>
+      </div>
+    </section>
   );
 }
-function OutLink({ href, children }: { href: string; children: ReactNode }) {
+
+function DirtyNotice({ git }: { git: GitMeta }) {
+  if (!git.dirty) return null;
   return (
-    <a className="button" href={href} target="_blank" rel="noreferrer">
-      {children}
-      <ArrowUpRight size={14} />
-    </a>
+    <div className="notice dirty" role="status">
+      <AlertTriangle size={15} />
+      <span>
+        {git.changedFiles} uncommitted file
+        {git.changedFiles === 1 ? "" : "s"} in this checkout will be included in
+        the deploy image
+      </span>
+    </div>
   );
 }
-function Empty({ children }: { children: ReactNode }) {
-  return <div className="empty">{children}</div>;
+
+function GitChanges({ git }: { git: GitMeta }) {
+  const changes = git.changes ?? [];
+  if (!changes.length) return null;
+  return (
+    <ul className="change-list" aria-label="Changed files">
+      {changes.map((change) => (
+        <li key={change.path}>
+          <code className="change-mark mono">{change.mark || "?"}</code>
+          <span>{change.path}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
+
 function Dialog({
   title,
   children,
@@ -129,25 +245,38 @@ function Dialog({
   }, []);
   return (
     <dialog ref={ref} onCancel={close} aria-labelledby="dialog-title">
-      <header className="section-heading">
+      <header className="dialog-head">
         <h2 id="dialog-title">{title}</h2>
         <button
+          type="button"
           className="icon-button"
-          aria-label="Close dialog"
+          aria-label="Close"
           onClick={close}
         >
-          <X size={18} />
+          <X size={16} />
         </button>
       </header>
       {children}
     </dialog>
   );
 }
+
 function App() {
-  const initial = window.location.hash.slice(1);
+  const initial = window.location.hash.slice(1) as Page;
   const [page, setPage] = useState<Page>(
-    pages.find((p) => p.name.toLowerCase() === initial)?.name ?? "Overview",
+    pages.find((p) => p.id === initial)?.id ?? "overview",
   );
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    production: true,
+    services: false,
+    checkout: true,
+    preview: true,
+    ship: true,
+    history: true,
+    logs: true,
+    previewPage: true,
+    tasks: false,
+  });
   const [status, setStatus] = useState<Status | null>(null);
   const [git, setGit] = useState<GitMeta | null>(null);
   const [preview, setPreview] = useState<PreviewState | null>(null);
@@ -168,17 +297,33 @@ function App() {
   const [pending, setPending] = useState(false);
   const [fast, setFast] = useState(false);
   const [skipPreview, setSkipPreview] = useState(false);
-  const [confirmation, setConfirmation] = useState<GitMeta | null>(null);
-  const [detail, setDetail] = useState<DeployEntry | null>(null);
-  const [rollbackConfirmed, setRollbackConfirmed] = useState(false);
+  const [confirmDeploy, setConfirmDeploy] = useState(false);
+  const [confirmOp, setConfirmOp] = useState<ProdOp | null>(null);
+  const [rollbackTarget, setRollbackTarget] = useState<DeployEntry | null>(
+    null,
+  );
   const [frame, setFrame] = useState(false);
   const [tick, setTick] = useState(Date.now());
-  const busy = pending || jobs.some(running) || running(streamJob);
+  const [copied, setCopied] = useState(false);
+  const logsRef = useRef<HTMLPreElement>(null);
+  const jobSelectId = useId();
+
+  const activeJob =
+    jobs.find(running) ?? (running(streamJob) ? streamJob : undefined);
+  const busy = pending || !!activeJob;
   const previewReady =
     preview?.status === "running" &&
     preview.health === "healthy" &&
     !!git &&
     preview.fingerprint === git.fingerprint;
+  const live = status?.live;
+
+  const isOpen = (key: string) => openSections[key] ?? false;
+  const toggle = (key: string) =>
+    setOpenSections((current) => ({
+      ...current,
+      [key]: !(current[key] ?? false),
+    }));
 
   const loadHistory = useCallback(async (offset = 0) => {
     setHistoryLoading(true);
@@ -199,6 +344,7 @@ function App() {
       setHistoryLoading(false);
     }
   }, []);
+
   const refresh = useCallback(async () => {
     if (refreshingRef.current) return;
     refreshingRef.current = true;
@@ -206,7 +352,7 @@ function App() {
     setError("");
     const results = await Promise.allSettled([
       request<Status>("/api/status").then(setStatus),
-      request<GitMeta>("/api/git").then(setGit),
+      request<GitMeta>("/api/git").then((meta) => setGit(normalizeGit(meta))),
       request<PreviewState>("/api/preview").then(setPreview),
       request<{ jobs: JobSummary[] }>("/api/jobs").then((result) => {
         setJobs(result.jobs);
@@ -220,18 +366,18 @@ function App() {
     refreshingRef.current = false;
     setRefreshing(false);
   }, []);
+
   useEffect(() => {
     void refresh();
     void loadHistory();
-    const timer = setInterval(() => {
-      void refresh();
-    }, 15_000);
+    const timer = setInterval(() => void refresh(), 15_000);
     const clock = setInterval(() => setTick(Date.now()), 1_000);
     return () => {
       clearInterval(timer);
       clearInterval(clock);
     };
   }, [refresh, loadHistory]);
+
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
       if (
@@ -252,10 +398,8 @@ function App() {
       }
     };
     const hash = () => {
-      const found = pages.find(
-        (p) => p.name.toLowerCase() === window.location.hash.slice(1),
-      );
-      if (found) setPage(found.name);
+      const found = pages.find((p) => p.id === window.location.hash.slice(1));
+      if (found) setPage(found.id);
     };
     window.addEventListener("keydown", keyboard);
     window.addEventListener("hashchange", hash);
@@ -264,6 +408,7 @@ function App() {
       window.removeEventListener("hashchange", hash);
     };
   }, [refresh, loadHistory]);
+
   useEffect(() => {
     if (!selectedJob) return;
     setLogs([]);
@@ -272,7 +417,7 @@ function App() {
     const source = new EventSource("/api/jobs/" + selectedJob + "/events");
     source.addEventListener("log", (event: MessageEvent<string>) => {
       setLogs((current) =>
-        [...current, JSON.parse(event.data) as string].slice(-1000),
+        [...current, JSON.parse(event.data) as string].slice(-2000),
       );
     });
     source.addEventListener("status", (event: MessageEvent<string>) => {
@@ -288,15 +433,79 @@ function App() {
         void loadHistory();
       }
     });
-    source.onerror = () =>
-      setStreamError("Log connection interrupted; reconnecting…");
+    source.onerror = () => setStreamError("Reconnecting…");
     return () => source.close();
   }, [selectedJob, refresh, loadHistory]);
 
+  useEffect(() => {
+    const el = logsRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [logs]);
+
   const navigate = (next: Page) => {
     setPage(next);
-    window.location.hash = next.toLowerCase();
+    window.location.hash = next;
   };
+
+  async function abortRunningJob() {
+    const current = streamJob ?? jobs.find((job) => job.id === selectedJob);
+    if (!selectedJob || !running(current)) return;
+    setPending(true);
+    setError("");
+    try {
+      const { token } = await request<{ token: string }>("/api/session");
+      await request("/api/jobs/" + selectedJob + "/abort", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Deploy-Desk-Token": token,
+        },
+        body: "{}",
+      });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function runOp(name: ProdOp) {
+    setPending(true);
+    setError("");
+    try {
+      const { token } = await request<{ token: string }>("/api/session");
+      const { job } = await request<{ job: Job }>("/api/ops/" + name, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Deploy-Desk-Token": token,
+        },
+        body: JSON.stringify({ confirmed: true }),
+      });
+      setSelectedJob(job.id);
+      setJobs((current) => [
+        job,
+        ...current.filter((entry) => entry.id !== job.id),
+      ]);
+      setConfirmOp(null);
+      setOpenSections((current) => ({ ...current, logs: true }));
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const handleProdTask = (task: (typeof prodTasks)[number]) => {
+    if (task.confirm) {
+      setConfirmOp(task.id);
+      return;
+    }
+    void runOp(task.id);
+  };
+
   async function action(path: string, body: Record<string, unknown> = {}) {
     setPending(true);
     setError("");
@@ -315,8 +524,9 @@ function App() {
         job,
         ...current.filter((entry) => entry.id !== job.id),
       ]);
-      setConfirmation(null);
-      setDetail(null);
+      setConfirmDeploy(false);
+      setRollbackTarget(null);
+      setOpenSections((current) => ({ ...current, logs: true }));
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -324,27 +534,39 @@ function App() {
       setPending(false);
     }
   }
-  const pageDescriptions: Record<Page, string> = {
-    Overview: "Production, your checkout, and the next release.",
-    Deploy: "Review your changes. Preview locally. Ship with confidence.",
-    History: "Every recorded rollout, with a path back.",
-    Preview: "The production app, running on your machine.",
-  };
-  const live = status?.live;
+
+  const isLive = (entry: DeployEntry) =>
+    live?.image === entry.image &&
+    live.sha === entry.sha &&
+    live.deployedAt?.slice(0, 16) === entry.deployedAt.slice(0, 16);
+
   const previewControls = (
-    <div className="actions">
-      <button disabled={busy} onClick={() => void action("/api/preview/build")}>
+    <div className="actions-row">
+      <button
+        type="button"
+        className="icon-button"
+        title="Build preview"
+        aria-label="Build preview"
+        disabled={busy}
+        onClick={() => void action("/api/preview/build")}
+      >
         <Box size={15} />
-        Build preview
       </button>
       <button
+        type="button"
+        className="icon-button"
+        title={preview?.status === "running" ? "Restart" : "Start preview"}
+        aria-label="Start preview"
         disabled={busy || !preview?.imageId}
         onClick={() => void action("/api/preview/start")}
       >
         <Play size={15} />
-        {preview?.status === "running" ? "Restart" : "Start preview"}
       </button>
       <button
+        type="button"
+        className="icon-button"
+        title="Stop preview"
+        aria-label="Stop preview"
         disabled={busy || !preview?.containerId}
         onClick={() => {
           setFrame(false);
@@ -352,715 +574,653 @@ function App() {
         }}
       >
         <Square size={13} />
-        Stop
       </button>
       {preview?.status === "running" && (
-        <OutLink href={preview.url}>Open preview</OutLink>
+        <a
+          className="button icon-button"
+          href={preview.url}
+          target="_blank"
+          rel="noreferrer"
+          title="Open preview"
+          aria-label="Open preview"
+        >
+          <ArrowUpRight size={15} />
+        </a>
       )}
     </div>
   );
-  const gitReview = (
-    <div className="git-review">
-      <div className="split">
+
+  const checkoutDiffersFromLive =
+    live && git && live.shortSha.replace(/\+$/, "") !== git.shortSha;
+
+  const deployBlocked = !git || busy || (!skipPreview && !previewReady);
+
+  const deployHint = !git
+    ? "Waiting for git status"
+    : busy
+      ? "Wait for the current job to finish"
+      : !skipPreview && !previewReady
+        ? "Build and start a healthy preview, or skip preview"
+        : null;
+
+  const gitBlock = git ? (
+    <div className="git-block">
+      <p className="git-message">{git.message}</p>
+      <div className="git-meta">
         <span className="inline">
-          <GitBranch size={15} />
-          {git?.branch ?? "Reading checkout…"}
+          <GitBranch size={12} />
+          {git.branch}
         </span>
-        <Badge tone={git?.dirty ? "warning" : ""}>
-          {git?.dirty
-            ? "Uncommitted changes"
-            : git
-              ? "Clean checkout"
-              : "Loading"}
-        </Badge>
+        <code className="mono">{git.shortSha}</code>
+        <span>{git.author}</span>
+        {git.dirty && (
+          <span className="tag">{git.changedFiles} uncommitted</span>
+        )}
+        {checkoutDiffersFromLive && (
+          <span className="tag">not on production</span>
+        )}
       </div>
-      <h3>{git?.message ?? "Loading commit…"}</h3>
-      <p className="muted inline">
-        <GitCommitHorizontal size={15} />
-        <code>{git?.shortSha ?? "—"}</code>
-        <span>{git?.author}</span>
-      </p>
-      {git?.dirty && (
-        <details>
-          <summary>
-            {git.changedFiles} changed files · view diff summary
-          </summary>
-          <pre className="diff">{git.diffStat}</pre>
-          <p className="muted">
-            Untracked files count toward dirty state; the diff summary covers
-            tracked files.
-          </p>
-        </details>
+      {git.dirty && <GitChanges git={git} />}
+      {git.dirty && git.diffStat !== "No tracked diff" && (
+        <pre className="diff-block mono">{git.diffStat}</pre>
       )}
     </div>
+  ) : (
+    <p className="empty">Loading checkout…</p>
   );
+
+  const handleCopyLogs = async () => {
+    if (!logs.length) return;
+    await navigator.clipboard.writeText(logs.join("\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <div className="shell">
       <aside className="sidebar">
         <a
           className="brand"
           href="#overview"
-          onClick={() => navigate("Overview")}
+          title="Deploy Desk"
+          onClick={() => navigate("overview")}
         >
-          <span className="brand-mark">N</span>
-          <span>
-            NyumatFlix<small>Deploy Desk</small>
-          </span>
+          N
         </a>
-        <nav aria-label="Main navigation">
-          {pages.map(({ name, icon: Icon }) => (
+        <nav aria-label="Navigation">
+          {pages.map(({ id, icon: Icon, label }) => (
             <a
-              key={name}
-              href={"#" + name.toLowerCase()}
-              aria-current={page === name ? "page" : undefined}
-              onClick={() => navigate(name)}
+              key={id}
+              href={"#" + id}
+              title={label}
+              aria-label={label}
+              aria-current={page === id ? "page" : undefined}
+              onClick={() => navigate(id)}
             >
               <Icon size={17} />
-              {name}
-              {name === "Preview" && preview?.status === "running" && (
+              {id === "preview" && preview?.status === "running" && (
                 <span className="nav-dot" />
               )}
             </a>
           ))}
         </nav>
-        <div className="sidebar-foot">
-          <span className="inline">
-            <ShieldCheck size={16} />
-            Local access only
-          </span>
-          <span className="muted">127.0.0.1 · this machine</span>
-        </div>
       </aside>
+
       <div className="workspace">
         <header className="topbar">
-          <span className="inline">
-            <span className="project-dot" />
-            NyumatFlix <ChevronRight size={14} />
-            <span className="muted">Deploy Desk</span>
-          </span>
-          <span className="inline muted">
-            <span className="dot" />
-            {status?.remote ?? "leetbot"}
+          <span className="topbar-title">{pageLabel(page)}</span>
+          <span className="inline topbar-meta">
+            {activeJob && (
+              <span className="topbar-status">
+                <LoaderCircle size={12} className="spin" />
+                {activeJob.kind}
+                {streamJob?.phase ? ` · ${streamJob.phase}` : ""}
+              </span>
+            )}
+            {status?.remote ?? "—"}
           </span>
         </header>
+
         <main>
-          <div className="page-heading">
-            <div>
-              <h1>{page}</h1>
-              <p>{pageDescriptions[page]}</p>
-            </div>
-            <div className="actions">
+          <div className="page-actions">
+            <button
+              type="button"
+              className="icon-button"
+              title="Refresh (r)"
+              aria-label="Refresh"
+              disabled={refreshing}
+              onClick={() => {
+                void refresh();
+                void loadHistory();
+              }}
+            >
+              <RefreshCw className={refreshing ? "spin" : ""} size={15} />
+            </button>
+            {page !== "deploy" && (
               <button
+                type="button"
                 className="icon-button"
-                title="Refresh status (r)"
-                aria-label="Refresh status"
-                disabled={refreshing}
-                onClick={() => {
-                  void refresh();
-                  void loadHistory();
-                }}
+                title="Deploy"
+                aria-label="Deploy"
+                onClick={() => navigate("deploy")}
               >
-                <RefreshCw className={refreshing ? "spin" : ""} size={16} />
+                <Rocket size={15} />
               </button>
-              {page !== "Deploy" && (
-                <button className="primary" onClick={() => navigate("Deploy")}>
-                  <Rocket size={15} />
-                  Start deploy
-                </button>
-              )}
-            </div>
+            )}
+            {status?.productionUrl && (
+              <a
+                className="button icon-button"
+                href={status.productionUrl}
+                target="_blank"
+                rel="noreferrer"
+                title="Production"
+                aria-label="Open production"
+              >
+                <ArrowUpRight size={15} />
+              </a>
+            )}
           </div>
+
           {error && (
             <div className="notice error" role="alert">
               {error}
               <button
+                type="button"
                 className="icon-button"
-                aria-label="Dismiss error"
+                aria-label="Dismiss"
                 onClick={() => setError("")}
               >
-                <X size={15} />
+                <X size={14} />
               </button>
             </div>
           )}
-          {git?.dirty && (
-            <div className="notice warning">
-              <GitBranch size={16} />
-              <span>
-                {git.changedFiles} local changes will ship with this checkout.
-                <span className="muted"> The image will be marked dirty.</span>
-              </span>
-            </div>
+
+          {git?.dirty && (page === "deploy" || page === "overview") && (
+            <DirtyNotice git={git} />
           )}
-          {page === "Overview" && (
+
+          {page === "overview" && (
             <>
-              <section className="panel production">
-                <header className="section-heading">
-                  <h2>Production</h2>
-                  <Badge
-                    tone={
-                      status?.errors.length ? "warning" : live ? "success" : ""
-                    }
-                  >
-                    {status?.errors.length
-                      ? "Status unavailable"
-                      : live
-                        ? "Deployed"
-                        : status
-                          ? "No deployment"
-                          : "Connecting"}
-                  </Badge>
-                </header>
+              <Accordion
+                title="Production"
+                open={isOpen("production")}
+                onToggle={() => toggle("production")}
+                meta={
+                  <>
+                    <span
+                      className={
+                        "dot " +
+                        (status?.errors.length ? "warn" : live ? "live" : "off")
+                      }
+                    />
+                    {live ? relative(live.deployedAt) : "—"}
+                  </>
+                }
+              >
                 {status?.errors.map((message) => (
-                  <p key={message} className="inline-error">
+                  <p key={message} className="row-sub">
                     {message}
                   </p>
                 ))}
                 {live ? (
-                  <>
-                    <div className="release">
-                      <span className="release-glyph">
-                        <GitCommitHorizontal size={25} />
-                      </span>
-                      <div>
-                        <h3>
-                          {live.message ||
-                            "Deployment without a commit message"}
-                        </h3>
-                        <p className="muted">
-                          <code>{live.shortSha}</code>
-                          <span className="separator">/</span>
-                          {live.author}
-                          <span className="separator">/</span>
-                          {relative(live.deployedAt)}
-                        </p>
-                      </div>
+                  <div className="git-block">
+                    <p className="git-message">{live.message || "—"}</p>
+                    <div className="git-meta">
+                      <code className="mono">{live.shortSha}</code>
+                      <span>{live.author}</span>
+                      <span className="mono">{live.image}</span>
                     </div>
-                    <dl className="metadata">
-                      <div>
-                        <dt>Image</dt>
-                        <dd>
-                          <code>{live.image}</code>
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Source</dt>
-                        <dd>{live.source}</dd>
-                      </div>
-                      <div>
-                        <dt>Deployed</dt>
-                        <dd>{new Date(live.deployedAt).toLocaleString()}</dd>
-                      </div>
-                    </dl>
-                  </>
+                  </div>
                 ) : (
-                  <Empty>
-                    {status
-                      ? "No live deployment metadata reported. Service status is shown below."
-                      : "Connecting to your production host…"}
-                  </Empty>
+                  <p className="empty">{status ? "No deployment" : "…"}</p>
                 )}
-                <footer className="panel-footer">
-                  <span className="muted inline">
-                    <Clock size={14} />
-                    {status
-                      ? "Checked " + relative(status.checkedAt)
-                      : "Waiting for status"}
-                  </span>
-                  <OutLink
-                    href={status?.productionUrl ?? "https://nyumatflix.com"}
-                  >
-                    Visit production
-                  </OutLink>
-                </footer>
-              </section>
-              <div className="overview-columns">
-                <section className="panel">
-                  <header className="section-heading">
-                    <h2>Services</h2>
-                    <span className="muted">
-                      {status?.services.length ?? "—"} reported
-                    </span>
-                  </header>
-                  {status?.services.length ? (
-                    <div className="services">
-                      {status.services.map((service) => (
-                        <div className="service" key={service.name}>
-                          <span
-                            className={
-                              "status-dot " +
-                              (healthy(service.status) ? "success" : "warning")
-                            }
-                          />
-                          <div>
-                            <strong>{service.name}</strong>
-                            <span title={service.image}>{service.image}</span>
-                          </div>
-                          <span className="service-status">
-                            {service.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <Empty>
-                      {refreshing
-                        ? "Reading service health…"
-                        : "No services reported. Check SSH access and refresh."}
-                    </Empty>
-                  )}
-                </section>
-                <section className="panel">
-                  <header className="section-heading">
-                    <h2>Next release</h2>
-                    <GitBranch size={17} />
-                  </header>
-                  {gitReview}
-                  <footer className="panel-footer">
-                    <span className="muted">From this working tree</span>
-                    <button
-                      className="text-button"
-                      onClick={() => navigate("Deploy")}
-                    >
-                      Review release
-                      <ChevronRight size={15} />
-                    </button>
-                  </footer>
-                </section>
-              </div>
-            </>
-          )}
-          {page === "Deploy" && (
-            <>
-              <div className="deploy-layout">
-                <section className="panel wizard">
-                  <div className="wizard-step">
-                    <span className="step-number">1</span>
-                    <div>
-                      <h2>Review checkout</h2>
-                      <p className="muted">
-                        These local files are the release source.
-                      </p>
-                      {gitReview}
-                    </div>
-                  </div>
-                  <div className="wizard-step">
-                    <span className="step-number">
-                      {previewReady ? <Check size={15} /> : "2"}
-                    </span>
-                    <div>
-                      <div className="section-heading">
-                        <h2>Verify a local preview</h2>
-                        <Badge tone={previewReady ? "success" : ""}>
-                          {previewReady
-                            ? "Ready to review"
-                            : (preview?.status ?? "idle")}
-                        </Badge>
-                      </div>
-                      <p className="muted">
-                        Build the full app from the production Dockerfile, then
-                        start it and check your changes.
-                      </p>
-                      {previewControls}
-                      <label className="checkbox">
-                        <input
-                          type="checkbox"
-                          checked={skipPreview}
-                          onChange={(e) => setSkipPreview(e.target.checked)}
-                          disabled={busy}
-                        />
-                        Skip preview for this deploy
-                      </label>
-                      {preview?.fingerprint &&
-                        git &&
-                        preview.fingerprint !== git.fingerprint && (
-                          <p className="inline-error">
-                            Checkout changed since the preview build. Rebuild to
-                            use the gate.
-                          </p>
-                        )}
-                    </div>
-                  </div>
-                  <div className="wizard-step">
-                    <span className="step-number">3</span>
-                    <div>
-                      <h2>Ship to {status?.remote ?? "leetbot"}</h2>
-                      <p className="muted">
-                        Build and push, sync production, then roll through the
-                        existing health checks.
-                      </p>
-                      <label className="checkbox">
-                        <input
-                          type="checkbox"
-                          checked={fast}
-                          onChange={(e) => setFast(e.target.checked)}
-                          disabled={busy}
-                        />
-                        Fast deploy{" "}
-                        <span className="muted">
-                          Reuse available player / WASM artifacts
-                        </span>
-                      </label>
-                      <button
-                        className="primary"
-                        disabled={
-                          busy || !git || (!skipPreview && !previewReady)
+              </Accordion>
+
+              <Accordion
+                title="Services"
+                open={isOpen("services")}
+                onToggle={() => toggle("services")}
+                meta={status?.services.length ?? "—"}
+              >
+                {status?.services.length ? (
+                  status.services.map((service) => (
+                    <div className="row" key={service.name}>
+                      <span
+                        className={
+                          "dot " + (healthy(service.status) ? "live" : "warn")
                         }
-                        onClick={() => setConfirmation(git)}
-                      >
-                        <Rocket size={15} />
-                        Review and deploy
-                      </button>
+                      />
+                      <div className="row-main">
+                        <div className="row-title">{service.name}</div>
+                        <div className="row-sub mono">{service.image}</div>
+                      </div>
+                      <span className="tag">{service.status}</span>
                     </div>
-                  </div>
-                </section>
-                <aside className="release-notes">
-                  <ShieldCheck size={24} />
-                  <h2>Production stays protected</h2>
-                  <p>
-                    The candidate passes health checks before nginx switches
-                    traffic. A remote lock prevents overlapping rollouts.
-                  </p>
-                  <hr />
-                  <h3>Release sequence</h3>
-                  <ol>
-                    <li>Build & push image</li>
-                    <li>Sync production environment</li>
-                    <li>Health-check & switch</li>
-                  </ol>
-                  <p className="muted">
-                    Preview validates the checkout. Shipping rebuilds the
-                    production image using the existing CLI path.
-                  </p>
-                </aside>
-              </div>
-            </>
-          )}
-          {page === "History" && (
-            <section className="panel">
-              <header className="section-heading">
-                <h2>Deployment history</h2>
-                <span className="muted">Newest first</span>
-              </header>
-              {historyError && (
-                <div className="notice error">
-                  {historyError}
-                  <button onClick={() => void loadHistory()}>Retry</button>
-                </div>
-              )}
-              {history.entries.length ? (
-                <div className="history-list">
-                  {history.entries.map((entry, index) => (
+                  ))
+                ) : (
+                  <p className="empty">—</p>
+                )}
+              </Accordion>
+
+              <Accordion
+                title="Checkout"
+                open={isOpen("checkout")}
+                onToggle={() => toggle("checkout")}
+                meta={
+                  git?.dirty ? `${git.changedFiles} changed` : git?.shortSha
+                }
+              >
+                {gitBlock}
+              </Accordion>
+
+              <Accordion
+                title="Tasks"
+                open={isOpen("tasks")}
+                onToggle={() => toggle("tasks")}
+              >
+                <div className="task-grid">
+                  {prodTasks.map((task) => (
                     <button
-                      className="history-row"
-                      key={entry.deployedAt + entry.sha + index}
-                      onClick={() => {
-                        setDetail(entry);
-                        setRollbackConfirmed(false);
-                      }}
+                      key={task.id}
+                      type="button"
+                      className="task-chip"
+                      title={task.hint}
+                      disabled={busy || (task.id === "restart" && !live)}
+                      onClick={() => handleProdTask(task)}
                     >
-                      <span className="history-line">
-                        <GitCommitHorizontal size={20} />
-                      </span>
-                      <span className="history-copy">
-                        <strong>
-                          {entry.message || "Untitled deployment"}
-                        </strong>
-                        <span>
-                          <code>{entry.shortSha}</code>
-                          <span className="separator">/</span>
-                          {entry.author}
-                          <span className="separator">/</span>
-                          {entry.source}
-                          {entry.dirty && " · dirty"}
-                        </span>
-                      </span>
-                      <span className="history-end">
-                        {live?.image === entry.image &&
-                        live.sha === entry.sha &&
-                        live.deployedAt?.slice(0, 16) ===
-                          entry.deployedAt.slice(0, 16) ? (
-                          <Badge tone="success">Live</Badge>
-                        ) : (
-                          <span className="muted">
-                            {relative(entry.deployedAt)}
-                          </span>
-                        )}
-                        <ChevronRight size={16} />
-                      </span>
+                      <task.icon size={14} />
+                      {task.label}
                     </button>
                   ))}
                 </div>
+              </Accordion>
+            </>
+          )}
+
+          {page === "deploy" && (
+            <>
+              <Accordion
+                title="Checkout"
+                open={isOpen("checkout")}
+                onToggle={() => toggle("checkout")}
+                meta={
+                  git?.dirty ? `${git.changedFiles} changed` : git?.shortSha
+                }
+              >
+                {gitBlock}
+              </Accordion>
+
+              <Accordion
+                title="Preview"
+                open={isOpen("preview")}
+                onToggle={() => toggle("preview")}
+                meta={previewReady ? "ready" : (preview?.status ?? "idle")}
+              >
+                {previewControls}
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={skipPreview}
+                    onChange={(e) => setSkipPreview(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Skip preview
+                </label>
+                {preview?.fingerprint &&
+                  git &&
+                  preview.fingerprint !== git.fingerprint && (
+                    <p className="row-sub">Rebuild required</p>
+                  )}
+              </Accordion>
+
+              <Accordion
+                title="Ship"
+                open={isOpen("ship")}
+                onToggle={() => toggle("ship")}
+                meta={status?.remote}
+              >
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={fast}
+                    onChange={(e) => setFast(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Fast deploy
+                </label>
+                <div className="actions-row">
+                  <button
+                    type="button"
+                    className="primary labeled"
+                    disabled={deployBlocked}
+                    title="Deploy"
+                    aria-label="Deploy"
+                    onClick={() => setConfirmDeploy(true)}
+                  >
+                    <Rocket size={15} />
+                    Deploy
+                  </button>
+                </div>
+                {deployHint && <p className="hint">{deployHint}</p>}
+              </Accordion>
+            </>
+          )}
+
+          {page === "history" && (
+            <Accordion
+              title="History"
+              open={isOpen("history")}
+              onToggle={() => toggle("history")}
+              meta={history.entries.length}
+            >
+              {historyError && (
+                <div className="notice error">
+                  {historyError}
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Retry"
+                    onClick={() => void loadHistory()}
+                  >
+                    <RefreshCw size={14} />
+                  </button>
+                </div>
+              )}
+              {history.entries.length ? (
+                history.entries.map((entry, index) => (
+                  <div
+                    className="row"
+                    key={entry.deployedAt + entry.sha + index}
+                  >
+                    <div className="row-main">
+                      <div className="row-title">
+                        {entry.message || entry.shortSha}
+                      </div>
+                      <div className="row-sub">
+                        <code className="mono">{entry.shortSha}</code>
+                        {" · "}
+                        {entry.author}
+                        {" · "}
+                        {relative(entry.deployedAt)}
+                      </div>
+                    </div>
+                    <div className="row-actions">
+                      {isLive(entry) ? (
+                        <span className="tag live">live</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="icon-button"
+                          title="Rollback"
+                          aria-label={"Rollback to " + entry.shortSha}
+                          disabled={busy}
+                          onClick={() => setRollbackTarget(entry)}
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
               ) : (
-                <Empty>
-                  {historyLoading
-                    ? "Reading remote deployment history…"
-                    : historyError
-                      ? "History could not be loaded."
-                      : "No deployment history has been recorded yet."}
-                </Empty>
+                <p className="empty">
+                  {historyLoading ? "…" : historyError ? "—" : "No history"}
+                </p>
               )}
               {history.nextOffset !== null && (
-                <footer className="panel-footer">
-                  <span className="muted">
-                    {history.entries.length} deployments loaded
-                  </span>
-                  <button
-                    disabled={historyLoading}
-                    onClick={() => void loadHistory(history.nextOffset ?? 0)}
-                  >
-                    <ArrowDownToLine size={14} />
-                    {historyLoading ? "Loading…" : "Load older"}
-                  </button>
-                </footer>
-              )}
-            </section>
-          )}
-          {page === "Preview" && (
-            <section className="panel">
-              <header className="section-heading">
-                <h2>Local Docker preview</h2>
-                <Badge
-                  tone={
-                    preview?.health === "healthy"
-                      ? "success"
-                      : preview?.status === "failed"
-                        ? "warning"
-                        : ""
-                  }
+                <button
+                  type="button"
+                  className="load-more labeled"
+                  disabled={historyLoading}
+                  onClick={() => void loadHistory(history.nextOffset ?? 0)}
                 >
-                  {preview?.status ?? "Checking"}
-                </Badge>
-              </header>
-              <div className="preview-body">
-                <div className="preview-identity">
-                  <Box size={35} />
-                  <div>
-                    <h3>{preview?.image ?? "nyumatflix-preview:local"}</h3>
-                    <p className="muted">
-                      Production Dockerfile · linux/amd64 · local image only
-                    </p>
-                  </div>
-                </div>
-                {preview?.error && (
-                  <div className="notice error">{preview.error}</div>
-                )}
-                <dl className="metadata">
-                  <div>
-                    <dt>Address</dt>
-                    <dd>
-                      <code>{preview?.url ?? "—"}</code>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Container health</dt>
-                    <dd>{preview?.health ?? "Not running"}</dd>
-                  </div>
-                  <div>
-                    <dt>Image ID</dt>
-                    <dd>
-                      <code title={preview?.imageId}>
-                        {preview?.imageId?.slice(0, 24) ?? "Not built"}
-                      </code>
-                    </dd>
-                  </div>
-                </dl>
-                {previewControls}
-                <p className="preview-note">
-                  Uses <code>.env.prod</code> unless overridden. Preview may
-                  connect to production services with those credentials. For an
-                  isolated environment, set <code>DEPLOY_DESK_PREVIEW_ENV</code>
-                  . Scrape-dependent pages may need{" "}
-                  <code>bun run dev:stack</code> separately; container URLs
-                  should use <code>host.docker.internal</code> for host
-                  services.
-                </p>
-                {preview?.status === "running" && (
-                  <button onClick={() => setFrame(!frame)}>
-                    <ExternalLink size={14} />
-                    {frame ? "Hide embedded preview" : "Show embedded preview"}
-                  </button>
-                )}
+                  <ArrowDownToLine size={14} />
+                  {historyLoading ? "Loading…" : "Load more"}
+                </button>
+              )}
+            </Accordion>
+          )}
+
+          {page === "preview" && (
+            <Accordion
+              title="Preview"
+              open={isOpen("previewPage")}
+              onToggle={() => toggle("previewPage")}
+              meta={preview?.status ?? "—"}
+            >
+              <div className="git-meta">
+                <code className="mono">{preview?.url ?? "—"}</code>
+                <span>{preview?.health ?? "—"}</span>
               </div>
+              {preview?.error && (
+                <p className="row-sub" style={{ marginTop: 8 }}>
+                  {preview.error}
+                </p>
+              )}
+              {previewControls}
+              {preview?.status === "running" && (
+                <button
+                  type="button"
+                  className="labeled"
+                  style={{ marginTop: 12 }}
+                  onClick={() => setFrame(!frame)}
+                >
+                  <ExternalLink size={14} />
+                  {frame ? "Hide" : "Embed"}
+                </button>
+              )}
               {frame && preview?.status === "running" && (
                 <iframe
                   className="preview-frame"
-                  title="Local NyumatFlix preview"
+                  title="Preview"
                   src={preview.url}
                   sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
                 />
               )}
-            </section>
+            </Accordion>
           )}
-          {(selectedJob || jobs.length > 0) && (
-            <section className="panel job-panel">
-              <header className="section-heading">
-                <h2 className="inline">
-                  <Terminal size={17} />
-                  Activity
-                </h2>
-                <div className="inline">
-                  <label className="sr-only" htmlFor="job-select">
-                    Select job
-                  </label>
-                  <select
-                    id="job-select"
-                    value={selectedJob ?? ""}
-                    onChange={(e) => setSelectedJob(e.target.value)}
-                  >
-                    {jobs.map((job) => (
-                      <option key={job.id} value={job.id}>
-                        {job.kind} · {relative(job.startedAt)}
-                      </option>
-                    ))}
-                  </select>
-                  {streamJob && (
-                    <Badge
-                      tone={
-                        streamJob.status === "succeeded"
-                          ? "success"
-                          : streamJob.status === "failed"
-                            ? "danger"
-                            : ""
-                      }
-                    >
-                      {streamJob.status}
-                    </Badge>
-                  )}
-                </div>
-              </header>
-              <div className="job-phase">
-                <span className="inline">
-                  {running(streamJob) ? (
-                    <LoaderCircle size={14} className="spin" />
-                  ) : (
-                    <Circle size={10} />
-                  )}{" "}
-                  {streamJob?.phase ?? "Connecting to logs…"}
-                </span>
-                <span className="muted">
+
+          <div className="logs-wrap">
+            <Accordion
+              title="Logs"
+              open={isOpen("logs")}
+              onToggle={() => toggle("logs")}
+              meta={
+                streamJob ? (
+                  <span className="inline">
+                    {running(streamJob) && (
+                      <LoaderCircle size={12} className="spin" />
+                    )}
+                    {streamJob.status}
+                  </span>
+                ) : jobs.length ? (
+                  "idle"
+                ) : (
+                  "—"
+                )
+              }
+            >
+              <div className="logs-header">
+                <Terminal size={13} />
+                <span className="logs-phase">
+                  {streamJob?.phase ?? "—"}
+                  {" · "}
                   {duration(
                     running(streamJob) && streamJob
                       ? tick - Date.parse(streamJob.startedAt)
                       : streamJob?.durationMs,
                   )}
                 </span>
+                {jobs.length > 0 && (
+                  <>
+                    <label className="sr-only" htmlFor={jobSelectId}>
+                      Job
+                    </label>
+                    <select
+                      id={jobSelectId}
+                      value={selectedJob ?? ""}
+                      onChange={(e) => setSelectedJob(e.target.value)}
+                    >
+                      {jobs.map((job) => (
+                        <option key={job.id} value={job.id}>
+                          {job.kind} · {relative(job.startedAt)}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+                {running(streamJob) && (
+                  <button
+                    type="button"
+                    className="icon-button"
+                    title="Abort job"
+                    aria-label="Abort job"
+                    disabled={pending}
+                    onClick={() => void abortRunningJob()}
+                  >
+                    <OctagonX size={14} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="icon-button"
+                  title={copied ? "Copied" : "Copy logs"}
+                  aria-label="Copy logs"
+                  disabled={!logs.length}
+                  onClick={() => void handleCopyLogs()}
+                >
+                  <Copy size={14} />
+                </button>
               </div>
-              {streamError && <p className="inline-error">{streamError}</p>}
-              <pre className="logs" aria-label="Job output" tabIndex={0}>
-                {logs.join("\n") || "Waiting for output…"}
+              {streamError && (
+                <p className="row-sub" style={{ marginBottom: 8 }}>
+                  {streamError}
+                </p>
+              )}
+              <pre
+                ref={logsRef}
+                className="logs"
+                aria-label="Job output"
+                tabIndex={0}
+              >
+                {logs.join("\n") || "—"}
               </pre>
-            </section>
-          )}
-          <footer className="desk-footer">
-            <span>NyumatFlix Deploy Desk</span>
-            <span>
-              Refresh <kbd>r</kbd>
-              <span className="separator">/</span>Local machine only
-            </span>
-          </footer>
+            </Accordion>
+          </div>
         </main>
       </div>
-      {confirmation && (
-        <Dialog
-          title="Deploy to production?"
-          close={() => setConfirmation(null)}
-        >
-          <p className="muted">
-            This will build and push an image, synchronize production
-            configuration, and replace the live release on{" "}
-            {status?.remote ?? "leetbot"}.
-          </p>
-          <div className="confirm-release">
-            <code>
-              {confirmation.shortSha}
-              {confirmation.dirty ? "+" : ""}
+
+      {confirmDeploy && git && (
+        <Dialog title="Deploy" close={() => setConfirmDeploy(false)}>
+          <div className="dialog-body">
+            <code className="dialog-sha mono">
+              {git.shortSha}
+              {git.dirty ? "+" : ""}
             </code>
-            <h3>{confirmation.message}</h3>
-            <p className="muted">
-              {confirmation.branch} · {confirmation.author}
-            </p>
+            <p className="dialog-message">{git.message}</p>
+            {git.dirty && (
+              <>
+                <p className="hint">
+                  Includes {git.changedFiles} uncommitted file
+                  {git.changedFiles === 1 ? "" : "s"}.
+                </p>
+                <GitChanges git={git} />
+              </>
+            )}
           </div>
-          {skipPreview && (
-            <div className="notice warning">
-              The local preview gate is skipped for this deploy.
-            </div>
-          )}
           <footer className="dialog-actions">
-            <button disabled={pending} onClick={() => setConfirmation(null)}>
-              Cancel
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Cancel"
+              disabled={pending}
+              onClick={() => setConfirmDeploy(false)}
+            >
+              <X size={15} />
             </button>
             <button
-              className="primary"
+              type="button"
+              className="primary icon-button"
+              aria-label="Confirm deploy"
               disabled={busy}
               onClick={() =>
                 void action("/api/deploy", {
                   confirmed: true,
-                  fingerprint: confirmation.fingerprint,
+                  fingerprint: git.fingerprint,
                   fast,
                   skipPreview,
                 })
               }
             >
               <Rocket size={15} />
-              Deploy now
             </button>
           </footer>
         </Dialog>
       )}
-      {detail && (
-        <Dialog title="Deployment details" close={() => setDetail(null)}>
-          <div className="confirm-release">
-            <code>{detail.shortSha}</code>
-            <h3>{detail.message}</h3>
-            <p className="muted">
-              {detail.author} · {relative(detail.deployedAt)}
-            </p>
-          </div>
-          <dl className="detail-list">
-            {Object.entries({
-              SHA: detail.sha,
-              Image: detail.image,
-              Deployed: detail.deployedAt,
-              Port: String(detail.port),
-              Source: detail.source,
-              Dirty: String(detail.dirty ?? detail.sha.endsWith("-dirty")),
-            }).map(([name, value]) => (
-              <div key={name}>
-                <dt>{name}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={rollbackConfirmed}
-              onChange={(e) => setRollbackConfirmed(e.target.checked)}
-              disabled={busy}
-            />
-            I confirm replacing production with this deployment.
-          </label>
-          <p className="muted">
-            Rollback uses the recorded image and the normal candidate health
-            checks. Registry tags, especially dirty tags, can be overwritten;
-            history is not a registry backup.
+
+      {confirmOp && (
+        <Dialog
+          title={
+            prodTasks.find((task) => task.id === confirmOp)?.label ?? "Confirm"
+          }
+          close={() => setConfirmOp(null)}
+        >
+          <p className="hint">
+            {prodTasks.find((task) => task.id === confirmOp)?.confirm}
           </p>
           <footer className="dialog-actions">
-            <button onClick={() => setDetail(null)}>Close</button>
             <button
-              className="danger-button"
-              disabled={busy || !rollbackConfirmed}
+              type="button"
+              className="labeled"
+              disabled={pending}
+              onClick={() => setConfirmOp(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="primary labeled"
+              disabled={busy}
+              onClick={() => void runOp(confirmOp)}
+            >
+              Run
+            </button>
+          </footer>
+        </Dialog>
+      )}
+
+      {rollbackTarget && (
+        <Dialog title="Rollback" close={() => setRollbackTarget(null)}>
+          <div className="dialog-body">
+            <code className="dialog-sha mono">{rollbackTarget.shortSha}</code>
+            <p className="dialog-message">
+              {rollbackTarget.message || rollbackTarget.shortSha}
+            </p>
+          </div>
+          <footer className="dialog-actions">
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Cancel"
+              onClick={() => setRollbackTarget(null)}
+            >
+              <X size={15} />
+            </button>
+            <button
+              type="button"
+              className="danger-button icon-button"
+              aria-label="Confirm rollback"
+              disabled={busy}
               onClick={() =>
                 void action("/api/rollback", {
                   confirmed: true,
-                  sha: detail.sha,
-                  image: detail.image,
-                  deployedAt: detail.deployedAt,
+                  sha: rollbackTarget.sha,
+                  image: rollbackTarget.image,
+                  deployedAt: rollbackTarget.deployedAt,
                 })
               }
             >
               <RotateCcw size={15} />
-              Roll back
             </button>
           </footer>
         </Dialog>

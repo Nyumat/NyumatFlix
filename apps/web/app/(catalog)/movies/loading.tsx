@@ -1,5 +1,5 @@
 import { CatalogDiscoverHubLoading } from "@/components/layout/page-loading/catalog-hub-loading";
 
 export default function MoviesLoading() {
-  return <CatalogDiscoverHubLoading />;
+  return <CatalogDiscoverHubLoading mediaType="movie" />;
 }

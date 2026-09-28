@@ -6,6 +6,7 @@ import { StaticHero } from "@/components/hero/hero-static";
 import { MediaDetailScrollReset } from "@/components/media/media-detail-scroll-reset";
 import { MovieCard } from "@/components/movie/movie-card";
 import { BackButton } from "@/components/ui/back-button";
+import { enrichLocalizedCatalogBackdrops } from "@/lib/server/enrich-catalog-backdrops";
 import { tmdb } from "@/tmdb/api";
 import { tmdbImage } from "@/tmdb/utils";
 import { Metadata } from "next";
@@ -42,6 +43,12 @@ export default async function CollectionPage(props: Props) {
   const collection = await tmdb.collection.details({ id }).catch(() => null);
   if (!collection) notFound();
 
+  const parts = await enrichLocalizedCatalogBackdrops(
+    collection.parts.map((movie) => ({
+      ...movie,
+      media_type: "movie" as const,
+    })),
+  );
   const backdropImage =
     tmdbBackdrop(collection.backdrop_path) ??
     tmdbBackdrop(collection.parts[0]?.backdrop_path) ??
@@ -82,7 +89,7 @@ export default async function CollectionPage(props: Props) {
             </div>
           </div>
           <section className="grid-list">
-            {collection.parts.map((movie) => (
+            {parts.map((movie) => (
               <MovieCard key={movie.id} {...movie} />
             ))}
           </section>

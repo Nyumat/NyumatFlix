@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { FfsToggleRow } from "@/components/ffs/ffs-toggle-row";
+import { SettingsCheckboxRow } from "@/components/ffs/settings";
 import {
   applyPlaybackMutualExclusion,
   GLOBAL_FLAG_DEFINITIONS,
@@ -44,25 +37,17 @@ export function GlobalTogglesPanel({
   };
 
   return (
-    <Card className="border-white/10 bg-black/40">
-      <CardHeader>
-        <CardTitle className="text-lg">Global playback & UX</CardTitle>
-        <CardDescription>
-          Hard locks apply to everyone. Default flags only affect new visitors
-          (until they change server in Settings).
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {PLAYBACK_FLAGS.map((def) => (
-          <FfsToggleRow
-            key={def.key}
-            label={def.label}
-            description={def.description}
-            enabled={flags[def.key] ?? def.defaultValue}
-            onToggle={(v) => handleChange(def.key, v)}
-          />
-        ))}
-      </CardContent>
-    </Card>
+    <>
+      {PLAYBACK_FLAGS.map((def) => (
+        <SettingsCheckboxRow
+          key={def.key}
+          id={def.key}
+          label={def.label}
+          description={def.description}
+          checked={flags[def.key] ?? def.defaultValue}
+          onCheckedChange={(value) => handleChange(def.key, value)}
+        />
+      ))}
+    </>
   );
 }

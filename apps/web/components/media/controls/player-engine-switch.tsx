@@ -11,7 +11,11 @@ type PlayerEngineSwitchProps = {
 };
 
 export function PlayerEngineSwitch({ className }: PlayerEngineSwitchProps) {
-  const { isMovi, setPlayerEngine } = usePlayerEngine();
+  const { isMovi, setPlayerEngine, locked } = usePlayerEngine();
+
+  if (locked) {
+    return null;
+  }
 
   const handleCheckedChange = (checked: boolean) => {
     const next = checked ? "vidstack" : "movi";
@@ -23,8 +27,10 @@ export function PlayerEngineSwitch({ className }: PlayerEngineSwitchProps) {
 
   return (
     <div className={cn("space-y-2", className)}>
-      <Label className="text-sm font-medium text-foreground">Player</Label>
-      <div className="flex items-center gap-2 text-sm text-foreground">
+      <Label className="text-sm font-medium text-foreground">
+        Video player
+      </Label>
+      <div className="flex items-center gap-2 my-2 text-sm text-foreground">
         <span className={cn(!isMovi && "opacity-50")}>Movi</span>
         <Switch
           checked={!isMovi}

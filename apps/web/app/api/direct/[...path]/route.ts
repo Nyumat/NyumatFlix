@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { directUpstreamErrorBody } from "@/lib/direct/upstream-unavailable";
 import { fetchCalluspirates } from "@/lib/scrape/calluspirates-fetch";
 import {
   inferDirectMediaContentType,
+  isAllowedDirectFallbackProxyPath,
   isDirectMediaProxyPath,
   isDirectPlaylistContentType,
   resolveCalluspiratesProxyTarget,
@@ -124,6 +126,15 @@ async function probeCalluspiratesMedia(
 }
 
 async function proxyDirectPlayback(request: Request): Promise<Response> {
+  const incomingUrl = new URL(request.url);
+  if (!isAllowedDirectFallbackProxyPath(incomingUrl.pathname)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const accessToken = incomingUrl.searchParams.get("access_token")?.trim();
+  if (!accessToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const target = resolveCalluspiratesProxyTarget(request.url);
   if (!target) {
     return NextResponse.json(
@@ -147,9 +158,8 @@ async function proxyDirectPlayback(request: Request): Promise<Response> {
             signal: request.signal,
           });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Upstream fetch failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    const failure = directUpstreamErrorBody(error);
+    return NextResponse.json(failure.body, { status: failure.status });
   }
 
   if (!upstream.ok && upstream.status !== 206) {

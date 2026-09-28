@@ -6,7 +6,6 @@ const CAP_PROTECTED_PREFIXES = [
   "/api/movies",
   "/api/tv/",
   "/api/genres",
-  "/api/genre/",
   "/api/country/",
   "/api/map",
   "/api/introdb/",

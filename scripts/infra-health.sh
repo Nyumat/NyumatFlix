@@ -39,6 +39,18 @@ infra_gluetun_vpn_status() {
   printf '%s' "$status"
 }
 
+infra_gluetun_vpn_is_running() {
+  [[ "$(infra_gluetun_vpn_status 2>/dev/null || true)" == "running" ]]
+}
+
+infra_gluetun_docker_health_status() {
+  sudo docker inspect gluetun --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null || true
+}
+
+infra_gluetun_control_api_works() {
+  infra_gluetun_vpn_is_running
+}
+
 infra_gluetun_public_ip() {
   local payload ip
   payload="$(infra_gluetun_control_get /v1/publicip/ip)" || return 1
@@ -59,35 +71,44 @@ infra_gluetun_set_vpn_status() {
 }
 
 infra_wait_for_gluetun_vpn() {
-  local deadline="${1:-90}" vpn_status public_ip
-  deadline=$((SECONDS + deadline))
+  local wait_seconds="${1:-90}" vpn_status public_ip
+  local deadline=$((SECONDS + wait_seconds))
   while ((SECONDS < deadline)); do
     vpn_status="$(infra_gluetun_vpn_status 2>/dev/null || true)"
-    public_ip="$(infra_gluetun_public_ip 2>/dev/null || true)"
-    if [[ "$vpn_status" == "running" && -n "$public_ip" ]]; then
-      return 0
+    if [[ "$vpn_status" == "running" ]]; then
+      public_ip="$(infra_gluetun_public_ip 2>/dev/null || true)"
+      if [[ -n "$public_ip" ]]; then
+        return 0
+      fi
     fi
     sleep 2
   done
-  return 1
+  vpn_status="$(infra_gluetun_vpn_status 2>/dev/null || true)"
+  [[ "$vpn_status" == "running" ]] || return 1
+  infra_gluetun_public_ip >/dev/null 2>&1
 }
 
 infra_ensure_gluetun_vpn() {
-  local vpn_status restart_attempts=0
+  local vpn_status restart_attempts=0 public_ip=""
   if ! sudo docker inspect gluetun >/dev/null 2>&1; then
     return 1
+  fi
+
+  if ! infra_gluetun_control_api_works 2>/dev/null; then
+    sudo docker restart gluetun >/dev/null 2>&1 || true
+    sleep 10
   fi
 
   vpn_status="$(infra_gluetun_vpn_status 2>/dev/null || true)"
   if [[ "$vpn_status" != "running" ]]; then
     infra_gluetun_set_vpn_status running || true
-    if ! infra_wait_for_gluetun_vpn "${INFRA_VPN_WAIT_SECONDS:-90}"; then
+    if ! infra_wait_for_gluetun_vpn "${INFRA_VPN_WAIT_SECONDS:-120}"; then
       while ((restart_attempts < 2)); do
         restart_attempts=$((restart_attempts + 1))
         sudo docker restart gluetun >/dev/null
-        sleep 10
+        sleep 12
         infra_gluetun_set_vpn_status running || true
-        if infra_wait_for_gluetun_vpn "${INFRA_VPN_WAIT_SECONDS:-90}"; then
+        if infra_wait_for_gluetun_vpn "${INFRA_VPN_WAIT_SECONDS:-120}"; then
           break
         fi
       done
@@ -96,8 +117,32 @@ infra_ensure_gluetun_vpn() {
 
   vpn_status="$(infra_gluetun_vpn_status 2>/dev/null || true)"
   [[ "$vpn_status" == "running" ]] || return 1
-  [[ -n "$(infra_gluetun_public_ip 2>/dev/null || true)" ]] || return 1
+  public_ip="$(infra_gluetun_public_ip 2>/dev/null || true)"
+  if [[ -z "$public_ip" ]]; then
+    infra_wait_for_gluetun_vpn "${INFRA_PUBLIC_IP_WAIT_SECONDS:-45}" || return 1
+  fi
   return 0
+}
+
+infra_wait_for_gluetun_healthy() {
+  local wait_seconds="${1:-120}" health last_recovery=0
+  local deadline=$((SECONDS + wait_seconds))
+  while ((SECONDS < deadline)); do
+    health="$(infra_gluetun_docker_health_status)"
+    if [[ "$health" == "healthy" ]] && infra_gluetun_vpn_is_running; then
+      return 0
+    fi
+    if [[ "$health" == "unhealthy" || "$health" == "starting" ]]; then
+      if ((SECONDS - last_recovery >= 15)); then
+        infra_ensure_gluetun_vpn || true
+        last_recovery=$SECONDS
+      fi
+    fi
+    sleep 2
+  done
+  infra_ensure_gluetun_vpn || true
+  health="$(infra_gluetun_docker_health_status)"
+  [[ "$health" == "healthy" ]] && infra_gluetun_vpn_is_running
 }
 
 infra_verify_gluetun_proxy() {
@@ -129,11 +174,26 @@ infra_verify_flipt() {
 
 infra_verify_all_dependencies() {
   local proxy_ip
-  infra_ensure_gluetun_vpn || return 1
-  proxy_ip="$(infra_verify_gluetun_proxy)" || return 1
-  infra_verify_imgproxy || return 1
-  infra_verify_flaresolverr || return 1
-  infra_verify_flipt || return 1
+  if ! infra_ensure_gluetun_vpn; then
+    echo "VPN not running or public IP unavailable" >&2
+    return 1
+  fi
+  if ! proxy_ip="$(infra_verify_gluetun_proxy)"; then
+    echo "VPN egress proxy (gluetun:8888) not reachable" >&2
+    return 1
+  fi
+  if ! infra_verify_imgproxy; then
+    echo "imgproxy health check failed (http://127.0.0.1:9081/health)" >&2
+    return 1
+  fi
+  if ! infra_verify_flaresolverr; then
+    echo "flaresolverr unreachable (http://flaresolverr:8191/)" >&2
+    return 1
+  fi
+  if ! infra_verify_flipt; then
+    echo "flipt unreachable (http://flipt:8080/health)" >&2
+    return 1
+  fi
   echo "gluetun vpn ok (egress ${proxy_ip})"
   return 0
 }
