@@ -35,7 +35,7 @@ RUN if [ "$SKIP_PLAYER_BUILD" = "1" ] && \
       echo "[build] player dist present — copying vendor chunks without a rebuild"; \
       node packages/player/scripts/copy-vendor.mjs; \
     else \
-      cd packages/player && bun run build; \
+      cd packages/player && PATH="/app/node_modules/.bin:$$PATH" bun run build; \
     fi
 RUN cd apps/web && bun install --foreground-scripts sharp @img/sharp-linux-x64
 RUN cd apps/web && bun run hubs:refresh
