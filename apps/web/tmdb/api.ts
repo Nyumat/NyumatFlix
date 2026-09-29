@@ -330,12 +330,45 @@ const emptyListResponse = {
   total_results: 0,
 };
 
+const TMDB_MAX_ATTEMPTS = 3;
+const TMDB_RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+
 const isNetworkFetchError = (error: unknown): boolean => {
   if (!(error instanceof TypeError)) {
     return false;
   }
 
   return error.message === "fetch failed";
+};
+
+const wait = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const retryDelayMs = (response: Response, attempt: number) => {
+  const retryAfterSeconds = Number(response.headers.get("retry-after"));
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return Math.min(retryAfterSeconds * 1000, 2000);
+  }
+  return 400 * (attempt + 1);
+};
+
+/** later attempts skip next's data cache so a cached 429 is not replayed. */
+const fetchAttemptInit = (init: RequestInit, attempt: number): RequestInit => {
+  if (attempt === 0) {
+    return init;
+  }
+  const { next: _cached, ...rest } = init;
+  return { ...rest, cache: "no-store" };
+};
+
+const readResponseBody = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return emptyListResponse;
+  }
 };
 
 const sanitizeParams = (params?: Record<string, string | undefined>) => {
@@ -380,17 +413,33 @@ const fetcher: Fetcher = async <T>(
 
   const execute = async () => {
     const url = `${apiConfig.baseUrl}/${endpoint}?${_params}`;
-    let response: Response;
-    try {
-      response = await fetch(url, _init);
-    } catch (error) {
-      if (isNetworkFetchError(error)) {
-        return { data: emptyListResponse, cacheable: false };
+
+    for (let attempt = 0; attempt < TMDB_MAX_ATTEMPTS; attempt += 1) {
+      let response: Response;
+      try {
+        response = await fetch(url, fetchAttemptInit(_init, attempt));
+      } catch (error) {
+        if (isNetworkFetchError(error)) {
+          return { data: emptyListResponse, cacheable: false };
+        }
+        throw error;
       }
-      throw error;
+
+      if (response.ok) {
+        return { data: await response.json(), cacheable: attempt === 0 };
+      }
+
+      const retryable =
+        attempt < TMDB_MAX_ATTEMPTS - 1 &&
+        TMDB_RETRYABLE_STATUSES.has(response.status);
+      if (!retryable) {
+        return { data: await readResponseBody(response), cacheable: false };
+      }
+
+      await wait(retryDelayMs(response, attempt));
     }
 
-    return { data: await response.json(), cacheable: true };
+    return { data: emptyListResponse, cacheable: false };
   };
 
   if (shouldBypassTmdbDataCache(endpoint, sanitizedParams)) {

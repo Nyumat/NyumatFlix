@@ -32,7 +32,7 @@ type ShowcaseDef = {
     page: string,
     latestReleaseDate: string,
     discoverExtra?: DiscoverExtra,
-  ) => Promise<{ results: Array<Record<string, unknown>> }>;
+  ) => Promise<{ results?: Array<Record<string, unknown>> | null }>;
   mapItem: (raw: Record<string, unknown>) => MediaItem;
 };
 
@@ -157,6 +157,9 @@ const fetchShowcaseRowsForDefs = async (
           latestReleaseDate,
           discoverExtra,
         );
+        if (!Array.isArray(raw?.results)) {
+          break;
+        }
         const base = raw.results.map((r) => def.mapItem(r));
         const released =
           mediaType === "movie"

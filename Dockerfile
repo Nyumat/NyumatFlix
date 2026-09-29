@@ -25,17 +25,21 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock turbo.json ./
 COPY apps/web ./apps/web
 COPY packages ./packages
+COPY --from=deps /app/packages/calluspirates-shared/node_modules ./packages/calluspirates-shared/node_modules
+COPY --from=deps /app/packages/playback/node_modules ./packages/playback/node_modules
+COPY --from=deps /app/packages/player/node_modules ./packages/player/node_modules
 RUN test -f packages/player/dist/wasm/movi.js || (echo "missing packages/player/dist/wasm/movi.js — run: bunx turbo build:wasm --filter=@nyumatflix/player" && exit 1)
 RUN node apps/web/scripts/prepare-anime-mappings.mjs
 RUN --mount=type=cache,target=/app/.turbo \
     bunx turbo build --filter=@calluspirates/shared --filter=@nyumatflix/playback
-RUN if [ "$SKIP_PLAYER_BUILD" = "1" ] && \
+RUN --mount=type=cache,target=/app/.turbo \
+    if [ "$SKIP_PLAYER_BUILD" = "1" ] && \
       [ -f packages/player/dist/element.js ] && \
       [ -f packages/player/dist/wasm/movi.js ]; then \
       echo "[build] player dist present — copying vendor chunks without a rebuild"; \
       node packages/player/scripts/copy-vendor.mjs; \
     else \
-      cd packages/player && PATH="/app/node_modules/.bin:$$PATH" bun run build; \
+      bunx turbo build --filter=@nyumatflix/player --only; \
     fi
 RUN cd apps/web && bun install --foreground-scripts sharp @img/sharp-linux-x64
 RUN cd apps/web && bun run hubs:refresh
