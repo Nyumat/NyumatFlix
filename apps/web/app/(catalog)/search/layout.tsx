@@ -5,9 +5,5 @@ export default function SearchPageLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <PageContainer>
-      <main>{children}</main>
-    </PageContainer>
-  );
+  return <PageContainer>{children}</PageContainer>;
 }

@@ -120,7 +120,7 @@ export const NavbarClient = () => {
         />
       ) : null}
       {!onAuthRoute && <AnniversaryBanner />}
-      <div className="site-container flex min-h-16 items-center gap-2 md:min-h-20 lg:gap-3">
+      <div className="index-container flex min-h-16 w-full items-center gap-2 md:min-h-20 lg:gap-3">
         {!onAuthRoute ? (
           <div className="flex shrink-0 items-center gap-1 lg:gap-2">
             <BackButton />

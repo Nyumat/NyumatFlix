@@ -156,23 +156,8 @@ export function HeroTvEpisodePanel({
       .map((season) => season.season_number)
       .sort((left, right) => left - right);
 
-    const declaredCount = details.number_of_seasons ?? 0;
-    if (
-      isAnilistRoute &&
-      mappedTmdbTvId &&
-      declaredCount > fromDetails.length &&
-      declaredCount > 1
-    ) {
-      return Array.from({ length: declaredCount }, (_, index) => index + 1);
-    }
-
     return fromDetails.length > 0 ? fromDetails : [1];
-  }, [
-    details.number_of_seasons,
-    details.seasons,
-    isAnilistRoute,
-    mappedTmdbTvId,
-  ]);
+  }, [details.seasons]);
 
   const {
     selectedEpisode,

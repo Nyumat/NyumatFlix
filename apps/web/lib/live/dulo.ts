@@ -2,6 +2,8 @@ import { cache } from "react";
 import { z } from "zod";
 
 import { EMPTY_LIVE_GUIDE } from "@/lib/live/empty-guide";
+import { mergeProgramSchedules } from "@/lib/live/guide-utils";
+import { attachPlutoPrograms } from "@/lib/live/pluto";
 import { loadLiveChannelsFromOpenPlaylists } from "@/lib/live/open-playlists";
 import { getUnavailableReason } from "@/lib/live/availability";
 import { buildLivePlayUrl } from "@/lib/live/playback";
@@ -259,14 +261,24 @@ const hasReadyChannels = (guide: LiveChannelsResponse) =>
 
 const probeDuloGuide = async (): Promise<LiveChannelsResponse | null> => {
   try {
-    const duloGuide = await loadLiveChannelsFromDulo();
+    const [duloGuide, openGuide] = await Promise.all([
+      loadLiveChannelsFromDulo(),
+      loadOpenGuide("full").catch(() => null),
+    ]);
 
     if (!hasReadyChannels(duloGuide)) {
       return null;
     }
 
+    const mergedChannels = openGuide?.channels?.length
+      ? mergeProgramSchedules(duloGuide.channels, openGuide.channels)
+      : duloGuide.channels;
+    const channels = await attachPlutoPrograms(mergedChannels);
+
     return {
       ...duloGuide,
+      channels,
+      categories: buildCategoryOptions(channels),
       guidePhase: "full",
       guideComplete: true,
     };

@@ -20,10 +20,11 @@ describe("browse navigation", () => {
       { title: "Movies", href: "/movies" },
       { title: "TV Shows", href: "/tvshows" },
       { title: "Anime", href: "/anime" },
-      { title: "Live TV", href: "/live" },
       { title: "People", href: "/people" },
       { title: "Collections", href: "/collections" },
       { title: "Trending", href: "/trending" },
+      { title: "Live TV", href: "/live" },
+      { title: "Manifesto", href: "/manifesto" },
     ]);
   });
 

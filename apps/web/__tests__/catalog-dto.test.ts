@@ -62,6 +62,7 @@ describe("catalog card DTO mapping", () => {
       release_date: "2024-01-15",
       vote_average: 7.8,
       vote_count: 900,
+      genre_ids: [28, 12],
       logo: { file_path: "/logo.png", width: 200, height: 80 },
     });
     expect(card).not.toHaveProperty("popularity");

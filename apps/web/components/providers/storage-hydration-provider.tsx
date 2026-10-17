@@ -16,6 +16,10 @@ import {
   readCatalogCardStyleFromDocumentCookie,
   readDeviceCatalogCardStyle,
 } from "@/lib/user/catalog-card-style-store";
+import {
+  readDisableHeroTrailersClient,
+  readDisableHoverSoundClient,
+} from "@/lib/user/browse-preferences-store";
 
 export function StorageHydrationProvider() {
   const { data: session, status } = useSession();
@@ -27,9 +31,13 @@ export function StorageHydrationProvider() {
     const persistedStyle = readDeviceCatalogCardStyle();
     const persistedGlow = readAmbientGlowClient();
     const state = useAppSettingsStore.getState();
+    const persistedHeroTrailers = readDisableHeroTrailersClient();
+    const persistedHoverSound = readDisableHoverSoundClient();
     const next: {
       catalogCardStyle?: typeof state.catalogCardStyle;
       ambientGlow?: boolean;
+      disableHeroTrailers?: boolean;
+      disableHoverSound?: boolean;
     } = {};
 
     if (persistedStyle && persistedStyle !== state.catalogCardStyle) {
@@ -43,6 +51,18 @@ export function StorageHydrationProvider() {
     }
     if (persistedGlow !== null && persistedGlow !== state.ambientGlow) {
       next.ambientGlow = persistedGlow;
+    }
+    if (
+      persistedHeroTrailers !== null &&
+      persistedHeroTrailers !== state.disableHeroTrailers
+    ) {
+      next.disableHeroTrailers = persistedHeroTrailers;
+    }
+    if (
+      persistedHoverSound !== null &&
+      persistedHoverSound !== state.disableHoverSound
+    ) {
+      next.disableHoverSound = persistedHoverSound;
     }
     if (Object.keys(next).length > 0) {
       useAppSettingsStore.setState(next);

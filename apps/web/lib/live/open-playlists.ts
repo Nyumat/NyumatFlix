@@ -1,3 +1,8 @@
+import {
+  buildPlutoStreamUrl,
+  getPlutoChannelId,
+  getPlutoGuide,
+} from "@/lib/live/pluto";
 import type { M3uEntry } from "@/lib/live/m3u-parser";
 import { parseM3uPlaylist } from "@/lib/live/m3u-parser";
 import {
@@ -131,6 +136,7 @@ const BOOTSTRAP_PRIORITY_QUERIES = [
 
 const GROUP_CATEGORY_MAP: Record<string, string> = {
   animation: "kids",
+  anime: "anime",
   business: "news",
   comedy: "entertainment",
   cooking: "entertainment",
@@ -144,7 +150,7 @@ const GROUP_CATEGORY_MAP: Record<string, string> = {
   legislative: "news",
   lifestyle: "entertainment",
   movies: "movies",
-  music: "entertainment",
+  music: "music",
   news: "news",
   outdoor: "sports",
   public: "entertainment",
@@ -159,6 +165,8 @@ const GROUP_CATEGORY_MAP: Record<string, string> = {
 };
 
 const CATEGORY_NAMES: Record<string, string> = {
+  anime: "Anime",
+  music: "Music",
   documentary: "Documentary",
   entertainment: "Entertainment",
   kids: "Kids",
@@ -236,7 +244,7 @@ const resolveCategory = (groupTitle: string | null) => {
 
   return {
     category,
-    categoryName: primary ? titleCase(primary) : getCategoryName(category),
+    categoryName: getCategoryName(category),
   };
 };
 
@@ -284,14 +292,13 @@ const normalizeOpenPlaylistEntry = (
     ? `open-${slugify(source.id)}-${slugify(entry.tvgId)}`
     : `open-${slugify(`${source.id}-${entry.name}-${entry.url}`)}`;
 
-  const unavailableReason = getUnavailableReason(entry.url);
+  // Entries have already passed the HTTPS HLS parser. Register before checking availability.
+  registerOpenStreamUrl(entry.url, {
+    userAgent: entry.userAgent ?? undefined,
+    referer: entry.referer ?? undefined,
+  });
 
-  if (!unavailableReason) {
-    registerOpenStreamUrl(entry.url, {
-      userAgent: entry.userAgent ?? undefined,
-      referer: entry.referer ?? undefined,
-    });
-  }
+  const unavailableReason = getUnavailableReason(entry.url);
 
   const groupLabel = entry.groupTitle?.split(";")[0]?.trim() ?? null;
   const label =
@@ -358,7 +365,22 @@ const loadPlaylistSource = async (
     entries = prioritizeBootstrapEntries(entries);
   }
 
-  return entries.map((entry) => normalizeOpenPlaylistEntry(entry, source));
+  const pluto = entries.some((entry) => getPlutoChannelId(entry.url))
+    ? await getPlutoGuide().catch(() => null)
+    : null;
+  return entries.map((entry) => {
+    const plutoId = getPlutoChannelId(entry.url);
+    const resolvedEntry =
+      pluto && plutoId
+        ? { ...entry, url: buildPlutoStreamUrl(pluto, plutoId) }
+        : entry;
+    return {
+      ...normalizeOpenPlaylistEntry(resolvedEntry, source),
+      ...(pluto && plutoId
+        ? { programs: pluto.programs.get(plutoId) ?? [] }
+        : {}),
+    };
+  });
 };
 
 const resolvePlaylistSources = (options: {

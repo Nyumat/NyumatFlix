@@ -144,8 +144,20 @@ function SearchDialogPeopleResults({
     );
   }
 
-  if (people.length === 0) {
-    return null;
+  if (people.length === 0 && !isLoading) {
+    return (
+      <div
+        className={cn("space-y-2", className)}
+        data-testid="search-people-empty"
+      >
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          People
+        </p>
+        <p className="text-sm text-muted-foreground">
+          No people found for &quot;{trimmedQuery}&quot;.
+        </p>
+      </div>
+    );
   }
 
   if (variant === "horizontal") {

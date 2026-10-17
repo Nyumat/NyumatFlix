@@ -29,7 +29,7 @@ function ListViewCard(props: {
     <HorizontalCard
       item={{ ...item, media_type: type }}
       testIdPrefix="media-content-card"
-      overviewLines="hidden sm:block"
+      overviewLines="line-clamp-2 sm:line-clamp-3"
     />
   );
 }

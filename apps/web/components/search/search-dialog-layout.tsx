@@ -31,6 +31,7 @@ type SearchDialogResultsLayoutProps = {
   totalPages: number;
   loadMoreRef: (node?: Element | null) => void;
   onNavigate?: () => void;
+  peopleSelectionMode?: "select" | "navigate";
 };
 
 const enrichItemGenres = (
@@ -58,6 +59,7 @@ export function SearchDialogResultsLayout({
   totalPages,
   loadMoreRef,
   onNavigate,
+  peopleSelectionMode = "select",
 }: SearchDialogResultsLayoutProps) {
   const router = useRouter();
   const listRef = useRef<HTMLDivElement>(null);
@@ -280,7 +282,7 @@ export function SearchDialogResultsLayout({
               className={
                 contentFilter === "person" ? "min-h-0 flex-1" : undefined
               }
-              selectionMode="select"
+              selectionMode={peopleSelectionMode}
               selectedPersonId={selectedPersonId}
               onSelectPerson={handleSelectPerson}
             />

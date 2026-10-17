@@ -1,6 +1,16 @@
 export type LiveChannelAvailability = "ready" | "unsupported";
 
+export type LiveProgram = {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  episodeTitle: string | null;
+  description: string | null;
+};
+
 export type LiveChannel = {
+  programs?: LiveProgram[];
   id: string;
   name: string;
   category: string;

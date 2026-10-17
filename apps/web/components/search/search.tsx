@@ -45,6 +45,7 @@ import {
 } from "./search-autocomplete";
 import { SearchDialogEmpty } from "./search-dialog-empty";
 import SearchResults from "./search-results";
+import { SearchResultsSkeleton } from "./search-results-skeleton";
 
 interface SearchComponentProps {
   onSearch?: (query: string) => void;
@@ -229,10 +230,15 @@ function SearchExperience({
   const isDialog = variant === "dialog";
   const { recentSearches, saveRecentSearch, clearRecentSearches } =
     useSearchRecents(true);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const debouncedQuery = useDebouncedValue(query, 300);
   const activeResultsQuery = debouncedQuery.trim();
   const showResults = activeResultsQuery.length >= 2;
+  const isQueryDebouncing =
+    query.trim().length >= 2 && query.trim() !== activeResultsQuery;
   const showEmptyState = !showResults && query.trim().length === 0;
+  const syncQueryToUrl = variant === "page";
 
   const handleSearch = useCallback(() => {
     if (query.trim()) {
@@ -254,6 +260,28 @@ function SearchExperience({
   useEffect(() => {
     onResultsVisibleChange?.(showResults);
   }, [onResultsVisibleChange, showResults]);
+
+  useEffect(() => {
+    if (!syncQueryToUrl) {
+      return;
+    }
+
+    const trimmed = query.trim();
+    const currentQuery = searchParams.get("q") ?? "";
+
+    if (trimmed.length < 2) {
+      if (currentQuery) {
+        router.replace("/search", { scroll: false });
+      }
+      return;
+    }
+
+    if (trimmed !== currentQuery) {
+      router.replace(`/search?q=${encodeURIComponent(trimmed)}`, {
+        scroll: false,
+      });
+    }
+  }, [query, router, searchParams, syncQueryToUrl]);
 
   useEffect(() => {
     if (autoFocus) {
@@ -423,11 +451,16 @@ function SearchExperience({
               isDialog && "min-h-0 flex-1 overflow-y-auto overscroll-contain",
             )}
           >
-            <SearchResults
-              query={activeResultsQuery}
-              hideTitle={isDialog}
-              onNavigate={isDialog ? onAfterNavigation : undefined}
-            />
+            {isQueryDebouncing ? (
+              <SearchResultsSkeleton count={5} variant="row" />
+            ) : (
+              <SearchResults
+                query={activeResultsQuery}
+                hideTitle={isDialog}
+                onNavigate={isDialog ? onAfterNavigation : undefined}
+                peopleSelectionMode={isDialog ? "select" : "navigate"}
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

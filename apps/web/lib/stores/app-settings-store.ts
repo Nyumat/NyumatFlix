@@ -12,6 +12,12 @@ import {
   readAmbientGlowClient,
 } from "@/lib/user/ambient-glow-store";
 import { persistCatalogCardStyleClient } from "@/lib/user/catalog-card-style-store";
+import {
+  persistDisableHeroTrailersClient,
+  persistDisableHoverSoundClient,
+  readDisableHeroTrailersClient,
+  readDisableHoverSoundClient,
+} from "@/lib/user/browse-preferences-store";
 import { DEFAULT_EXPERIENCE_DEFAULTS } from "@/lib/flags/experience-defaults";
 import type { CatalogCardStyle } from "@/lib/user/user-settings-types";
 
@@ -49,14 +55,15 @@ export type {
 export const useAppSettingsStore = create<AppSettingsState>()((set) => ({
   ...DEFAULT_PLAYBACK_PREFERENCES,
   noAdsMode: false,
-  disableHeroTrailers: false,
+  disableHeroTrailers: readDisableHeroTrailersClient() ?? false,
   // Slice runs during SSR too — resolve persisted prefs lazily on the client
   // so first paint already matches (no mid-scroll / settings flip).
   ambientGlow: readAmbientGlowClient() ?? false,
-  disableHoverSound: true,
+  disableHoverSound: readDisableHoverSoundClient() ?? true,
   catalogCardStyle: DEFAULT_EXPERIENCE_DEFAULTS.catalogCardStyle,
   setNoAdsMode: (enabled) => set({ noAdsMode: enabled }),
   setDisableHeroTrailers: (enabled) => {
+    persistDisableHeroTrailersClient(enabled);
     set({ disableHeroTrailers: enabled });
     void patchUserSettings({ disableHeroTrailers: enabled });
   },
@@ -66,6 +73,7 @@ export const useAppSettingsStore = create<AppSettingsState>()((set) => ({
     void patchUserSettings({ ambientGlow: enabled });
   },
   setDisableHoverSound: (enabled) => {
+    persistDisableHoverSoundClient(enabled);
     set({ disableHoverSound: enabled });
     void patchUserSettings({ disableHoverSound: enabled });
   },

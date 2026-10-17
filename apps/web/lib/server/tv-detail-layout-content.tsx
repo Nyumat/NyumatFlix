@@ -124,10 +124,10 @@ type CachedTvShowDetailLayoutData = {
   heroDetails: TvShowDetails;
 };
 
-async function loadCachedTvShowDetailLayout(
+async function getCachedTvShowDetailLayoutData(
   id: string,
   routeNamespace: "anime" | "tv",
-): Promise<CachedTvShowDetailLayoutData> {
+): Promise<CachedTvShowDetailLayoutData | null> {
   "use cache";
   applyCatalogHourCacheLife();
 
@@ -136,7 +136,7 @@ async function loadCachedTvShowDetailLayout(
   }).catch(() => null)) as TvShowDetails | null;
 
   if (!details) {
-    notFound();
+    return null;
   }
 
   const overrides = await getHeroBackdropOverrides();
@@ -155,6 +155,17 @@ async function loadCachedTvShowDetailLayout(
   });
 
   return { details, heroDetails };
+}
+
+async function loadCachedTvShowDetailLayout(
+  id: string,
+  routeNamespace: "anime" | "tv",
+): Promise<CachedTvShowDetailLayoutData> {
+  const cached = await getCachedTvShowDetailLayoutData(id, routeNamespace);
+  if (!cached) {
+    notFound();
+  }
+  return cached;
 }
 
 async function TvShowDetailLayoutBody({

@@ -6,6 +6,7 @@ import {
   Layers3,
   LayoutGrid,
   RadioTower,
+  ScrollText,
   Tv,
   Users,
   type LucideIcon,
@@ -19,6 +20,7 @@ export const parentIcons: Record<string, LucideIcon> = {
   People: Users,
   Collections: Layers3,
   Trending: Flame,
+  Manifesto: ScrollText,
 };
 
 export const getNavIcon = (item: NavItem) =>
@@ -48,6 +50,7 @@ export const isInNavGroup = (
   if (item.href === "/anime") return pathname.startsWith("/anime");
   if (item.href === "/collections") return pathname.startsWith("/collections");
   if (item.href === "/live") return pathname.startsWith("/live");
+  if (item.href === "/manifesto") return pathname === "/manifesto";
 
   return false;
 };

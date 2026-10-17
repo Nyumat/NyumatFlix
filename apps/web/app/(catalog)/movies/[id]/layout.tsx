@@ -96,19 +96,19 @@ type CachedMovieDetailLayoutData = {
   dehydratedState: ReturnType<typeof dehydrate>;
 };
 
-async function loadCachedMovieDetailLayout(
+async function getCachedMovieDetailLayoutData(
   id: string,
-): Promise<CachedMovieDetailLayoutData> {
+): Promise<CachedMovieDetailLayoutData | null> {
   "use cache";
   applyCatalogHourCacheLife();
 
   const movie = await getCachedMovieDetail(id);
 
   if (!movie || !("title" in movie)) {
-    notFound();
+    return null;
   }
   if ("adult" in movie && movie.adult) {
-    notFound();
+    return null;
   }
 
   const numericMovieId = Number.parseInt(id, 10);
@@ -131,6 +131,16 @@ async function loadCachedMovieDetailLayout(
     isUpcoming,
     dehydratedState: dehydrate(queryClient),
   };
+}
+
+async function loadCachedMovieDetailLayout(
+  id: string,
+): Promise<CachedMovieDetailLayoutData> {
+  const cached = await getCachedMovieDetailLayoutData(id);
+  if (!cached) {
+    notFound();
+  }
+  return cached;
 }
 
 async function MovieDetailLayoutContent({

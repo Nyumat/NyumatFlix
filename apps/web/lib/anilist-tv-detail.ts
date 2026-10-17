@@ -387,6 +387,11 @@ export const collectEpisodeNumbers = (media: AniListTvMedia): number[] => {
   return [...numbers].sort((a, b) => a - b);
 };
 
+/** Franchise sequel entries with no aired episodes yet (e.g. announced seasons). */
+export const isBrowsableFranchiseSeason = (
+  media: AniListTvMedia | null | undefined,
+): boolean => media != null && collectEpisodeNumbers(media).length > 0;
+
 const buildEpisodes = (media: AniListTvMedia): Episode[] => {
   const episodeNumbers = collectEpisodeNumbers(media);
   if (episodeNumbers.length === 0) return [];
@@ -554,7 +559,14 @@ const mapResolvedShowToDetails = (
     getAniListPoster(asAniListMedia(entry)) ??
     null;
   const backdrop = getBackdrop(root, entry);
-  const seasons = franchise.seasons.map(({ anilistId, seasonNumber }) => {
+  const visibleFranchiseSeasons = franchise.seasons.filter(({ anilistId }) =>
+    isBrowsableFranchiseSeason(seasonsByAnilistId.get(anilistId)),
+  );
+  const seasons = (
+    visibleFranchiseSeasons.length > 0
+      ? visibleFranchiseSeasons
+      : franchise.seasons
+  ).map(({ anilistId, seasonNumber }) => {
     const media = seasonsByAnilistId.get(anilistId);
     if (!media) {
       return buildSeason(entry, seasonNumber);

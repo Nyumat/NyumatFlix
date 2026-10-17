@@ -19,6 +19,7 @@ export type CatalogMovieCard = CatalogCardPreviewFields & {
   media_type: "movie";
   title: string;
   overview: string;
+  genre_ids?: number[];
   poster_path: string;
   backdrop_path?: string;
   localized_backdrop?: boolean;
@@ -36,6 +37,7 @@ export type CatalogTvCard = CatalogCardPreviewFields & {
   name: string;
   title: string;
   overview: string;
+  genre_ids?: number[];
   poster_path: string;
   backdrop_path?: string;
   localized_backdrop?: boolean;
@@ -78,6 +80,9 @@ export const toCatalogMovieCard = (
   media_type: "movie",
   title: movie.title,
   overview: movie.overview,
+  ...(Array.isArray(movie.genre_ids) && movie.genre_ids.length > 0
+    ? { genre_ids: movie.genre_ids }
+    : {}),
   poster_path: movie.poster_path,
   backdrop_path: movie.backdrop_path,
   release_date: movie.release_date,
@@ -101,6 +106,9 @@ export const toCatalogTvCard = (
   name: show.name,
   title: show.name,
   overview: show.overview,
+  ...(Array.isArray(show.genre_ids) && show.genre_ids.length > 0
+    ? { genre_ids: show.genre_ids }
+    : {}),
   poster_path: show.poster_path,
   backdrop_path: show.backdrop_path,
   first_air_date: show.first_air_date,
@@ -212,7 +220,7 @@ export const catalogMovieToMediaItem = (
   vote_count: card.vote_count ?? 0,
   adult: false,
   overview: card.overview,
-  genre_ids: [],
+  genre_ids: card.genre_ids ?? [],
   original_title: card.title,
   original_language: "",
   popularity: 0,
@@ -243,7 +251,7 @@ export const catalogTvToMediaItem = (
   vote_average: card.vote_average,
   vote_count: card.vote_count ?? 0,
   overview: card.overview,
-  genre_ids: [],
+  genre_ids: card.genre_ids ?? [],
   original_language: "",
   original_name: card.name,
   origin_country: [],
@@ -365,6 +373,7 @@ export type SlimmableMediaItem = {
   title?: string;
   name?: string;
   overview?: string;
+  genre_ids?: number[];
   poster_path?: string | null;
   backdrop_path?: string | null;
   localized_backdrop?: boolean;
@@ -429,6 +438,9 @@ export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
             name: item.name ?? title,
             title,
             overview: item.overview ?? "",
+            ...(Array.isArray(item.genre_ids) && item.genre_ids.length > 0
+              ? { genre_ids: item.genre_ids }
+              : {}),
             poster_path: item.poster_path ?? "",
             backdrop_path: item.backdrop_path ?? undefined,
             localized_backdrop: item.localized_backdrop,
@@ -444,6 +456,9 @@ export const slimMediaItemsForRsc = <T extends SlimmableMediaItem>(
             media_type: "movie",
             title,
             overview: item.overview ?? "",
+            ...(Array.isArray(item.genre_ids) && item.genre_ids.length > 0
+              ? { genre_ids: item.genre_ids }
+              : {}),
             poster_path: item.poster_path ?? "",
             backdrop_path: item.backdrop_path ?? undefined,
             localized_backdrop: item.localized_backdrop,

@@ -17,11 +17,11 @@ export const FooterSection = () => {
       aria-label="Site footer"
     >
       <div className="container mx-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-4">
-        <div className="hidden sm:flex sm:items-center sm:justify-between lg:gap-3">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between lg:gap-3">
           <BrandLogo placement="footer" />
 
           <div className="flex flex-wrap items-center justify-start gap-3 sm:justify-end sm:gap-4 lg:gap-5">
-            <nav aria-label="Explore" className="hidden sm:block">
+            <nav aria-label="Explore" className="block">
               <ul
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 md:gap-x-4 lg:gap-x-5"
                 role="list"

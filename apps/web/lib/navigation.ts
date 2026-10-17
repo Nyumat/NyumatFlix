@@ -1,16 +1,16 @@
-import { navigation, type NavItem } from "@/config/site";
+import { liveTvNavItem, navigation, type NavItem } from "@/config/site";
 
-const LIVE_TV_ITEM: NavItem = {
-  title: "Live TV",
-  href: "/live",
+const MANIFESTO_ITEM: NavItem = {
+  title: "Manifesto",
+  href: "/manifesto",
 };
 
 export function getNavigationItems(liveTvEnabled: boolean): NavItem[] {
-  if (!liveTvEnabled) {
-    return navigation.items;
-  }
   const items = [...navigation.items];
-  items.splice(3, 0, LIVE_TV_ITEM);
+  if (liveTvEnabled) {
+    items.push(liveTvNavItem);
+  }
+  items.push(MANIFESTO_ITEM);
   return items;
 }
 

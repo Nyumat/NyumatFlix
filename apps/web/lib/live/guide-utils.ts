@@ -52,6 +52,33 @@ export const toPlayableLiveGuide = (
     guideComplete: guide.guideComplete,
   });
 
+const scheduleMatchKey = (channel: LiveChannel) =>
+  channel.searchText.replace(/\s+/g, " ").trim();
+
+/** Attach open-guide EPG rows onto channels that shipped without schedules (e.g. Dulo). */
+export const mergeProgramSchedules = (
+  channels: LiveChannel[],
+  donors: LiveChannel[],
+): LiveChannel[] => {
+  const programsByKey = new Map<string, LiveChannel["programs"]>();
+
+  for (const donor of donors) {
+    if (!donor.programs?.length) {
+      continue;
+    }
+    programsByKey.set(scheduleMatchKey(donor), donor.programs);
+  }
+
+  return channels.map((channel) => {
+    if (channel.programs?.length) {
+      return channel;
+    }
+
+    const programs = programsByKey.get(scheduleMatchKey(channel));
+    return programs?.length ? { ...channel, programs } : channel;
+  });
+};
+
 export const dedupeLiveChannels = (channels: LiveChannel[]) => {
   const bySourceUrl = new Map<string, LiveChannel>();
   const byId = new Map<string, LiveChannel>();

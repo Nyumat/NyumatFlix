@@ -41,10 +41,12 @@ export default function SearchResults({
   query,
   hideTitle = false,
   onNavigate,
+  peopleSelectionMode = "select",
 }: {
   query: string;
   hideTitle?: boolean;
   onNavigate?: () => void;
+  peopleSelectionMode?: "select" | "navigate";
 }) {
   const [contentFilter, setContentFilter] =
     useState<SearchContentFilter>("all");
@@ -214,6 +216,7 @@ export default function SearchResults({
         totalPages={totalPages}
         loadMoreRef={loadMoreRef}
         onNavigate={onNavigate}
+        peopleSelectionMode={peopleSelectionMode}
       />
     </div>
   );
